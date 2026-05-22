@@ -8,7 +8,7 @@ export default defineConfig({
   plugins: [react()],
   root: 'src/spa',
   build: {
-    outDir: '../../dist',
+    outDir: '../../dist-app',
     emptyOutDir: true,
   },
 });

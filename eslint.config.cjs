@@ -39,4 +39,11 @@ module.exports = [
       react: { version: 'detect' },
     },
   },
+  {
+    // packages/b-ark is the Electron shell — it may import from electron.
+    files: ['packages/b-ark/**/*.{ts,tsx}'],
+    rules: {
+      'no-restricted-imports': 'off',
+    },
+  },
 ];

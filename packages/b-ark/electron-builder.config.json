@@ -1,0 +1,41 @@
+{
+  "appId": "co.salientpoint.b-ark",
+  "productName": "b-ark",
+  "copyright": "Copyright © 2026 Ian Stevenson",
+  "directories": {
+    "output": "dist-electron",
+    "buildResources": "resources"
+  },
+  "files": ["dist/**/*", "package.json"],
+  "extraResources": [
+    { "from": "resources/", "to": "resources/" },
+    { "from": "../b-view/dist-app/", "to": "b-view/" }
+  ],
+  "win": {
+    "target": [{ "target": "nsis", "arch": ["x64"] }],
+    "icon": "resources/icon.ico"
+  },
+  "nsis": {
+    "oneClick": false,
+    "allowToChangeInstallationDirectory": true,
+    "perMachine": false,
+    "installerIcon": "resources/icon.ico",
+    "uninstallerIcon": "resources/icon.ico",
+    "runAfterFinish": true
+  },
+  "mac": {
+    "target": "dmg",
+    "icon": "resources/icon.icns",
+    "category": "public.app-category.productivity",
+    "hardenedRuntime": true,
+    "entitlements": "resources/entitlements.mac.plist",
+    "entitlementsInherit": "resources/entitlements.mac.plist"
+  },
+  "publish": [
+    {
+      "provider": "github",
+      "owner": "ianstevenson",
+      "repo": "b-oss"
+    }
+  ]
+}
