@@ -1,0 +1,63 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+// Copyright (C) 2026 Ian Stevenson
+
+import type { PlatformIO } from './platform.js';
+import type { LogEntry } from './types.js';
+
+const LOG_FILENAME = '_log.ndjson';
+
+export class LogManager {
+  private readonly path: string;
+
+  constructor(
+    private readonly io: PlatformIO,
+    private readonly journalFolder: string,
+  ) {
+    this.path = `${this.journalFolder}/${LOG_FILENAME}`;
+  }
+
+  async append(entry: LogEntry): Promise<void> {
+    try {
+      const existing = await this.readAllRaw();
+      const line = JSON.stringify(entry);
+      const next = existing.length === 0 ? `${line}\n` : `${existing}${line}\n`;
+      await this.io.writeFile(this.path, next);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      this.io.log('warn', `Failed to append to log file: ${message}`, entry.account_id);
+    }
+  }
+
+  async readAll(): Promise<LogEntry[]> {
+    try {
+      const raw = await this.readAllRaw();
+      if (raw.length === 0) return [];
+      return raw
+        .split('\n')
+        .filter((line) => line.length > 0)
+        .map((line) => JSON.parse(line) as LogEntry);
+    } catch {
+      return [];
+    }
+  }
+
+  async trim(maxLines: number): Promise<void> {
+    try {
+      const entries = await this.readAll();
+      if (entries.length <= maxLines) return;
+      const kept = entries.slice(entries.length - maxLines);
+      const next = kept.map((e) => JSON.stringify(e)).join('\n') + '\n';
+      await this.io.writeFile(this.path, next);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      this.io.log('warn', `Failed to trim log file: ${message}`, '');
+    }
+  }
+
+  private async readAllRaw(): Promise<string> {
+    const exists = await this.io.fileExists(this.path);
+    if (!exists) return '';
+    const buf = await this.io.readFile(this.path);
+    return buf.toString();
+  }
+}
