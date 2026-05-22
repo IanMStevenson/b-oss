@@ -24,6 +24,20 @@ to enable, validate, and own the Mac build pipeline. See `.github/workflows/rele
 - Run `npm run typecheck && npm run lint` before submitting a PR
 - All names lowercase hyphenated: b-ark, b-view, b-oss
 
+## Contributions
+
+Contributions are accepted via pull request. Please run `npm run typecheck && npm run lint`
+before submitting.
+
+## Contributor Licence Agreement
+
+Before your pull request can be merged, you must agree to the
+[Contributor Licence Agreement](CLA.md). The CLA Assistant bot will prompt you
+to sign when you open a PR. You can sign by posting the following comment:
+
+> I have read the CLA Document and I hereby sign the CLA
+
 ## Licence
 
-By contributing you agree your contributions are licensed under GPLv3.
+This project is licensed under the GNU General Public Licence v3.0 or later (GPL-3.0-or-later).
+All contributions are made under that licence in accordance with the CLA.
