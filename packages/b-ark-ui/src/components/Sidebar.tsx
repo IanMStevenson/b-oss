@@ -3,11 +3,14 @@
 
 import { Search } from 'lucide-react';
 import { useApp } from '../context/AppContext.js';
+import { useToast } from '../hooks/useToast.js';
+import { addAccountWithToast } from '../lib/add-account-with-toast.js';
 import { AccountRow } from './AccountRow.js';
 import { SplitButton } from './SplitButton.js';
 
 export function Sidebar() {
   const { state, dispatch, backend } = useApp();
+  const showToast = useToast();
   const { store, selectedAccountId, panel, backupProgress } = state;
 
   if (!store) return null;
@@ -99,13 +102,13 @@ export function Sidebar() {
           variant="secondary"
           primaryLabel="+ Add account…"
           onPrimary={() => {
-            void backend.addAccount();
+            void addAccountWithToast(() => backend.addAccount(), showToast);
           }}
           menu={[
             {
               label: 'Sign in with a different account…',
               onSelect: () => {
-                void backend.addAccountFresh();
+                void addAccountWithToast(() => backend.addAccountFresh(), showToast);
               },
             },
           ]}

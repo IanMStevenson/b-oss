@@ -104,24 +104,53 @@ export function startOAuthFlowEmbedded(parent: BrowserWindow | null): Promise<st
     });
 
     win.on('closed', () => {
-      finish(() => {}, new Error('OAuth window closed by user'));
+      finish(() => {}, new OAuthCancelledError('Sign-in window closed'));
     });
 
     void win.loadURL(buildAuthorizeUrl(state));
   });
 }
 
-function extractTokenFromCallback(uri: string, expectedState: string): string {
-  const hashIndex = uri.indexOf('#');
-  if (hashIndex === -1) throw new Error('No fragment in OAuth callback URI');
-  const fragment = new URLSearchParams(uri.slice(hashIndex + 1));
+export class OAuthCancelledError extends Error {
+  readonly code = 'oauth_cancelled';
+  constructor(message = 'Sign-in cancelled') {
+    super(message);
+    this.name = 'OAuthCancelledError';
+  }
+}
 
-  const returnedState = fragment.get('state');
+function extractTokenFromCallback(uri: string, expectedState: string): string {
+  // The Blipfoto callback can come back with either a query string or a hash
+  // fragment depending on which path the flow took. Read both, hash wins.
+  const queryIndex = uri.indexOf('?');
+  const hashIndex = uri.indexOf('#');
+  const query =
+    queryIndex !== -1
+      ? new URLSearchParams(uri.slice(queryIndex + 1, hashIndex === -1 ? undefined : hashIndex))
+      : new URLSearchParams();
+  const fragment =
+    hashIndex !== -1 ? new URLSearchParams(uri.slice(hashIndex + 1)) : new URLSearchParams();
+  const params = new URLSearchParams();
+  for (const [k, v] of query) params.set(k, v);
+  for (const [k, v] of fragment) params.set(k, v);
+
+  // OAuth 2 error response — most common case is the user clicking "Cancel"
+  // on Blipfoto's authorisation page, which sends error=access_denied.
+  const errorCode = params.get('error');
+  if (errorCode !== null) {
+    if (errorCode === 'access_denied') {
+      throw new OAuthCancelledError();
+    }
+    const description = params.get('error_description') ?? errorCode;
+    throw new Error(`Blipfoto sign-in failed: ${description}`);
+  }
+
+  const returnedState = params.get('state');
   if (returnedState !== expectedState) {
     throw new Error('OAuth state mismatch — possible CSRF');
   }
 
-  const accessToken = fragment.get('access_token');
+  const accessToken = params.get('access_token');
   if (!accessToken) throw new Error('No access_token in OAuth callback');
   return accessToken;
 }

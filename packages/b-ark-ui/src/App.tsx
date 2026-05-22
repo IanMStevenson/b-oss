@@ -6,6 +6,7 @@ import type { BackendContext } from './backend.js';
 import { AppProvider, useApp } from './context/AppContext.js';
 import { TopBar } from './components/TopBar.js';
 import { Sidebar } from './components/Sidebar.js';
+import { ToastHost } from './components/ToastHost.js';
 import { FirstOpenScreen } from './components/screens/FirstOpenScreen.js';
 import { OAuthSuccessScreen } from './components/screens/OAuthSuccessScreen.js';
 import { HomeScreen } from './components/screens/HomeScreen.js';
@@ -87,6 +88,8 @@ function AppRoot() {
           </div>
         </div>
       )}
+
+      <ToastHost />
     </div>
   );
 }

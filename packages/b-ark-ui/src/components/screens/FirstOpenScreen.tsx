@@ -3,10 +3,13 @@
 
 import { Archive, Shield } from 'lucide-react';
 import { useApp } from '../../context/AppContext.js';
+import { useToast } from '../../hooks/useToast.js';
 import { SplitButton } from '../SplitButton.js';
+import { addAccountWithToast } from '../../lib/add-account-with-toast.js';
 
 export function FirstOpenScreen() {
   const { backend } = useApp();
+  const showToast = useToast();
 
   return (
     <div
@@ -73,13 +76,13 @@ export function FirstOpenScreen() {
           <SplitButton
             primaryLabel="+ Add account"
             onPrimary={() => {
-              void backend.addAccount();
+              void addAccountWithToast(() => backend.addAccount(), showToast);
             }}
             menu={[
               {
                 label: 'Sign in with a different account…',
                 onSelect: () => {
-                  void backend.addAccountFresh();
+                  void addAccountWithToast(() => backend.addAccountFresh(), showToast);
                 },
               },
             ]}

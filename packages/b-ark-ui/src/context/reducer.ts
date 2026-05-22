@@ -11,6 +11,12 @@ export interface BackupProgress {
   rate_limited_seconds: number | null;
 }
 
+export interface Toast {
+  id: string;
+  level: 'info' | 'warn' | 'error';
+  message: string;
+}
+
 export interface AppState {
   store: AppStore | null;
   selectedAccountId: string | null;
@@ -20,6 +26,7 @@ export interface AppState {
   backupProgress: Record<string, BackupProgress>;
   logBuffer: Record<string, LogEntry[]>;
   justConnected: string | null;
+  toasts: Toast[];
 }
 
 export type AppAction =
@@ -42,7 +49,9 @@ export type AppAction =
   | { type: 'backup:completed'; account_id: string }
   | { type: 'backup:failed'; account_id: string }
   | { type: 'log:entry'; account_id: string; entry: LogEntry }
-  | { type: 'just_connected:clear' };
+  | { type: 'just_connected:clear' }
+  | { type: 'toast:show'; toast: Toast }
+  | { type: 'toast:dismiss'; id: string };
 
 const LOG_BUFFER_MAX = 500;
 
@@ -55,6 +64,7 @@ export const initialState: AppState = {
   backupProgress: {},
   logBuffer: {},
   justConnected: null,
+  toasts: [],
 };
 
 export function reducer(state: AppState, action: AppAction): AppState {
@@ -172,6 +182,12 @@ export function reducer(state: AppState, action: AppAction): AppState {
 
     case 'just_connected:clear':
       return { ...state, justConnected: null };
+
+    case 'toast:show':
+      return { ...state, toasts: [...state.toasts, action.toast] };
+
+    case 'toast:dismiss':
+      return { ...state, toasts: state.toasts.filter((t) => t.id !== action.id) };
 
     default:
       return state;
