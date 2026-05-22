@@ -6,6 +6,7 @@ import type { AccountConfig, MainEvent } from '@b-oss/b-ark-ui';
 
 contextBridge.exposeInMainWorld('api', {
   addAccount: () => ipcRenderer.invoke('addAccount'),
+  addAccountFresh: () => ipcRenderer.invoke('addAccountFresh'),
   removeAccount: (id: string) => ipcRenderer.invoke('removeAccount', id),
   reauthoriseAccount: (id: string) => ipcRenderer.invoke('reauthoriseAccount', id),
   startBackup: (id: string) => ipcRenderer.invoke('startBackup', id),

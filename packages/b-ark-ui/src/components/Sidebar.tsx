@@ -4,6 +4,7 @@
 import { Search } from 'lucide-react';
 import { useApp } from '../context/AppContext.js';
 import { AccountRow } from './AccountRow.js';
+import { SplitButton } from './SplitButton.js';
 
 export function Sidebar() {
   const { state, dispatch, backend } = useApp();
@@ -94,31 +95,21 @@ export function Sidebar() {
 
       {/* Footer */}
       <div style={{ padding: '8px 8px 12px' }}>
-        <button
-          onClick={() => {
+        <SplitButton
+          variant="secondary"
+          primaryLabel="+ Add account…"
+          onPrimary={() => {
             void backend.addAccount();
           }}
-          style={{
-            width: '100%',
-            padding: '8px 12px',
-            borderRadius: 7,
-            border: '1px solid var(--line)',
-            color: 'var(--green-700)',
-            fontSize: 13,
-            fontWeight: 500,
-            background: 'transparent',
-            cursor: 'pointer',
-            textAlign: 'center',
-          }}
-          onMouseEnter={(e) => {
-            (e.currentTarget as HTMLButtonElement).style.background = 'var(--green-50)';
-          }}
-          onMouseLeave={(e) => {
-            (e.currentTarget as HTMLButtonElement).style.background = 'transparent';
-          }}
-        >
-          + Add account…
-        </button>
+          menu={[
+            {
+              label: 'Sign in with a different account…',
+              onSelect: () => {
+                void backend.addAccountFresh();
+              },
+            },
+          ]}
+        />
       </div>
     </div>
   );

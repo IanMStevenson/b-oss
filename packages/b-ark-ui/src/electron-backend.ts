@@ -7,6 +7,7 @@ declare global {
   interface Window {
     api: {
       addAccount(): Promise<void>;
+      addAccountFresh(): Promise<void>;
       removeAccount(id: string): Promise<void>;
       reauthoriseAccount(id: string): Promise<void>;
       startBackup(id: string): Promise<void>;
@@ -24,6 +25,7 @@ declare global {
 
 export class ElectronBackend implements BackendContext {
   addAccount = () => window.api.addAccount();
+  addAccountFresh = () => window.api.addAccountFresh();
   removeAccount = (id: string) => window.api.removeAccount(id);
   reauthoriseAccount = (id: string) => window.api.reauthoriseAccount(id);
   startBackup = (id: string) => window.api.startBackup(id);

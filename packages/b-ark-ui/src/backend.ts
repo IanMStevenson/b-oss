@@ -62,6 +62,7 @@ export type MainEvent =
 
 export interface BackendContext {
   addAccount(): Promise<void>;
+  addAccountFresh(): Promise<void>;
   removeAccount(accountId: string): Promise<void>;
   reauthoriseAccount(accountId: string): Promise<void>;
 

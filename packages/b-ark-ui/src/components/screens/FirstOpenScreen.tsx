@@ -3,6 +3,7 @@
 
 import { Archive, Shield } from 'lucide-react';
 import { useApp } from '../../context/AppContext.js';
+import { SplitButton } from '../SplitButton.js';
 
 export function FirstOpenScreen() {
   const { backend } = useApp();
@@ -68,32 +69,22 @@ export function FirstOpenScreen() {
           metadata — written to disk in folders you control.
         </p>
 
-        <button
-          onClick={() => {
-            void backend.addAccount();
-          }}
-          style={{
-            height: 38,
-            padding: '0 24px',
-            borderRadius: 7,
-            background: 'var(--green-800)',
-            color: 'white',
-            fontSize: 14,
-            fontWeight: 600,
-            cursor: 'pointer',
-            border: 'none',
-            width: '100%',
-            marginBottom: 16,
-          }}
-          onMouseEnter={(e) => {
-            (e.currentTarget as HTMLButtonElement).style.background = 'var(--green-700)';
-          }}
-          onMouseLeave={(e) => {
-            (e.currentTarget as HTMLButtonElement).style.background = 'var(--green-800)';
-          }}
-        >
-          + Add account
-        </button>
+        <div style={{ width: '100%', marginBottom: 16 }}>
+          <SplitButton
+            primaryLabel="+ Add account"
+            onPrimary={() => {
+              void backend.addAccount();
+            }}
+            menu={[
+              {
+                label: 'Sign in with a different account…',
+                onSelect: () => {
+                  void backend.addAccountFresh();
+                },
+              },
+            ]}
+          />
+        </div>
 
         <div
           style={{

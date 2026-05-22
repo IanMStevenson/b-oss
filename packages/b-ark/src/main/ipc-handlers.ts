@@ -7,7 +7,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { BlipfotoClient } from '@b-oss/blipfoto-api';
 import { BackupEngine, JournalIndex, LogManager } from '@b-oss/backup-engine';
 import type { AccountConfig, MainEvent, LogEntry } from '@b-oss/b-ark-ui';
-import { startOAuthFlow, encryptToken, decryptToken } from './oauth.js';
+import { startOAuthFlow, startOAuthFlowEmbedded, encryptToken, decryptToken } from './oauth.js';
 import {
   getAccounts,
   getAccount,
@@ -138,10 +138,28 @@ export function registerIpcHandlers(
   // Expose for scheduler fire-and-forget invocations
   scheduler;
 
-  ipcMain.handle('addAccount', async () => {
-    const rawToken = await startOAuthFlow();
+  async function performAddAccount(rawToken: string): Promise<void> {
     const client = new BlipfotoClient(rawToken);
     const profile = await client.getUserProfile({ returnDetails: true });
+
+    // If this user already has an account configured, treat it as a reauth
+    // refresh of the token rather than creating a duplicate.
+    const existing = getAccounts().find((a) => a.username === profile.user.username);
+    if (existing) {
+      saveAccount({
+        ...existing,
+        access_token: encryptToken(rawToken),
+        journal_entry_total: profile.details?.entry_total ?? existing.journal_entry_total,
+        avatar_url: profile.user.avatar_url,
+        journal_title: profile.details?.journal_title ?? existing.journal_title,
+        rag_state: 'amber',
+        error_message: null,
+      });
+      const reloaded = getAccount(existing.id);
+      if (reloaded) scheduler.schedule(reloaded);
+      emitStoreChanged();
+      return;
+    }
 
     const account: AccountConfig = {
       id: uuidv4(),
@@ -171,6 +189,16 @@ export function registerIpcHandlers(
     store.set('ui', { ...ui, accountOrder: [...ui.accountOrder, account.id] });
 
     emitStoreChanged();
+  }
+
+  ipcMain.handle('addAccount', async () => {
+    const rawToken = await startOAuthFlow();
+    await performAddAccount(rawToken);
+  });
+
+  ipcMain.handle('addAccountFresh', async () => {
+    const rawToken = await startOAuthFlowEmbedded(getMainWindow());
+    await performAddAccount(rawToken);
   });
 
   ipcMain.handle('removeAccount', (_event, id: string) => {
