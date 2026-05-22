@@ -18,6 +18,7 @@ export interface AccountConfig {
   api_delay_ms: number;
   last_backup_at: string | null;
   total_archived: number;
+  journal_entry_total: number;
   rag_state: 'green' | 'amber' | 'red';
   error_message: string | null;
 }

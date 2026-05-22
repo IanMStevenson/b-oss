@@ -5,7 +5,7 @@ import path from 'node:path';
 import { ipcMain, type BrowserWindow, dialog, shell, app } from 'electron';
 import { v4 as uuidv4 } from 'uuid';
 import { BlipfotoClient } from '@b-oss/blipfoto-api';
-import { BackupEngine, LogManager } from '@b-oss/backup-engine';
+import { BackupEngine, JournalIndex, LogManager } from '@b-oss/backup-engine';
 import type { AccountConfig, MainEvent, LogEntry } from '@b-oss/b-ark-ui';
 import { startOAuthFlow, encryptToken, decryptToken } from './oauth.js';
 import {
@@ -92,9 +92,13 @@ export function registerIpcHandlers(
 
       const updated = getAccount(id);
       if (updated) {
+        const journalFolder = path.join(updated.backup_folder, updated.username);
+        const journal = await new JournalIndex(pio, journalFolder).load();
         saveAccount({
           ...updated,
           last_backup_at: new Date().toISOString(),
+          total_archived: journal?.entries.length ?? updated.total_archived,
+          journal_entry_total: journal?.entry_total ?? updated.journal_entry_total,
           rag_state: 'green',
           error_message: null,
           schedule: {
@@ -156,6 +160,7 @@ export function registerIpcHandlers(
       api_delay_ms: 0,
       last_backup_at: null,
       total_archived: 0,
+      journal_entry_total: profile.details?.entry_total ?? 0,
       rag_state: 'amber',
       error_message: null,
     };
@@ -186,9 +191,12 @@ export function registerIpcHandlers(
     const account = getAccount(id);
     if (!account) throw new Error(`Account ${id} not found`);
     const rawToken = await startOAuthFlow();
+    const client = new BlipfotoClient(rawToken);
+    const profile = await client.getUserProfile({ returnDetails: true });
     saveAccount({
       ...account,
       access_token: encryptToken(rawToken),
+      journal_entry_total: profile.details?.entry_total ?? account.journal_entry_total,
       rag_state: 'amber',
       error_message: null,
     });

@@ -137,7 +137,7 @@ export function OAuthSuccessScreen({ account }: OAuthSuccessScreenProps) {
             </div>
             <div style={{ marginTop: 8 }}>
               <span style={{ fontSize: 16, fontWeight: 600 }}>
-                {account.total_archived.toLocaleString()}
+                {account.journal_entry_total.toLocaleString()}
               </span>
               <span
                 style={{

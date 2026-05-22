@@ -8,7 +8,7 @@
   ],
   "scripts": {
     "build": "npm run build --workspaces --if-present",
-    "typecheck": "tsc --build packages/blipfoto-api packages/backup-engine packages/b-view packages/b-ark-ui packages/b-ark",
+    "typecheck": "tsc --build packages/blipfoto-api packages/backup-engine packages/b-ark-ui packages/b-ark && tsc -p packages/b-view --noEmit",
     "lint": "eslint \"packages/**/*.{ts,tsx}\" --max-warnings 0",
     "test": "vitest run",
     "test:watch": "vitest",
