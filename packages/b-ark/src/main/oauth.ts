@@ -111,11 +111,18 @@ export function startOAuthFlowEmbedded(parent: BrowserWindow | null): Promise<st
   });
 }
 
+/**
+ * Class name (`error.name`) used to signal user-driven cancellation across IPC.
+ * Electron's ipcMain.handle preserves the Error's `name` field on the renderer
+ * side, so the renderer can detect cancellations reliably without relying on
+ * message-text matching.
+ */
+export const OAUTH_CANCELLED_NAME = 'OAuthCancelledError';
+
 export class OAuthCancelledError extends Error {
-  readonly code = 'oauth_cancelled';
   constructor(message = 'Sign-in cancelled') {
     super(message);
-    this.name = 'OAuthCancelledError';
+    this.name = OAUTH_CANCELLED_NAME;
   }
 }
 
