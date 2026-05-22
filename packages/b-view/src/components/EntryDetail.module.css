@@ -1,0 +1,208 @@
+/* SPDX-License-Identifier: GPL-3.0-or-later */
+/* Copyright (C) 2026 Ian Stevenson */
+
+.wrapper {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  overflow: hidden;
+}
+
+.centred {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.spinner {
+  animation: spin 1s linear infinite;
+}
+
+.errorState {
+  color: var(--rag-red);
+  gap: 8px;
+}
+
+/* Navigation header */
+.navHeader {
+  display: flex;
+  align-items: center;
+  padding: 6px 16px;
+  border-bottom: 1px solid var(--line);
+  min-height: 44px;
+  gap: 8px;
+}
+
+.navLeft {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.navRight {
+  display: flex;
+  align-items: center;
+}
+
+.navBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 8px;
+  border-radius: 4px;
+  color: var(--ink-2);
+  cursor: pointer;
+}
+
+.navBtn:hover:not(:disabled) {
+  background: var(--line-2);
+}
+
+.navTitle {
+  flex: 1;
+  display: flex;
+  align-items: baseline;
+  justify-content: center;
+  gap: 8px;
+  overflow: hidden;
+}
+
+.navDate {
+  font-family: monospace;
+  font-size: 12px;
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+.navEntryTitle {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--ink-2);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Photo */
+.photoContainer {
+  background: var(--photo-bg);
+  width: 100%;
+  max-height: 70vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  position: relative;
+}
+
+.photo {
+  object-fit: contain;
+  max-width: 100%;
+  max-height: 70vh;
+  display: block;
+  position: relative;
+  z-index: 0;
+}
+
+.photoHalf {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 50%;
+  z-index: 1;
+}
+
+.photoHalfLeft {
+  left: 0;
+  cursor: w-resize;
+}
+
+.photoHalfRight {
+  right: 0;
+  cursor: e-resize;
+}
+
+/* Metadata */
+.metaScroll {
+  flex: 1;
+  overflow-y: auto;
+}
+
+.metaInner {
+  max-width: 780px;
+  margin: 0 auto;
+  padding: 24px;
+}
+
+.description {
+  font-size: 14px;
+  line-height: 1.6;
+  color: var(--ink-2);
+  margin-bottom: 16px;
+}
+
+.tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 16px;
+}
+
+.tag {
+  background: var(--green-100);
+  color: var(--green-800);
+  border-radius: 14px;
+  padding: 4px 10px;
+  font-size: 12px;
+}
+
+.stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  margin-bottom: 16px;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.statItem {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+/* EXIF */
+.exifDetails {
+  margin-top: 16px;
+}
+
+.exifSummary {
+  font-size: 12px;
+  color: var(--muted);
+  font-weight: 600;
+  margin-bottom: 8px;
+}
+
+.exifGrid {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: 4px 12px;
+  font-family: monospace;
+  font-size: 12px;
+  margin-top: 8px;
+}
+
+.exifLabel {
+  color: var(--muted);
+}
+
+.exifValue {
+  color: var(--ink-2);
+}
+
+.location {
+  margin-top: 16px;
+  font-size: 12px;
+  color: var(--muted);
+}

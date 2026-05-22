@@ -1,0 +1,103 @@
+/* SPDX-License-Identifier: GPL-3.0-or-later */
+/* Copyright (C) 2026 Ian Stevenson */
+
+.container {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  overflow: hidden;
+}
+
+.controls {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 8px 24px;
+  border-bottom: 1px solid var(--line-2);
+}
+
+.iconBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 4px;
+  color: var(--ink-2);
+}
+
+.iconBtn:hover {
+  background: var(--line-2);
+}
+
+.zoomLabel {
+  font-size: 12px;
+  color: var(--muted);
+  min-width: 36px;
+  text-align: center;
+}
+
+.scroll {
+  flex: 1;
+  overflow-y: auto;
+}
+
+.grid {
+  display: grid;
+  gap: 6px;
+  padding: 18px 24px;
+}
+
+.paginationRow {
+  display: flex;
+  justify-content: center;
+  padding: 12px 24px;
+}
+
+.thumb {
+  aspect-ratio: 1/1;
+  overflow: hidden;
+  border-radius: 2px;
+  outline: 2px solid transparent;
+  outline-offset: 1px;
+  position: relative;
+  background: var(--bg-alt);
+  padding: 0;
+  display: block;
+  width: 100%;
+  cursor: pointer;
+}
+
+.thumbSelected {
+  outline-color: var(--green-800);
+}
+
+.thumb::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(to top, rgba(0, 0, 0, 0.35) 0%, transparent 50%);
+  opacity: 0;
+  transition: opacity 140ms;
+  pointer-events: none;
+}
+
+.thumb:hover::after {
+  opacity: 1;
+}
+
+.thumbImg {
+  object-fit: cover;
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+.thumbPlaceholder {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg-alt);
+}
