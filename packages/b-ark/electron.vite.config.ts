@@ -5,8 +5,12 @@ import { defineConfig, externalizeDepsPlugin } from 'electron-vite';
 import react from '@vitejs/plugin-react';
 import { resolve } from 'node:path';
 
+// .env.local lives at the repo root (../..), not at packages/b-ark/.
+const envDir = resolve(__dirname, '../..');
+
 export default defineConfig({
   main: {
+    envDir,
     plugins: [externalizeDepsPlugin({ exclude: ['electron-store'] })],
     build: {
       outDir: 'dist/main',
@@ -16,6 +20,7 @@ export default defineConfig({
     },
   },
   preload: {
+    envDir,
     plugins: [externalizeDepsPlugin()],
     build: {
       outDir: 'dist/preload',
@@ -25,6 +30,7 @@ export default defineConfig({
     },
   },
   renderer: {
+    envDir,
     root: 'src/renderer',
     build: {
       outDir: '../../dist/renderer',
