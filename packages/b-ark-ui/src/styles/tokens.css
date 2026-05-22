@@ -1,0 +1,23 @@
+/* SPDX-License-Identifier: GPL-3.0-or-later */
+/* Copyright (C) 2026 Ian Stevenson */
+
+:root {
+  --green-900: #143729;
+  --green-800: #1f4d3a;
+  --green-700: #2a6347;
+  --green-100: #eef2ee;
+  --green-50: #f6f8f6;
+  --ink: #111111;
+  --ink-2: #2a2a2a;
+  --muted: #6b7280;
+  --muted-2: #9ca3af;
+  --line: #e5e7eb;
+  --line-2: #eeeeee;
+  --bg: #ffffff;
+  --bg-alt: #fafafa;
+  --photo-bg: #f0f0f0;
+  --rag-green: #22a06b;
+  --rag-amber: #e8a93c;
+  --rag-red: #d04545;
+  --blue-info: #2f6fd1;
+}
