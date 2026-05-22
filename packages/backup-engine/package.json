@@ -1,0 +1,19 @@
+{
+  "name": "@b-oss/backup-engine",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@b-oss/blipfoto-api": "*"
+  },
+  "devDependencies": {
+    "vitest": "^1.6.0"
+  }
+}

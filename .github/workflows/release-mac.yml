@@ -1,0 +1,27 @@
+# MAC BUILD — DISABLED
+# Requires a macOS runner and Apple code signing credentials.
+# Enable this workflow when a Mac contributor is available to own and validate it.
+# See CONTRIBUTING.md for details.
+#
+# name: Release (Mac)
+# on:
+#   push:
+#     tags: ['v*']
+# jobs:
+#   release-mac:
+#     runs-on: macos-latest
+#     steps:
+#       - uses: actions/checkout@v4
+#       - uses: actions/setup-node@v4
+#         with:
+#           node-version: '20'
+#           cache: 'npm'
+#       - run: npm ci
+#       - run: npm run build
+#       - env:
+#           VITE_BLIPFOTO_CLIENT_ID: ${{ secrets.BLIPFOTO_CLIENT_ID }}
+#           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+#           APPLE_ID: ${{ secrets.APPLE_ID }}
+#           APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
+#           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+#         run: npm run release --workspace=packages/b-ark

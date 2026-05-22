@@ -1,0 +1,25 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Electron Main",
+      "type": "node",
+      "request": "launch",
+      "cwd": "${workspaceFolder}/packages/b-ark",
+      "runtimeExecutable": "${workspaceFolder}/node_modules/.bin/electron",
+      "runtimeArgs": ["--inspect=5858", "."],
+      "windows": { "runtimeExecutable": "${workspaceFolder}/node_modules/.bin/electron.cmd" },
+      "env": { "NODE_ENV": "development" }
+    },
+    {
+      "name": "Vitest",
+      "type": "node",
+      "request": "launch",
+      "autoAttachChildProcesses": true,
+      "skipFiles": ["<node_internals>/**", "**/node_modules/**"],
+      "program": "${workspaceFolder}/node_modules/vitest/vitest.mjs",
+      "args": ["run", "--reporter=verbose"],
+      "smartStep": true
+    }
+  ]
+}
