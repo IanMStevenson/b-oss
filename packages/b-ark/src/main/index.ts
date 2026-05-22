@@ -11,6 +11,11 @@ import { BackupScheduler } from './scheduler.js';
 import { stopAllServers } from './http-server.js';
 import { getAccounts, store } from './store.js';
 
+// Name shown in OS dialogs ("Open b-ark?"), taskbar tooltip, userData dir, etc.
+// In packaged builds electron-builder sets this from productName; in dev we
+// override the default 'Electron' here.
+app.setName('b-ark');
+
 const gotLock = app.requestSingleInstanceLock();
 if (!gotLock) {
   app.quit();

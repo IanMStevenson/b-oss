@@ -26,6 +26,8 @@ export default defineConfig({
       outDir: 'dist/preload',
       rollupOptions: {
         input: { index: resolve(__dirname, 'src/preload/index.ts') },
+        // Electron loads preload scripts as CommonJS even with contextIsolation.
+        output: { format: 'cjs', entryFileNames: '[name].js' },
       },
     },
   },
