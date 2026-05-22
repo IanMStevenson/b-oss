@@ -1,0 +1,5 @@
+{
+  "permissions": {
+    "allow": ["Bash(npm view *)", "PowerShell(npm install 2>&1)", "PowerShell(npm run lint 2>&1)"]
+  }
+}

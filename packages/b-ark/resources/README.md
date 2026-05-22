@@ -25,24 +25,31 @@ The `.icns` and `.plist` are only required when building for macOS (`electron-bu
 
 ## Rebuilding `icon.ico` from PNG sources
 
-The seven PNGs in `icon-ico/` cover the Microsoft-recommended size set. The small sizes (16, 24, 32) are hand-simplified — no shadow, chunkier glyph — so the `b` stays legible at toolbar / Explorer-tiny scale.
-
-### ImageMagick
-
-```bash
-cd packages/b-ark/resources/icon-ico
-magick convert icon-16.png icon-24.png icon-32.png icon-48.png icon-64.png icon-128.png icon-256.png ../icon.ico
-```
+The seven PNGs in `icon-ico/` cover the Microsoft-recommended size set (`16.png`, `24.png`, `32.png`, `48.png`, `64.png`, `128.png`, `256.png`). The small sizes (16, 24, 32) are hand-simplified — no shadow, chunkier glyph — so the `b` stays legible at toolbar / Explorer-tiny scale.
 
 ### png-to-ico (Node, no external dependency)
 
+The `png-to-ico` CLI silently drops sizes ≥64 px on some platforms, so call the library programmatically instead. From any temp directory:
+
 ```bash
-npx png-to-ico icon-16.png icon-24.png icon-32.png icon-48.png icon-64.png icon-128.png icon-256.png > ../icon.ico
+npm install png-to-ico
+node -e "
+const fn = require('png-to-ico').default;
+const fs = require('fs'); const p = require('path');
+const base = p.resolve('<repo>/packages/b-ark/resources/icon-ico');
+const files = ['16','24','32','48','64','128','256'].map(s => p.join(base, s + '.png'));
+fn(files).then(b => fs.writeFileSync(p.resolve('<repo>/packages/b-ark/resources/icon.ico'), b));
+"
 ```
 
-### PowerShell (no tooling required)
+Verify with `file packages/b-ark/resources/icon.ico` — should report `MS Windows icon resource - 7 icons`.
 
-The current `icon.ico` was built directly in PowerShell by packing each PNG as a payload inside an ICO container. See conversation history if it needs to be regenerated that way again.
+### ImageMagick (alternative)
+
+```bash
+cd packages/b-ark/resources/icon-ico
+magick convert 16.png 24.png 32.png 48.png 64.png 128.png 256.png ../icon.ico
+```
 
 ## Building `icon.icns` from `icon.iconset/`
 

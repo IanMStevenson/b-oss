@@ -92,12 +92,12 @@ function IconBtn({
         cursor: 'pointer',
       }}
       onMouseEnter={(e) => {
-        (e.currentTarget as HTMLButtonElement).style.background = 'var(--green-100)';
-        (e.currentTarget as HTMLButtonElement).style.color = 'var(--green-800)';
+        e.currentTarget.style.background = 'var(--green-100)';
+        e.currentTarget.style.color = 'var(--green-800)';
       }}
       onMouseLeave={(e) => {
-        (e.currentTarget as HTMLButtonElement).style.background = 'transparent';
-        (e.currentTarget as HTMLButtonElement).style.color = 'var(--ink-2)';
+        e.currentTarget.style.background = 'transparent';
+        e.currentTarget.style.color = 'var(--ink-2)';
       }}
     >
       {children}

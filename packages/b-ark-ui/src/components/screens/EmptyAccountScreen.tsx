@@ -114,10 +114,10 @@ export function EmptyAccountScreen({ account }: EmptyAccountScreenProps) {
               cursor: 'pointer',
             }}
             onMouseEnter={(e) => {
-              (e.currentTarget as HTMLButtonElement).style.background = 'var(--green-700)';
+              e.currentTarget.style.background = 'var(--green-700)';
             }}
             onMouseLeave={(e) => {
-              (e.currentTarget as HTMLButtonElement).style.background = 'var(--green-800)';
+              e.currentTarget.style.background = 'var(--green-800)';
             }}
           >
             Run first backup

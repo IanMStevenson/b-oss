@@ -135,9 +135,6 @@ export function registerIpcHandlers(
     }
   }
 
-  // Expose for scheduler fire-and-forget invocations
-  scheduler;
-
   async function performAddAccount(rawToken: string): Promise<void> {
     const client = new BlipfotoClient(rawToken);
     const profile = await client.getUserProfile({ returnDetails: true });

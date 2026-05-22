@@ -86,10 +86,10 @@ export function SplitButton({
             borderRadius: 0,
           }}
           onMouseEnter={(e) => {
-            (e.currentTarget as HTMLButtonElement).style.background = hoverBg;
+            e.currentTarget.style.background = hoverBg;
           }}
           onMouseLeave={(e) => {
-            (e.currentTarget as HTMLButtonElement).style.background = baseBg;
+            e.currentTarget.style.background = baseBg;
           }}
         >
           {primaryLabel}
@@ -107,10 +107,10 @@ export function SplitButton({
             borderRadius: 0,
           }}
           onMouseEnter={(e) => {
-            (e.currentTarget as HTMLButtonElement).style.background = hoverBg;
+            e.currentTarget.style.background = hoverBg;
           }}
           onMouseLeave={(e) => {
-            (e.currentTarget as HTMLButtonElement).style.background = baseBg;
+            e.currentTarget.style.background = baseBg;
           }}
         >
           <ChevronDown size={14} strokeWidth={2} />
@@ -153,10 +153,10 @@ export function SplitButton({
                 cursor: 'pointer',
               }}
               onMouseEnter={(e) => {
-                (e.currentTarget as HTMLButtonElement).style.background = 'var(--green-50)';
+                e.currentTarget.style.background = 'var(--green-50)';
               }}
               onMouseLeave={(e) => {
-                (e.currentTarget as HTMLButtonElement).style.background = 'transparent';
+                e.currentTarget.style.background = 'transparent';
               }}
             >
               {item.label}

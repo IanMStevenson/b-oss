@@ -1,11 +1,9 @@
 // @ts-check
 const tsPlugin = require('@typescript-eslint/eslint-plugin');
 const tsParser = require('@typescript-eslint/parser');
-const reactPlugin = require('eslint-plugin-react');
 const reactHooksPlugin = require('eslint-plugin-react-hooks');
-const importPlugin = require('eslint-plugin-import');
 
-/** @type {import('eslint').Linter.FlatConfig[]} */
+/** @type {import('eslint').Linter.Config[]} */
 module.exports = [
   {
     ignores: ['**/dist/**', '**/node_modules/**', '**/*.js', '**/*.cjs', '**/*.mjs', '**/electron.vite.config.ts', '**/vite.config.ts'],
@@ -18,9 +16,7 @@ module.exports = [
     },
     plugins: {
       '@typescript-eslint': tsPlugin,
-      'react': reactPlugin,
       'react-hooks': reactHooksPlugin,
-      'import': importPlugin,
     },
     rules: {
       ...tsPlugin.configs['recommended-type-checked'].rules,
@@ -34,9 +30,6 @@ module.exports = [
           { group: ['electron'], message: 'Only packages/b-ark may import from electron.' }
         ]
       }],
-    },
-    settings: {
-      react: { version: 'detect' },
     },
   },
   {
