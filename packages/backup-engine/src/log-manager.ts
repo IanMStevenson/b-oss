@@ -22,9 +22,8 @@ export class LogManager {
       const line = JSON.stringify(entry);
       const next = existing.length === 0 ? `${line}\n` : `${existing}${line}\n`;
       await this.io.writeFile(this.path, next);
-    } catch (err) {
-      const message = err instanceof Error ? err.message : String(err);
-      this.io.log('warn', `Failed to append to log file: ${message}`, entry.account_id);
+    } catch {
+      // Silently swallow — we cannot log a log failure without recursing
     }
   }
 
@@ -48,9 +47,8 @@ export class LogManager {
       const kept = entries.slice(entries.length - maxLines);
       const next = kept.map((e) => JSON.stringify(e)).join('\n') + '\n';
       await this.io.writeFile(this.path, next);
-    } catch (err) {
-      const message = err instanceof Error ? err.message : String(err);
-      this.io.log('warn', `Failed to trim log file: ${message}`, '');
+    } catch {
+      // Silently swallow
     }
   }
 

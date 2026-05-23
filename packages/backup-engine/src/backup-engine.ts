@@ -76,6 +76,10 @@ function lastNDates(n: number): string[] {
 export class BackupEngine {
   private cancelled = false;
 
+  // Set for the duration of run(); used by appendLog and callWithRateLimitPause
+  private runLogMgr: LogManager | null = null;
+  private runBackupId: string | null = null;
+
   constructor(
     private readonly config: AccountBackupConfig,
     private readonly io: PlatformIO,
@@ -95,27 +99,27 @@ export class BackupEngine {
     const logMgr = new LogManager(this.io, journalFolder);
     const journalIndex = new JournalIndex(this.io, journalFolder);
 
+    this.runLogMgr = logMgr;
+    this.runBackupId = newId();
+
     try {
       const existingIndex = await journalIndex.load();
 
       if (existingIndex === null) {
-        await this.runFirstBackup(journalFolder, checkpointMgr, logMgr, journalIndex);
+        await this.runFirstBackup(journalFolder, checkpointMgr, journalIndex);
       } else {
         await checkpointMgr.clear();
-        await this.runRoutineBackup(
-          journalFolder,
-          existingIndex,
-          checkpointMgr,
-          logMgr,
-          journalIndex,
-        );
+        await this.runRoutineBackup(journalFolder, existingIndex, checkpointMgr, journalIndex);
       }
     } catch (err) {
       if (err instanceof BackupAbortedError) {
         this.onEvent({ type: 'failed', account_id: this.config.id, error: err.payload });
-        this.io.log('error', `Backup failed: ${err.payload.kind}`, this.config.id);
+        await this.appendLog('error', `Backup failed: ${err.payload.kind}`);
       }
       throw err;
+    } finally {
+      this.runLogMgr = null;
+      this.runBackupId = null;
     }
   }
 
@@ -128,7 +132,6 @@ export class BackupEngine {
   private async runFirstBackup(
     journalFolder: string,
     checkpointMgr: CheckpointManager,
-    logMgr: LogManager,
     journalIndex: JournalIndex,
   ): Promise<void> {
     const existing = await checkpointMgr.load();
@@ -141,6 +144,7 @@ export class BackupEngine {
 
     if (!existing) {
       try {
+        await this.appendLog('info', 'API: getUserProfile (initialising)');
         const profile = await this.callApi(() =>
           this.client.getUserProfile({ username: this.config.username, returnDetails: true }),
         );
@@ -148,10 +152,15 @@ export class BackupEngine {
       } catch (err) {
         if (err instanceof BackupAbortedError) throw err;
         const message = err instanceof Error ? err.message : String(err);
-        await this.appendLog(logMgr, 'warn', `Could not read entry_total: ${message}`);
+        await this.appendLog('warn', `Could not read entry_total: ${message}`);
       }
       await checkpointMgr.save(checkpoint);
     }
+
+    await this.appendLog(
+      'info',
+      `First backup started — ${checkpoint.total_to_fetch} entries expected`,
+    );
 
     this.onEvent({
       type: 'started',
@@ -166,6 +175,7 @@ export class BackupEngine {
 
     while (true) {
       this.checkCancelled();
+      await this.appendLog('info', `API: getJournalEntries page ${pageIndex} (initial fetch)`);
       const page = await this.callApi(() =>
         this.client.getJournalEntries({
           username: this.config.username,
@@ -186,13 +196,11 @@ export class BackupEngine {
           consecutiveFailures++;
           const message = err instanceof Error ? err.message : String(err);
           await this.appendLog(
-            logMgr,
             'warn',
             `Failed to fetch entry ${stub.entry_id_str}: ${message} (${consecutiveFailures}/${MAX_CONSECUTIVE_FAILURES})`,
           );
           if (consecutiveFailures >= MAX_CONSECUTIVE_FAILURES) {
             await this.appendLog(
-              logMgr,
               'warn',
               'Backup paused after 3 consecutive errors — will retry at next scheduled run',
             );
@@ -241,7 +249,7 @@ export class BackupEngine {
     };
     await journalIndex.save(metadata);
     await checkpointMgr.clear();
-    await logMgr.trim(DEFAULT_LOG_TRIM_LINES);
+    await this.runLogMgr!.trim(DEFAULT_LOG_TRIM_LINES);
 
     this.onEvent({
       type: 'completed',
@@ -249,7 +257,6 @@ export class BackupEngine {
       total_archived: fetchedEntries.length,
     });
     await this.appendLog(
-      logMgr,
       'info',
       `First backup complete — ${fetchedEntries.length} entries archived`,
     );
@@ -259,7 +266,6 @@ export class BackupEngine {
     journalFolder: string,
     existing: JournalMetadata,
     _checkpointMgr: CheckpointManager,
-    logMgr: LogManager,
     journalIndex: JournalIndex,
   ): Promise<void> {
     let journalTitle = existing.journal_title;
@@ -267,6 +273,7 @@ export class BackupEngine {
     let entryTotal = existing.entry_total;
 
     try {
+      await this.appendLog('info', 'API: getUserProfile (refresh)');
       const profile = await this.callApi(() =>
         this.client.getUserProfile({ username: this.config.username, returnDetails: true }),
       );
@@ -278,8 +285,10 @@ export class BackupEngine {
     } catch (err) {
       if (err instanceof BackupAbortedError) throw err;
       const message = err instanceof Error ? err.message : String(err);
-      await this.appendLog(logMgr, 'warn', `Profile refresh failed: ${message}`);
+      await this.appendLog('warn', `Profile refresh failed: ${message}`);
     }
+
+    await this.appendLog('info', 'Routine backup started');
 
     this.onEvent({
       type: 'started',
@@ -302,20 +311,20 @@ export class BackupEngine {
     const toRedo = existing.entries.slice(0, this.config.redo_count);
     for (const entryIdx of toRedo) {
       this.checkCancelled();
+      await this.appendLog('info', `Re-fetching entry ${entryIdx.date} (redo)`);
       try {
         const entry = await this.fetchAndWriteEntry(entryIdx.entry_id, journalFolder);
         indexByDate.set(entry.date, JournalIndex.toEntryIndex(entry));
         indexById.set(entry.entry_id, JournalIndex.toEntryIndex(entry));
         consecutiveFailures = 0;
-        await this.appendLog(logMgr, 'info', `Re-fetched entry ${entry.date}`);
+        await this.appendLog('info', `Re-fetched entry ${entry.date}`);
       } catch (err) {
         if (err instanceof BackupAbortedError) throw err;
         consecutiveFailures++;
         const message = err instanceof Error ? err.message : String(err);
-        await this.appendLog(logMgr, 'warn', `Failed to re-fetch ${entryIdx.entry_id}: ${message}`);
+        await this.appendLog('warn', `Failed to re-fetch ${entryIdx.entry_id}: ${message}`);
         if (consecutiveFailures >= MAX_CONSECUTIVE_FAILURES) {
           await this.appendLog(
-            logMgr,
             'warn',
             'Backup paused after 3 consecutive errors — will retry at next scheduled run',
           );
@@ -338,43 +347,78 @@ export class BackupEngine {
 
     const recentDates = new Set(lastNDates(this.config.gap_check_days));
     const todayStr = todayYmd();
-    let recentStubs: BlipEntryStub[] = [];
-    try {
-      const page = await this.callApi(() =>
-        this.client.getJournalEntries({
-          username: this.config.username,
-          pageIndex: 0,
-          pageSize: FETCH_PAGE_SIZE,
-        }),
+    const windowStart = [...recentDates].sort()[0];
+
+    // Dates after the most recent archived entry are "not posted yet", not gaps.
+    const mostRecentEntryDate = existing.entries[0]?.date ?? todayStr;
+
+    // Only dates in the window that have no entry in the index AND are not
+    // after the most recent post could be genuine gaps.
+    const uncoveredDates = [...recentDates].filter(
+      (d) => d <= mostRecentEntryDate && !indexByDate.has(d),
+    );
+
+    const recentStubs: BlipEntryStub[] = [];
+    if (uncoveredDates.length === 0) {
+      await this.appendLog('info', 'Gap-fill skipped — all dates in window are covered');
+    } else {
+      await this.appendLog(
+        'info',
+        `Gap-fill: ${uncoveredDates.length} uncovered date(s) in window — checking API`,
       );
-      recentStubs = page.entries;
-    } catch (err) {
-      if (err instanceof BackupAbortedError) throw err;
-      const message = err instanceof Error ? err.message : String(err);
-      await this.appendLog(logMgr, 'warn', `Gap-fill discovery failed: ${message}`);
+      // Paginate until the oldest entry on the page predates the window start
+      let pageIdx = 0;
+      let keepPaging = true;
+      while (keepPaging) {
+        await this.appendLog('info', `API: getJournalEntries page ${pageIdx} (gap-fill discovery)`);
+        let page;
+        try {
+          page = await this.callApi(() =>
+            this.client.getJournalEntries({
+              username: this.config.username,
+              pageIndex: pageIdx,
+              pageSize: FETCH_PAGE_SIZE,
+            }),
+          );
+        } catch (err) {
+          if (err instanceof BackupAbortedError) throw err;
+          const message = err instanceof Error ? err.message : String(err);
+          await this.appendLog('warn', `Gap-fill discovery failed: ${message}`);
+          break;
+        }
+        for (const stub of page.entries) {
+          if (stub.date >= windowStart && stub.date <= mostRecentEntryDate) {
+            recentStubs.push(stub);
+          }
+        }
+        const oldestOnPage = page.entries.at(-1);
+        if (page.page.more === 0 || !oldestOnPage || oldestOnPage.date < windowStart) {
+          keepPaging = false;
+        } else {
+          pageIdx++;
+        }
+      }
     }
 
     for (const stub of recentStubs) {
-      if (!recentDates.has(stub.date)) continue;
-      if (stub.date > todayStr) continue;
       if (indexByDate.has(stub.date)) continue;
       if (indexById.has(stub.entry_id_str)) continue;
 
       this.checkCancelled();
+      await this.appendLog('info', `Fetching missing entry ${stub.date} (gap-fill)`);
       try {
         const entry = await this.fetchAndWriteEntry(stub.entry_id_str, journalFolder);
         indexByDate.set(entry.date, JournalIndex.toEntryIndex(entry));
         indexById.set(entry.entry_id, JournalIndex.toEntryIndex(entry));
-        await this.appendLog(logMgr, 'info', `Gap-filled entry ${entry.date}`);
+        await this.appendLog('info', `Gap-filled entry ${entry.date}`);
         consecutiveFailures = 0;
       } catch (err) {
         if (err instanceof BackupAbortedError) throw err;
         consecutiveFailures++;
         const message = err instanceof Error ? err.message : String(err);
-        await this.appendLog(logMgr, 'warn', `Failed to gap-fill ${stub.entry_id_str}: ${message}`);
+        await this.appendLog('warn', `Failed to gap-fill ${stub.entry_id_str}: ${message}`);
         if (consecutiveFailures >= MAX_CONSECUTIVE_FAILURES) {
           await this.appendLog(
-            logMgr,
             'warn',
             'Backup paused after 3 consecutive errors — will retry at next scheduled run',
           );
@@ -390,24 +434,20 @@ export class BackupEngine {
       const imageAbs = joinPath(journalFolder, imageRel);
       const present = await this.io.fileExists(imageAbs);
       if (present) continue;
+      await this.appendLog('info', `Re-fetching entry ${entryIdx.date} (image repair)`);
       try {
         const entry = await this.fetchAndWriteEntry(entryIdx.entry_id, journalFolder);
         indexByDate.set(entry.date, JournalIndex.toEntryIndex(entry));
         indexById.set(entry.entry_id, JournalIndex.toEntryIndex(entry));
-        await this.appendLog(logMgr, 'warn', `Repaired missing image for ${entry.date}`);
+        await this.appendLog('info', `Repaired missing image for ${entry.date}`);
         consecutiveFailures = 0;
       } catch (err) {
         if (err instanceof BackupAbortedError) throw err;
         consecutiveFailures++;
         const message = err instanceof Error ? err.message : String(err);
-        await this.appendLog(
-          logMgr,
-          'warn',
-          `Failed to repair image for ${entryIdx.date}: ${message}`,
-        );
+        await this.appendLog('warn', `Failed to repair image for ${entryIdx.date}: ${message}`);
         if (consecutiveFailures >= MAX_CONSECUTIVE_FAILURES) {
           await this.appendLog(
-            logMgr,
             'warn',
             'Backup paused after 3 consecutive errors — will retry at next scheduled run',
           );
@@ -427,7 +467,7 @@ export class BackupEngine {
       entries: [...indexByDate.values()],
     };
     await journalIndex.save(metadata);
-    await logMgr.trim(DEFAULT_LOG_TRIM_LINES);
+    await this.runLogMgr!.trim(DEFAULT_LOG_TRIM_LINES);
 
     this.onEvent({
       type: 'completed',
@@ -435,13 +475,13 @@ export class BackupEngine {
       total_archived: metadata.entries.length,
     });
     await this.appendLog(
-      logMgr,
       'info',
       `Routine backup complete — ${metadata.entries.length} entries indexed`,
     );
   }
 
   private async fetchAndWriteEntry(entryIdStr: string, journalFolder: string): Promise<BlipEntry> {
+    await this.appendLog('info', `API: getEntry ${entryIdStr}`);
     const response = await this.callApi(() =>
       this.client.getEntry(entryIdStr, {
         returnDetails: true,
@@ -478,10 +518,9 @@ export class BackupEngine {
         const existingBuf = await this.io.readFile(jsonAbs);
         const existing = JSON.parse(existingBuf.toString()) as Partial<BlipEntry>;
         if (existing.entry_id && existing.entry_id !== entry.entry_id) {
-          this.io.log(
+          await this.appendLog(
             'warn',
             `Collision at ${jsonAbs} — existing entry_id ${existing.entry_id}, new ${entry.entry_id}; appending id suffix`,
-            this.config.id,
           );
           const year = entry.date.slice(0, 4);
           const base = `entries/${year}/${entry.date}-${entry.entry_id}`;
@@ -557,10 +596,9 @@ export class BackupEngine {
         dl.assign();
       } catch (err) {
         const message = err instanceof Error ? err.message : String(err);
-        this.io.log(
+        await this.appendLog(
           'warn',
           `Failed to download ${dl.label} for ${entry.date}: ${message}`,
-          this.config.id,
         );
       }
     }
@@ -634,12 +672,16 @@ export class BackupEngine {
       } catch (err) {
         if (err instanceof BlipfotoError && err.isRateLimited) {
           const waitSeconds = (this.client.rateLimitInfo?.resetInSeconds ?? 900) + 5;
+          const resumeAt = new Date(Date.now() + waitSeconds * 1000).toISOString();
           this.onEvent({
             type: 'rate_limited',
             account_id: this.config.id,
             resume_in_seconds: waitSeconds,
           });
-          this.io.log('info', `Rate limited — pausing ${waitSeconds}s`, this.config.id);
+          await this.appendLog(
+            'info',
+            `Rate limited — pausing ${waitSeconds}s (available at ${resumeAt})`,
+          );
           await sleep(waitSeconds * 1000);
         } else {
           throw err;
@@ -648,19 +690,18 @@ export class BackupEngine {
     }
   }
 
-  private async appendLog(
-    logMgr: LogManager,
-    level: 'info' | 'warn' | 'error',
-    message: string,
-  ): Promise<void> {
+  private async appendLog(level: 'info' | 'warn' | 'error', message: string): Promise<void> {
     const entry: LogEntry = {
       id: newId(),
+      backup_id: this.runBackupId ?? undefined,
       account_id: this.config.id,
       timestamp: nowIso(),
       level,
       message,
     };
-    await logMgr.append(entry);
-    this.io.log(level, message, this.config.id);
+    if (this.runLogMgr) {
+      await this.runLogMgr.append(entry);
+    }
+    this.io.log(entry);
   }
 }

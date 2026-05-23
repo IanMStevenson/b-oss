@@ -2,10 +2,10 @@
 // Copyright (C) 2026 Ian Stevenson
 
 import fs from 'node:fs/promises';
-import type { PlatformIO } from '@b-oss/backup-engine';
+import type { PlatformIO, LogEntry } from '@b-oss/backup-engine';
 import { net } from 'electron';
 
-type LogHandler = (level: 'info' | 'warn' | 'error', message: string, accountId: string) => void;
+type LogHandler = (entry: LogEntry) => void;
 
 export class ElectronPlatformIO implements PlatformIO {
   private readonly logHandler: LogHandler;
@@ -56,7 +56,7 @@ export class ElectronPlatformIO implements PlatformIO {
     await fs.writeFile(destPath, buffer);
   }
 
-  log(level: 'info' | 'warn' | 'error', message: string, accountId: string): void {
-    this.logHandler(level, message, accountId);
+  log(entry: LogEntry): void {
+    this.logHandler(entry);
   }
 }

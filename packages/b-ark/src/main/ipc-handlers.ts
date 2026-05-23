@@ -49,15 +49,8 @@ export function registerIpcHandlers(
     const rawToken = decryptToken(account.access_token);
     const client = new BlipfotoClient(rawToken);
 
-    const pio = new ElectronPlatformIO((level, message, accountId) => {
-      const entry: LogEntry = {
-        id: uuidv4(),
-        account_id: accountId,
-        timestamp: new Date().toISOString(),
-        level,
-        message,
-      };
-      emit({ type: 'log:entry', account_id: accountId, entry });
+    const pio = new ElectronPlatformIO((entry) => {
+      emit({ type: 'log:entry', account_id: entry.account_id, entry });
     });
 
     const engine = new BackupEngine(
@@ -87,7 +80,13 @@ export function registerIpcHandlers(
         await writeBViewFiles(account.username, account.backup_folder);
       } catch (err) {
         const message = err instanceof Error ? err.message : String(err);
-        pio.log('warn', `Failed to write b-view files: ${message}`, id);
+        pio.log({
+          id: uuidv4(),
+          account_id: id,
+          timestamp: new Date().toISOString(),
+          level: 'warn',
+          message,
+        });
       }
 
       const updated = getAccount(id);

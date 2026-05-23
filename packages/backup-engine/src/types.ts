@@ -3,6 +3,7 @@
 
 export interface LogEntry {
   id: string;
+  backup_id?: string;
   account_id: string;
   timestamp: string;
   level: 'info' | 'warn' | 'error';

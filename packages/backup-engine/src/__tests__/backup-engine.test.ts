@@ -26,7 +26,7 @@ import type {
 class MockPlatformIO implements PlatformIO {
   files = new Map<string, string>();
   downloads: Array<{ url: string; destPath: string }> = [];
-  logs: Array<{ level: string; message: string; accountId: string }> = [];
+  logs: Array<LogEntry> = [];
 
   readFile(path: string): Promise<Buffer> {
     const content = this.files.get(path);
@@ -57,8 +57,8 @@ class MockPlatformIO implements PlatformIO {
     this.files.set(destPath, `<image:${url}>`);
     return Promise.resolve();
   }
-  log(level: 'info' | 'warn' | 'error', message: string, accountId: string): void {
-    this.logs.push({ level, message, accountId });
+  log(entry: LogEntry): void {
+    this.logs.push(entry);
   }
 }
 

@@ -11,5 +11,5 @@ export interface PlatformIO {
 
   downloadFile(url: string, destPath: string): Promise<void>;
 
-  log(level: 'info' | 'warn' | 'error', message: string, accountId: string): void;
+  log(entry: import('./types.js').LogEntry): void;
 }
