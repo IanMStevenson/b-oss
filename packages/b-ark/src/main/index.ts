@@ -15,6 +15,9 @@ import { getAccounts, store } from './store.js';
 // In packaged builds electron-builder sets this from productName; in dev we
 // override the default 'Electron' here.
 app.setName('b-ark');
+// Point the cache to a stable subdirectory of userData so Electron can always
+// create/rename it without hitting Windows access-denied errors (0x5).
+app.setPath('cache', path.join(app.getPath('userData'), 'cache'));
 
 const gotLock = app.requestSingleInstanceLock();
 if (!gotLock) {
