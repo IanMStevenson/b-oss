@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (C) 2026 Ian Stevenson
 
-import { FolderOpen } from 'lucide-react';
+import { FolderOpen, AlertCircle } from 'lucide-react';
 import type { AccountConfig } from '../../backend.js';
 import { useApp } from '../../context/AppContext.js';
 
@@ -80,6 +80,22 @@ export function EmptyAccountScreen({ account }: EmptyAccountScreenProps) {
           </code>
           . You can leave b-ark running and it will follow your schedule.
         </p>
+
+        {account.error_message && (
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 6,
+              marginBottom: 16,
+              fontSize: 12,
+              color: 'var(--rag-amber)',
+            }}
+          >
+            <AlertCircle size={13} strokeWidth={1.6} />
+            {account.error_message}
+          </div>
+        )}
 
         <div style={{ display: 'flex', gap: 10 }}>
           <button

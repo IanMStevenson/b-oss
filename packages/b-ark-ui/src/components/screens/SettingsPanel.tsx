@@ -469,7 +469,7 @@ export function SettingsPanel({ account }: SettingsPanelProps) {
                 }}
                 menu={[
                   {
-                    label: 'Sign in with a different account…',
+                    label: 'Force new sign-in…',
                     onSelect: () => {
                       void backend.reauthoriseAccountFresh(account.id);
                     },

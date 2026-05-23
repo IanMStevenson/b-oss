@@ -222,6 +222,6 @@ export function decryptToken(encrypted: string): string {
   try {
     return safeStorage.decryptString(Buffer.from(encrypted, 'base64'));
   } catch {
-    throw new Error('Failed to decrypt access token — re-authorise this account');
+    throw new Error('Failed to decrypt access token — re-authorise this account in setttings');
   }
 }

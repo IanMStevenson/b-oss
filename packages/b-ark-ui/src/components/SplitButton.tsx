@@ -55,8 +55,8 @@ export function SplitButton({
   const dividerColor = isPrimary ? 'rgba(255, 255, 255, 0.25)' : 'var(--line)';
 
   const sharedBtnStyle: CSSProperties = {
-    height: isPrimary ? 38 : undefined,
-    padding: isPrimary ? '0 24px' : '8px 12px',
+    height: isPrimary ? 38 : 30,
+    padding: isPrimary ? '0 24px' : '0 12px',
     background: baseBg,
     color: fg,
     fontSize: isPrimary ? 14 : 13,
@@ -69,11 +69,14 @@ export function SplitButton({
   };
 
   return (
-    <div ref={containerRef} style={{ position: 'relative', width: '100%' }}>
+    <div
+      ref={containerRef}
+      style={{ position: 'relative', width: isPrimary ? '100%' : 'fit-content' }}
+    >
       <div
         style={{
           display: 'flex',
-          width: '100%',
+          width: isPrimary ? '100%' : undefined,
           borderRadius: 7,
           overflow: 'hidden',
           border,
@@ -128,7 +131,7 @@ export function SplitButton({
             ...(menuDirection === 'up'
               ? { bottom: 'calc(100% + 4px)' }
               : { top: 'calc(100% + 4px)' }),
-            right: 0,
+            ...(isPrimary ? { right: 0 } : { left: 0 }),
             minWidth: 220,
             background: 'white',
             border: '1px solid var(--line)',

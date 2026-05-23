@@ -107,7 +107,7 @@ export function Sidebar() {
           }}
           menu={[
             {
-              label: 'Sign in with a different account…',
+              label: 'Force new sign-in…',
               onSelect: () => {
                 void addAccountWithToast(() => backend.addAccountFresh(), showToast);
               },
