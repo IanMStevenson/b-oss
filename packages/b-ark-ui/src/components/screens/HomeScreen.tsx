@@ -302,6 +302,7 @@ export function HomeScreen({ account }: HomeScreenProps) {
           journalTitle={account.journal_title}
           backupFolder={account.backup_folder}
           progress={progress}
+          countdownSeconds={countdown}
         />
       )}
 
