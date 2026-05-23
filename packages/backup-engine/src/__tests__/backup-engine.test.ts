@@ -128,6 +128,22 @@ function makeClient(): BlipfotoClient {
   return new BlipfotoClient('test-token', 'https://api.blipfoto.com/4/');
 }
 
+function makeProfileResponse(entryTotal: number): UserProfileResponse {
+  return {
+    user: { username: 'gbradley', avatar_url: 'a', icons: [] },
+    visibility: 1,
+    details: {
+      journal_title: 'Journal',
+      biography: '',
+      biography_html: '',
+      country_code: 'GB',
+      entry_total: entryTotal,
+      member: 1,
+      privacy: 0,
+    },
+  };
+}
+
 describe('JournalIndex', () => {
   it('entryJsonPath returns entries/YYYY/YYYY-MM-DD.json', () => {
     expect(JournalIndex.entryJsonPath('2024-01-15')).toBe('entries/2024/2024-01-15.json');
@@ -173,9 +189,7 @@ describe('CheckpointManager', () => {
     const mgr = new CheckpointManager(io, '/j');
     const cp: BackupCheckpoint = {
       started_at: '2024-01-01T00:00:00Z',
-      phase: 'fetch',
-      discovery_page_index: 2,
-      discovered_entry_ids: ['a', 'b'],
+      last_page_index: 2,
       fetched_entry_ids: ['a'],
       total_to_fetch: 2,
     };
@@ -189,9 +203,7 @@ describe('CheckpointManager', () => {
     const mgr = new CheckpointManager(io, '/j');
     const cp: BackupCheckpoint = {
       started_at: '2024-01-01T00:00:00Z',
-      phase: 'discovery',
-      discovery_page_index: 0,
-      discovered_entry_ids: [],
+      last_page_index: 0,
       fetched_entry_ids: [],
       total_to_fetch: 0,
     };
@@ -251,7 +263,7 @@ describe('BackupEngine — first backup', () => {
     events = [];
   });
 
-  it('runs discovery (2 pages), fetches 2 entries, writes JSON, writes journal.json, deletes checkpoint', async () => {
+  it('interleaves list + fetch across 2 pages, writes JSON, writes journal.json, deletes checkpoint', async () => {
     const page0: JournalEntriesResponse = {
       page: { index: 0, size: 100, more: 1 },
       entries: [makeEntryStub('111', '2024-01-15')],
@@ -260,6 +272,7 @@ describe('BackupEngine — first backup', () => {
       page: { index: 1, size: 100, more: 0 },
       entries: [makeEntryStub('222', '2024-01-14')],
     };
+    vi.spyOn(client, 'getUserProfile').mockResolvedValue(makeProfileResponse(2));
     vi.spyOn(client, 'getJournalEntries').mockResolvedValueOnce(page0).mockResolvedValueOnce(page1);
     vi.spyOn(client, 'getEntry').mockImplementation((id: string) =>
       Promise.resolve(makeEntryResponse(id, id === '111' ? '2024-01-15' : '2024-01-14')),
@@ -273,9 +286,16 @@ describe('BackupEngine — first backup', () => {
     expect(io.files.has('/backups/gbradley/journal.json')).toBe(true);
     expect(io.files.has('/backups/gbradley/_checkpoint.json')).toBe(false);
     expect(io.downloads.some((d) => d.destPath.endsWith('2024-01-15.jpg'))).toBe(true);
+
+    const started = events.find((e) => e.type === 'started');
+    expect(started).toBeDefined();
+    if (started && started.type === 'started') {
+      expect(started.total_to_fetch).toBe(2);
+    }
   });
 
-  it('emits discovering then started then 2 × progress then completed', async () => {
+  it('emits started then 2 × progress then completed', async () => {
+    vi.spyOn(client, 'getUserProfile').mockResolvedValue(makeProfileResponse(2));
     vi.spyOn(client, 'getJournalEntries').mockResolvedValueOnce({
       page: { index: 0, size: 100, more: 0 },
       entries: [makeEntryStub('111', '2024-01-15'), makeEntryStub('222', '2024-01-14')],
@@ -288,11 +308,11 @@ describe('BackupEngine — first backup', () => {
     await engine.run();
 
     const types = events.map((e) => e.type);
-    expect(types).toEqual(['discovering', 'started', 'progress', 'progress', 'completed']);
+    expect(types).toEqual(['started', 'progress', 'progress', 'completed']);
   });
 
   it('emits failed { kind: auth_expired } and throws when first call returns BlipfotoError(51)', async () => {
-    vi.spyOn(client, 'getJournalEntries').mockRejectedValueOnce(
+    vi.spyOn(client, 'getUserProfile').mockRejectedValueOnce(
       new BlipfotoError(51, 'Token invalid'),
     );
 
@@ -305,24 +325,57 @@ describe('BackupEngine — first backup', () => {
       expect(failed.error.kind).toBe('auth_expired');
     }
   });
+
+  it('bumps total_to_fetch when more entries arrive than entry_total reported (drift)', async () => {
+    vi.spyOn(client, 'getUserProfile').mockResolvedValue(makeProfileResponse(2));
+    vi.spyOn(client, 'getJournalEntries')
+      .mockResolvedValueOnce({
+        page: { index: 0, size: 100, more: 1 },
+        entries: [makeEntryStub('111', '2024-01-15'), makeEntryStub('222', '2024-01-14')],
+      })
+      .mockResolvedValueOnce({
+        page: { index: 1, size: 100, more: 0 },
+        entries: [makeEntryStub('333', '2024-01-13')],
+      });
+    vi.spyOn(client, 'getEntry').mockImplementation((id: string) => {
+      const date = id === '111' ? '2024-01-15' : id === '222' ? '2024-01-14' : '2024-01-13';
+      return Promise.resolve(makeEntryResponse(id, date));
+    });
+
+    const engine = new BackupEngine(makeConfig(), io, client, (e) => events.push(e));
+    await engine.run();
+
+    const progressEvents = events.filter((e) => e.type === 'progress');
+    for (const e of progressEvents) {
+      if (e.type === 'progress') {
+        expect(e.done).toBeLessThanOrEqual(e.total);
+      }
+    }
+    const last = progressEvents[progressEvents.length - 1];
+    if (last && last.type === 'progress') {
+      expect(last.total).toBeGreaterThanOrEqual(3);
+    }
+  });
 });
 
 describe('BackupEngine — resume interrupted first backup', () => {
-  it('resumes from checkpoint with phase=fetch and only re-fetches missing entries', async () => {
+  it('resumes from saved last_page_index and skips already-fetched entries; does not re-call getUserProfile', async () => {
     const io = new MockPlatformIO();
     const client = makeClient();
 
     const cp: BackupCheckpoint = {
       started_at: '2024-01-01T00:00:00Z',
-      phase: 'fetch',
-      discovery_page_index: 0,
-      discovered_entry_ids: ['111', '222'],
+      last_page_index: 0,
       fetched_entry_ids: ['111'],
       total_to_fetch: 2,
     };
     io.files.set('/backups/gbradley/_checkpoint.json', JSON.stringify(cp));
 
-    const journalSpy = vi.spyOn(client, 'getJournalEntries');
+    const profileSpy = vi.spyOn(client, 'getUserProfile');
+    vi.spyOn(client, 'getJournalEntries').mockResolvedValueOnce({
+      page: { index: 0, size: 100, more: 0 },
+      entries: [makeEntryStub('111', '2024-01-15'), makeEntryStub('222', '2024-01-14')],
+    });
     const getEntrySpy = vi
       .spyOn(client, 'getEntry')
       .mockImplementation((id: string) =>
@@ -334,7 +387,7 @@ describe('BackupEngine — resume interrupted first backup', () => {
 
     expect(getEntrySpy).toHaveBeenCalledTimes(1);
     expect(getEntrySpy).toHaveBeenCalledWith('222', expect.any(Object));
-    expect(journalSpy).not.toHaveBeenCalled();
+    expect(profileSpy).not.toHaveBeenCalled();
   });
 });
 
@@ -344,6 +397,7 @@ describe('BackupEngine — cancellation', () => {
     const client = makeClient();
     const events: BackupEvent[] = [];
 
+    vi.spyOn(client, 'getUserProfile').mockResolvedValue(makeProfileResponse(2));
     vi.spyOn(client, 'getJournalEntries').mockResolvedValueOnce({
       page: { index: 0, size: 100, more: 0 },
       entries: [makeEntryStub('111', '2024-01-15'), makeEntryStub('222', '2024-01-14')],
@@ -372,6 +426,7 @@ describe('BackupEngine — consecutive failures', () => {
     const client = makeClient();
     const events: BackupEvent[] = [];
 
+    vi.spyOn(client, 'getUserProfile').mockResolvedValue(makeProfileResponse(3));
     vi.spyOn(client, 'getJournalEntries').mockResolvedValueOnce({
       page: { index: 0, size: 100, more: 0 },
       entries: [
@@ -406,6 +461,7 @@ describe('BackupEngine — rate limiting is a pause not a failure', () => {
     const client = makeClient();
     const events: BackupEvent[] = [];
 
+    vi.spyOn(client, 'getUserProfile').mockResolvedValue(makeProfileResponse(1));
     vi.spyOn(client, 'getJournalEntries').mockResolvedValueOnce({
       page: { index: 0, size: 100, more: 0 },
       entries: [makeEntryStub('111', '2024-01-15')],
@@ -433,6 +489,7 @@ describe('BackupEngine — rate limiting is a pause not a failure', () => {
     const client = makeClient();
     const events: BackupEvent[] = [];
 
+    vi.spyOn(client, 'getUserProfile').mockResolvedValue(makeProfileResponse(1));
     vi.spyOn(client, 'getJournalEntries').mockResolvedValueOnce({
       page: { index: 0, size: 100, more: 0 },
       entries: [makeEntryStub('111', '2024-01-15')],
@@ -535,6 +592,7 @@ describe('BackupEngine — writes BlipEntry schema', () => {
     const io = new MockPlatformIO();
     const client = makeClient();
 
+    vi.spyOn(client, 'getUserProfile').mockResolvedValue(makeProfileResponse(1));
     vi.spyOn(client, 'getJournalEntries').mockResolvedValueOnce({
       page: { index: 0, size: 100, more: 0 },
       entries: [makeEntryStub('111', '2024-01-15')],

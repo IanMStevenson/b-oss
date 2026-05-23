@@ -18,7 +18,6 @@ export function BackupBanner({
   countdownSeconds,
 }: BackupBannerProps) {
   const isRateLimited = progress.rate_limited_seconds != null;
-  const isDiscovering = progress.phase === 'discovering';
   const pct = progress.total > 0 ? Math.round((progress.done / progress.total) * 100) : 0;
 
   if (isRateLimited) {
@@ -118,19 +117,13 @@ export function BackupBanner({
 
       <div style={{ flex: 1, minWidth: 0 }}>
         <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--green-900)' }}>
-          {isDiscovering ? (
-            <>Discovering entries in &ldquo;{journalTitle}&rdquo;&hellip;</>
-          ) : (
-            <>Backing up &ldquo;{journalTitle}&rdquo;</>
-          )}
+          Backing up &ldquo;{journalTitle}&rdquo;
         </div>
         <div style={{ fontSize: 11.5, color: 'var(--muted)', marginTop: 2 }}>
-          {isDiscovering ? 'Listing entries from Blipfoto' : 'Writing entries to '}
-          {!isDiscovering && (
-            <span style={{ fontFamily: 'ui-monospace, "SF Mono", Menlo, monospace' }}>
-              {backupFolder}
-            </span>
-          )}
+          Writing entries to{' '}
+          <span style={{ fontFamily: 'ui-monospace, "SF Mono", Menlo, monospace' }}>
+            {backupFolder}
+          </span>
         </div>
       </div>
 
@@ -145,43 +138,26 @@ export function BackupBanner({
             position: 'relative',
           }}
         >
-          {isDiscovering ? (
-            <div
-              style={{
-                position: 'absolute',
-                left: 0,
-                top: 0,
-                width: '40%',
-                height: '100%',
-                background: 'var(--green-800)',
-                borderRadius: 99,
-                animation: 'b-ark-indeterminate 1.4s ease-in-out infinite',
-              }}
-            />
-          ) : (
-            <div
-              style={{
-                width: `${pct}%`,
-                height: '100%',
-                background: 'var(--green-800)',
-                transition: 'width 300ms ease',
-              }}
-            />
-          )}
-        </div>
-        {!isDiscovering && (
-          <span
+          <div
             style={{
-              fontSize: 12,
-              fontWeight: 600,
-              color: 'var(--green-900)',
-              fontVariantNumeric: 'tabular-nums',
-              whiteSpace: 'nowrap',
+              width: `${pct}%`,
+              height: '100%',
+              background: 'var(--green-800)',
+              transition: 'width 300ms ease',
             }}
-          >
-            {progress.done}/{progress.total}
-          </span>
-        )}
+          />
+        </div>
+        <span
+          style={{
+            fontSize: 12,
+            fontWeight: 600,
+            color: 'var(--green-900)',
+            fontVariantNumeric: 'tabular-nums',
+            whiteSpace: 'nowrap',
+          }}
+        >
+          {progress.done}/{progress.total}
+        </span>
       </div>
     </div>
   );

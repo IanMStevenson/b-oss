@@ -27,7 +27,7 @@ import type {
 
 const MAX_CONSECUTIVE_FAILURES = 3;
 const DEFAULT_LOG_TRIM_LINES = 5000;
-const DISCOVERY_PAGE_SIZE = 100;
+const FETCH_PAGE_SIZE = 100;
 
 function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -88,8 +88,6 @@ export class BackupEngine {
   }
 
   async run(): Promise<void> {
-    this.onEvent({ type: 'discovering', account_id: this.config.id });
-
     const journalFolder = joinPath(this.config.backup_folder, this.config.username);
     await this.io.ensureDir(journalFolder);
 
@@ -136,45 +134,23 @@ export class BackupEngine {
     const existing = await checkpointMgr.load();
     const checkpoint: BackupCheckpoint = existing ?? {
       started_at: nowIso(),
-      phase: 'discovery',
-      discovery_page_index: -1,
-      discovered_entry_ids: [],
+      last_page_index: 0,
       fetched_entry_ids: [],
       total_to_fetch: 0,
     };
 
-    const discoveredDates = new Map<string, string>();
-    for (const id of checkpoint.discovered_entry_ids) {
-      discoveredDates.set(id, '');
-    }
-
-    if (checkpoint.phase === 'discovery') {
-      let pageIndex = checkpoint.discovery_page_index + 1;
-      while (true) {
-        this.checkCancelled();
-        const page = await this.callApi(() =>
-          this.client.getJournalEntries({
-            username: this.config.username,
-            pageIndex,
-            pageSize: DISCOVERY_PAGE_SIZE,
-          }),
+    if (!existing) {
+      try {
+        const profile = await this.callApi(() =>
+          this.client.getUserProfile({ username: this.config.username, returnDetails: true }),
         );
-        for (const stub of page.entries) {
-          if (!discoveredDates.has(stub.entry_id_str)) {
-            checkpoint.discovered_entry_ids.push(stub.entry_id_str);
-          }
-          discoveredDates.set(stub.entry_id_str, stub.date);
-        }
-        checkpoint.discovery_page_index = pageIndex;
-        await checkpointMgr.save(checkpoint);
-        if (page.page.more === 0) break;
-        pageIndex++;
+        checkpoint.total_to_fetch = profile.details?.entry_total ?? 0;
+      } catch (err) {
+        if (err instanceof BackupAbortedError) throw err;
+        const message = err instanceof Error ? err.message : String(err);
+        await this.appendLog(logMgr, 'warn', `Could not read entry_total: ${message}`);
       }
-
-      checkpoint.phase = 'fetch';
-      checkpoint.total_to_fetch = checkpoint.discovered_entry_ids.length;
       await checkpointMgr.save(checkpoint);
-      await this.appendLog(logMgr, 'info', `Discovered ${checkpoint.total_to_fetch} entries`);
     }
 
     this.onEvent({
@@ -186,52 +162,72 @@ export class BackupEngine {
     const fetchedSet = new Set(checkpoint.fetched_entry_ids);
     const fetchedEntries: BlipEntry[] = [];
     let consecutiveFailures = 0;
+    let pageIndex = checkpoint.last_page_index;
 
-    for (const entryIdStr of checkpoint.discovered_entry_ids) {
+    while (true) {
       this.checkCancelled();
-      if (fetchedSet.has(entryIdStr)) continue;
+      const page = await this.callApi(() =>
+        this.client.getJournalEntries({
+          username: this.config.username,
+          pageIndex,
+          pageSize: FETCH_PAGE_SIZE,
+        }),
+      );
 
-      let entry: BlipEntry;
-      try {
-        entry = await this.fetchAndWriteEntry(entryIdStr, journalFolder);
-      } catch (err) {
-        if (err instanceof BackupAbortedError) throw err;
-        consecutiveFailures++;
-        const message = err instanceof Error ? err.message : String(err);
-        await this.appendLog(
-          logMgr,
-          'warn',
-          `Failed to fetch entry ${entryIdStr}: ${message} (${consecutiveFailures}/${MAX_CONSECUTIVE_FAILURES})`,
-        );
-        if (consecutiveFailures >= MAX_CONSECUTIVE_FAILURES) {
+      for (const stub of page.entries) {
+        this.checkCancelled();
+        if (fetchedSet.has(stub.entry_id_str)) continue;
+
+        let entry: BlipEntry;
+        try {
+          entry = await this.fetchAndWriteEntry(stub.entry_id_str, journalFolder);
+        } catch (err) {
+          if (err instanceof BackupAbortedError) throw err;
+          consecutiveFailures++;
+          const message = err instanceof Error ? err.message : String(err);
           await this.appendLog(
             logMgr,
             'warn',
-            'Backup paused after 3 consecutive errors — will retry at next scheduled run',
+            `Failed to fetch entry ${stub.entry_id_str}: ${message} (${consecutiveFailures}/${MAX_CONSECUTIVE_FAILURES})`,
           );
-          const code = err instanceof BlipfotoError ? err.code : 0;
-          throw new BackupAbortedError({ kind: 'api_error', code, message });
+          if (consecutiveFailures >= MAX_CONSECUTIVE_FAILURES) {
+            await this.appendLog(
+              logMgr,
+              'warn',
+              'Backup paused after 3 consecutive errors — will retry at next scheduled run',
+            );
+            const code = err instanceof BlipfotoError ? err.code : 0;
+            throw new BackupAbortedError({ kind: 'api_error', code, message });
+          }
+          continue;
         }
-        continue;
+
+        consecutiveFailures = 0;
+        fetchedSet.add(stub.entry_id_str);
+        checkpoint.fetched_entry_ids.push(stub.entry_id_str);
+        fetchedEntries.push(entry);
+        if (fetchedSet.size > checkpoint.total_to_fetch) {
+          checkpoint.total_to_fetch = fetchedSet.size;
+        }
+        await checkpointMgr.save(checkpoint);
+
+        this.onEvent({
+          type: 'progress',
+          account_id: this.config.id,
+          done: fetchedSet.size,
+          total: checkpoint.total_to_fetch,
+          current_date: entry.date,
+        });
+
+        if (this.config.api_delay_ms > 0) {
+          await sleep(this.config.api_delay_ms);
+        }
       }
 
-      consecutiveFailures = 0;
-      fetchedSet.add(entryIdStr);
-      checkpoint.fetched_entry_ids.push(entryIdStr);
-      fetchedEntries.push(entry);
+      if (page.page.more === 0) break;
+      pageIndex++;
+      checkpoint.last_page_index = pageIndex;
       await checkpointMgr.save(checkpoint);
-
-      this.onEvent({
-        type: 'progress',
-        account_id: this.config.id,
-        done: fetchedSet.size,
-        total: checkpoint.total_to_fetch,
-        current_date: entry.date,
-      });
-
-      if (this.config.api_delay_ms > 0) {
-        await sleep(this.config.api_delay_ms);
-      }
     }
 
     const metadata: JournalMetadata = {
@@ -348,7 +344,7 @@ export class BackupEngine {
         this.client.getJournalEntries({
           username: this.config.username,
           pageIndex: 0,
-          pageSize: DISCOVERY_PAGE_SIZE,
+          pageSize: FETCH_PAGE_SIZE,
         }),
       );
       recentStubs = page.entries;

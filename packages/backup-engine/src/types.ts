@@ -79,9 +79,7 @@ export interface JournalMetadata {
 
 export interface BackupCheckpoint {
   started_at: string;
-  phase: 'discovery' | 'fetch';
-  discovery_page_index: number;
-  discovered_entry_ids: string[];
+  last_page_index: number;
   fetched_entry_ids: string[];
   total_to_fetch: number;
 }
@@ -93,7 +91,6 @@ export type BackupErrorPayload =
   | { kind: 'filesystem'; message: string };
 
 export type BackupEvent =
-  | { type: 'discovering'; account_id: string }
   | { type: 'started'; account_id: string; total_to_fetch: number }
   | { type: 'progress'; account_id: string; done: number; total: number; current_date: string }
   | { type: 'rate_limited'; account_id: string; resume_in_seconds: number }

@@ -41,9 +41,6 @@ export function AppProvider({
       }
       if (event.type === 'backup:event') {
         const e = event.event;
-        if (e.type === 'discovering') {
-          dispatch({ type: 'backup:discovering', account_id: e.account_id });
-        }
         if (e.type === 'started') {
           dispatch({ type: 'backup:started', account_id: e.account_id, total: e.total_to_fetch });
         }

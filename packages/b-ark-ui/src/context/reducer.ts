@@ -9,7 +9,6 @@ export interface BackupProgress {
   total: number;
   current_date: string;
   rate_limited_seconds: number | null;
-  phase: 'discovering' | 'fetching';
 }
 
 export interface Toast {
@@ -38,7 +37,6 @@ export type AppAction =
   | { type: 'panel:close' }
   | { type: 'entry:select'; entryId: string | null }
   | { type: 'thumbnail:resize'; percent: number }
-  | { type: 'backup:discovering'; account_id: string }
   | { type: 'backup:started'; account_id: string; total: number }
   | {
       type: 'backup:progress';
@@ -113,22 +111,6 @@ export function reducer(state: AppState, action: AppAction): AppState {
     case 'thumbnail:resize':
       return { ...state, thumbnailSizePercent: Math.min(200, Math.max(30, action.percent)) };
 
-    case 'backup:discovering':
-      return {
-        ...state,
-        backupProgress: {
-          ...state.backupProgress,
-          [action.account_id]: {
-            running: true,
-            done: 0,
-            total: 0,
-            current_date: '',
-            rate_limited_seconds: null,
-            phase: 'discovering',
-          },
-        },
-      };
-
     case 'backup:started':
       return {
         ...state,
@@ -140,7 +122,6 @@ export function reducer(state: AppState, action: AppAction): AppState {
             total: action.total,
             current_date: '',
             rate_limited_seconds: null,
-            phase: 'fetching',
           },
         },
       };
@@ -152,13 +133,12 @@ export function reducer(state: AppState, action: AppAction): AppState {
         backupProgress: {
           ...state.backupProgress,
           [action.account_id]: {
-            ...(existing ?? { running: true, rate_limited_seconds: null, phase: 'fetching' }),
+            ...(existing ?? { running: true, rate_limited_seconds: null }),
             running: true,
             done: action.done,
             total: action.total,
             current_date: action.current_date,
             rate_limited_seconds: null,
-            phase: 'fetching',
           },
         },
       };
@@ -176,7 +156,6 @@ export function reducer(state: AppState, action: AppAction): AppState {
               done: 0,
               total: 0,
               current_date: '',
-              phase: 'fetching',
             }),
             running: true,
             rate_limited_seconds: action.seconds,
