@@ -17,33 +17,6 @@ export function TopBar() {
       }}
     >
       <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-        {/* Decorative traffic-light dots — macOS-style, no-op */}
-        <div style={{ display: 'flex', gap: 6 }}>
-          <div
-            style={{
-              width: 11,
-              height: 11,
-              borderRadius: '50%',
-              background: 'rgba(255,255,255,0.18)',
-            }}
-          />
-          <div
-            style={{
-              width: 11,
-              height: 11,
-              borderRadius: '50%',
-              background: 'rgba(255,255,255,0.18)',
-            }}
-          />
-          <div
-            style={{
-              width: 11,
-              height: 11,
-              borderRadius: '50%',
-              background: 'rgba(255,255,255,0.18)',
-            }}
-          />
-        </div>
         <span
           style={{
             fontSize: 17,

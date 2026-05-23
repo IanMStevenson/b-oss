@@ -2,7 +2,7 @@
 // Copyright (C) 2026 Ian Stevenson
 
 import { useState } from 'react';
-import { ZoomIn, ZoomOut, RotateCcw, Image } from 'lucide-react';
+import { ZoomIn, ZoomOut, RotateCcw, Image, Home } from 'lucide-react';
 import type { EntryIndex } from '../types.js';
 import { Pagination } from './Pagination.js';
 import styles from './ThumbnailGrid.module.css';
@@ -77,6 +77,13 @@ export function ThumbnailGrid({
     <div className={styles.container}>
       {onSizeChange && (
         <div className={styles.controls}>
+          <button
+            className={styles.iconBtn}
+            onClick={() => setCurrentPage(1)}
+            aria-label="First page"
+          >
+            <Home size={14} strokeWidth={1.6} />
+          </button>
           <button
             className={styles.iconBtn}
             onClick={() => onSizeChange(Math.max(30, sizePercent - 10))}

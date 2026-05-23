@@ -125,13 +125,17 @@ export function AccountRow({
         <div style={{ fontSize: 11.5, color: 'var(--muted)', marginTop: 1 }}>
           @{account.username}
         </div>
+        <div style={{ fontSize: 10.5, color: 'var(--muted)', marginTop: 1 }}>
+          {account.total_archived.toLocaleString()} of{' '}
+          {account.journal_entry_total.toLocaleString()} archived
+        </div>
       </div>
 
       {/* RAG dot */}
       <div
         style={{
-          width: 9,
-          height: 9,
+          width: 18,
+          height: 18,
           borderRadius: '50%',
           background: ragColour,
           border: '2px solid white',

@@ -208,7 +208,14 @@ export function EntryDetail({
 
           {entry.location && (
             <div className={styles.location}>
-              📍 {entry.location.lat}, {entry.location.lon}
+              📍{' '}
+              <a
+                href={`https://maps.google.com/maps?q=${entry.location.lat},${entry.location.lon}`}
+                target="_blank"
+                rel="noreferrer"
+              >
+                {entry.location.lat}, {entry.location.lon}
+              </a>
             </div>
           )}
         </div>

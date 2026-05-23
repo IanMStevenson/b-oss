@@ -2,7 +2,7 @@
 // Copyright (C) 2026 Ian Stevenson
 
 import path from 'node:path';
-import { app, BrowserWindow, Menu, nativeImage, session } from 'electron';
+import { app, BrowserWindow, Menu, nativeImage, session, shell } from 'electron';
 import { handleOAuthCallback } from './oauth.js';
 import { registerIpcHandlers, triggerScheduledBackup } from './ipc-handlers.js';
 import { createTray } from './tray.js';
@@ -67,6 +67,11 @@ function createWindow(): BrowserWindow {
       sandbox: false,
     },
     show: false,
+  });
+
+  win.webContents.setWindowOpenHandler(({ url }) => {
+    void shell.openExternal(url);
+    return { action: 'deny' };
   });
 
   win.once('ready-to-show', () => win.show());

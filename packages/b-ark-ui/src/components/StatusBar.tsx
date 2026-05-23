@@ -85,7 +85,10 @@ export function StatusBar({ account }: StatusBarProps) {
       <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
         <Archive size={12} strokeWidth={1.6} />
         <span>
-          <strong>{account.total_archived.toLocaleString()}</strong> archived
+          <strong>{account.total_archived.toLocaleString()}</strong>
+          {' of '}
+          <strong>{account.journal_entry_total.toLocaleString()}</strong>
+          {' archived'}
         </span>
       </div>
 

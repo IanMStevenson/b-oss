@@ -14,6 +14,7 @@ import {
   FileText,
   Settings,
   CloudDownload,
+  Home,
 } from 'lucide-react';
 import { ThumbnailGrid, EntryDetail, useJournal, useEntry } from '@b-oss/b-view';
 import type { EntryIndex } from '@b-oss/b-view';
@@ -130,6 +131,7 @@ export function HomeScreen({ account }: HomeScreenProps) {
   }, [countdown]);
 
   // Load viewer URL from backend
+  const [gridResetKey, setGridResetKey] = useState(0);
   const [viewerUrl, setViewerUrl] = useState<string | null>(null);
   useEffect(() => {
     backend
@@ -206,6 +208,10 @@ export function HomeScreen({ account }: HomeScreenProps) {
 
         {/* Toolbar */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
+          <IconBtn label="First page" onClick={() => setGridResetKey((k) => k + 1)}>
+            <Home size={15} strokeWidth={1.6} />
+          </IconBtn>
+
           {/* Thumbnail size group */}
           <div
             style={{
@@ -253,7 +259,7 @@ export function HomeScreen({ account }: HomeScreenProps) {
             </IconBtn>
           </div>
 
-          <IconBtn label="Grid layout">
+          <IconBtn label="Open in browser" onClick={() => void backend.openViewer(account.id)}>
             <LayoutGrid size={15} strokeWidth={1.6} />
           </IconBtn>
 
@@ -327,6 +333,7 @@ export function HomeScreen({ account }: HomeScreenProps) {
           />
         ) : (
           <ThumbnailGrid
+            key={gridResetKey}
             entries={entries}
             selectedEntryId={selectedEntryId}
             onSelectEntry={(id) => dispatch({ type: 'entry:select', entryId: id })}

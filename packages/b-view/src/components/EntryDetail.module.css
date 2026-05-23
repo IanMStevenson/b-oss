@@ -5,7 +5,8 @@
   display: flex;
   flex-direction: column;
   flex: 1;
-  overflow: hidden;
+  min-height: 0;
+  overflow-y: auto;
 }
 
 .centred {
@@ -88,18 +89,15 @@
 .photoContainer {
   background: var(--photo-bg);
   width: 100%;
-  max-height: 70vh;
   display: flex;
   align-items: center;
   justify-content: center;
-  overflow: hidden;
   position: relative;
 }
 
 .photo {
   object-fit: contain;
   max-width: 100%;
-  max-height: 70vh;
   display: block;
   position: relative;
   z-index: 0;
@@ -125,8 +123,7 @@
 
 /* Metadata */
 .metaScroll {
-  flex: 1;
-  overflow-y: auto;
+  flex-shrink: 0;
 }
 
 .metaInner {
@@ -205,4 +202,14 @@
   margin-top: 16px;
   font-size: 12px;
   color: var(--muted);
+}
+
+.location a {
+  color: inherit;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.location a:hover {
+  color: var(--green-700);
 }
