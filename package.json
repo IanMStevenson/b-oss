@@ -15,6 +15,7 @@
     "test:coverage": "vitest run --coverage",
     "format": "prettier --write \"packages/**/*.{ts,tsx,css,json}\"",
     "setup": "node scripts/setup.js",
+    "fetch-entry": "node scripts/fetch-entry.mjs",
     "postinstall": "node -e \"try{require('fs').accessSync('node_modules/electron/install.js')}catch{process.exit(0)}require('child_process').execFileSync(process.execPath,['node_modules/electron/install.js'],{stdio:'inherit'})\"",
     "prepare": "husky"
   },
