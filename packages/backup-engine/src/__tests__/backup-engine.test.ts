@@ -275,7 +275,7 @@ describe('BackupEngine — first backup', () => {
     expect(io.downloads.some((d) => d.destPath.endsWith('2024-01-15.jpg'))).toBe(true);
   });
 
-  it('emits started then 2 × progress then completed', async () => {
+  it('emits discovering then started then 2 × progress then completed', async () => {
     vi.spyOn(client, 'getJournalEntries').mockResolvedValueOnce({
       page: { index: 0, size: 100, more: 0 },
       entries: [makeEntryStub('111', '2024-01-15'), makeEntryStub('222', '2024-01-14')],
@@ -288,7 +288,7 @@ describe('BackupEngine — first backup', () => {
     await engine.run();
 
     const types = events.map((e) => e.type);
-    expect(types).toEqual(['started', 'progress', 'progress', 'completed']);
+    expect(types).toEqual(['discovering', 'started', 'progress', 'progress', 'completed']);
   });
 
   it('emits failed { kind: auth_expired } and throws when first call returns BlipfotoError(51)', async () => {

@@ -88,6 +88,8 @@ export class BackupEngine {
   }
 
   async run(): Promise<void> {
+    this.onEvent({ type: 'discovering', account_id: this.config.id });
+
     const journalFolder = joinPath(this.config.backup_folder, this.config.username);
     await this.io.ensureDir(journalFolder);
 

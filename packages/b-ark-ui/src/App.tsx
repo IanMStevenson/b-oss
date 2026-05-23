@@ -36,8 +36,10 @@ function AppRoot() {
       return <LogPanel account={account} />;
     }
 
-    if (!account || account.total_archived === 0) {
-      return account ? <EmptyAccountScreen account={account} /> : null;
+    if (!account) return null;
+    const isBackingUp = state.backupProgress[account.id] !== undefined;
+    if (account.total_archived === 0 && !isBackingUp) {
+      return <EmptyAccountScreen account={account} />;
     }
 
     return <HomeScreen account={account} />;

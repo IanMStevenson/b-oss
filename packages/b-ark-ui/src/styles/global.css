@@ -89,3 +89,12 @@ a:hover {
     transform: none;
   }
 }
+
+@keyframes b-ark-indeterminate {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(250%);
+  }
+}
