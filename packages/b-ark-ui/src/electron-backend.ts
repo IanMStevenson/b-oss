@@ -20,6 +20,7 @@ declare global {
       getStore(): Promise<AppStore>;
       getLogs(id: string): Promise<LogEntry[]>;
       on(channel: 'main-event', handler: (event: MainEvent) => void): () => void;
+      rendererReady(): void;
     };
   }
 }
@@ -40,4 +41,5 @@ export class ElectronBackend implements BackendContext {
   getStore = () => window.api.getStore();
   getLogs = (id: string) => window.api.getLogs(id);
   subscribe = (handler: (event: MainEvent) => void) => window.api.on('main-event', handler);
+  notifyRendererReady = () => window.api.rendererReady();
 }

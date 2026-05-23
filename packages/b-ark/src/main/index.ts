@@ -4,7 +4,12 @@
 import path from 'node:path';
 import { app, BrowserWindow, Menu, nativeImage, session, shell } from 'electron';
 import { handleOAuthCallback } from './oauth.js';
-import { registerIpcHandlers, triggerScheduledBackup } from './ipc-handlers.js';
+import {
+  registerIpcHandlers,
+  triggerScheduledBackup,
+  queueAutoResume,
+  hasIncompleteFirstBackup,
+} from './ipc-handlers.js';
 import { createTray } from './tray.js';
 import { setupAutoUpdater } from './updater.js';
 import { BackupScheduler } from './scheduler.js';
@@ -97,7 +102,7 @@ function createWindow(): BrowserWindow {
   return win;
 }
 
-void app.whenReady().then(() => {
+void app.whenReady().then(async () => {
   const devServerUrl = process.env['ELECTRON_RENDERER_URL'];
   const csp = devServerUrl
     ? // Dev: Vite injects inline scripts for HMR and opens a websocket back
@@ -126,6 +131,12 @@ void app.whenReady().then(() => {
 
   for (const account of getAccounts()) {
     scheduler.schedule(account);
+  }
+
+  for (const account of getAccounts()) {
+    if (await hasIncompleteFirstBackup(account)) {
+      queueAutoResume(account.id);
+    }
   }
 
   app.setLoginItemSettings({ openAtLogin: store.get('app').startWithWindows });

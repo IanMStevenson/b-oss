@@ -103,12 +103,12 @@ export class BackupEngine {
     this.runBackupId = newId();
 
     try {
+      const checkpoint = await checkpointMgr.load();
       const existingIndex = await journalIndex.load();
 
-      if (existingIndex === null) {
+      if (checkpoint !== null || existingIndex === null) {
         await this.runFirstBackup(journalFolder, checkpointMgr, journalIndex);
       } else {
-        await checkpointMgr.clear();
         await this.runRoutineBackup(journalFolder, existingIndex, checkpointMgr, journalIndex);
       }
     } catch (err) {
@@ -173,6 +173,14 @@ export class BackupEngine {
     let consecutiveFailures = 0;
     let pageIndex = checkpoint.last_page_index;
 
+    // Load any entries already written in a prior interrupted run so that
+    // incremental journal.json saves include the full picture, not just entries
+    // fetched in this session.
+    const priorIndex = await journalIndex.load();
+    const priorEntryMap = new Map<string, EntryIndex>(
+      priorIndex?.entries.map((e) => [e.entry_id, e]) ?? [],
+    );
+
     while (true) {
       this.checkCancelled();
       await this.appendLog('info', `API: getJournalEntries page ${pageIndex} (initial fetch)`);
@@ -227,14 +235,19 @@ export class BackupEngine {
           current_date: entry.date,
         });
 
+        const currentIds = new Set(fetchedEntries.map((e) => e.entry_id));
+        const mergedEntries: EntryIndex[] = [
+          ...fetchedEntries.map((e) => JournalIndex.toEntryIndex(e)),
+          ...[...priorEntryMap.values()].filter((e) => !currentIds.has(e.entry_id)),
+        ];
         await journalIndex.save({
           schema_version: 1,
           username: this.config.username,
           journal_title: this.config.journal_title,
           avatar_url: this.config.avatar_url,
-          entry_total: fetchedEntries.length,
+          entry_total: mergedEntries.length,
           last_backup_at: nowIso(),
-          entries: fetchedEntries.map((e) => JournalIndex.toEntryIndex(e)),
+          entries: mergedEntries,
         });
 
         if (this.config.api_delay_ms > 0) {
@@ -248,14 +261,19 @@ export class BackupEngine {
       await checkpointMgr.save(checkpoint);
     }
 
+    const finalCurrentIds = new Set(fetchedEntries.map((e) => e.entry_id));
+    const finalEntries: EntryIndex[] = [
+      ...fetchedEntries.map((e) => JournalIndex.toEntryIndex(e)),
+      ...[...priorEntryMap.values()].filter((e) => !finalCurrentIds.has(e.entry_id)),
+    ];
     const metadata: JournalMetadata = {
       schema_version: 1,
       username: this.config.username,
       journal_title: this.config.journal_title,
       avatar_url: this.config.avatar_url,
-      entry_total: fetchedEntries.length,
+      entry_total: finalEntries.length,
       last_backup_at: nowIso(),
-      entries: fetchedEntries.map((e) => JournalIndex.toEntryIndex(e)),
+      entries: finalEntries,
     };
     await journalIndex.save(metadata);
     await checkpointMgr.clear();
@@ -264,7 +282,7 @@ export class BackupEngine {
     this.onEvent({
       type: 'completed',
       account_id: this.config.id,
-      total_archived: fetchedEntries.length,
+      total_archived: finalEntries.length,
     });
     await this.appendLog(
       'info',

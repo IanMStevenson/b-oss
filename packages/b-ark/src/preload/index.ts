@@ -19,6 +19,7 @@ contextBridge.exposeInMainWorld('api', {
     ipcRenderer.invoke('updateAccountSettings', id, settings),
   getStore: () => ipcRenderer.invoke('getStore'),
   getLogs: (id: string) => ipcRenderer.invoke('getLogs', id),
+  rendererReady: () => ipcRenderer.send('renderer-ready'),
   on: (channel: 'main-event', handler: (event: MainEvent) => void): (() => void) => {
     if (channel !== 'main-event') throw new Error(`Unknown channel: ${channel as string}`);
     const listener = (_event: IpcRendererEvent, data: MainEvent): void => handler(data);

@@ -2,6 +2,7 @@
 // Copyright (C) 2026 Ian Stevenson
 
 import path from 'node:path';
+import fs from 'node:fs';
 import { ipcMain, type BrowserWindow, dialog, shell, app } from 'electron';
 import { v4 as uuidv4 } from 'uuid';
 import { BlipfotoClient } from '@b-oss/blipfoto-api';
@@ -27,6 +28,11 @@ interface BackupErrorLike {
 }
 
 const activeEngines = new Map<string, BackupEngine>();
+const pendingAutoResume = new Set<string>();
+
+export function queueAutoResume(accountId: string): void {
+  pendingAutoResume.add(accountId);
+}
 
 export function registerIpcHandlers(
   getMainWindow: () => BrowserWindow | null,
@@ -39,6 +45,13 @@ export function registerIpcHandlers(
   function emitStoreChanged(): void {
     emit({ type: 'store:changed', store: getAppStore() });
   }
+
+  ipcMain.once('renderer-ready', () => {
+    for (const id of pendingAutoResume) {
+      void runBackup(id);
+    }
+    pendingAutoResume.clear();
+  });
 
   async function runBackup(id: string): Promise<void> {
     const account = getAccount(id);
@@ -327,4 +340,19 @@ export function triggerScheduledBackup(id: string): void {
   if (schedulerRunner) {
     void schedulerRunner(id);
   }
+}
+
+export async function hasIncompleteFirstBackup(account: AccountConfig): Promise<boolean> {
+  if (!account.backup_folder || account.total_archived > 0) return false;
+  // Either a checkpoint file or an incremental journal.json written mid-backup
+  // indicates a first backup that started but never completed.
+  for (const filename of ['_checkpoint.json', 'journal.json']) {
+    try {
+      await fs.promises.access(path.join(account.backup_folder, account.username, filename));
+      return true;
+    } catch {
+      // not found — try next
+    }
+  }
+  return false;
 }

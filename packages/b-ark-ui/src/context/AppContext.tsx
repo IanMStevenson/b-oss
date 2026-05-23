@@ -35,6 +35,8 @@ export function AppProvider({
         // store load failure — leave state.store null, UI will show spinner indefinitely
       });
 
+    backend.notifyRendererReady();
+
     const unsub = backend.subscribe((event) => {
       if (event.type === 'store:changed') {
         dispatch({ type: 'store:changed', store: event.store });

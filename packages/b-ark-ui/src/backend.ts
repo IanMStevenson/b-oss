@@ -82,4 +82,5 @@ export interface BackendContext {
   getLogs(accountId: string): Promise<LogEntry[]>;
 
   subscribe(handler: (event: MainEvent) => void): () => void;
+  notifyRendererReady(): void;
 }
