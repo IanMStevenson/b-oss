@@ -10,6 +10,7 @@ declare global {
       addAccountFresh(): Promise<void>;
       removeAccount(id: string): Promise<void>;
       reauthoriseAccount(id: string): Promise<void>;
+      reauthoriseAccountFresh(id: string): Promise<void>;
       startBackup(id: string): Promise<void>;
       cancelBackup(id: string): Promise<void>;
       openViewer(id: string): Promise<void>;
@@ -28,6 +29,7 @@ export class ElectronBackend implements BackendContext {
   addAccountFresh = () => window.api.addAccountFresh();
   removeAccount = (id: string) => window.api.removeAccount(id);
   reauthoriseAccount = (id: string) => window.api.reauthoriseAccount(id);
+  reauthoriseAccountFresh = (id: string) => window.api.reauthoriseAccountFresh(id);
   startBackup = (id: string) => window.api.startBackup(id);
   cancelBackup = (id: string) => window.api.cancelBackup(id);
   openViewer = (id: string) => window.api.openViewer(id);

@@ -67,6 +67,7 @@ export interface BackendContext {
   addAccountFresh(): Promise<void>;
   removeAccount(accountId: string): Promise<void>;
   reauthoriseAccount(accountId: string): Promise<void>;
+  reauthoriseAccountFresh(accountId: string): Promise<void>;
 
   startBackup(accountId: string): Promise<void>;
   cancelBackup(accountId: string): Promise<void>;

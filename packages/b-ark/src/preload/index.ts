@@ -9,6 +9,7 @@ contextBridge.exposeInMainWorld('api', {
   addAccountFresh: () => ipcRenderer.invoke('addAccountFresh'),
   removeAccount: (id: string) => ipcRenderer.invoke('removeAccount', id),
   reauthoriseAccount: (id: string) => ipcRenderer.invoke('reauthoriseAccount', id),
+  reauthoriseAccountFresh: (id: string) => ipcRenderer.invoke('reauthoriseAccountFresh', id),
   startBackup: (id: string) => ipcRenderer.invoke('startBackup', id),
   cancelBackup: (id: string) => ipcRenderer.invoke('cancelBackup', id),
   openViewer: (id: string) => ipcRenderer.invoke('openViewer', id),

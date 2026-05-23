@@ -50,6 +50,7 @@ export function registerIpcHandlers(
       emit({ type: 'log:entry', account_id: entry.account_id, entry });
     });
 
+    let engineStarted = false;
     try {
       const rawToken = decryptToken(account.access_token);
       const client = new BlipfotoClient(rawToken);
@@ -73,7 +74,7 @@ export function registerIpcHandlers(
       );
 
       activeEngines.set(id, engine);
-
+      engineStarted = true;
       await engine.run();
 
       try {
@@ -126,6 +127,18 @@ export function registerIpcHandlers(
           const win = getMainWindow();
           win?.show();
           win?.focus();
+        }
+        // Engine emits backup:failed itself before rethrowing; only emit here
+        // for failures that occurred before engine.run() was reached.
+        if (!engineStarted) {
+          emit({
+            type: 'backup:event',
+            event: {
+              type: 'failed',
+              account_id: id,
+              error: { kind: 'api_error', code: 0, message: errorMessage },
+            },
+          });
         }
         emitStoreChanged();
       }
@@ -212,10 +225,9 @@ export function registerIpcHandlers(
     emitStoreChanged();
   });
 
-  ipcMain.handle('reauthoriseAccount', async (_event, id: string) => {
+  async function performReauthorise(id: string, rawToken: string): Promise<void> {
     const account = getAccount(id);
     if (!account) throw new Error(`Account ${id} not found`);
-    const rawToken = await startOAuthFlow();
     const client = new BlipfotoClient(rawToken);
     const profile = await client.getUserProfile({ returnDetails: true });
     saveAccount({
@@ -228,6 +240,16 @@ export function registerIpcHandlers(
     const reloaded = getAccount(id);
     if (reloaded) scheduler.schedule(reloaded);
     emitStoreChanged();
+  }
+
+  ipcMain.handle('reauthoriseAccount', async (_event, id: string) => {
+    const rawToken = await startOAuthFlow();
+    await performReauthorise(id, rawToken);
+  });
+
+  ipcMain.handle('reauthoriseAccountFresh', async (_event, id: string) => {
+    const rawToken = await startOAuthFlowEmbedded(getMainWindow());
+    await performReauthorise(id, rawToken);
   });
 
   ipcMain.handle('startBackup', (_event, id: string) => {

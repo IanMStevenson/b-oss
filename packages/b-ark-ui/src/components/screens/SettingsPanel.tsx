@@ -2,7 +2,7 @@
 // Copyright (C) 2026 Ian Stevenson
 
 import { useState } from 'react';
-import { Settings, X, FolderOpen, RefreshCw, Trash2 } from 'lucide-react';
+import { Settings, X, FolderOpen, Trash2 } from 'lucide-react';
 
 function PillToggle({ checked, onChange }: { checked: boolean; onChange: (v: boolean) => void }) {
   return (
@@ -44,6 +44,7 @@ function PillToggle({ checked, onChange }: { checked: boolean; onChange: (v: boo
 }
 import type { AccountConfig } from '../../backend.js';
 import { useApp } from '../../context/AppContext.js';
+import { SplitButton } from '../SplitButton.js';
 
 interface SettingsPanelProps {
   account: AccountConfig;
@@ -459,28 +460,22 @@ export function SettingsPanel({ account }: SettingsPanelProps) {
           {/* Account actions */}
           <SettingBlock label="Account">
             <div style={{ display: 'flex', gap: 10 }}>
-              <button
-                onClick={() => {
+              <SplitButton
+                variant="secondary"
+                menuDirection="up"
+                primaryLabel="Reauthorise"
+                onPrimary={() => {
                   void backend.reauthoriseAccount(account.id);
                 }}
-                style={{
-                  height: 30,
-                  padding: '0 14px',
-                  borderRadius: 7,
-                  border: '1px solid var(--line)',
-                  background: 'white',
-                  color: 'var(--ink-2)',
-                  fontSize: 13,
-                  fontWeight: 500,
-                  cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 6,
-                }}
-              >
-                <RefreshCw size={13} strokeWidth={1.6} />
-                Reauthorise
-              </button>
+                menu={[
+                  {
+                    label: 'Sign in with a different account…',
+                    onSelect: () => {
+                      void backend.reauthoriseAccountFresh(account.id);
+                    },
+                  },
+                ]}
+              />
               <button
                 onClick={() => {
                   void handleRemove();
