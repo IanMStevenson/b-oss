@@ -3,7 +3,7 @@
 
 import { setupServer } from 'msw/node';
 import { http, HttpResponse } from 'msw';
-import { beforeAll, afterAll, afterEach, describe, it, expect, vi } from 'vitest';
+import { beforeAll, afterAll, afterEach, describe, it, expect } from 'vitest';
 import { BlipfotoClient, BlipfotoError, NetworkError } from '../index.js';
 
 const BASE = 'https://api.blipfoto.com/4/';
@@ -266,49 +266,22 @@ describe('getEntry', () => {
 });
 
 describe('rate limiting', () => {
-  it('sleeps and retries once when first request returns code 11 and second succeeds', async () => {
-    vi.useFakeTimers();
+  it('throws BlipfotoError with isRateLimited === true on the first code-11 response (no silent retry)', async () => {
     let callCount = 0;
     server.use(
       http.get(`${BASE}user/profile.json`, () => {
         callCount++;
-        if (callCount === 1) {
-          return HttpResponse.json(errorEnvelope(11, 'Request limit reached.'), {
-            headers: rateLimitHeaders(0, 60),
-          });
-        }
-        return HttpResponse.json(envelope({ user: mockUser, visibility: 1 as const }), {
-          headers: rateLimitHeaders(100, 300),
+        return HttpResponse.json(errorEnvelope(11, 'Request limit reached.'), {
+          headers: rateLimitHeaders(0, 60),
         });
       }),
     );
     const client = makeClient();
-    const resultPromise = client.getUserProfile();
-    await vi.runAllTimersAsync();
-    const result = await resultPromise;
-    expect(result.user.username).toBe('gbradley');
-    expect(callCount).toBe(2);
-    vi.useRealTimers();
-  });
-
-  it('throws BlipfotoError with isRateLimited === true when both requests return code 11', async () => {
-    vi.useFakeTimers();
-    server.use(
-      http.get(`${BASE}user/profile.json`, () =>
-        HttpResponse.json(errorEnvelope(11, 'Request limit reached.'), {
-          headers: rateLimitHeaders(0, 60),
-        }),
-      ),
-    );
-    const client = makeClient();
-    const resultPromise = client.getUserProfile();
-    // Attach rejection handler immediately so it is never "unhandled"
-    const caught = resultPromise.catch((err: unknown) => err);
-    await vi.runAllTimersAsync();
-    const err = await caught;
+    const err = await client.getUserProfile().catch((e: unknown) => e);
     expect(err).toBeInstanceOf(BlipfotoError);
     expect((err as BlipfotoError).isRateLimited).toBe(true);
-    vi.useRealTimers();
+    expect(callCount).toBe(1);
+    expect(client.rateLimitInfo?.resetInSeconds).toBe(60);
   });
 });
 

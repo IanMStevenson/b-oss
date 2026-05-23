@@ -10,10 +10,6 @@ import type {
 } from './types.js';
 import { BlipfotoError, NetworkError } from './errors.js';
 
-function sleep(ms: number): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, ms));
-}
-
 function buildUrl(
   baseUrl: string,
   path: string,
@@ -69,27 +65,11 @@ export class BlipfotoClient {
     return envelope.data as T;
   }
 
-  private async requestWithRateLimitRetry<T>(
-    path: string,
-    params: Record<string, string | number | undefined> = {},
-  ): Promise<T> {
-    try {
-      return await this.request<T>(path, params);
-    } catch (err) {
-      if (err instanceof BlipfotoError && err.isRateLimited) {
-        const waitMs = (this.lastRateLimit!.resetInSeconds + 1) * 1000;
-        await sleep(waitMs);
-        return await this.request<T>(path, params);
-      }
-      throw err;
-    }
-  }
-
   async getUserProfile(options?: {
     username?: string;
     returnDetails?: boolean;
   }): Promise<UserProfileResponse> {
-    return this.requestWithRateLimitRetry<UserProfileResponse>('user/profile', {
+    return this.request<UserProfileResponse>('user/profile', {
       username: options?.username,
       return_details: options?.returnDetails ? 1 : undefined,
     });
@@ -100,7 +80,7 @@ export class BlipfotoClient {
     pageIndex?: number;
     pageSize?: number;
   }): Promise<JournalEntriesResponse> {
-    return this.requestWithRateLimitRetry<JournalEntriesResponse>('entries/journal', {
+    return this.request<JournalEntriesResponse>('entries/journal', {
       username: options?.username,
       page_index: options?.pageIndex,
       page_size: options?.pageSize,
@@ -117,7 +97,7 @@ export class BlipfotoClient {
       returnImageUrls?: boolean;
     },
   ): Promise<EntryResponse> {
-    return this.requestWithRateLimitRetry<EntryResponse>('entry', {
+    return this.request<EntryResponse>('entry', {
       entry_id: entryId,
       return_details: options?.returnDetails ? 1 : undefined,
       return_metadata: options?.returnMetadata ? 1 : undefined,
