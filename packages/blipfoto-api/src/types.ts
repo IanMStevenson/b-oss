@@ -83,13 +83,6 @@ export interface BlipImageUrls {
   original: string | null;
 }
 
-export interface BlipEntryFull extends BlipEntryStub {
-  details?: BlipEntryDetails;
-  metadata?: BlipEntryMetadata;
-  comments?: BlipEntryComments;
-  image_urls?: BlipImageUrls;
-}
-
 export interface BlipPage {
   index: number;
   size: number;
@@ -108,5 +101,9 @@ export interface JournalEntriesResponse {
 }
 
 export interface EntryResponse {
-  entry: BlipEntryFull;
+  entry: BlipEntryStub;
+  details?: BlipEntryDetails;
+  metadata?: BlipEntryMetadata;
+  comments?: BlipEntryComments;
+  image_urls?: BlipImageUrls;
 }

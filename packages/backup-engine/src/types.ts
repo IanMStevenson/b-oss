@@ -51,8 +51,10 @@ export interface BlipEntry {
   } | null;
 
   images: {
-    original?: string;
     thumbnail?: string;
+    image?: string;
+    original?: string;
+    hires?: string;
   };
 
   backed_up_at: string;

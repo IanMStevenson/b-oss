@@ -65,4 +65,14 @@ export class JournalIndex {
     const year = date.slice(0, 4);
     return `entries/${year}/${date}-t.jpg`;
   }
+
+  static entryOriginalPath(date: string): string {
+    const year = date.slice(0, 4);
+    return `entries/${year}/${date}-o.jpg`;
+  }
+
+  static entryHiresPath(date: string): string {
+    const year = date.slice(0, 4);
+    return `entries/${year}/${date}-h.jpg`;
+  }
 }

@@ -144,7 +144,7 @@ export function EntryDetail({
 
       <div className={styles.photoContainer}>
         <img
-          src={entry.images.original ?? entry.images.thumbnail}
+          src={entry.images.image ?? entry.images.thumbnail}
           alt={entry.title}
           className={styles.photo}
         />

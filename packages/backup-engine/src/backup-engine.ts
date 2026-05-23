@@ -6,8 +6,8 @@ import {
   NetworkError,
   type BlipfotoClient,
   type BlipComment as ApiBlipComment,
-  type BlipEntryFull,
   type BlipEntryStub,
+  type EntryResponse,
 } from '@b-oss/blipfoto-api';
 import { BackupAbortedError } from './errors.js';
 import { CheckpointManager } from './checkpoint.js';
@@ -452,22 +452,26 @@ export class BackupEngine {
       }),
     );
 
-    const entry = this.mapToBlipEntry(response.entry);
+    const entry = this.mapToBlipEntry(response);
 
     const jsonRel = JournalIndex.entryJsonPath(entry.date);
     const imageRel = JournalIndex.entryImagePath(entry.date);
     const thumbRel = JournalIndex.entryThumbnailPath(entry.date);
+    const originalRel = JournalIndex.entryOriginalPath(entry.date);
+    const hiresRel = JournalIndex.entryHiresPath(entry.date);
     const jsonAbs = joinPath(journalFolder, jsonRel);
-    const imageAbs = joinPath(journalFolder, imageRel);
-    const thumbAbs = joinPath(journalFolder, thumbRel);
     const jsonDir = joinPath(journalFolder, `entries/${entry.date.slice(0, 4)}`);
 
     let finalJsonRel = jsonRel;
     let finalImageRel = imageRel;
     let finalThumbRel = thumbRel;
+    let finalOriginalRel = originalRel;
+    let finalHiresRel = hiresRel;
     let finalJsonAbs = jsonAbs;
-    let finalImageAbs = imageAbs;
-    let finalThumbAbs = thumbAbs;
+    let finalImageAbs = joinPath(journalFolder, imageRel);
+    let finalThumbAbs = joinPath(journalFolder, thumbRel);
+    let finalOriginalAbs = joinPath(journalFolder, originalRel);
+    let finalHiresAbs = joinPath(journalFolder, hiresRel);
 
     if (await this.io.fileExists(jsonAbs)) {
       try {
@@ -480,12 +484,17 @@ export class BackupEngine {
             this.config.id,
           );
           const year = entry.date.slice(0, 4);
-          finalJsonRel = `entries/${year}/${entry.date}-${entry.entry_id}.json`;
-          finalImageRel = `entries/${year}/${entry.date}-${entry.entry_id}.jpg`;
-          finalThumbRel = `entries/${year}/${entry.date}-${entry.entry_id}-t.jpg`;
+          const base = `entries/${year}/${entry.date}-${entry.entry_id}`;
+          finalJsonRel = `${base}.json`;
+          finalImageRel = `${base}.jpg`;
+          finalThumbRel = `${base}-t.jpg`;
+          finalOriginalRel = `${base}-o.jpg`;
+          finalHiresRel = `${base}-h.jpg`;
           finalJsonAbs = joinPath(journalFolder, finalJsonRel);
           finalImageAbs = joinPath(journalFolder, finalImageRel);
           finalThumbAbs = joinPath(journalFolder, finalThumbRel);
+          finalOriginalAbs = joinPath(journalFolder, finalOriginalRel);
+          finalHiresAbs = joinPath(journalFolder, finalHiresRel);
         }
       } catch {
         // unreadable existing file — overwrite
@@ -494,12 +503,66 @@ export class BackupEngine {
 
     await this.io.ensureDir(jsonDir);
 
-    const full = response.entry;
-    if (full.image_urls?.original) {
-      entry.images.original = finalImageRel;
+    const downloads: Array<{
+      label: string;
+      url: string;
+      destAbs: string;
+      assign: () => void;
+    }> = [];
+
+    if (response.entry.thumbnail_url) {
+      downloads.push({
+        label: 'thumbnail',
+        url: response.entry.thumbnail_url,
+        destAbs: finalThumbAbs,
+        assign: () => {
+          entry.images.thumbnail = finalThumbRel;
+        },
+      });
     }
-    if (full.image_urls?.lores ?? full.thumbnail_url) {
-      entry.images.thumbnail = finalThumbRel;
+    if (response.entry.image_url) {
+      downloads.push({
+        label: 'image',
+        url: response.entry.image_url,
+        destAbs: finalImageAbs,
+        assign: () => {
+          entry.images.image = finalImageRel;
+        },
+      });
+    }
+    if (response.image_urls?.original) {
+      downloads.push({
+        label: 'original',
+        url: response.image_urls.original,
+        destAbs: finalOriginalAbs,
+        assign: () => {
+          entry.images.original = finalOriginalRel;
+        },
+      });
+    }
+    if (response.image_urls?.hires) {
+      downloads.push({
+        label: 'hires',
+        url: response.image_urls.hires,
+        destAbs: finalHiresAbs,
+        assign: () => {
+          entry.images.hires = finalHiresRel;
+        },
+      });
+    }
+
+    for (const dl of downloads) {
+      try {
+        await this.io.downloadFile(dl.url, dl.destAbs);
+        dl.assign();
+      } catch (err) {
+        const message = err instanceof Error ? err.message : String(err);
+        this.io.log(
+          'warn',
+          `Failed to download ${dl.label} for ${entry.date}: ${message}`,
+          this.config.id,
+        );
+      }
     }
 
     const serialised = JSON.stringify(entry, null, 2);
@@ -510,65 +573,39 @@ export class BackupEngine {
       await this.io.deleteFile(tmpAbs);
     }
 
-    if (full.image_urls?.original) {
-      try {
-        await this.io.downloadFile(full.image_urls.original, finalImageAbs);
-      } catch (err) {
-        const message = err instanceof Error ? err.message : String(err);
-        this.io.log(
-          'warn',
-          `Failed to download image for ${entry.date}: ${message}`,
-          this.config.id,
-        );
-      }
-    }
-
-    const thumbUrl = full.image_urls?.lores ?? full.thumbnail_url;
-    if (thumbUrl) {
-      try {
-        await this.io.downloadFile(thumbUrl, finalThumbAbs);
-      } catch (err) {
-        const message = err instanceof Error ? err.message : String(err);
-        this.io.log(
-          'warn',
-          `Failed to download thumbnail for ${entry.date}: ${message}`,
-          this.config.id,
-        );
-      }
-    }
-
     return entry;
   }
 
-  private mapToBlipEntry(full: BlipEntryFull): BlipEntry {
-    const exif = full.metadata
+  private mapToBlipEntry(response: EntryResponse): BlipEntry {
+    const { entry, details, metadata, comments } = response;
+    const exif = metadata
       ? {
-          make: full.metadata.Make,
-          model: full.metadata.Model,
-          camera: full.metadata.camera,
-          exposure_time: full.metadata.ExposureTime,
-          f_number: full.metadata.FNumber,
-          focal_length: full.metadata.FocalLength,
-          iso: full.metadata.ISO,
+          make: metadata.Make,
+          model: metadata.Model,
+          camera: metadata.camera,
+          exposure_time: metadata.ExposureTime,
+          f_number: metadata.FNumber,
+          focal_length: metadata.FocalLength,
+          iso: metadata.ISO,
         }
       : null;
 
     return {
       schema_version: 1,
-      entry_id: full.entry_id_str,
-      date: full.date,
-      date_stamp: full.date_stamp,
-      title: full.title,
-      username: full.username,
-      journal_title: full.details?.journal_title ?? this.config.journal_title,
-      description: full.details?.description ?? '',
-      description_html: full.details?.description_html ?? '',
-      tags: full.details?.tags ?? [],
-      location: full.location,
-      views_total: full.details?.views.total ?? 0,
-      stars_total: full.details?.stars.total ?? 0,
-      favorites_total: full.details?.favorites.total ?? 0,
-      comments: toBlipComments(full.comments?.list),
+      entry_id: entry.entry_id_str,
+      date: entry.date,
+      date_stamp: entry.date_stamp,
+      title: entry.title,
+      username: entry.username,
+      journal_title: details?.journal_title ?? this.config.journal_title,
+      description: details?.description ?? '',
+      description_html: details?.description_html ?? '',
+      tags: details?.tags ?? [],
+      location: entry.location,
+      views_total: details?.views.total ?? 0,
+      stars_total: details?.stars.total ?? 0,
+      favorites_total: details?.favorites.total ?? 0,
+      comments: toBlipComments(comments?.list),
       exif,
       images: {},
       backed_up_at: nowIso(),

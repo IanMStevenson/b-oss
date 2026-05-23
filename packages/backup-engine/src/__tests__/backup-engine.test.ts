@@ -91,35 +91,43 @@ function makeEntryStub(idStr: string, date: string) {
   };
 }
 
-function makeEntryResponse(idStr: string, date: string): EntryResponse {
+function makeEntryResponse(
+  idStr: string,
+  date: string,
+  imageUrlsOverride?: Partial<{
+    lores: string | null;
+    stdres: string | null;
+    hires: string | null;
+    original: string | null;
+  }>,
+): EntryResponse {
   return {
-    entry: {
-      ...makeEntryStub(idStr, date),
-      details: {
-        journal_title: 'Journal',
-        description: 'desc',
-        description_html: '<p>desc</p>',
-        tags: [],
-        views: { total: 1 },
-        stars: { total: 0, starred: 0 },
-        favorites: { total: 0, favorited: 0 },
-      },
-      metadata: {
-        Make: null,
-        Model: null,
-        ExposureTime: null,
-        FNumber: null,
-        FocalLength: null,
-        ISO: null,
-        camera: null,
-      },
-      comments: { total: 0, list: [] },
-      image_urls: {
-        lores: `https://s3/${idStr}-t.jpg`,
-        stdres: null,
-        hires: null,
-        original: `https://s3/${idStr}.jpg`,
-      },
+    entry: makeEntryStub(idStr, date),
+    details: {
+      journal_title: 'Journal',
+      description: 'desc',
+      description_html: '<p>desc</p>',
+      tags: [],
+      views: { total: 1 },
+      stars: { total: 0, starred: 0 },
+      favorites: { total: 0, favorited: 0 },
+    },
+    metadata: {
+      Make: null,
+      Model: null,
+      ExposureTime: null,
+      FNumber: null,
+      FocalLength: null,
+      ISO: null,
+      camera: null,
+    },
+    comments: { total: 0, list: [] },
+    image_urls: {
+      lores: null,
+      stdres: null,
+      hires: null,
+      original: null,
+      ...imageUrlsOverride,
     },
   };
 }
@@ -588,7 +596,7 @@ describe('BackupEngine — routine backup redo', () => {
 
 // Plain BlipEntry mapping check — verifies the engine writes a recognisable schema
 describe('BackupEngine — writes BlipEntry schema', () => {
-  it('writes JSON with entry_id (string), schema_version 1, images.original set', async () => {
+  it('writes JSON with entry_id (string), schema_version 1, image+thumbnail downloaded from entry stub URLs', async () => {
     const io = new MockPlatformIO();
     const client = makeClient();
 
@@ -608,8 +616,96 @@ describe('BackupEngine — writes BlipEntry schema', () => {
     expect(parsed.entry_id).toBe('111');
     expect(typeof parsed.entry_id).toBe('string');
     expect(parsed.schema_version).toBe(1);
-    expect(parsed.images.original).toBe('entries/2024/2024-01-15.jpg');
+    expect(parsed.images.image).toBe('entries/2024/2024-01-15.jpg');
     expect(parsed.images.thumbnail).toBe('entries/2024/2024-01-15-t.jpg');
+    expect(parsed.images.original).toBeUndefined();
+    expect(parsed.images.hires).toBeUndefined();
     expect(parsed.backup_app_version).toBe('0.1.0');
+
+    const urls = io.downloads.map((d) => d.url).sort();
+    expect(urls).toEqual(['https://example.com/111-t.jpg', 'https://example.com/111.jpg'].sort());
+  });
+
+  it('populates description, tags, views, comments, exif from sibling response sections', async () => {
+    const io = new MockPlatformIO();
+    const client = makeClient();
+    vi.spyOn(client, 'getUserProfile').mockResolvedValue(makeProfileResponse(1));
+    vi.spyOn(client, 'getJournalEntries').mockResolvedValueOnce({
+      page: { index: 0, size: 100, more: 0 },
+      entries: [makeEntryStub('222', '2024-02-20')],
+    });
+    const response = makeEntryResponse('222', '2024-02-20');
+    response.details!.description = 'Stewed apple with grapes';
+    response.details!.description_html = '<p>Stewed apple</p>';
+    response.details!.tags = ['food', 'dessert'];
+    response.details!.views.total = 258;
+    response.details!.stars.total = 2;
+    response.metadata!.Make = 'samsung';
+    response.metadata!.camera = 'Samsung SM-N986B';
+    response.comments!.total = 1;
+    response.comments!.list = [
+      {
+        comment_id_str: '999',
+        parent_id_str: null,
+        entry_id_str: '222',
+        thumbnail_url: 'https://example.com/c.jpg',
+        content: 'Good colours',
+        content_html: 'Good colours',
+        commenter: { username: 'annejohn', avatar_url: 'https://example.com/a.jpg' },
+        replies: [],
+      },
+    ];
+    vi.spyOn(client, 'getEntry').mockResolvedValue(response);
+
+    const engine = new BackupEngine(makeConfig(), io, client, () => {});
+    await engine.run();
+
+    const parsed = JSON.parse(
+      io.files.get('/backups/gbradley/entries/2024/2024-02-20.json')!,
+    ) as BlipEntry;
+    expect(parsed.description).toBe('Stewed apple with grapes');
+    expect(parsed.tags).toEqual(['food', 'dessert']);
+    expect(parsed.views_total).toBe(258);
+    expect(parsed.stars_total).toBe(2);
+    expect(parsed.comments).toHaveLength(1);
+    expect(parsed.comments[0].content).toBe('Good colours');
+    expect(parsed.exif?.camera).toBe('Samsung SM-N986B');
+  });
+
+  it('downloads original (-o.jpg) and hires (-h.jpg) when image_urls supplies them', async () => {
+    const io = new MockPlatformIO();
+    const client = makeClient();
+    vi.spyOn(client, 'getUserProfile').mockResolvedValue(makeProfileResponse(1));
+    vi.spyOn(client, 'getJournalEntries').mockResolvedValueOnce({
+      page: { index: 0, size: 100, more: 0 },
+      entries: [makeEntryStub('333', '2024-03-30')],
+    });
+    vi.spyOn(client, 'getEntry').mockResolvedValue(
+      makeEntryResponse('333', '2024-03-30', {
+        original: 'https://example.com/333-original.jpg',
+        hires: 'https://example.com/333-hires.jpg',
+      }),
+    );
+
+    const engine = new BackupEngine(makeConfig(), io, client, () => {});
+    await engine.run();
+
+    const parsed = JSON.parse(
+      io.files.get('/backups/gbradley/entries/2024/2024-03-30.json')!,
+    ) as BlipEntry;
+    expect(parsed.images.thumbnail).toBe('entries/2024/2024-03-30-t.jpg');
+    expect(parsed.images.image).toBe('entries/2024/2024-03-30.jpg');
+    expect(parsed.images.original).toBe('entries/2024/2024-03-30-o.jpg');
+    expect(parsed.images.hires).toBe('entries/2024/2024-03-30-h.jpg');
+
+    const urls = io.downloads.map((d) => d.url).sort();
+    expect(urls).toEqual(
+      [
+        'https://example.com/333-hires.jpg',
+        'https://example.com/333-original.jpg',
+        'https://example.com/333-t.jpg',
+        'https://example.com/333.jpg',
+      ].sort(),
+    );
   });
 });

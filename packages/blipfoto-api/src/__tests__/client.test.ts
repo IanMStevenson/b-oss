@@ -166,53 +166,59 @@ describe('getJournalEntries', () => {
 });
 
 describe('getEntry', () => {
-  const mockEntryFull = {
-    ...mockEntryStub,
-    details: {
-      journal_title: 'My Journal',
-      description: 'A description',
-      description_html: '<p>A description</p>',
-      tags: ['nature', 'photography'],
-      views: { total: 100 },
-      stars: { total: 5, starred: 0 as const },
-      favorites: { total: 2, favorited: 0 as const },
-    },
-    metadata: {
-      Make: 'Canon',
-      Model: 'EOS R5',
-      ExposureTime: '1/200',
-      FNumber: 'f/2.8',
-      FocalLength: '50mm',
-      ISO: '400',
-      camera: 'Canon EOS R5',
-    },
-    comments: {
-      total: 3,
-      list: [
-        {
-          comment_id_str: '111',
-          parent_id_str: null,
-          entry_id_str: '9876543210',
-          thumbnail_url: 'https://example.com/cthumb.jpg',
-          content: 'Great shot!',
-          content_html: '<p>Great shot!</p>',
-          commenter: { username: 'friend', avatar_url: 'https://example.com/favatar.jpg' },
-          replies: null,
-        },
-      ],
-    },
-    image_urls: {
-      lores: 'https://example.com/lores.jpg',
-      stdres: 'https://example.com/stdres.jpg',
-      hires: 'https://example.com/hires.jpg',
-      original: 'https://example.com/original.jpg',
-    },
+  const mockEntryDetails = {
+    journal_title: 'My Journal',
+    description: 'A description',
+    description_html: '<p>A description</p>',
+    tags: ['nature', 'photography'],
+    views: { total: 100 },
+    stars: { total: 5, starred: 0 as const },
+    favorites: { total: 2, favorited: 0 as const },
+  };
+  const mockEntryMetadata = {
+    Make: 'Canon',
+    Model: 'EOS R5',
+    ExposureTime: '1/200',
+    FNumber: 'f/2.8',
+    FocalLength: '50mm',
+    ISO: '400',
+    camera: 'Canon EOS R5',
+  };
+  const mockEntryComments = {
+    total: 3,
+    list: [
+      {
+        comment_id_str: '111',
+        parent_id_str: null,
+        entry_id_str: '9876543210',
+        thumbnail_url: 'https://example.com/cthumb.jpg',
+        content: 'Great shot!',
+        content_html: '<p>Great shot!</p>',
+        commenter: { username: 'friend', avatar_url: 'https://example.com/favatar.jpg' },
+        replies: null,
+      },
+    ],
+  };
+  const mockImageUrls = {
+    lores: 'https://example.com/lores.jpg',
+    stdres: 'https://example.com/stdres.jpg',
+    hires: 'https://example.com/hires.jpg',
+    original: 'https://example.com/original.jpg',
   };
 
   it('returns entry with details, metadata, comments, and image_urls when all options enabled', async () => {
     server.use(
       http.get(`${BASE}entry.json`, () =>
-        HttpResponse.json(envelope({ entry: mockEntryFull }), { headers: rateLimitHeaders() }),
+        HttpResponse.json(
+          envelope({
+            entry: mockEntryStub,
+            details: mockEntryDetails,
+            metadata: mockEntryMetadata,
+            comments: mockEntryComments,
+            image_urls: mockImageUrls,
+          }),
+          { headers: rateLimitHeaders() },
+        ),
       ),
     );
     const client = makeClient();
@@ -223,10 +229,11 @@ describe('getEntry', () => {
       includeReplies: true,
       returnImageUrls: true,
     });
-    expect(result.entry.details?.journal_title).toBe('My Journal');
-    expect(result.entry.metadata?.Make).toBe('Canon');
-    expect(result.entry.comments?.total).toBe(3);
-    expect(result.entry.image_urls?.original).toBe('https://example.com/original.jpg');
+    expect(result.entry.entry_id_str).toBe('9876543210');
+    expect(result.details?.journal_title).toBe('My Journal');
+    expect(result.metadata?.Make).toBe('Canon');
+    expect(result.comments?.total).toBe(3);
+    expect(result.image_urls?.original).toBe('https://example.com/original.jpg');
   });
 
   it('returns bare entry stub when no options set', async () => {
@@ -238,7 +245,7 @@ describe('getEntry', () => {
     const client = makeClient();
     const result = await client.getEntry('9876543210');
     expect(result.entry.entry_id_str).toBe('9876543210');
-    expect(result.entry.details).toBeUndefined();
+    expect(result.details).toBeUndefined();
   });
 
   it('maps includeReplies correctly (only sent when returnComments is also true)', async () => {
