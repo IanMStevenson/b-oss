@@ -11,6 +11,14 @@ export async function startServer(accountId: string, backupFolder: string): Prom
 
   const port = await getFreePort();
   const server = http.createServer((req, res) => {
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Access-Control-Allow-Methods', 'GET, HEAD, OPTIONS');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+    if (req.method === 'OPTIONS') {
+      res.writeHead(204);
+      res.end();
+      return;
+    }
     void handler(req, res, { public: backupFolder });
   });
 
