@@ -23,6 +23,7 @@ interface EntryDetailProps {
   nextEntryId: string | null;
   onNavigate: (entryId: string) => void;
   onClose?: () => void;
+  baseUrl?: string;
 }
 
 type ExifKey = 'camera' | 'exposure_time' | 'f_number' | 'focal_length' | 'iso';
@@ -55,6 +56,7 @@ export function EntryDetail({
   nextEntryId,
   onNavigate,
   onClose,
+  baseUrl,
 }: EntryDetailProps) {
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
@@ -143,11 +145,12 @@ export function EntryDetail({
       </div>
 
       <div className={styles.photoContainer}>
-        <img
-          src={entry.images.image ?? entry.images.thumbnail}
-          alt={entry.title}
-          className={styles.photo}
-        />
+        {(() => {
+          const path = entry.images.image ?? entry.images.thumbnail;
+          if (!path) return null;
+          const src = baseUrl ? `${baseUrl}/${path}` : path;
+          return <img src={src} alt={entry.title} className={styles.photo} />;
+        })()}
         <div
           className={`${styles.photoHalf} ${styles.photoHalfLeft}`}
           onClick={() => prevEntryId && onNavigate(prevEntryId)}

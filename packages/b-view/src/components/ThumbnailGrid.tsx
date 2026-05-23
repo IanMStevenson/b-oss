@@ -14,18 +14,22 @@ interface ThumbnailGridProps {
   sizePercent?: number;
   onSizeChange?: (newPercent: number) => void;
   pageSize?: number;
+  baseUrl?: string;
 }
 
 function ThumbnailItem({
   entry,
   selected,
   onSelect,
+  baseUrl,
 }: {
   entry: EntryIndex;
   selected: boolean;
   onSelect: () => void;
+  baseUrl?: string;
 }) {
   const [imgError, setImgError] = useState(false);
+  const src = baseUrl ? `${baseUrl}/${entry.thumbnail_path}` : entry.thumbnail_path;
 
   return (
     <button
@@ -40,7 +44,7 @@ function ThumbnailItem({
         </div>
       ) : (
         <img
-          src={entry.thumbnail_path}
+          src={src}
           alt={entry.title}
           loading="lazy"
           onError={() => setImgError(true)}
@@ -58,6 +62,7 @@ export function ThumbnailGrid({
   sizePercent = 100,
   onSizeChange,
   pageSize = 60,
+  baseUrl,
 }: ThumbnailGridProps) {
   const [currentPage, setCurrentPage] = useState(1);
 
@@ -108,6 +113,7 @@ export function ThumbnailGrid({
               entry={entry}
               selected={entry.entry_id === selectedEntryId}
               onSelect={() => onSelectEntry(entry.entry_id)}
+              baseUrl={baseUrl}
             />
           ))}
         </div>

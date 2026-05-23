@@ -95,11 +95,11 @@ void app.whenReady().then(() => {
     ? // Dev: Vite injects inline scripts for HMR and opens a websocket back
       // to the dev server, so loosen script-src/connect-src accordingly.
       "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; " +
-      "style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; " +
+      "style-src 'self' 'unsafe-inline'; img-src 'self' data: https: http://localhost:*; " +
       `connect-src 'self' ${devServerUrl} ws://${new URL(devServerUrl).host} http://localhost:*;`
     : // Prod: strict policy — only same-origin scripts, no inline.
       "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; " +
-      "img-src 'self' data: https:; connect-src 'self' http://localhost:*;";
+      "img-src 'self' data: https: http://localhost:*; connect-src 'self' http://localhost:*;";
 
   session.defaultSession.webRequest.onHeadersReceived((details, callback) => {
     callback({

@@ -323,6 +323,7 @@ export function HomeScreen({ account }: HomeScreenProps) {
             nextEntryId={nextEntryId}
             onNavigate={(id) => dispatch({ type: 'entry:select', entryId: id })}
             onClose={() => dispatch({ type: 'entry:select', entryId: null })}
+            baseUrl={viewerUrl ?? undefined}
           />
         ) : (
           <ThumbnailGrid
@@ -330,6 +331,7 @@ export function HomeScreen({ account }: HomeScreenProps) {
             selectedEntryId={selectedEntryId}
             onSelectEntry={(id) => dispatch({ type: 'entry:select', entryId: id })}
             sizePercent={thumbnailSizePercent}
+            baseUrl={viewerUrl ?? undefined}
           />
         )}
       </div>
