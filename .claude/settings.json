@@ -5,7 +5,15 @@
       "Bash(npm run typecheck *)",
       "Bash(npm run lint)",
       "Bash(npm run lint *)",
-      "Bash(Get-ChildItem *)"
+      "Bash(Get-ChildItem *)",
+      "Bash(Select-Object *)",
+      "Bash(Sort-Object *)",
+      "Bash(Where-Object *)",
+      "Bash(ForEach-Object *)",
+      "Bash(Measure-Object *)",
+      "Bash(Get-Content *)",
+      "Bash(Test-Path *)",
+      "Bash(Resolve-Path *)"
     ]
   },
   "hooks": {
