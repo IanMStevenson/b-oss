@@ -1,13 +1,15 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (C) 2026 Ian Stevenson
 
-import type { CSSProperties } from 'react';
+import type { CSSProperties, RefObject } from 'react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 
 interface PaginationProps {
   currentPage: number;
   totalPages: number;
   onPage: (page: number) => void;
+  prevRef?: RefObject<HTMLButtonElement>;
+  nextRef?: RefObject<HTMLButtonElement>;
 }
 
 function buildPageItems(current: number, total: number): Array<number | '...'> {
@@ -29,7 +31,7 @@ function buildPageItems(current: number, total: number): Array<number | '...'> {
   return items;
 }
 
-export function Pagination({ currentPage, totalPages, onPage }: PaginationProps) {
+export function Pagination({ currentPage, totalPages, onPage, prevRef, nextRef }: PaginationProps) {
   const items = buildPageItems(currentPage, totalPages);
 
   const btnStyle: CSSProperties = {
@@ -54,6 +56,7 @@ export function Pagination({ currentPage, totalPages, onPage }: PaginationProps)
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: '2px' }}>
       <button
+        ref={prevRef}
         style={btnStyle}
         disabled={currentPage === 1}
         onClick={() => onPage(currentPage - 1)}
@@ -81,6 +84,7 @@ export function Pagination({ currentPage, totalPages, onPage }: PaginationProps)
       )}
 
       <button
+        ref={nextRef}
         style={btnStyle}
         disabled={currentPage === totalPages}
         onClick={() => onPage(currentPage + 1)}

@@ -39,13 +39,13 @@
 
 .scroll {
   flex: 1;
-  overflow-y: auto;
+  overflow: hidden;
 }
 
 .grid {
   display: grid;
-  gap: 6px;
   padding: 18px 24px;
+  justify-content: center;
 }
 
 .paginationRow {
@@ -55,7 +55,6 @@
 }
 
 .thumb {
-  aspect-ratio: 1/1;
   overflow: hidden;
   border-radius: 2px;
   outline: 2px solid transparent;
@@ -64,7 +63,7 @@
   background: var(--bg-alt);
   padding: 0;
   display: block;
-  width: 100%;
+  flex-shrink: 0;
   cursor: pointer;
 }
 
