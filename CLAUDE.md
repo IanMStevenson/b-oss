@@ -48,3 +48,25 @@ npm run build       # Build all packages
 - Entry image (original): YYYY-MM-DD.jpg
 - Entry thumbnail: YYYY-MM-DD-t.jpg
 - Folder structure: entries/YYYY/YYYY-MM-DD.\*
+
+## Shell tool discipline
+
+To minimise permission prompts on read operations, follow this priority order:
+
+**Always try these first — they never prompt:**
+
+- `Grep` tool — search file contents by pattern (supports `glob`, `output_mode`, `-A/-B/-C`)
+- `Glob` tool — find files by name pattern
+- `Read` tool — read a specific file
+
+**Only use `Bash` when the above cannot do the job.**
+
+When `Bash` is needed for reads:
+
+- Run each command as a separate tool call — never chain with `&&`, `||`, or `|`
+- Never add `|| echo "fallback"` — empty output is sufficient
+- Never use `find -exec` or `xargs` — use `Grep` with a `glob` instead
+- Never use `find | grep | xargs` pipelines
+- If a `Bash` command is genuinely the only way to achieve the outcome and will trigger
+  a permission prompt, explain why the built-in tools are insufficient _before_ making
+  the tool call, so the user can make an informed decision when the prompt appears
