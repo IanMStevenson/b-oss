@@ -46,34 +46,34 @@ export function registerIpcHandlers(
     if (!account.backup_folder) throw new Error('No backup folder configured');
     if (activeEngines.has(id)) return;
 
-    const rawToken = decryptToken(account.access_token);
-    const client = new BlipfotoClient(rawToken);
-
     const pio = new ElectronPlatformIO((entry) => {
       emit({ type: 'log:entry', account_id: entry.account_id, entry });
     });
 
-    const engine = new BackupEngine(
-      {
-        id: account.id,
-        username: account.username,
-        journal_title: account.journal_title,
-        avatar_url: account.avatar_url,
-        access_token: rawToken,
-        backup_folder: account.backup_folder,
-        redo_count: account.redo_count,
-        gap_check_days: account.gap_check_days,
-        api_delay_ms: account.api_delay_ms,
-        app_version: app.getVersion(),
-      },
-      pio,
-      client,
-      (event) => emit({ type: 'backup:event', event }),
-    );
-
-    activeEngines.set(id, engine);
-
     try {
+      const rawToken = decryptToken(account.access_token);
+      const client = new BlipfotoClient(rawToken);
+
+      const engine = new BackupEngine(
+        {
+          id: account.id,
+          username: account.username,
+          journal_title: account.journal_title,
+          avatar_url: account.avatar_url,
+          access_token: rawToken,
+          backup_folder: account.backup_folder,
+          redo_count: account.redo_count,
+          gap_check_days: account.gap_check_days,
+          api_delay_ms: account.api_delay_ms,
+          app_version: app.getVersion(),
+        },
+        pio,
+        client,
+        (event) => emit({ type: 'backup:event', event }),
+      );
+
+      activeEngines.set(id, engine);
+
       await engine.run();
 
       try {

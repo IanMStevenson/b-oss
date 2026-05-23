@@ -216,5 +216,12 @@ export function encryptToken(token: string): string {
 }
 
 export function decryptToken(encrypted: string): string {
-  return safeStorage.decryptString(Buffer.from(encrypted, 'base64'));
+  if (!safeStorage.isEncryptionAvailable()) {
+    throw new Error('safeStorage encryption is not available — cannot decrypt access token');
+  }
+  try {
+    return safeStorage.decryptString(Buffer.from(encrypted, 'base64'));
+  } catch {
+    throw new Error('Failed to decrypt access token — re-authorise this account');
+  }
 }
