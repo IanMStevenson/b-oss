@@ -165,6 +165,7 @@ export function registerIpcHandlers(
       access_token: encryptToken(rawToken),
       backup_folder: '',
       schedule: {
+        enabled: true,
         next_run: computeNextRun(2, 'daily'),
         hour: 2,
         interval: 'daily',
@@ -274,7 +275,6 @@ export function registerIpcHandlers(
       const updated: AccountConfig = { ...account, ...settings };
       saveAccount(updated);
       scheduler.schedule(updated);
-      app.setLoginItemSettings({ openAtLogin: store.get('app').startWithWindows });
       emitStoreChanged();
     },
   );

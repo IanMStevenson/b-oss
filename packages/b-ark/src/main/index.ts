@@ -117,7 +117,7 @@ void app.whenReady().then(() => {
 
   mainWindow = createWindow();
 
-  createTray(() => mainWindow);
+  createTray(() => mainWindow, store);
   registerIpcHandlers(() => mainWindow, scheduler);
   setupAutoUpdater();
 

@@ -3,6 +3,45 @@
 
 import { useState } from 'react';
 import { Settings, X, FolderOpen, RefreshCw, Trash2 } from 'lucide-react';
+
+function PillToggle({ checked, onChange }: { checked: boolean; onChange: (v: boolean) => void }) {
+  return (
+    <label style={{ display: 'inline-flex', alignItems: 'center', cursor: 'pointer' }}>
+      <input
+        type="checkbox"
+        checked={checked}
+        onChange={(e) => onChange(e.target.checked)}
+        style={{ position: 'absolute', opacity: 0, width: 0, height: 0 }}
+      />
+      <span
+        style={{
+          display: 'inline-block',
+          width: 36,
+          height: 20,
+          borderRadius: 10,
+          background: checked ? 'var(--green-700)' : 'var(--line)',
+          position: 'relative',
+          transition: 'background 150ms',
+          flexShrink: 0,
+        }}
+      >
+        <span
+          style={{
+            position: 'absolute',
+            top: 2,
+            left: checked ? 18 : 2,
+            width: 16,
+            height: 16,
+            borderRadius: '50%',
+            background: 'white',
+            transition: 'left 150ms',
+            boxShadow: '0 1px 3px rgba(0,0,0,0.2)',
+          }}
+        />
+      </span>
+    </label>
+  );
+}
 import type { AccountConfig } from '../../backend.js';
 import { useApp } from '../../context/AppContext.js';
 
@@ -76,6 +115,7 @@ export function SettingsPanel({ account }: SettingsPanelProps) {
   const { dispatch, backend } = useApp();
 
   const [folder, setFolder] = useState(account.backup_folder);
+  const [scheduleEnabled, setScheduleEnabled] = useState(account.schedule.enabled ?? true);
   const [nextRun, setNextRun] = useState(account.schedule.next_run.slice(0, 10));
   const [hour, setHour] = useState(account.schedule.hour);
   const [interval, setInterval] = useState(account.schedule.interval);
@@ -212,101 +252,127 @@ export function SettingsPanel({ account }: SettingsPanelProps) {
             description="b-ark will check for new entries at this time, and then again every interval."
           >
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-              {/* Date */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                <span
-                  style={{
-                    fontSize: 11,
-                    textTransform: 'uppercase',
-                    letterSpacing: '0.06em',
-                    color: 'var(--muted)',
-                    width: 38,
-                    flexShrink: 0,
-                  }}
-                >
-                  Date
-                </span>
-                <input
-                  type="text"
-                  value={nextRun}
-                  onChange={(e) => setNextRun(e.target.value)}
-                  onFocus={() => setFocusedField('date')}
-                  onBlur={() => {
-                    setFocusedField(null);
-                    const d = new Date(nextRun);
-                    if (!isNaN(d.getTime())) {
-                      const iso = d.toISOString();
-                      save({ schedule: { ...account.schedule, next_run: iso } });
-                    }
-                  }}
-                  placeholder="YYYY-MM-DD"
-                  style={{
-                    ...monoInputStyle,
-                    width: 140,
-                    ...(focusedField === 'date' ? focusRingStyle(true) : {}),
+              {/* Enabled toggle */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 4 }}>
+                <PillToggle
+                  checked={scheduleEnabled}
+                  onChange={(v) => {
+                    setScheduleEnabled(v);
+                    save({ schedule: { ...account.schedule, enabled: v } });
                   }}
                 />
+                <span style={{ fontSize: 13, color: 'var(--ink-2)' }}>
+                  {scheduleEnabled ? 'Enabled' : 'Disabled'}
+                </span>
               </div>
 
-              {/* Time */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                <span
-                  style={{
-                    fontSize: 11,
-                    textTransform: 'uppercase',
-                    letterSpacing: '0.06em',
-                    color: 'var(--muted)',
-                    width: 38,
-                    flexShrink: 0,
-                  }}
-                >
-                  Time
-                </span>
-                <select
-                  value={hour}
-                  onChange={(e) => {
-                    const h = parseInt(e.target.value, 10);
-                    setHour(h);
-                    save({ schedule: { ...account.schedule, hour: h } });
-                  }}
-                  style={{ ...selectStyle, width: 100 }}
-                >
-                  {Array.from({ length: 24 }, (_, i) => (
-                    <option key={i} value={i}>
-                      {String(i).padStart(2, '0')}:00
-                    </option>
-                  ))}
-                </select>
-              </div>
+              {/* Date/Time/Interval — dimmed when schedule is disabled */}
+              <div
+                style={{
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: 8,
+                  opacity: scheduleEnabled ? 1 : 0.4,
+                  pointerEvents: scheduleEnabled ? 'auto' : 'none',
+                }}
+              >
+                {/* Date */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                  <span
+                    style={{
+                      fontSize: 11,
+                      textTransform: 'uppercase',
+                      letterSpacing: '0.06em',
+                      color: 'var(--muted)',
+                      width: 38,
+                      flexShrink: 0,
+                    }}
+                  >
+                    Date
+                  </span>
+                  <input
+                    type="text"
+                    value={nextRun}
+                    onChange={(e) => setNextRun(e.target.value)}
+                    onFocus={() => setFocusedField('date')}
+                    onBlur={() => {
+                      setFocusedField(null);
+                      const d = new Date(nextRun);
+                      if (!isNaN(d.getTime())) {
+                        const iso = d.toISOString();
+                        save({ schedule: { ...account.schedule, next_run: iso } });
+                      }
+                    }}
+                    placeholder="YYYY-MM-DD"
+                    style={{
+                      ...monoInputStyle,
+                      width: 140,
+                      ...(focusedField === 'date' ? focusRingStyle(true) : {}),
+                    }}
+                  />
+                </div>
 
-              {/* Interval */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                <span
-                  style={{
-                    fontSize: 11,
-                    textTransform: 'uppercase',
-                    letterSpacing: '0.06em',
-                    color: 'var(--muted)',
-                    width: 38,
-                    flexShrink: 0,
-                  }}
-                >
-                  Every
-                </span>
-                <select
-                  value={interval}
-                  onChange={(e) => {
-                    const v = e.target.value as 'daily' | 'weekly' | 'monthly';
-                    setInterval(v);
-                    save({ schedule: { ...account.schedule, interval: v } });
-                  }}
-                  style={{ ...selectStyle, width: 120 }}
-                >
-                  <option value="daily">Daily</option>
-                  <option value="weekly">Weekly</option>
-                  <option value="monthly">Monthly</option>
-                </select>
+                {/* Time */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                  <span
+                    style={{
+                      fontSize: 11,
+                      textTransform: 'uppercase',
+                      letterSpacing: '0.06em',
+                      color: 'var(--muted)',
+                      width: 38,
+                      flexShrink: 0,
+                    }}
+                  >
+                    Time
+                  </span>
+                  <select
+                    value={hour}
+                    onChange={(e) => {
+                      const h = parseInt(e.target.value, 10);
+                      setHour(h);
+                      save({ schedule: { ...account.schedule, hour: h } });
+                    }}
+                    style={{ ...selectStyle, width: 100 }}
+                  >
+                    {Array.from({ length: 24 }, (_, i) => (
+                      <option key={i} value={i}>
+                        {String(i).padStart(2, '0')}:00
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Interval */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                  <span
+                    style={{
+                      fontSize: 11,
+                      textTransform: 'uppercase',
+                      letterSpacing: '0.06em',
+                      color: 'var(--muted)',
+                      width: 38,
+                      flexShrink: 0,
+                    }}
+                  >
+                    Every
+                  </span>
+                  <select
+                    value={interval}
+                    onChange={(e) => {
+                      const v = e.target.value as 'daily' | 'weekly' | 'monthly';
+                      setInterval(v);
+                      save({ schedule: { ...account.schedule, interval: v } });
+                    }}
+                    style={{ ...selectStyle, width: 120 }}
+                  >
+                    <option value="daily">Daily</option>
+                    <option value="weekly">Weekly</option>
+                    <option value="monthly">Monthly</option>
+                  </select>
+                </div>
               </div>
+              {/* end dimming wrapper */}
             </div>
           </SettingBlock>
 

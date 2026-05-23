@@ -9,6 +9,7 @@ export interface AccountConfig {
   access_token: string;
   backup_folder: string;
   schedule: {
+    enabled: boolean;
     next_run: string;
     hour: number;
     interval: 'daily' | 'weekly' | 'monthly';

@@ -12,6 +12,7 @@ export class BackupScheduler {
 
   schedule(account: AccountConfig): void {
     this.cancel(account.id);
+    if (!(account.schedule.enabled ?? true)) return;
 
     const nextRun = new Date(account.schedule.next_run).getTime();
     const now = Date.now();
