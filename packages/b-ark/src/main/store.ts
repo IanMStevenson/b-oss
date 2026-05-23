@@ -7,7 +7,7 @@ import type { AccountConfig, AppStore } from '@b-oss/b-ark-ui';
 const defaults: AppStore = {
   accounts: [],
   ui: { thumbnailSizePercent: 100, accountOrder: [] },
-  app: { startWithWindows: false },
+  app: { startWithWindows: true },
 };
 
 export const store = new Store<AppStore>({ defaults, name: 'b-ark-config' });
