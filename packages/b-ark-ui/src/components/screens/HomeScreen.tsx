@@ -140,7 +140,10 @@ export function HomeScreen({ account }: HomeScreenProps) {
       .catch(() => setViewerUrl(null));
   }, [backend, account.id]);
 
-  const journalState = useJournal(viewerUrl ? `${viewerUrl}/journal.json` : undefined);
+  const journalState = useJournal(
+    viewerUrl ? `${viewerUrl}/journal.json` : undefined,
+    isBackingUp ? 5000 : undefined,
+  );
   const entries: EntryIndex[] = journalState.status === 'loaded' ? journalState.data.entries : [];
 
   const selectedIdx = entries.findIndex((e) => e.entry_id === selectedEntryId);
@@ -331,6 +334,19 @@ export function HomeScreen({ account }: HomeScreenProps) {
             onClose={() => dispatch({ type: 'entry:select', entryId: null })}
             baseUrl={viewerUrl ?? undefined}
           />
+        ) : journalState.status === 'error' && isBackingUp ? (
+          <div
+            style={{
+              flex: 1,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              color: 'var(--ink-2)',
+              fontSize: 14,
+            }}
+          >
+            Backup in progress — entries will appear shortly
+          </div>
         ) : (
           <ThumbnailGrid
             key={gridResetKey}

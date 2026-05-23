@@ -227,6 +227,16 @@ export class BackupEngine {
           current_date: entry.date,
         });
 
+        await journalIndex.save({
+          schema_version: 1,
+          username: this.config.username,
+          journal_title: this.config.journal_title,
+          avatar_url: this.config.avatar_url,
+          entry_total: fetchedEntries.length,
+          last_backup_at: nowIso(),
+          entries: fetchedEntries.map((e) => JournalIndex.toEntryIndex(e)),
+        });
+
         if (this.config.api_delay_ms > 0) {
           await sleep(this.config.api_delay_ms);
         }
