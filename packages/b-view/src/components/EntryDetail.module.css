@@ -1,5 +1,6 @@
 /* SPDX-License-Identifier: GPL-3.0-or-later */
 /* Copyright (C) 2026 Ian Stevenson */
+/* v2 */
 
 .wrapper {
   display: flex;
@@ -18,6 +19,12 @@
 
 .spinner {
   animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 .errorState {
@@ -85,22 +92,33 @@
   text-overflow: ellipsis;
 }
 
-/* Photo */
-.photoContainer {
-  background: var(--photo-bg);
+/* Photo — grey bar constrained to metaInner width */
+.photoOuter {
   width: 100%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+}
+
+.photoMiddle {
   position: relative;
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 0 24px;
+  display: flex;
+  justify-content: center;
+  background: var(--photo-bg);
+}
+
+.photoInner {
+  line-height: 0;
+  max-width: 100%;
 }
 
 .photo {
-  object-fit: contain;
-  max-width: 100%;
   display: block;
-  position: relative;
-  z-index: 0;
+  width: auto;
+  height: auto;
+  max-width: 100%;
+  max-height: 80vh;
+  object-fit: contain;
 }
 
 .photoHalf {
@@ -121,15 +139,46 @@
   cursor: e-resize;
 }
 
-/* Metadata */
+/* Metadata area */
 .metaScroll {
   flex-shrink: 0;
 }
 
 .metaInner {
-  max-width: 780px;
+  max-width: 900px;
   margin: 0 auto;
-  padding: 24px;
+  padding: 20px 24px 32px;
+}
+
+/* Title below image */
+.entryTitle {
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--ink);
+  margin: 0 0 16px;
+}
+
+/* Two-column layout */
+.metaColumns {
+  display: grid;
+  grid-template-columns: 1fr minmax(200px, 260px);
+  gap: 32px;
+  align-items: start;
+}
+
+@media (max-width: 600px) {
+  .metaColumns {
+    grid-template-columns: 1fr;
+  }
+  .metaRight {
+    border-top: 1px solid var(--line);
+    padding-top: 16px;
+  }
+}
+
+/* Left column */
+.metaLeft {
+  min-width: 0;
 }
 
 .description {
@@ -143,7 +192,7 @@
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
-  margin-bottom: 16px;
+  margin-bottom: 20px;
 }
 
 .tag {
@@ -154,62 +203,114 @@
   font-size: 12px;
 }
 
-.stats {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 16px;
-  margin-bottom: 16px;
-  color: var(--muted);
+/* Comments */
+.commentsSection {
+  margin-top: 8px;
+  border-top: 1px solid var(--line);
+  padding-top: 16px;
+}
+
+.commentsHeader {
   font-size: 13px;
-}
-
-.statItem {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-}
-
-/* EXIF */
-.exifDetails {
-  margin-top: 16px;
-}
-
-.exifSummary {
-  font-size: 12px;
-  color: var(--muted);
   font-weight: 600;
+  color: var(--muted);
+  margin: 0 0 12px;
+}
+
+.comment {
+  margin-bottom: 14px;
+}
+
+.commentAuthor {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ink);
+  display: block;
+  margin-bottom: 2px;
+}
+
+.commentBody {
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--ink-2);
+}
+
+.commentBody p {
+  margin: 0;
+}
+
+.replies {
+  margin-top: 8px;
+  margin-left: 16px;
+  padding-left: 12px;
+  border-left: 2px solid var(--line);
+}
+
+/* Right column */
+.metaRight {
+  min-width: 0;
+}
+
+.viewsBlock {
   margin-bottom: 8px;
 }
 
-.exifGrid {
-  display: grid;
-  grid-template-columns: max-content 1fr;
-  gap: 4px 12px;
-  font-family: monospace;
-  font-size: 12px;
-  margin-top: 8px;
+.viewCount {
+  font-size: 22px;
+  font-weight: 600;
+  color: var(--ink);
+  margin-right: 4px;
 }
 
-.exifLabel {
+.viewLabel {
+  font-size: 13px;
   color: var(--muted);
+}
+
+.reactionsRow {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 16px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--line);
+}
+
+.reactionItem {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 13px;
+  color: var(--ink-2);
+  text-decoration: none;
+}
+
+.reactionItem:hover {
+  color: var(--green-700);
+}
+
+/* EXIF */
+.exifRows {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.exifRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: var(--ink-2);
+}
+
+.exifIcon {
+  color: var(--muted);
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
 }
 
 .exifValue {
   color: var(--ink-2);
-}
-
-.location {
-  margin-top: 16px;
-  font-size: 12px;
-  color: var(--muted);
-}
-
-.location a {
-  color: inherit;
-  text-decoration: underline;
-  text-underline-offset: 2px;
-}
-
-.location a:hover {
-  color: var(--green-700);
 }

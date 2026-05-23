@@ -83,11 +83,12 @@ export default function App() {
   const journalTitle = journal.status === 'loaded' ? journal.data.journal_title : '';
 
   const selectedIndex = entryIndex.findIndex((e) => e.entry_id === selectedEntryId);
-  const prevEntry = selectedIndex > 0 ? entryIndex[selectedIndex - 1] : null;
-  const nextEntry =
+  // entryIndex is newest-first; [index+1] is older (back in time), [index-1] is newer (forward)
+  const prevEntry =
     selectedIndex >= 0 && selectedIndex < entryIndex.length - 1
       ? entryIndex[selectedIndex + 1]
       : null;
+  const nextEntry = selectedIndex > 0 ? entryIndex[selectedIndex - 1] : null;
 
   const entry = useEntry(
     selectedEntryId

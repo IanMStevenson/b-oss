@@ -1,19 +1,23 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (C) 2026 Ian Stevenson
 
-import { Fragment, useEffect } from 'react';
+import { useEffect } from 'react';
 import {
   ChevronLeft,
   ChevronRight,
   ArrowLeft,
   Loader2,
   AlertCircle,
-  Eye,
   Star,
   Heart,
-  MessageSquare,
+  MapPin,
+  Camera,
+  Timer,
+  Aperture,
+  Ruler,
+  SunMedium,
 } from 'lucide-react';
-import type { BlipEntry } from '../types.js';
+import type { BlipEntry, BlipComment } from '../types.js';
 import type { EntryState } from '../hooks/useEntry.js';
 import styles from './EntryDetail.module.css';
 
@@ -26,26 +30,48 @@ interface EntryDetailProps {
   baseUrl?: string;
 }
 
-type ExifKey = 'camera' | 'exposure_time' | 'f_number' | 'focal_length' | 'iso';
-
-const EXIF_LABELS: Record<ExifKey, string> = {
-  camera: 'Camera',
-  exposure_time: 'Exposure',
-  f_number: 'Aperture',
-  focal_length: 'Focal length',
-  iso: 'ISO',
-};
-
-function ExifGrid({ exif }: { exif: NonNullable<BlipEntry['exif']> }) {
-  const keys = (Object.keys(EXIF_LABELS) as ExifKey[]).filter((k) => exif[k] !== null);
+function ExifRows({ exif }: { exif: NonNullable<BlipEntry['exif']> }) {
+  const rows: { icon: React.ReactNode; value: string | null }[] = [
+    { icon: <Camera size={14} strokeWidth={1.5} />, value: exif.camera },
+    { icon: <Timer size={14} strokeWidth={1.5} />, value: exif.exposure_time },
+    {
+      icon: <Aperture size={14} strokeWidth={1.5} />,
+      value: exif.f_number ? `f/${exif.f_number}` : null,
+    },
+    { icon: <Ruler size={14} strokeWidth={1.5} />, value: exif.focal_length },
+    { icon: <SunMedium size={14} strokeWidth={1.5} />, value: exif.iso ? String(exif.iso) : null },
+  ].filter((r) => r.value !== null);
   return (
-    <div className={styles.exifGrid}>
-      {keys.map((k) => (
-        <Fragment key={k}>
-          <span className={styles.exifLabel}>{EXIF_LABELS[k]}</span>
-          <span className={styles.exifValue}>{exif[k]}</span>
-        </Fragment>
+    <div className={styles.exifRows}>
+      {rows.map((r, i) => (
+        <div key={i} className={styles.exifRow}>
+          <span className={styles.exifIcon}>{r.icon}</span>
+          <span className={styles.exifValue}>{r.value}</span>
+        </div>
       ))}
+    </div>
+  );
+}
+
+function CommentThread({ comment }: { comment: BlipComment }) {
+  return (
+    <div className={styles.comment}>
+      <span className={styles.commentAuthor}>{comment.commenter_username}</span>
+      {comment.content_html ? (
+        <div
+          className={styles.commentBody}
+          dangerouslySetInnerHTML={{ __html: comment.content_html }}
+        />
+      ) : (
+        <div className={styles.commentBody}>{comment.content}</div>
+      )}
+      {comment.replies && comment.replies.length > 0 && (
+        <div className={styles.replies}>
+          {comment.replies.map((reply) => (
+            <CommentThread key={reply.comment_id} comment={reply} />
+          ))}
+        </div>
+      )}
     </div>
   );
 }
@@ -87,32 +113,16 @@ export function EntryDetail({
   }
 
   const { data: entry } = entryState;
-
-  const activeExifKeys = entry.exif
-    ? (Object.keys(EXIF_LABELS) as ExifKey[]).filter((k) => entry.exif![k] !== null)
-    : [];
-
-  const statsItems = [
-    { icon: <Eye size={13} strokeWidth={1.6} />, count: entry.views_total, label: 'views' },
-    { icon: <Star size={13} strokeWidth={1.6} />, count: entry.stars_total, label: 'stars' },
-    {
-      icon: <Heart size={13} strokeWidth={1.6} />,
-      count: entry.favorites_total,
-      label: 'favourites',
-    },
-    {
-      icon: <MessageSquare size={13} strokeWidth={1.6} />,
-      count: entry.comments.length,
-      label: 'comments',
-    },
-  ].filter((s) => s.count > 0);
+  const imagePath = entry.images.image ?? entry.images.thumbnail;
+  const imageSrc = imagePath ? (baseUrl ? `${baseUrl}/${imagePath}` : imagePath) : null;
 
   return (
     <div className={styles.wrapper}>
+      {/* Navigation header */}
       <div className={styles.navHeader}>
         <div className={styles.navLeft}>
           {onClose && (
-            <button className={styles.navBtn} onClick={onClose} aria-label="Back">
+            <button className={styles.navBtn} onClick={onClose} aria-label="Back to grid">
               <ArrowLeft size={16} strokeWidth={1.6} />
               <span style={{ fontSize: '12px' }}>Back</span>
             </button>
@@ -121,7 +131,7 @@ export function EntryDetail({
             className={styles.navBtn}
             onClick={() => prevEntryId && onNavigate(prevEntryId)}
             disabled={!prevEntryId}
-            aria-label="Previous entry"
+            aria-label="Older entry"
           >
             <ChevronLeft size={18} strokeWidth={1.6} />
           </button>
@@ -137,87 +147,107 @@ export function EntryDetail({
             className={styles.navBtn}
             onClick={() => nextEntryId && onNavigate(nextEntryId)}
             disabled={!nextEntryId}
-            aria-label="Next entry"
+            aria-label="Newer entry"
           >
             <ChevronRight size={18} strokeWidth={1.6} />
           </button>
         </div>
       </div>
 
-      <div className={styles.photoContainer}>
-        {(() => {
-          const path = entry.images.image ?? entry.images.thumbnail;
-          if (!path) return null;
-          const src = baseUrl ? `${baseUrl}/${path}` : path;
-          return <img src={src} alt={entry.title} className={styles.photo} />;
-        })()}
-        <div
-          className={`${styles.photoHalf} ${styles.photoHalfLeft}`}
-          onClick={() => prevEntryId && onNavigate(prevEntryId)}
-          aria-hidden="true"
-        />
-        <div
-          className={`${styles.photoHalf} ${styles.photoHalfRight}`}
-          onClick={() => nextEntryId && onNavigate(nextEntryId)}
-          aria-hidden="true"
-        />
+      {/* Photo */}
+      <div className={styles.photoOuter}>
+        <div className={styles.photoMiddle}>
+          {imageSrc && (
+            <div className={styles.photoInner}>
+              <img src={imageSrc} alt={entry.title} className={styles.photo} />
+              <div
+                className={`${styles.photoHalf} ${styles.photoHalfLeft}`}
+                onClick={() => prevEntryId && onNavigate(prevEntryId)}
+                aria-hidden="true"
+              />
+              <div
+                className={`${styles.photoHalf} ${styles.photoHalfRight}`}
+                onClick={() => nextEntryId && onNavigate(nextEntryId)}
+                aria-hidden="true"
+              />
+            </div>
+          )}
+        </div>
       </div>
 
+      {/* Below-image content */}
       <div className={styles.metaScroll}>
         <div className={styles.metaInner}>
-          {entry.description_html && (
-            <div
-              className={styles.description}
-              dangerouslySetInnerHTML={{ __html: entry.description_html }}
-            />
-          )}
+          {/* Title repeated below image */}
+          {entry.title && <h2 className={styles.entryTitle}>{entry.title}</h2>}
 
-          {entry.tags.length > 0 && (
-            <div className={styles.tags}>
-              {entry.tags.map((tag) => (
-                <span key={tag} className={styles.tag}>
-                  {tag}
-                </span>
-              ))}
+          <div className={styles.metaColumns}>
+            {/* Left column: description, tags, comments */}
+            <div className={styles.metaLeft}>
+              {entry.description_html && (
+                <div
+                  className={styles.description}
+                  dangerouslySetInnerHTML={{ __html: entry.description_html }}
+                />
+              )}
+
+              {entry.tags.length > 0 && (
+                <div className={styles.tags}>
+                  {entry.tags.map((tag) => (
+                    <span key={tag} className={styles.tag}>
+                      {tag}
+                    </span>
+                  ))}
+                </div>
+              )}
+
+              {entry.comments.length > 0 && (
+                <div className={styles.commentsSection}>
+                  <h3 className={styles.commentsHeader}>Comments ({entry.comments.length})</h3>
+                  {entry.comments.map((c) => (
+                    <CommentThread key={c.comment_id} comment={c} />
+                  ))}
+                </div>
+              )}
             </div>
-          )}
 
-          {statsItems.length > 0 && (
-            <div className={styles.stats}>
-              {statsItems.map((s) => (
-                <span key={s.label} className={styles.statItem}>
-                  {s.icon}
-                  {s.count.toLocaleString()} {s.label}
+            {/* Right column: views, stars, hearts, location, EXIF */}
+            <div className={styles.metaRight}>
+              {/* Views */}
+              {entry.views_total > 0 && (
+                <div className={styles.viewsBlock}>
+                  <span className={styles.viewCount}>{entry.views_total.toLocaleString()}</span>
+                  <span className={styles.viewLabel}>views</span>
+                </div>
+              )}
+
+              {/* Stars + hearts */}
+              <div className={styles.reactionsRow}>
+                <span className={styles.reactionItem}>
+                  <Star size={14} strokeWidth={1.5} />
+                  {entry.stars_total}
                 </span>
-              ))}
-            </div>
-          )}
-
-          {activeExifKeys.length > 0 &&
-            entry.exif &&
-            (activeExifKeys.length > 2 ? (
-              <details className={styles.exifDetails}>
-                <summary className={styles.exifSummary}>EXIF</summary>
-                <ExifGrid exif={entry.exif} />
-              </details>
-            ) : (
-              <div style={{ marginTop: '16px' }}>
-                <ExifGrid exif={entry.exif} />
+                <span className={styles.reactionItem}>
+                  <Heart size={14} strokeWidth={1.5} />
+                  {entry.favorites_total}
+                </span>
+                {entry.location && (
+                  <a
+                    className={styles.reactionItem}
+                    href={`https://maps.google.com/maps?q=${entry.location.lat},${entry.location.lon}`}
+                    target="_blank"
+                    rel="noreferrer"
+                    aria-label="View on map"
+                  >
+                    <MapPin size={14} strokeWidth={1.5} />
+                  </a>
+                )}
               </div>
-            ))}
 
-          {entry.location && (
-            <div className={styles.location}>
-              📍{' '}
-              <a
-                href={`https://maps.google.com/maps?q=${entry.location.lat},${entry.location.lon}`}
-                target="_blank"
-                rel="noreferrer"
-              >
-                {entry.location.lat}, {entry.location.lon}
-              </a>
+              {/* EXIF */}
+              {entry.exif && <ExifRows exif={entry.exif} />}
             </div>
-          )}
+          </div>
         </div>
       </div>
     </div>

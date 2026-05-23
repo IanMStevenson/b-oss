@@ -147,9 +147,12 @@ export function HomeScreen({ account }: HomeScreenProps) {
   const entries: EntryIndex[] = journalState.status === 'loaded' ? journalState.data.entries : [];
 
   const selectedIdx = entries.findIndex((e) => e.entry_id === selectedEntryId);
-  const prevEntryId = selectedIdx > 0 ? (entries[selectedIdx - 1]?.entry_id ?? null) : null;
-  const nextEntryId =
-    selectedIdx < entries.length - 1 ? (entries[selectedIdx + 1]?.entry_id ?? null) : null;
+  // entries is newest-first; [idx+1] is older (back in time), [idx-1] is newer (forward)
+  const prevEntryId =
+    selectedIdx >= 0 && selectedIdx < entries.length - 1
+      ? (entries[selectedIdx + 1]?.entry_id ?? null)
+      : null;
+  const nextEntryId = selectedIdx > 0 ? (entries[selectedIdx - 1]?.entry_id ?? null) : null;
 
   const entryJsonPath =
     selectedEntryId && viewerUrl
