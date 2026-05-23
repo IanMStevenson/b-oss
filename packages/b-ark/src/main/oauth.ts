@@ -8,6 +8,10 @@ let pendingState: string | null = null;
 let pendingResolve: ((token: string) => void) | null = null;
 let pendingReject: ((err: Error) => void) | null = null;
 
+// Keyed by state UUID — handles embedded-window flows where the OS fires
+// second-instance instead of letting Chromium navigate the b-ark:// URL.
+const embeddedCallbackHandlers = new Map<string, (uri: string) => void>();
+
 const CLIENT_ID = import.meta.env.MAIN_VITE_BLIPFOTO_CLIENT_ID;
 
 function missingClientIdError(): Error {
@@ -78,6 +82,7 @@ export function startOAuthFlowEmbedded(parent: BrowserWindow | null): Promise<st
     const finish = (ok: () => void, err?: Error): void => {
       if (settled) return;
       settled = true;
+      embeddedCallbackHandlers.delete(state);
       if (err) reject(err);
       else ok();
       // Defer close so the redirect handler returns cleanly first.
@@ -86,14 +91,23 @@ export function startOAuthFlowEmbedded(parent: BrowserWindow | null): Promise<st
       });
     };
 
-    // Intercept the b-ark://oauth/callback redirect before Chromium tries
-    // to navigate to it (which would fail with ERR_UNKNOWN_URL_SCHEME).
-    // Filter URL patterns aren't accepted on this overload — match manually.
+    // On Windows the OS protocol handler fires second-instance rather than
+    // letting Chromium navigate the b-ark:// URL within the embedded session.
+    // Register a handler keyed by state so second-instance can route it here.
+    embeddedCallbackHandlers.set(state, (uri: string) => {
+      try {
+        finish(() => resolve(extractTokenFromCallback(uri, state)));
+      } catch (e) {
+        finish(() => {}, e as Error);
+      }
+    });
+
+    // Also intercept within the session for platforms where Chromium does
+    // attempt to navigate the custom-scheme URL before the OS handles it.
     oauthSession.webRequest.onBeforeRequest((details, callback) => {
       if (details.url.startsWith('b-ark://')) {
         try {
-          const token = extractTokenFromCallback(details.url, state);
-          finish(() => resolve(token));
+          finish(() => resolve(extractTokenFromCallback(details.url, state)));
         } catch (e) {
           finish(() => {}, e as Error);
         }
@@ -163,6 +177,25 @@ function extractTokenFromCallback(uri: string, expectedState: string): string {
 }
 
 export function handleOAuthCallback(uri: string): void {
+  // Extract state from the callback URI to route to the correct handler.
+  const queryIndex = uri.indexOf('?');
+  const hashIndex = uri.indexOf('#');
+  const query =
+    queryIndex !== -1
+      ? new URLSearchParams(uri.slice(queryIndex + 1, hashIndex === -1 ? undefined : hashIndex))
+      : new URLSearchParams();
+  const fragment =
+    hashIndex !== -1 ? new URLSearchParams(uri.slice(hashIndex + 1)) : new URLSearchParams();
+  const state = fragment.get('state') ?? query.get('state');
+
+  if (state !== null) {
+    const embedded = embeddedCallbackHandlers.get(state);
+    if (embedded) {
+      embedded(uri);
+      return;
+    }
+  }
+
   if (!pendingState || !pendingResolve || !pendingReject) return;
   try {
     pendingResolve(extractTokenFromCallback(uri, pendingState));
