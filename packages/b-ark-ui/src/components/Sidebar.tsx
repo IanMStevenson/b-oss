@@ -100,6 +100,7 @@ export function Sidebar() {
       <div style={{ padding: '8px 8px 12px' }}>
         <SplitButton
           variant="secondary"
+          menuDirection="up"
           primaryLabel="+ Add account…"
           onPrimary={() => {
             void addAccountWithToast(() => backend.addAccount(), showToast);

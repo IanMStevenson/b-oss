@@ -15,6 +15,8 @@ interface SplitButtonProps {
   menu: SplitButtonAction[];
   /** "primary" = filled green CTA, "secondary" = outlined sidebar style. */
   variant?: 'primary' | 'secondary';
+  /** Which direction the dropdown opens. Defaults to "down". */
+  menuDirection?: 'up' | 'down';
 }
 
 export function SplitButton({
@@ -22,6 +24,7 @@ export function SplitButton({
   onPrimary,
   menu,
   variant = 'primary',
+  menuDirection = 'down',
 }: SplitButtonProps) {
   const [open, setOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -122,7 +125,9 @@ export function SplitButton({
           role="menu"
           style={{
             position: 'absolute',
-            top: 'calc(100% + 4px)',
+            ...(menuDirection === 'up'
+              ? { bottom: 'calc(100% + 4px)' }
+              : { top: 'calc(100% + 4px)' }),
             right: 0,
             minWidth: 220,
             background: 'white',
