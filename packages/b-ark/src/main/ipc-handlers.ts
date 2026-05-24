@@ -86,10 +86,6 @@ export function registerIpcHandlers(
         (event) => emit({ type: 'backup:event', event }),
       );
 
-      activeEngines.set(id, engine);
-      engineStarted = true;
-      await engine.run();
-
       try {
         await writeBViewFiles(account.username, account.backup_folder);
       } catch (err) {
@@ -102,6 +98,10 @@ export function registerIpcHandlers(
           message,
         });
       }
+
+      activeEngines.set(id, engine);
+      engineStarted = true;
+      await engine.run();
 
       const updated = getAccount(id);
       if (updated) {
