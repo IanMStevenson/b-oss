@@ -28,6 +28,15 @@ import { migrateFromV1IfNeeded } from './migrate-store.js';
 // In packaged builds electron-builder sets this from productName; in dev we
 // override the default 'Electron' here.
 app.setName('b-ark');
+
+// In dev, Vite HMR requires 'unsafe-eval' in the renderer CSP. Electron's
+// built-in security checker correctly flags this and prints a console warning
+// on every reload — noise that masks any real regression. Suppress it only
+// when running against the dev server; the packaged build uses a strict CSP
+// and this env var has no effect there.
+if (process.env['ELECTRON_RENDERER_URL']) {
+  process.env['ELECTRON_DISABLE_SECURITY_WARNINGS'] = 'true';
+}
 // Point the cache to a stable subdirectory of userData so Electron can always
 // create/rename it without hitting Windows access-denied errors (0x5).
 app.setPath('cache', path.join(app.getPath('userData'), 'cache'));
