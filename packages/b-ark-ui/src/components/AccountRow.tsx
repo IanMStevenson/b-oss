@@ -2,7 +2,6 @@
 // Copyright (C) 2026 Ian Stevenson
 
 import { useState } from 'react';
-import { GripVertical } from 'lucide-react';
 import type { AccountConfig } from '../backend.js';
 import type { BackupProgress } from '../context/reducer.js';
 import { Avatar } from './Avatar.js';
@@ -52,21 +51,6 @@ export function AccountRow({
         transition: 'background 120ms',
       }}
     >
-      {/* Drag handle — visible on hover only */}
-      <div
-        style={{
-          opacity: hovered ? 1 : 0,
-          color: 'var(--muted-2)',
-          display: 'flex',
-          alignItems: 'center',
-          flexShrink: 0,
-          cursor: 'grab',
-        }}
-        aria-hidden="true"
-      >
-        <GripVertical size={14} strokeWidth={1.6} />
-      </div>
-
       <Avatar
         accountId={account.id}
         name={account.journal_title}

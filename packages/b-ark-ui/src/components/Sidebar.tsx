@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (C) 2026 Ian Stevenson
 
-import { Search } from 'lucide-react';
 import { useApp } from '../context/AppContext.js';
 import { useToast } from '../hooks/useToast.js';
 import { addAccountWithToast } from '../lib/add-account-with-toast.js';
@@ -42,7 +41,6 @@ export function Sidebar() {
         style={{
           display: 'flex',
           alignItems: 'center',
-          justifyContent: 'space-between',
           padding: '14px 14px 8px',
         }}
       >
@@ -57,20 +55,6 @@ export function Sidebar() {
         >
           Accounts
         </span>
-        <button
-          aria-label="Search accounts"
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            width: 26,
-            height: 26,
-            borderRadius: 6,
-            color: 'var(--muted)',
-          }}
-        >
-          <Search size={14} strokeWidth={1.6} />
-        </button>
       </div>
 
       {/* Account list */}
