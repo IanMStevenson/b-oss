@@ -21,6 +21,7 @@ export default defineConfig(({ mode }) => ({
   base: './',
   build: {
     outDir: '../../dist-app',
+    assetsDir: 'b-view',
     emptyOutDir: true,
     minify: mode !== 'development',
     target: 'es2015',
