@@ -6,9 +6,18 @@ export type {
   BackendContext,
   AccountConfig,
   AppStore,
+  BootState,
+  LogCsvFilters,
   LogEntry,
   MainEvent,
   BackupEvent,
   BackupErrorPayload,
+  BArkSettings,
+  PortableAccount,
+  PortableSchedule,
+  AccountStatus,
+  UserDataStore,
+  ScheduleInterval,
+  SharedSettingsPartial,
 } from './backend.js';
 export { ElectronBackend } from './electron-backend.js';

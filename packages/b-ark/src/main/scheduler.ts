@@ -1,52 +1,85 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (C) 2026 Ian Stevenson
 
-import type { AccountConfig } from '@b-oss/b-ark-ui';
+import type { PortableSchedule, ScheduleInterval } from '@b-oss/b-ark-ui';
 
 const MAX_TIMEOUT_MS = 2_147_483_647;
 
+/**
+ * Single-timer scheduler. When the timer fires, runs every account
+ * sequentially in `account_order`, then advances the shared `next_run` and
+ * rearms. If a fire arrives while a sequential pass is already running,
+ * exactly one re-pass is queued (further fires while busy are coalesced).
+ *
+ * Manual single-account runs do not advance the shared schedule.
+ */
 export class BackupScheduler {
-  private timers = new Map<string, ReturnType<typeof setTimeout>>();
+  private timer: ReturnType<typeof setTimeout> | null = null;
+  private running = false;
+  private requeue = false;
 
-  constructor(private readonly onRun: (accountId: string) => void) {}
+  constructor(
+    private readonly getSchedule: () => PortableSchedule,
+    private readonly getAccountOrder: () => string[],
+    private readonly runOne: (id: string) => Promise<void>,
+    private readonly advanceNextRun: () => Promise<void>,
+  ) {}
 
-  schedule(account: AccountConfig): void {
-    this.cancel(account.id);
-    if (!(account.schedule.enabled ?? true)) return;
-
-    const nextRun = new Date(account.schedule.next_run).getTime();
-    const now = Date.now();
-    const delay = nextRun - now;
-
+  /** Cancel any pending timer and rearm from the current shared schedule. */
+  rearm(): void {
+    this.cancel();
+    const sch = this.getSchedule();
+    if (!sch.enabled) return;
+    const delay = new Date(sch.next_run).getTime() - Date.now();
     if (delay <= 0) {
-      setImmediate(() => this.onRun(account.id));
+      // Fire on the next macrotask so callers can finish their setup first.
+      setImmediate(() => void this.fire());
       return;
     }
-
-    const timer = setTimeout(
+    this.timer = setTimeout(
       () => {
-        this.timers.delete(account.id);
-        this.onRun(account.id);
+        this.timer = null;
+        void this.fire();
       },
       Math.min(delay, MAX_TIMEOUT_MS),
     );
-    this.timers.set(account.id, timer);
   }
 
-  cancel(accountId: string): void {
-    const timer = this.timers.get(accountId);
-    if (timer !== undefined) {
-      clearTimeout(timer);
-      this.timers.delete(accountId);
+  /** Cancel the pending timer (e.g. on app shutdown). */
+  cancel(): void {
+    if (this.timer !== null) {
+      clearTimeout(this.timer);
+      this.timer = null;
     }
   }
 
-  cancelAll(): void {
-    for (const id of [...this.timers.keys()]) this.cancel(id);
+  private async fire(): Promise<void> {
+    if (this.running) {
+      this.requeue = true;
+      return;
+    }
+    this.running = true;
+    try {
+      for (const id of this.getAccountOrder()) {
+        try {
+          await this.runOne(id);
+        } catch {
+          // runOne already records error_message / rag_state via saveAccount
+        }
+      }
+      await this.advanceNextRun();
+    } finally {
+      this.running = false;
+    }
+    this.rearm();
+    if (this.requeue) {
+      this.requeue = false;
+      void this.fire();
+    }
   }
 }
 
-export function computeNextRun(hour: number, interval: 'daily' | 'weekly' | 'monthly'): string {
+export function computeNextRun(hour: number, interval: ScheduleInterval): string {
   const now = new Date();
   const next = new Date(now);
   next.setHours(hour, 0, 0, 0);

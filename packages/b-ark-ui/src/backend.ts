@@ -1,6 +1,49 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (C) 2026 Ian Stevenson
 
+export type ScheduleInterval = 'daily' | 'weekly' | 'monthly';
+
+export interface PortableAccount {
+  id: string;
+  username: string;
+  journal_title: string;
+  avatar_url: string;
+}
+
+export interface PortableSchedule {
+  enabled: boolean;
+  next_run: string;
+  hour: number;
+  interval: ScheduleInterval;
+}
+
+export interface BArkSettings {
+  schema_version: 1;
+  accounts: PortableAccount[];
+  account_order: string[];
+  schedule: PortableSchedule;
+  api_delay_ms: number;
+  gap_check_days: number;
+  redo_count: number;
+  ui: { thumbnail_size_percent: number };
+}
+
+export interface AccountStatus {
+  last_backup_at: string | null;
+  total_archived: number;
+  journal_entry_total: number;
+  rag_state: 'green' | 'amber' | 'red';
+  error_message: string | null;
+}
+
+export interface UserDataStore {
+  schema_version: 2;
+  backup_folder: string;
+  app: { startWithWindows: boolean };
+  tokens: Record<string, string>;
+  status: Record<string, AccountStatus>;
+}
+
 export interface AccountConfig {
   id: string;
   username: string;
@@ -62,6 +105,20 @@ export type MainEvent =
   | { type: 'backup:event'; event: BackupEvent }
   | { type: 'log:entry'; account_id: string; entry: LogEntry };
 
+export interface SharedSettingsPartial {
+  schedule?: PortableSchedule;
+  api_delay_ms?: number;
+  gap_check_days?: number;
+  redo_count?: number;
+  thumbnailSizePercent?: number;
+  startWithWindows?: boolean;
+}
+
+export type BootState =
+  | { stage: 'pick-folder' }
+  | { stage: 'first-account' }
+  | { stage: 'ready'; store: AppStore };
+
 export interface BackendContext {
   addAccount(): Promise<void>;
   addAccountFresh(): Promise<void>;
@@ -76,11 +133,23 @@ export interface BackendContext {
   getViewerUrl(accountId: string): Promise<string>;
 
   pickFolder(): Promise<string | null>;
+  chooseBackupFolder(): Promise<{ folder: string; existingSettings: boolean } | null>;
+  moveBackupFolder(newPath: string): Promise<void>;
+  updateSettings(partial: SharedSettingsPartial): Promise<void>;
+  /** @deprecated use updateSettings for shared fields; per-account writes go through addAccount/removeAccount/reauthorise. */
   updateAccountSettings(accountId: string, settings: Partial<AccountConfig>): Promise<void>;
 
   getStore(): Promise<AppStore>;
-  getLogs(accountId: string): Promise<LogEntry[]>;
+  getBootState(): Promise<BootState>;
+  getLogs(): Promise<LogEntry[]>;
+  exportLogsCsv(filters: LogCsvFilters): Promise<string | null>;
 
   subscribe(handler: (event: MainEvent) => void): () => void;
   notifyRendererReady(): void;
+}
+
+export interface LogCsvFilters {
+  account_id: string | null;
+  backup_id: string | null;
+  level: 'all' | 'error' | 'warn' | 'info';
 }

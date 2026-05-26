@@ -29,10 +29,10 @@ export function AppProvider({
 
   useEffect(() => {
     backend
-      .getStore()
-      .then((store) => dispatch({ type: 'store:loaded', store }))
+      .getBootState()
+      .then((bs) => dispatch({ type: 'boot:resolved', state: bs }))
       .catch(() => {
-        // store load failure — leave state.store null, UI will show spinner indefinitely
+        // boot state load failure — leave bootStage 'loading', UI shows spinner
       });
 
     backend.notifyRendererReady();

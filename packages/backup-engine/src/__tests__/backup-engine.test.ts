@@ -87,6 +87,15 @@ function makeConfig(overrides: Partial<AccountBackupConfig> = {}): AccountBackup
   };
 }
 
+function makeEngine(
+  config: AccountBackupConfig,
+  io: MockPlatformIO,
+  client: BlipfotoClient,
+  onEvent: (event: BackupEvent) => void,
+): BackupEngine {
+  return new BackupEngine(config, io, client, onEvent, new LogManager(io, config.backup_folder));
+}
+
 function makeEntryStub(idStr: string, date: string) {
   return {
     entry_id_str: idStr,
@@ -295,7 +304,7 @@ describe('BackupEngine — first backup', () => {
       Promise.resolve(makeEntryResponse(id, id === '111' ? '2024-01-15' : '2024-01-14')),
     );
 
-    const engine = new BackupEngine(makeConfig(), io, client, (e) => events.push(e));
+    const engine = makeEngine(makeConfig(), io, client, (e) => events.push(e));
     await engine.run();
 
     expect(io.files.has('/backups/gbradley/entries/2024/2024-01-15.json')).toBe(true);
@@ -321,7 +330,7 @@ describe('BackupEngine — first backup', () => {
       Promise.resolve(makeEntryResponse(id, id === '111' ? '2024-01-15' : '2024-01-14')),
     );
 
-    const engine = new BackupEngine(makeConfig(), io, client, (e) => events.push(e));
+    const engine = makeEngine(makeConfig(), io, client, (e) => events.push(e));
     await engine.run();
 
     const types = events.map((e) => e.type);
@@ -333,7 +342,7 @@ describe('BackupEngine — first backup', () => {
       new BlipfotoError(51, 'Token invalid'),
     );
 
-    const engine = new BackupEngine(makeConfig(), io, client, (e) => events.push(e));
+    const engine = makeEngine(makeConfig(), io, client, (e) => events.push(e));
     await expect(engine.run()).rejects.toThrow();
 
     const failed = events.find((e) => e.type === 'failed');
@@ -359,7 +368,7 @@ describe('BackupEngine — first backup', () => {
       return Promise.resolve(makeEntryResponse(id, date));
     });
 
-    const engine = new BackupEngine(makeConfig(), io, client, (e) => events.push(e));
+    const engine = makeEngine(makeConfig(), io, client, (e) => events.push(e));
     await engine.run();
 
     const progressEvents = events.filter((e) => e.type === 'progress');
@@ -399,7 +408,7 @@ describe('BackupEngine — resume interrupted first backup', () => {
         Promise.resolve(makeEntryResponse(id, id === '111' ? '2024-01-15' : '2024-01-14')),
       );
 
-    const engine = new BackupEngine(makeConfig(), io, client, () => {});
+    const engine = makeEngine(makeConfig(), io, client, () => {});
     await engine.run();
 
     expect(getEntrySpy).toHaveBeenCalledTimes(1);
@@ -421,7 +430,7 @@ describe('BackupEngine — cancellation', () => {
     });
 
     let callCount = 0;
-    const engine = new BackupEngine(makeConfig(), io, client, (e) => events.push(e));
+    const engine = makeEngine(makeConfig(), io, client, (e) => events.push(e));
     vi.spyOn(client, 'getEntry').mockImplementation((id: string) => {
       callCount++;
       if (callCount === 1) {
@@ -454,7 +463,7 @@ describe('BackupEngine — consecutive failures', () => {
     });
     vi.spyOn(client, 'getEntry').mockRejectedValue(new BlipfotoError(202, 'Generic API error'));
 
-    const engine = new BackupEngine(makeConfig(), io, client, (e) => events.push(e));
+    const engine = makeEngine(makeConfig(), io, client, (e) => events.push(e));
     await expect(engine.run()).rejects.toThrow();
 
     const failed = events.find((e) => e.type === 'failed');
@@ -490,7 +499,7 @@ describe('BackupEngine — rate limiting is a pause not a failure', () => {
       return Promise.resolve(makeEntryResponse('111', '2024-01-15'));
     });
 
-    const engine = new BackupEngine(makeConfig(), io, client, (e) => events.push(e));
+    const engine = makeEngine(makeConfig(), io, client, (e) => events.push(e));
     const runPromise = engine.run();
     await vi.runAllTimersAsync();
     await runPromise;
@@ -518,7 +527,7 @@ describe('BackupEngine — rate limiting is a pause not a failure', () => {
       return Promise.resolve(makeEntryResponse('111', '2024-01-15'));
     });
 
-    const engine = new BackupEngine(makeConfig(), io, client, (e) => events.push(e));
+    const engine = makeEngine(makeConfig(), io, client, (e) => events.push(e));
     const runPromise = engine.run();
     await vi.runAllTimersAsync();
     await runPromise;
@@ -595,7 +604,7 @@ describe('BackupEngine — routine backup redo', () => {
       return Promise.resolve(makeEntryResponse(id, e!.date));
     });
 
-    const engine = new BackupEngine(makeConfig({ redo_count: 2 }), io, client, () => {});
+    const engine = makeEngine(makeConfig({ redo_count: 2 }), io, client, () => {});
     await engine.run();
 
     const ids = getEntrySpy.mock.calls.map((c) => c[0]);
@@ -616,7 +625,7 @@ describe('BackupEngine — writes BlipEntry schema', () => {
     });
     vi.spyOn(client, 'getEntry').mockResolvedValue(makeEntryResponse('111', '2024-01-15'));
 
-    const engine = new BackupEngine(makeConfig(), io, client, () => {});
+    const engine = makeEngine(makeConfig(), io, client, () => {});
     await engine.run();
 
     const raw = io.files.get('/backups/gbradley/entries/2024/2024-01-15.json');
@@ -666,7 +675,7 @@ describe('BackupEngine — writes BlipEntry schema', () => {
     ];
     vi.spyOn(client, 'getEntry').mockResolvedValue(response);
 
-    const engine = new BackupEngine(makeConfig(), io, client, () => {});
+    const engine = makeEngine(makeConfig(), io, client, () => {});
     await engine.run();
 
     const parsed = JSON.parse(
@@ -696,7 +705,7 @@ describe('BackupEngine — writes BlipEntry schema', () => {
       }),
     );
 
-    const engine = new BackupEngine(makeConfig(), io, client, () => {});
+    const engine = makeEngine(makeConfig(), io, client, () => {});
     await engine.run();
 
     const parsed = JSON.parse(

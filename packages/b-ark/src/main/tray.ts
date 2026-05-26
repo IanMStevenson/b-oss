@@ -4,9 +4,14 @@
 import { Tray, Menu, nativeImage, app, type BrowserWindow } from 'electron';
 import path from 'node:path';
 import type Store from 'electron-store';
-import type { AppStore } from '@b-oss/b-ark-ui';
+import type { UserDataStore } from '@b-oss/b-ark-ui';
 
-export function createTray(getWindow: () => BrowserWindow | null, store: Store<AppStore>): Tray {
+let rebuilder: (() => void) | null = null;
+
+export function createTray(
+  getWindow: () => BrowserWindow | null,
+  store: Store<UserDataStore>,
+): Tray {
   const iconPath = app.isPackaged
     ? path.join(process.resourcesPath, 'resources', 'tray-icon.png')
     : path.join(__dirname, '../../resources/tray-icon.png');
@@ -44,5 +49,16 @@ export function createTray(getWindow: () => BrowserWindow | null, store: Store<A
   tray.setContextMenu(buildMenu());
   tray.on('double-click', () => getWindow()?.show());
 
+  rebuilder = () => tray.setContextMenu(buildMenu());
+
   return tray;
+}
+
+/**
+ * Rebuild the tray menu so its Start-with-Windows checkbox reflects the
+ * latest value from the local store. Called from ipc-handlers after the
+ * Settings panel toggles the setting.
+ */
+export function rebuildTrayMenu(): void {
+  rebuilder?.();
 }

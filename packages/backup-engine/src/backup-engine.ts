@@ -12,7 +12,7 @@ import {
 import { BackupAbortedError } from './errors.js';
 import { CheckpointManager } from './checkpoint.js';
 import { JournalIndex } from './journal-index.js';
-import { LogManager } from './log-manager.js';
+import type { LogManager } from './log-manager.js';
 import type { PlatformIO } from './platform.js';
 import type {
   AccountBackupConfig,
@@ -85,6 +85,7 @@ export class BackupEngine {
     private readonly io: PlatformIO,
     private readonly client: BlipfotoClient,
     private readonly onEvent: (event: BackupEvent) => void,
+    private readonly logMgr: LogManager,
   ) {}
 
   cancel(): void {
@@ -96,10 +97,9 @@ export class BackupEngine {
     await this.io.ensureDir(journalFolder);
 
     const checkpointMgr = new CheckpointManager(this.io, journalFolder);
-    const logMgr = new LogManager(this.io, journalFolder);
     const journalIndex = new JournalIndex(this.io, journalFolder);
 
-    this.runLogMgr = logMgr;
+    this.runLogMgr = this.logMgr;
     this.runBackupId = newId();
 
     try {

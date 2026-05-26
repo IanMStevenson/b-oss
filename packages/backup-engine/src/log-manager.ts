@@ -5,15 +5,24 @@ import type { PlatformIO } from './platform.js';
 import type { LogEntry } from './types.js';
 
 const LOG_FILENAME = '_log.ndjson';
+const LOG_TMP_FILENAME = '_log.tmp';
 
 export class LogManager {
   private readonly path: string;
+  private readonly tmpPath: string;
 
+  /**
+   * `folder` is the directory the log file lives in. Historically this was a
+   * per-journal folder; in the unified-log model it's the shared backup
+   * folder. The class itself is agnostic — it just appends NDJSON entries
+   * atomically to `{folder}/_log.ndjson`.
+   */
   constructor(
     private readonly io: PlatformIO,
-    private readonly journalFolder: string,
+    folder: string,
   ) {
-    this.path = `${this.journalFolder}/${LOG_FILENAME}`;
+    this.path = `${folder}/${LOG_FILENAME}`;
+    this.tmpPath = `${folder}/${LOG_TMP_FILENAME}`;
   }
 
   async append(entry: LogEntry): Promise<void> {
@@ -21,7 +30,8 @@ export class LogManager {
       const existing = await this.readAllRaw();
       const line = JSON.stringify(entry);
       const next = existing.length === 0 ? `${line}\n` : `${existing}${line}\n`;
-      await this.io.writeFile(this.path, next);
+      await this.io.writeFile(this.tmpPath, next);
+      await this.io.rename(this.tmpPath, this.path);
     } catch {
       // Silently swallow — we cannot log a log failure without recursing
     }
@@ -46,7 +56,8 @@ export class LogManager {
       if (entries.length <= maxLines) return;
       const kept = entries.slice(entries.length - maxLines);
       const next = kept.map((e) => JSON.stringify(e)).join('\n') + '\n';
-      await this.io.writeFile(this.path, next);
+      await this.io.writeFile(this.tmpPath, next);
+      await this.io.rename(this.tmpPath, this.path);
     } catch {
       // Silently swallow
     }

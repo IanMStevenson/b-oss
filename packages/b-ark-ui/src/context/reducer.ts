@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (C) 2026 Ian Stevenson
 
-import type { AppStore, LogEntry } from '../backend.js';
+import type { AppStore, BootState, LogEntry } from '../backend.js';
 
 export interface BackupProgress {
   running: boolean;
@@ -17,7 +17,10 @@ export interface Toast {
   message: string;
 }
 
+export type BootStage = 'loading' | 'pick-folder' | 'first-account' | 'ready';
+
 export interface AppState {
+  bootStage: BootStage;
   store: AppStore | null;
   selectedAccountId: string | null;
   panel: null | 'settings' | 'log';
@@ -30,6 +33,7 @@ export interface AppState {
 }
 
 export type AppAction =
+  | { type: 'boot:resolved'; state: BootState }
   | { type: 'store:loaded'; store: AppStore }
   | { type: 'store:changed'; store: AppStore }
   | { type: 'account:select'; id: string }
@@ -56,6 +60,7 @@ export type AppAction =
 const LOG_BUFFER_MAX = 500;
 
 export const initialState: AppState = {
+  bootStage: 'loading',
   store: null,
   selectedAccountId: null,
   panel: null,
@@ -69,10 +74,26 @@ export const initialState: AppState = {
 
 export function reducer(state: AppState, action: AppAction): AppState {
   switch (action.type) {
+    case 'boot:resolved': {
+      if (action.state.stage === 'ready') {
+        const store = action.state.store;
+        const firstId = store.ui.accountOrder[0] ?? store.accounts[0]?.id ?? null;
+        return {
+          ...state,
+          bootStage: 'ready',
+          store,
+          selectedAccountId: state.selectedAccountId ?? firstId,
+          thumbnailSizePercent: store.ui.thumbnailSizePercent,
+        };
+      }
+      return { ...state, bootStage: action.state.stage };
+    }
+
     case 'store:loaded': {
       const firstId = action.store.ui.accountOrder[0] ?? action.store.accounts[0]?.id ?? null;
       return {
         ...state,
+        bootStage: 'ready',
         store: action.store,
         selectedAccountId: state.selectedAccountId ?? firstId,
         thumbnailSizePercent: action.store.ui.thumbnailSizePercent,
@@ -83,8 +104,18 @@ export function reducer(state: AppState, action: AppAction): AppState {
       const newAccountIds = action.store.accounts.map((a) => a.id);
       const prevAccountIds = state.store?.accounts.map((a) => a.id) ?? [];
       const addedId = newAccountIds.find((id) => !prevAccountIds.includes(id)) ?? null;
+      // Once a store update flows in (e.g. a folder was just picked and the
+      // first account hasn't been added yet), advance bootStage if needed.
+      let nextBootStage = state.bootStage;
+      if (state.bootStage !== 'ready') {
+        if (action.store.accounts.length > 0) nextBootStage = 'ready';
+        else if (state.bootStage !== 'first-account' && state.bootStage !== 'pick-folder') {
+          nextBootStage = action.store.accounts.length === 0 ? 'first-account' : 'ready';
+        }
+      }
       return {
         ...state,
+        bootStage: nextBootStage,
         store: action.store,
         selectedAccountId: addedId ?? state.selectedAccountId,
         justConnected: addedId ?? state.justConnected,

@@ -2,7 +2,7 @@
 
 > Blipfoto Open Source Software
 
-b-oss is a family of open-source tools for backing up and viewing [Blipfoto](https://www.blipfoto.com) journals.
+b-oss is a family of open-source tools for backing up and viewing [Blipfoto](https://www.blipfoto.com) journals. It is an independent project and is NOT supported or sponsored by blipfoto. The project is led and mangaged by Ian Stevenson in his personal capacity.
 
 ## Applications
 

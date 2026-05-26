@@ -25,6 +25,20 @@ packages/b-ark          Electron shell only. Implements PlatformIO (ElectronPlat
 - Naming: always lowercase hyphenated — b-ark, b-view, b-oss. Never capitalised.
 - TypeScript: strict mode always. Never use `any`.
 
+## Settings storage (shared model)
+
+Settings live in two places:
+
+- **Portable** — `{backup_folder}/b-ark-settings.json` (schema_version: 1). Holds the
+  shared schedule, delay, gap-check, redo, accounts list (identity only), account order,
+  and thumbnail size. Follows the folder between machines.
+- **Machine-local** — `userData/b-ark-config.json` (electron-store, schema_version: 2).
+  Holds `backup_folder` path, `app.startWithWindows`, encrypted `tokens` (keyed by
+  username), and per-account `status` (last_backup_at, RAG, error_message, totals).
+
+The unified log lives at `{backup_folder}/_log.ndjson`. The scheduler is one shared
+timer; when it fires, every account is backed up sequentially in `account_order`.
+
 ## Commands
 
 ```bash

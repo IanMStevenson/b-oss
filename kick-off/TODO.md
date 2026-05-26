@@ -1,35 +1,45 @@
-Bugs:
+**Rebuild Everything**
+npm run build
 
-Backup did ~443 entries then stalled. COULD be API throttling but UI doesn't indicate. Stalled at 08:28 or so - wait to see if resumes to check if it's that or another failure more. It DOES resume, and does another 444! So we seem to have 450 per period or something.
+**Run b-ark in dev mode**
+npm run dev --workspace=packages/b-ark
 
-THe backup is incomplete - only 5873 entries - and it's not SHOWING incomplete - why?
+**Status**
 
-The "No blips archived" appears when we know there ARE blips - not a complete backup, but why can't we see what's there?
+I have a successful initial backup!
 
-All images are placeholders
+**TODO / Bugs:**
 
-Failed to write b-view files
+Should we cache journal avatar?
+Look at what happens when no network? Should stop and wait a while, not keep thrashing
 
-Features:
-Lat/long link to Google Maps?
-Comments are counted, not shown
-No log
-Dots in header - why? I think these are mac styling, remove.
-Status dot on account selector needs to be larger
-Account selector should show number of blips AND number of archived blips
+Entry Page Tasks:
 Should we get commenter avatars and store in a sub-folder
+Look at URLs. Should we rewrite
 
-Behaviour:
+The counts on the UI are a mess - there are images visible but missing from the archive count
+The "API Rate Limit" notification stuff is visually messy too...
 
-API Limitations
+Account re-ordering doesn't work
+
+Version number - including on components b-view and b-ark (and sub libraries?)
+
+Release notes?
+
+**To Test**
+Any sort of API failure.
+
+**API Limitations**
 Not seeing hires or original image links populated in pracice
 No ability to read extras
 
-Check:
+**Check**
+At least one incremental backup
+That re-do correctly picks up new anything and actively refreshes downloaded images
+That scheduled backups are working
+​ b-view works standalone in file mode
+​ b-view works standalone when uploaded to Catalyst 2 static served folder (and subfolder)
 
-    API limtit should now show up in progress banner
-    Do we get replies and do they work?
-
-Check in release:
-
-    After Auth Chrome asks "Open Electron" - I want it to say "open b-ark"
+_Check in release_
+Does release/packaging work?
+After Auth Chrome asks "Open Electron" - I want it to say "open b-ark"

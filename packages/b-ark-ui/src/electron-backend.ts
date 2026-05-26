@@ -1,7 +1,16 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (C) 2026 Ian Stevenson
 
-import type { AccountConfig, AppStore, LogEntry, MainEvent, BackendContext } from './backend.js';
+import type {
+  AccountConfig,
+  AppStore,
+  BackendContext,
+  BootState,
+  LogCsvFilters,
+  LogEntry,
+  MainEvent,
+  SharedSettingsPartial,
+} from './backend.js';
 
 declare global {
   interface Window {
@@ -16,9 +25,14 @@ declare global {
       openViewer(id: string): Promise<void>;
       getViewerUrl(id: string): Promise<string>;
       pickFolder(): Promise<string | null>;
+      chooseBackupFolder(): Promise<{ folder: string; existingSettings: boolean } | null>;
+      moveBackupFolder(newPath: string): Promise<void>;
+      updateSettings(partial: SharedSettingsPartial): Promise<void>;
       updateAccountSettings(id: string, settings: Partial<AccountConfig>): Promise<void>;
       getStore(): Promise<AppStore>;
-      getLogs(id: string): Promise<LogEntry[]>;
+      getBootState(): Promise<BootState>;
+      getLogs(): Promise<LogEntry[]>;
+      exportLogsCsv(filters: LogCsvFilters): Promise<string | null>;
       on(channel: 'main-event', handler: (event: MainEvent) => void): () => void;
       rendererReady(): void;
     };
@@ -36,10 +50,15 @@ export class ElectronBackend implements BackendContext {
   openViewer = (id: string) => window.api.openViewer(id);
   getViewerUrl = (id: string) => window.api.getViewerUrl(id);
   pickFolder = () => window.api.pickFolder();
+  chooseBackupFolder = () => window.api.chooseBackupFolder();
+  moveBackupFolder = (newPath: string) => window.api.moveBackupFolder(newPath);
+  updateSettings = (partial: SharedSettingsPartial) => window.api.updateSettings(partial);
   updateAccountSettings = (id: string, settings: Partial<AccountConfig>) =>
     window.api.updateAccountSettings(id, settings);
   getStore = () => window.api.getStore();
-  getLogs = (id: string) => window.api.getLogs(id);
+  getBootState = () => window.api.getBootState();
+  getLogs = () => window.api.getLogs();
+  exportLogsCsv = (filters: LogCsvFilters) => window.api.exportLogsCsv(filters);
   subscribe = (handler: (event: MainEvent) => void) => window.api.on('main-event', handler);
   notifyRendererReady = () => window.api.rendererReady();
 }

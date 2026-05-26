@@ -7,6 +7,7 @@ import { AppProvider, useApp } from './context/AppContext.js';
 import { TopBar } from './components/TopBar.js';
 import { Sidebar } from './components/Sidebar.js';
 import { ToastHost } from './components/ToastHost.js';
+import { ChooseFolderScreen } from './components/screens/ChooseFolderScreen.js';
 import { FirstOpenScreen } from './components/screens/FirstOpenScreen.js';
 import { OAuthSuccessScreen } from './components/screens/OAuthSuccessScreen.js';
 import { HomeScreen } from './components/screens/HomeScreen.js';
@@ -16,7 +17,7 @@ import { LogPanel } from './components/screens/LogPanel.js';
 
 function AppRoot() {
   const { state } = useApp();
-  const { store, selectedAccountId, panel, justConnected } = state;
+  const { bootStage, store, selectedAccountId, panel, justConnected } = state;
 
   const account = store?.accounts.find((a) => a.id === selectedAccountId) ?? null;
   const justConnectedAccount = justConnected
@@ -24,16 +25,15 @@ function AppRoot() {
     : null;
 
   function renderMainArea() {
-    // OAuth success screen — one-time after account connect
     if (justConnectedAccount) {
       return <OAuthSuccessScreen account={justConnectedAccount} />;
     }
 
-    if (panel === 'settings' && account) {
-      return <SettingsPanel account={account} />;
+    if (panel === 'settings') {
+      return <SettingsPanel />;
     }
-    if (panel === 'log' && account) {
-      return <LogPanel account={account} />;
+    if (panel === 'log') {
+      return <LogPanel />;
     }
 
     if (!account) return null;
@@ -56,8 +56,7 @@ function AppRoot() {
     >
       <TopBar />
 
-      {/* Loading state */}
-      {store === null && (
+      {bootStage === 'loading' && (
         <div
           style={{
             flex: 1,
@@ -74,15 +73,19 @@ function AppRoot() {
         </div>
       )}
 
-      {/* First open — no accounts yet */}
-      {store !== null && store.accounts.length === 0 && (
+      {bootStage === 'pick-folder' && (
+        <div style={{ flex: 1, display: 'flex', overflow: 'hidden' }}>
+          <ChooseFolderScreen />
+        </div>
+      )}
+
+      {bootStage === 'first-account' && (
         <div style={{ flex: 1, display: 'flex', overflow: 'hidden' }}>
           <FirstOpenScreen />
         </div>
       )}
 
-      {/* Main layout with sidebar */}
-      {store !== null && store.accounts.length > 0 && (
+      {bootStage === 'ready' && store !== null && (
         <div style={{ flex: 1, display: 'flex', overflow: 'hidden' }}>
           <Sidebar />
           <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>

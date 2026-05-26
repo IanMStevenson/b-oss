@@ -7,7 +7,13 @@ import { ipcMain, type BrowserWindow, dialog, shell, app } from 'electron';
 import { v4 as uuidv4 } from 'uuid';
 import { BlipfotoClient } from '@b-oss/blipfoto-api';
 import { BackupEngine, JournalIndex, LogManager } from '@b-oss/backup-engine';
-import type { AccountConfig, MainEvent, LogEntry } from '@b-oss/b-ark-ui';
+import type {
+  AccountConfig,
+  BootState,
+  LogEntry,
+  MainEvent,
+  SharedSettingsPartial,
+} from '@b-oss/b-ark-ui';
 import { startOAuthFlow, startOAuthFlowEmbedded, encryptToken, decryptToken } from './oauth.js';
 import {
   getAccounts,
@@ -15,12 +21,18 @@ import {
   saveAccount,
   deleteAccount,
   getAppStore,
-  store,
+  getBackupFolder,
+  getPortableSettings,
+  savePortableSettings,
+  bindBackupFolder,
+  store as userDataStore,
 } from './store.js';
 import { ElectronPlatformIO } from './platform-io.js';
 import { startServer, stopServer, getServerPort } from './http-server.js';
 import { BackupScheduler, computeNextRun } from './scheduler.js';
 import { writeBViewFiles } from './b-view-files.js';
+import { toCsv } from './log-csv.js';
+import { rebuildTrayMenu } from './tray.js';
 
 interface BackupErrorLike {
   payload?: { kind: string };
@@ -28,6 +40,11 @@ interface BackupErrorLike {
 }
 
 const activeEngines = new Map<string, BackupEngine>();
+
+// Shared in-flight promise map: manual and scheduled callers awaiting the
+// same id resolve from the same promise rather than racing or skipping.
+const inFlightRuns = new Map<string, Promise<void>>();
+
 const pendingAutoResume = new Set<string>();
 
 export function queueAutoResume(accountId: string): void {
@@ -53,15 +70,33 @@ export function registerIpcHandlers(
     pendingAutoResume.clear();
   });
 
-  async function runBackup(id: string): Promise<void> {
+  /**
+   * Run a backup for one account, returning a shared promise so that manual
+   * and scheduled callers for the same id await the same in-flight run.
+   * Does NOT advance the shared schedule's next_run — the scheduler does that
+   * once per full sequential pass.
+   */
+  function runBackup(id: string): Promise<void> {
+    const existing = inFlightRuns.get(id);
+    if (existing) return existing;
+    const promise = doRunBackup(id).finally(() => {
+      inFlightRuns.delete(id);
+    });
+    inFlightRuns.set(id, promise);
+    return promise;
+  }
+
+  async function doRunBackup(id: string): Promise<void> {
     const account = getAccount(id);
     if (!account) throw new Error(`Account ${id} not found`);
     if (!account.backup_folder) throw new Error('No backup folder configured');
-    if (activeEngines.has(id)) return;
 
     const pio = new ElectronPlatformIO((entry) => {
       emit({ type: 'log:entry', account_id: entry.account_id, entry });
     });
+
+    // Unified log lives at the shared backup folder root, not per-journal.
+    const logMgr = new LogManager(pio, account.backup_folder);
 
     let engineStarted = false;
     try {
@@ -84,6 +119,7 @@ export function registerIpcHandlers(
         pio,
         client,
         (event) => emit({ type: 'backup:event', event }),
+        logMgr,
       );
 
       try {
@@ -107,20 +143,14 @@ export function registerIpcHandlers(
       if (updated) {
         const journalFolder = path.join(updated.backup_folder, updated.username);
         const journal = await new JournalIndex(pio, journalFolder).load();
-        saveAccount({
+        await saveAccount({
           ...updated,
           last_backup_at: new Date().toISOString(),
           total_archived: journal?.entries.length ?? updated.total_archived,
           journal_entry_total: journal?.entry_total ?? updated.journal_entry_total,
           rag_state: 'green',
           error_message: null,
-          schedule: {
-            ...updated.schedule,
-            next_run: computeNextRun(updated.schedule.hour, updated.schedule.interval),
-          },
         });
-        const rescheduled = getAccount(id);
-        if (rescheduled) scheduler.schedule(rescheduled);
         emitStoreChanged();
       }
     } catch (err) {
@@ -131,7 +161,7 @@ export function registerIpcHandlers(
         const errorMessage = isAuthExpired
           ? 'Access token expired — reauthorise account'
           : (e?.message ?? 'Backup failed');
-        saveAccount({
+        await saveAccount({
           ...updated,
           rag_state: isAuthExpired ? 'red' : 'amber',
           error_message: errorMessage,
@@ -168,7 +198,7 @@ export function registerIpcHandlers(
     // refresh of the token rather than creating a duplicate.
     const existing = getAccounts().find((a) => a.username === profile.user.username);
     if (existing) {
-      saveAccount({
+      await saveAccount({
         ...existing,
         access_token: encryptToken(rawToken),
         journal_entry_total: profile.details?.entry_total ?? existing.journal_entry_total,
@@ -177,28 +207,31 @@ export function registerIpcHandlers(
         rag_state: 'amber',
         error_message: null,
       });
-      const reloaded = getAccount(existing.id);
-      if (reloaded) scheduler.schedule(reloaded);
+      scheduler.rearm();
       emitStoreChanged();
       return;
     }
 
+    // Inherit shared schedule/delay/gap/redo from any existing account
+    // (or defaults if this is the first account). backup_folder is also
+    // shared and read from the user-data store.
+    const template = getAccounts()[0];
     const account: AccountConfig = {
       id: uuidv4(),
       username: profile.user.username,
       journal_title: profile.details?.journal_title ?? profile.user.username,
       avatar_url: profile.user.avatar_url,
       access_token: encryptToken(rawToken),
-      backup_folder: '',
-      schedule: {
+      backup_folder: template?.backup_folder ?? '',
+      schedule: template?.schedule ?? {
         enabled: true,
         next_run: computeNextRun(2, 'daily'),
         hour: 2,
         interval: 'daily',
       },
-      gap_check_days: 31,
-      redo_count: 7,
-      api_delay_ms: 0,
+      gap_check_days: template?.gap_check_days ?? 31,
+      redo_count: template?.redo_count ?? 7,
+      api_delay_ms: template?.api_delay_ms ?? 250,
       last_backup_at: null,
       total_archived: 0,
       journal_entry_total: profile.details?.entry_total ?? 0,
@@ -206,11 +239,8 @@ export function registerIpcHandlers(
       error_message: null,
     };
 
-    saveAccount(account);
-
-    const ui = store.get('ui');
-    store.set('ui', { ...ui, accountOrder: [...ui.accountOrder, account.id] });
-
+    await saveAccount(account);
+    scheduler.rearm();
     emitStoreChanged();
   }
 
@@ -224,17 +254,12 @@ export function registerIpcHandlers(
     await performAddAccount(rawToken);
   });
 
-  ipcMain.handle('removeAccount', (_event, id: string) => {
+  ipcMain.handle('removeAccount', async (_event, id: string) => {
     activeEngines.get(id)?.cancel();
     activeEngines.delete(id);
-    scheduler.cancel(id);
     stopServer(id);
-    deleteAccount(id);
-    const ui = store.get('ui');
-    store.set('ui', {
-      ...ui,
-      accountOrder: ui.accountOrder.filter((x) => x !== id),
-    });
+    await deleteAccount(id);
+    scheduler.rearm();
     emitStoreChanged();
   });
 
@@ -243,15 +268,14 @@ export function registerIpcHandlers(
     if (!account) throw new Error(`Account ${id} not found`);
     const client = new BlipfotoClient(rawToken);
     const profile = await client.getUserProfile({ returnDetails: true });
-    saveAccount({
+    await saveAccount({
       ...account,
       access_token: encryptToken(rawToken),
       journal_entry_total: profile.details?.entry_total ?? account.journal_entry_total,
       rag_state: 'amber',
       error_message: null,
     });
-    const reloaded = getAccount(id);
-    if (reloaded) scheduler.schedule(reloaded);
+    scheduler.rearm();
     emitStoreChanged();
   }
 
@@ -303,23 +327,93 @@ export function registerIpcHandlers(
   });
 
   ipcMain.handle(
+    'chooseBackupFolder',
+    async (): Promise<{ folder: string; existingSettings: boolean } | null> => {
+      const result = await dialog.showOpenDialog({ properties: ['openDirectory'] });
+      if (result.canceled || !result.filePaths[0]) return null;
+      const folder = result.filePaths[0];
+      const { existing } = await bindBackupFolder(folder);
+      scheduler.rearm();
+      emitStoreChanged();
+      return { folder, existingSettings: existing };
+    },
+  );
+
+  ipcMain.handle('moveBackupFolder', async (_event, newPath: string) => {
+    // Save current portable cache to the new folder, then point user data at
+    // it. Does NOT migrate backup files on disk — the user is responsible.
+    await bindBackupFolder(newPath);
+    scheduler.rearm();
+    emitStoreChanged();
+  });
+
+  ipcMain.handle('getBootState', (): BootState => {
+    const folder = getBackupFolder();
+    if (!folder) return { stage: 'pick-folder' };
+    const portable = getPortableSettings();
+    if (portable.accounts.length === 0) return { stage: 'first-account' };
+    return { stage: 'ready', store: getAppStore() };
+  });
+
+  ipcMain.handle(
+    'updateSettings',
+    async (_event, partial: SharedSettingsPartial): Promise<void> => {
+      const current = getPortableSettings();
+      const next = {
+        ...current,
+        schedule: partial.schedule ?? current.schedule,
+        api_delay_ms: partial.api_delay_ms ?? current.api_delay_ms,
+        gap_check_days: partial.gap_check_days ?? current.gap_check_days,
+        redo_count: partial.redo_count ?? current.redo_count,
+        ui: {
+          thumbnail_size_percent: partial.thumbnailSizePercent ?? current.ui.thumbnail_size_percent,
+        },
+      };
+      await savePortableSettings(next);
+
+      if (partial.startWithWindows !== undefined) {
+        userDataStore.set('app', {
+          ...userDataStore.get('app'),
+          startWithWindows: partial.startWithWindows,
+        });
+        app.setLoginItemSettings({ openAtLogin: partial.startWithWindows });
+        rebuildTrayMenu();
+      }
+
+      scheduler.rearm();
+      emitStoreChanged();
+    },
+  );
+
+  ipcMain.handle(
     'updateAccountSettings',
-    (_event, id: string, settings: Partial<AccountConfig>) => {
+    async (_event, id: string, settings: Partial<AccountConfig>) => {
       const account = getAccount(id);
       if (!account) throw new Error(`Account ${id} not found`);
-      const updated: AccountConfig = { ...account, ...settings };
-      saveAccount(updated);
-      scheduler.schedule(updated);
+
+      // backup_folder is shared and lives in user data; route changes through
+      // bindBackupFolder so the portable settings file follows the folder.
+      if (
+        settings.backup_folder !== undefined &&
+        settings.backup_folder !== account.backup_folder
+      ) {
+        await bindBackupFolder(settings.backup_folder);
+      }
+
+      const merged: AccountConfig = { ...account, ...settings };
+      await saveAccount(merged);
+      scheduler.rearm();
       emitStoreChanged();
     },
   );
 
   ipcMain.handle('getStore', () => getAppStore());
 
-  ipcMain.handle('getLogs', async (_event, id: string): Promise<LogEntry[]> => {
-    const account = getAccount(id);
-    if (!account?.backup_folder) return [];
-    const folder = path.join(account.backup_folder, account.username);
+  ipcMain.handle('getLogs', async (): Promise<LogEntry[]> => {
+    // Unified log: one file at the backup folder root containing entries
+    // from every journal. Filtering happens in the renderer.
+    const folder = getBackupFolder();
+    if (!folder) return [];
     const pio = new ElectronPlatformIO(() => {
       /* silent — read-only access */
     });
@@ -327,19 +421,72 @@ export function registerIpcHandlers(
     return logMgr.readAll();
   });
 
-  // Re-export for use from main.ts (scheduled run trigger)
+  ipcMain.handle(
+    'exportLogsCsv',
+    async (
+      _event,
+      filters: {
+        account_id: string | null;
+        backup_id: string | null;
+        level: 'all' | 'error' | 'warn' | 'info';
+      },
+    ): Promise<string | null> => {
+      const folder = getBackupFolder();
+      if (!folder) return null;
+      const pio = new ElectronPlatformIO(() => {
+        /* silent */
+      });
+      const entries = await new LogManager(pio, folder).readAll();
+      const accounts = getAccounts();
+      const usernameById = new Map(accounts.map((a) => [a.id, a.username]));
+      const filtered = entries.filter((e) => {
+        if (filters.account_id !== null && e.account_id !== filters.account_id) return false;
+        if (filters.backup_id !== null && e.backup_id !== filters.backup_id) return false;
+        if (filters.level !== 'all' && e.level !== filters.level) return false;
+        return true;
+      });
+      const csv = toCsv(filtered, usernameById);
+      const today = new Date().toISOString().slice(0, 10);
+      const result = await dialog.showSaveDialog({
+        defaultPath: `b-ark-log-${today}.csv`,
+        filters: [{ name: 'CSV', extensions: ['csv'] }],
+      });
+      if (result.canceled || !result.filePath) return null;
+      await fs.promises.writeFile(result.filePath, csv, 'utf-8');
+      return result.filePath;
+    },
+  );
+
+  // Re-export for use from main.ts (scheduler callback wiring)
   schedulerRunner = runBackup;
   // touch getAccounts to avoid unused import in some build modes
   void getAccounts;
 }
 
-// Set by registerIpcHandlers, used by main.ts to wire the scheduler callback.
+// Set by registerIpcHandlers, used by main.ts to wire the scheduler callbacks.
 let schedulerRunner: ((id: string) => Promise<void>) | null = null;
 
-export function triggerScheduledBackup(id: string): void {
+export function triggerScheduledBackup(id: string): Promise<void> {
   if (schedulerRunner) {
-    void schedulerRunner(id);
+    return schedulerRunner(id);
   }
+  return Promise.resolve();
+}
+
+/**
+ * Advance the shared schedule's next_run after a sequential pass. Called by
+ * the scheduler once per full pass — manual single-account runs do not
+ * advance it.
+ */
+export async function advanceSharedNextRun(): Promise<void> {
+  const settings = getPortableSettings();
+  await savePortableSettings({
+    ...settings,
+    schedule: {
+      ...settings.schedule,
+      next_run: computeNextRun(settings.schedule.hour, settings.schedule.interval),
+    },
+  });
 }
 
 export async function hasIncompleteFirstBackup(account: AccountConfig): Promise<boolean> {

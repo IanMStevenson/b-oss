@@ -9,12 +9,14 @@ import {
   triggerScheduledBackup,
   queueAutoResume,
   hasIncompleteFirstBackup,
+  advanceSharedNextRun,
 } from './ipc-handlers.js';
 import { createTray } from './tray.js';
 import { setupAutoUpdater } from './updater.js';
 import { BackupScheduler } from './scheduler.js';
 import { stopAllServers } from './http-server.js';
-import { getAccounts, store } from './store.js';
+import { getAccounts, store, loadPortableFromStoredFolder, getPortableSettings } from './store.js';
+import { migrateFromV1IfNeeded } from './migrate-store.js';
 
 // Name shown in OS dialogs ("Open b-ark?"), taskbar tooltip, userData dir, etc.
 // In packaged builds electron-builder sets this from productName; in dev we
@@ -44,9 +46,12 @@ app.isQuitting = false;
 
 let mainWindow: BrowserWindow | null = null;
 
-const scheduler = new BackupScheduler((accountId) => {
-  triggerScheduledBackup(accountId);
-});
+const scheduler = new BackupScheduler(
+  () => getPortableSettings().schedule,
+  () => getPortableSettings().account_order,
+  (id) => triggerScheduledBackup(id),
+  () => advanceSharedNextRun(),
+);
 
 function createWindow(): BrowserWindow {
   // Suppress the default File/Edit/View/Window menu bar on all platforms.
@@ -123,15 +128,17 @@ void app.whenReady().then(async () => {
     });
   });
 
+  // Storage layer must be ready before any IPC handler or scheduler runs.
+  await migrateFromV1IfNeeded();
+  await loadPortableFromStoredFolder();
+
   mainWindow = createWindow();
 
   createTray(() => mainWindow, store);
   registerIpcHandlers(() => mainWindow, scheduler);
   setupAutoUpdater();
 
-  for (const account of getAccounts()) {
-    scheduler.schedule(account);
-  }
+  scheduler.rearm();
 
   for (const account of getAccounts()) {
     if (await hasIncompleteFirstBackup(account)) {
@@ -156,7 +163,7 @@ app.on('open-url', (event, url) => {
 
 app.on('before-quit', () => {
   app.isQuitting = true;
-  scheduler.cancelAll();
+  scheduler.cancel();
   stopAllServers();
 });
 

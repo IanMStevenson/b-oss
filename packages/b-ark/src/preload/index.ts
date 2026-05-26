@@ -2,7 +2,12 @@
 // Copyright (C) 2026 Ian Stevenson
 
 import { contextBridge, ipcRenderer, type IpcRendererEvent } from 'electron';
-import type { AccountConfig, MainEvent } from '@b-oss/b-ark-ui';
+import type {
+  AccountConfig,
+  LogCsvFilters,
+  MainEvent,
+  SharedSettingsPartial,
+} from '@b-oss/b-ark-ui';
 
 contextBridge.exposeInMainWorld('api', {
   addAccount: () => ipcRenderer.invoke('addAccount'),
@@ -15,10 +20,15 @@ contextBridge.exposeInMainWorld('api', {
   openViewer: (id: string) => ipcRenderer.invoke('openViewer', id),
   getViewerUrl: (id: string) => ipcRenderer.invoke('getViewerUrl', id),
   pickFolder: () => ipcRenderer.invoke('pickFolder'),
+  chooseBackupFolder: () => ipcRenderer.invoke('chooseBackupFolder'),
+  moveBackupFolder: (newPath: string) => ipcRenderer.invoke('moveBackupFolder', newPath),
+  updateSettings: (partial: SharedSettingsPartial) => ipcRenderer.invoke('updateSettings', partial),
   updateAccountSettings: (id: string, settings: Partial<AccountConfig>) =>
     ipcRenderer.invoke('updateAccountSettings', id, settings),
   getStore: () => ipcRenderer.invoke('getStore'),
-  getLogs: (id: string) => ipcRenderer.invoke('getLogs', id),
+  getBootState: () => ipcRenderer.invoke('getBootState'),
+  getLogs: () => ipcRenderer.invoke('getLogs'),
+  exportLogsCsv: (filters: LogCsvFilters) => ipcRenderer.invoke('exportLogsCsv', filters),
   rendererReady: () => ipcRenderer.send('renderer-ready'),
   on: (channel: 'main-event', handler: (event: MainEvent) => void): (() => void) => {
     if (channel !== 'main-event') throw new Error(`Unknown channel: ${channel as string}`);
