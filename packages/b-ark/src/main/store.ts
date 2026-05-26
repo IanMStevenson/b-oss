@@ -18,6 +18,7 @@ const DEFAULT_STATUS: AccountStatus = {
   journal_entry_total: 0,
   rag_state: 'amber',
   error_message: null,
+  account_added_at: null,
 };
 
 const localDefaults: UserDataStore = {
@@ -155,6 +156,7 @@ function composeAccountConfig(p: PortableAccount): AccountConfig {
     journal_entry_total: status.journal_entry_total,
     rag_state: status.rag_state,
     error_message: status.error_message,
+    account_added_at: status.account_added_at,
   };
 }
 
@@ -215,6 +217,7 @@ export async function saveAccount(account: AccountConfig): Promise<void> {
     journal_entry_total: account.journal_entry_total,
     rag_state: account.rag_state,
     error_message: account.error_message,
+    account_added_at: account.account_added_at,
   });
 }
 

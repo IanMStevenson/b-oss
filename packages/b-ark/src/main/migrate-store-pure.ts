@@ -84,6 +84,7 @@ export function migrateV1Shape(legacy: LegacyV1Shape): V1MigrationResult {
       journal_entry_total: a.journal_entry_total,
       rag_state: a.rag_state,
       error_message: a.error_message,
+      account_added_at: null,
     };
   }
 

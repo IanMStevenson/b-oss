@@ -45,6 +45,13 @@ interface BackupErrorLike {
   message?: string;
 }
 
+const MAX_NETWORK_RETRIES = 3;
+const NETWORK_RETRY_DELAY_MS = 5 * 60 * 1000;
+
+function delay(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
 const activeEngines = new Map<string, BackupEngine>();
 
 // Shared in-flight promise map: manual and scheduled callers awaiting the
@@ -104,95 +111,134 @@ export function registerIpcHandlers(
     // Unified log lives at the shared backup folder root, not per-journal.
     const logMgr = new LogManager(pio, account.backup_folder);
 
-    let engineStarted = false;
-    try {
-      const rawToken = decryptToken(account.access_token);
-      const client = new BlipfotoClient(rawToken);
-
-      const engine = new BackupEngine(
-        {
-          id: account.id,
-          username: account.username,
-          journal_title: account.journal_title,
-          avatar_url: account.avatar_url,
-          access_token: rawToken,
-          backup_folder: account.backup_folder,
-          redo_count: account.redo_count,
-          gap_check_days: account.gap_check_days,
-          api_delay_ms: account.api_delay_ms,
-          app_version: app.getVersion(),
-        },
-        pio,
-        client,
-        (event) => emit({ type: 'backup:event', event }),
-        logMgr,
-      );
-
+    for (let networkAttempt = 0; ; ) {
+      let engineStarted = false;
       try {
-        await writeBViewFiles(account.username, account.backup_folder);
-      } catch (err) {
-        const message = err instanceof Error ? err.message : String(err);
-        pio.log({
-          id: uuidv4(),
-          account_id: id,
-          timestamp: new Date().toISOString(),
-          level: 'warn',
-          message,
-        });
-      }
+        const rawToken = decryptToken(account.access_token);
+        const client = new BlipfotoClient(rawToken);
 
-      activeEngines.set(id, engine);
-      engineStarted = true;
-      await engine.run();
+        const engine = new BackupEngine(
+          {
+            id: account.id,
+            username: account.username,
+            journal_title: account.journal_title,
+            avatar_url: account.avatar_url,
+            access_token: rawToken,
+            backup_folder: account.backup_folder,
+            redo_count: account.redo_count,
+            gap_check_days: account.gap_check_days,
+            api_delay_ms: account.api_delay_ms,
+            app_version: app.getVersion(),
+          },
+          pio,
+          client,
+          (event) => emit({ type: 'backup:event', event }),
+          logMgr,
+        );
 
-      const updated = getAccount(id);
-      if (updated) {
-        const journalFolder = path.join(updated.backup_folder, updated.username);
-        const journal = await new JournalIndex(pio, journalFolder).load();
-        await saveAccount({
-          ...updated,
-          last_backup_at: new Date().toISOString(),
-          total_archived: journal?.entries.length ?? updated.total_archived,
-          journal_entry_total: journal?.entry_total ?? updated.journal_entry_total,
-          rag_state: 'green',
-          error_message: null,
-        });
-        emitStoreChanged();
-      }
-    } catch (err) {
-      const e = err as BackupErrorLike;
-      const updated = getAccount(id);
-      if (updated) {
-        const isAuthExpired = e?.payload?.kind === 'auth_expired';
-        const errorMessage = isAuthExpired
-          ? 'Access token expired — reauthorise account'
-          : (e?.message ?? 'Backup failed');
-        await saveAccount({
-          ...updated,
-          rag_state: isAuthExpired ? 'red' : 'amber',
-          error_message: errorMessage,
-        });
-        if (isAuthExpired) {
-          const win = getMainWindow();
-          win?.show();
-          win?.focus();
-        }
-        // Engine emits backup:failed itself before rethrowing; only emit here
-        // for failures that occurred before engine.run() was reached.
-        if (!engineStarted) {
-          emit({
-            type: 'backup:event',
-            event: {
-              type: 'failed',
-              account_id: id,
-              error: { kind: 'api_error', code: 0, message: errorMessage },
-            },
+        try {
+          await writeBViewFiles(account.username, account.backup_folder);
+        } catch (err) {
+          const message = err instanceof Error ? err.message : String(err);
+          pio.log({
+            id: uuidv4(),
+            account_id: id,
+            timestamp: new Date().toISOString(),
+            level: 'warn',
+            message,
           });
         }
-        emitStoreChanged();
+
+        activeEngines.set(id, engine);
+        engineStarted = true;
+        await engine.run();
+
+        const updated = getAccount(id);
+        if (updated) {
+          const journalFolder = path.join(updated.backup_folder, updated.username);
+          const journal = await new JournalIndex(pio, journalFolder).load();
+          await saveAccount({
+            ...updated,
+            last_backup_at: new Date().toISOString(),
+            total_archived: journal?.entries.length ?? updated.total_archived,
+            journal_entry_total: journal?.entry_total ?? updated.journal_entry_total,
+            rag_state: 'green',
+            error_message: null,
+          });
+          emitStoreChanged();
+        }
+        return;
+      } catch (err) {
+        const e = err as BackupErrorLike;
+
+        // Silently retry network errors up to MAX_NETWORK_RETRIES times before
+        // treating the failure as real. Handles the common case of the machine
+        // waking before the network is ready.
+        if (e?.payload?.kind === 'network' && networkAttempt < MAX_NETWORK_RETRIES) {
+          networkAttempt++;
+          const retryEntry: LogEntry = {
+            id: uuidv4(),
+            account_id: id,
+            timestamp: new Date().toISOString(),
+            level: 'info',
+            message: `Network unavailable — retrying in 5 minutes (attempt ${networkAttempt}/${MAX_NETWORK_RETRIES})`,
+          };
+          await logMgr.append(retryEntry);
+          pio.log(retryEntry);
+          await delay(NETWORK_RETRY_DELAY_MS);
+          continue;
+        }
+
+        const updated = getAccount(id);
+        if (updated) {
+          const isAuthExpired = e?.payload?.kind === 'auth_expired';
+          const referenceDate = updated.last_backup_at ?? updated.account_added_at ?? null;
+          const isStale =
+            referenceDate !== null &&
+            (Date.now() - new Date(referenceDate).getTime()) / 86_400_000 >= 7;
+          const ragState: 'red' | 'amber' = isAuthExpired || isStale ? 'red' : 'amber';
+          const errorMessage = isAuthExpired
+            ? 'Access token expired — reauthorise account'
+            : (e?.message ?? 'Backup failed');
+          await saveAccount({
+            ...updated,
+            rag_state: ragState,
+            error_message: errorMessage,
+          });
+          if (isStale) {
+            const staleEntry: LogEntry = {
+              id: uuidv4(),
+              account_id: id,
+              timestamp: new Date().toISOString(),
+              level: 'error',
+              message: 'No successful backup for 7 days',
+            };
+            await logMgr.append(staleEntry);
+            pio.log(staleEntry);
+          }
+          if (isAuthExpired) {
+            const win = getMainWindow();
+            win?.show();
+            win?.focus();
+          }
+          // Engine emits backup:failed itself before rethrowing; only emit here
+          // for failures that occurred before engine.run() was reached.
+          if (!engineStarted) {
+            emit({
+              type: 'backup:event',
+              event: {
+                type: 'failed',
+                account_id: id,
+                error: { kind: 'api_error', code: 0, message: errorMessage },
+              },
+            });
+          }
+          emitStoreChanged();
+        }
+        return;
+      } finally {
+        activeEngines.delete(id);
       }
-    } finally {
-      activeEngines.delete(id);
     }
   }
 
@@ -251,6 +297,7 @@ export function registerIpcHandlers(
       journal_entry_total: profile.details?.entry_total ?? 0,
       rag_state: 'amber',
       error_message: null,
+      account_added_at: new Date().toISOString(),
     };
 
     await saveAccount(account);

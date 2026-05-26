@@ -34,6 +34,7 @@ export interface AccountStatus {
   journal_entry_total: number;
   rag_state: 'green' | 'amber' | 'red';
   error_message: string | null;
+  account_added_at: string | null;
 }
 
 export interface UserDataStore {
@@ -65,6 +66,7 @@ export interface AccountConfig {
   journal_entry_total: number;
   rag_state: 'green' | 'amber' | 'red';
   error_message: string | null;
+  account_added_at: string | null;
 }
 
 export interface AppStore {

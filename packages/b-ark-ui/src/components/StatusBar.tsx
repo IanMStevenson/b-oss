@@ -50,7 +50,9 @@ export function StatusBar({ account }: StatusBarProps) {
     account.rag_state === 'green'
       ? 'Up to date'
       : account.rag_state === 'amber'
-        ? 'Catching up'
+        ? account.error_message
+          ? 'Warning'
+          : 'Catching up'
         : 'Needs attention';
 
   const sep = <div style={{ width: 1, height: 14, background: 'var(--line)', margin: '0 4px' }} />;
