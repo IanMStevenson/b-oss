@@ -612,6 +612,57 @@ describe('BackupEngine — routine backup redo', () => {
   });
 });
 
+describe('BackupEngine — entry replacement', () => {
+  it('overwrites the existing date file (no -id suffix) when entry_id changes; logs info', async () => {
+    const io = new MockPlatformIO();
+    const client = makeClient();
+
+    // Old version of the entry — same date, different entry_id.
+    const oldEntryPath = '/backups/gbradley/entries/2024/2024-03-15.json';
+    const oldEntry: Partial<BlipEntry> = {
+      schema_version: 1,
+      entry_id: '111',
+      date: '2024-03-15',
+      title: 'old title',
+    };
+    io.files.set(oldEntryPath, JSON.stringify(oldEntry));
+
+    vi.spyOn(client, 'getUserProfile').mockResolvedValue(makeProfileResponse(1));
+    vi.spyOn(client, 'getJournalEntries').mockResolvedValue({
+      page: { index: 0, size: 100, more: 0 },
+      entries: [makeEntryStub('222', '2024-03-15')],
+    });
+    vi.spyOn(client, 'getEntry').mockResolvedValue(makeEntryResponse('222', '2024-03-15'));
+
+    const engine = makeEngine(makeConfig(), io, client, () => {});
+    await engine.run();
+
+    // Only one JSON for the date — no -222-suffixed sibling.
+    const datePaths = [...io.files.keys()].filter(
+      (k) => k.startsWith('/backups/gbradley/entries/2024/2024-03-15') && k.endsWith('.json'),
+    );
+    expect(datePaths).toEqual([oldEntryPath]);
+
+    // File now contains the new entry_id.
+    const newContents = JSON.parse(io.files.get(oldEntryPath)!) as BlipEntry;
+    expect(newContents.entry_id).toBe('222');
+
+    // Journal index has exactly one row for that date, with the new id.
+    const journal = JSON.parse(io.files.get('/backups/gbradley/journal.json')!) as JournalMetadata;
+    const rows = journal.entries.filter((e) => e.date === '2024-03-15');
+    expect(rows).toHaveLength(1);
+    expect(rows[0]?.entry_id).toBe('222');
+
+    // Info-level replacement log line recorded.
+    const replaceLogs = io.logs.filter(
+      (l) => l.level === 'info' && l.message.includes('Replacing entry for 2024-03-15'),
+    );
+    expect(replaceLogs).toHaveLength(1);
+    expect(replaceLogs[0]?.message).toContain('111');
+    expect(replaceLogs[0]?.message).toContain('222');
+  });
+});
+
 // Plain BlipEntry mapping check — verifies the engine writes a recognisable schema
 describe('BackupEngine — writes BlipEntry schema', () => {
   it('writes JSON with entry_id (string), schema_version 1, image+thumbnail downloaded from entry stub URLs', async () => {

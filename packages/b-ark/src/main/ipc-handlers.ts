@@ -21,6 +21,7 @@ import type {
   SharedSettingsPartial,
 } from '@b-oss/b-ark-ui';
 import { startOAuthFlow, startOAuthFlowEmbedded, encryptToken, decryptToken } from './oauth.js';
+import { validateBackupFolderPath } from './validate-backup-folder.js';
 import {
   getAccounts,
   getAccount,
@@ -403,12 +404,29 @@ export function registerIpcHandlers(
     return result.canceled ? null : (result.filePaths[0] ?? null);
   });
 
+  // Paths the backup folder must not be equal to nor inside. Computed once
+  // here so both `chooseBackupFolder` and `moveBackupFolder` share the list.
+  const getBlockedRoots = (): string[] =>
+    [
+      app.getPath('userData'),
+      app.getPath('exe'),
+      path.dirname(app.getPath('exe')),
+      app.getAppPath(),
+      process.env['windir'],
+      process.env['SystemRoot'],
+      process.env['ProgramFiles'],
+      process.env['ProgramFiles(x86)'],
+      process.platform === 'win32' ? null : '/',
+    ].filter((p): p is string => typeof p === 'string' && p.length > 0);
+
   ipcMain.handle(
     'chooseBackupFolder',
     async (): Promise<{ folder: string; existingSettings: boolean } | null> => {
       const result = await dialog.showOpenDialog({ properties: ['openDirectory'] });
       if (result.canceled || !result.filePaths[0]) return null;
-      const folder = result.filePaths[0];
+      const folder = await validateBackupFolderPath(result.filePaths[0], {
+        blockedRoots: getBlockedRoots(),
+      });
       const { existing } = await bindBackupFolder(folder);
       scheduler.rearm();
       emitStoreChanged();
@@ -419,7 +437,10 @@ export function registerIpcHandlers(
   ipcMain.handle('moveBackupFolder', async (_event, newPath: string) => {
     // Save current portable cache to the new folder, then point user data at
     // it. Does NOT migrate backup files on disk — the user is responsible.
-    await bindBackupFolder(newPath);
+    const validated = await validateBackupFolderPath(newPath, {
+      blockedRoots: getBlockedRoots(),
+    });
+    await bindBackupFolder(validated);
     scheduler.rearm();
     emitStoreChanged();
   });
@@ -455,6 +476,15 @@ export function registerIpcHandlers(
         });
         app.setLoginItemSettings({ openAtLogin: partial.startWithWindows });
         rebuildTrayMenu();
+      }
+
+      if (partial.autoUpdateEnabled !== undefined) {
+        userDataStore.set('app', {
+          ...userDataStore.get('app'),
+          autoUpdateEnabled: partial.autoUpdateEnabled,
+        });
+        // Takes effect at next launch — the updater's check fires once during
+        // setupAutoUpdater() on startup, so we don't toggle anything live.
       }
 
       scheduler.rearm();

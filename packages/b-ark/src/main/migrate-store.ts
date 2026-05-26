@@ -20,7 +20,7 @@ export async function migrateFromV1IfNeeded(): Promise<void> {
   // Write v2 local store first, so a crash mid-migration leaves a coherent
   // local store (the portable file is the secondary artefact).
   store.set('backup_folder', result.canonicalFolder);
-  store.set('app', { startWithWindows: result.startWithWindows });
+  store.set('app', { startWithWindows: result.startWithWindows, autoUpdateEnabled: true });
   setAllTokens(result.tokens);
   setAllStatus(result.status);
   store.set('schema_version', 2);

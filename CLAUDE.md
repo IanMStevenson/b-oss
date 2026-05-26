@@ -84,6 +84,10 @@ When `Bash` is needed for reads:
 - Never add `|| echo "fallback"` — empty output is sufficient
 - Never use `find -exec` or `xargs` — use `Grep` with a `glob` instead
 - Never use `find | grep | xargs` pipelines
+- Never prefix commands with `cd <dir> &&` — the working directory is already `d:\b-oss`;
+  for package-specific npm commands use the `--workspace=packages/foo` flag instead
+- Never chain multiple commands with `;` — run them as separate parallel Bash tool calls
+- Never add `2>/dev/null` to read commands — let empty/error output surface naturally
 - If a `Bash` command is genuinely the only way to achieve the outcome and will trigger
   a permission prompt, explain why the built-in tools are insufficient _before_ making
   the tool call, so the user can make an informed decision when the prompt appears

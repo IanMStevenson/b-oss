@@ -25,7 +25,12 @@
       "Bash(ConvertFrom-Json *)",
       "Bash(ConvertTo-Json *)",
       "Bash(Get-Command *)",
-      "Bash(Out-String *)"
+      "Bash(Out-String *)",
+      "Bash(npm test)",
+      "Bash(npm test *)",
+      "Bash(npm ls *)",
+      "Bash(npm outdated)",
+      "Bash(npm outdated *)"
     ]
   },
   "hooks": {

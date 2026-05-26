@@ -15,7 +15,13 @@ import { createTray } from './tray.js';
 import { setupAutoUpdater } from './updater.js';
 import { BackupScheduler } from './scheduler.js';
 import { stopAllServers } from './http-server.js';
-import { getAccounts, store, loadPortableFromStoredFolder, getPortableSettings } from './store.js';
+import {
+  getAccounts,
+  store,
+  loadPortableFromStoredFolder,
+  getPortableSettings,
+  ensureAppDefaults,
+} from './store.js';
 import { migrateFromV1IfNeeded } from './migrate-store.js';
 
 // Name shown in OS dialogs ("Open b-ark?"), taskbar tooltip, userData dir, etc.
@@ -77,7 +83,7 @@ function createWindow(): BrowserWindow {
       preload: path.join(__dirname, '../preload/index.js'),
       contextIsolation: true,
       nodeIntegration: false,
-      sandbox: false,
+      sandbox: true,
     },
     show: false,
   });
@@ -86,6 +92,26 @@ function createWindow(): BrowserWindow {
     void shell.openExternal(url);
     return { action: 'deny' };
   });
+
+  // Belt-and-braces: the renderer should never navigate the main window to
+  // anything other than the local app shell. If a future refactor accidentally
+  // introduces an <a href> or location.href to an external URL, divert it to
+  // the OS browser instead of letting the main window load remote content.
+  const devServerOrigin = process.env['ELECTRON_RENDERER_URL']
+    ? new URL(process.env['ELECTRON_RENDERER_URL']).origin
+    : null;
+  const blockNonLocal = (event: Electron.Event, url: string): void => {
+    if (url.startsWith('file://')) return;
+    try {
+      if (devServerOrigin && new URL(url).origin === devServerOrigin) return;
+    } catch {
+      // malformed URL — fall through to block
+    }
+    event.preventDefault();
+    void shell.openExternal(url);
+  };
+  win.webContents.on('will-navigate', (event, url) => blockNonLocal(event, url));
+  win.webContents.on('will-redirect', (event, url) => blockNonLocal(event, url));
 
   win.once('ready-to-show', () => win.show());
 
@@ -130,6 +156,7 @@ void app.whenReady().then(async () => {
 
   // Storage layer must be ready before any IPC handler or scheduler runs.
   await migrateFromV1IfNeeded();
+  ensureAppDefaults();
   await loadPortableFromStoredFolder();
 
   mainWindow = createWindow();

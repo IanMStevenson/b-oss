@@ -2,12 +2,12 @@
 
 > Blipfoto Open Source Software
 
-b-oss is a family of open-source tools for backing up and viewing [Blipfoto](https://www.blipfoto.com) journals. It is an independent project and is NOT supported or sponsored by blipfoto. The project is led and mangaged by Ian Stevenson in his personal capacity.
+b-oss is a family of open-source tools for backing up and viewing [Blipfoto](https://www.blipfoto.com) journals. It is an independent project and is NOT supported or sponsored by blipfoto. The project is led and mangaged by Ian Stevenson in his personal capacity. Ian is also the architect, but immplementation has been carried out almost entirely using Claude Code.
 
 ## Applications
 
 - **b-ark** — desktop app (Windows, Mac compatible but we need a mac developer to release it) that backs up your Blipfoto journals to local disk
-- **b-view** — browser-based viewer for a b-ark backup, can be deployed to any static web host
+- **b-view** — browser-based viewer for a b-ark backup, can be deployed to any static web host or run from local filesystem (packaged with b-ark)
 
 ## Status
 

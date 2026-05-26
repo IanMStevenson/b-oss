@@ -219,6 +219,7 @@ export function SettingsPanel() {
   const [gapCheck, setGapCheck] = useState(firstAcct?.gap_check_days ?? 31);
   const [redo, setRedo] = useState(firstAcct?.redo_count ?? 7);
   const [startWithWindows, setStartWithWindows] = useState(store?.app.startWithWindows ?? true);
+  const [autoUpdateEnabled, setAutoUpdateEnabled] = useState(store?.app.autoUpdateEnabled ?? true);
 
   const [focusedField, setFocusedField] = useState<string | null>(null);
 
@@ -235,6 +236,7 @@ export function SettingsPanel() {
     setGapCheck(a.gap_check_days);
     setRedo(a.redo_count);
     setStartWithWindows(store.app.startWithWindows);
+    setAutoUpdateEnabled(store.app.autoUpdateEnabled);
   }, [store]);
 
   if (!store) return null;
@@ -560,6 +562,24 @@ export function SettingsPanel() {
               />
               <span style={{ fontSize: 13, color: 'var(--ink-2)' }}>
                 {startWithWindows ? 'On' : 'Off'}
+              </span>
+            </div>
+          </SettingBlock>
+
+          <SettingBlock
+            label="Check for updates automatically"
+            description="At startup, b-ark checks GitHub for a newer release and offers to install it. Turn off if you'd rather update manually. Takes effect at next launch."
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              <PillToggle
+                checked={autoUpdateEnabled}
+                onChange={(v) => {
+                  setAutoUpdateEnabled(v);
+                  save({ autoUpdateEnabled: v });
+                }}
+              />
+              <span style={{ fontSize: 13, color: 'var(--ink-2)' }}>
+                {autoUpdateEnabled ? 'On' : 'Off'}
               </span>
             </div>
           </SettingBlock>

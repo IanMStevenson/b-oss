@@ -530,40 +530,24 @@ export class BackupEngine {
     const originalRel = JournalIndex.entryOriginalPath(entry.date);
     const hiresRel = JournalIndex.entryHiresPath(entry.date);
     const jsonAbs = joinPath(journalFolder, jsonRel);
+    const imageAbs = joinPath(journalFolder, imageRel);
+    const thumbAbs = joinPath(journalFolder, thumbRel);
+    const originalAbs = joinPath(journalFolder, originalRel);
+    const hiresAbs = joinPath(journalFolder, hiresRel);
     const jsonDir = joinPath(journalFolder, `entries/${entry.date.slice(0, 4)}`);
 
-    let finalJsonRel = jsonRel;
-    let finalImageRel = imageRel;
-    let finalThumbRel = thumbRel;
-    let finalOriginalRel = originalRel;
-    let finalHiresRel = hiresRel;
-    let finalJsonAbs = jsonAbs;
-    let finalImageAbs = joinPath(journalFolder, imageRel);
-    let finalThumbAbs = joinPath(journalFolder, thumbRel);
-    let finalOriginalAbs = joinPath(journalFolder, originalRel);
-    let finalHiresAbs = joinPath(journalFolder, hiresRel);
-
+    // If an entry for this date already exists on disk with a different
+    // entry_id, the user has deleted-and-reposted: the new entry is the
+    // canonical one. Overwrite in place; do not preserve the old version.
     if (await this.io.fileExists(jsonAbs)) {
       try {
         const existingBuf = await this.io.readFile(jsonAbs);
         const existing = JSON.parse(existingBuf.toString()) as Partial<BlipEntry>;
         if (existing.entry_id && existing.entry_id !== entry.entry_id) {
           await this.appendLog(
-            'warn',
-            `Collision at ${jsonAbs} — existing entry_id ${existing.entry_id}, new ${entry.entry_id}; appending id suffix`,
+            'info',
+            `Replacing entry for ${entry.date} — entry_id changed from ${existing.entry_id} to ${entry.entry_id}`,
           );
-          const year = entry.date.slice(0, 4);
-          const base = `entries/${year}/${entry.date}-${entry.entry_id}`;
-          finalJsonRel = `${base}.json`;
-          finalImageRel = `${base}.jpg`;
-          finalThumbRel = `${base}-t.jpg`;
-          finalOriginalRel = `${base}-o.jpg`;
-          finalHiresRel = `${base}-h.jpg`;
-          finalJsonAbs = joinPath(journalFolder, finalJsonRel);
-          finalImageAbs = joinPath(journalFolder, finalImageRel);
-          finalThumbAbs = joinPath(journalFolder, finalThumbRel);
-          finalOriginalAbs = joinPath(journalFolder, finalOriginalRel);
-          finalHiresAbs = joinPath(journalFolder, finalHiresRel);
         }
       } catch {
         // unreadable existing file — overwrite
@@ -583,9 +567,9 @@ export class BackupEngine {
       downloads.push({
         label: 'thumbnail',
         url: response.entry.thumbnail_url,
-        destAbs: finalThumbAbs,
+        destAbs: thumbAbs,
         assign: () => {
-          entry.images.thumbnail = finalThumbRel;
+          entry.images.thumbnail = thumbRel;
         },
       });
     }
@@ -593,9 +577,9 @@ export class BackupEngine {
       downloads.push({
         label: 'image',
         url: response.entry.image_url,
-        destAbs: finalImageAbs,
+        destAbs: imageAbs,
         assign: () => {
-          entry.images.image = finalImageRel;
+          entry.images.image = imageRel;
         },
       });
     }
@@ -603,9 +587,9 @@ export class BackupEngine {
       downloads.push({
         label: 'original',
         url: response.image_urls.original,
-        destAbs: finalOriginalAbs,
+        destAbs: originalAbs,
         assign: () => {
-          entry.images.original = finalOriginalRel;
+          entry.images.original = originalRel;
         },
       });
     }
@@ -613,9 +597,9 @@ export class BackupEngine {
       downloads.push({
         label: 'hires',
         url: response.image_urls.hires,
-        destAbs: finalHiresAbs,
+        destAbs: hiresAbs,
         assign: () => {
-          entry.images.hires = finalHiresRel;
+          entry.images.hires = hiresRel;
         },
       });
     }
@@ -634,9 +618,9 @@ export class BackupEngine {
     }
 
     const serialised = JSON.stringify(entry, null, 2);
-    const tmpAbs = `${finalJsonAbs}.tmp`;
+    const tmpAbs = `${jsonAbs}.tmp`;
     await this.io.writeFile(tmpAbs, serialised);
-    await this.io.rename(tmpAbs, finalJsonAbs);
+    await this.io.rename(tmpAbs, jsonAbs);
 
     return entry;
   }

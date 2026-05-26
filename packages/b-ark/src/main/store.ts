@@ -24,12 +24,27 @@ const DEFAULT_STATUS: AccountStatus = {
 const localDefaults: UserDataStore = {
   schema_version: 2,
   backup_folder: '',
-  app: { startWithWindows: true },
+  app: { startWithWindows: true, autoUpdateEnabled: true },
   tokens: {},
   status: {},
 };
 
 export const store = new Store<UserDataStore>({ defaults: localDefaults, name: 'b-ark-config' });
+
+/**
+ * Fill in any missing `app.*` keys on the persisted store. electron-store only
+ * applies `defaults` to top-level missing keys, so when we add a new nested
+ * field (e.g. `app.autoUpdateEnabled`) existing installs would read it as
+ * `undefined`. Call once at startup, after migrateFromV1IfNeeded().
+ */
+export function ensureAppDefaults(): void {
+  const current = store.get('app') as Partial<UserDataStore['app']> | undefined;
+  const merged: UserDataStore['app'] = {
+    startWithWindows: current?.startWithWindows ?? localDefaults.app.startWithWindows,
+    autoUpdateEnabled: current?.autoUpdateEnabled ?? localDefaults.app.autoUpdateEnabled,
+  };
+  store.set('app', merged);
+}
 
 // Lazy-bound portable manager. Cache is always populated (starts at defaults)
 // so account operations work before the user has picked a folder; pending

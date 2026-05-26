@@ -40,7 +40,7 @@ export interface AccountStatus {
 export interface UserDataStore {
   schema_version: 2;
   backup_folder: string;
-  app: { startWithWindows: boolean };
+  app: { startWithWindows: boolean; autoUpdateEnabled: boolean };
   tokens: Record<string, string>;
   status: Record<string, AccountStatus>;
 }
@@ -77,6 +77,7 @@ export interface AppStore {
   };
   app: {
     startWithWindows: boolean;
+    autoUpdateEnabled: boolean;
   };
 }
 
@@ -114,6 +115,7 @@ export interface SharedSettingsPartial {
   redo_count?: number;
   thumbnailSizePercent?: number;
   startWithWindows?: boolean;
+  autoUpdateEnabled?: boolean;
 }
 
 export type BootState =

@@ -59,6 +59,7 @@ describe('migrateV1Shape (pure helper)', () => {
         journal_entry_total: 100,
         rag_state: 'green',
         error_message: null,
+        account_added_at: null,
       },
     });
     // Shared knobs taken from this account
