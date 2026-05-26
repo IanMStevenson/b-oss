@@ -18,9 +18,10 @@ export function AccountRow({
   account,
   isSelected,
   isActive: _isActive,
-  progress: _progress,
+  progress,
   onSelect,
 }: AccountRowProps) {
+  const archived = progress?.total_archived ?? account.total_archived;
   const [hovered, setHovered] = useState(false);
 
   const ragColour =
@@ -76,8 +77,7 @@ export function AccountRow({
           @{account.username}
         </div>
         <div style={{ fontSize: 10.5, color: 'var(--muted)', marginTop: 1 }}>
-          {account.total_archived.toLocaleString()} of{' '}
-          {account.journal_entry_total.toLocaleString()} archived
+          {archived.toLocaleString()} of {account.journal_entry_total.toLocaleString()} archived
         </div>
       </div>
 

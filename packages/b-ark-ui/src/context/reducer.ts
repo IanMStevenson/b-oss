@@ -9,6 +9,7 @@ export interface BackupProgress {
   total: number;
   current_date: string;
   rate_limited_seconds: number | null;
+  total_archived: number | null;
 }
 
 export interface Toast {
@@ -48,6 +49,7 @@ export type AppAction =
       done: number;
       total: number;
       current_date: string;
+      total_archived: number;
     }
   | { type: 'backup:rate_limited'; account_id: string; seconds: number }
   | { type: 'backup:completed'; account_id: string }
@@ -153,6 +155,7 @@ export function reducer(state: AppState, action: AppAction): AppState {
             total: action.total,
             current_date: '',
             rate_limited_seconds: null,
+            total_archived: null,
           },
         },
       };
@@ -170,6 +173,7 @@ export function reducer(state: AppState, action: AppAction): AppState {
             total: action.total,
             current_date: action.current_date,
             rate_limited_seconds: null,
+            total_archived: action.total_archived,
           },
         },
       };
@@ -187,6 +191,7 @@ export function reducer(state: AppState, action: AppAction): AppState {
               done: 0,
               total: 0,
               current_date: '',
+              total_archived: null,
             }),
             running: true,
             rate_limited_seconds: action.seconds,

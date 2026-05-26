@@ -53,6 +53,7 @@ export function AppProvider({
             done: e.done,
             total: e.total,
             current_date: e.current_date,
+            total_archived: e.total_archived,
           });
         }
         if (e.type === 'rate_limited') {

@@ -228,14 +228,6 @@ export class BackupEngine {
         }
         await checkpointMgr.save(checkpoint);
 
-        this.onEvent({
-          type: 'progress',
-          account_id: this.config.id,
-          done: fetchedSet.size,
-          total: checkpoint.total_to_fetch,
-          current_date: entry.date,
-        });
-
         const currentIds = new Set(fetchedEntries.map((e) => e.entry_id));
         const mergedEntries: EntryIndex[] = [
           ...fetchedEntries.map((e) => JournalIndex.toEntryIndex(e)),
@@ -249,6 +241,15 @@ export class BackupEngine {
           entry_total: mergedEntries.length,
           last_backup_at: nowIso(),
           entries: mergedEntries,
+        });
+
+        this.onEvent({
+          type: 'progress',
+          account_id: this.config.id,
+          done: fetchedSet.size,
+          total: checkpoint.total_to_fetch,
+          current_date: entry.date,
+          total_archived: mergedEntries.length,
         });
 
         if (this.config.api_delay_ms > 0) {
@@ -369,6 +370,7 @@ export class BackupEngine {
         done,
         total: this.config.redo_count,
         current_date: entryIdx.date,
+        total_archived: existing.entries.length,
       });
       if (this.config.api_delay_ms > 0) {
         await sleep(this.config.api_delay_ms);

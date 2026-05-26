@@ -37,7 +37,9 @@ interface StatusBarProps {
 }
 
 export function StatusBar({ account }: StatusBarProps) {
-  const { dispatch } = useApp();
+  const { state, dispatch } = useApp();
+  const progress = state.backupProgress[account.id];
+  const archived = progress?.total_archived ?? account.total_archived;
 
   const ragColour =
     account.rag_state === 'green'
@@ -87,7 +89,7 @@ export function StatusBar({ account }: StatusBarProps) {
       <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
         <Archive size={12} strokeWidth={1.6} />
         <span>
-          <strong>{account.total_archived.toLocaleString()}</strong>
+          <strong>{archived.toLocaleString()}</strong>
           {' of '}
           <strong>{account.journal_entry_total.toLocaleString()}</strong>
           {' archived'}

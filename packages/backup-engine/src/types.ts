@@ -95,7 +95,14 @@ export type BackupErrorPayload =
 
 export type BackupEvent =
   | { type: 'started'; account_id: string; total_to_fetch: number }
-  | { type: 'progress'; account_id: string; done: number; total: number; current_date: string }
+  | {
+      type: 'progress';
+      account_id: string;
+      done: number;
+      total: number;
+      current_date: string;
+      total_archived: number;
+    }
   | { type: 'rate_limited'; account_id: string; resume_in_seconds: number }
   | { type: 'completed'; account_id: string; total_archived: number }
   | { type: 'failed'; account_id: string; error: BackupErrorPayload };
