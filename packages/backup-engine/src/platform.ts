@@ -8,6 +8,7 @@ export interface PlatformIO {
   fileExists(path: string): Promise<boolean>;
   listDir(path: string): Promise<string[]>;
   deleteFile(path: string): Promise<void>;
+  rename(from: string, to: string): Promise<void>;
 
   downloadFile(url: string, destPath: string): Promise<void>;
 

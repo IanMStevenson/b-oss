@@ -20,9 +20,10 @@ A future React Native port would implement a different `PlatformIO` — the back
 
 ### 2. BackendContext (UI shell)
 
-`b-ark-ui` defines `BackendContext` — a React context interface for all "native" operations.
-`b-ark` implements `ElectronBackend` using Electron IPC (contextBridge).
-A future Capacitor/iPad port would implement a different `BackendContext` — the UI is unchanged.
+`b-ark-ui` defines `BackendContext` — a React context interface for all "native" operations —
+and includes `ElectronBackend`, which implements it by wrapping `window.api` IPC calls
+(no direct `electron` imports). `b-ark` instantiates `ElectronBackend` and provides it to the React tree.
+A future Capacitor/iPad port would supply a different `BackendContext` implementation — the UI is unchanged.
 
 ## IPC security rules
 
@@ -34,6 +35,9 @@ A future Capacitor/iPad port would implement a different `BackendContext` — th
 ## File naming in backup folders
 
 - `YYYY-MM-DD.json` — full entry data
-- `YYYY-MM-DD.jpg` — original image
+- `YYYY-MM-DD.jpg` — display image
 - `YYYY-MM-DD-t.jpg` — user-selected thumbnail
+- `YYYY-MM-DD-o.jpg` — original-quality image (when available from the API)
+- `YYYY-MM-DD-h.jpg` — hires image (when available from the API)
 - Folder: `entries/YYYY/` — one subfolder per year
+- Date collisions are resolved by appending the entry ID: `YYYY-MM-DD-{entry_id}.json`

@@ -7,4 +7,39 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
-- Initial project structure
+- Monorepo scaffold with five packages: `blipfoto-api`, `backup-engine`, `b-view`, `b-ark-ui`, `b-ark`
+- `blipfoto-api`: HTTP client for the Blipfoto v4 API with rate-limit header parsing
+- `backup-engine`: incremental backup algorithm with checkpoint/resume, gap-check, redo window, and `PlatformIO` abstraction
+- `b-view`: standalone React SPA and embeddable components for browsing a backed-up journal (also runs in `file://` mode)
+- `b-ark-ui`: React UI with `BackendContext` abstraction and `ElectronBackend` implementation (wraps `window.api`)
+- `b-ark`: Electron shell with OAuth 2.0 implicit flow, custom `b-ark://oauth/callback` protocol, and `ElectronPlatformIO`
+- "Add another account" flow via internal browser window
+- Live in-progress viewing during backup (b-view assets written to the backup folder at backup start)
+- Auto-resume for interrupted initial backups
+- Per-account settings: redo window, gap-check days, API delay, schedule toggle, launch-with-Windows toggle
+- Logging panel with clear indication when API rate limits are hit
+- Status bar, toast notifications, split-button menus, grid view, entry navigation
+- SPDX/GPL-3.0-or-later headers on all source files; CLA for contributions
+- Code-signed Windows build pipeline via GitHub Actions (`release-win.yml`)
+
+### Changed
+
+- Atomic file writes now use `writeFile(.tmp)` + `rename(.tmp → final)` instead of writing twice and deleting `.tmp`, giving a true atomic guarantee for `journal.json`, `_checkpoint.json`, and per-entry `.json` files
+- `PlatformIO` interface gains a `rename(from, to)` method
+- Node engine bumped to `>=22.12.0`
+- b-view folder in backups renamed from `assets` to `b-view`
+
+### Fixed
+
+- OAuth client-ID misread on startup
+- OAuth re-authorisation flow and internal-window "sign in using another account"
+- Account removal errors and cancellation messaging
+- CORS handling for the embedded entry viewer
+- Empty data fields in API responses (most entry fields previously empty)
+- Failed image display in certain entries
+- Rate-limit handling and recovery
+- Cache-related error messages
+- Token-store exception handling
+- Multiple incremental-mode bugs (full re-walk on resume, missing entry detection)
+- Entry styling and navigation issues
+- b-view running under `file://` (no http server available)

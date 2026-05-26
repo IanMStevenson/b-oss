@@ -9,10 +9,10 @@ b-view is the browser-based journal viewer. All names are lowercase and hyphenat
 
 ```
 packages/blipfoto-api   No Node or Electron deps. Blipfoto HTTP client.
-packages/backup-engine  No Electron deps. Backup algorithm. Uses PlatformIO interface.
+packages/backup-engine  No Electron deps. Backup algorithm. Defines PlatformIO interface.
 packages/b-view         No Node or Electron deps. React components + standalone SPA.
-packages/b-ark-ui       No Electron deps. React UI. Uses BackendContext interface.
-packages/b-ark          Electron shell only. Implements PlatformIO and BackendContext.
+packages/b-ark-ui       No Electron deps. React UI. Defines BackendContext interface; includes ElectronBackend implementation (wraps window.api).
+packages/b-ark          Electron shell only. Implements PlatformIO (ElectronPlatformIO); wires up ElectronBackend from b-ark-ui.
 ```
 
 ## Architecture rules (never violate these)
@@ -45,9 +45,12 @@ npm run build       # Build all packages
 ## File naming in backup folders
 
 - Entry JSON: YYYY-MM-DD.json
-- Entry image (original): YYYY-MM-DD.jpg
+- Entry display image: YYYY-MM-DD.jpg
 - Entry thumbnail: YYYY-MM-DD-t.jpg
+- Entry original-quality image: YYYY-MM-DD-o.jpg
+- Entry hires image: YYYY-MM-DD-h.jpg
 - Folder structure: entries/YYYY/YYYY-MM-DD.\*
+- Date collisions (multiple entries on same date): suffix with entry ID, e.g. YYYY-MM-DD-{entry_id}.json
 
 ## Shell tool discipline
 

@@ -35,10 +35,7 @@ export class JournalIndex {
     };
     const serialised = JSON.stringify(sorted, null, 2);
     await this.io.writeFile(this.tmpPath, serialised);
-    await this.io.writeFile(this.path, serialised);
-    if (await this.io.fileExists(this.tmpPath)) {
-      await this.io.deleteFile(this.tmpPath);
-    }
+    await this.io.rename(this.tmpPath, this.path);
   }
 
   static toEntryIndex(entry: BlipEntry): EntryIndex {

@@ -52,6 +52,15 @@ class MockPlatformIO implements PlatformIO {
     this.files.delete(path);
     return Promise.resolve();
   }
+  rename(from: string, to: string): Promise<void> {
+    const content = this.files.get(from);
+    if (content === undefined) {
+      return Promise.reject(new Error(`File not found: ${from}`));
+    }
+    this.files.set(to, content);
+    this.files.delete(from);
+    return Promise.resolve();
+  }
   downloadFile(url: string, destPath: string): Promise<void> {
     this.downloads.push({ url, destPath });
     this.files.set(destPath, `<image:${url}>`);

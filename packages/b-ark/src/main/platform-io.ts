@@ -47,6 +47,10 @@ export class ElectronPlatformIO implements PlatformIO {
     await fs.unlink(p);
   }
 
+  async rename(from: string, to: string): Promise<void> {
+    await fs.rename(from, to);
+  }
+
   async downloadFile(url: string, destPath: string): Promise<void> {
     const response = await net.fetch(url);
     if (!response.ok) {

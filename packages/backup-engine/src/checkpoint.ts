@@ -29,10 +29,7 @@ export class CheckpointManager {
   async save(checkpoint: BackupCheckpoint): Promise<void> {
     const serialised = JSON.stringify(checkpoint, null, 2);
     await this.io.writeFile(this.tmpPath, serialised);
-    await this.io.writeFile(this.path, serialised);
-    if (await this.io.fileExists(this.tmpPath)) {
-      await this.io.deleteFile(this.tmpPath);
-    }
+    await this.io.rename(this.tmpPath, this.path);
   }
 
   async clear(): Promise<void> {

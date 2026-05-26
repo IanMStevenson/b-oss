@@ -634,10 +634,7 @@ export class BackupEngine {
     const serialised = JSON.stringify(entry, null, 2);
     const tmpAbs = `${finalJsonAbs}.tmp`;
     await this.io.writeFile(tmpAbs, serialised);
-    await this.io.writeFile(finalJsonAbs, serialised);
-    if (await this.io.fileExists(tmpAbs)) {
-      await this.io.deleteFile(tmpAbs);
-    }
+    await this.io.rename(tmpAbs, finalJsonAbs);
 
     return entry;
   }
