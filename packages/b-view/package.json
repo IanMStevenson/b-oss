@@ -11,6 +11,7 @@
   },
   "scripts": {
     "build:app": "vite build",
+    "build:debug": "vite build --mode development",
     "build": "npm run build:app",
     "dev": "vite",
     "typecheck": "tsc --noEmit",

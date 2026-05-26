@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (C) 2026 Ian Stevenson
 
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import {
   ChevronLeft,
   ChevronRight,
@@ -21,6 +21,8 @@ import type { BlipEntry, BlipComment } from '../types.js';
 import type { EntryState } from '../hooks/useEntry.js';
 import styles from './EntryDetail.module.css';
 
+type ResolveAsset = (path: string) => Promise<string> | string;
+
 interface EntryDetailProps {
   entryState: EntryState;
   prevEntryId: string | null;
@@ -28,6 +30,7 @@ interface EntryDetailProps {
   onNavigate: (entryId: string) => void;
   onClose?: () => void;
   baseUrl?: string;
+  resolveAsset?: ResolveAsset;
 }
 
 function ExifRows({ exif }: { exif: NonNullable<BlipEntry['exif']> }) {
@@ -83,7 +86,15 @@ export function EntryDetail({
   onNavigate,
   onClose,
   baseUrl,
+  resolveAsset,
 }: EntryDetailProps) {
+  const [asyncImageSrc, setAsyncImageSrc] = useState<string | null>(null);
+
+  const imagePath =
+    entryState.status === 'loaded'
+      ? (entryState.data.images.image ?? entryState.data.images.thumbnail ?? null)
+      : null;
+
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       if (e.key === 'ArrowLeft' && prevEntryId) onNavigate(prevEntryId);
@@ -92,6 +103,25 @@ export function EntryDetail({
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
   }, [prevEntryId, nextEntryId, onNavigate]);
+
+  useEffect(() => {
+    if (!resolveAsset || !imagePath) {
+      setAsyncImageSrc(null);
+      return;
+    }
+    let cancelled = false;
+    void Promise.resolve(resolveAsset(imagePath)).then((url) => {
+      if (!cancelled) setAsyncImageSrc(url);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [resolveAsset, imagePath]);
+
+  const syncImageSrc =
+    !resolveAsset && imagePath ? (baseUrl ? `${baseUrl}/${imagePath}` : imagePath) : null;
+
+  const imageSrc = resolveAsset ? asyncImageSrc : syncImageSrc;
 
   if (entryState.status === 'idle') return null;
 
@@ -113,8 +143,6 @@ export function EntryDetail({
   }
 
   const { data: entry } = entryState;
-  const imagePath = entry.images.image ?? entry.images.thumbnail;
-  const imageSrc = imagePath ? (baseUrl ? `${baseUrl}/${imagePath}` : imagePath) : null;
 
   return (
     <div className={styles.wrapper}>

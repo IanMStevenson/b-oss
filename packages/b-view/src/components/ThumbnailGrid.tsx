@@ -33,6 +33,8 @@ function useContainerSize(ref: RefObject<HTMLElement | null>) {
   return size;
 }
 
+type ResolveAsset = (path: string) => Promise<string> | string;
+
 interface ThumbnailGridProps {
   entries: EntryIndex[];
   selectedEntryId: string | null;
@@ -40,6 +42,7 @@ interface ThumbnailGridProps {
   sizePercent?: number;
   onSizeChange?: (newPercent: number) => void;
   baseUrl?: string;
+  resolveAsset?: ResolveAsset;
 }
 
 function ThumbnailItem({
@@ -47,16 +50,37 @@ function ThumbnailItem({
   selected,
   onSelect,
   baseUrl,
+  resolveAsset,
   tileSize,
 }: {
   entry: EntryIndex;
   selected: boolean;
   onSelect: () => void;
   baseUrl?: string;
+  resolveAsset?: ResolveAsset;
   tileSize: number;
 }) {
   const [imgError, setImgError] = useState(false);
-  const src = baseUrl ? `${baseUrl}/${entry.thumbnail_path}` : entry.thumbnail_path;
+  const syncSrc = resolveAsset
+    ? null
+    : baseUrl
+      ? `${baseUrl}/${entry.thumbnail_path}`
+      : entry.thumbnail_path;
+  const [asyncSrc, setAsyncSrc] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!resolveAsset) return;
+    let cancelled = false;
+    setAsyncSrc(null);
+    void Promise.resolve(resolveAsset(entry.thumbnail_path)).then((url) => {
+      if (!cancelled) setAsyncSrc(url);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [resolveAsset, entry.thumbnail_path]);
+
+  const src = resolveAsset ? asyncSrc : syncSrc;
 
   return (
     <button
@@ -66,7 +90,7 @@ function ThumbnailItem({
       className={`${styles.thumb} ${selected ? styles.thumbSelected : ''}`}
       style={{ width: tileSize, height: tileSize }}
     >
-      {imgError ? (
+      {imgError || src === null ? (
         <div className={styles.thumbPlaceholder}>
           <Image size={20} strokeWidth={1.6} color="var(--muted-2)" />
         </div>
@@ -90,6 +114,7 @@ export function ThumbnailGrid({
   sizePercent = 100,
   onSizeChange,
   baseUrl,
+  resolveAsset,
 }: ThumbnailGridProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const { width, height } = useContainerSize(containerRef);
@@ -190,6 +215,7 @@ export function ThumbnailGrid({
               selected={entry.entry_id === selectedEntryId}
               onSelect={() => onSelectEntry(entry.entry_id)}
               baseUrl={baseUrl}
+              resolveAsset={resolveAsset}
               tileSize={tileSize}
             />
           ))}
