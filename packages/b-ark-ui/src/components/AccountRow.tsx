@@ -5,6 +5,7 @@ import { useState } from 'react';
 import { GripVertical } from 'lucide-react';
 import type { AccountConfig } from '../backend.js';
 import type { BackupProgress } from '../context/reducer.js';
+import { Avatar } from './Avatar.js';
 
 interface AccountRowProps {
   account: AccountConfig;
@@ -12,47 +13,6 @@ interface AccountRowProps {
   isActive: boolean;
   progress?: BackupProgress;
   onSelect: () => void;
-}
-
-function AvatarBadge({ url, name, size }: { url: string; name: string; size: number }) {
-  const [error, setError] = useState(false);
-  const initial = (name[0] ?? '?').toUpperCase();
-
-  const colours = ['#1f4d3a', '#2a6347', '#22a06b', '#2f6fd1', '#9333ea'];
-  const colour = colours[name.charCodeAt(0) % colours.length] ?? '#1f4d3a';
-
-  if (error) {
-    return (
-      <div
-        style={{
-          width: size,
-          height: size,
-          borderRadius: '50%',
-          background: colour,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          color: 'white',
-          fontSize: size * 0.4,
-          fontWeight: 600,
-          flexShrink: 0,
-        }}
-      >
-        {initial}
-      </div>
-    );
-  }
-
-  return (
-    <img
-      src={url}
-      alt={name}
-      width={size}
-      height={size}
-      style={{ borderRadius: '50%', objectFit: 'cover', flexShrink: 0 }}
-      onError={() => setError(true)}
-    />
-  );
 }
 
 export function AccountRow({
@@ -107,7 +67,13 @@ export function AccountRow({
         <GripVertical size={14} strokeWidth={1.6} />
       </div>
 
-      <AvatarBadge url={account.avatar_url} name={account.journal_title} size={34} />
+      <Avatar
+        accountId={account.id}
+        name={account.journal_title}
+        remoteUrl={account.avatar_url}
+        refreshKey={account.last_backup_at}
+        size={34}
+      />
 
       <div style={{ flex: 1, minWidth: 0 }}>
         <div

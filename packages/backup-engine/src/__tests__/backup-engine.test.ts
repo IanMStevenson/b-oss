@@ -11,7 +11,7 @@ import {
 } from '@b-oss/blipfoto-api';
 import { BackupEngine } from '../backup-engine.js';
 import { CheckpointManager } from '../checkpoint.js';
-import { JournalIndex } from '../journal-index.js';
+import { JournalIndex, cacheAvatarIfMissing, AVATAR_FILENAME } from '../journal-index.js';
 import { LogManager } from '../log-manager.js';
 import type { PlatformIO } from '../platform.js';
 import type {
@@ -640,7 +640,10 @@ describe('BackupEngine — writes BlipEntry schema', () => {
     expect(parsed.images.hires).toBeUndefined();
     expect(parsed.backup_app_version).toBe('0.1.0');
 
-    const urls = io.downloads.map((d) => d.url).sort();
+    const urls = io.downloads
+      .filter((d) => d.destPath.includes('/entries/'))
+      .map((d) => d.url)
+      .sort();
     expect(urls).toEqual(['https://example.com/111-t.jpg', 'https://example.com/111.jpg'].sort());
   });
 
@@ -716,7 +719,10 @@ describe('BackupEngine — writes BlipEntry schema', () => {
     expect(parsed.images.original).toBe('entries/2024/2024-03-30-o.jpg');
     expect(parsed.images.hires).toBe('entries/2024/2024-03-30-h.jpg');
 
-    const urls = io.downloads.map((d) => d.url).sort();
+    const urls = io.downloads
+      .filter((d) => d.destPath.includes('/entries/'))
+      .map((d) => d.url)
+      .sort();
     expect(urls).toEqual(
       [
         'https://example.com/333-hires.jpg',
@@ -725,5 +731,41 @@ describe('BackupEngine — writes BlipEntry schema', () => {
         'https://example.com/333.jpg',
       ].sort(),
     );
+  });
+});
+
+describe('cacheAvatarIfMissing', () => {
+  const folder = '/backups/gbradley';
+  const dest = `${folder}/${AVATAR_FILENAME}`;
+  const url = 'https://example.com/avatar.jpg';
+
+  it('skips when the URL is blank or whitespace', async () => {
+    const io = new MockPlatformIO();
+    await cacheAvatarIfMissing(io, folder, '');
+    await cacheAvatarIfMissing(io, folder, '   ');
+    expect(io.downloads).toHaveLength(0);
+    expect(io.files.has(dest)).toBe(false);
+  });
+
+  it('downloads to <folder>/avatar.jpg when the file is missing', async () => {
+    const io = new MockPlatformIO();
+    await cacheAvatarIfMissing(io, folder, url);
+    expect(io.downloads).toEqual([{ url, destPath: dest }]);
+    expect(io.files.has(dest)).toBe(true);
+  });
+
+  it('does not download when the cache file already exists', async () => {
+    const io = new MockPlatformIO();
+    io.files.set(dest, '<existing avatar bytes>');
+    await cacheAvatarIfMissing(io, folder, url);
+    expect(io.downloads).toHaveLength(0);
+    expect(io.files.get(dest)).toBe('<existing avatar bytes>');
+  });
+
+  it('swallows download errors without throwing', async () => {
+    const io = new MockPlatformIO();
+    io.downloadFile = () => Promise.reject(new Error('network blip'));
+    await expect(cacheAvatarIfMissing(io, folder, url)).resolves.toBeUndefined();
+    expect(io.files.has(dest)).toBe(false);
   });
 });

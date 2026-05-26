@@ -26,6 +26,7 @@ contextBridge.exposeInMainWorld('api', {
   updateAccountSettings: (id: string, settings: Partial<AccountConfig>) =>
     ipcRenderer.invoke('updateAccountSettings', id, settings),
   getStore: () => ipcRenderer.invoke('getStore'),
+  getAccountAvatar: (id: string) => ipcRenderer.invoke('getAccountAvatar', id),
   getBootState: () => ipcRenderer.invoke('getBootState'),
   getLogs: () => ipcRenderer.invoke('getLogs'),
   exportLogsCsv: (filters: LogCsvFilters) => ipcRenderer.invoke('exportLogsCsv', filters),

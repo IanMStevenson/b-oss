@@ -6,7 +6,13 @@ import fs from 'node:fs';
 import { ipcMain, type BrowserWindow, dialog, shell, app } from 'electron';
 import { v4 as uuidv4 } from 'uuid';
 import { BlipfotoClient } from '@b-oss/blipfoto-api';
-import { BackupEngine, JournalIndex, LogManager } from '@b-oss/backup-engine';
+import {
+  BackupEngine,
+  JournalIndex,
+  LogManager,
+  cacheAvatarIfMissing,
+  AVATAR_FILENAME,
+} from '@b-oss/backup-engine';
 import type {
   AccountConfig,
   BootState,
@@ -207,6 +213,14 @@ export function registerIpcHandlers(
         rag_state: 'amber',
         error_message: null,
       });
+      if (existing.backup_folder) {
+        const pio = new ElectronPlatformIO(() => undefined);
+        await cacheAvatarIfMissing(
+          pio,
+          path.join(existing.backup_folder, existing.username),
+          profile.user.avatar_url,
+        );
+      }
       scheduler.rearm();
       emitStoreChanged();
       return;
@@ -240,6 +254,14 @@ export function registerIpcHandlers(
     };
 
     await saveAccount(account);
+    if (account.backup_folder) {
+      const pio = new ElectronPlatformIO(() => undefined);
+      await cacheAvatarIfMissing(
+        pio,
+        path.join(account.backup_folder, account.username),
+        profile.user.avatar_url,
+      );
+    }
     scheduler.rearm();
     emitStoreChanged();
   }
@@ -275,6 +297,14 @@ export function registerIpcHandlers(
       rag_state: 'amber',
       error_message: null,
     });
+    if (account.backup_folder) {
+      const pio = new ElectronPlatformIO(() => undefined);
+      await cacheAvatarIfMissing(
+        pio,
+        path.join(account.backup_folder, account.username),
+        profile.user.avatar_url,
+      );
+    }
     scheduler.rearm();
     emitStoreChanged();
   }
@@ -408,6 +438,18 @@ export function registerIpcHandlers(
   );
 
   ipcMain.handle('getStore', () => getAppStore());
+
+  ipcMain.handle('getAccountAvatar', async (_event, id: string): Promise<string | null> => {
+    const account = getAccount(id);
+    if (!account?.backup_folder) return null;
+    const filePath = path.join(account.backup_folder, account.username, AVATAR_FILENAME);
+    try {
+      const buf = await fs.promises.readFile(filePath);
+      return `data:image/jpeg;base64,${buf.toString('base64')}`;
+    } catch {
+      return null;
+    }
+  });
 
   ipcMain.handle('getLogs', async (): Promise<LogEntry[]> => {
     // Unified log: one file at the backup folder root containing entries

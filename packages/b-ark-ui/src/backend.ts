@@ -140,6 +140,12 @@ export interface BackendContext {
   updateAccountSettings(accountId: string, settings: Partial<AccountConfig>): Promise<void>;
 
   getStore(): Promise<AppStore>;
+  /**
+   * Read the cached avatar JPEG from the account's journal folder and return
+   * it as a `data:image/jpeg;base64,…` URL, or `null` if the file is missing.
+   * Used by the UI to display the user's avatar without hitting the CDN.
+   */
+  getAccountAvatar(accountId: string): Promise<string | null>;
   getBootState(): Promise<BootState>;
   getLogs(): Promise<LogEntry[]>;
   exportLogsCsv(filters: LogCsvFilters): Promise<string | null>;

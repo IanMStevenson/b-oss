@@ -6,6 +6,31 @@ import type { BlipEntry, EntryIndex, JournalMetadata } from './types.js';
 
 const JOURNAL_FILENAME = 'journal.json';
 const JOURNAL_TMP_FILENAME = 'journal.tmp';
+export const AVATAR_FILENAME = 'avatar.jpg';
+
+/**
+ * Best-effort write the user's avatar bytes to `<journalFolder>/avatar.jpg`
+ * iff the file is not already there and `avatarUrl` is non-blank. Used as the
+ * cache-write side of the avatar caching strategy: callers invoke this after
+ * any API call that yields a `BlipUser.avatar_url`. Failures are swallowed
+ * (network blip, missing folder permissions, etc.) — the next qualifying API
+ * call will retry, and the UI falls back to the remote URL meanwhile.
+ */
+export async function cacheAvatarIfMissing(
+  io: PlatformIO,
+  journalFolder: string,
+  avatarUrl: string,
+): Promise<void> {
+  if (!avatarUrl.trim()) return;
+  const dest = `${journalFolder}/${AVATAR_FILENAME}`;
+  if (await io.fileExists(dest)) return;
+  try {
+    await io.ensureDir(journalFolder);
+    await io.downloadFile(avatarUrl, dest);
+  } catch {
+    // intentionally swallowed — see jsdoc
+  }
+}
 
 export class JournalIndex {
   private readonly path: string;

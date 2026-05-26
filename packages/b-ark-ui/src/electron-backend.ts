@@ -30,6 +30,7 @@ declare global {
       updateSettings(partial: SharedSettingsPartial): Promise<void>;
       updateAccountSettings(id: string, settings: Partial<AccountConfig>): Promise<void>;
       getStore(): Promise<AppStore>;
+      getAccountAvatar(id: string): Promise<string | null>;
       getBootState(): Promise<BootState>;
       getLogs(): Promise<LogEntry[]>;
       exportLogsCsv(filters: LogCsvFilters): Promise<string | null>;
@@ -56,6 +57,7 @@ export class ElectronBackend implements BackendContext {
   updateAccountSettings = (id: string, settings: Partial<AccountConfig>) =>
     window.api.updateAccountSettings(id, settings);
   getStore = () => window.api.getStore();
+  getAccountAvatar = (id: string) => window.api.getAccountAvatar(id);
   getBootState = () => window.api.getBootState();
   getLogs = () => window.api.getLogs();
   exportLogsCsv = (filters: LogCsvFilters) => window.api.exportLogsCsv(filters);

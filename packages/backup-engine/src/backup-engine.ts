@@ -11,7 +11,7 @@ import {
 } from '@b-oss/blipfoto-api';
 import { BackupAbortedError } from './errors.js';
 import { CheckpointManager } from './checkpoint.js';
-import { JournalIndex } from './journal-index.js';
+import { JournalIndex, cacheAvatarIfMissing } from './journal-index.js';
 import type { LogManager } from './log-manager.js';
 import type { PlatformIO } from './platform.js';
 import type {
@@ -149,6 +149,7 @@ export class BackupEngine {
           this.client.getUserProfile({ username: this.config.username, returnDetails: true }),
         );
         checkpoint.total_to_fetch = profile.details?.entry_total ?? 0;
+        await cacheAvatarIfMissing(this.io, journalFolder, profile.user.avatar_url);
       } catch (err) {
         if (err instanceof BackupAbortedError) throw err;
         const message = err instanceof Error ? err.message : String(err);
@@ -310,6 +311,7 @@ export class BackupEngine {
         journalTitle = profile.details.journal_title;
         entryTotal = profile.details.entry_total;
       }
+      await cacheAvatarIfMissing(this.io, journalFolder, avatarUrl);
     } catch (err) {
       if (err instanceof BackupAbortedError) throw err;
       const message = err instanceof Error ? err.message : String(err);
