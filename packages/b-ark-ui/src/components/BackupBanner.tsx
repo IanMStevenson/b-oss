@@ -42,7 +42,7 @@ export function BackupBanner({
 
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--ink)' }}>
-            Waiting for API limit on &ldquo;{journalTitle}&rdquo;
+            Blipfoto rate limit reached on &ldquo;{journalTitle}&rdquo;
           </div>
           <div
             style={{
