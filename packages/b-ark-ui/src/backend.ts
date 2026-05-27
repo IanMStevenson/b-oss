@@ -139,6 +139,9 @@ export type BootState =
   | { stage: 'ready'; store: AppStore };
 
 export interface BackendContext {
+  /** Display version e.g. `0.1.0` (release) or `0.1.0.347.12` (dev build). */
+  readonly appVersion: string;
+
   addAccount(): Promise<void>;
   addAccountFresh(): Promise<void>;
   removeAccount(accountId: string): Promise<void>;

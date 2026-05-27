@@ -12,3 +12,6 @@ declare module '*.css' {
   const _: undefined;
   export default _;
 }
+
+// Build-time injected by vite/electron-vite `define` — see scripts/version.mjs.
+declare const __APP_VERSION__: string;

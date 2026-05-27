@@ -15,6 +15,7 @@ import type {
 declare global {
   interface Window {
     api: {
+      appVersion: string;
       addAccount(): Promise<void>;
       addAccountFresh(): Promise<void>;
       removeAccount(id: string): Promise<void>;
@@ -41,6 +42,7 @@ declare global {
 }
 
 export class ElectronBackend implements BackendContext {
+  appVersion = window.api.appVersion;
   addAccount = () => window.api.addAccount();
   addAccountFresh = () => window.api.addAccountFresh();
   removeAccount = (id: string) => window.api.removeAccount(id);

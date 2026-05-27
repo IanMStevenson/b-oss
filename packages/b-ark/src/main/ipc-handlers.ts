@@ -129,7 +129,7 @@ export function registerIpcHandlers(
             redo_count: account.redo_count,
             gap_check_days: account.gap_check_days,
             api_delay_ms: account.api_delay_ms,
-            app_version: app.getVersion(),
+            app_version: __APP_VERSION__,
           },
           pio,
           client,
@@ -376,26 +376,27 @@ export function registerIpcHandlers(
     activeEngines.get(id)?.cancel();
   });
 
+  // Refresh the on-disk b-view bundle on first viewer-open per session so the
+  // served copy tracks the installed dist, not whatever the last backup wrote.
+  async function ensureViewerReady(account: AccountConfig): Promise<number> {
+    const existing = getServerPort(account.id);
+    if (existing !== null) return existing;
+    await writeBViewFiles(account.username, account.backup_folder);
+    const folder = path.join(account.backup_folder, account.username);
+    return startServer(account.id, folder);
+  }
+
   ipcMain.handle('openViewer', async (_event, id: string) => {
     const account = getAccount(id);
     if (!account?.backup_folder) return;
-
-    let port = getServerPort(id);
-    if (port === null) {
-      const folder = path.join(account.backup_folder, account.username);
-      port = await startServer(id, folder);
-    }
+    const port = await ensureViewerReady(account);
     void shell.openExternal(`http://localhost:${port}/`);
   });
 
   ipcMain.handle('getViewerUrl', async (_event, id: string): Promise<string> => {
     const account = getAccount(id);
     if (!account?.backup_folder) return '';
-    let port = getServerPort(id);
-    if (port === null) {
-      const folder = path.join(account.backup_folder, account.username);
-      port = await startServer(id, folder);
-    }
+    const port = await ensureViewerReady(account);
     return `http://localhost:${port}`;
   });
 

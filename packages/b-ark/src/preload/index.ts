@@ -10,6 +10,7 @@ import type {
 } from '@b-oss/b-ark-ui';
 
 contextBridge.exposeInMainWorld('api', {
+  appVersion: __APP_VERSION__,
   addAccount: () => ipcRenderer.invoke('addAccount'),
   addAccountFresh: () => ipcRenderer.invoke('addAccountFresh'),
   removeAccount: (id: string) => ipcRenderer.invoke('removeAccount', id),

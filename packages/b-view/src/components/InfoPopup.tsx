@@ -24,6 +24,7 @@ export function InfoPopup({ isOpen, onClose }: InfoPopupProps) {
           b-view is an open-source journal viewer for Blipfoto backups, part of the{' '}
           <strong>b-oss</strong> project.
         </p>
+        <p className={styles.copyright}>Version {__APP_VERSION__}</p>
         <p className={styles.copyright}>
           © {year} Ian Stevenson. Licensed under the GNU General Public License v3.
         </p>

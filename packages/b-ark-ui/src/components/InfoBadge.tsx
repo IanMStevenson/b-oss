@@ -3,12 +3,14 @@
 
 import { useState, useRef, useEffect } from 'react';
 import { Info, X } from 'lucide-react';
+import { useApp } from '../context/AppContext.js';
 
 const YEAR = new Date().getFullYear();
 
 export function InfoBadge() {
   const [open, setOpen] = useState(false);
   const popupRef = useRef<HTMLDivElement>(null);
+  const { backend } = useApp();
 
   useEffect(() => {
     if (!open) return;
@@ -75,6 +77,9 @@ export function InfoBadge() {
             project.
           </p>
           <p style={{ marginTop: 8, fontSize: 12, color: 'var(--muted)' }}>
+            Version {backend.appVersion}
+          </p>
+          <p style={{ marginTop: 4, fontSize: 12, color: 'var(--muted)' }}>
             &copy; {YEAR} Ian Stevenson. GPLv3.
           </p>
           <p style={{ marginTop: 8, fontSize: 12 }}>
