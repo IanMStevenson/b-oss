@@ -24,10 +24,12 @@ jobs:
       - run: npm run build --workspace=packages/backup-engine
       - run: npm run build --workspace=packages/b-view
       - run: npm run build --workspace=packages/b-ark-ui
-      - run: npm run build --workspace=packages/b-ark
-      - name: Build and publish Electron app
+      - name: Build b-ark (inlines MAIN_VITE_* into the bundle)
         env:
-          MAIN_VITE_BLIPFOTO_CLIENT_ID: ${{ secrets.BLIPFOTO_CLIENT_ID }} # MAIN_VITE_ prefix required by electron-vite v5 for the main process
+          MAIN_VITE_BLIPFOTO_CLIENT_ID: ${{ secrets.BLIPFOTO_CLIENT_ID }} # vite inlines import.meta.env.MAIN_VITE_* at build time — must be set on the build step, not the publish step
+        run: npm run build --workspace=packages/b-ark
+      - name: Publish Electron app
+        env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           WIN_CSC_LINK: ${{ secrets.WIN_CSC_LINK }}
           WIN_CSC_KEY_PASSWORD: ${{ secrets.WIN_CSC_KEY_PASSWORD }}
