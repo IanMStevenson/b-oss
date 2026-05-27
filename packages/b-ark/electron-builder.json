@@ -34,7 +34,7 @@
   "publish": [
     {
       "provider": "github",
-      "owner": "ianstevenson",
+      "owner": "IanMStevenson",
       "repo": "b-oss"
     }
   ]
