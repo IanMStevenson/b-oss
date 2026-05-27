@@ -13,14 +13,20 @@ jobs:
         with:
           node-version: '22'
           cache: 'npm'
+      - name: Generate release version metadata
+        env:
+          RELEASE: '1'
+        run: npm run version:bump
       - run: npm ci
+      - name: Audit production dependencies
+        run: npm audit --omit=dev --audit-level=high
       - run: npm run build --workspace=packages/blipfoto-api
       - run: npm run build --workspace=packages/backup-engine
       - run: npm run build --workspace=packages/b-view
       - run: npm run build --workspace=packages/b-ark-ui
       - name: Build and publish Electron app
         env:
-          MAIN_VITE_BLIPFOTO_CLIENT_ID: ${{ secrets.BLIPFOTO_CLIENT_ID }}  # MAIN_VITE_ prefix required by electron-vite v5 for the main process
+          MAIN_VITE_BLIPFOTO_CLIENT_ID: ${{ secrets.BLIPFOTO_CLIENT_ID }} # MAIN_VITE_ prefix required by electron-vite v5 for the main process
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           WIN_CSC_LINK: ${{ secrets.WIN_CSC_LINK }}
           WIN_CSC_KEY_PASSWORD: ${{ secrets.WIN_CSC_KEY_PASSWORD }}

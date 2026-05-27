@@ -11,7 +11,7 @@ b-oss is a family of open-source tools for backing up and viewing [Blipfoto](htt
 
 ## Status
 
-Under active development. Not yet released.
+Pre-release. [Download the latest Windows installer](https://github.com/ianstevenson/b-oss/releases) from the Releases page. The installer is unsigned, so Windows SmartScreen will warn on first run — click _More info_ → _Run anyway_. Mac build coming once we find a Mac contributor.
 
 ## Getting started (development)
 
