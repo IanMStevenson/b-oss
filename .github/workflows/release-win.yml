@@ -24,6 +24,7 @@ jobs:
       - run: npm run build --workspace=packages/backup-engine
       - run: npm run build --workspace=packages/b-view
       - run: npm run build --workspace=packages/b-ark-ui
+      - run: npm run build --workspace=packages/b-ark
       - name: Build and publish Electron app
         env:
           MAIN_VITE_BLIPFOTO_CLIENT_ID: ${{ secrets.BLIPFOTO_CLIENT_ID }} # MAIN_VITE_ prefix required by electron-vite v5 for the main process
