@@ -19,6 +19,9 @@ export default defineConfig(({ mode }) => ({
   ],
   root: 'src/spa',
   base: './',
+  resolve: {
+    dedupe: ['react', 'react-dom'],
+  },
   build: {
     outDir: '../../dist-app',
     assetsDir: 'b-view',

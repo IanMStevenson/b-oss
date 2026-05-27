@@ -19,6 +19,10 @@
     "postinstall": "node -e \"try{require('fs').accessSync('node_modules/electron/install.js')}catch{process.exit(0)}require('child_process').execFileSync(process.execPath,['node_modules/electron/install.js'],{stdio:'inherit'})\"",
     "prepare": "husky"
   },
+  "overrides": {
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0"
+  },
   "devDependencies": {
     "@typescript-eslint/eslint-plugin": "^8.60.0",
     "@typescript-eslint/parser": "^8.59.0",
