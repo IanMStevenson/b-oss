@@ -38,7 +38,7 @@ export default defineConfig({
       dedupe: ['react', 'react-dom'],
     },
     build: {
-      outDir: '../../dist/renderer',
+      outDir: 'dist/renderer',
       rollupOptions: {
         input: { index: resolve(__dirname, 'src/renderer/index.html') },
       },
