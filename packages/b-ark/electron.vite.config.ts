@@ -34,6 +34,9 @@ export default defineConfig({
   renderer: {
     envDir,
     root: 'src/renderer',
+    resolve: {
+      dedupe: ['react', 'react-dom'],
+    },
     build: {
       outDir: '../../dist/renderer',
       rollupOptions: {
