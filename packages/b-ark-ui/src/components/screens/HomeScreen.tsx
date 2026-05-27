@@ -5,7 +5,7 @@
 // served by the Electron local HTTP server. journal.json is fetched from that URL.
 // This keeps all port/path details in the main process and out of the UI.
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import {
   ZoomOut,
   ZoomIn,
@@ -101,9 +101,21 @@ export function HomeScreen({ account }: HomeScreenProps) {
       .catch(() => setViewerUrl(null));
   }, [backend, account.id]);
 
+  // Force the journal viewer to refetch the moment a backup ends, since the
+  // 5s polling setInterval below may never have fired during a short backup.
+  const [refreshNonce, setRefreshNonce] = useState(0);
+  const prevBackingUpRef = useRef(isBackingUp);
+  useEffect(() => {
+    if (prevBackingUpRef.current && !isBackingUp) {
+      setRefreshNonce((n) => n + 1);
+    }
+    prevBackingUpRef.current = isBackingUp;
+  }, [isBackingUp]);
+
   const journalState = useJournal(
     viewerUrl ? `${viewerUrl}/journal.json` : undefined,
     isBackingUp ? 5000 : undefined,
+    refreshNonce,
   );
   const entries: EntryIndex[] = journalState.status === 'loaded' ? journalState.data.entries : [];
 
