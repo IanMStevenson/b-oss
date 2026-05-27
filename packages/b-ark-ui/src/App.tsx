@@ -87,7 +87,7 @@ function AppRoot() {
 
       {bootStage === 'ready' && store !== null && (
         <div style={{ flex: 1, display: 'flex', overflow: 'hidden' }}>
-          <Sidebar />
+          {panel === null && <Sidebar />}
           <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
             {renderMainArea()}
           </div>
