@@ -167,6 +167,7 @@ export class BackupEngine {
       type: 'started',
       account_id: this.config.id,
       total_to_fetch: checkpoint.total_to_fetch,
+      kind: 'first',
     });
 
     const fetchedSet = new Set(checkpoint.fetched_entry_ids);
@@ -325,6 +326,7 @@ export class BackupEngine {
       type: 'started',
       account_id: this.config.id,
       total_to_fetch: this.config.redo_count,
+      kind: 'routine',
     });
 
     const indexByDate = new Map<string, EntryIndex>();
@@ -339,7 +341,32 @@ export class BackupEngine {
     let consecutiveFailures = 0;
     let done = 0;
 
+    // Save journal.json incrementally after each entry change so the embedded
+    // viewer's polling picks up updates as the backup progresses, mirroring
+    // the first-backup save cadence.
+    const saveSnapshot = async (): Promise<void> => {
+      await journalIndex.save({
+        schema_version: 1,
+        username: this.config.username,
+        journal_title: journalTitle,
+        avatar_url: avatarUrl,
+        entry_total: entryTotal,
+        last_backup_at: nowIso(),
+        entries: [...indexByDate.values()],
+      });
+    };
+
     const toRedo = existing.entries.slice(0, this.config.redo_count);
+    // Phase-entry emit so the REDO cell appears even when redo_count is 0.
+    this.onEvent({
+      type: 'progress',
+      account_id: this.config.id,
+      done: 0,
+      total: this.config.redo_count,
+      current_date: '',
+      total_archived: existing.entries.length,
+      phase: 'redo',
+    });
     for (const entryIdx of toRedo) {
       this.checkCancelled();
       await this.appendLog('info', `Re-fetching entry ${entryIdx.date} (redo)`);
@@ -349,6 +376,7 @@ export class BackupEngine {
         indexById.set(entry.entry_id, JournalIndex.toEntryIndex(entry));
         consecutiveFailures = 0;
         await this.appendLog('info', `Re-fetched entry ${entry.date}`);
+        await saveSnapshot();
       } catch (err) {
         if (err instanceof BackupAbortedError) throw err;
         consecutiveFailures++;
@@ -371,6 +399,7 @@ export class BackupEngine {
         total: this.config.redo_count,
         current_date: entryIdx.date,
         total_archived: existing.entries.length,
+        phase: 'redo',
       });
       if (this.config.api_delay_ms > 0) {
         await sleep(this.config.api_delay_ms);
@@ -432,10 +461,21 @@ export class BackupEngine {
       }
     }
 
-    for (const stub of recentStubs) {
-      if (indexByDate.has(stub.date)) continue;
-      if (indexById.has(stub.entry_id_str)) continue;
-
+    const gapFillTodo = recentStubs.filter(
+      (s) => !indexByDate.has(s.date) && !indexById.has(s.entry_id_str),
+    );
+    // Phase-entry emit so the GAPS cell resolves even when there's nothing to fill.
+    this.onEvent({
+      type: 'progress',
+      account_id: this.config.id,
+      done: 0,
+      total: gapFillTodo.length,
+      current_date: '',
+      total_archived: indexByDate.size,
+      phase: 'gap_fill',
+    });
+    let gapFillDone = 0;
+    for (const stub of gapFillTodo) {
       this.checkCancelled();
       await this.appendLog('info', `Fetching missing entry ${stub.date} (gap-fill)`);
       try {
@@ -444,6 +484,7 @@ export class BackupEngine {
         indexById.set(entry.entry_id, JournalIndex.toEntryIndex(entry));
         await this.appendLog('info', `Gap-filled entry ${entry.date}`);
         consecutiveFailures = 0;
+        await saveSnapshot();
       } catch (err) {
         if (err instanceof BackupAbortedError) throw err;
         consecutiveFailures++;
@@ -458,8 +499,118 @@ export class BackupEngine {
           throw new BackupAbortedError({ kind: 'api_error', code, message });
         }
       }
+      gapFillDone++;
+      this.onEvent({
+        type: 'progress',
+        account_id: this.config.id,
+        done: gapFillDone,
+        total: gapFillTodo.length,
+        current_date: stub.date,
+        total_archived: indexByDate.size,
+        phase: 'gap_fill',
+      });
     }
 
+    const newStubs: BlipEntryStub[] = [];
+    if (existing.entries.length > 0) {
+      let newPageIdx = 0;
+      let keepPagingNew = true;
+      while (keepPagingNew) {
+        await this.appendLog(
+          'info',
+          `API: getJournalEntries page ${newPageIdx} (new-posts discovery)`,
+        );
+        let page;
+        try {
+          page = await this.callApi(() =>
+            this.client.getJournalEntries({
+              username: this.config.username,
+              pageIndex: newPageIdx,
+              pageSize: FETCH_PAGE_SIZE,
+            }),
+          );
+        } catch (err) {
+          if (err instanceof BackupAbortedError) throw err;
+          const message = err instanceof Error ? err.message : String(err);
+          await this.appendLog('warn', `New-posts discovery failed: ${message}`);
+          break;
+        }
+        for (const stub of page.entries) {
+          if (stub.date > mostRecentEntryDate) {
+            newStubs.push(stub);
+          }
+        }
+        const oldestOnPage = page.entries.at(-1);
+        if (page.page.more === 0 || !oldestOnPage || oldestOnPage.date <= mostRecentEntryDate) {
+          keepPagingNew = false;
+        } else {
+          newPageIdx++;
+        }
+      }
+      newStubs.sort((a, b) => a.date.localeCompare(b.date));
+    }
+    // Phase-entry emit for NEW (also fires on the empty-journal short-circuit
+    // so the cell resolves consistently).
+    this.onEvent({
+      type: 'progress',
+      account_id: this.config.id,
+      done: 0,
+      total: newStubs.length,
+      current_date: '',
+      total_archived: indexByDate.size,
+      phase: 'new_posts',
+    });
+    let newPostsDone = 0;
+    for (const stub of newStubs) {
+      this.checkCancelled();
+      await this.appendLog('info', `Fetching new entry ${stub.date}`);
+      try {
+        const entry = await this.fetchAndWriteEntry(stub.entry_id_str, journalFolder);
+        indexByDate.set(entry.date, JournalIndex.toEntryIndex(entry));
+        indexById.set(entry.entry_id, JournalIndex.toEntryIndex(entry));
+        await this.appendLog('info', `Fetched new entry ${entry.date}`);
+        consecutiveFailures = 0;
+        await saveSnapshot();
+      } catch (err) {
+        if (err instanceof BackupAbortedError) throw err;
+        consecutiveFailures++;
+        const message = err instanceof Error ? err.message : String(err);
+        await this.appendLog('warn', `Failed to fetch new entry ${stub.entry_id_str}: ${message}`);
+        if (consecutiveFailures >= MAX_CONSECUTIVE_FAILURES) {
+          await this.appendLog(
+            'warn',
+            'Backup paused after 3 consecutive errors — will retry at next scheduled run',
+          );
+          const code = err instanceof BlipfotoError ? err.code : 0;
+          throw new BackupAbortedError({ kind: 'api_error', code, message });
+        }
+      }
+      newPostsDone++;
+      this.onEvent({
+        type: 'progress',
+        account_id: this.config.id,
+        done: newPostsDone,
+        total: newStubs.length,
+        current_date: stub.date,
+        total_archived: indexByDate.size,
+        phase: 'new_posts',
+      });
+      if (this.config.api_delay_ms > 0) {
+        await sleep(this.config.api_delay_ms);
+      }
+    }
+
+    // Phase-entry emit for FIX. Total grows lazily as we discover repairs.
+    this.onEvent({
+      type: 'progress',
+      account_id: this.config.id,
+      done: 0,
+      total: 0,
+      current_date: '',
+      total_archived: indexByDate.size,
+      phase: 'image_repair',
+    });
+    let repairs = 0;
     for (const entryIdx of [...indexById.values()]) {
       this.checkCancelled();
       const imageRel = JournalIndex.entryImagePath(entryIdx.date);
@@ -473,6 +624,17 @@ export class BackupEngine {
         indexById.set(entry.entry_id, JournalIndex.toEntryIndex(entry));
         await this.appendLog('info', `Repaired missing image for ${entry.date}`);
         consecutiveFailures = 0;
+        await saveSnapshot();
+        repairs++;
+        this.onEvent({
+          type: 'progress',
+          account_id: this.config.id,
+          done: repairs,
+          total: repairs,
+          current_date: entry.date,
+          total_archived: indexByDate.size,
+          phase: 'image_repair',
+        });
       } catch (err) {
         if (err instanceof BackupAbortedError) throw err;
         consecutiveFailures++;
