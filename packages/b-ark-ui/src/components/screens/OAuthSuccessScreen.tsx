@@ -50,17 +50,18 @@ function AvatarWithFallback({ url, name, size }: { url: string; name: string; si
 }
 
 export function OAuthSuccessScreen({ account }: OAuthSuccessScreenProps) {
-  const { dispatch } = useApp();
+  const { dispatch, backend } = useApp();
 
-  function skip() {
-    dispatch({ type: 'account:select', id: account.id });
-    dispatch({ type: 'just_connected:clear' });
-  }
-
-  function setup() {
+  function reviewSettings() {
     dispatch({ type: 'account:select', id: account.id });
     dispatch({ type: 'just_connected:clear' });
     dispatch({ type: 'panel:open', panel: 'settings' });
+  }
+
+  function runFirstBackup() {
+    dispatch({ type: 'account:select', id: account.id });
+    dispatch({ type: 'just_connected:clear' });
+    void backend.startBackup(account.id);
   }
 
   return (
@@ -154,13 +155,12 @@ export function OAuthSuccessScreen({ account }: OAuthSuccessScreenProps) {
           </div>
         </div>
 
-        {/* Buttons */}
-        <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', width: '100%' }}>
+        <div style={{ display: 'flex', gap: 10 }}>
           <button
-            onClick={skip}
+            onClick={reviewSettings}
             style={{
-              height: 38,
-              padding: '0 20px',
+              height: 30,
+              padding: '0 16px',
               borderRadius: 7,
               border: '1px solid var(--line)',
               background: 'white',
@@ -170,13 +170,13 @@ export function OAuthSuccessScreen({ account }: OAuthSuccessScreenProps) {
               cursor: 'pointer',
             }}
           >
-            Skip for now
+            Review settings
           </button>
           <button
-            onClick={setup}
+            onClick={runFirstBackup}
             style={{
-              height: 38,
-              padding: '0 20px',
+              height: 30,
+              padding: '0 16px',
               borderRadius: 7,
               background: 'var(--green-800)',
               color: 'white',
@@ -192,7 +192,7 @@ export function OAuthSuccessScreen({ account }: OAuthSuccessScreenProps) {
               e.currentTarget.style.background = 'var(--green-800)';
             }}
           >
-            Set up now &rsaquo;
+            Run first backup
           </button>
         </div>
       </div>
