@@ -26,4 +26,4 @@ jobs:
           path-to-signatures: 'signatures/cla.json'
           path-to-document: 'https://github.com/IanMStevenson/b-oss/blob/main/CLA.md'
           branch: 'main'
-          allowlist: IanMStevenson
+          allowlist: IanMStevenson,dependabot[bot]
