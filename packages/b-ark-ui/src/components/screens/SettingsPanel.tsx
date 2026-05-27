@@ -2,7 +2,7 @@
 // Copyright (C) 2026 Ian Stevenson
 
 import { useEffect, useState } from 'react';
-import { Settings, X, FolderOpen, Trash2 } from 'lucide-react';
+import { Settings, FolderOpen, Trash2 } from 'lucide-react';
 import type { AccountConfig } from '../../backend.js';
 import { useApp } from '../../context/AppContext.js';
 import { useToast } from '../../hooks/useToast.js';
@@ -293,10 +293,20 @@ export function SettingsPanel() {
         <span style={{ fontSize: 15, fontWeight: 600, flex: 1 }}>Settings</span>
         <button
           onClick={() => dispatch({ type: 'panel:close' })}
-          aria-label="Close settings"
-          style={{ color: 'var(--muted)', display: 'flex', borderRadius: 4, padding: 2 }}
+          style={{
+            height: 30,
+            padding: '0 14px',
+            borderRadius: 7,
+            background: 'var(--green-800)',
+            color: 'white',
+            fontSize: 13,
+            fontWeight: 600,
+            border: 'none',
+            cursor: 'pointer',
+            whiteSpace: 'nowrap',
+          }}
         >
-          <X size={16} strokeWidth={1.6} />
+          Done
         </button>
       </div>
 

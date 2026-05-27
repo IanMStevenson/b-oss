@@ -2,7 +2,7 @@
 // Copyright (C) 2026 Ian Stevenson
 
 import { useState, useEffect, useRef } from 'react';
-import { FileText, X, Pause, Play, Download } from 'lucide-react';
+import { FileText, Pause, Play, Download } from 'lucide-react';
 import type { LogEntry } from '../../backend.js';
 import { useApp } from '../../context/AppContext.js';
 
@@ -198,10 +198,20 @@ export function LogPanel() {
         </span>
         <button
           onClick={() => dispatch({ type: 'panel:close' })}
-          aria-label="Close log"
-          style={{ color: 'var(--muted)', display: 'flex', borderRadius: 4, padding: 2 }}
+          style={{
+            height: 30,
+            padding: '0 14px',
+            borderRadius: 7,
+            background: 'var(--green-800)',
+            color: 'white',
+            fontSize: 13,
+            fontWeight: 600,
+            border: 'none',
+            cursor: 'pointer',
+            whiteSpace: 'nowrap',
+          }}
         >
-          <X size={16} strokeWidth={1.6} />
+          Done
         </button>
       </div>
 
