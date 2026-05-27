@@ -2,7 +2,7 @@
 // Copyright (C) 2026 Ian Stevenson
 
 import { AlertCircle, AlertTriangle, Info, X } from 'lucide-react';
-import { useEffect } from 'react';
+import { useEffect, type ReactElement } from 'react';
 import { useApp } from '../context/AppContext.js';
 import type { Toast } from '../context/reducer.js';
 
@@ -87,7 +87,7 @@ function ToastCard({ toast }: { toast: Toast }) {
   );
 }
 
-function styleForLevel(level: Toast['level']): { icon: JSX.Element; accent: string } {
+function styleForLevel(level: Toast['level']): { icon: ReactElement; accent: string } {
   switch (level) {
     case 'error':
       return { icon: <AlertCircle size={16} strokeWidth={1.8} />, accent: 'var(--rag-red)' };

@@ -8,8 +8,8 @@ interface PaginationProps {
   currentPage: number;
   totalPages: number;
   onPage: (page: number) => void;
-  prevRef?: RefObject<HTMLButtonElement>;
-  nextRef?: RefObject<HTMLButtonElement>;
+  prevRef?: RefObject<HTMLButtonElement | null>;
+  nextRef?: RefObject<HTMLButtonElement | null>;
 }
 
 function buildPageItems(current: number, total: number): Array<number | '...'> {
