@@ -2,6 +2,7 @@
   "appId": "co.salientpoint.b-ark",
   "productName": "b-ark",
   "copyright": "Copyright © 2026 Ian Stevenson",
+  "electronVersion": "42.3.0",
   "directories": {
     "output": "dist-electron",
     "buildResources": "resources"
