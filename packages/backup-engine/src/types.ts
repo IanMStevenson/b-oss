@@ -93,8 +93,15 @@ export type BackupErrorPayload =
   | { kind: 'api_error'; code: number; message: string }
   | { kind: 'filesystem'; message: string };
 
+export type BackupPhase = 'redo' | 'gap_fill' | 'new_posts' | 'image_repair';
+
 export type BackupEvent =
-  | { type: 'started'; account_id: string; total_to_fetch: number }
+  | {
+      type: 'started';
+      account_id: string;
+      total_to_fetch: number;
+      kind: 'first' | 'routine';
+    }
   | {
       type: 'progress';
       account_id: string;
@@ -102,6 +109,7 @@ export type BackupEvent =
       total: number;
       current_date: string;
       total_archived: number;
+      phase?: BackupPhase;
     }
   | { type: 'rate_limited'; account_id: string; resume_in_seconds: number }
   | { type: 'completed'; account_id: string; total_archived: number }

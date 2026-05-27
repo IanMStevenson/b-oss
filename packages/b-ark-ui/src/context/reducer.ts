@@ -3,8 +3,12 @@
 
 import type { AppStore, BootState, LogEntry } from '../backend.js';
 
+export type BackupPhase = 'redo' | 'gap_fill' | 'new_posts' | 'image_repair';
+
 export interface BackupProgress {
   running: boolean;
+  kind: 'first' | 'routine' | null;
+  phase: BackupPhase | null;
   done: number;
   total: number;
   current_date: string;
@@ -42,7 +46,7 @@ export type AppAction =
   | { type: 'panel:close' }
   | { type: 'entry:select'; entryId: string | null }
   | { type: 'thumbnail:resize'; percent: number }
-  | { type: 'backup:started'; account_id: string; total: number }
+  | { type: 'backup:started'; account_id: string; total: number; kind: 'first' | 'routine' }
   | {
       type: 'backup:progress';
       account_id: string;
@@ -50,6 +54,7 @@ export type AppAction =
       total: number;
       current_date: string;
       total_archived: number;
+      phase?: BackupPhase;
     }
   | { type: 'backup:rate_limited'; account_id: string; seconds: number }
   | { type: 'backup:completed'; account_id: string }
@@ -151,6 +156,8 @@ export function reducer(state: AppState, action: AppAction): AppState {
           ...state.backupProgress,
           [action.account_id]: {
             running: true,
+            kind: action.kind,
+            phase: null,
             done: 0,
             total: action.total,
             current_date: '',
@@ -167,8 +174,9 @@ export function reducer(state: AppState, action: AppAction): AppState {
         backupProgress: {
           ...state.backupProgress,
           [action.account_id]: {
-            ...(existing ?? { running: true, rate_limited_seconds: null }),
+            ...(existing ?? { running: true, kind: null, rate_limited_seconds: null }),
             running: true,
+            phase: action.phase ?? null,
             done: action.done,
             total: action.total,
             current_date: action.current_date,
@@ -188,6 +196,8 @@ export function reducer(state: AppState, action: AppAction): AppState {
           [action.account_id]: {
             ...(existing ?? {
               running: true,
+              kind: null,
+              phase: null,
               done: 0,
               total: 0,
               current_date: '',

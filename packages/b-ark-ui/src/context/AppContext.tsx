@@ -44,7 +44,12 @@ export function AppProvider({
       if (event.type === 'backup:event') {
         const e = event.event;
         if (e.type === 'started') {
-          dispatch({ type: 'backup:started', account_id: e.account_id, total: e.total_to_fetch });
+          dispatch({
+            type: 'backup:started',
+            account_id: e.account_id,
+            total: e.total_to_fetch,
+            kind: e.kind,
+          });
         }
         if (e.type === 'progress') {
           dispatch({
@@ -54,6 +59,7 @@ export function AppProvider({
             total: e.total,
             current_date: e.current_date,
             total_archived: e.total_archived,
+            phase: e.phase,
           });
         }
         if (e.type === 'rate_limited') {

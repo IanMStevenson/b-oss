@@ -22,9 +22,14 @@ async function fetchJournal(url: string): Promise<JournalMetadata> {
   return data;
 }
 
-export function useJournal(journalUrl?: string, refreshIntervalMs?: number): JournalState {
+export function useJournal(
+  journalUrl?: string,
+  refreshIntervalMs?: number,
+  refreshNonce?: number,
+): JournalState {
   const [state, setState] = useState<JournalState>({ status: 'loading' });
   const entryCountRef = useRef<number | null>(null);
+  const lastNonceRef = useRef<number | undefined>(refreshNonce);
 
   useEffect(() => {
     if (window.location.protocol === 'file:') {
@@ -81,6 +86,31 @@ export function useJournal(journalUrl?: string, refreshIntervalMs?: number): Jou
 
     return () => clearInterval(id);
   }, [journalUrl, refreshIntervalMs]);
+
+  // Forced refetch trigger: callers bump refreshNonce to request a fresh read
+  // (e.g. after a backup completes, since the polling setInterval may not have
+  // fired before isBackingUp flipped false on a fast backup).
+  useEffect(() => {
+    if (refreshNonce === undefined) return;
+    if (refreshNonce === lastNonceRef.current) return;
+    lastNonceRef.current = refreshNonce;
+    if (!journalUrl) return;
+    if (window.location.protocol === 'file:') return;
+
+    let cancelled = false;
+    fetchJournal(journalUrl)
+      .then((data) => {
+        if (cancelled) return;
+        entryCountRef.current = data.entries.length;
+        setState({ status: 'loaded', data });
+      })
+      .catch(() => {
+        // Silently ignore refresh errors — keep showing existing state
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [refreshNonce, journalUrl]);
 
   return state;
 }

@@ -26,6 +26,7 @@ import type {
 class MockPlatformIO implements PlatformIO {
   files = new Map<string, string>();
   downloads: Array<{ url: string; destPath: string }> = [];
+  renames: Array<{ from: string; to: string }> = [];
   logs: Array<LogEntry> = [];
 
   readFile(path: string): Promise<Buffer> {
@@ -59,6 +60,7 @@ class MockPlatformIO implements PlatformIO {
     }
     this.files.set(to, content);
     this.files.delete(from);
+    this.renames.push({ from, to });
     return Promise.resolve();
   }
   downloadFile(url: string, destPath: string): Promise<void> {
@@ -609,6 +611,439 @@ describe('BackupEngine — routine backup redo', () => {
 
     const ids = getEntrySpy.mock.calls.map((c) => c[0]);
     expect(ids).toEqual(['333', '222']);
+  });
+});
+
+describe('BackupEngine — routine backup new posts', () => {
+  function seedJournal(io: MockPlatformIO, journal: JournalMetadata) {
+    io.files.set('/backups/gbradley/journal.json', JSON.stringify(journal));
+    for (const e of journal.entries) {
+      const year = e.date.slice(0, 4);
+      io.files.set(`/backups/gbradley/entries/${year}/${e.date}.jpg`, '<placeholder>');
+    }
+  }
+
+  const baseJournal: JournalMetadata = {
+    schema_version: 1,
+    username: 'gbradley',
+    journal_title: 't',
+    avatar_url: 'a',
+    entry_total: 1,
+    last_backup_at: '2024-01-01T00:00:00Z',
+    entries: [
+      {
+        entry_id: '100',
+        date: '2024-01-15',
+        title: 'most recent',
+        thumbnail_path: 'entries/2024/2024-01-15-t.jpg',
+        json_path: 'entries/2024/2024-01-15.json',
+      },
+    ],
+  };
+
+  it('fetches entries newer than mostRecentEntryDate in chronological order', async () => {
+    const io = new MockPlatformIO();
+    const client = makeClient();
+    seedJournal(io, baseJournal);
+
+    vi.spyOn(client, 'getUserProfile').mockResolvedValue(makeProfileResponse(3));
+    vi.spyOn(client, 'getJournalEntries').mockResolvedValue({
+      page: { index: 0, size: 100, more: 0 },
+      entries: [
+        makeEntryStub('300', '2024-01-17'),
+        makeEntryStub('200', '2024-01-16'),
+        makeEntryStub('100', '2024-01-15'),
+      ],
+    });
+    const dateMap: Record<string, string> = {
+      '100': '2024-01-15',
+      '200': '2024-01-16',
+      '300': '2024-01-17',
+    };
+    const getEntrySpy = vi
+      .spyOn(client, 'getEntry')
+      .mockImplementation((id: string) => Promise.resolve(makeEntryResponse(id, dateMap[id])));
+
+    const engine = makeEngine(makeConfig({ redo_count: 1 }), io, client, () => {});
+    await engine.run();
+
+    expect(getEntrySpy.mock.calls.map((c) => c[0])).toEqual(['100', '200', '300']);
+    const journal = JSON.parse(io.files.get('/backups/gbradley/journal.json')!) as JournalMetadata;
+    expect(journal.entries.map((e) => e.date)).toEqual(['2024-01-17', '2024-01-16', '2024-01-15']);
+    expect(io.files.has('/backups/gbradley/entries/2024/2024-01-16.json')).toBe(true);
+    expect(io.files.has('/backups/gbradley/entries/2024/2024-01-17.json')).toBe(true);
+  });
+
+  it('with no new posts, makes one page call and adds no new entries', async () => {
+    const io = new MockPlatformIO();
+    const client = makeClient();
+    seedJournal(io, baseJournal);
+
+    vi.spyOn(client, 'getUserProfile').mockResolvedValue(makeProfileResponse(1));
+    const pageSpy = vi.spyOn(client, 'getJournalEntries').mockResolvedValue({
+      page: { index: 0, size: 100, more: 0 },
+      entries: [makeEntryStub('100', '2024-01-15')],
+    });
+    const getEntrySpy = vi
+      .spyOn(client, 'getEntry')
+      .mockImplementation((id: string) => Promise.resolve(makeEntryResponse(id, '2024-01-15')));
+
+    const engine = makeEngine(makeConfig({ redo_count: 1 }), io, client, () => {});
+    await engine.run();
+
+    expect(pageSpy).toHaveBeenCalledTimes(1);
+    expect(getEntrySpy.mock.calls.map((c) => c[0])).toEqual(['100']);
+    const journal = JSON.parse(io.files.get('/backups/gbradley/journal.json')!) as JournalMetadata;
+    expect(journal.entries).toHaveLength(1);
+  });
+
+  it('paginates across multiple pages until oldestOnPage <= mostRecentEntryDate', async () => {
+    const io = new MockPlatformIO();
+    const client = makeClient();
+    seedJournal(io, baseJournal);
+
+    vi.spyOn(client, 'getUserProfile').mockResolvedValue(makeProfileResponse(5));
+    const pageSpy = vi
+      .spyOn(client, 'getJournalEntries')
+      .mockResolvedValueOnce({
+        page: { index: 0, size: 100, more: 1 },
+        entries: [makeEntryStub('400', '2024-01-19'), makeEntryStub('300', '2024-01-18')],
+      })
+      .mockResolvedValueOnce({
+        page: { index: 1, size: 100, more: 1 },
+        entries: [
+          makeEntryStub('200', '2024-01-17'),
+          makeEntryStub('150', '2024-01-16'),
+          makeEntryStub('100', '2024-01-15'),
+        ],
+      });
+    const dateMap: Record<string, string> = {
+      '100': '2024-01-15',
+      '150': '2024-01-16',
+      '200': '2024-01-17',
+      '300': '2024-01-18',
+      '400': '2024-01-19',
+    };
+    const getEntrySpy = vi
+      .spyOn(client, 'getEntry')
+      .mockImplementation((id: string) => Promise.resolve(makeEntryResponse(id, dateMap[id])));
+
+    const engine = makeEngine(makeConfig({ redo_count: 1 }), io, client, () => {});
+    await engine.run();
+
+    expect(pageSpy).toHaveBeenCalledTimes(2);
+    expect(getEntrySpy.mock.calls.map((c) => c[0])).toEqual(['100', '150', '200', '300', '400']);
+  });
+
+  it('three consecutive new-post fetch failures abort with BackupAbortedError', async () => {
+    const io = new MockPlatformIO();
+    const client = makeClient();
+    seedJournal(io, baseJournal);
+
+    const events: BackupEvent[] = [];
+    vi.spyOn(client, 'getUserProfile').mockResolvedValue(makeProfileResponse(4));
+    vi.spyOn(client, 'getJournalEntries').mockResolvedValue({
+      page: { index: 0, size: 100, more: 0 },
+      entries: [
+        makeEntryStub('400', '2024-01-19'),
+        makeEntryStub('300', '2024-01-18'),
+        makeEntryStub('200', '2024-01-17'),
+        makeEntryStub('100', '2024-01-15'),
+      ],
+    });
+    let newPostFails = 0;
+    vi.spyOn(client, 'getEntry').mockImplementation((id: string) => {
+      if (id === '100') return Promise.resolve(makeEntryResponse('100', '2024-01-15'));
+      newPostFails++;
+      return Promise.reject(new BlipfotoError(202, 'Generic API error'));
+    });
+
+    const engine = makeEngine(makeConfig({ redo_count: 1 }), io, client, (e) => events.push(e));
+    await expect(engine.run()).rejects.toThrow();
+
+    expect(newPostFails).toBe(3);
+    const failed = events.find((e) => e.type === 'failed');
+    expect(failed).toBeDefined();
+    if (failed && failed.type === 'failed') {
+      expect(failed.error.kind).toBe('api_error');
+    }
+  });
+
+  it('saves journal.json after each new-post fetch (not just at the end)', async () => {
+    const io = new MockPlatformIO();
+    const client = makeClient();
+    seedJournal(io, baseJournal);
+
+    vi.spyOn(client, 'getUserProfile').mockResolvedValue(makeProfileResponse(4));
+    vi.spyOn(client, 'getJournalEntries').mockResolvedValue({
+      page: { index: 0, size: 100, more: 0 },
+      entries: [
+        makeEntryStub('300', '2024-01-18'),
+        makeEntryStub('200', '2024-01-17'),
+        makeEntryStub('150', '2024-01-16'),
+        makeEntryStub('100', '2024-01-15'),
+      ],
+    });
+    const dateMap: Record<string, string> = {
+      '100': '2024-01-15',
+      '150': '2024-01-16',
+      '200': '2024-01-17',
+      '300': '2024-01-18',
+    };
+    vi.spyOn(client, 'getEntry').mockImplementation((id: string) =>
+      Promise.resolve(makeEntryResponse(id, dateMap[id])),
+    );
+
+    const engine = makeEngine(makeConfig({ redo_count: 1 }), io, client, () => {});
+    await engine.run();
+
+    // journal.json is written via writeFile-to-tmp + rename, so each rename
+    // to the final journal.json path counts as one save. Expected:
+    //   1 redo + 3 new-posts + 1 final = 5 saves at minimum.
+    const journalRenames = io.renames.filter((r) => r.to === '/backups/gbradley/journal.json');
+    expect(journalRenames.length).toBeGreaterThanOrEqual(5);
+  });
+
+  it('cancel() during new-posts stops further entries from being written', async () => {
+    const io = new MockPlatformIO();
+    const client = makeClient();
+    seedJournal(io, baseJournal);
+
+    vi.spyOn(client, 'getUserProfile').mockResolvedValue(makeProfileResponse(3));
+    vi.spyOn(client, 'getJournalEntries').mockResolvedValue({
+      page: { index: 0, size: 100, more: 0 },
+      entries: [
+        makeEntryStub('300', '2024-01-17'),
+        makeEntryStub('200', '2024-01-16'),
+        makeEntryStub('100', '2024-01-15'),
+      ],
+    });
+    const dateMap: Record<string, string> = {
+      '100': '2024-01-15',
+      '200': '2024-01-16',
+      '300': '2024-01-17',
+    };
+    let newPostCalls = 0;
+    const engine = makeEngine(makeConfig({ redo_count: 1 }), io, client, () => {});
+    vi.spyOn(client, 'getEntry').mockImplementation((id: string) => {
+      if (id === '100') return Promise.resolve(makeEntryResponse('100', '2024-01-15'));
+      newPostCalls++;
+      if (newPostCalls === 1) {
+        engine.cancel();
+      }
+      return Promise.resolve(makeEntryResponse(id, dateMap[id]));
+    });
+
+    await expect(engine.run()).rejects.toThrow();
+    expect(newPostCalls).toBe(1);
+    expect(io.files.has('/backups/gbradley/entries/2024/2024-01-16.json')).toBe(true);
+    expect(io.files.has('/backups/gbradley/entries/2024/2024-01-17.json')).toBe(false);
+  });
+});
+
+describe('BackupEngine — phase events', () => {
+  function seedBaseJournal(io: MockPlatformIO) {
+    const journal: JournalMetadata = {
+      schema_version: 1,
+      username: 'gbradley',
+      journal_title: 't',
+      avatar_url: 'a',
+      entry_total: 1,
+      last_backup_at: '2024-01-01T00:00:00Z',
+      entries: [
+        {
+          entry_id: '100',
+          date: '2024-01-15',
+          title: 'one',
+          thumbnail_path: 'entries/2024/2024-01-15-t.jpg',
+          json_path: 'entries/2024/2024-01-15.json',
+        },
+      ],
+    };
+    io.files.set('/backups/gbradley/journal.json', JSON.stringify(journal));
+    io.files.set('/backups/gbradley/entries/2024/2024-01-15.jpg', '<placeholder>');
+  }
+
+  it('first backup emits started with kind="first" and progress with no phase', async () => {
+    const io = new MockPlatformIO();
+    const client = makeClient();
+    const events: BackupEvent[] = [];
+
+    vi.spyOn(client, 'getUserProfile').mockResolvedValue(makeProfileResponse(1));
+    vi.spyOn(client, 'getJournalEntries').mockResolvedValue({
+      page: { index: 0, size: 100, more: 0 },
+      entries: [makeEntryStub('111', '2024-01-15')],
+    });
+    vi.spyOn(client, 'getEntry').mockResolvedValue(makeEntryResponse('111', '2024-01-15'));
+
+    await makeEngine(makeConfig(), io, client, (e) => events.push(e)).run();
+
+    const started = events.find((e) => e.type === 'started');
+    expect(started).toBeDefined();
+    if (started && started.type === 'started') {
+      expect(started.kind).toBe('first');
+    }
+    const progress = events.filter((e) => e.type === 'progress');
+    expect(progress.length).toBeGreaterThan(0);
+    for (const e of progress) {
+      if (e.type === 'progress') {
+        expect(e.phase).toBeUndefined();
+      }
+    }
+  });
+
+  it('routine backup emits started with kind="routine"', async () => {
+    const io = new MockPlatformIO();
+    const client = makeClient();
+    const events: BackupEvent[] = [];
+    seedBaseJournal(io);
+
+    vi.spyOn(client, 'getUserProfile').mockResolvedValue(makeProfileResponse(1));
+    vi.spyOn(client, 'getJournalEntries').mockResolvedValue({
+      page: { index: 0, size: 100, more: 0 },
+      entries: [makeEntryStub('100', '2024-01-15')],
+    });
+    vi.spyOn(client, 'getEntry').mockResolvedValue(makeEntryResponse('100', '2024-01-15'));
+
+    await makeEngine(makeConfig({ redo_count: 1 }), io, client, (e) => events.push(e)).run();
+
+    const started = events.find((e) => e.type === 'started');
+    if (started && started.type === 'started') {
+      expect(started.kind).toBe('routine');
+    } else {
+      throw new Error('started event missing');
+    }
+  });
+
+  it('routine backup emits at least one progress event for each phase, in order', async () => {
+    const io = new MockPlatformIO();
+    const client = makeClient();
+    const events: BackupEvent[] = [];
+    seedBaseJournal(io);
+
+    vi.spyOn(client, 'getUserProfile').mockResolvedValue(makeProfileResponse(1));
+    vi.spyOn(client, 'getJournalEntries').mockResolvedValue({
+      page: { index: 0, size: 100, more: 0 },
+      entries: [makeEntryStub('100', '2024-01-15')],
+    });
+    vi.spyOn(client, 'getEntry').mockResolvedValue(makeEntryResponse('100', '2024-01-15'));
+
+    await makeEngine(makeConfig({ redo_count: 1 }), io, client, (e) => events.push(e)).run();
+
+    const phases = events
+      .filter((e): e is Extract<BackupEvent, { type: 'progress' }> => e.type === 'progress')
+      .map((e) => e.phase);
+
+    expect(phases).toContain('redo');
+    expect(phases).toContain('gap_fill');
+    expect(phases).toContain('new_posts');
+    expect(phases).toContain('image_repair');
+
+    expect(phases.indexOf('redo')).toBeLessThan(phases.indexOf('gap_fill'));
+    expect(phases.indexOf('gap_fill')).toBeLessThan(phases.indexOf('new_posts'));
+    expect(phases.indexOf('new_posts')).toBeLessThan(phases.indexOf('image_repair'));
+  });
+
+  it('image-repair emits only the zero phase-entry event when no repairs needed', async () => {
+    const io = new MockPlatformIO();
+    const client = makeClient();
+    const events: BackupEvent[] = [];
+    seedBaseJournal(io);
+
+    vi.spyOn(client, 'getUserProfile').mockResolvedValue(makeProfileResponse(1));
+    vi.spyOn(client, 'getJournalEntries').mockResolvedValue({
+      page: { index: 0, size: 100, more: 0 },
+      entries: [makeEntryStub('100', '2024-01-15')],
+    });
+    vi.spyOn(client, 'getEntry').mockResolvedValue(makeEntryResponse('100', '2024-01-15'));
+
+    await makeEngine(makeConfig({ redo_count: 1 }), io, client, (e) => events.push(e)).run();
+
+    const repairEvents = events.filter(
+      (e): e is Extract<BackupEvent, { type: 'progress' }> =>
+        e.type === 'progress' && e.phase === 'image_repair',
+    );
+    expect(repairEvents).toHaveLength(1);
+    expect(repairEvents[0]?.done).toBe(0);
+    expect(repairEvents[0]?.total).toBe(0);
+  });
+
+  it('image-repair emits one event per actual repair (plus the phase-entry zero)', async () => {
+    const io = new MockPlatformIO();
+    const client = makeClient();
+    const events: BackupEvent[] = [];
+
+    // Two entries; second one's image is missing on disk.
+    const journal: JournalMetadata = {
+      schema_version: 1,
+      username: 'gbradley',
+      journal_title: 't',
+      avatar_url: 'a',
+      entry_total: 2,
+      last_backup_at: '2024-01-01T00:00:00Z',
+      entries: [
+        {
+          entry_id: '200',
+          date: '2024-01-16',
+          title: 'two',
+          thumbnail_path: 'entries/2024/2024-01-16-t.jpg',
+          json_path: 'entries/2024/2024-01-16.json',
+        },
+        {
+          entry_id: '100',
+          date: '2024-01-15',
+          title: 'one',
+          thumbnail_path: 'entries/2024/2024-01-15-t.jpg',
+          json_path: 'entries/2024/2024-01-15.json',
+        },
+      ],
+    };
+    io.files.set('/backups/gbradley/journal.json', JSON.stringify(journal));
+    // Pre-seed only '200's image — '100's is missing, triggering one repair.
+    io.files.set('/backups/gbradley/entries/2024/2024-01-16.jpg', '<placeholder>');
+
+    vi.spyOn(client, 'getUserProfile').mockResolvedValue(makeProfileResponse(2));
+    vi.spyOn(client, 'getJournalEntries').mockResolvedValue({
+      page: { index: 0, size: 100, more: 0 },
+      entries: [makeEntryStub('200', '2024-01-16'), makeEntryStub('100', '2024-01-15')],
+    });
+    const dateMap: Record<string, string> = { '100': '2024-01-15', '200': '2024-01-16' };
+    vi.spyOn(client, 'getEntry').mockImplementation((id: string) =>
+      Promise.resolve(makeEntryResponse(id, dateMap[id])),
+    );
+
+    await makeEngine(makeConfig({ redo_count: 1 }), io, client, (e) => events.push(e)).run();
+
+    const repairEvents = events.filter(
+      (e): e is Extract<BackupEvent, { type: 'progress' }> =>
+        e.type === 'progress' && e.phase === 'image_repair',
+    );
+    // Phase-entry zero, then one event for the one repair.
+    expect(repairEvents.map((e) => `${e.done}/${e.total}`)).toEqual(['0/0', '1/1']);
+  });
+
+  it('routine backup with no new posts emits a single new_posts phase-entry event', async () => {
+    const io = new MockPlatformIO();
+    const client = makeClient();
+    const events: BackupEvent[] = [];
+    seedBaseJournal(io);
+
+    vi.spyOn(client, 'getUserProfile').mockResolvedValue(makeProfileResponse(1));
+    vi.spyOn(client, 'getJournalEntries').mockResolvedValue({
+      page: { index: 0, size: 100, more: 0 },
+      entries: [makeEntryStub('100', '2024-01-15')],
+    });
+    vi.spyOn(client, 'getEntry').mockResolvedValue(makeEntryResponse('100', '2024-01-15'));
+
+    await makeEngine(makeConfig({ redo_count: 1 }), io, client, (e) => events.push(e)).run();
+
+    const newPostsEvents = events.filter(
+      (e): e is Extract<BackupEvent, { type: 'progress' }> =>
+        e.type === 'progress' && e.phase === 'new_posts',
+    );
+    expect(newPostsEvents).toHaveLength(1);
+    expect(newPostsEvents[0]?.done).toBe(0);
+    expect(newPostsEvents[0]?.total).toBe(0);
   });
 });
 
