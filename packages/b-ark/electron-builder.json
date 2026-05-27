@@ -17,8 +17,7 @@
     "icon": "resources/icon.ico"
   },
   "nsis": {
-    "oneClick": false,
-    "allowToChangeInstallationDirectory": true,
+    "oneClick": true,
     "perMachine": false,
     "installerIcon": "resources/icon.ico",
     "uninstallerIcon": "resources/icon.ico",

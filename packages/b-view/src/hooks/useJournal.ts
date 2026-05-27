@@ -9,6 +9,15 @@ export type JournalState =
   | { status: 'error'; message: string }
   | { status: 'loaded'; data: JournalMetadata };
 
+// A file:// origin can fetch absolute http(s) URLs (b-ark's embedded viewer
+// does exactly this against its local server) but cannot fetch relative URLs.
+// The blanket short-circuit below targets only the latter — the case where
+// someone double-clicks the standalone viewer's index.html on disk.
+function fileOriginBlocksFetch(url: string): boolean {
+  if (/^https?:/i.test(url)) return false;
+  return window.location.protocol === 'file:';
+}
+
 async function fetchJournal(url: string): Promise<JournalMetadata> {
   const res = await fetch(`${url}?t=${Date.now()}`);
   if (res.status === 404) throw new Error('journal.json not found');
@@ -32,7 +41,8 @@ export function useJournal(
   const lastNonceRef = useRef<number | undefined>(refreshNonce);
 
   useEffect(() => {
-    if (window.location.protocol === 'file:') {
+    const url = journalUrl ?? './journal.json';
+    if (fileOriginBlocksFetch(url)) {
       setState({
         status: 'error',
         message:
@@ -41,7 +51,6 @@ export function useJournal(
       return;
     }
 
-    const url = journalUrl ?? './journal.json';
     let cancelled = false;
 
     setState({ status: 'loading' });
@@ -68,7 +77,7 @@ export function useJournal(
 
   useEffect(() => {
     if (!refreshIntervalMs || !journalUrl) return;
-    if (window.location.protocol === 'file:') return;
+    if (fileOriginBlocksFetch(journalUrl)) return;
 
     const url = journalUrl;
     const id = setInterval(() => {
@@ -95,7 +104,7 @@ export function useJournal(
     if (refreshNonce === lastNonceRef.current) return;
     lastNonceRef.current = refreshNonce;
     if (!journalUrl) return;
-    if (window.location.protocol === 'file:') return;
+    if (fileOriginBlocksFetch(journalUrl)) return;
 
     let cancelled = false;
     fetchJournal(journalUrl)
