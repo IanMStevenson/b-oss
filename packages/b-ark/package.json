@@ -12,7 +12,7 @@
     "dev": "electron-vite dev",
     "build": "electron-vite build",
     "typecheck": "electron-vite typecheck",
-    "release": "electron-builder",
+    "release": "electron-builder --publish always",
     "pack": "electron-vite build && electron-builder --dir",
     "predist": "npm run build --workspace=packages/b-view",
     "dist": "electron-vite build && electron-builder",
