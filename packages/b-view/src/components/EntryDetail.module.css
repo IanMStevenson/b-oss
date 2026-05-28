@@ -76,14 +76,7 @@
   overflow: hidden;
 }
 
-.navDate {
-  font-family: monospace;
-  font-size: 12px;
-  color: var(--muted);
-  white-space: nowrap;
-}
-
-.navEntryTitle {
+.navHeading {
   font-size: 15px;
   font-weight: 600;
   color: var(--ink-2);

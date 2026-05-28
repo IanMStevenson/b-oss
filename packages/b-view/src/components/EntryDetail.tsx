@@ -23,6 +23,30 @@ import styles from './EntryDetail.module.css';
 
 type ResolveAsset = (path: string) => Promise<string> | string;
 
+function ordinalSuffix(day: number): string {
+  const mod100 = day % 100;
+  if (mod100 >= 11 && mod100 <= 13) return 'th';
+  switch (day % 10) {
+    case 1:
+      return 'st';
+    case 2:
+      return 'nd';
+    case 3:
+      return 'rd';
+    default:
+      return 'th';
+  }
+}
+
+function formatLongDate(isoDate: string): string {
+  // Parse as local time (not UTC) so the calendar date doesn't shift in negative-offset locales.
+  const d = new Date(isoDate + 'T00:00:00');
+  if (Number.isNaN(d.getTime())) return isoDate;
+  const day = d.getDate();
+  const month = d.toLocaleDateString('en-GB', { month: 'long' });
+  return `${day}${ordinalSuffix(day)} ${month} ${d.getFullYear()}`;
+}
+
 interface EntryDetailProps {
   entryState: EntryState;
   prevEntryId: string | null;
@@ -166,8 +190,10 @@ export function EntryDetail({
         </div>
 
         <div className={styles.navTitle}>
-          <span className={styles.navDate}>{entry.date}</span>
-          {entry.title && <span className={styles.navEntryTitle}>&ldquo;{entry.title}&rdquo;</span>}
+          <span className={styles.navHeading}>
+            {formatLongDate(entry.date)}
+            {entry.title && ` : ${entry.title}`}
+          </span>
         </div>
 
         <div className={styles.navRight}>
