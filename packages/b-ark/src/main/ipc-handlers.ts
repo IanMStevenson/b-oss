@@ -41,6 +41,7 @@ import { writeBViewFiles } from './b-view-files.js';
 import { writeBackupReadme } from './backup-readme.js';
 import { toCsv } from './log-csv.js';
 import { rebuildTrayMenu, refreshTrayIcon } from './tray.js';
+import { showBackupFailedNotification } from './notifications.js';
 
 interface BackupErrorLike {
   payload?: { kind: string };
@@ -237,6 +238,9 @@ export function registerIpcHandlers(
             });
           }
           emitStoreChanged();
+          if (!isAuthExpired) {
+            showBackupFailedNotification(updated.username, errorMessage, getMainWindow);
+          }
         }
         return;
       } finally {
