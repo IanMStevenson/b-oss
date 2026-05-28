@@ -38,7 +38,7 @@ describe('PortableSettingsManager', () => {
       api_delay_ms: 250,
       gap_check_days: 14,
       redo_count: 5,
-      ui: { thumbnail_size_percent: 120 },
+      ui: { thumbnail_size_percent: 120, show_info_overlay: true },
     };
     await mgr.save(settings);
     expect(await mgr.fileExists()).toBe(true);

@@ -218,6 +218,7 @@ export function SettingsPanel() {
   const [apiDelay, setApiDelay] = useState(firstAcct?.api_delay_ms ?? 0);
   const [gapCheck, setGapCheck] = useState(firstAcct?.gap_check_days ?? 31);
   const [redo, setRedo] = useState(firstAcct?.redo_count ?? 7);
+  const [showInfoOverlay, setShowInfoOverlay] = useState(store?.ui.showInfoOverlay ?? true);
   const [startWithWindows, setStartWithWindows] = useState(store?.app.startWithWindows ?? true);
   const [autoUpdateEnabled, setAutoUpdateEnabled] = useState(store?.app.autoUpdateEnabled ?? true);
 
@@ -235,6 +236,7 @@ export function SettingsPanel() {
     setApiDelay(a.api_delay_ms);
     setGapCheck(a.gap_check_days);
     setRedo(a.redo_count);
+    setShowInfoOverlay(store.ui.showInfoOverlay);
     setStartWithWindows(store.app.startWithWindows);
     setAutoUpdateEnabled(store.app.autoUpdateEnabled);
   }, [store]);
@@ -555,6 +557,24 @@ export function SettingsPanel() {
                 }}
               />
               <span style={{ fontSize: 13, color: 'var(--muted)' }}>entries</span>
+            </div>
+          </SettingBlock>
+
+          <SettingBlock
+            label="Show journal info overlay"
+            description="Displays the date and title at the bottom of each thumbnail in the grid view."
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              <PillToggle
+                checked={showInfoOverlay}
+                onChange={(v) => {
+                  setShowInfoOverlay(v);
+                  save({ showInfoOverlay: v });
+                }}
+              />
+              <span style={{ fontSize: 13, color: 'var(--ink-2)' }}>
+                {showInfoOverlay ? 'On' : 'Off'}
+              </span>
             </div>
           </SettingBlock>
 

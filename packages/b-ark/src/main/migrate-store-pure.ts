@@ -96,7 +96,7 @@ export function migrateV1Shape(legacy: LegacyV1Shape): V1MigrationResult {
     api_delay_ms: apiDelay,
     gap_check_days: gapCheck,
     redo_count: redo,
-    ui: { thumbnail_size_percent: thumb },
+    ui: { thumbnail_size_percent: thumb, show_info_overlay: true },
   };
 
   return {

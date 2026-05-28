@@ -469,6 +469,7 @@ export function registerIpcHandlers(
         redo_count: partial.redo_count ?? current.redo_count,
         ui: {
           thumbnail_size_percent: partial.thumbnailSizePercent ?? current.ui.thumbnail_size_percent,
+          show_info_overlay: partial.showInfoOverlay ?? current.ui.show_info_overlay,
         },
       };
       await savePortableSettings(next);

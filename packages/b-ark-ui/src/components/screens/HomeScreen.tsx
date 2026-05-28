@@ -359,6 +359,7 @@ export function HomeScreen({ account }: HomeScreenProps) {
             selectedEntryId={selectedEntryId}
             onSelectEntry={(id) => dispatch({ type: 'entry:select', entryId: id })}
             sizePercent={thumbnailSizePercent}
+            showInfoOverlay={state.store?.ui.showInfoOverlay ?? true}
             baseUrl={viewerUrl ?? undefined}
             jumpToEntryId={jumpToEntryId}
             onTopLeftEntryDate={setTopLeftEntryDate}

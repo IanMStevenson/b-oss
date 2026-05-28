@@ -25,7 +25,7 @@ export interface BArkSettings {
   api_delay_ms: number;
   gap_check_days: number;
   redo_count: number;
-  ui: { thumbnail_size_percent: number };
+  ui: { thumbnail_size_percent: number; show_info_overlay: boolean };
 }
 
 export interface AccountStatus {
@@ -74,6 +74,7 @@ export interface AppStore {
   ui: {
     thumbnailSizePercent: number;
     accountOrder: string[];
+    showInfoOverlay: boolean;
   };
   app: {
     startWithWindows: boolean;
@@ -129,6 +130,7 @@ export interface SharedSettingsPartial {
   gap_check_days?: number;
   redo_count?: number;
   thumbnailSizePercent?: number;
+  showInfoOverlay?: boolean;
   startWithWindows?: boolean;
   autoUpdateEnabled?: boolean;
 }

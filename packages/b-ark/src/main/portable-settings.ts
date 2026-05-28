@@ -54,7 +54,7 @@ export class PortableSettingsManager {
       api_delay_ms: 250,
       gap_check_days: 31,
       redo_count: 7,
-      ui: { thumbnail_size_percent: 100 },
+      ui: { thumbnail_size_percent: 100, show_info_overlay: true },
     };
   }
 
@@ -86,6 +86,11 @@ export class PortableSettingsManager {
     if (typeof r['schedule'] !== 'object' || r['schedule'] === null) {
       throw new Error('b-ark-settings.json: missing schedule object');
     }
-    return r as unknown as BArkSettings;
+    const validated = r as unknown as BArkSettings;
+    // Normalise ui fields added after the initial schema v1 release.
+    if (typeof validated.ui?.show_info_overlay !== 'boolean') {
+      validated.ui = { ...validated.ui, show_info_overlay: true };
+    }
+    return validated;
   }
 }
