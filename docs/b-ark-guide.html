@@ -1,409 +1,525 @@
 <!doctype html>
 <html lang="en">
-<head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>b-ark User Guide · b-oss</title>
-  <meta name="description" content="Install, set up, and get the most out of b-ark — the b-oss backup app for blipfoto." />
-  <link rel="icon" href="assets/favicon.ico" sizes="any">
-  <link rel="icon" type="image/png" sizes="32x32" href="assets/favicon-32.png">
-  <link rel="icon" type="image/png" sizes="16x16" href="assets/favicon-16.png">
-  <link rel="apple-touch-icon" sizes="180x180" href="assets/apple-touch-icon.png">
-  <link rel="manifest" href="assets/site.webmanifest">
-  <meta name="theme-color" content="#1f4d3a">
-  <link rel="stylesheet" href="site.css" />
-</head>
-<body>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>b-ark User Guide · b-oss</title>
+    <meta
+      name="description"
+      content="Install, set up, and get the most out of b-ark — the b-oss backup app for blipfoto."
+    />
+    <link rel="icon" href="assets/favicon.ico" sizes="any" />
+    <link rel="icon" type="image/png" sizes="32x32" href="assets/favicon-32.png" />
+    <link rel="icon" type="image/png" sizes="16x16" href="assets/favicon-16.png" />
+    <link rel="apple-touch-icon" sizes="180x180" href="assets/apple-touch-icon.png" />
+    <link rel="manifest" href="assets/site.webmanifest" />
+    <meta name="theme-color" content="#1f4d3a" />
+    <link rel="stylesheet" href="site.css" />
+  </head>
+  <body>
+    <header class="topbar">
+      <div class="topbar-inner">
+        <a class="brand" href="index.html">b-oss</a>
+        <nav class="nav" aria-label="Primary">
+          <a href="index.html">Home</a>
+          <a href="b-ark.html" class="active">b-ark</a>
+          <a href="contact.html">Contact</a>
+        </nav>
+      </div>
+    </header>
 
-  <header class="topbar">
-    <div class="topbar-inner">
-      <a class="brand" href="index.html">b-oss</a>
-      <nav class="nav" aria-label="Primary">
-        <a href="index.html">Home</a>
-        <a href="b-ark.html" class="active">b-ark</a>
-        <a href="contact.html">Contact</a>
-      </nav>
-    </div>
-  </header>
-
-  <main class="page narrow">
-
-    <section class="hero" data-screen-label="Guide hero">
-      <h1>b-ark user guide</h1>
-      <p class="lead">
-        Install, set up, and get the most out of b-ark &mdash; every photo, caption,
-        comment and piece of metadata, safely on your own machine.
-      </p>
-    </section>
-
-    <section class="block" style="border-top: none; padding-top: 0;" data-screen-label="Guide body">
-
-      <nav class="toc" aria-label="Contents">
-        <p class="toc-title">Contents</p>
-        <ol>
-          <li><a href="#download">Download</a></li>
-          <li><a href="#browser-warning">Browser download warning</a></li>
-          <li><a href="#smartscreen">Windows SmartScreen warning</a></li>
-          <li><a href="#installation">Installation</a></li>
-          <li><a href="#choose-folder">Choose a backup folder</a></li>
-          <li><a href="#add-account">Add your blipfoto account</a></li>
-          <li><a href="#first-backup">Run your first backup</a></li>
-          <li><a href="#settings">Settings reference</a></li>
-          <li><a href="#b-view">Browsing your journal with b-view</a></li>
-          <li><a href="#ai">Using your backup with AI</a></li>
-        </ol>
-      </nav>
-
-      <div class="prose">
-
-        <h2 id="download">1. Download</h2>
-        <p>
-          Go to the <a href="https://github.com/IanMStevenson/b-oss/releases">b-ark releases page</a>
-          and download the latest <code>b-ark-Setup-x.x.x.exe</code> file.
+    <main class="page narrow">
+      <section class="hero" data-screen-label="Guide hero">
+        <h1>b-ark user guide</h1>
+        <p class="lead">
+          Install, set up, and get the most out of b-ark &mdash; every photo, caption, comment and
+          piece of metadata, safely on your own machine.
         </p>
+      </section>
 
-        <h2 id="browser-warning">2. Browser download warning</h2>
-        <p>
-          Because the b-ark installer is not signed by a commercial certificate authority,
-          your browser will warn you before saving it. The steps differ slightly by browser.
-        </p>
+      <section
+        class="block"
+        style="border-top: none; padding-top: 0"
+        data-screen-label="Guide body"
+      >
+        <nav class="toc" aria-label="Contents">
+          <p class="toc-title">Contents</p>
+          <ol>
+            <li><a href="#download">Download</a></li>
+            <li><a href="#browser-warning">Browser download warning</a></li>
+            <li><a href="#smartscreen">Windows SmartScreen warning</a></li>
+            <li><a href="#installation">Installation</a></li>
+            <li><a href="#choose-folder">Choose a backup folder</a></li>
+            <li><a href="#add-account">Add your blipfoto account</a></li>
+            <li><a href="#first-backup">Run your first backup</a></li>
+            <li><a href="#settings">Settings reference</a></li>
+            <li><a href="#b-view">Browsing your journal with b-view</a></li>
+            <li><a href="#ai">Using your backup with AI</a></li>
+          </ol>
+        </nav>
 
-        <h3>Microsoft Edge</h3>
-        <p>After the download completes, Edge shows a warning in the downloads panel.</p>
-        <figure>
-          <img src="assets/guide/edge-download-warning.png" alt="Microsoft Edge download warning" />
-          <figcaption>Edge download warning</figcaption>
-        </figure>
-        <ol>
-          <li>Click the <strong>"…"</strong> (three dots) on the download entry.</li>
-          <li>Choose <strong>"Keep"</strong>.</li>
-          <li>If a further confirmation appears, click <strong>"Show more"</strong> &rarr; <strong>"Keep anyway"</strong>.</li>
-        </ol>
+        <div class="prose">
+          <h2 id="download">1. Download</h2>
+          <p>
+            Go to the
+            <a href="https://github.com/IanMStevenson/b-oss/releases">b-ark releases page</a> and
+            download the latest <code>b-ark-Setup-x.x.x.exe</code> file.
+          </p>
 
-        <h3>Google Chrome</h3>
-        <p>Chrome shows the file in the downloads bar at the bottom of the window with a warning icon.</p>
-        <figure>
+          <h2 id="browser-warning">2. Browser download warning</h2>
+          <p>
+            Because the b-ark installer is not signed by a commercial certificate authority, your
+            browser will warn you before saving it. The steps differ slightly by browser.
+          </p>
+
+          <h3>Microsoft Edge</h3>
+          <p>After the download completes, Edge shows a warning in the downloads panel.</p>
+          <figure>
+            <img
+              src="assets/guide/edge-download-warning.png"
+              alt="Microsoft Edge download warning"
+            />
+            <figcaption>Edge download warning</figcaption>
+          </figure>
+          <ol>
+            <li>Click the <strong>"…"</strong> (three dots) on the download entry.</li>
+            <li>Choose <strong>"Keep"</strong>.</li>
+            <li>
+              If a further confirmation appears, click <strong>"Show more"</strong> &rarr;
+              <strong>"Keep anyway"</strong>.
+            </li>
+          </ol>
+
+          <h3>Google Chrome</h3>
+          <p>
+            Chrome may shows the file in the downloads bar at the bottom of the window with a
+            warning icon.
+          </p>
+          <!-- <figure>
           <img src="assets/guide/chrome-download-warning.png" alt="Google Chrome download warning" />
           <figcaption>Chrome download warning</figcaption>
-        </figure>
-        <ol>
-          <li>Click the <strong>chevron</strong> or <strong>down arrow</strong> (&#x25BE;) next to the "Discard" button.</li>
-          <li>Choose <strong>"Keep dangerous download"</strong>.</li>
-          <li>If prompted again, click <strong>"Keep anyway"</strong>.</li>
-        </ol>
+        </figure> -->
+          <ol>
+            <li>
+              Click the <strong>chevron</strong> or <strong>down arrow</strong> (&#x25BE;) next to
+              the "Discard" button.
+            </li>
+            <li>Choose <strong>"Keep dangerous download"</strong>.</li>
+            <li>If prompted again, click <strong>"Keep anyway"</strong>.</li>
+          </ol>
 
-        <h2 id="smartscreen">3. Windows SmartScreen warning</h2>
-        <p>
-          When you run the installer, Windows Defender SmartScreen shows a blue dialog
-          because b-ark has not yet built up a reputation with Microsoft.
-        </p>
-        <figure>
-          <img src="assets/guide/smartscreen-initial.png" alt="SmartScreen initial dialog" />
-          <figcaption>SmartScreen initial dialog</figcaption>
-        </figure>
-        <ol>
-          <li>Click <strong>"More info"</strong> (the text link near the bottom-left of the dialog).</li>
-        </ol>
-        <figure>
-          <img src="assets/guide/smartscreen-more-info.png" alt="SmartScreen after clicking More info" />
-          <figcaption>SmartScreen after clicking "More info"</figcaption>
-        </figure>
-        <ol start="2">
-          <li>Click <strong>"Run anyway"</strong>.</li>
-          <li>If a User Account Control (UAC) prompt follows, click <strong>"Yes"</strong>.</li>
-        </ol>
-
-        <h2 id="installation">4. Installation</h2>
-        <p>
-          The installer runs silently with no options to choose &mdash; it installs b-ark
-          into your user profile (no administrator rights required) and launches the app
-          when it finishes.
-        </p>
-
-        <h2 id="choose-folder">5. Choose a backup folder</h2>
-        <p>
-          The first thing b-ark asks you to do is pick a folder where it will store your
-          backup files and its portable settings.
-        </p>
-        <figure>
-          <img src="assets/guide/choose-folder.png" alt="Choose folder screen" />
-          <figcaption>Choose folder screen</figcaption>
-        </figure>
-        <ol>
-          <li>Click <strong>"Choose folder…"</strong>.</li>
-          <li>Select an existing empty folder, or create a new one, then confirm.</li>
-        </ol>
-        <blockquote>
+          <h2 id="smartscreen">3. Windows SmartScreen warning</h2>
           <p>
-            <strong>Tip:</strong> If you pick a folder inside a cloud-synced drive (OneDrive,
-            Dropbox, Google Drive, etc.), your b-ark settings will follow you automatically
-            if you install b-ark on another machine and point it at the same cloud folder.
+            When you run the installer, Windows Defender SmartScreen shows a blue dialog because
+            b-ark has not yet built up a reputation with Microsoft.
           </p>
-        </blockquote>
-        <p>
-          If a <code>b-ark-settings.json</code> file already exists in the folder you choose
-          (e.g. setting up on a new machine), b-ark will load your previous settings automatically.
-        </p>
+          <figure>
+            <img src="assets/guide/smartscreen-initial.png" alt="SmartScreen initial dialog" />
+            <figcaption>SmartScreen initial dialog</figcaption>
+          </figure>
+          <ol>
+            <li>
+              Click <strong>"More info"</strong> (the text link near the bottom-left of the dialog).
+            </li>
+          </ol>
+          <figure>
+            <img
+              src="assets/guide/smartscreen-more-info.png"
+              alt="SmartScreen after clicking More info"
+            />
+            <figcaption>SmartScreen after clicking "More info"</figcaption>
+          </figure>
+          <ol start="2">
+            <li>Click <strong>"Run anyway"</strong>.</li>
+            <li>If a User Account Control (UAC) prompt follows, click <strong>"Yes"</strong>.</li>
+          </ol>
 
-        <h2 id="add-account">6. Add your blipfoto account</h2>
-        <p>After choosing a folder, b-ark shows the welcome screen.</p>
-        <figure>
-          <img src="assets/guide/welcome.png" alt="Welcome screen" />
-          <figcaption>Welcome screen</figcaption>
-        </figure>
-        <ol>
-          <li>Click <strong>"+ Add account"</strong>.</li>
-          <li>Your default browser opens to the blipfoto authorisation page. Log in and approve access.</li>
-          <li>Your browser returns you to b-ark, which shows the <strong>"Account connected"</strong> screen with your journal title, username, and entry count.</li>
-        </ol>
-        <figure>
-          <img src="assets/guide/account-connected.png" alt="Account connected screen" />
-          <figcaption>Account connected screen</figcaption>
-        </figure>
-
-        <h3>Adding a second account</h3>
-        <p>If you manage more than one blipfoto journal, you can add multiple accounts:</p>
-        <ul>
-          <li>Once you're in the main view, click <strong>"+ Add account…"</strong> at the bottom of the left-hand sidebar.</li>
-          <li>
-            If you need to sign in to blipfoto with a <em>different</em> browser identity
-            (for example, you are already logged in to blipfoto in your browser as one user),
-            click the small <strong>dropdown arrow</strong> next to the button and choose
-            <strong>"Force new sign-in…"</strong> &mdash; this opens a fresh sign-in window
-            inside b-ark so you don't have to log out of your browser first.
-          </li>
-        </ul>
-
-        <h2 id="first-backup">7. Run your first backup</h2>
-        <p>
-          After connecting your account you are taken to a confirmation screen. Click
-          <strong>"Run first backup"</strong> to start immediately, or
-          <strong>"Review settings"</strong> to adjust the schedule first.
-        </p>
-        <p>
-          You can also start a backup at any time using the <strong>"Backup now"</strong>
-          button in the main toolbar.
-        </p>
-        <figure>
-          <img src="assets/guide/backup-progress.png" alt="Backup in progress" />
-          <figcaption>Backup in progress</figcaption>
-        </figure>
-        <p>While backing up, a progress banner shows which phase b-ark is in:</p>
-
-        <table>
-          <thead>
-            <tr><th>Phase</th><th>What it means</th></tr>
-          </thead>
-          <tbody>
-            <tr><td>NEW</td>  <td>Fetching entries b-ark has never downloaded before.</td></tr>
-            <tr><td>GAPS</td> <td>Filling in any entries that were missed on previous runs.</td></tr>
-            <tr><td>REDO</td> <td>Re-downloading your most recent entries in case captions or comments have changed.</td></tr>
-            <tr><td>FIX</td>  <td>Repairing any images that failed to download cleanly on a previous run.</td></tr>
-          </tbody>
-        </table>
-
-        <p>
-          If blipfoto's rate limit is reached mid-backup, b-ark pauses and counts down
-          automatically before resuming &mdash; no action is needed on your part.
-        </p>
-        <p>Your journal thumbnails appear in the main view.</p>
-
-        <h2 id="settings">8. Settings reference</h2>
-        <p>
-          Open the settings panel by clicking the <strong>gear icon</strong> in the toolbar,
-          or by clicking <strong>"Review settings"</strong> after connecting an account.
-        </p>
-        <figure>
-          <img src="assets/guide/settings-panel.png" alt="Settings panel" />
-          <figcaption>Settings panel</figcaption>
-        </figure>
-
-        <table>
-          <thead>
-            <tr><th style="width: 22%;">Setting</th><th>What it does</th></tr>
-          </thead>
-          <tbody>
-            <tr>
-              <td>Folder</td>
-              <td>Shows where your backups are stored (read-only). Click <strong>"Move folder…"</strong> to point b-ark at a new location &mdash; only the settings file moves; existing backup files stay where they are.</td>
-            </tr>
-            <tr>
-              <td>Schedule</td>
-              <td>Enable or disable automated backups, and set the start date, time of day, and interval (Daily / Weekly / Monthly). This schedule is shared across all accounts.</td>
-            </tr>
-            <tr>
-              <td>Delay</td>
-              <td>A pause (in milliseconds) that b-ark inserts between each call to the blipfoto API during a backup. Increasing this makes backups slower but gentler on your network during working hours. Default: 0.</td>
-            </tr>
-            <tr>
-              <td>Gap check</td>
-              <td>How many days back b-ark looks on each run to catch entries it may have missed previously. Useful after a period offline or an interrupted backup.</td>
-            </tr>
-            <tr>
-              <td>Redo</td>
-              <td>How many of your most-recent entries b-ark re-downloads on every run, to pick up any edits to captions, titles, or comments since the last backup.</td>
-            </tr>
-            <tr>
-              <td>Start with Windows</td>
-              <td>When enabled, b-ark opens silently to the system tray each time you log in &mdash; useful for keeping scheduled backups running without remembering to launch the app manually.</td>
-            </tr>
-            <tr>
-              <td>Check for updates automatically</td>
-              <td>b-ark checks GitHub for a newer release each time it starts and offers to install it if one is available.</td>
-            </tr>
-          </tbody>
-        </table>
-
-        <h2 id="b-view">9. Browsing your journal with b-view</h2>
-        <p>
-          The b-ark app uses <strong>b-view</strong> to display and browse journal entries.
-          It has a thumbnail grid view and an entry view.
-        </p>
-
-        <h3>Thumbnail grid</h3>
-        <figure>
-          <img src="assets/guide/b-view-grid.png" alt="b-view thumbnail grid" />
-          <figcaption>b-view thumbnail grid</figcaption>
-        </figure>
-        <ul>
-          <li><strong>Zoom controls</strong> (+ / &minus; / reset) adjust thumbnail size between 30% and 200%.</li>
-          <li><strong>Left and right arrow keys</strong> move between pages of thumbnails.</li>
-          <li>The <strong>calendar icon</strong> opens a date picker so you can jump straight to a specific month and year.</li>
-          <li>Click any thumbnail to open the full entry.</li>
-        </ul>
-
-        <h3>Entry view</h3>
-        <figure>
-          <img src="assets/guide/b-view-entry.png" alt="b-view entry detail" />
-          <figcaption>b-view entry detail</figcaption>
-        </figure>
-        <p>
-          Inside an entry you can see the full-size photo, title, description, tags,
-          comments (including nested replies), engagement counts (views, stars, favourites),
-          location, and camera EXIF data if present.
-        </p>
-        <ul>
-          <li><strong>Left and right arrow keys</strong> (or the on-screen chevrons) move to the previous or next entry.</li>
-          <li>The <strong>calendar icon</strong> is available here too, for jumping to a specific date.</li>
-          <li>Click the <strong>back button</strong> to return to the thumbnail grid.</li>
-        </ul>
-
-        <h3>b-view in the browser</h3>
-        <p>
-          If you want to browse your journal in your normal web browser, click
-          <strong>"Open in browser"</strong> in the main toolbar. Your default browser
-          opens a locally-served copy of b-view showing your full journal.
-        </p>
-
-        <h3>b-view direct &mdash; even without b-ark installed</h3>
-        <p>
-          Your backup folder contains an <code>index.html</code> file. Open it in Chrome,
-          Edge or Firefox.
-        </p>
-        <ol>
-          <li>b-view prompts you to <strong>"Open backup folder"</strong> &mdash; click it and select the backup folder using the native folder picker.</li>
-          <li>After that, navigation is identical to the browser mode above.</li>
-        </ol>
-        <blockquote>
+          <h2 id="installation">4. Installation</h2>
           <p>
-            <strong>Note:</strong> This mode requires the File System Access API, which is
-            supported in Chrome, Edge and Firefox. Safari and older browsers are not supported.
+            The installer runs silently with no options to choose &mdash; it installs b-ark into
+            your user profile (no administrator rights required) and launches the app when it
+            finishes.
           </p>
-        </blockquote>
 
-        <h3>b-view for publishing a website</h3>
-        <p>
-          b-view can be used to publish your backup as a website if you so wish. Copy
-          your backup folder to any static web host and browse to the URL &mdash; b-view
-          will do the rest. No setup required.
+          <h2 id="choose-folder">5. Choose a backup folder</h2>
+          <p>
+            The first thing b-ark asks you to do is pick a folder where it will store your backup
+            files and its portable settings.
+          </p>
+          <figure>
+            <img src="assets/guide/choose-folder.png" alt="Choose folder screen" />
+            <figcaption>Choose folder screen</figcaption>
+          </figure>
+          <ol>
+            <li>Click <strong>"Choose folder…"</strong>.</li>
+            <li>Select an existing empty folder, or create a new one, then confirm.</li>
+          </ol>
+          <blockquote>
+            <p>
+              <strong>Tip:</strong> If you pick a folder inside a cloud-synced drive (OneDrive,
+              Dropbox, Google Drive, etc.), your b-ark settings will follow you automatically if you
+              install b-ark on another machine and point it at the same cloud folder.
+            </p>
+          </blockquote>
+          <p>
+            If a <code>b-ark-settings.json</code> file already exists in the folder you choose (e.g.
+            setting up on a new machine), b-ark will load your previous settings automatically.
+          </p>
+
+          <h2 id="add-account">6. Add your blipfoto account</h2>
+          <p>After choosing a folder, b-ark shows the welcome screen.</p>
+          <figure>
+            <img src="assets/guide/welcome.png" alt="Welcome screen" />
+            <figcaption>Welcome screen</figcaption>
+          </figure>
+          <ol>
+            <li>Click <strong>"+ Add account"</strong>.</li>
+            <li>
+              Your default browser opens to the blipfoto authorisation page. Log in and approve
+              access.
+            </li>
+            <li>
+              Your browser returns you to b-ark, which shows the
+              <strong>"Account connected"</strong> screen with your journal title, username, and
+              entry count.
+            </li>
+          </ol>
+          <figure>
+            <img src="assets/guide/account-connected.png" alt="Account connected screen" />
+            <figcaption>Account connected screen</figcaption>
+          </figure>
+
+          <h3>Adding a second account</h3>
+          <p>If you manage more than one blipfoto journal, you can add multiple accounts:</p>
+          <ul>
+            <li>
+              Once you're in the main view, click <strong>"+ Add account…"</strong> at the bottom of
+              the left-hand sidebar.
+            </li>
+            <li>
+              If you need to sign in to blipfoto with a <em>different</em> browser identity (for
+              example, you are already logged in to blipfoto in your browser as one user), click the
+              small <strong>dropdown arrow</strong> next to the button and choose
+              <strong>"Force new sign-in…"</strong> &mdash; this opens a fresh sign-in window inside
+              b-ark so you don't have to log out of your browser first.
+            </li>
+          </ul>
+
+          <h2 id="first-backup">7. Run your first backup</h2>
+          <p>
+            After connecting your account you are taken to a confirmation screen. Click
+            <strong>"Run first backup"</strong> to start immediately, or
+            <strong>"Review settings"</strong> to adjust the schedule first.
+          </p>
+          <p>
+            You can also start a backup at any time using the <strong>"Backup now"</strong>
+            button in the main toolbar.
+          </p>
+          <figure>
+            <img src="assets/guide/backup-progress.png" alt="Backup in progress" />
+            <figcaption>Backup in progress</figcaption>
+          </figure>
+          <p>While backing up, a progress banner shows which phase b-ark is in:</p>
+
+          <table>
+            <thead>
+              <tr>
+                <th>Phase</th>
+                <th>What it means</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>NEW</td>
+                <td>Fetching entries b-ark has never downloaded before.</td>
+              </tr>
+              <tr>
+                <td>GAPS</td>
+                <td>Filling in any entries that were missed on previous runs.</td>
+              </tr>
+              <tr>
+                <td>REDO</td>
+                <td>
+                  Re-downloading your most recent entries in case captions or comments have changed.
+                </td>
+              </tr>
+              <tr>
+                <td>FIX</td>
+                <td>Repairing any images that failed to download cleanly on a previous run.</td>
+              </tr>
+            </tbody>
+          </table>
+
+          <p>
+            If blipfoto's rate limit is reached mid-backup, b-ark pauses and counts down
+            automatically before resuming &mdash; no action is needed on your part.
+          </p>
+          <p>Your journal thumbnails appear in the main view.</p>
+
+          <h2 id="settings">8. Settings reference</h2>
+          <p>
+            Open the settings panel by clicking the <strong>gear icon</strong> in the toolbar, or by
+            clicking <strong>"Review settings"</strong> after connecting an account.
+          </p>
+          <figure>
+            <img src="assets/guide/settings-panel.png" alt="Settings panel" />
+            <figcaption>Settings panel</figcaption>
+          </figure>
+
+          <table>
+            <thead>
+              <tr>
+                <th style="width: 22%">Setting</th>
+                <th>What it does</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>Folder</td>
+                <td>
+                  Shows where your backups are stored (read-only). Click
+                  <strong>"Move folder…"</strong> to point b-ark at a new location &mdash; only the
+                  settings file moves; existing backup files stay where they are.
+                </td>
+              </tr>
+              <tr>
+                <td>Schedule</td>
+                <td>
+                  Enable or disable automated backups, and set the start date, time of day, and
+                  interval (Daily / Weekly / Monthly). This schedule is shared across all accounts.
+                </td>
+              </tr>
+              <tr>
+                <td>Delay</td>
+                <td>
+                  A pause (in milliseconds) that b-ark inserts between each call to the blipfoto API
+                  during a backup. Increasing this makes backups slower but gentler on your network
+                  during working hours. Default: 0.
+                </td>
+              </tr>
+              <tr>
+                <td>Gap check</td>
+                <td>
+                  How many days back b-ark looks on each run to catch entries it may have missed
+                  previously. Useful after a period offline or an interrupted backup.
+                </td>
+              </tr>
+              <tr>
+                <td>Redo</td>
+                <td>
+                  How many of your most-recent entries b-ark re-downloads on every run, to pick up
+                  any edits to captions, titles, or comments since the last backup.
+                </td>
+              </tr>
+              <tr>
+                <td>Start with Windows</td>
+                <td>
+                  When enabled, b-ark opens silently to the system tray each time you log in &mdash;
+                  useful for keeping scheduled backups running without remembering to launch the app
+                  manually.
+                </td>
+              </tr>
+              <tr>
+                <td>Check for updates automatically</td>
+                <td>
+                  b-ark checks GitHub for a newer release each time it starts and offers to install
+                  it if one is available.
+                </td>
+              </tr>
+            </tbody>
+          </table>
+
+          <h2 id="b-view">9. Browsing your journal with b-view</h2>
+          <p>
+            The b-ark app uses <strong>b-view</strong> to display and browse journal entries. It has
+            a thumbnail grid view and an entry view.
+          </p>
+
+          <h3>Thumbnail grid</h3>
+          <figure>
+            <img src="assets/guide/b-view-grid.png" alt="b-view thumbnail grid" />
+            <figcaption>b-view thumbnail grid</figcaption>
+          </figure>
+          <ul>
+            <li>
+              <strong>Zoom controls</strong> (+ / &minus; / reset) adjust thumbnail size between 30%
+              and 200%.
+            </li>
+            <li><strong>Left and right arrow keys</strong> move between pages of thumbnails.</li>
+            <li>
+              The <strong>calendar icon</strong> opens a date picker so you can jump straight to a
+              specific month and year.
+            </li>
+            <li>Click any thumbnail to open the full entry.</li>
+          </ul>
+
+          <h3>Entry view</h3>
+          <figure>
+            <img src="assets/guide/b-view-entry.png" alt="b-view entry detail" />
+            <figcaption>b-view entry detail</figcaption>
+          </figure>
+          <p>
+            Inside an entry you can see the full-size photo, title, description, tags, comments
+            (including nested replies), engagement counts (views, stars, favourites), location, and
+            camera EXIF data if present.
+          </p>
+          <ul>
+            <li>
+              <strong>Left and right arrow keys</strong> (or the on-screen chevrons) move to the
+              previous or next entry.
+            </li>
+            <li>
+              The <strong>calendar icon</strong> is available here too, for jumping to a specific
+              date.
+            </li>
+            <li>Click the <strong>back button</strong> to return to the thumbnail grid.</li>
+          </ul>
+
+          <h3>b-view in the browser</h3>
+          <p>
+            If you want to browse your journal in your normal web browser, click
+            <strong>"Open in browser"</strong> in the main toolbar. Your default browser opens a
+            locally-served copy of b-view showing your full journal.
+          </p>
+
+          <h3>b-view direct &mdash; even without b-ark installed</h3>
+          <p>
+            Your backup folder contains an <code>index.html</code> file. Open it in Chrome, Edge or
+            Firefox.
+          </p>
+          <ol>
+            <li>
+              b-view prompts you to <strong>"Open backup folder"</strong> &mdash; click it and
+              select the backup folder using the native folder picker.
+            </li>
+            <li>After that, navigation is identical to the browser mode above.</li>
+          </ol>
+          <blockquote>
+            <p>
+              <strong>Note:</strong> This mode requires the File System Access API, which is
+              supported in Chrome, Edge and Firefox. Safari and older browsers are not supported.
+            </p>
+          </blockquote>
+
+          <h3>b-view for publishing a website</h3>
+          <p>
+            b-view can be used to publish your backup as a website if you so wish. Copy your backup
+            folder to any static web host and browse to the URL &mdash; b-view will do the rest. No
+            setup required.
+          </p>
+
+          <h2 id="ai">10. Using your backup with AI</h2>
+          <p>
+            Each account's backup folder contains a <code>README.md</code> file. It explains your
+            journal's data format and gives guidance on using the backup with AI assistants &mdash;
+            Claude, ChatGPT, Copilot, Gemini, and others.
+          </p>
+          <p><strong>The README includes:</strong></p>
+          <ul>
+            <li>
+              Ready-to-use example prompts (<em>"Create a PDF of all entries from 2022"</em>,
+              <em>"Find my 10 happiest-sounding entries"</em>,
+              <em>"What cameras have I used over the years?"</em>).
+            </li>
+            <li>
+              Instructions for the AI on how to approach large journals (a two-pass method: score
+              and shortlist all entries first, then produce the requested output).
+            </li>
+            <li>The full data schema so the AI understands the file and folder structure.</li>
+          </ul>
+
+          <h3>Recommended workflow using Claude Projects</h3>
+          <ol>
+            <li>Create a new <a href="https://claude.ai">Claude Project</a>.</li>
+            <li>Upload your backup folder, or the files within it.</li>
+            <li>
+              Start your first message with:
+              <em>"Please read the README.md file in this backup before we start."</em>
+            </li>
+            <li>
+              Describe what you want &mdash; a photo book, a timeline, a search, a summary, or
+              something else.
+            </li>
+          </ol>
+
+          <h3>Example prompts</h3>
+          <p>
+            Here are some examples of things you could ask an AI to do with your backup. Feel free
+            to adapt them.
+          </p>
+
+          <p><strong>By date</strong></p>
+          <ul>
+            <li><em>"Create a PDF document of all my entries from 2022."</em></li>
+            <li><em>"Make a presentation of my entries between 1st and 31st August 2019."</em></li>
+          </ul>
+
+          <p><strong>By tag or keyword</strong></p>
+          <ul>
+            <li><em>"Build a photo book of all my entries tagged 'walking'."</em></li>
+            <li><em>"Create a presentation of entries where I mention my dog."</em></li>
+          </ul>
+
+          <p><strong>By engagement</strong></p>
+          <ul>
+            <li><em>"Make a presentation of my 20 most favourited entries."</em></li>
+            <li>
+              <em
+                >"Create a spreadsheet showing how many entries I posted each month, and which got
+                the most views."</em
+              >
+            </li>
+          </ul>
+
+          <p><strong>By mood or theme</strong></p>
+          <ul>
+            <li><em>"Find my 10 happiest-sounding entries and make a presentation."</em></li>
+            <li>
+              <em
+                >"Create a document of entries where I seem to be reflecting on getting older."</em
+              >
+            </li>
+          </ul>
+
+          <p><strong>By camera or location</strong></p>
+          <ul>
+            <li><em>"Make a photo book of everything I shot on my Fujifilm X100."</em></li>
+            <li><em>"Create a presentation of all my entries taken in Japan."</em></li>
+          </ul>
+
+          <p><strong>Questions and searches</strong></p>
+          <p>
+            Not every request needs to produce a document &mdash; sometimes you just want an answer.
+            Try:
+          </p>
+          <ul>
+            <li><em>"What are the dates of all my entries that mention Brighton?"</em></li>
+            <li><em>"Where did I buy the loganberry jam I mentioned?"</em></li>
+            <li>
+              <em>"How many entries did I post in 2018, and which month was most active?"</em>
+            </li>
+            <li><em>"What cameras have I used over the years?"</em></li>
+          </ul>
+
+          <h3>Viewing README.md on Windows</h3>
+          <p>
+            If you don't already have a viewer installed for <code>.md</code> (markdown) files, you
+            can right-click and use the <strong>"Open with…"</strong> option and select
+            <strong>"Notepad"</strong>.
+          </p>
+        </div>
+
+        <p style="margin-top: 40px">
+          <a class="btn" href="b-ark.html">&larr; Back to b-ark</a>
         </p>
+      </section>
+    </main>
 
-        <h2 id="ai">10. Using your backup with AI</h2>
-        <p>
-          Each account's backup folder contains a <code>README.md</code> file. It explains
-          your journal's data format and gives guidance on using the backup with AI
-          assistants &mdash; Claude, ChatGPT, Copilot, Gemini, and others.
-        </p>
-        <p><strong>The README includes:</strong></p>
-        <ul>
-          <li>Ready-to-use example prompts (<em>"Create a PDF of all entries from 2022"</em>, <em>"Find my 10 happiest-sounding entries"</em>, <em>"What cameras have I used over the years?"</em>).</li>
-          <li>Instructions for the AI on how to approach large journals (a two-pass method: score and shortlist all entries first, then produce the requested output).</li>
-          <li>The full data schema so the AI understands the file and folder structure.</li>
-        </ul>
-
-        <h3>Recommended workflow using Claude Projects</h3>
-        <ol>
-          <li>Create a new <a href="https://claude.ai">Claude Project</a>.</li>
-          <li>Upload your backup folder, or the files within it.</li>
-          <li>Start your first message with: <em>"Please read the README.md file in this backup before we start."</em></li>
-          <li>Describe what you want &mdash; a photo book, a timeline, a search, a summary, or something else.</li>
-        </ol>
-
-        <h3>Example prompts</h3>
-        <p>Here are some examples of things you could ask an AI to do with your backup. Feel free to adapt them.</p>
-
-        <p><strong>By date</strong></p>
-        <ul>
-          <li><em>"Create a PDF document of all my entries from 2022."</em></li>
-          <li><em>"Make a presentation of my entries between 1st and 31st August 2019."</em></li>
-        </ul>
-
-        <p><strong>By tag or keyword</strong></p>
-        <ul>
-          <li><em>"Build a photo book of all my entries tagged 'walking'."</em></li>
-          <li><em>"Create a presentation of entries where I mention my dog."</em></li>
-        </ul>
-
-        <p><strong>By engagement</strong></p>
-        <ul>
-          <li><em>"Make a presentation of my 20 most favourited entries."</em></li>
-          <li><em>"Create a spreadsheet showing how many entries I posted each month, and which got the most views."</em></li>
-        </ul>
-
-        <p><strong>By mood or theme</strong></p>
-        <ul>
-          <li><em>"Find my 10 happiest-sounding entries and make a presentation."</em></li>
-          <li><em>"Create a document of entries where I seem to be reflecting on getting older."</em></li>
-        </ul>
-
-        <p><strong>By camera or location</strong></p>
-        <ul>
-          <li><em>"Make a photo book of everything I shot on my Fujifilm X100."</em></li>
-          <li><em>"Create a presentation of all my entries taken in Japan."</em></li>
-        </ul>
-
-        <p><strong>Questions and searches</strong></p>
-        <p>Not every request needs to produce a document &mdash; sometimes you just want an answer. Try:</p>
-        <ul>
-          <li><em>"What are the dates of all my entries that mention Brighton?"</em></li>
-          <li><em>"Where did I buy the loganberry jam I mentioned?"</em></li>
-          <li><em>"How many entries did I post in 2018, and which month was most active?"</em></li>
-          <li><em>"What cameras have I used over the years?"</em></li>
-        </ul>
-
-        <h3>Viewing README.md on Windows</h3>
-        <p>
-          If you don't already have a viewer installed for <code>.md</code> (markdown) files,
-          you can right-click and use the <strong>"Open with…"</strong> option and select
-          <strong>"Notepad"</strong>.
-        </p>
-
+    <footer class="footer">
+      <div class="page footer-inner">
+        <div>&copy; b-oss</div>
+        <div><a href="index.html">Home</a> · <a href="contact.html">Contact</a></div>
       </div>
-
-      <p style="margin-top: 40px;">
-        <a class="btn" href="b-ark.html">&larr; Back to b-ark</a>
-      </p>
-
-    </section>
-
-  </main>
-
-  <footer class="footer">
-    <div class="page footer-inner">
-      <div>&copy; b-oss</div>
-      <div><a href="index.html">Home</a> · <a href="contact.html">Contact</a></div>
-    </div>
-  </footer>
-
-</body>
+    </footer>
+  </body>
 </html>
