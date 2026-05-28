@@ -5,6 +5,17 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-05-28
+
+### Added
+
+- Info overlay on journal entries in b-view
+
+### Changed
+
+- Pagination redesigned in b-view for cleaner navigation
+- Larger text throughout b-view entry views
+
 ## [0.2.0] - 2026-05-28
 
 ### Added
