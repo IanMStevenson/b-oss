@@ -1,127 +1,139 @@
 <!doctype html>
 <html lang="en">
-<head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Contact · b-oss</title>
-  <link rel="icon" href="assets/favicon.ico" sizes="any">
-  <link rel="icon" type="image/png" sizes="32x32" href="assets/favicon-32.png">
-  <link rel="icon" type="image/png" sizes="16x16" href="assets/favicon-16.png">
-  <link rel="apple-touch-icon" sizes="180x180" href="assets/apple-touch-icon.png">
-  <link rel="manifest" href="assets/site.webmanifest">
-  <meta name="theme-color" content="#1f4d3a">
-  <link rel="stylesheet" href="site.css" />
-</head>
-<body>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Contact · b-oss</title>
+    <link rel="icon" href="assets/favicon.ico" sizes="any" />
+    <link rel="icon" type="image/png" sizes="32x32" href="assets/favicon-32.png" />
+    <link rel="icon" type="image/png" sizes="16x16" href="assets/favicon-16.png" />
+    <link rel="apple-touch-icon" sizes="180x180" href="assets/apple-touch-icon.png" />
+    <link rel="manifest" href="assets/site.webmanifest" />
+    <meta name="theme-color" content="#1f4d3a" />
+    <link rel="stylesheet" href="site.css" />
+  </head>
+  <body>
+    <header class="topbar">
+      <div class="topbar-inner">
+        <a class="brand" href="index.html">b-oss</a>
+        <nav class="nav" aria-label="Primary">
+          <a href="index.html">Home</a>
+          <a href="b-ark.html">b-ark</a>
+          <a href="contact.html" class="active">Contact</a>
+        </nav>
+      </div>
+    </header>
 
-  <header class="topbar">
-    <div class="topbar-inner">
-      <a class="brand" href="index.html">b-oss</a>
-      <nav class="nav" aria-label="Primary">
-        <a href="index.html">Home</a>
-        <a href="b-ark.html">b-ark</a>
-        <a href="contact.html" class="active">Contact</a>
-      </nav>
-    </div>
-  </header>
+    <main class="page narrow">
+      <section class="hero" data-screen-label="Contact hero">
+        <h1>Get in touch</h1>
+        <p class="lead">
+          Bug reports, feature ideas, or just hello &mdash; drop a note below and I'll get back to
+          you.
+        </p>
+      </section>
 
-  <main class="page narrow">
-
-    <section class="hero" data-screen-label="Contact hero">
-      <h1>Get in touch</h1>
-      <p class="lead">
-        Bug reports, feature ideas, or just hello &mdash; drop a note below
-        and I'll get back to you.
-      </p>
-    </section>
-
-    <section class="block" style="border-top: none; padding-top: 0;" data-screen-label="Contact form">
-
-      <form id="contact-form" class="form" novalidate>
-        <!--
+      <section
+        class="block"
+        style="border-top: none; padding-top: 0"
+        data-screen-label="Contact form"
+      >
+        <form id="contact-form" class="form" novalidate>
+          <!--
           Web3Forms — replace the access_key value with your real key.
           Docs: https://docs.web3forms.com/
         -->
-        <input type="hidden" name="access_key" value="YOUR_WEB3FORMS_ACCESS_KEY" />
-        <input type="hidden" name="subject" value="New message from b-oss.co.uk" />
-        <input type="hidden" name="from_name" value="b-oss website" />
-        <!-- Honeypot for bots -->
-        <input type="checkbox" name="botcheck" style="display:none" tabindex="-1" autocomplete="off" />
+          <input type="hidden" name="access_key" value="a08ad6d7-2406-4218-98a2-a7439426eef3" />
+          <input type="hidden" name="subject" value="New message from b-oss.co.uk" />
+          <input type="hidden" name="from_name" value="b-oss website" />
+          <!-- Honeypot for bots -->
+          <input
+            type="checkbox"
+            name="botcheck"
+            style="display: none"
+            tabindex="-1"
+            autocomplete="off"
+          />
 
-        <div class="form-row">
-          <label for="name">Your name</label>
-          <input class="input" type="text" id="name" name="name" required autocomplete="name" />
-        </div>
+          <div class="form-row">
+            <label for="name">Your name</label>
+            <input class="input" type="text" id="name" name="name" required autocomplete="name" />
+          </div>
 
-        <div class="form-row">
-          <label for="email">Email <span class="hint">— so I can reply</span></label>
-          <input class="input" type="email" id="email" name="email" required autocomplete="email" />
-        </div>
+          <div class="form-row">
+            <label for="email">Email <span class="hint">— so I can reply</span></label>
+            <input
+              class="input"
+              type="email"
+              id="email"
+              name="email"
+              required
+              autocomplete="email"
+            />
+          </div>
 
-        <div class="form-row">
-          <label for="message">Message</label>
-          <textarea class="textarea" id="message" name="message" required></textarea>
-        </div>
+          <div class="form-row">
+            <label for="message">Message</label>
+            <textarea class="textarea" id="message" name="message" required></textarea>
+          </div>
 
-        <div id="form-status" class="form-status" role="status" aria-live="polite"></div>
+          <div id="form-status" class="form-status" role="status" aria-live="polite"></div>
 
-        <div class="btn-row">
-          <button class="btn primary" type="submit" id="submit-btn">Send message</button>
-        </div>
-      </form>
+          <div class="btn-row">
+            <button class="btn primary" type="submit" id="submit-btn">Send message</button>
+          </div>
+        </form>
+      </section>
+    </main>
 
-    </section>
+    <footer class="footer">
+      <div class="page footer-inner">
+        <div>&copy; b-oss</div>
+        <div><a href="index.html">Home</a> · <a href="b-ark.html">b-ark</a></div>
+      </div>
+    </footer>
 
-  </main>
+    <script>
+      (function () {
+        const form = document.getElementById('contact-form');
+        const statusEl = document.getElementById('form-status');
+        const submitBtn = document.getElementById('submit-btn');
 
-  <footer class="footer">
-    <div class="page footer-inner">
-      <div>&copy; b-oss</div>
-      <div><a href="index.html">Home</a> · <a href="b-ark.html">b-ark</a></div>
-    </div>
-  </footer>
-
-  <script>
-    (function () {
-      const form = document.getElementById('contact-form');
-      const statusEl = document.getElementById('form-status');
-      const submitBtn = document.getElementById('submit-btn');
-
-      function setStatus(kind, text) {
-        statusEl.className = 'form-status ' + kind;
-        statusEl.textContent = text;
-      }
-
-      form.addEventListener('submit', async function (e) {
-        e.preventDefault();
-        if (!form.reportValidity()) return;
-
-        submitBtn.disabled = true;
-        setStatus('sending', 'Sending…');
-
-        const data = new FormData(form);
-
-        try {
-          const res = await fetch('https://api.web3forms.com/submit', {
-            method: 'POST',
-            body: data,
-          });
-          const json = await res.json().catch(() => ({}));
-          if (res.ok && json.success) {
-            setStatus('ok', 'Thanks — your message is on its way. I\u2019ll be in touch.');
-            form.reset();
-          } else {
-            const msg = (json && json.message) ? json.message : 'Something went wrong. Please try again.';
-            setStatus('err', msg);
-          }
-        } catch (err) {
-          setStatus('err', 'Network error. Please try again in a moment.');
-        } finally {
-          submitBtn.disabled = false;
+        function setStatus(kind, text) {
+          statusEl.className = 'form-status ' + kind;
+          statusEl.textContent = text;
         }
-      });
-    })();
-  </script>
 
-</body>
+        form.addEventListener('submit', async function (e) {
+          e.preventDefault();
+          if (!form.reportValidity()) return;
+
+          submitBtn.disabled = true;
+          setStatus('sending', 'Sending…');
+
+          const data = new FormData(form);
+
+          try {
+            const res = await fetch('https://api.web3forms.com/submit', {
+              method: 'POST',
+              body: data,
+            });
+            const json = await res.json().catch(() => ({}));
+            if (res.ok && json.success) {
+              setStatus('ok', 'Thanks — your message is on its way. I\u2019ll be in touch.');
+              form.reset();
+            } else {
+              const msg =
+                json && json.message ? json.message : 'Something went wrong. Please try again.';
+              setStatus('err', msg);
+            }
+          } catch (err) {
+            setStatus('err', 'Network error. Please try again in a moment.');
+          } finally {
+            submitBtn.disabled = false;
+          }
+        });
+      })();
+    </script>
+  </body>
 </html>
