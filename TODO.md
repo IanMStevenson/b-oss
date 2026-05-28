@@ -6,11 +6,6 @@ Working!
 
 ## TODO
 
-Date picker in b-view grid and journal entries
-One year forward/back in journal entries
-
-README.md in backup folder to guide other AI tools using backups
-
 ## Bugs
 
 Vite 8 deprecation warnings in b-view build — esbuild plugin option deprecated → migrate to oxc; optimizeDeps.esbuildOptions deprecated → migrate to optimizeDeps.rolldownOptions. Vite 9 will break these.
@@ -20,9 +15,8 @@ react / react-dom peer warnings — lucide-react and @testing-library/react show
 
 electron-builder v26 → v27 upgrade — --publish always is now in place, so the breaking change in v27 is pre-empted. Upgrade itself is still future work.
 
-## Testing Required
+## API Limitations
 
-**API Limitations**
 Not seeing hires or original image links populated in pracice
 No ability to read extras
 

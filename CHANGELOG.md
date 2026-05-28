@@ -5,6 +5,22 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-05-28
+
+### Added
+
+- Calendar picker for navigating to a specific date in b-view
+
+### Changed
+
+- Date formatting on journal entry pages updated for clarity
+
+### Fixed
+
+- Zoom controls in b-view now have a visible surrounding border
+
+## [0.1.0] - 2026-05-27
+
 ### Added
 
 - Monorepo scaffold with five packages: `blipfoto-api`, `backup-engine`, `b-view`, `b-ark-ui`, `b-ark`
@@ -21,6 +37,11 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Status bar, toast notifications, split-button menus, grid view, entry navigation
 - SPDX/GPL-3.0-or-later headers on all source files; CLA for contributions
 - Code-signed Windows build pipeline via GitHub Actions (`release-win.yml`)
+- Phased routine backup: dedicated new-posts discovery step followed by image downloads, with a segmented progress banner throughout
+- Version number shown in "About" dialogs in b-ark and b-view
+- Avatar/profile image caching to avoid redundant API requests
+- Settings and log panel promoted to global scope (no longer per-account)
+- Security hardening based on internal audit recommendations
 
 ### Changed
 
@@ -28,6 +49,8 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - `PlatformIO` interface gains a `rename(from, to)` method
 - Node engine bumped to `>=22.12.0`
 - b-view folder in backups renamed from `assets` to `b-view`
+- Upgraded to React 19
+- Account management call-to-action labels updated to match revised settings flow
 
 ### Fixed
 
@@ -43,3 +66,5 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Multiple incremental-mode bugs (full re-walk on resume, missing entry detection)
 - Entry styling and navigation issues
 - b-view running under `file://` (no http server available)
+- Backup entry count display now reflects current progress accurately
+- Error messages made more descriptive throughout
