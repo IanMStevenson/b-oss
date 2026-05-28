@@ -197,7 +197,13 @@ export function HomeScreen({ account }: HomeScreenProps) {
 
         {/* Toolbar */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
-          <IconBtn label="First page" onClick={() => setGridResetKey((k) => k + 1)}>
+          <IconBtn
+            label="First page"
+            onClick={() => {
+              setGridResetKey((k) => k + 1);
+              setJumpToEntryId(null);
+            }}
+          >
             <Home size={15} strokeWidth={1.6} />
           </IconBtn>
 
@@ -359,6 +365,7 @@ export function HomeScreen({ account }: HomeScreenProps) {
             selectedEntryId={selectedEntryId}
             onSelectEntry={(id) => dispatch({ type: 'entry:select', entryId: id })}
             sizePercent={thumbnailSizePercent}
+            showInfoOverlay={state.store?.ui.showInfoOverlay ?? true}
             baseUrl={viewerUrl ?? undefined}
             jumpToEntryId={jumpToEntryId}
             onTopLeftEntryDate={setTopLeftEntryDate}

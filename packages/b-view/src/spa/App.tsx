@@ -145,6 +145,15 @@ function FolderApp({ embedded }: { embedded: boolean }) {
   const [selectedEntryId, setSelectedEntryId] = useState<string | null>(null);
   const [infoOpen, setInfoOpen] = useState(false);
   const [sizePercent, setSizePercent] = useState(100);
+  const [showInfoOverlay, setShowInfoOverlay] = useState(() => {
+    const v = localStorage.getItem('b-view.showInfoOverlay');
+    return v === null ? true : v === 'true';
+  });
+
+  function handleOverlayChange(v: boolean) {
+    setShowInfoOverlay(v);
+    localStorage.setItem('b-view.showInfoOverlay', String(v));
+  }
 
   const { resolveAsset } = useFolderAccess(dirHandle);
   const journal = useFolderJournal(dirHandle);
@@ -244,6 +253,8 @@ function FolderApp({ embedded }: { embedded: boolean }) {
               onSelectEntry={setSelectedEntryId}
               sizePercent={sizePercent}
               onSizeChange={setSizePercent}
+              showInfoOverlay={showInfoOverlay}
+              onShowInfoOverlayChange={handleOverlayChange}
               resolveAsset={resolveAsset}
             />
           ) : (
@@ -269,6 +280,15 @@ function HttpApp({ embedded }: { embedded: boolean }) {
   const [selectedEntryId, setSelectedEntryId] = useState<string | null>(null);
   const [infoOpen, setInfoOpen] = useState(false);
   const [sizePercent, setSizePercent] = useState(100);
+  const [showInfoOverlay, setShowInfoOverlay] = useState(() => {
+    const v = localStorage.getItem('b-view.showInfoOverlay');
+    return v === null ? true : v === 'true';
+  });
+
+  function handleOverlayChange(v: boolean) {
+    setShowInfoOverlay(v);
+    localStorage.setItem('b-view.showInfoOverlay', String(v));
+  }
 
   const journal = useJournal();
   const entryIndex = journal.status === 'loaded' ? journal.data.entries : [];
@@ -339,6 +359,8 @@ function HttpApp({ embedded }: { embedded: boolean }) {
               onSelectEntry={setSelectedEntryId}
               sizePercent={sizePercent}
               onSizeChange={setSizePercent}
+              showInfoOverlay={showInfoOverlay}
+              onShowInfoOverlayChange={handleOverlayChange}
             />
           ) : (
             <EntryDetail

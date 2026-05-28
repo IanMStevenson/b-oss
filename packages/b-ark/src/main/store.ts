@@ -261,6 +261,7 @@ export function getAppStore(): AppStore {
     ui: {
       thumbnailSizePercent: portableCache.ui.thumbnail_size_percent,
       accountOrder: [...portableCache.account_order],
+      showInfoOverlay: portableCache.ui.show_info_overlay,
     },
     app: store.get('app'),
   };

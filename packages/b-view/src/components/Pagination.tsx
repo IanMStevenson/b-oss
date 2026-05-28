@@ -8,6 +8,10 @@ interface PaginationProps {
   currentPage: number;
   totalPages: number;
   onPage: (page: number) => void;
+  hasPrev: boolean;
+  hasNext: boolean;
+  onPrev: () => void;
+  onNext: () => void;
   prevRef?: RefObject<HTMLButtonElement | null>;
   nextRef?: RefObject<HTMLButtonElement | null>;
 }
@@ -31,7 +35,17 @@ function buildPageItems(current: number, total: number): Array<number | '...'> {
   return items;
 }
 
-export function Pagination({ currentPage, totalPages, onPage, prevRef, nextRef }: PaginationProps) {
+export function Pagination({
+  currentPage,
+  totalPages,
+  onPage,
+  hasPrev,
+  hasNext,
+  onPrev,
+  onNext,
+  prevRef,
+  nextRef,
+}: PaginationProps) {
   const items = buildPageItems(currentPage, totalPages);
 
   const btnStyle: CSSProperties = {
@@ -58,8 +72,8 @@ export function Pagination({ currentPage, totalPages, onPage, prevRef, nextRef }
       <button
         ref={prevRef}
         style={btnStyle}
-        disabled={currentPage === 1}
-        onClick={() => onPage(currentPage - 1)}
+        disabled={!hasPrev}
+        onClick={onPrev}
         aria-label="Previous page"
       >
         <ChevronLeft size={14} strokeWidth={1.6} />
@@ -86,8 +100,8 @@ export function Pagination({ currentPage, totalPages, onPage, prevRef, nextRef }
       <button
         ref={nextRef}
         style={btnStyle}
-        disabled={currentPage === totalPages}
-        onClick={() => onPage(currentPage + 1)}
+        disabled={!hasNext}
+        onClick={onNext}
         aria-label="Next page"
       >
         <ChevronRight size={14} strokeWidth={1.6} />

@@ -3,7 +3,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import type { RefObject } from 'react';
-import { ZoomIn, ZoomOut, RotateCcw, Image, Home } from 'lucide-react';
+import { ZoomIn, ZoomOut, RotateCcw, Image, Home, Eye, EyeOff } from 'lucide-react';
 import type { EntryIndex } from '../types.js';
 import { DatePicker } from './DatePicker.js';
 import { Pagination } from './Pagination.js';
@@ -34,6 +34,33 @@ function useContainerSize(ref: RefObject<HTMLElement | null>) {
   return size;
 }
 
+function formatDate(iso: string): string {
+  const [y, m, d] = iso.split('-').map(Number);
+  const sfx =
+    d === 1 || d === 21 || d === 31
+      ? 'st'
+      : d === 2 || d === 22
+        ? 'nd'
+        : d === 3 || d === 23
+          ? 'rd'
+          : 'th';
+  const months = [
+    'Jan',
+    'Feb',
+    'Mar',
+    'Apr',
+    'May',
+    'Jun',
+    'Jul',
+    'Aug',
+    'Sep',
+    'Oct',
+    'Nov',
+    'Dec',
+  ];
+  return `${d}${sfx} ${months[m - 1]} ${y}`;
+}
+
 type ResolveAsset = (path: string) => Promise<string> | string;
 
 interface ThumbnailGridProps {
@@ -42,6 +69,8 @@ interface ThumbnailGridProps {
   onSelectEntry: (entryId: string) => void;
   sizePercent?: number;
   onSizeChange?: (newPercent: number) => void;
+  showInfoOverlay?: boolean;
+  onShowInfoOverlayChange?: (v: boolean) => void;
   baseUrl?: string;
   resolveAsset?: ResolveAsset;
   jumpToEntryId?: string | null;
@@ -55,6 +84,7 @@ function ThumbnailItem({
   baseUrl,
   resolveAsset,
   tileSize,
+  showInfoOverlay,
 }: {
   entry: EntryIndex;
   selected: boolean;
@@ -62,6 +92,7 @@ function ThumbnailItem({
   baseUrl?: string;
   resolveAsset?: ResolveAsset;
   tileSize: number;
+  showInfoOverlay: boolean;
 }) {
   const [imgError, setImgError] = useState(false);
   const syncSrc = resolveAsset
@@ -106,6 +137,12 @@ function ThumbnailItem({
           className={styles.thumbImg}
         />
       )}
+      {showInfoOverlay && (
+        <div className={styles.thumbOverlay}>
+          <div className={styles.thumbOverlayDate}>{formatDate(entry.date)}</div>
+          {tileSize >= 80 && <div className={styles.thumbOverlayTitle}>{entry.title}</div>}
+        </div>
+      )}
     </button>
   );
 }
@@ -116,6 +153,8 @@ export function ThumbnailGrid({
   onSelectEntry,
   sizePercent = 100,
   onSizeChange,
+  showInfoOverlay = true,
+  onShowInfoOverlayChange,
   baseUrl,
   resolveAsset,
   jumpToEntryId,
@@ -123,7 +162,7 @@ export function ThumbnailGrid({
 }: ThumbnailGridProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const { width, height } = useContainerSize(containerRef);
-  const [currentPage, setCurrentPage] = useState(1);
+  const [topLeftIndex, setTopLeftIndex] = useState(0);
   const [topLeftDate, setTopLeftDate] = useState<string | null>(null);
 
   const tileSize = Math.round(BASE_TILE_PX * (sizePercent / 100));
@@ -141,17 +180,6 @@ export function ThumbnailGrid({
       : 2;
   const pageSize = cols * rows;
 
-  // Reset to page 1 whenever the computed page size changes.
-  const prevPageSize = useRef(pageSize);
-  useEffect(() => {
-    if (prevPageSize.current !== pageSize) {
-      prevPageSize.current = pageSize;
-      setCurrentPage(1);
-    }
-  }, [pageSize]);
-
-  const totalPages = Math.max(1, Math.ceil(entries.length / pageSize));
-
   const prevBtnRef = useRef<HTMLButtonElement>(null);
   const nextBtnRef = useRef<HTMLButtonElement>(null);
 
@@ -163,9 +191,22 @@ export function ThumbnailGrid({
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
   }, []);
-  const safePage = Math.min(currentPage, totalPages);
-  const pageStart = (safePage - 1) * pageSize;
+  const safeTopLeft = Math.max(
+    0,
+    Math.min(topLeftIndex, entries.length > 0 ? entries.length - 1 : 0),
+  );
+  const pageStart = safeTopLeft;
   const pageEntries = entries.slice(pageStart, pageStart + pageSize);
+
+  const isAligned = safeTopLeft % pageSize === 0;
+  const displayPage = isAligned
+    ? safeTopLeft / pageSize + 1
+    : Math.floor(safeTopLeft / pageSize) + 2;
+  const totalPages = isAligned
+    ? Math.max(1, Math.ceil(entries.length / pageSize))
+    : Math.max(2, Math.ceil(entries.length / pageSize) + 1);
+  const hasPrev = safeTopLeft > 0;
+  const hasNext = safeTopLeft + pageSize < entries.length;
 
   // Track the top-left entry date for the internal calendar and external callback.
   useEffect(() => {
@@ -174,15 +215,15 @@ export function ThumbnailGrid({
     onTopLeftEntryDate?.(date);
   }, [pageStart, entries, onTopLeftEntryDate]);
 
-  // Jump to the page containing jumpToEntryId when the prop changes.
+  // Jump to the entry at topLeftIndex when jumpToEntryId changes.
   const lastJumpRef = useRef<string | null>(null);
   useEffect(() => {
-    if (!jumpToEntryId || jumpToEntryId === lastJumpRef.current || pageSize === 0) return;
+    if (!jumpToEntryId || jumpToEntryId === lastJumpRef.current) return;
     const idx = entries.findIndex((e) => e.entry_id === jumpToEntryId);
     if (idx < 0) return;
     lastJumpRef.current = jumpToEntryId;
-    setCurrentPage(Math.floor(idx / pageSize) + 1);
-  }, [jumpToEntryId, entries, pageSize]);
+    setTopLeftIndex(idx);
+  }, [jumpToEntryId, entries]);
 
   // If 2×2 minimum doesn't fit, let the container scroll rather than clip.
   const minTileSpan = 2 * (tileSize + gap) - gap;
@@ -196,7 +237,7 @@ export function ThumbnailGrid({
         <div className={styles.controls}>
           <button
             className={styles.iconBtn}
-            onClick={() => setCurrentPage(1)}
+            onClick={() => setTopLeftIndex(0)}
             aria-label="First page"
           >
             <Home size={14} strokeWidth={1.6} />
@@ -207,7 +248,7 @@ export function ThumbnailGrid({
               currentDate={topLeftDate}
               onNavigate={(entryId) => {
                 const idx = entries.findIndex((e) => e.entry_id === entryId);
-                if (idx >= 0) setCurrentPage(Math.floor(idx / pageSize) + 1);
+                if (idx >= 0) setTopLeftIndex(idx);
               }}
             />
           )}
@@ -235,6 +276,19 @@ export function ThumbnailGrid({
               <RotateCcw size={14} strokeWidth={1.6} />
             </button>
           </div>
+          {onShowInfoOverlayChange && (
+            <button
+              className={styles.iconBtn}
+              onClick={() => onShowInfoOverlayChange(!showInfoOverlay)}
+              aria-label={showInfoOverlay ? 'Hide date/title overlay' : 'Show date/title overlay'}
+            >
+              {showInfoOverlay ? (
+                <Eye size={14} strokeWidth={1.6} />
+              ) : (
+                <EyeOff size={14} strokeWidth={1.6} />
+              )}
+            </button>
+          )}
         </div>
       )}
 
@@ -252,6 +306,7 @@ export function ThumbnailGrid({
               baseUrl={baseUrl}
               resolveAsset={resolveAsset}
               tileSize={tileSize}
+              showInfoOverlay={showInfoOverlay}
             />
           ))}
         </div>
@@ -260,9 +315,13 @@ export function ThumbnailGrid({
       {totalPages > 1 && (
         <div className={styles.paginationRow}>
           <Pagination
-            currentPage={safePage}
+            currentPage={displayPage}
             totalPages={totalPages}
-            onPage={setCurrentPage}
+            onPage={(n) => setTopLeftIndex(Math.max(0, safeTopLeft + (n - displayPage) * pageSize))}
+            hasPrev={hasPrev}
+            hasNext={hasNext}
+            onPrev={() => setTopLeftIndex(Math.max(0, safeTopLeft - pageSize))}
+            onNext={() => setTopLeftIndex(safeTopLeft + pageSize)}
             prevRef={prevBtnRef}
             nextRef={nextBtnRef}
           />
