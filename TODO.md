@@ -6,6 +6,10 @@ Working!
 
 ## TODO
 
+Resizing the window resets pagination to "page 1"
+Selecting a date in picker in grid should make the entry top left
+Add overlay of date/title as a b-view option as per blip website
+
 ## Bugs
 
 Vite 8 deprecation warnings in b-view build — esbuild plugin option deprecated → migrate to oxc; optimizeDeps.esbuildOptions deprecated → migrate to optimizeDeps.rolldownOptions. Vite 9 will break these.
