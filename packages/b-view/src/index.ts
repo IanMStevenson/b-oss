@@ -3,6 +3,7 @@
 
 export { ThumbnailGrid } from './components/ThumbnailGrid.js';
 export { EntryDetail } from './components/EntryDetail.js';
+export { DatePicker } from './components/DatePicker.js';
 export { InfoPopup } from './components/InfoPopup.js';
 export { Pagination } from './components/Pagination.js';
 export { useJournal } from './hooks/useJournal.js';

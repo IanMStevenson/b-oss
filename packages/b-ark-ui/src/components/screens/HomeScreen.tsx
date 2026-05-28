@@ -16,7 +16,7 @@ import {
   CloudDownload,
   Home,
 } from 'lucide-react';
-import { ThumbnailGrid, EntryDetail, useJournal, useEntry } from '@b-oss/b-view';
+import { ThumbnailGrid, EntryDetail, DatePicker, useJournal, useEntry } from '@b-oss/b-view';
 import type { EntryIndex } from '@b-oss/b-view';
 import type { AccountConfig } from '../../backend.js';
 import { useApp } from '../../context/AppContext.js';
@@ -90,6 +90,10 @@ export function HomeScreen({ account }: HomeScreenProps) {
     const t = setTimeout(() => setCountdown((c) => (c != null ? c - 1 : null)), 1000);
     return () => clearTimeout(t);
   }, [countdown]);
+
+  // Calendar picker state
+  const [topLeftEntryDate, setTopLeftEntryDate] = useState<string | null>(null);
+  const [jumpToEntryId, setJumpToEntryId] = useState<string | null>(null);
 
   // Load viewer URL from backend
   const [gridResetKey, setGridResetKey] = useState(0);
@@ -196,6 +200,24 @@ export function HomeScreen({ account }: HomeScreenProps) {
           <IconBtn label="First page" onClick={() => setGridResetKey((k) => k + 1)}>
             <Home size={15} strokeWidth={1.6} />
           </IconBtn>
+
+          {entries.length > 0 && (
+            <DatePicker
+              entries={entries}
+              currentDate={
+                selectedEntryId !== null
+                  ? (entries.find((e) => e.entry_id === selectedEntryId)?.date ?? null)
+                  : topLeftEntryDate
+              }
+              onNavigate={(entryId) => {
+                if (selectedEntryId !== null) {
+                  dispatch({ type: 'entry:select', entryId });
+                } else {
+                  setJumpToEntryId(entryId);
+                }
+              }}
+            />
+          )}
 
           {/* Thumbnail size group */}
           <div
@@ -315,6 +337,7 @@ export function HomeScreen({ account }: HomeScreenProps) {
             onNavigate={(id) => dispatch({ type: 'entry:select', entryId: id })}
             onClose={() => dispatch({ type: 'entry:select', entryId: null })}
             baseUrl={viewerUrl ?? undefined}
+            entries={entries}
           />
         ) : journalState.status === 'error' && isBackingUp ? (
           <div
@@ -337,6 +360,8 @@ export function HomeScreen({ account }: HomeScreenProps) {
             onSelectEntry={(id) => dispatch({ type: 'entry:select', entryId: id })}
             sizePercent={thumbnailSizePercent}
             baseUrl={viewerUrl ?? undefined}
+            jumpToEntryId={jumpToEntryId}
+            onTopLeftEntryDate={setTopLeftEntryDate}
           />
         )}
       </div>

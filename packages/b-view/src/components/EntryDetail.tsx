@@ -17,8 +17,9 @@ import {
   Ruler,
   SunMedium,
 } from 'lucide-react';
-import type { BlipEntry, BlipComment } from '../types.js';
+import type { BlipEntry, BlipComment, EntryIndex } from '../types.js';
 import type { EntryState } from '../hooks/useEntry.js';
+import { DatePicker } from './DatePicker.js';
 import styles from './EntryDetail.module.css';
 
 type ResolveAsset = (path: string) => Promise<string> | string;
@@ -55,6 +56,7 @@ interface EntryDetailProps {
   onClose?: () => void;
   baseUrl?: string;
   resolveAsset?: ResolveAsset;
+  entries?: EntryIndex[];
 }
 
 function ExifRows({ exif }: { exif: NonNullable<BlipEntry['exif']> }) {
@@ -111,6 +113,7 @@ export function EntryDetail({
   onClose,
   baseUrl,
   resolveAsset,
+  entries,
 }: EntryDetailProps) {
   const [asyncImageSrc, setAsyncImageSrc] = useState<string | null>(null);
 
@@ -190,6 +193,9 @@ export function EntryDetail({
         </div>
 
         <div className={styles.navTitle}>
+          {entries && entries.length > 0 && (
+            <DatePicker entries={entries} currentDate={entry.date} onNavigate={onNavigate} />
+          )}
           <span className={styles.navHeading}>
             {formatLongDate(entry.date)}
             {entry.title && ` : ${entry.title}`}

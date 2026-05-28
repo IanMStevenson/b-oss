@@ -254,6 +254,7 @@ function FolderApp({ embedded }: { embedded: boolean }) {
               onNavigate={setSelectedEntryId}
               onClose={() => setSelectedEntryId(null)}
               resolveAsset={resolveAsset}
+              entries={entryIndex}
             />
           ))}
       </main>
@@ -346,6 +347,7 @@ function HttpApp({ embedded }: { embedded: boolean }) {
               nextEntryId={nextEntry?.entry_id ?? null}
               onNavigate={setSelectedEntryId}
               onClose={() => setSelectedEntryId(null)}
+              entries={entryIndex}
             />
           ))}
       </main>

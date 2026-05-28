@@ -5,6 +5,7 @@ import { useState, useEffect, useRef } from 'react';
 import type { RefObject } from 'react';
 import { ZoomIn, ZoomOut, RotateCcw, Image, Home } from 'lucide-react';
 import type { EntryIndex } from '../types.js';
+import { DatePicker } from './DatePicker.js';
 import { Pagination } from './Pagination.js';
 import styles from './ThumbnailGrid.module.css';
 
@@ -43,6 +44,8 @@ interface ThumbnailGridProps {
   onSizeChange?: (newPercent: number) => void;
   baseUrl?: string;
   resolveAsset?: ResolveAsset;
+  jumpToEntryId?: string | null;
+  onTopLeftEntryDate?: (date: string | null) => void;
 }
 
 function ThumbnailItem({
@@ -115,10 +118,13 @@ export function ThumbnailGrid({
   onSizeChange,
   baseUrl,
   resolveAsset,
+  jumpToEntryId,
+  onTopLeftEntryDate,
 }: ThumbnailGridProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const { width, height } = useContainerSize(containerRef);
   const [currentPage, setCurrentPage] = useState(1);
+  const [topLeftDate, setTopLeftDate] = useState<string | null>(null);
 
   const tileSize = Math.round(BASE_TILE_PX * (sizePercent / 100));
   const gap = Math.round(tileSize * 0.2);
@@ -161,6 +167,23 @@ export function ThumbnailGrid({
   const pageStart = (safePage - 1) * pageSize;
   const pageEntries = entries.slice(pageStart, pageStart + pageSize);
 
+  // Track the top-left entry date for the internal calendar and external callback.
+  useEffect(() => {
+    const date = entries[pageStart]?.date ?? null;
+    setTopLeftDate(date);
+    onTopLeftEntryDate?.(date);
+  }, [pageStart, entries, onTopLeftEntryDate]);
+
+  // Jump to the page containing jumpToEntryId when the prop changes.
+  const lastJumpRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (!jumpToEntryId || jumpToEntryId === lastJumpRef.current || pageSize === 0) return;
+    const idx = entries.findIndex((e) => e.entry_id === jumpToEntryId);
+    if (idx < 0) return;
+    lastJumpRef.current = jumpToEntryId;
+    setCurrentPage(Math.floor(idx / pageSize) + 1);
+  }, [jumpToEntryId, entries, pageSize]);
+
   // If 2×2 minimum doesn't fit, let the container scroll rather than clip.
   const minTileSpan = 2 * (tileSize + gap) - gap;
   const minFitsH = width === 0 || width - H_PAD >= minTileSpan;
@@ -178,6 +201,16 @@ export function ThumbnailGrid({
           >
             <Home size={14} strokeWidth={1.6} />
           </button>
+          {entries.length > 0 && (
+            <DatePicker
+              entries={entries}
+              currentDate={topLeftDate}
+              onNavigate={(entryId) => {
+                const idx = entries.findIndex((e) => e.entry_id === entryId);
+                if (idx >= 0) setCurrentPage(Math.floor(idx / pageSize) + 1);
+              }}
+            />
+          )}
           <div className={styles.zoomGroup}>
             <button
               className={styles.iconBtn}
