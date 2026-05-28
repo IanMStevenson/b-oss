@@ -40,7 +40,7 @@ import { BackupScheduler, computeNextRun } from './scheduler.js';
 import { writeBViewFiles } from './b-view-files.js';
 import { writeBackupReadme } from './backup-readme.js';
 import { toCsv } from './log-csv.js';
-import { rebuildTrayMenu } from './tray.js';
+import { rebuildTrayMenu, refreshTrayIcon } from './tray.js';
 
 interface BackupErrorLike {
   payload?: { kind: string };
@@ -262,6 +262,7 @@ export function registerIpcHandlers(
         rag_state: 'amber',
         error_message: null,
       });
+      refreshTrayIcon();
       if (existing.backup_folder) {
         const pio = new ElectronPlatformIO(() => undefined);
         await cacheAvatarIfMissing(
@@ -304,6 +305,7 @@ export function registerIpcHandlers(
     };
 
     await saveAccount(account);
+    refreshTrayIcon();
     if (account.backup_folder) {
       const pio = new ElectronPlatformIO(() => undefined);
       await cacheAvatarIfMissing(
@@ -331,6 +333,7 @@ export function registerIpcHandlers(
     activeEngines.delete(id);
     stopServer(id);
     await deleteAccount(id);
+    refreshTrayIcon();
     scheduler.rearm();
     emitStoreChanged();
   });
@@ -347,6 +350,7 @@ export function registerIpcHandlers(
       rag_state: 'amber',
       error_message: null,
     });
+    refreshTrayIcon();
     if (account.backup_folder) {
       const pio = new ElectronPlatformIO(() => undefined);
       await cacheAvatarIfMissing(

@@ -6,7 +6,10 @@ Icon and metadata files referenced by Electron at runtime and by electron-builde
 
 ```
 packages/b-ark/resources/
-├── tray-icon.png          # 32×32 system tray icon (Windows/Linux)               [done]
+├── tray-icon.png          # 32×32 system tray icon — neutral (no accounts)       [done]
+├── tray-icon-green.png    # 32×32 tray icon with green RAG dot                   [done]
+├── tray-icon-amber.png    # 32×32 tray icon with amber RAG dot                   [done]
+├── tray-icon-red.png      # 32×32 tray icon with red RAG dot                     [done]
 ├── tray-icon-16.png       # optional 16×16 for pixel-perfect 100% DPI taskbars   [done]
 ├── icon.ico               # multi-resolution Windows icon (16/24/32/48/64/128/256) [done]
 ├── icon-ico/              # PNG sources that icon.ico was assembled from         [archive]
@@ -19,7 +22,8 @@ The `.icns` and `.plist` are only required when building for macOS (`electron-bu
 
 ## How each file is used
 
-- **`tray-icon.png`** — loaded by [`src/main/tray.ts`](../src/main/tray.ts) on app start. In dev, resolved relative to `__dirname`; in packaged builds, from `process.resourcesPath/resources/`.
+- **`tray-icon.png`** — loaded by [`src/main/tray.ts`](../src/main/tray.ts) on app start. In dev, resolved relative to `__dirname`; in packaged builds, from `process.resourcesPath/resources/`. Shown when no accounts are configured.
+- **`tray-icon-green/amber/red.png`** — RAG state variants. Same base as `tray-icon.png` with a ~10 px filled circle dot centred at (26, 26) in the 32×32 canvas, 1.5 px white stroke. Colors: green `#22a06b`, amber `#e8a93c`, red `#d04545` (matching `--rag-*` tokens). Selected automatically by `tray.ts` based on the worst aggregate account RAG state.
 - **`icon.ico`** — referenced by `win.icon` in [`electron-builder.config.json`](../electron-builder.config.json) for the `.exe`, NSIS installer, and uninstaller.
 - **`icon.icns`** — referenced by `mac.icon` in the same config.
 

@@ -130,6 +130,19 @@ export function deleteStatus(id: string): void {
   store.set('status', all);
 }
 
+export function getWorstRag(): 'green' | 'amber' | 'red' | null {
+  const ids = getPortableSettings().account_order;
+  if (!ids.length) return null;
+  const statuses = store.get('status');
+  let worst: 'green' | 'amber' | 'red' = 'green';
+  for (const id of ids) {
+    const rag = (statuses[id] ?? DEFAULT_STATUS).rag_state;
+    if (rag === 'red') return 'red';
+    if (rag === 'amber') worst = 'amber';
+  }
+  return worst;
+}
+
 export function getToken(username: string): string | null {
   return store.get('tokens')[username] ?? null;
 }
