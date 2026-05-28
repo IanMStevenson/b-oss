@@ -178,28 +178,30 @@ export function ThumbnailGrid({
           >
             <Home size={14} strokeWidth={1.6} />
           </button>
-          <button
-            className={styles.iconBtn}
-            onClick={() => onSizeChange(Math.max(30, sizePercent - 10))}
-            aria-label="Zoom out"
-          >
-            <ZoomOut size={14} strokeWidth={1.6} />
-          </button>
-          <span className={styles.zoomLabel}>{sizePercent}%</span>
-          <button
-            className={styles.iconBtn}
-            onClick={() => onSizeChange(Math.min(200, sizePercent + 10))}
-            aria-label="Zoom in"
-          >
-            <ZoomIn size={14} strokeWidth={1.6} />
-          </button>
-          <button
-            className={styles.iconBtn}
-            onClick={() => onSizeChange(100)}
-            aria-label="Reset zoom"
-          >
-            <RotateCcw size={14} strokeWidth={1.6} />
-          </button>
+          <div className={styles.zoomGroup}>
+            <button
+              className={styles.iconBtn}
+              onClick={() => onSizeChange(Math.max(30, sizePercent - 10))}
+              aria-label="Zoom out"
+            >
+              <ZoomOut size={14} strokeWidth={1.6} />
+            </button>
+            <span className={styles.zoomLabel}>{sizePercent}%</span>
+            <button
+              className={styles.iconBtn}
+              onClick={() => onSizeChange(Math.min(200, sizePercent + 10))}
+              aria-label="Zoom in"
+            >
+              <ZoomIn size={14} strokeWidth={1.6} />
+            </button>
+            <button
+              className={styles.iconBtn}
+              onClick={() => onSizeChange(100)}
+              aria-label="Reset zoom"
+            >
+              <RotateCcw size={14} strokeWidth={1.6} />
+            </button>
+          </div>
         </div>
       )}
 
