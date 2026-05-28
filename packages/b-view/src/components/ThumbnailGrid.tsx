@@ -180,8 +180,6 @@ export function ThumbnailGrid({
       : 2;
   const pageSize = cols * rows;
 
-  const totalPages = Math.max(1, Math.ceil(entries.length / pageSize));
-
   const prevBtnRef = useRef<HTMLButtonElement>(null);
   const nextBtnRef = useRef<HTMLButtonElement>(null);
 
@@ -198,8 +196,17 @@ export function ThumbnailGrid({
     Math.min(topLeftIndex, entries.length > 0 ? entries.length - 1 : 0),
   );
   const pageStart = safeTopLeft;
-  const displayPage = pageSize > 0 ? Math.floor(safeTopLeft / pageSize) + 1 : 1;
   const pageEntries = entries.slice(pageStart, pageStart + pageSize);
+
+  const isAligned = safeTopLeft % pageSize === 0;
+  const displayPage = isAligned
+    ? safeTopLeft / pageSize + 1
+    : Math.floor(safeTopLeft / pageSize) + 2;
+  const totalPages = isAligned
+    ? Math.max(1, Math.ceil(entries.length / pageSize))
+    : Math.max(2, Math.ceil(entries.length / pageSize) + 1);
+  const hasPrev = safeTopLeft > 0;
+  const hasNext = safeTopLeft + pageSize < entries.length;
 
   // Track the top-left entry date for the internal calendar and external callback.
   useEffect(() => {
@@ -310,7 +317,11 @@ export function ThumbnailGrid({
           <Pagination
             currentPage={displayPage}
             totalPages={totalPages}
-            onPage={(n) => setTopLeftIndex((n - 1) * pageSize)}
+            onPage={(n) => setTopLeftIndex(Math.max(0, safeTopLeft + (n - displayPage) * pageSize))}
+            hasPrev={hasPrev}
+            hasNext={hasNext}
+            onPrev={() => setTopLeftIndex(Math.max(0, safeTopLeft - pageSize))}
+            onNext={() => setTopLeftIndex(safeTopLeft + pageSize)}
             prevRef={prevBtnRef}
             nextRef={nextBtnRef}
           />
