@@ -6,6 +6,8 @@ Working!
 
 ## TODO
 
+Consider: Search function - basic keywords etc.
+
 ## Bugs
 
 Vite 8 deprecation warnings in b-view build — esbuild plugin option deprecated → migrate to oxc; optimizeDeps.esbuildOptions deprecated → migrate to optimizeDeps.rolldownOptions. Vite 9 will break these.
