@@ -5,7 +5,7 @@
 // served by the Electron local HTTP server. journal.json is fetched from that URL.
 // This keeps all port/path details in the main process and out of the UI.
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import {
   ZoomOut,
   ZoomIn,
@@ -17,7 +17,7 @@ import {
   Home,
 } from 'lucide-react';
 import { ThumbnailGrid, EntryDetail, DatePicker, useJournal, useEntry } from '@b-oss/b-view';
-import type { EntryIndex } from '@b-oss/b-view';
+import type { BlipEntry, EntryIndex } from '@b-oss/b-view';
 import type { AccountConfig } from '../../backend.js';
 import { useApp } from '../../context/AppContext.js';
 import { BackupBanner } from '../BackupBanner.js';
@@ -115,6 +115,26 @@ export function HomeScreen({ account }: HomeScreenProps) {
     }
     prevBackingUpRef.current = isBackingUp;
   }, [isBackingUp]);
+
+  const entryCacheRef = useRef<Map<string, BlipEntry>>(new Map());
+  const viewerUrlRef = useRef(viewerUrl);
+  viewerUrlRef.current = viewerUrl;
+  useEffect(() => {
+    entryCacheRef.current.clear();
+  }, [viewerUrl]);
+
+  const resolveEntry = useCallback(async (jsonPath: string): Promise<BlipEntry> => {
+    const base = viewerUrlRef.current;
+    if (!base) throw new Error('No viewer URL');
+    const url = `${base}/${jsonPath}`;
+    const cached = entryCacheRef.current.get(url);
+    if (cached) return cached;
+    const res = await fetch(url);
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data = (await res.json()) as BlipEntry;
+    entryCacheRef.current.set(url, data);
+    return data;
+  }, []);
 
   const journalState = useJournal(
     viewerUrl ? `${viewerUrl}/journal.json` : undefined,
@@ -335,7 +355,7 @@ export function HomeScreen({ account }: HomeScreenProps) {
           flexDirection: 'column',
         }}
       >
-        {selectedEntryId !== null ? (
+        {selectedEntryId !== null && (
           <EntryDetail
             entryState={entryState}
             prevEntryId={prevEntryId}
@@ -345,7 +365,8 @@ export function HomeScreen({ account }: HomeScreenProps) {
             baseUrl={viewerUrl ?? undefined}
             entries={entries}
           />
-        ) : journalState.status === 'error' && isBackingUp ? (
+        )}
+        {journalState.status === 'error' && isBackingUp && selectedEntryId === null && (
           <div
             style={{
               flex: 1,
@@ -358,18 +379,31 @@ export function HomeScreen({ account }: HomeScreenProps) {
           >
             Backup in progress — entries will appear shortly
           </div>
-        ) : (
-          <ThumbnailGrid
-            key={gridResetKey}
-            entries={entries}
-            selectedEntryId={selectedEntryId}
-            onSelectEntry={(id) => dispatch({ type: 'entry:select', entryId: id })}
-            sizePercent={thumbnailSizePercent}
-            showInfoOverlay={state.store?.ui.showInfoOverlay ?? true}
-            baseUrl={viewerUrl ?? undefined}
-            jumpToEntryId={jumpToEntryId}
-            onTopLeftEntryDate={setTopLeftEntryDate}
-          />
+        )}
+        {/* Keep ThumbnailGrid mounted once journal is loaded so grid position and
+            search state survive the round-trip into EntryDetail and back. */}
+        {journalState.status === 'loaded' && (
+          <div
+            style={{
+              display: selectedEntryId === null ? 'flex' : 'none',
+              flex: 1,
+              overflow: 'hidden',
+              flexDirection: 'column',
+            }}
+          >
+            <ThumbnailGrid
+              key={gridResetKey}
+              entries={entries}
+              selectedEntryId={selectedEntryId}
+              onSelectEntry={(id) => dispatch({ type: 'entry:select', entryId: id })}
+              sizePercent={thumbnailSizePercent}
+              showInfoOverlay={state.store?.ui.showInfoOverlay ?? true}
+              baseUrl={viewerUrl ?? undefined}
+              jumpToEntryId={jumpToEntryId}
+              onTopLeftEntryDate={setTopLeftEntryDate}
+              resolveEntry={viewerUrl ? resolveEntry : undefined}
+            />
+          </div>
         )}
       </div>
 

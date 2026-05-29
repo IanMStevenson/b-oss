@@ -1,13 +1,14 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (C) 2026 Ian Stevenson
 
-import { useState } from 'react';
+import { useState, useCallback, useRef, useEffect } from 'react';
 import { Info, FolderOpen } from 'lucide-react';
 import { useJournal } from '../hooks/useJournal.js';
 import { useEntry } from '../hooks/useEntry.js';
-import { useFolderAccess } from '../hooks/useFolderAccess.js';
+import { useFolderAccess, getNestedFileHandle } from '../hooks/useFolderAccess.js';
 import { useFolderJournal } from '../hooks/useFolderJournal.js';
 import { useFolderEntry } from '../hooks/useFolderEntry.js';
+import type { BlipEntry } from '../types.js';
 import { ThumbnailGrid } from '../components/ThumbnailGrid.js';
 import { EntryDetail } from '../components/EntryDetail.js';
 import { InfoPopup } from '../components/InfoPopup.js';
@@ -156,6 +157,26 @@ function FolderApp({ embedded }: { embedded: boolean }) {
   }
 
   const { resolveAsset } = useFolderAccess(dirHandle);
+
+  const entryCacheRef = useRef<Map<string, BlipEntry>>(new Map());
+  const dirHandleRef = useRef(dirHandle);
+  dirHandleRef.current = dirHandle;
+  useEffect(() => {
+    entryCacheRef.current.clear();
+  }, [dirHandle]);
+
+  const resolveEntry = useCallback(async (jsonPath: string): Promise<BlipEntry> => {
+    const dir = dirHandleRef.current;
+    if (!dir) throw new Error('No folder selected');
+    const cached = entryCacheRef.current.get(jsonPath);
+    if (cached) return cached;
+    const fh = await getNestedFileHandle(dir, jsonPath);
+    const file = await fh.getFile();
+    const data = JSON.parse(await file.text()) as BlipEntry;
+    entryCacheRef.current.set(jsonPath, data);
+    return data;
+  }, []);
+
   const journal = useFolderJournal(dirHandle);
   const entryIndex = journal.status === 'loaded' ? journal.data.entries : [];
   const journalTitle = journal.status === 'loaded' ? journal.data.journal_title : '';
@@ -245,29 +266,41 @@ function FolderApp({ embedded }: { embedded: boolean }) {
           </div>
         )}
 
-        {journal.status === 'loaded' &&
-          (selectedEntryId === null ? (
-            <ThumbnailGrid
-              entries={entryIndex}
-              selectedEntryId={null}
-              onSelectEntry={setSelectedEntryId}
-              sizePercent={sizePercent}
-              onSizeChange={setSizePercent}
-              showInfoOverlay={showInfoOverlay}
-              onShowInfoOverlayChange={handleOverlayChange}
-              resolveAsset={resolveAsset}
-            />
-          ) : (
-            <EntryDetail
-              entryState={entry}
-              prevEntryId={prevEntry?.entry_id ?? null}
-              nextEntryId={nextEntry?.entry_id ?? null}
-              onNavigate={setSelectedEntryId}
-              onClose={() => setSelectedEntryId(null)}
-              resolveAsset={resolveAsset}
-              entries={entryIndex}
-            />
-          ))}
+        {journal.status === 'loaded' && (
+          <>
+            <div
+              style={{
+                display: selectedEntryId === null ? 'flex' : 'none',
+                flex: 1,
+                overflow: 'hidden',
+                flexDirection: 'column',
+              }}
+            >
+              <ThumbnailGrid
+                entries={entryIndex}
+                selectedEntryId={selectedEntryId}
+                onSelectEntry={setSelectedEntryId}
+                sizePercent={sizePercent}
+                onSizeChange={setSizePercent}
+                showInfoOverlay={showInfoOverlay}
+                onShowInfoOverlayChange={handleOverlayChange}
+                resolveAsset={resolveAsset}
+                resolveEntry={resolveEntry}
+              />
+            </div>
+            {selectedEntryId !== null && (
+              <EntryDetail
+                entryState={entry}
+                prevEntryId={prevEntry?.entry_id ?? null}
+                nextEntryId={nextEntry?.entry_id ?? null}
+                onNavigate={setSelectedEntryId}
+                onClose={() => setSelectedEntryId(null)}
+                resolveAsset={resolveAsset}
+                entries={entryIndex}
+              />
+            )}
+          </>
+        )}
       </main>
 
       <InfoPopup isOpen={infoOpen} onClose={() => setInfoOpen(false)} />
@@ -293,6 +326,26 @@ function HttpApp({ embedded }: { embedded: boolean }) {
   const journal = useJournal();
   const entryIndex = journal.status === 'loaded' ? journal.data.entries : [];
   const journalTitle = journal.status === 'loaded' ? journal.data.journal_title : '';
+
+  const entryCacheRef = useRef<Map<string, BlipEntry>>(new Map());
+  const lastBackupAtRef = useRef('');
+  useEffect(() => {
+    if (journal.status !== 'loaded') return;
+    if (journal.data.last_backup_at !== lastBackupAtRef.current) {
+      lastBackupAtRef.current = journal.data.last_backup_at;
+      entryCacheRef.current.clear();
+    }
+  }, [journal]);
+
+  const resolveEntry = useCallback(async (jsonPath: string): Promise<BlipEntry> => {
+    const cached = entryCacheRef.current.get(jsonPath);
+    if (cached) return cached;
+    const res = await fetch(jsonPath);
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data = (await res.json()) as BlipEntry;
+    entryCacheRef.current.set(jsonPath, data);
+    return data;
+  }, []);
 
   const selectedIndex = entryIndex.findIndex((e) => e.entry_id === selectedEntryId);
   const prevEntry =
@@ -351,27 +404,39 @@ function HttpApp({ embedded }: { embedded: boolean }) {
           </div>
         )}
 
-        {journal.status === 'loaded' &&
-          (selectedEntryId === null ? (
-            <ThumbnailGrid
-              entries={entryIndex}
-              selectedEntryId={null}
-              onSelectEntry={setSelectedEntryId}
-              sizePercent={sizePercent}
-              onSizeChange={setSizePercent}
-              showInfoOverlay={showInfoOverlay}
-              onShowInfoOverlayChange={handleOverlayChange}
-            />
-          ) : (
-            <EntryDetail
-              entryState={entry}
-              prevEntryId={prevEntry?.entry_id ?? null}
-              nextEntryId={nextEntry?.entry_id ?? null}
-              onNavigate={setSelectedEntryId}
-              onClose={() => setSelectedEntryId(null)}
-              entries={entryIndex}
-            />
-          ))}
+        {journal.status === 'loaded' && (
+          <>
+            <div
+              style={{
+                display: selectedEntryId === null ? 'flex' : 'none',
+                flex: 1,
+                overflow: 'hidden',
+                flexDirection: 'column',
+              }}
+            >
+              <ThumbnailGrid
+                entries={entryIndex}
+                selectedEntryId={selectedEntryId}
+                onSelectEntry={setSelectedEntryId}
+                sizePercent={sizePercent}
+                onSizeChange={setSizePercent}
+                showInfoOverlay={showInfoOverlay}
+                onShowInfoOverlayChange={handleOverlayChange}
+                resolveEntry={resolveEntry}
+              />
+            </div>
+            {selectedEntryId !== null && (
+              <EntryDetail
+                entryState={entry}
+                prevEntryId={prevEntry?.entry_id ?? null}
+                nextEntryId={nextEntry?.entry_id ?? null}
+                onNavigate={setSelectedEntryId}
+                onClose={() => setSelectedEntryId(null)}
+                entries={entryIndex}
+              />
+            )}
+          </>
+        )}
       </main>
 
       <InfoPopup isOpen={infoOpen} onClose={() => setInfoOpen(false)} />
