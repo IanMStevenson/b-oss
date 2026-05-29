@@ -258,6 +258,7 @@ export function ThumbnailGrid({
     <div ref={containerRef} className={styles.container} style={{ overflow }}>
       {(onSizeChange || resolveEntry) && (
         <div className={styles.controls}>
+          <div style={{ flex: 1 }} />
           {resolveEntry && (
             <div className={styles.searchBox}>
               <Search size={13} strokeWidth={1.6} className={styles.searchIcon} />
