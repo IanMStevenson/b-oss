@@ -23,6 +23,7 @@
         <nav class="nav" aria-label="Primary">
           <a href="index.html" class="active">Home</a>
           <a href="b-ark.html">b-ark</a>
+          <a href="b-api.html">b-api</a>
           <a href="contact.html">Contact</a>
         </nav>
       </div>
@@ -58,85 +59,39 @@
           <div class="app-card-head">
             <img src="assets/b-oss-icon.png" alt="" />
             <div>
-              <h2>b-ark</h2>
-              <div class="tagline">Archive your blips on your own device — for Windows.</div>
+              <h2>b-ark : Backup & Archive</h2>
+              <div class="tagline">Archive your blips on your own device (Windows).</div>
             </div>
           </div>
           <p class="summary">
-            b-ark keeps a local copy of every blip you've ever posted — images, text and metadata —
-            on your own machine. Browse them offline, publish them straight to the web, or hand them
-            to AI tools to do something new with your archive.
+            b-ark makes a local copy of every blip you've ever posted (images, text and metadata) on
+            your own machine, automatically keeping it up to date. Browse offline, publish to the
+            web, or hand over to AI tools to explore and create new formats.
           </p>
           <ul class="feature-list">
             <li>
-              <span class="tick" aria-hidden="true">
-                <svg width="10" height="10" viewBox="0 0 10 10">
-                  <path
-                    d="M1.5 5.2 4 7.7l4.5-5"
-                    stroke="currentColor"
-                    stroke-width="1.6"
-                    fill="none"
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                  ></path>
-                </svg>
-              </span>
+              <span class="tick" aria-hidden="true"></span>
               <span
-                ><strong>Back up.</strong> A local copy of every image, every word, every
-                blip.</span
+                ><strong>Backup.</strong> A local copy of every blip, updated automatically.</span
               >
             </li>
             <li>
-              <span class="tick" aria-hidden="true">
-                <svg width="10" height="10" viewBox="0 0 10 10">
-                  <path
-                    d="M1.5 5.2 4 7.7l4.5-5"
-                    stroke="currentColor"
-                    stroke-width="1.6"
-                    fill="none"
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                  ></path>
-                </svg>
-              </span>
+              <span class="tick" aria-hidden="true"></span>
               <span
                 ><strong>View.</strong> Browse your archive offline in the built-in viewer.</span
               >
             </li>
             <li>
-              <span class="tick" aria-hidden="true">
-                <svg width="10" height="10" viewBox="0 0 10 10">
-                  <path
-                    d="M1.5 5.2 4 7.7l4.5-5"
-                    stroke="currentColor"
-                    stroke-width="1.6"
-                    fill="none"
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                  ></path>
-                </svg>
-              </span>
+              <span class="tick" aria-hidden="true"></span>
               <span
-                ><strong>Publish.</strong> Drop the backup folder on a web host — that's your
-                site.</span
-              >
+                ><strong>Publish.</strong> Copy the backup folder to any web host to publish.
+              </span>
             </li>
             <li>
-              <span class="tick" aria-hidden="true">
-                <svg width="10" height="10" viewBox="0 0 10 10">
-                  <path
-                    d="M1.5 5.2 4 7.7l4.5-5"
-                    stroke="currentColor"
-                    stroke-width="1.6"
-                    fill="none"
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                  ></path>
-                </svg>
-              </span>
+              <span class="tick" aria-hidden="true"></span>
               <span
-                ><strong>AI-ready.</strong> Each backup ships with a README so AI tools can read
-                your data — build photobooks, slideshows, statistics, custom sites.</span
+                ><strong>AI-ready.</strong> README.md for AI tools: Use AI to build photobooks,
+                slideshows, statistics, custom sites.</span
               >
             </li>
           </ul>
@@ -152,12 +107,68 @@
           />
         </div>
       </section>
+
+      <section class="app-card" data-screen-label="App: b-api">
+        <div class="app-card-meta">
+          <div class="app-card-head">
+            <img src="assets/b-oss-icon.png" alt="" />
+            <div>
+              <h2>b-api</h2>
+              <div class="tagline">TypeScript client for the Blipfoto v4 REST API.</div>
+            </div>
+          </div>
+          <p class="summary">
+            b-api is the HTTP client that b-ark is built on. It covers the full Blipfoto v4 REST API
+            and it works in browsers, Node.js 18+, and Electron alike. Clone the b-oss repository
+            and import b-api directly into your TypeScript project.
+          </p>
+          <ul class="feature-list">
+            <li>
+              <span class="tick" aria-hidden="true"></span>
+              <span
+                ><strong>TypeScript.</strong> Full types for every request, response, and error. No
+                guessing.</span
+              >
+            </li>
+            <li>
+              <span class="tick" aria-hidden="true"></span>
+              <span
+                ><strong>Universal.</strong> No Node or Electron dependency. Works in browsers,
+                Node.js 18+ and Electron.</span
+              >
+            </li>
+            <li>
+              <span class="tick" aria-hidden="true"></span>
+              <span
+                ><strong>Complete.</strong> Journals, entries, CRUD, comments, social, OAuth,
+                notifications, user settings.</span
+              >
+            </li>
+            <li>
+              <span class="tick" aria-hidden="true"></span>
+              <span
+                ><strong>Error-safe.</strong> Typed <code>BlipfotoError</code> and
+                <code>NetworkError</code> with helpers for rate limits and token expiry.</span
+              >
+            </li>
+          </ul>
+          <div class="btn-row">
+            <a class="btn primary" href="b-api.html">Learn more →</a>
+          </div>
+        </div>
+        <div class="shot" aria-label="b-ark screenshot">
+          <img
+            src="assets/b-api-screenshot.png"
+            alt="The b-ark app showing an account with archived photos."
+          />
+        </div>
+      </section>
     </main>
 
     <footer class="footer">
       <div class="page footer-inner">
-        <div>© b-oss</div>
-        <div><a href="contact.html">Contact</a> · <a href="b-ark.html">b-ark</a></div>
+        <div>&copy; b-oss : blipfoto open source software</div>
+        <div><a href="contact.html">Contact</a></div>
       </div>
     </footer>
   </body>

@@ -1,127 +1,162 @@
 <!doctype html>
 <html lang="en">
-<head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>b-ark · b-oss</title>
-  <meta name="description" content="Archive your blips on your own device. b-ark is a Windows app from b-oss." />
-  <link rel="icon" href="assets/favicon.ico" sizes="any">
-  <link rel="icon" type="image/png" sizes="32x32" href="assets/favicon-32.png">
-  <link rel="icon" type="image/png" sizes="16x16" href="assets/favicon-16.png">
-  <link rel="apple-touch-icon" sizes="180x180" href="assets/apple-touch-icon.png">
-  <link rel="manifest" href="assets/site.webmanifest">
-  <meta name="theme-color" content="#1f4d3a">
-  <link rel="stylesheet" href="site.css" />
-</head>
-<body>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>b-ark · b-oss</title>
+    <meta
+      name="description"
+      content="Archive your blips on your own device. b-ark is a Windows app from b-oss."
+    />
+    <link rel="icon" href="assets/favicon.ico" sizes="any" />
+    <link rel="icon" type="image/png" sizes="32x32" href="assets/favicon-32.png" />
+    <link rel="icon" type="image/png" sizes="16x16" href="assets/favicon-16.png" />
+    <link rel="apple-touch-icon" sizes="180x180" href="assets/apple-touch-icon.png" />
+    <link rel="manifest" href="assets/site.webmanifest" />
+    <meta name="theme-color" content="#1f4d3a" />
+    <link rel="stylesheet" href="site.css" />
+  </head>
+  <body>
+    <header class="topbar">
+      <div class="topbar-inner">
+        <a class="brand" href="index.html">b-oss</a>
+        <nav class="nav" aria-label="Primary">
+          <a href="index.html">Home</a>
+          <a href="b-ark.html" class="active">b-ark</a>
+          <a href="b-api.html">b-api</a>
+          <a href="contact.html">Contact</a>
+        </nav>
+      </div>
+    </header>
 
-  <header class="topbar">
-    <div class="topbar-inner">
-      <a class="brand" href="index.html">b-oss</a>
-      <nav class="nav" aria-label="Primary">
-        <a href="index.html">Home</a>
-        <a href="b-ark.html" class="active">b-ark</a>
-        <a href="contact.html">Contact</a>
-      </nav>
-    </div>
-  </header>
+    <main class="page">
+      <section class="hero" data-screen-label="b-ark hero">
+        <img class="hero-icon" src="assets/b-oss-icon-large.png" alt="b-ark" />
+        <h1>b-ark</h1>
+        <p class="lead">Archive your blips on your own device (Windows).</p>
+      </section>
 
-  <main class="page">
+      <section class="block" data-screen-label="Introduction">
+        <p class="section-eyebrow">Introduction</p>
+        <div class="prose" style="margin-top: 18px">
+          <p>
+            b-ark makes a local copy of every blip you've ever posted (images, text and metadata) on
+            your own machine, automatically keeping it up to date. Browse offline, publish to the
+            web, or hand over to AI tools to explore and create new formats.
+          </p>
+        </div>
 
-    <section class="hero" data-screen-label="b-ark hero">
-      <img class="hero-icon" src="assets/b-oss-icon-large.png" alt="b-ark" />
-      <h1>b-ark</h1>
-      <p class="lead">
-        Archive your blips on your own device &mdash; for Windows.
-      </p>
-    </section>
+        <ul class="feature-list" style="margin-top: 28px; max-width: 720px">
+          <li>
+            <span class="tick" aria-hidden="true"></span>
+            <span><strong>Backup.</strong> A local copy of every blip, updated automatically.</span>
+          </li>
+          <li>
+            <span class="tick" aria-hidden="true"></span>
+            <span><strong>View.</strong> Browse your archive offline in the built-in viewer.</span>
+          </li>
+          <li>
+            <span class="tick" aria-hidden="true"></span>
+            <span
+              ><strong>Publish.</strong> Copy the backup folder to any web host to publish.</span
+            >
+          </li>
+          <li>
+            <span class="tick" aria-hidden="true"></span>
+            <span
+              ><strong>AI-ready.</strong>README.md for AI tools: Use AI to build photobooks,
+              slideshows, statistics, custom sites.</span
+            >
+          </li>
+        </ul>
+      </section>
 
-    <section class="block" data-screen-label="Introduction">
-      <p class="section-eyebrow">Introduction</p>
-      <div class="prose" style="margin-top: 18px;">
-        <p>
-          b-ark keeps a local copy of every blip you've ever posted &mdash; images, text
-          and metadata &mdash; on your own machine. Browse them offline, publish them
-          straight to the web, or hand them to AI tools to do something new with your archive.
-        </p>
+      <div style="max-width: 520px; margin: 0 auto 48px">
+        <div class="shot">
+          <img
+            src="assets/b-ark-screenshot.png"
+            alt="The b-ark app showing an account with archived photos."
+          />
+        </div>
       </div>
 
-      <ul class="feature-list" style="margin-top: 28px; max-width: 720px;">
-        <li>
-          <span class="tick" aria-hidden="true">
-            <svg width="10" height="10" viewBox="0 0 10 10"><path d="M1.5 5.2 4 7.7l4.5-5" stroke="currentColor" stroke-width="1.6" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>
-          </span>
-          <span><strong>Back up.</strong> A local copy of every image, every word, every blip.</span>
-        </li>
-        <li>
-          <span class="tick" aria-hidden="true">
-            <svg width="10" height="10" viewBox="0 0 10 10"><path d="M1.5 5.2 4 7.7l4.5-5" stroke="currentColor" stroke-width="1.6" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>
-          </span>
-          <span><strong>View.</strong> Browse your archive offline in the built-in viewer.</span>
-        </li>
-        <li>
-          <span class="tick" aria-hidden="true">
-            <svg width="10" height="10" viewBox="0 0 10 10"><path d="M1.5 5.2 4 7.7l4.5-5" stroke="currentColor" stroke-width="1.6" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>
-          </span>
-          <span><strong>Publish.</strong> Drop the backup folder on a web host &mdash; that's your site.</span>
-        </li>
-        <li>
-          <span class="tick" aria-hidden="true">
-            <svg width="10" height="10" viewBox="0 0 10 10"><path d="M1.5 5.2 4 7.7l4.5-5" stroke="currentColor" stroke-width="1.6" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>
-          </span>
-          <span><strong>AI-ready.</strong> Each backup ships with a <code>README.md</code> so AI tools can read your data &mdash; build photobooks, slideshows, statistics, custom sites.</span>
-        </li>
-      </ul>
-    </section>
+      <section class="block" id="download" data-screen-label="Three big links">
+        <p class="section-eyebrow">Get b-ark</p>
+        <div class="tri-links">
+          <a
+            class="tri-link"
+            href="https://github.com/IanMStevenson/b-oss/releases/latest"
+            data-link="download-latest"
+          >
+            <span class="ico" aria-hidden="true">
+              <svg width="32" height="32" viewBox="0 0 32 32" fill="none">
+                <path
+                  d="M16 4v17m0 0-6-6m6 6 6-6"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                />
+                <path
+                  d="M5 24v2a2 2 0 0 0 2 2h18a2 2 0 0 0 2-2v-2"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                />
+              </svg>
+            </span>
+            <h3>Download</h3>
+            <p>Latest release for Windows.</p>
+          </a>
 
-    <section class="block" id="download" data-screen-label="Three big links">
-      <p class="section-eyebrow">Get b-ark</p>
-      <div class="tri-links">
+          <a class="tri-link" href="b-ark-guide.html" data-link="user-guide">
+            <span class="ico" aria-hidden="true">
+              <svg width="32" height="32" viewBox="0 0 32 32" fill="none">
+                <path
+                  d="M6 5h12a4 4 0 0 1 4 4v18l-5-3-5 3-5-3-5 3V7a2 2 0 0 1 2-2Z"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linejoin="round"
+                />
+                <path
+                  d="M10 11h10M10 16h10M10 21h6"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                />
+              </svg>
+            </span>
+            <h3>User Guide</h3>
+            <p>Setup, scheduling, restoring: everything you'll need.</p>
+          </a>
 
-        <a class="tri-link" href="https://github.com/IanMStevenson/b-oss/releases/latest" data-link="download-latest">
-          <span class="ico" aria-hidden="true">
-            <svg width="32" height="32" viewBox="0 0 32 32" fill="none">
-              <path d="M16 4v17m0 0-6-6m6 6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-              <path d="M5 24v2a2 2 0 0 0 2 2h18a2 2 0 0 0 2-2v-2" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-            </svg>
-          </span>
-          <h3>Download</h3>
-          <p>Latest release for Windows.</p>
-        </a>
+          <a class="tri-link" href="https://github.com/IanMStevenson/b-oss" data-link="open-source">
+            <span class="ico" aria-hidden="true">
+              <svg width="32" height="32" viewBox="0 0 32 32" fill="none">
+                <path
+                  d="M16 3a13 13 0 0 0-4.1 25.3c.65.12.89-.28.89-.63 0-.31-.01-1.13-.02-2.22-3.62.79-4.39-1.74-4.39-1.74-.59-1.51-1.45-1.91-1.45-1.91-1.18-.81.09-.8.09-.8 1.31.09 2 1.34 2 1.34 1.16 1.99 3.05 1.42 3.79 1.08.12-.84.45-1.42.83-1.74-2.89-.33-5.93-1.45-5.93-6.43 0-1.42.5-2.58 1.34-3.49-.13-.33-.58-1.66.13-3.45 0 0 1.09-.35 3.58 1.33a12.4 12.4 0 0 1 6.52 0c2.49-1.68 3.58-1.33 3.58-1.33.71 1.79.26 3.12.13 3.45.83.91 1.34 2.07 1.34 3.49 0 4.99-3.05 6.09-5.95 6.41.47.4.88 1.19.88 2.4 0 1.73-.02 3.13-.02 3.55 0 .35.24.76.9.63A13 13 0 0 0 16 3Z"
+                  fill="currentColor"
+                />
+              </svg>
+            </span>
+            <h3>Open Source</h3>
+            <p>Read the code on GitHub. Issues and pull requests welcome.</p>
+          </a>
+        </div>
+      </section>
 
-        <a class="tri-link" href="b-ark-guide.html" data-link="user-guide">
-          <span class="ico" aria-hidden="true">
-            <svg width="32" height="32" viewBox="0 0 32 32" fill="none">
-              <path d="M6 5h12a4 4 0 0 1 4 4v18l-5-3-5 3-5-3-5 3V7a2 2 0 0 1 2-2Z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
-              <path d="M10 11h10M10 16h10M10 21h6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-            </svg>
-          </span>
-          <h3>User Guide</h3>
-          <p>Setup, scheduling, restoring &mdash; everything you'll need.</p>
-        </a>
-
-        <a class="tri-link" href="https://github.com/IanMStevenson/b-oss" data-link="open-source">
-          <span class="ico" aria-hidden="true">
-            <svg width="32" height="32" viewBox="0 0 32 32" fill="none">
-              <path d="M16 3a13 13 0 0 0-4.1 25.3c.65.12.89-.28.89-.63 0-.31-.01-1.13-.02-2.22-3.62.79-4.39-1.74-4.39-1.74-.59-1.51-1.45-1.91-1.45-1.91-1.18-.81.09-.8.09-.8 1.31.09 2 1.34 2 1.34 1.16 1.99 3.05 1.42 3.79 1.08.12-.84.45-1.42.83-1.74-2.89-.33-5.93-1.45-5.93-6.43 0-1.42.5-2.58 1.34-3.49-.13-.33-.58-1.66.13-3.45 0 0 1.09-.35 3.58 1.33a12.4 12.4 0 0 1 6.52 0c2.49-1.68 3.58-1.33 3.58-1.33.71 1.79.26 3.12.13 3.45.83.91 1.34 2.07 1.34 3.49 0 4.99-3.05 6.09-5.95 6.41.47.4.88 1.19.88 2.4 0 1.73-.02 3.13-.02 3.55 0 .35.24.76.9.63A13 13 0 0 0 16 3Z" fill="currentColor"/>
-            </svg>
-          </span>
-          <h3>Open Source</h3>
-          <p>Read the code on GitHub. Issues and pull requests welcome.</p>
-        </a>
-
+      <div class="cta-band">
+        <p>Contact us with feedback, suggestions and bugs.</p>
+        <a class="btn primary" href="contact.html">Get in touch</a>
       </div>
+    </main>
 
-    </section>
-
-  </main>
-
-  <footer class="footer">
-    <div class="page footer-inner">
-      <div>&copy; b-oss</div>
-      <div><a href="index.html">Home</a> · <a href="contact.html">Contact</a></div>
-    </div>
-  </footer>
-
-</body>
+    <footer class="footer">
+      <div class="page footer-inner">
+        <div>&copy; b-oss : blipfoto open source software</div>
+        <div><a href="contact.html">Contact</a></div>
+      </div>
+    </footer>
+  </body>
 </html>
