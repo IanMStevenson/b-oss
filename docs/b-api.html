@@ -1,0 +1,148 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>b-api · b-oss</title>
+    <meta
+      name="description"
+      content="TypeScript client for the Blipfoto v4 REST API. Part of the b-oss open source project."
+    />
+    <link rel="icon" href="assets/favicon.ico" sizes="any" />
+    <link rel="icon" type="image/png" sizes="32x32" href="assets/favicon-32.png" />
+    <link rel="icon" type="image/png" sizes="16x16" href="assets/favicon-16.png" />
+    <link rel="apple-touch-icon" sizes="180x180" href="assets/apple-touch-icon.png" />
+    <link rel="manifest" href="assets/site.webmanifest" />
+    <meta name="theme-color" content="#1f4d3a" />
+    <link rel="stylesheet" href="site.css" />
+  </head>
+  <body>
+    <header class="topbar">
+      <div class="topbar-inner">
+        <a class="brand" href="index.html">b-oss</a>
+        <nav class="nav" aria-label="Primary">
+          <a href="index.html">Home</a>
+          <a href="b-ark.html">b-ark</a>
+          <a href="b-api.html" class="active">b-api</a>
+          <a href="contact.html">Contact</a>
+        </nav>
+      </div>
+    </header>
+
+    <main class="page">
+      <section class="hero" data-screen-label="b-api hero">
+        <img class="hero-icon" src="assets/b-oss-icon-large.png" alt="b-api" />
+        <h1>b-api</h1>
+        <p class="lead">TypeScript client for the Blipfoto v4 REST API.</p>
+      </section>
+
+      <section class="block" data-screen-label="Introduction">
+        <p class="section-eyebrow">Introduction</p>
+        <div class="prose" style="margin-top: 18px">
+          <p>
+            b-api is the HTTP client that b-ark is built on. It covers the full Blipfoto v4 REST
+            API: reading and writing journal entries, comments, social features, OAuth
+            authentication, user settings, and notifications. No Node or Electron dependency, so it
+            works in browsers, Node.js 18+, and Electron main and renderer processes alike.
+          </p>
+          <p>
+            b-api is part of the b-oss monorepo. Clone the repository and import it directly into
+            your TypeScript project.
+          </p>
+        </div>
+
+        <ul class="feature-list" style="margin-top: 28px; max-width: 720px">
+          <li>
+            <span class="tick" aria-hidden="true"></span>
+            <span
+              ><strong>TypeScript.</strong> Full types for every request, response, and error. No
+              guessing.</span
+            >
+          </li>
+          <li>
+            <span class="tick" aria-hidden="true"></span>
+            <span
+              ><strong>Universal.</strong> No Node or Electron dependency. Works in browsers,
+              Node.js 18+ and Electron.</span
+            >
+          </li>
+          <li>
+            <span class="tick" aria-hidden="true"></span>
+            <span
+              ><strong>Complete.</strong> Journals, entries, CRUD, comments, social, OAuth,
+              notifications, user settings.</span
+            >
+          </li>
+          <li>
+            <span class="tick" aria-hidden="true"></span>
+            <span
+              ><strong>Error-safe.</strong> Typed <code>BlipfotoError</code> and
+              <code>NetworkError</code> with helpers for rate limits and token expiry.</span
+            >
+          </li>
+        </ul>
+      </section>
+
+      <div style="max-width: 520px; margin: 0 auto 48px">
+        <div class="shot">
+          <img src="assets/b-api-screenshot.png" alt="The b-api sample code." />
+        </div>
+      </div>
+
+      <section class="block" data-screen-label="Get b-api">
+        <p class="section-eyebrow">Get b-api</p>
+        <div class="tri-links">
+          <a class="tri-link" href="https://github.com/IanMStevenson/b-oss" data-link="open-source">
+            <span class="ico" aria-hidden="true">
+              <svg width="32" height="32" viewBox="0 0 32 32" fill="none">
+                <path
+                  d="M16 3a13 13 0 0 0-4.1 25.3c.65.12.89-.28.89-.63 0-.31-.01-1.13-.02-2.22-3.62.79-4.39-1.74-4.39-1.74-.59-1.51-1.45-1.91-1.45-1.91-1.18-.81.09-.8.09-.8 1.31.09 2 1.34 2 1.34 1.16 1.99 3.05 1.42 3.79 1.08.12-.84.45-1.42.83-1.74-2.89-.33-5.93-1.45-5.93-6.43 0-1.42.5-2.58 1.34-3.49-.13-.33-.58-1.66.13-3.45 0 0 1.09-.35 3.58 1.33a12.4 12.4 0 0 1 6.52 0c2.49-1.68 3.58-1.33 3.58-1.33.71 1.79.26 3.12.13 3.45.83.91 1.34 2.07 1.34 3.49 0 4.99-3.05 6.09-5.95 6.41.47.4.88 1.19.88 2.4 0 1.73-.02 3.13-.02 3.55 0 .35.24.76.9.63A13 13 0 0 0 16 3Z"
+                  fill="currentColor"
+                />
+              </svg>
+            </span>
+            <h3>Open Source</h3>
+            <p>Read the code, open issues, or submit a pull request.</p>
+          </a>
+
+          <a
+            class="tri-link"
+            href="https://www.blipfoto.com/developer/api"
+            data-link="api-reference"
+          >
+            <span class="ico" aria-hidden="true">
+              <svg width="32" height="32" viewBox="0 0 32 32" fill="none">
+                <path
+                  d="M6 5h12a4 4 0 0 1 4 4v18l-5-3-5 3-5-3-5 3V7a2 2 0 0 1 2-2Z"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linejoin="round"
+                />
+                <path
+                  d="M10 11h10M10 16h10M10 21h6"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                />
+              </svg>
+            </span>
+            <h3>API Reference</h3>
+            <p>Official Blipfoto v4 REST API reference.</p>
+          </a>
+        </div>
+      </section>
+
+      <div class="cta-band">
+        <p>Contact us with feedback, suggestions and bugs.</p>
+        <a class="btn primary" href="contact.html">Get in touch</a>
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="page footer-inner">
+        <div>&copy; b-oss : blipfoto open source software</div>
+        <div><a href="contact.html">Contact</a></div>
+      </div>
+    </footer>
+  </body>
+</html>

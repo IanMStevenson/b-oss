@@ -8,7 +8,7 @@ import {
   type BlipComment as ApiBlipComment,
   type BlipEntryStub,
   type EntryResponse,
-} from '@b-oss/blipfoto-api';
+} from '@b-oss/b-api';
 import { BackupAbortedError } from './errors.js';
 import { CheckpointManager } from './checkpoint.js';
 import { JournalIndex, cacheAvatarIfMissing } from './journal-index.js';

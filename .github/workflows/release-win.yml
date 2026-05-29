@@ -20,7 +20,7 @@ jobs:
       - run: npm ci
       - name: Audit production dependencies
         run: npm audit --omit=dev --audit-level=high
-      - run: npm run build --workspace=packages/blipfoto-api
+      - run: npm run build --workspace=packages/b-api
       - run: npm run build --workspace=packages/backup-engine
       - run: npm run build --workspace=packages/b-view
       - run: npm run build --workspace=packages/b-ark-ui

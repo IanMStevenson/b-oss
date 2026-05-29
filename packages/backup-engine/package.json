@@ -11,7 +11,7 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@b-oss/blipfoto-api": "*"
+    "@b-oss/b-api": "*"
   },
   "devDependencies": {
     "vitest": "^4.1.0"
