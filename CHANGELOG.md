@@ -5,6 +5,23 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [0.9.0] - 2026-05-29
+
+### Added
+
+- RAG (red / amber / green) status indicator on the system tray icon — at-a-glance health
+  without opening the app
+- Windows toast notifications for failed backups
+- Full-text search across journal entries
+- b-api: complete TypeScript client for the Blipfoto v4 REST API, usable independently of
+  b-ark in any browser or Node.js 18+ project
+
+### Changed
+
+- UI layout restructured for cleaner proportions, better resizing behaviour, and improved
+  back-button navigation
+- System tray icons refined
+
 ## [0.3.0] - 2026-05-28
 
 ### Added

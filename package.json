@@ -1,7 +1,7 @@
 {
   "name": "b-oss",
   "private": true,
-  "version": "0.3.0",
+  "version": "0.9.0",
   "description": "Blipfoto Open Source Software — tools for backing up Blipfoto journals",
   "workspaces": [
     "packages/*"
