@@ -10,7 +10,7 @@ import {
   ZoomOut,
   ZoomIn,
   RotateCcw,
-  LayoutGrid,
+  ExternalLink,
   FileText,
   Settings,
   CloudDownload,
@@ -293,7 +293,7 @@ export function HomeScreen({ account }: HomeScreenProps) {
           </div>
 
           <IconBtn label="Open in browser" onClick={() => void backend.openViewer(account.id)}>
-            <LayoutGrid size={15} strokeWidth={1.6} />
+            <ExternalLink size={15} strokeWidth={1.6} />
           </IconBtn>
 
           <IconBtn label="View log" onClick={() => dispatch({ type: 'panel:open', panel: 'log' })}>
