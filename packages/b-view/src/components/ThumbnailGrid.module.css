@@ -140,3 +140,76 @@
   overflow: hidden;
   text-overflow: ellipsis;
 }
+
+.searchBox {
+  display: flex;
+  align-items: center;
+  background: white;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 2px 6px 2px 8px;
+  gap: 4px;
+  width: 180px;
+  flex-shrink: 0;
+  height: 28px;
+}
+
+.searchIcon {
+  color: var(--muted-2);
+  flex-shrink: 0;
+}
+
+.searchInput {
+  border: none;
+  outline: none;
+  background: transparent;
+  font-size: 13px;
+  color: var(--ink);
+  flex: 1;
+  min-width: 0;
+  /* remove native search cancel button */
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+.searchInput::placeholder {
+  color: var(--muted-2);
+}
+
+.searchInput::-webkit-search-cancel-button {
+  display: none;
+}
+
+.searchClear {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  color: var(--muted);
+  flex-shrink: 0;
+  padding: 0;
+}
+
+.searchClear:hover {
+  background: var(--line-2);
+  color: var(--ink-2);
+}
+
+.searchProgress {
+  font-size: 12px;
+  color: var(--muted);
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.searchEmpty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 48px 24px;
+  color: var(--muted);
+  font-size: 14px;
+  text-align: center;
+}

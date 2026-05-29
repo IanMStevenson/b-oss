@@ -1,10 +1,11 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (C) 2026 Ian Stevenson
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useDeferredValue } from 'react';
 import type { RefObject } from 'react';
-import { ZoomIn, ZoomOut, RotateCcw, Image, Home, Eye, EyeOff } from 'lucide-react';
-import type { EntryIndex } from '../types.js';
+import { ZoomIn, ZoomOut, RotateCcw, Image, Home, Eye, EyeOff, Search, X } from 'lucide-react';
+import type { BlipEntry, EntryIndex } from '../types.js';
+import { useSearchEntries } from '../hooks/useSearchEntries.js';
 import { DatePicker } from './DatePicker.js';
 import { Pagination } from './Pagination.js';
 import styles from './ThumbnailGrid.module.css';
@@ -75,6 +76,7 @@ interface ThumbnailGridProps {
   resolveAsset?: ResolveAsset;
   jumpToEntryId?: string | null;
   onTopLeftEntryDate?: (date: string | null) => void;
+  resolveEntry?: (jsonPath: string) => Promise<BlipEntry>;
 }
 
 function ThumbnailItem({
@@ -159,11 +161,29 @@ export function ThumbnailGrid({
   resolveAsset,
   jumpToEntryId,
   onTopLeftEntryDate,
+  resolveEntry,
 }: ThumbnailGridProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const { width, height } = useContainerSize(containerRef);
   const [topLeftIndex, setTopLeftIndex] = useState(0);
   const [topLeftDate, setTopLeftDate] = useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = useState('');
+  // Defer the query used for search so the input updates immediately while
+  // the mode switch (to flat search results) happens on a lower-priority render.
+  const deferredSearchQuery = useDeferredValue(searchQuery);
+
+  // Stable no-op fallback so useSearchEntries can always be called unconditionally
+  const noopResolve = useRef<(jsonPath: string) => Promise<BlipEntry>>(() =>
+    Promise.reject(new Error('no resolveEntry')),
+  );
+  const {
+    results: searchResults,
+    status: searchStatus,
+    progress: searchProgress,
+  } = useSearchEntries(deferredSearchQuery, entries, resolveEntry ?? noopResolve.current);
+
+  const isSearchActive = resolveEntry != null && deferredSearchQuery.trim() !== '';
+  const displayEntries = isSearchActive ? searchResults : entries;
 
   const tileSize = Math.round(BASE_TILE_PX * (sizePercent / 100));
   const gap = Math.round(tileSize * 0.2);
@@ -196,7 +216,9 @@ export function ThumbnailGrid({
     Math.min(topLeftIndex, entries.length > 0 ? entries.length - 1 : 0),
   );
   const pageStart = safeTopLeft;
-  const pageEntries = entries.slice(pageStart, pageStart + pageSize);
+  const pageEntries = isSearchActive
+    ? displayEntries
+    : entries.slice(pageStart, pageStart + pageSize);
 
   const isAligned = safeTopLeft % pageSize === 0;
   const displayPage = isAligned
@@ -210,10 +232,11 @@ export function ThumbnailGrid({
 
   // Track the top-left entry date for the internal calendar and external callback.
   useEffect(() => {
+    if (isSearchActive) return;
     const date = entries[pageStart]?.date ?? null;
     setTopLeftDate(date);
     onTopLeftEntryDate?.(date);
-  }, [pageStart, entries, onTopLeftEntryDate]);
+  }, [isSearchActive, pageStart, entries, onTopLeftEntryDate]);
 
   // Jump to the entry at topLeftIndex when jumpToEntryId changes.
   const lastJumpRef = useRef<string | null>(null);
@@ -233,49 +256,83 @@ export function ThumbnailGrid({
 
   return (
     <div ref={containerRef} className={styles.container} style={{ overflow }}>
-      {onSizeChange && (
+      {(onSizeChange || resolveEntry) && (
         <div className={styles.controls}>
-          <button
-            className={styles.iconBtn}
-            onClick={() => setTopLeftIndex(0)}
-            aria-label="First page"
-          >
-            <Home size={14} strokeWidth={1.6} />
-          </button>
-          {entries.length > 0 && (
-            <DatePicker
-              entries={entries}
-              currentDate={topLeftDate}
-              onNavigate={(entryId) => {
-                const idx = entries.findIndex((e) => e.entry_id === entryId);
-                if (idx >= 0) setTopLeftIndex(idx);
-              }}
-            />
+          <div style={{ flex: 1 }} />
+          {resolveEntry && (
+            <div className={styles.searchBox}>
+              <Search size={13} strokeWidth={1.6} className={styles.searchIcon} />
+              <input
+                type="search"
+                className={styles.searchInput}
+                placeholder="Search entries…"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                aria-label="Search entries"
+              />
+              {searchQuery && (
+                <button
+                  className={styles.searchClear}
+                  onClick={() => setSearchQuery('')}
+                  aria-label="Clear search"
+                >
+                  <X size={12} strokeWidth={2} />
+                </button>
+              )}
+            </div>
           )}
-          <div className={styles.zoomGroup}>
-            <button
-              className={styles.iconBtn}
-              onClick={() => onSizeChange(Math.max(30, sizePercent - 10))}
-              aria-label="Zoom out"
-            >
-              <ZoomOut size={14} strokeWidth={1.6} />
-            </button>
-            <span className={styles.zoomLabel}>{sizePercent}%</span>
-            <button
-              className={styles.iconBtn}
-              onClick={() => onSizeChange(Math.min(200, sizePercent + 10))}
-              aria-label="Zoom in"
-            >
-              <ZoomIn size={14} strokeWidth={1.6} />
-            </button>
-            <button
-              className={styles.iconBtn}
-              onClick={() => onSizeChange(100)}
-              aria-label="Reset zoom"
-            >
-              <RotateCcw size={14} strokeWidth={1.6} />
-            </button>
-          </div>
+          {resolveEntry && isSearchActive && searchStatus === 'scanning' && (
+            <span className={styles.searchProgress}>
+              {searchProgress.loaded} / {searchProgress.total}
+            </span>
+          )}
+          {!isSearchActive && (
+            <>
+              <button
+                className={styles.iconBtn}
+                onClick={() => setTopLeftIndex(0)}
+                aria-label="First page"
+              >
+                <Home size={14} strokeWidth={1.6} />
+              </button>
+              {entries.length > 0 && (
+                <DatePicker
+                  entries={entries}
+                  currentDate={topLeftDate}
+                  onNavigate={(entryId) => {
+                    const idx = entries.findIndex((e) => e.entry_id === entryId);
+                    if (idx >= 0) setTopLeftIndex(idx);
+                  }}
+                />
+              )}
+            </>
+          )}
+          {onSizeChange && (
+            <div className={styles.zoomGroup}>
+              <button
+                className={styles.iconBtn}
+                onClick={() => onSizeChange(Math.max(30, sizePercent - 10))}
+                aria-label="Zoom out"
+              >
+                <ZoomOut size={14} strokeWidth={1.6} />
+              </button>
+              <span className={styles.zoomLabel}>{sizePercent}%</span>
+              <button
+                className={styles.iconBtn}
+                onClick={() => onSizeChange(Math.min(200, sizePercent + 10))}
+                aria-label="Zoom in"
+              >
+                <ZoomIn size={14} strokeWidth={1.6} />
+              </button>
+              <button
+                className={styles.iconBtn}
+                onClick={() => onSizeChange(100)}
+                aria-label="Reset zoom"
+              >
+                <RotateCcw size={14} strokeWidth={1.6} />
+              </button>
+            </div>
+          )}
           {onShowInfoOverlayChange && (
             <button
               className={styles.iconBtn}
@@ -292,27 +349,31 @@ export function ThumbnailGrid({
         </div>
       )}
 
-      <div className={styles.scroll}>
-        <div
-          className={styles.grid}
-          style={{ gridTemplateColumns: `repeat(${cols}, ${tileSize}px)`, gap: `${gap}px` }}
-        >
-          {pageEntries.map((entry) => (
-            <ThumbnailItem
-              key={entry.entry_id}
-              entry={entry}
-              selected={entry.entry_id === selectedEntryId}
-              onSelect={() => onSelectEntry(entry.entry_id)}
-              baseUrl={baseUrl}
-              resolveAsset={resolveAsset}
-              tileSize={tileSize}
-              showInfoOverlay={showInfoOverlay}
-            />
-          ))}
-        </div>
+      <div className={styles.scroll} style={isSearchActive ? { overflowY: 'auto' } : undefined}>
+        {isSearchActive && searchStatus === 'done' && searchResults.length === 0 ? (
+          <div className={styles.searchEmpty}>No entries match &ldquo;{searchQuery}&rdquo;</div>
+        ) : (
+          <div
+            className={styles.grid}
+            style={{ gridTemplateColumns: `repeat(${cols}, ${tileSize}px)`, gap: `${gap}px` }}
+          >
+            {pageEntries.map((entry) => (
+              <ThumbnailItem
+                key={entry.entry_id}
+                entry={entry}
+                selected={entry.entry_id === selectedEntryId}
+                onSelect={() => onSelectEntry(entry.entry_id)}
+                baseUrl={baseUrl}
+                resolveAsset={resolveAsset}
+                tileSize={tileSize}
+                showInfoOverlay={showInfoOverlay}
+              />
+            ))}
+          </div>
+        )}
       </div>
 
-      {totalPages > 1 && (
+      {!isSearchActive && totalPages > 1 && (
         <div className={styles.paginationRow}>
           <Pagination
             currentPage={displayPage}

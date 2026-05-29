@@ -17,6 +17,8 @@ interface SplitButtonProps {
   variant?: 'primary' | 'secondary';
   /** Which direction the dropdown opens. Defaults to "down". */
   menuDirection?: 'up' | 'down';
+  /** Stretch to fill the parent container width. */
+  fullWidth?: boolean;
 }
 
 export function SplitButton({
@@ -25,6 +27,7 @@ export function SplitButton({
   menu,
   variant = 'primary',
   menuDirection = 'down',
+  fullWidth,
 }: SplitButtonProps) {
   const [open, setOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -71,12 +74,12 @@ export function SplitButton({
   return (
     <div
       ref={containerRef}
-      style={{ position: 'relative', width: isPrimary ? '100%' : 'fit-content' }}
+      style={{ position: 'relative', width: isPrimary || fullWidth ? '100%' : 'fit-content' }}
     >
       <div
         style={{
           display: 'flex',
-          width: isPrimary ? '100%' : undefined,
+          width: isPrimary || fullWidth ? '100%' : undefined,
           borderRadius: 7,
           overflow: 'hidden',
           border,

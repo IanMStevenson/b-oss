@@ -11,6 +11,7 @@ interface AccountRowProps {
   isSelected: boolean;
   isActive: boolean;
   progress?: BackupProgress;
+  compact?: boolean;
   onSelect: () => void;
 }
 
@@ -19,6 +20,7 @@ export function AccountRow({
   isSelected,
   isActive: _isActive,
   progress,
+  compact,
   onSelect,
 }: AccountRowProps) {
   const archived = progress?.total_archived ?? account.total_archived;
@@ -32,6 +34,51 @@ export function AccountRow({
         : 'var(--rag-red)';
 
   const showPulse = isSelected && account.rag_state === 'green';
+
+  if (compact) {
+    return (
+      <button
+        onClick={onSelect}
+        onMouseEnter={() => setHovered(true)}
+        onMouseLeave={() => setHovered(false)}
+        aria-label={account.journal_title}
+        style={{
+          width: '100%',
+          height: 52,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          position: 'relative',
+          borderRadius: 8,
+          background: isSelected ? 'var(--green-100)' : hovered ? 'var(--green-50)' : 'transparent',
+          border: isSelected ? '1px solid rgba(31,77,58,0.12)' : '1px solid transparent',
+          cursor: 'pointer',
+          transition: 'background 120ms',
+        }}
+      >
+        <Avatar
+          accountId={account.id}
+          name={account.journal_title}
+          remoteUrl={account.avatar_url}
+          refreshKey={account.last_backup_at}
+          size={34}
+        />
+        <div
+          style={{
+            position: 'absolute',
+            bottom: 8,
+            right: 8,
+            width: 10,
+            height: 10,
+            borderRadius: '50%',
+            background: ragColour,
+            border: '2px solid white',
+            animation: showPulse ? 'pulse 2s ease-in-out infinite' : 'none',
+          }}
+        />
+      </button>
+    );
+  }
 
   return (
     <button

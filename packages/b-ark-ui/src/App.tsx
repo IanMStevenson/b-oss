@@ -4,6 +4,7 @@
 import { Loader2 } from 'lucide-react';
 import type { BackendContext } from './backend.js';
 import { AppProvider, useApp } from './context/AppContext.js';
+import { useContainerWidth } from './hooks/useContainerWidth.js';
 import { TopBar } from './components/TopBar.js';
 import { Sidebar } from './components/Sidebar.js';
 import { ToastHost } from './components/ToastHost.js';
@@ -15,9 +16,13 @@ import { EmptyAccountScreen } from './components/screens/EmptyAccountScreen.js';
 import { SettingsPanel } from './components/screens/SettingsPanel.js';
 import { LogPanel } from './components/screens/LogPanel.js';
 
+const COMPACT_BREAKPOINT = 860;
+
 function AppRoot() {
   const { state } = useApp();
   const { bootStage, store, selectedAccountId, panel, justConnected } = state;
+  const [contentRef, contentWidth] = useContainerWidth();
+  const compact = contentWidth > 0 && contentWidth < COMPACT_BREAKPOINT;
 
   const account = store?.accounts.find((a) => a.id === selectedAccountId) ?? null;
   const justConnectedAccount = justConnected
@@ -42,11 +47,12 @@ function AppRoot() {
       return <EmptyAccountScreen account={account} />;
     }
 
-    return <HomeScreen account={account} />;
+    return <HomeScreen account={account} compact={compact} />;
   }
 
   return (
     <div
+      ref={contentRef}
       style={{
         display: 'flex',
         flexDirection: 'column',
@@ -87,7 +93,7 @@ function AppRoot() {
 
       {bootStage === 'ready' && store !== null && (
         <div style={{ flex: 1, display: 'flex', overflow: 'hidden' }}>
-          {panel === null && <Sidebar />}
+          {panel === null && <Sidebar compact={compact} />}
           <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
             {renderMainArea()}
           </div>

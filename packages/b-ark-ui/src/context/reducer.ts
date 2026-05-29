@@ -31,6 +31,7 @@ export interface AppState {
   panel: null | 'settings' | 'log';
   selectedEntryId: string | null;
   thumbnailSizePercent: number;
+  showInfoOverlay: boolean;
   backupProgress: Record<string, BackupProgress>;
   logBuffer: Record<string, LogEntry[]>;
   justConnected: string | null;
@@ -46,6 +47,7 @@ export type AppAction =
   | { type: 'panel:close' }
   | { type: 'entry:select'; entryId: string | null }
   | { type: 'thumbnail:resize'; percent: number }
+  | { type: 'ui:set-overlay'; showOverlay: boolean }
   | { type: 'backup:started'; account_id: string; total: number; kind: 'first' | 'routine' }
   | {
       type: 'backup:progress';
@@ -73,6 +75,7 @@ export const initialState: AppState = {
   panel: null,
   selectedEntryId: null,
   thumbnailSizePercent: 100,
+  showInfoOverlay: true,
   backupProgress: {},
   logBuffer: {},
   justConnected: null,
@@ -91,6 +94,7 @@ export function reducer(state: AppState, action: AppAction): AppState {
           store,
           selectedAccountId: state.selectedAccountId ?? firstId,
           thumbnailSizePercent: store.ui.thumbnailSizePercent,
+          showInfoOverlay: store.ui.showInfoOverlay,
         };
       }
       return { ...state, bootStage: action.state.stage };
@@ -104,6 +108,7 @@ export function reducer(state: AppState, action: AppAction): AppState {
         store: action.store,
         selectedAccountId: state.selectedAccountId ?? firstId,
         thumbnailSizePercent: action.store.ui.thumbnailSizePercent,
+        showInfoOverlay: action.store.ui.showInfoOverlay,
       };
     }
 
@@ -148,6 +153,9 @@ export function reducer(state: AppState, action: AppAction): AppState {
 
     case 'thumbnail:resize':
       return { ...state, thumbnailSizePercent: Math.min(200, Math.max(30, action.percent)) };
+
+    case 'ui:set-overlay':
+      return { ...state, showInfoOverlay: action.showOverlay };
 
     case 'backup:started':
       return {

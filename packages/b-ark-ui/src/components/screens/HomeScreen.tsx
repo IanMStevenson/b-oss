@@ -5,19 +5,10 @@
 // served by the Electron local HTTP server. journal.json is fetched from that URL.
 // This keeps all port/path details in the main process and out of the UI.
 
-import { useState, useEffect, useRef } from 'react';
-import {
-  ZoomOut,
-  ZoomIn,
-  RotateCcw,
-  LayoutGrid,
-  FileText,
-  Settings,
-  CloudDownload,
-  Home,
-} from 'lucide-react';
-import { ThumbnailGrid, EntryDetail, DatePicker, useJournal, useEntry } from '@b-oss/b-view';
-import type { EntryIndex } from '@b-oss/b-view';
+import { useState, useEffect, useRef, useCallback } from 'react';
+import { ExternalLink, FileText, Settings, CloudDownload } from 'lucide-react';
+import { ThumbnailGrid, EntryDetail, useJournal, useEntry } from '@b-oss/b-view';
+import type { BlipEntry, EntryIndex } from '@b-oss/b-view';
 import type { AccountConfig } from '../../backend.js';
 import { useApp } from '../../context/AppContext.js';
 import { BackupBanner } from '../BackupBanner.js';
@@ -26,6 +17,7 @@ import { Avatar } from '../Avatar.js';
 
 interface HomeScreenProps {
   account: AccountConfig;
+  compact?: boolean;
 }
 
 function IconBtn({
@@ -67,9 +59,9 @@ function IconBtn({
   );
 }
 
-export function HomeScreen({ account }: HomeScreenProps) {
+export function HomeScreen({ account, compact }: HomeScreenProps) {
   const { state, dispatch, backend } = useApp();
-  const { thumbnailSizePercent, backupProgress, selectedEntryId } = state;
+  const { thumbnailSizePercent, showInfoOverlay, backupProgress, selectedEntryId } = state;
 
   const progress = backupProgress[account.id];
   const isBackingUp = progress?.running === true;
@@ -91,12 +83,6 @@ export function HomeScreen({ account }: HomeScreenProps) {
     return () => clearTimeout(t);
   }, [countdown]);
 
-  // Calendar picker state
-  const [topLeftEntryDate, setTopLeftEntryDate] = useState<string | null>(null);
-  const [jumpToEntryId, setJumpToEntryId] = useState<string | null>(null);
-
-  // Load viewer URL from backend
-  const [gridResetKey, setGridResetKey] = useState(0);
   const [viewerUrl, setViewerUrl] = useState<string | null>(null);
   useEffect(() => {
     backend
@@ -115,6 +101,26 @@ export function HomeScreen({ account }: HomeScreenProps) {
     }
     prevBackingUpRef.current = isBackingUp;
   }, [isBackingUp]);
+
+  const entryCacheRef = useRef<Map<string, BlipEntry>>(new Map());
+  const viewerUrlRef = useRef(viewerUrl);
+  viewerUrlRef.current = viewerUrl;
+  useEffect(() => {
+    entryCacheRef.current.clear();
+  }, [viewerUrl]);
+
+  const resolveEntry = useCallback(async (jsonPath: string): Promise<BlipEntry> => {
+    const base = viewerUrlRef.current;
+    if (!base) throw new Error('No viewer URL');
+    const url = `${base}/${jsonPath}`;
+    const cached = entryCacheRef.current.get(url);
+    if (cached) return cached;
+    const res = await fetch(url);
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data = (await res.json()) as BlipEntry;
+    entryCacheRef.current.set(url, data);
+    return data;
+  }, []);
 
   const journalState = useJournal(
     viewerUrl ? `${viewerUrl}/journal.json` : undefined,
@@ -195,85 +201,10 @@ export function HomeScreen({ account }: HomeScreenProps) {
           </div>
         </div>
 
-        {/* Toolbar */}
+        {/* App actions */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
-          <IconBtn
-            label="First page"
-            onClick={() => {
-              setGridResetKey((k) => k + 1);
-              setJumpToEntryId(null);
-            }}
-          >
-            <Home size={15} strokeWidth={1.6} />
-          </IconBtn>
-
-          {entries.length > 0 && (
-            <DatePicker
-              entries={entries}
-              currentDate={
-                selectedEntryId !== null
-                  ? (entries.find((e) => e.entry_id === selectedEntryId)?.date ?? null)
-                  : topLeftEntryDate
-              }
-              onNavigate={(entryId) => {
-                if (selectedEntryId !== null) {
-                  dispatch({ type: 'entry:select', entryId });
-                } else {
-                  setJumpToEntryId(entryId);
-                }
-              }}
-            />
-          )}
-
-          {/* Thumbnail size group */}
-          <div
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              background: 'white',
-              border: '1px solid var(--line)',
-              borderRadius: 8,
-              padding: 2,
-              gap: 2,
-            }}
-          >
-            <IconBtn
-              label="Zoom out"
-              onClick={() =>
-                dispatch({ type: 'thumbnail:resize', percent: thumbnailSizePercent - 10 })
-              }
-            >
-              <ZoomOut size={14} strokeWidth={1.6} />
-            </IconBtn>
-            <span
-              style={{
-                fontSize: 12,
-                fontVariantNumeric: 'tabular-nums',
-                color: 'var(--muted)',
-                minWidth: 36,
-                textAlign: 'center',
-              }}
-            >
-              {thumbnailSizePercent}%
-            </span>
-            <IconBtn
-              label="Zoom in"
-              onClick={() =>
-                dispatch({ type: 'thumbnail:resize', percent: thumbnailSizePercent + 10 })
-              }
-            >
-              <ZoomIn size={14} strokeWidth={1.6} />
-            </IconBtn>
-            <IconBtn
-              label="Reset zoom"
-              onClick={() => dispatch({ type: 'thumbnail:resize', percent: 100 })}
-            >
-              <RotateCcw size={14} strokeWidth={1.6} />
-            </IconBtn>
-          </div>
-
           <IconBtn label="Open in browser" onClick={() => void backend.openViewer(account.id)}>
-            <LayoutGrid size={15} strokeWidth={1.6} />
+            <ExternalLink size={15} strokeWidth={1.6} />
           </IconBtn>
 
           <IconBtn label="View log" onClick={() => dispatch({ type: 'panel:open', panel: 'log' })}>
@@ -335,7 +266,7 @@ export function HomeScreen({ account }: HomeScreenProps) {
           flexDirection: 'column',
         }}
       >
-        {selectedEntryId !== null ? (
+        {selectedEntryId !== null && (
           <EntryDetail
             entryState={entryState}
             prevEntryId={prevEntryId}
@@ -345,7 +276,8 @@ export function HomeScreen({ account }: HomeScreenProps) {
             baseUrl={viewerUrl ?? undefined}
             entries={entries}
           />
-        ) : journalState.status === 'error' && isBackingUp ? (
+        )}
+        {journalState.status === 'error' && isBackingUp && selectedEntryId === null && (
           <div
             style={{
               flex: 1,
@@ -358,22 +290,37 @@ export function HomeScreen({ account }: HomeScreenProps) {
           >
             Backup in progress — entries will appear shortly
           </div>
-        ) : (
-          <ThumbnailGrid
-            key={gridResetKey}
-            entries={entries}
-            selectedEntryId={selectedEntryId}
-            onSelectEntry={(id) => dispatch({ type: 'entry:select', entryId: id })}
-            sizePercent={thumbnailSizePercent}
-            showInfoOverlay={state.store?.ui.showInfoOverlay ?? true}
-            baseUrl={viewerUrl ?? undefined}
-            jumpToEntryId={jumpToEntryId}
-            onTopLeftEntryDate={setTopLeftEntryDate}
-          />
+        )}
+        {/* Keep ThumbnailGrid mounted once journal is loaded so grid position and
+            search state survive the round-trip into EntryDetail and back. */}
+        {journalState.status === 'loaded' && (
+          <div
+            style={{
+              display: selectedEntryId === null ? 'flex' : 'none',
+              flex: 1,
+              overflow: 'hidden',
+              flexDirection: 'column',
+            }}
+          >
+            <ThumbnailGrid
+              entries={entries}
+              selectedEntryId={selectedEntryId}
+              onSelectEntry={(id) => dispatch({ type: 'entry:select', entryId: id })}
+              sizePercent={thumbnailSizePercent}
+              onSizeChange={(pct) => dispatch({ type: 'thumbnail:resize', percent: pct })}
+              showInfoOverlay={showInfoOverlay}
+              onShowInfoOverlayChange={(v) => {
+                dispatch({ type: 'ui:set-overlay', showOverlay: v });
+                void backend.updateSettings({ showInfoOverlay: v });
+              }}
+              baseUrl={viewerUrl ?? undefined}
+              resolveEntry={viewerUrl ? resolveEntry : undefined}
+            />
+          </div>
         )}
       </div>
 
-      <StatusBar account={account} />
+      <StatusBar account={account} compact={compact} />
     </div>
   );
 }

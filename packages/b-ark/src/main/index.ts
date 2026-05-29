@@ -82,7 +82,7 @@ function createWindow(): BrowserWindow {
   const win = new BrowserWindow({
     width: 1100,
     height: 720,
-    minWidth: 900,
+    minWidth: 550,
     minHeight: 600,
     icon: nativeImage.createFromPath(iconPath),
     titleBarStyle: process.platform === 'darwin' ? 'hiddenInset' : 'default',

@@ -34,9 +34,10 @@ function fmtScheduled(iso: string | null): string {
 
 interface StatusBarProps {
   account: AccountConfig;
+  compact?: boolean;
 }
 
-export function StatusBar({ account }: StatusBarProps) {
+export function StatusBar({ account, compact }: StatusBarProps) {
   const { state, dispatch } = useApp();
   const progress = state.backupProgress[account.id];
   const archived = progress?.total_archived ?? account.total_archived;
@@ -65,7 +66,7 @@ export function StatusBar({ account }: StatusBarProps) {
         height: 38,
         background: 'var(--bg-alt)',
         borderTop: '1px solid var(--line)',
-        display: 'flex',
+        display: compact ? 'none' : 'flex',
         alignItems: 'center',
         padding: '0 20px',
         gap: 14,
