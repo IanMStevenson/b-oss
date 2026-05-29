@@ -20,7 +20,7 @@ credited in the changelog unless they ask to remain anonymous.
 In scope:
 
 - The b-ark Electron desktop application
-- The `backup-engine`, `blipfoto-api`, `b-ark-ui`, and `b-view` packages
+- The `backup-engine`, `b-api`, `b-ark-ui`, and `b-view` packages
 - The release artefacts published on the
   [b-oss GitHub releases page](https://github.com/ianstevenson/b-oss/releases)
 - The auto-update channel

@@ -8,7 +8,7 @@ import {
   type EntryResponse,
   type JournalEntriesResponse,
   type UserProfileResponse,
-} from '@b-oss/blipfoto-api';
+} from '@b-oss/b-api';
 import { BackupEngine } from '../backup-engine.js';
 import { CheckpointManager } from '../checkpoint.js';
 import { JournalIndex, cacheAvatarIfMissing, AVATAR_FILENAME } from '../journal-index.js';
@@ -1159,6 +1159,7 @@ describe('BackupEngine — writes BlipEntry schema', () => {
         content: 'Good colours',
         content_html: 'Good colours',
         commenter: { username: 'annejohn', avatar_url: 'https://example.com/a.jpg' },
+        actions: { reply: 1 as const, edit: 0 as const, delete: 0 as const },
         replies: [],
       },
     ];

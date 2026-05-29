@@ -7,7 +7,7 @@ b-ark (Electron shell)
   └── b-ark-ui (React UI, BackendContext interface)
         └── b-view (shared React components)
   └── backup-engine (backup algorithm, PlatformIO interface)
-        └── blipfoto-api (HTTP client)
+        └── b-api (HTTP client)
 ```
 
 ## Two abstraction boundaries

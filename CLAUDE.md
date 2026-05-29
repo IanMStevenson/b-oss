@@ -8,7 +8,7 @@ b-view is the browser-based journal viewer. All names are lowercase and hyphenat
 ## Package structure
 
 ```
-packages/blipfoto-api   No Node or Electron deps. Blipfoto HTTP client.
+packages/b-api          No Node or Electron deps. Blipfoto HTTP client.
 packages/backup-engine  No Electron deps. Backup algorithm. Defines PlatformIO interface.
 packages/b-view         No Node or Electron deps. React components + standalone SPA.
 packages/b-ark-ui       No Electron deps. React UI. Defines BackendContext interface; includes ElectronBackend implementation (wraps window.api).
@@ -17,7 +17,7 @@ packages/b-ark          Electron shell only. Implements PlatformIO (ElectronPlat
 
 ## Architecture rules (never violate these)
 
-- blipfoto-api, backup-engine, b-view, b-ark-ui must NEVER import from 'electron'
+- b-api, backup-engine, b-view, b-ark-ui must NEVER import from 'electron'
 - b-ark-ui components must NEVER call window.api directly — use useBackend() hook only
 - Access tokens: handled in main process only, never sent to renderer via IPC
 - All Blipfoto \_id fields: always use the \_str string variant, store as string

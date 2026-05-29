@@ -5,7 +5,7 @@ import path from 'node:path';
 import fs from 'node:fs';
 import { ipcMain, type BrowserWindow, dialog, shell, app } from 'electron';
 import { v4 as uuidv4 } from 'uuid';
-import { BlipfotoClient } from '@b-oss/blipfoto-api';
+import { BlipfotoClient } from '@b-oss/b-api';
 import {
   BackupEngine,
   JournalIndex,

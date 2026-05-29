@@ -34,8 +34,8 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
-- Monorepo scaffold with five packages: `blipfoto-api`, `backup-engine`, `b-view`, `b-ark-ui`, `b-ark`
-- `blipfoto-api`: HTTP client for the Blipfoto v4 API with rate-limit header parsing
+- Monorepo scaffold with five packages: `b-api`, `backup-engine`, `b-view`, `b-ark-ui`, `b-ark`
+- `b-api`: HTTP client for the Blipfoto v4 API with rate-limit header parsing
 - `backup-engine`: incremental backup algorithm with checkpoint/resume, gap-check, redo window, and `PlatformIO` abstraction
 - `b-view`: standalone React SPA and embeddable components for browsing a backed-up journal (also runs in `file://` mode)
 - `b-ark-ui`: React UI with `BackendContext` abstraction and `ElectronBackend` implementation (wraps `window.api`)

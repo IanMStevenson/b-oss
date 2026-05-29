@@ -10,7 +10,7 @@
 //   npm run fetch-entry -- --token <access_token> --entry <entry_id> [--out <path>]
 
 import { writeFileSync } from 'fs';
-import { BlipfotoClient, BlipfotoError, NetworkError } from '../packages/blipfoto-api/dist/index.js';
+import { BlipfotoClient, BlipfotoError, NetworkError } from '../packages/b-api/dist/index.js';
 
 function parseArgs(argv) {
   const args = {};
