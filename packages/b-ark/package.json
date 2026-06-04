@@ -31,7 +31,7 @@
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "serve-handler": "^6.1.0",
-    "uuid": "^11.0.0"
+    "uuid": "^14.0.0"
   },
   "devDependencies": {
     "@types/react": "^19.0.0",
