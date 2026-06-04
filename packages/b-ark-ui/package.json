@@ -12,14 +12,14 @@
   },
   "dependencies": {
     "@b-oss/b-view": "*",
-    "lucide-react": "^1.16.0",
+    "lucide-react": "^1.17.0",
     "react": "^19.0.0",
-    "react-dom": "^19.0.0"
+    "react-dom": "^19.2.7"
   },
   "devDependencies": {
     "@testing-library/react": "^16.0.0",
     "@testing-library/user-event": "^14.0.0",
-    "@types/react": "^19.0.0",
+    "@types/react": "^19.2.16",
     "@types/react-dom": "^19.0.0",
     "vitest": "^4.1.0"
   }
