@@ -29,6 +29,9 @@ Thumbs.db
 # TypeScript build info
 *.tsbuildinfo
 
+# Examples
+ai-examples/
+
 # Versioning — local build counter and generated build artefact
 .build-counter
 version.generated.json

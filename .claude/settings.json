@@ -1,38 +1,4 @@
 {
-  "permissions": {
-    "allow": [
-      "Bash(npm run typecheck)",
-      "Bash(npm run typecheck *)",
-      "Bash(npm run lint)",
-      "Bash(npm run lint *)",
-      "Bash(npm view *)",
-      "Bash(Get-ChildItem *)",
-      "Bash(Get-Item *)",
-      "Bash(Get-ItemProperty *)",
-      "Bash(Get-Content *)",
-      "Bash(Select-Object *)",
-      "Bash(Sort-Object *)",
-      "Bash(Where-Object *)",
-      "Bash(ForEach-Object *)",
-      "Bash(Measure-Object *)",
-      "Bash(Group-Object *)",
-      "Bash(Get-Unique *)",
-      "Bash(Select-String *)",
-      "Bash(Test-Path *)",
-      "Bash(Resolve-Path *)",
-      "Bash(Split-Path *)",
-      "Bash(Join-Path *)",
-      "Bash(ConvertFrom-Json *)",
-      "Bash(ConvertTo-Json *)",
-      "Bash(Get-Command *)",
-      "Bash(Out-String *)",
-      "Bash(npm test)",
-      "Bash(npm test *)",
-      "Bash(npm ls *)",
-      "Bash(npm outdated)",
-      "Bash(npm outdated *)"
-    ]
-  },
   "hooks": {
     "PostToolUse": [
       {
