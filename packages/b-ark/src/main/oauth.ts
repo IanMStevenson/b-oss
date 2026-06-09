@@ -3,6 +3,11 @@
 
 import { BrowserWindow, session, shell, safeStorage } from 'electron';
 import { randomUUID } from 'node:crypto';
+import {
+  buildImplicitGrantUrl,
+  parseImplicitGrantCallback,
+  OAuthCallbackError,
+} from '@b-oss/b-api';
 
 let pendingState: string | null = null;
 let pendingResolve: ((token: string) => void) | null = null;
@@ -23,13 +28,14 @@ function missingClientIdError(): Error {
 }
 
 function buildAuthorizeUrl(state: string): string {
-  const url = new URL('https://www.blipfoto.com/oauth/authorize');
-  url.searchParams.set('response_type', 'token');
-  url.searchParams.set('client_id', CLIENT_ID as string);
-  url.searchParams.set('redirect_uri', 'b-ark://oauth/callback');
-  url.searchParams.set('scope', 'read');
-  url.searchParams.set('state', state);
-  return url.toString();
+  // Blipfoto ignores scope on the implicit grant flow and always issues
+  // read/write tokens regardless of what is requested here.
+  return buildImplicitGrantUrl({
+    clientId: CLIENT_ID as string,
+    redirectUri: 'b-ark://oauth/callback',
+    scope: 'read',
+    state,
+  });
 }
 
 /**
@@ -141,39 +147,15 @@ export class OAuthCancelledError extends Error {
 }
 
 function extractTokenFromCallback(uri: string, expectedState: string): string {
-  // The Blipfoto callback can come back with either a query string or a hash
-  // fragment depending on which path the flow took. Read both, hash wins.
-  const queryIndex = uri.indexOf('?');
-  const hashIndex = uri.indexOf('#');
-  const query =
-    queryIndex !== -1
-      ? new URLSearchParams(uri.slice(queryIndex + 1, hashIndex === -1 ? undefined : hashIndex))
-      : new URLSearchParams();
-  const fragment =
-    hashIndex !== -1 ? new URLSearchParams(uri.slice(hashIndex + 1)) : new URLSearchParams();
-  const params = new URLSearchParams();
-  for (const [k, v] of query) params.set(k, v);
-  for (const [k, v] of fragment) params.set(k, v);
-
-  // OAuth 2 error response — most common case is the user clicking "Cancel"
-  // on Blipfoto's authorisation page, which sends error=access_denied.
-  const errorCode = params.get('error');
-  if (errorCode !== null) {
-    if (errorCode === 'access_denied') {
-      throw new OAuthCancelledError();
-    }
-    const description = params.get('error_description') ?? errorCode;
-    throw new Error(`Blipfoto sign-in failed: ${description}`);
+  let result: { accessToken: string; state: string };
+  try {
+    result = parseImplicitGrantCallback(uri);
+  } catch (e) {
+    if (e instanceof OAuthCallbackError && e.isAccessDenied) throw new OAuthCancelledError();
+    throw e;
   }
-
-  const returnedState = params.get('state');
-  if (returnedState !== expectedState) {
-    throw new Error('OAuth state mismatch — possible CSRF');
-  }
-
-  const accessToken = params.get('access_token');
-  if (!accessToken) throw new Error('No access_token in OAuth callback');
-  return accessToken;
+  if (result.state !== expectedState) throw new Error('OAuth state mismatch — possible CSRF');
+  return result.accessToken;
 }
 
 export function handleOAuthCallback(uri: string): void {

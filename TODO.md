@@ -17,17 +17,19 @@ electron-builder v26 → v27 upgrade — --publish always is now in place, so th
 
 ## API Limitations
 
-**Image URLs** — `hires` and `original` fields in `image_urls` come back null in practice despite the user uploading original-resolution images. Needs investigation/fix on the Blipfoto side.
+**Image URLs** — `hires` and `original` fields in `image_urls` come back null in practice despite the user uploading original-resolution images. Needs investigation/fix on the Blipfoto side. **These fields are only populated for trusted apps - how do I get trusted**
 
-**Extra images** — Supplementary photos attached to an entry are not exposed by the API at all (no read or upload endpoint). Website-only feature.
+**Extra images** — Supplementary photos attached to an entry are not exposed by the API at all (no read or upload endpoint). Website-only feature. **There is an undocumented API for extras**
 
-**CORS** — The Blipfoto API returns no `Access-Control-Allow-Origin` headers, so browser-based `fetch()` calls are blocked by CORS policy. Direct browser access is not possible. Workarounds: (a) a thin server-side proxy that forwards requests and injects the header; (b) on Capacitor/mobile, use `@capacitor/http` which routes through native Android/iOS HTTP and is not subject to CORS. Worth raising with Blipfoto as a simple server-config change on their side.
+**CORS** — The Blipfoto API returns no `Access-Control-Allow-Origin` headers, so browser-based `fetch()` calls are blocked by CORS policy. Direct browser access is not possible. Workarounds: (a) a thin server-side proxy that forwards requests and injects the header; (b) on Capacitor/mobile, use `@capacitor/http` which routes through native Android/iOS HTTP and is not subject to CORS. Worth raising with Blipfoto as a simple server-config change on their side. **There is a JSONP mechanism on their side that can handle GETs, doesn't work for POST/PUT/DELETE - but it's horrible - they should fix this**
 
 **Notifications** — No push/event mechanism; polling is the only option. Two approaches to raise with Blipfoto:
 
 - _Webhooks (preferred ask)_ — App registers a callback URL + event types; Blipfoto POSTs a signed payload when events fire (new comment, follower, notification, etc.). Platform-neutral, low burden on Blipfoto, no polling needed. Cloud service receives webhook and forwards to FCM/APNs.
 - _Native push token registration_ — App registers its FCM/APNs token via the API; Blipfoto delivers push notifications directly. Better end-user experience but requires Blipfoto to maintain FCM and APNs credentials.
 - _Token downscoping (fallback ask)_ — An API endpoint that accepts a `read,write` user token and issues a scoped-down `read`-only token. Removes the need for a second OAuth flow when handing a polling credential to a cloud service; the app authenticates once and derives the restricted token itself.
+
+**Notifications ARE in blipfoto, but only for their own apps. Could open up AWS SNS to other app developers, or eliminate AWS dependency with WebHook - completely generic**
 
 ## Key Commands
 
