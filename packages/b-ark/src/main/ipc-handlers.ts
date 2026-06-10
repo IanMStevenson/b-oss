@@ -487,7 +487,9 @@ export function registerIpcHandlers(
           ...userDataStore.get('app'),
           startWithWindows: partial.startWithWindows,
         });
-        app.setLoginItemSettings({ openAtLogin: partial.startWithWindows });
+        if (app.isPackaged) {
+          app.setLoginItemSettings({ openAtLogin: partial.startWithWindows });
+        }
         rebuildTrayMenu();
       }
 

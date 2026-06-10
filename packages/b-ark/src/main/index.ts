@@ -182,7 +182,9 @@ void app.whenReady().then(async () => {
     }
   }
 
-  app.setLoginItemSettings({ openAtLogin: store.get('app').startWithWindows });
+  if (app.isPackaged) {
+    app.setLoginItemSettings({ openAtLogin: store.get('app').startWithWindows });
+  }
 });
 
 app.on('second-instance', (_event, argv) => {

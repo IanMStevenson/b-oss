@@ -39,10 +39,13 @@ export function createTray(
         label: 'Start with Windows',
         type: 'checkbox',
         checked: store.get('app').startWithWindows,
+        enabled: app.isPackaged,
         click() {
           const next = !store.get('app').startWithWindows;
           store.set('app', { ...store.get('app'), startWithWindows: next });
-          app.setLoginItemSettings({ openAtLogin: next });
+          if (app.isPackaged) {
+            app.setLoginItemSettings({ openAtLogin: next });
+          }
           tray.setContextMenu(buildMenu());
         },
       },
