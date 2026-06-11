@@ -1,0 +1,19 @@
+{
+  "name": "b-oss",
+  "image": "mcr.microsoft.com/devcontainers/javascript-node:22",
+  "features": {
+    "ghcr.io/anthropics/devcontainer-features/claude-code:1.0": {}
+  },
+  "mounts": ["source=b-oss-claude-config,target=/home/node/.claude,type=volume"],
+  "forwardPorts": [5173, 3000],
+  "postCreateCommand": "sudo chown -R node:node /home/node/.claude && npm install @rolldown/binding-linux-x64-gnu && npm run setup",
+  "containerEnv": {
+    "CLAUDE_CODE_OAUTH_TOKEN": "${localEnv:CLAUDE_CODE_OAUTH_TOKEN}"
+  },
+  "customizations": {
+    "vscode": {
+      "extensions": ["anthropic.claude-code"]
+    }
+  },
+  "remoteUser": "node"
+}
