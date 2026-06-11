@@ -238,9 +238,7 @@ export function registerIpcHandlers(
             });
           }
           emitStoreChanged();
-          if (!isAuthExpired) {
-            showBackupFailedNotification(updated.username, errorMessage, getMainWindow);
-          }
+          showBackupFailedNotification(updated.username, errorMessage, getMainWindow);
         }
         return;
       } finally {

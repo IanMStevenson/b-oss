@@ -12,6 +12,7 @@ import type { BlipEntry, EntryIndex } from '@b-oss/b-view';
 import type { AccountConfig } from '../../backend.js';
 import { useApp } from '../../context/AppContext.js';
 import { BackupBanner } from '../BackupBanner.js';
+import { AuthErrorBanner } from '../AuthErrorBanner.js';
 import { StatusBar } from '../StatusBar.js';
 import { Avatar } from '../Avatar.js';
 
@@ -66,6 +67,9 @@ export function HomeScreen({ account, compact }: HomeScreenProps) {
   const progress = backupProgress[account.id];
   const isBackingUp = progress?.running === true;
   const isRateLimited = progress?.rate_limited_seconds != null;
+
+  const [bannerHighlighted, setBannerHighlighted] = useState(false);
+  const bannerRef = useRef<HTMLDivElement>(null);
 
   // Countdown for rate-limit display
   const [countdown, setCountdown] = useState<number | null>(null);
@@ -221,6 +225,12 @@ export function HomeScreen({ account, compact }: HomeScreenProps) {
           <button
             disabled={isBackingUp}
             onClick={() => {
+              if (account.rag_state === 'red' && account.error_message) {
+                setBannerHighlighted(true);
+                bannerRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                setTimeout(() => setBannerHighlighted(false), 1500);
+                return;
+              }
               void backend.startBackup(account.id);
             }}
             style={{
@@ -245,6 +255,11 @@ export function HomeScreen({ account, compact }: HomeScreenProps) {
           </button>
         </div>
       </div>
+
+      {/* Auth error banner */}
+      {account.rag_state === 'red' && account.error_message && (
+        <AuthErrorBanner ref={bannerRef} account={account} highlighted={bannerHighlighted} />
+      )}
 
       {/* Backup banner */}
       {isBackingUp && progress && (
