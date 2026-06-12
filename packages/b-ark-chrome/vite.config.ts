@@ -2,6 +2,7 @@
 // Copyright (C) 2026 Ian Stevenson
 
 import { defineConfig } from 'vite';
+import react from '@vitejs/plugin-react';
 import { crx } from '@crxjs/vite-plugin';
 import manifest from './manifest.json';
 import { resolve } from 'node:path';
@@ -19,13 +20,14 @@ export default defineConfig({
   define: {
     __APP_VERSION__: JSON.stringify(readGeneratedVersion()),
   },
-  plugins: [crx({ manifest })],
+  plugins: [react(), crx({ manifest })],
   build: {
     outDir: 'dist',
     emptyOutDir: true,
     rollupOptions: {
       input: {
         backup: resolve(__dirname, 'src/backup.html'),
+        'backup-page': resolve(__dirname, 'src/backup-page.html'),
       },
     },
   },

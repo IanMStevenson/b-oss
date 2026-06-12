@@ -14,7 +14,13 @@
     "type": "module"
   },
   "action": {
-    "default_popup": "src/index.html",
     "default_title": "b-ark"
-  }
+  },
+  "content_scripts": [
+    {
+      "matches": ["https://*.blipfoto.com/*"],
+      "js": ["src/chip-entry.ts"],
+      "run_at": "document_end"
+    }
+  ]
 }
