@@ -29,15 +29,15 @@ class MockPlatformIO implements PlatformIO {
   renames: Array<{ from: string; to: string }> = [];
   logs: Array<LogEntry> = [];
 
-  readFile(path: string): Promise<Buffer> {
+  readFile(path: string): Promise<Uint8Array> {
     const content = this.files.get(path);
     if (content === undefined) {
       return Promise.reject(new Error(`File not found: ${path}`));
     }
-    return Promise.resolve(Buffer.from(content));
+    return Promise.resolve(new TextEncoder().encode(content));
   }
-  writeFile(path: string, data: Buffer | string): Promise<void> {
-    this.files.set(path, typeof data === 'string' ? data : data.toString());
+  writeFile(path: string, data: Uint8Array | string): Promise<void> {
+    this.files.set(path, typeof data === 'string' ? data : new TextDecoder().decode(data));
     return Promise.resolve();
   }
   ensureDir(_path: string): Promise<void> {

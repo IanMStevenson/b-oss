@@ -67,6 +67,6 @@ export class LogManager {
     const exists = await this.io.fileExists(this.path);
     if (!exists) return '';
     const buf = await this.io.readFile(this.path);
-    return buf.toString();
+    return new TextDecoder().decode(buf);
   }
 }

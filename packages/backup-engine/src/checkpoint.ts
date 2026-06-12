@@ -23,7 +23,7 @@ export class CheckpointManager {
     const exists = await this.io.fileExists(this.path);
     if (!exists) return null;
     const buf = await this.io.readFile(this.path);
-    return JSON.parse(buf.toString()) as BackupCheckpoint;
+    return JSON.parse(new TextDecoder().decode(buf)) as BackupCheckpoint;
   }
 
   async save(checkpoint: BackupCheckpoint): Promise<void> {

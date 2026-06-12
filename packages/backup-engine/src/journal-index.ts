@@ -48,7 +48,7 @@ export class JournalIndex {
     const exists = await this.io.fileExists(this.path);
     if (!exists) return null;
     const buf = await this.io.readFile(this.path);
-    return JSON.parse(buf.toString()) as JournalMetadata;
+    return JSON.parse(new TextDecoder().decode(buf)) as JournalMetadata;
   }
 
   async save(metadata: JournalMetadata): Promise<void> {

@@ -2,8 +2,8 @@
 // Copyright (C) 2026 Ian Stevenson
 
 export interface PlatformIO {
-  readFile(path: string): Promise<Buffer>;
-  writeFile(path: string, data: Buffer | string): Promise<void>;
+  readFile(path: string): Promise<Uint8Array>;
+  writeFile(path: string, data: Uint8Array | string): Promise<void>;
   ensureDir(path: string): Promise<void>;
   fileExists(path: string): Promise<boolean>;
   listDir(path: string): Promise<string[]>;

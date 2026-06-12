@@ -706,7 +706,7 @@ export class BackupEngine {
     if (await this.io.fileExists(jsonAbs)) {
       try {
         const existingBuf = await this.io.readFile(jsonAbs);
-        const existing = JSON.parse(existingBuf.toString()) as Partial<BlipEntry>;
+        const existing = JSON.parse(new TextDecoder().decode(existingBuf)) as Partial<BlipEntry>;
         if (existing.entry_id && existing.entry_id !== entry.entry_id) {
           await this.appendLog(
             'info',
