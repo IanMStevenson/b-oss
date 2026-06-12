@@ -156,11 +156,6 @@ class BarkChip {
   private readonly textEl: HTMLElement;
   private readonly tooltipEl: HTMLElement;
   private state: ChipState = { ...DEFAULT_STATE };
-  private dragging = false;
-  private dragStartX = 0;
-  private dragStartY = 0;
-  private hostStartLeft = 0;
-  private hostStartTop = 0;
 
   constructor() {
     this.host = document.createElement('div');
@@ -198,22 +193,26 @@ class BarkChip {
   }
 
   private _setupDrag(): void {
+    const DRAG_THRESHOLD = 5;
+
     this.chipEl.addEventListener('mousedown', (e) => {
       if (e.button !== 0) return;
-      e.preventDefault();
-      this.dragging = true;
-      this.chipEl.classList.add('dragging');
-      this.dragStartX = e.clientX;
-      this.dragStartY = e.clientY;
-      this.hostStartLeft = this.host.offsetLeft;
-      this.hostStartTop = this.host.offsetTop;
+      const startX = e.clientX;
+      const startY = e.clientY;
+      const startLeft = this.host.offsetLeft;
+      const startTop = this.host.offsetTop;
+      let dragging = false;
 
       const onMove = (me: MouseEvent): void => {
-        if (!this.dragging) return;
-        const dx = me.clientX - this.dragStartX;
-        const dy = me.clientY - this.dragStartY;
-        const newLeft = clamp(this.hostStartLeft + dx, 0, window.innerWidth - 40);
-        const newTop = clamp(this.hostStartTop + dy, 0, window.innerHeight - 40);
+        const dx = me.clientX - startX;
+        const dy = me.clientY - startY;
+        if (!dragging) {
+          if (Math.abs(dx) < DRAG_THRESHOLD && Math.abs(dy) < DRAG_THRESHOLD) return;
+          dragging = true;
+          this.chipEl.classList.add('dragging');
+        }
+        const newLeft = clamp(startLeft + dx, 0, window.innerWidth - 40);
+        const newTop = clamp(startTop + dy, 0, window.innerHeight - 40);
         this.host.style.left = `${newLeft}px`;
         this.host.style.top = `${newTop}px`;
         this.host.style.right = 'auto';
@@ -221,13 +220,12 @@ class BarkChip {
       };
 
       const onUp = (ue: MouseEvent): void => {
-        if (!this.dragging) return;
-        this.dragging = false;
-        this.chipEl.classList.remove('dragging');
         document.removeEventListener('mousemove', onMove);
         document.removeEventListener('mouseup', onUp);
-
-        // Persist as percentage from edges
+        if (!dragging) return;
+        dragging = false;
+        this.chipEl.classList.remove('dragging');
+        // Persist position as percentage of viewport
         const xPct = clamp((ue.clientX / window.innerWidth) * 100, 0, 100);
         const yPct = clamp((ue.clientY / window.innerHeight) * 100, 0, 100);
         this.state.xPct = xPct;

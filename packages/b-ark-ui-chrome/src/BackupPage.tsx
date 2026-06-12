@@ -5,6 +5,7 @@
 // AppProvider + reducer are Chrome-specific (no electron deps).
 
 import {
+  Component,
   createContext,
   useCallback,
   useContext,
@@ -13,7 +14,7 @@ import {
   useRef,
   useState,
 } from 'react';
-import type { Dispatch, ReactNode } from 'react';
+import type { Dispatch, ErrorInfo, ReactNode } from 'react';
 import { Loader2, Settings, FileText, FolderOpen } from 'lucide-react';
 import type {
   AccountConfig,
@@ -232,6 +233,35 @@ function reducer(state: AppState, action: AppAction): AppState {
 
     default:
       return state;
+  }
+}
+
+// ── Error boundary ────────────────────────────────────────────────────────────
+
+class RenderErrorBoundary extends Component<{ children: ReactNode }, { error: Error | null }> {
+  constructor(props: { children: ReactNode }) {
+    super(props);
+    this.state = { error: null };
+  }
+
+  static getDerivedStateFromError(error: Error) {
+    return { error };
+  }
+
+  componentDidCatch(error: Error, info: ErrorInfo): void {
+    console.error('[b-ark] BackupPage render error:', error, info.componentStack);
+  }
+
+  render(): ReactNode {
+    if (this.state.error) {
+      return (
+        <div style={{ padding: 24, color: '#b03030', fontSize: 13, fontFamily: 'monospace' }}>
+          <div style={{ fontWeight: 700, marginBottom: 8 }}>b-ark failed to load</div>
+          <div>{this.state.error.message}</div>
+        </div>
+      );
+    }
+    return this.props.children;
   }
 }
 
@@ -697,8 +727,10 @@ function BackupPageRoot() {
 
 export function BackupPage({ backend }: { backend: BackendContext }) {
   return (
-    <AppProvider backend={backend}>
-      <BackupPageRoot />
-    </AppProvider>
+    <RenderErrorBoundary>
+      <AppProvider backend={backend}>
+        <BackupPageRoot />
+      </AppProvider>
+    </RenderErrorBoundary>
   );
 }
