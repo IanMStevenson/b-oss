@@ -1,0 +1,43 @@
+<!--
+  SPDX-License-Identifier: GPL-3.0-or-later
+  Copyright (C) 2026 Ian Stevenson
+-->
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>b-ark</title>
+    <style>
+      body {
+        font: 14px/1.6 system-ui, sans-serif;
+        width: 320px;
+        padding: 1rem;
+        margin: 0;
+      }
+      h2 {
+        margin: 0 0 0.75rem;
+        font-size: 1rem;
+      }
+      button {
+        font: inherit;
+        padding: 0.4rem 0.8rem;
+        cursor: pointer;
+        margin: 0.25rem 0;
+        width: 100%;
+      }
+      #status {
+        margin-top: 0.75rem;
+        font-size: 0.85rem;
+        white-space: pre-wrap;
+        color: #333;
+      }
+    </style>
+  </head>
+  <body>
+    <h2>b-ark</h2>
+    <button id="btn-signin">Sign in to Blipfoto</button>
+    <button id="btn-folder">Pick backup folder</button>
+    <div id="status">Loading…</div>
+    <script type="module" src="./index.ts"></script>
+  </body>
+</html>
