@@ -2,6 +2,7 @@
 // Copyright (C) 2026 Ian Stevenson
 
 export { BrowserBackend } from './BrowserBackend.js';
+export { BackupPage } from './BackupPage.js';
 
 // Chrome platform primitives — shared with b-ark-chrome app entry points
 export { BrowserPlatformIO } from './browser-platform-io.js';
