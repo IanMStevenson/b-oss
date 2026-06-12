@@ -12,6 +12,7 @@ import { loadToken } from './token-storage.js';
 const statusEl = document.getElementById('status')!;
 const signinBtn = document.getElementById('btn-signin') as HTMLButtonElement;
 const folderBtn = document.getElementById('btn-folder') as HTMLButtonElement;
+const backupNowBtn = document.getElementById('btn-backup-now') as HTMLButtonElement;
 
 function setStatus(text: string): void {
   statusEl.textContent = text;
@@ -32,6 +33,7 @@ async function init(): Promise<void> {
   }
 
   const handle = await loadHandle();
+  let folderReady = false;
   if (handle) {
     const perm = await queryFsaPermission(handle);
     if (perm === null) {
@@ -39,12 +41,17 @@ async function init(): Promise<void> {
       folderBtn.textContent = 'Pick backup folder';
     } else if (perm === 'granted') {
       appendStatus(`Backup folder: ${handle.name} ✓`);
+      folderReady = true;
     } else {
       appendStatus(`Backup folder: ${handle.name} (needs re-grant)`);
       folderBtn.textContent = 'Re-grant folder access';
     }
   } else {
     appendStatus('No backup folder chosen.');
+  }
+
+  if (token && folderReady) {
+    backupNowBtn.disabled = false;
   }
 
   // Watch for OAuth result written to chrome.storage by the service worker
@@ -98,6 +105,10 @@ folderBtn.addEventListener('click', () => {
       }
     }
   })();
+});
+
+backupNowBtn.addEventListener('click', () => {
+  void chrome.runtime.sendMessage({ type: 'open_backup_page' });
 });
 
 void init();
