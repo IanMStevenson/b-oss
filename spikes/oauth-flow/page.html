@@ -1,0 +1,50 @@
+<!--
+  SPDX-License-Identifier: GPL-3.0-or-later
+  Copyright (C) 2026 Ian Stevenson
+-->
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>OAuth flow spike</title>
+    <style>
+      body { font: 14px/1.55 system-ui, sans-serif; max-width: 820px; margin: 2rem auto; padding: 0 1rem; }
+      button { font: inherit; padding: 0.45rem 0.9rem; cursor: pointer; }
+      input { font: inherit; padding: 0.35rem 0.5rem; width: 32rem; max-width: 100%; }
+      pre { background: #f4f4f4; padding: 0.75rem; border-radius: 6px; white-space: pre-wrap; max-height: 360px; overflow: auto; }
+      code { background: #eee; padding: 0 0.3rem; border-radius: 3px; }
+      .readout { background: #eef6ff; border-radius: 6px; padding: 0.5rem 0.7rem; }
+      .row { margin: 0.7rem 0; }
+      ol li { margin: 0.4rem 0; }
+    </style>
+  </head>
+  <body>
+    <h1>OAuth flow spike (chrome.identity → Blipfoto)</h1>
+
+    <ol>
+      <li>
+        Register a <b>new Blipfoto distributed app</b> with this exact redirect URI:
+        <div class="row readout">
+          <b>Redirect URI:</b> <span id="redirect">…</span><br />
+          <small>Extension ID: <span id="extid">…</span> (stable while this folder path is unchanged)</small>
+        </div>
+        Confirm Blipfoto's form <b>accepts the <code>https://…chromiumapp.org/</code> redirect</b>
+        — that acceptance is one of the things this spike is checking.
+      </li>
+      <li>
+        Paste the new app's <b>client_id</b>:<br />
+        <input id="clientId" type="text" placeholder="client_id from the Blipfoto app" autocomplete="off" />
+      </li>
+      <li>
+        <button id="signin">Sign in with Blipfoto</button>
+        — opens Chrome's auth window, returns to the redirect, parses the token, and verifies it
+        by calling <code>user/profile</code>.
+      </li>
+    </ol>
+
+    <h3>Log</h3>
+    <pre id="log"></pre>
+
+    <script src="page.js"></script>
+  </body>
+</html>
