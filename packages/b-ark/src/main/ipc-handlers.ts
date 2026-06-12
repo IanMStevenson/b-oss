@@ -19,7 +19,7 @@ import type {
   LogEntry,
   MainEvent,
   SharedSettingsPartial,
-} from '@b-oss/b-ark-ui';
+} from '@b-oss/b-ark-ui-electron';
 import { startOAuthFlow, startOAuthFlowEmbedded, encryptToken, decryptToken } from './oauth.js';
 import { validateBackupFolderPath } from './validate-backup-folder.js';
 import {

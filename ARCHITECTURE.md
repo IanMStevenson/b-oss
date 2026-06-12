@@ -4,7 +4,8 @@
 
 ```
 b-ark (Electron shell)
-  └── b-ark-ui (React UI, BackendContext interface)
+  └── b-ark-ui-electron (desktop React shell, ElectronBackend)
+        ├── b-ark-ui-components (shared presentational kit, BackendContext interface)
         └── b-view (shared React components)
   └── backup-engine (backup algorithm, PlatformIO interface)
         └── b-api (HTTP client)
@@ -20,8 +21,9 @@ A future React Native port would implement a different `PlatformIO` — the back
 
 ### 2. BackendContext (UI shell)
 
-`b-ark-ui` defines `BackendContext` — a React context interface for all "native" operations —
-and includes `ElectronBackend`, which implements it by wrapping `window.api` IPC calls
+`b-ark-ui-components` defines `BackendContext` — a React context interface for all "native"
+operations — alongside the shared, prop-driven presentational components. `b-ark-ui-electron`
+includes `ElectronBackend`, which implements it by wrapping `window.api` IPC calls
 (no direct `electron` imports). `b-ark` instantiates `ElectronBackend` and provides it to the React tree.
 A future Capacitor/iPad port would supply a different `BackendContext` implementation — the UI is unchanged.
 

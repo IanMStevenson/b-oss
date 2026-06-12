@@ -2,7 +2,7 @@
 // Copyright (C) 2026 Ian Stevenson
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import type { PortableSchedule } from '@b-oss/b-ark-ui';
+import type { PortableSchedule } from '@b-oss/b-ark-ui-electron';
 import { BackupScheduler, computeNextRun } from '../scheduler.js';
 
 interface Harness {

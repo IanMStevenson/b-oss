@@ -6,7 +6,7 @@ import type {
   BArkSettings,
   PortableAccount,
   PortableSchedule,
-} from '@b-oss/b-ark-ui';
+} from '@b-oss/b-ark-ui-electron';
 import { B_ARK_SETTINGS_SCHEMA_VERSION } from './schema-version.js';
 import { PortableSettingsManager } from './portable-settings.js';
 

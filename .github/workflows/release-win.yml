@@ -23,7 +23,8 @@ jobs:
       - run: npm run build --workspace=packages/b-api
       - run: npm run build --workspace=packages/backup-engine
       - run: npm run build --workspace=packages/b-view
-      - run: npm run build --workspace=packages/b-ark-ui
+      - run: npm run build --workspace=packages/b-ark-ui-components
+      - run: npm run build --workspace=packages/b-ark-ui-electron
       - name: Build b-ark (inlines MAIN_VITE_* into the bundle)
         env:
           MAIN_VITE_BLIPFOTO_CLIENT_ID: ${{ secrets.BLIPFOTO_CLIENT_ID }} # vite inlines import.meta.env.MAIN_VITE_* at build time — must be set on the build step, not the publish step

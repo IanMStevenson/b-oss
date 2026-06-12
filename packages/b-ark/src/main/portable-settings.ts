@@ -3,7 +3,7 @@
 
 import fs from 'node:fs/promises';
 import path from 'node:path';
-import type { BArkSettings } from '@b-oss/b-ark-ui';
+import type { BArkSettings } from '@b-oss/b-ark-ui-electron';
 import { B_ARK_SETTINGS_SCHEMA_VERSION } from './schema-version.js';
 import { computeNextRun } from './scheduler.js';
 

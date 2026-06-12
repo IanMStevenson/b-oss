@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (C) 2026 Ian Stevenson
 
-import type { LogEntry } from '@b-oss/b-ark-ui';
+import type { LogEntry } from '@b-oss/b-ark-ui-electron';
 
 const HEADER = ['timestamp', 'level', 'account_id', 'username', 'backup_id', 'message'];
 

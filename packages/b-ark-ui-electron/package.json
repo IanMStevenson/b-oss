@@ -1,5 +1,5 @@
 {
-  "name": "@b-oss/b-ark-ui",
+  "name": "@b-oss/b-ark-ui-electron",
   "version": "0.1.0",
   "private": true,
   "type": "module",

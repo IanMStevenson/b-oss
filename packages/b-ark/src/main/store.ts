@@ -9,7 +9,7 @@ import type {
   BArkSettings,
   PortableAccount,
   UserDataStore,
-} from '@b-oss/b-ark-ui';
+} from '@b-oss/b-ark-ui-electron';
 import { PortableSettingsManager } from './portable-settings.js';
 
 const DEFAULT_STATUS: AccountStatus = {

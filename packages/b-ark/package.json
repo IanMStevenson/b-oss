@@ -20,7 +20,7 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@b-oss/b-ark-ui": "*",
+    "@b-oss/b-ark-ui-electron": "*",
     "@b-oss/backup-engine": "*",
     "@b-oss/b-api": "*",
     "@b-oss/b-view": "*",

@@ -3,8 +3,8 @@
 
 import React from 'react';
 import { createRoot } from 'react-dom/client';
-import { App, ElectronBackend } from '@b-oss/b-ark-ui';
-import '@b-oss/b-ark-ui/src/styles/global.css';
+import { App, ElectronBackend } from '@b-oss/b-ark-ui-electron';
+import '@b-oss/b-ark-ui-electron/src/styles/global.css';
 
 const backend = new ElectronBackend();
 

@@ -5,6 +5,13 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Changed
+
+- Split `b-ark-ui` into `b-ark-ui-components` (shared, prop-driven presentational kit +
+  `BackendContext` interface + view types) and `b-ark-ui-electron` (desktop shell:
+  multi-account `App`, `ElectronBackend`, and thin container wrappers). Desktop b-ark
+  behaviour is unchanged; the split lets the forthcoming Chrome plugin reuse the kit.
+
 ## [0.9.0] - 2026-05-29
 
 ### Added

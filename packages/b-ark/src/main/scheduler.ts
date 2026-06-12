@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (C) 2026 Ian Stevenson
 
-import type { PortableSchedule, ScheduleInterval } from '@b-oss/b-ark-ui';
+import type { PortableSchedule, ScheduleInterval } from '@b-oss/b-ark-ui-electron';
 
 const MAX_TIMEOUT_MS = 2_147_483_647;
 

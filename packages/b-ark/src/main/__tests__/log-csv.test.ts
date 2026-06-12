@@ -2,7 +2,7 @@
 // Copyright (C) 2026 Ian Stevenson
 
 import { describe, it, expect } from 'vitest';
-import type { LogEntry } from '@b-oss/b-ark-ui';
+import type { LogEntry } from '@b-oss/b-ark-ui-electron';
 import { toCsv } from '../log-csv.js';
 
 function entry(over: Partial<LogEntry>): LogEntry {

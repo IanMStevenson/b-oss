@@ -5,7 +5,7 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import os from 'node:os';
-import type { BArkSettings } from '@b-oss/b-ark-ui';
+import type { BArkSettings } from '@b-oss/b-ark-ui-electron';
 import { B_ARK_SETTINGS_SCHEMA_VERSION } from '../schema-version.js';
 import { PortableSettingsManager } from '../portable-settings.js';
 

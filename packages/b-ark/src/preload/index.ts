@@ -7,7 +7,7 @@ import type {
   LogCsvFilters,
   MainEvent,
   SharedSettingsPartial,
-} from '@b-oss/b-ark-ui';
+} from '@b-oss/b-ark-ui-electron';
 
 contextBridge.exposeInMainWorld('api', {
   appVersion: __APP_VERSION__,

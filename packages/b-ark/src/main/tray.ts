@@ -4,7 +4,7 @@
 import { Tray, Menu, nativeImage, app, type BrowserWindow } from 'electron';
 import path from 'node:path';
 import type Store from 'electron-store';
-import type { UserDataStore } from '@b-oss/b-ark-ui';
+import type { UserDataStore } from '@b-oss/b-ark-ui-electron';
 import { getWorstRag } from './store.js';
 
 let rebuilder: (() => void) | null = null;
