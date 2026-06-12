@@ -1,14 +1,35 @@
 # SPDX-FileCopyrightText: 2025 Ian Stevenson <Ian.Stevenson@salientpoint.co.uk>
 # SPDX-License-Identifier: MIT
 
-# Mac build — manual trigger only.
-# Requires Apple code signing credentials (see CONTRIBUTING.md).
-# Enable automatic tag-push triggering when a Mac contributor is available.
+# Mac build — manual trigger only. UNSIGNED TEST BUILD.
+#
+# Builds a universal (Apple Silicon + Intel) DMG and publishes it to its OWN
+# separate pre-release tag (v1.0.0-mac-test.<run number>), marked "Pre-release"
+# so it never appears as "Latest" and never touches the real v1.0.0 release.
+# package.json stays at 1.0.0; the test version is injected only for this build.
+#
+# No Apple Developer account is required: code signing is skipped
+# (CSC_IDENTITY_AUTO_DISCOVERY=false) and notarization is not attempted. Testers
+# must bypass Gatekeeper to open it (right-click -> Open, or
+# `xattr -dr com.apple.quarantine /Applications/b-ark.app`). macOS auto-update
+# needs a signed app, so it will not apply to this unsigned build.
+#
+# Run it WITHOUT merging: Actions -> Release (Mac) -> Run workflow -> pick the
+# feature branch. The dispatch button comes from this file existing on the
+# default branch; the run uses the workflow + code from the branch you select.
+#
+# Next step (separate, future PR): once proven, fold the Mac build into the
+# normal release cycle alongside Windows — same v* tag, both platforms attached
+# to one release — and add Apple signing + notarization secrets to drop the
+# unsigned/Gatekeeper caveats.
 
 name: Release (Mac)
 
 on:
   workflow_dispatch:
+
+permissions:
+  contents: write # needed to create the pre-release and upload the DMG
 
 jobs:
   release-mac:
@@ -19,13 +40,35 @@ jobs:
         with:
           node-version: '22'
           cache: 'npm'
-      - run: npm ci
-      - run: npm run build
-      - name: Build and publish Electron app
+      - name: Generate release version metadata
         env:
-          VITE_BLIPFOTO_CLIENT_ID: ${{ secrets.BLIPFOTO_CLIENT_ID }}
+          RELEASE: '1'
+        run: npm run version:bump
+      - run: npm ci
+      - name: Audit production dependencies
+        run: npm audit --omit=dev --audit-level=high
+      - run: npm run build --workspace=packages/b-api
+      - run: npm run build --workspace=packages/backup-engine
+      - run: npm run build --workspace=packages/b-view
+      - run: npm run build --workspace=packages/b-ark-ui
+      - name: Build b-ark (inlines MAIN_VITE_* into the bundle)
+        env:
+          MAIN_VITE_BLIPFOTO_CLIENT_ID: ${{ secrets.BLIPFOTO_CLIENT_ID }} # vite inlines import.meta.env.MAIN_VITE_* at build time — must be set on the build step, not the publish step
+        run: npm run build --workspace=packages/b-ark
+      - name: Generate macOS app icon (icon.icns)
+        run: bash scripts/make-icns.sh
+      - name: Package unsigned universal DMG (no publish)
+        env:
+          CSC_IDENTITY_AUTO_DISCOVERY: 'false' # no Developer ID cert on the runner — skip signing cleanly instead of failing
+        run: npm run pack:mac --workspace=packages/b-ark -- --config.extraMetadata.version=1.0.0-mac-test.${{ github.run_number }}
+      - name: Publish DMG to a separate pre-release
+        env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          APPLE_ID: ${{ secrets.APPLE_ID }}
-          APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
-          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
-        run: npm run release --workspace=packages/b-ark
+        run: |
+          TAG="v1.0.0-mac-test.${{ github.run_number }}"
+          gh release create "$TAG" \
+            --prerelease \
+            --target "${{ github.sha }}" \
+            --title "b-ark macOS test ($TAG)" \
+            --notes "Unsigned universal (Apple Silicon + Intel) Mac test build. Not for production and separate from the real v1.0.0 release. To open: download the DMG, drag b-ark to Applications, then right-click the app → Open → Open (or run \`xattr -dr com.apple.quarantine /Applications/b-ark.app\`). macOS auto-update does not apply to unsigned builds." \
+            packages/b-ark/dist-electron/*.dmg

@@ -13,7 +13,7 @@ You can find more information on the [b-oss website](https://ianmstevenson.githu
 
 ## Status
 
-Pre-release. [Download the latest Windows installer](https://github.com/ianstevenson/b-oss/releases) from the Releases page. The installer is unsigned, so Windows SmartScreen will warn on first run — click _More info_ → _Run anyway_. Mac build coming once we find a Mac contributor.
+Pre-release. [Download the latest Windows installer](https://github.com/ianstevenson/b-oss/releases) from the Releases page. The installer is unsigned, so Windows SmartScreen will warn on first run — click _More info_ → _Run anyway_. A Mac build (universal DMG) is currently in testing as an unsigned pre-release; a signed Mac release will follow once it's proven and we have a contributor with an Apple Developer account.
 
 ## Getting started (development)
 

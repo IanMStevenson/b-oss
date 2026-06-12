@@ -17,6 +17,8 @@
     "predist": "npm run build --workspace=packages/b-view",
     "dist": "electron-vite build && electron-builder",
     "dist:win": "electron-vite build && electron-builder --win",
+    "pack:mac": "electron-builder --mac --universal --publish never",
+    "release:mac": "electron-builder --mac --universal --publish always",
     "test": "vitest run"
   },
   "dependencies": {
