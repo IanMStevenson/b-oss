@@ -57,6 +57,11 @@ jobs:
         run: npm run build --workspace=packages/b-ark
       - name: Generate macOS app icon (icon.icns)
         run: bash scripts/make-icns.sh
+      - name: Install macOS-only dmg-license (electron-builder DMG dep, absent from the Windows-generated lockfile)
+        # dmg-license is an os:darwin optionalDependency of dmg-builder; it pulls its own native
+        # subtree (iconv-corefoundation, plist, ...) that can't be locked/validated from Linux,
+        # so it's installed here on the runner rather than committed to package-lock.json.
+        run: npm install --no-save dmg-license@1.0.11
       - name: Package unsigned universal DMG (no publish)
         env:
           CSC_IDENTITY_AUTO_DISCOVERY: 'false' # no Developer ID cert on the runner — skip signing cleanly instead of failing
