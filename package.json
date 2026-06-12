@@ -51,5 +51,8 @@
     "*.{json,css,md}": [
       "prettier --write"
     ]
+  },
+  "dependencies": {
+    "@rolldown/binding-linux-x64-gnu": "^1.1.1"
   }
 }
