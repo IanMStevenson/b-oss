@@ -14,11 +14,11 @@ export class ElectronPlatformIO implements PlatformIO {
     this.logHandler = logHandler;
   }
 
-  async readFile(p: string): Promise<Buffer> {
+  async readFile(p: string): Promise<Uint8Array> {
     return fs.readFile(p);
   }
 
-  async writeFile(p: string, data: Buffer | string): Promise<void> {
+  async writeFile(p: string, data: Uint8Array | string): Promise<void> {
     await fs.writeFile(p, data);
   }
 
