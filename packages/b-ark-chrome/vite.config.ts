@@ -23,5 +23,10 @@ export default defineConfig({
   build: {
     outDir: 'dist',
     emptyOutDir: true,
+    rollupOptions: {
+      input: {
+        backup: resolve(__dirname, 'src/backup.html'),
+      },
+    },
   },
 });
