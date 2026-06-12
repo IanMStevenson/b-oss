@@ -5,6 +5,23 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [1.0.0] - 2026-06-11
+
+### Added
+
+- Authentication error banner — surfaces OAuth / token failures directly in the app
+
+### Changed
+
+- OAuth flow refactored into `b-api` for reuse and cleaner separation from the Electron shell
+- Development instances no longer register Windows launch-at-login (prevents dev builds
+  hijacking auto-start)
+
+### Fixed
+
+- Silent backup failures now surface an error instead of failing quietly
+- Windows failed-backup notifications fixed
+
 ## [0.9.0] - 2026-05-29
 
 ### Added
