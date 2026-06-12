@@ -45,11 +45,6 @@ jobs:
           RELEASE: '1'
         run: npm run version:bump
       - run: npm ci
-      - name: Install macOS rolldown binding (missing from the Windows-generated lockfile; npm/cli#4828)
-        # The committed package-lock.json only carries @rolldown/binding-win32-x64-msvc, so `npm ci`
-        # on macOS can't install the darwin binary that Vite 8 (rolldown) needs to build b-view.
-        # The runner is Apple Silicon (macos-latest = arm64); pull the matching-version binding only.
-        run: npm install --no-save "@rolldown/binding-darwin-arm64@$(node -p "require('./node_modules/rolldown/package.json').version")"
       - name: Audit production dependencies
         run: npm audit --omit=dev --audit-level=high
       - run: npm run build --workspace=packages/b-api
