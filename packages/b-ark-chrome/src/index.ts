@@ -22,18 +22,15 @@ function appendStatus(text: string): void {
   statusEl.textContent = (statusEl.textContent ?? '') + '\n' + text;
 }
 
-async function init(): Promise<void> {
+/** Rebuild status text and button state from current storage. */
+async function refreshUI(): Promise<void> {
   setStatus('');
 
   const token = await loadToken();
-  if (token) {
-    appendStatus(`Signed in as ${token.username} ✓`);
-  } else {
-    appendStatus('Not signed in.');
-  }
+  appendStatus(token ? `Signed in as ${token.username} ✓` : 'Not signed in.');
 
   const handle = await loadHandle();
-  let folderReady = false;
+  let folderGranted = false;
   if (handle) {
     const perm = await queryFsaPermission(handle);
     if (perm === null) {
@@ -41,7 +38,8 @@ async function init(): Promise<void> {
       folderBtn.textContent = 'Pick backup folder';
     } else if (perm === 'granted') {
       appendStatus(`Backup folder: ${handle.name} ✓`);
-      folderReady = true;
+      folderGranted = true;
+      folderBtn.textContent = 'Pick backup folder';
     } else {
       appendStatus(`Backup folder: ${handle.name} (needs re-grant)`);
       folderBtn.textContent = 'Re-grant folder access';
@@ -50,9 +48,11 @@ async function init(): Promise<void> {
     appendStatus('No backup folder chosen.');
   }
 
-  if (token && folderReady) {
-    backupNowBtn.disabled = false;
-  }
+  backupNowBtn.disabled = !(token && folderGranted);
+}
+
+async function init(): Promise<void> {
+  await refreshUI();
 
   // Surface any OAuth result that arrived while the popup was closed.
   const stored = await chrome.storage.local.get(['oauthStatus', 'oauthError', 'username', 'via']);
@@ -62,23 +62,20 @@ async function init(): Promise<void> {
     appendStatus(`Sign-in failed: ${errMsg ?? 'unknown error'}`);
     void chrome.storage.local.remove(['oauthStatus', 'oauthError']);
   } else if (storedOauthStatus === 'success') {
-    // Token was stored by oauth.ts; clean up the temporary status keys.
     void chrome.storage.local.remove(['oauthStatus', 'username', 'via']);
   }
 
-  // Watch for OAuth result written to chrome.storage by the service worker
+  // Watch for OAuth result written to chrome.storage by the service worker.
   chrome.storage.onChanged.addListener((changes, area) => {
     if (area !== 'local' || !('oauthStatus' in changes)) return;
     const newStatus = changes['oauthStatus']?.newValue as string | undefined;
     if (newStatus === 'success') {
-      const username = changes['username']?.newValue as string | undefined;
-      setStatus(`Signed in as ${username ?? '?'} ✓`);
-      // token already encrypted to IDB by oauth.ts → storeToken; clear temp keys
       void chrome.storage.local.remove(['oauthStatus', 'username', 'via']);
+      void refreshUI();
     } else if (newStatus === 'error') {
       const errMsg = changes['oauthError']?.newValue as string | undefined;
-      setStatus(`Sign-in failed: ${errMsg ?? 'unknown error'}`);
       void chrome.storage.local.remove(['oauthStatus', 'oauthError']);
+      void refreshUI().then(() => appendStatus(`Sign-in failed: ${errMsg ?? 'unknown error'}`));
     }
   });
 }
@@ -96,12 +93,12 @@ folderBtn.addEventListener('click', () => {
       if (perm !== 'granted') {
         const after = await requestFsaPermission(existing);
         if (after === 'granted') {
-          setStatus(`Backup folder: ${existing.name} ✓ (re-granted)`);
           folderBtn.textContent = 'Pick backup folder';
+          await refreshUI();
           return;
         }
       } else {
-        setStatus(`Backup folder: ${existing.name} ✓`);
+        await refreshUI();
         return;
       }
     }
@@ -109,11 +106,11 @@ folderBtn.addEventListener('click', () => {
     try {
       const dir = await window.showDirectoryPicker({ mode: 'readwrite' });
       await saveHandle(dir);
-      setStatus(`Backup folder: ${dir.name} ✓`);
       folderBtn.textContent = 'Pick backup folder';
+      await refreshUI();
     } catch (e) {
       if ((e as DOMException).name !== 'AbortError') {
-        setStatus(`Folder pick failed: ${(e as Error).message}`);
+        appendStatus(`Folder pick failed: ${(e as Error).message}`);
       }
     }
   })();
