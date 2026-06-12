@@ -3,7 +3,6 @@
   "name": "b-ark",
   "version": "0.1.0",
   "description": "Back up your Blipfoto journal.",
-  "key": "TODO_REPLACE_AFTER_FIRST_LOAD",
   "permissions": ["storage", "webRequest", "webNavigation", "tabs"],
   "host_permissions": [
     "https://api.blipfoto.com/*",
