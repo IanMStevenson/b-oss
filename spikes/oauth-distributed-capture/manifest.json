@@ -3,7 +3,7 @@
   "name": "OAuth distributed-flow capture spike",
   "version": "0.0.1",
   "description": "Spike #3b: capture a custom-scheme implicit-grant redirect (distributed app) inside Chrome via webRequest.onBeforeRedirect / webNavigation, and check whether the token fragment survives.",
-  "permissions": ["webRequest", "webNavigation", "tabs"],
+  "permissions": ["storage", "webRequest", "webNavigation", "tabs"],
   "host_permissions": ["https://*.blipfoto.com/*"],
   "background": { "service_worker": "sw.js" },
   "action": { "default_title": "Open the distributed-OAuth capture spike" }
