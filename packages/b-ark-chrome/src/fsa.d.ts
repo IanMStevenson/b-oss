@@ -3,6 +3,12 @@
 
 // Chrome-specific FSA methods and async iterators not yet in TypeScript's DOM lib.
 
+interface Window {
+  showDirectoryPicker(options?: {
+    mode?: 'read' | 'readwrite';
+  }): Promise<FileSystemDirectoryHandle>;
+}
+
 interface FileSystemHandle {
   queryPermission(descriptor: { mode: 'read' | 'readwrite' }): Promise<PermissionState>;
   requestPermission(descriptor: { mode: 'read' | 'readwrite' }): Promise<PermissionState>;
