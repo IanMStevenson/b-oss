@@ -10,6 +10,8 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@b-oss/b-api": "*",
+    "@b-oss/backup-engine": "*",
     "@b-oss/b-ark-ui-components": "*",
     "@b-oss/b-view": "*",
     "lucide-react": "^1.16.0",
