@@ -11,7 +11,7 @@ import { ThumbnailGrid, EntryDetail, useJournal, useEntry } from '@b-oss/b-view'
 import type { BlipEntry, EntryIndex } from '@b-oss/b-view';
 import type { AccountConfig } from '../../backend.js';
 import { useApp } from '../../context/AppContext.js';
-import { BackupBanner } from '../BackupBanner.js';
+import { BackupBanner } from '@b-oss/b-ark-ui-components';
 import { AuthErrorBanner } from '../AuthErrorBanner.js';
 import { StatusBar } from '../StatusBar.js';
 import { Avatar } from '../Avatar.js';

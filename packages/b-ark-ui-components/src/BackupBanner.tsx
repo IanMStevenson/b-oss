@@ -2,7 +2,8 @@
 // Copyright (C) 2026 Ian Stevenson
 
 import { RefreshCw, PauseCircle } from 'lucide-react';
-import type { BackupPhase, BackupProgress } from '../context/reducer.js';
+import type { BackupPhase } from './backend.js';
+import type { BackupProgress } from './view-types.js';
 
 interface BackupBannerProps {
   journalTitle: string;

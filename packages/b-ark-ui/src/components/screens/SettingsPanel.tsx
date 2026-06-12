@@ -7,7 +7,7 @@ import type { AccountConfig } from '../../backend.js';
 import { useApp } from '../../context/AppContext.js';
 import { useToast } from '../../hooks/useToast.js';
 import { addAccountWithToast } from '../../lib/add-account-with-toast.js';
-import { SplitButton } from '../SplitButton.js';
+import { SplitButton } from '@b-oss/b-ark-ui-components';
 
 function PillToggle({ checked, onChange }: { checked: boolean; onChange: (v: boolean) => void }) {
   return (

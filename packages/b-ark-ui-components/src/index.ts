@@ -25,3 +25,7 @@ export type {
 } from './backend.js';
 
 export type { BackupProgress, Toast } from './view-types.js';
+
+export { SplitButton } from './SplitButton.js';
+export type { SplitButtonAction } from './SplitButton.js';
+export { BackupBanner } from './BackupBanner.js';

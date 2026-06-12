@@ -5,7 +5,7 @@ import { useApp } from '../context/AppContext.js';
 import { useToast } from '../hooks/useToast.js';
 import { addAccountWithToast } from '../lib/add-account-with-toast.js';
 import { AccountRow } from './AccountRow.js';
-import { SplitButton } from './SplitButton.js';
+import { SplitButton } from '@b-oss/b-ark-ui-components';
 
 export function Sidebar({ compact }: { compact?: boolean }) {
   const { state, dispatch, backend } = useApp();

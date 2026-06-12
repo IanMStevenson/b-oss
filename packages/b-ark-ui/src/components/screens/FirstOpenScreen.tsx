@@ -4,7 +4,7 @@
 import { Archive, Shield } from 'lucide-react';
 import { useApp } from '../../context/AppContext.js';
 import { useToast } from '../../hooks/useToast.js';
-import { SplitButton } from '../SplitButton.js';
+import { SplitButton } from '@b-oss/b-ark-ui-components';
 import { addAccountWithToast } from '../../lib/add-account-with-toast.js';
 
 export function FirstOpenScreen() {
