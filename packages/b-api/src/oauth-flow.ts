@@ -47,6 +47,8 @@ export class OAuthCallbackError extends Error {
 export function parseImplicitGrantCallback(uri: string): {
   accessToken: string;
   state: string;
+  /** Present when Blipfoto includes it in the callback fragment (distributed-app flow). */
+  username?: string;
 } {
   const queryIndex = uri.indexOf('?');
   const hashIndex = uri.indexOf('#');
@@ -73,5 +75,6 @@ export function parseImplicitGrantCallback(uri: string): {
   const accessToken = params.get('access_token');
   if (!accessToken) throw new Error('No access_token in OAuth callback');
 
-  return { accessToken, state };
+  const username = params.get('username') ?? undefined;
+  return { accessToken, state, username };
 }

@@ -54,6 +54,18 @@ async function init(): Promise<void> {
     backupNowBtn.disabled = false;
   }
 
+  // Surface any OAuth result that arrived while the popup was closed.
+  const stored = await chrome.storage.local.get(['oauthStatus', 'oauthError', 'username', 'via']);
+  const storedOauthStatus = stored['oauthStatus'] as string | undefined;
+  if (storedOauthStatus === 'error') {
+    const errMsg = stored['oauthError'] as string | undefined;
+    appendStatus(`Sign-in failed: ${errMsg ?? 'unknown error'}`);
+    void chrome.storage.local.remove(['oauthStatus', 'oauthError']);
+  } else if (storedOauthStatus === 'success') {
+    // Token was stored by oauth.ts; clean up the temporary status keys.
+    void chrome.storage.local.remove(['oauthStatus', 'username', 'via']);
+  }
+
   // Watch for OAuth result written to chrome.storage by the service worker
   chrome.storage.onChanged.addListener((changes, area) => {
     if (area !== 'local' || !('oauthStatus' in changes)) return;

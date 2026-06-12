@@ -9,7 +9,7 @@
 // On success, encrypts the token via storeToken and writes { oauthStatus,
 // username } to chrome.storage.local so the popup can update its UI.
 
-import { buildImplicitGrantUrl, parseImplicitGrantCallback, BlipfotoClient } from '@b-oss/b-api';
+import { buildImplicitGrantUrl, parseImplicitGrantCallback } from '@b-oss/b-api';
 import { storeToken } from './token-storage.js';
 
 const REDIRECT_URI = 'bark-chrome://oauth/callback';
@@ -53,8 +53,9 @@ export async function startOAuthFlow(clientId: string): Promise<void> {
         return;
       }
       accessToken = parsed.accessToken;
-      const client = new BlipfotoClient(accessToken);
-      ({ username } = await client.verifyToken(clientId));
+      // Blipfoto includes username in the callback fragment — use it directly.
+      username = parsed.username ?? '';
+      if (!username) throw new Error('No username in OAuth callback');
     } catch (e) {
       await chrome.storage.local.set({
         oauthStatus: 'error',
