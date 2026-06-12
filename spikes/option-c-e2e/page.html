@@ -1,0 +1,45 @@
+<!--
+  SPDX-License-Identifier: GPL-3.0-or-later
+  Copyright (C) 2026 Ian Stevenson
+-->
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Option C — end-to-end proof</title>
+    <style>
+      body { font: 14px/1.55 system-ui, sans-serif; max-width: 820px; margin: 2rem auto; padding: 0 1rem; }
+      button { font: inherit; padding: 0.4rem 0.8rem; cursor: pointer; }
+      input { font: inherit; padding: 0.35rem 0.5rem; width: 28rem; max-width: 100%; }
+      pre { background: #f4f4f4; padding: 0.75rem; border-radius: 6px; white-space: pre-wrap; max-height: 420px; overflow: auto; }
+      code { background: #eee; padding: 0 0.3rem; border-radius: 3px; }
+      .row { margin: 0.6rem 0; }
+    </style>
+  </head>
+  <body>
+    <h1>Option C — end-to-end proof</h1>
+    <p>
+      Confirms the last technical unknown: a single extension page can <b>fetch the Blipfoto
+      API</b> (CORS-bypass via <code>host_permissions</code>) <b>and write</b> the entry JSON +
+      a downloaded image to a real on-disk folder via the <b>File System Access API</b>, all in
+      one context.
+    </p>
+
+    <div class="row">
+      <label
+        >Blipfoto access token (pasted, kept only in this tab's <code>sessionStorage</code> —
+        never written to any file):<br />
+        <input id="token" type="password" placeholder="paste access token" autocomplete="off" />
+      </label>
+    </div>
+    <div class="row">
+      <button id="pick">1 · Pick backup folder</button>
+      <button id="run">2 · Run proof (fetch API → write JSON + image to disk)</button>
+    </div>
+
+    <h3>Log</h3>
+    <pre id="log"></pre>
+
+    <script src="page.js"></script>
+  </body>
+</html>

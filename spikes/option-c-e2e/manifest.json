@@ -1,0 +1,10 @@
+{
+  "manifest_version": 3,
+  "name": "Option C end-to-end proof",
+  "version": "0.0.1",
+  "description": "Proves an extension page can fetch the Blipfoto API (CORS-bypass via host_permissions) AND write the result + a downloaded image to a user folder via FSA, in one context.",
+  "permissions": ["storage"],
+  "host_permissions": ["https://*/*"],
+  "background": { "service_worker": "sw.js" },
+  "action": { "default_title": "Open the Option C proof page" }
+}
