@@ -1,0 +1,10 @@
+{
+  "manifest_version": 3,
+  "name": "FSA background-tab spike",
+  "version": "0.0.1",
+  "description": "Spike #1: can an unfocused background tab (opened by the SW) silently write to a granted File System Access folder, and does the grant survive a browser restart?",
+  "permissions": ["storage"],
+  "action": { "default_title": "FSA spike: open unfocused background writer tab" },
+  "background": { "service_worker": "sw.js", "type": "module" },
+  "options_page": "setup.html"
+}

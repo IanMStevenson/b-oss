@@ -1,0 +1,62 @@
+<!--
+  SPDX-License-Identifier: GPL-3.0-or-later
+  Copyright (C) 2026 Ian Stevenson
+-->
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>FSA persistence — staged test</title>
+    <style>
+      body { font: 14px/1.55 system-ui, sans-serif; max-width: 760px; margin: 2rem auto; padding: 0 1rem; }
+      button { font: inherit; padding: 0.4rem 0.8rem; cursor: pointer; }
+      pre { background: #f4f4f4; padding: 0.75rem; border-radius: 6px; white-space: pre-wrap; }
+      code { background: #eee; padding: 0 0.3rem; border-radius: 3px; }
+      .readout { font-size: 1.15rem; padding: 0.6rem 0.8rem; background: #eef6ff; border-radius: 6px; }
+      li { margin: 0.5rem 0; }
+    </style>
+  </head>
+  <body>
+    <h1>FSA persistence — staged test (extension origin)</h1>
+
+    <p class="readout">
+      On page load, stored-handle <code>queryPermission</code> =
+      <b id="onload">checking…</b>
+    </p>
+    <p>
+      ☝ This readout is the decisive instrument. It runs with <b>no gesture</b>. After you grant
+      <b>"Allow on every visit"</b> and restart Chrome, reopening this page should show
+      <code>granted</code> here <b>without any click</b> — that proves persistence and means the
+      auto-launch model works fully silently.
+    </p>
+
+    <h3>Run in order, fully quitting &amp; reopening Chrome between stages</h3>
+    <ol>
+      <li>
+        <b>Stage 0 (first visit):</b> click <b>Pick &amp; store</b> and choose a throwaway folder.
+        (We deliberately do <i>not</i> re-request here — the persistent prompt only appears on the
+        <i>next</i> visit.)<br />
+        <button id="pick">Pick &amp; store</button>
+      </li>
+      <li>
+        <b>Restart Chrome, reopen this page.</b> The readout should now say <code>prompt</code>.
+        Click <b>Re-grant</b> — this is the repeat-visit <code>requestPermission()</code> that
+        should offer <b>"Allow on every visit."</b> Choose that option.<br />
+        <button id="regrant">Re-grant (requestPermission)</button>
+      </li>
+      <li>
+        <b>Restart Chrome again, reopen this page.</b> If the readout says <code>granted</code>
+        with no click → <b>persistence confirmed</b>. Then click the extension's <b>toolbar icon</b>
+        to run the unfocused background writer and confirm it writes silently (result below).
+      </li>
+    </ol>
+
+    <h3>Background writer result</h3>
+    <pre id="result">(none yet — click the toolbar icon in Stage 2)</pre>
+
+    <h3>Log</h3>
+    <pre id="log"></pre>
+
+    <script type="module" src="setup.js"></script>
+  </body>
+</html>
