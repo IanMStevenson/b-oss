@@ -2,25 +2,11 @@
 // Copyright (C) 2026 Ian Stevenson
 
 import type { AppStore, BootState, LogEntry } from '../backend.js';
+import type { BackupPhase, BackupProgress, Toast } from '@b-oss/b-ark-ui-components';
 
-export type BackupPhase = 'redo' | 'gap_fill' | 'new_posts' | 'image_repair';
-
-export interface BackupProgress {
-  running: boolean;
-  kind: 'first' | 'routine' | null;
-  phase: BackupPhase | null;
-  done: number;
-  total: number;
-  current_date: string;
-  rate_limited_seconds: number | null;
-  total_archived: number | null;
-}
-
-export interface Toast {
-  id: string;
-  level: 'info' | 'warn' | 'error';
-  message: string;
-}
+// View types now live in the shared kit; re-export so existing
+// `from '../context/reducer.js'` type imports keep resolving.
+export type { BackupPhase, BackupProgress, Toast };
 
 export type BootStage = 'loading' | 'pick-folder' | 'first-account' | 'ready';
 
