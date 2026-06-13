@@ -8,10 +8,12 @@ interface Props {
   errorMessage: string | null;
   highlighted: boolean;
   onReauthorise: () => void;
+  /** Override the action button label. Defaults to "Reauthorise". */
+  actionLabel?: string;
 }
 
 export const AuthErrorBanner = forwardRef<HTMLDivElement, Props>(function AuthErrorBanner(
-  { errorMessage, highlighted, onReauthorise },
+  { errorMessage, highlighted, onReauthorise, actionLabel = 'Reauthorise' },
   ref,
 ) {
   return (
@@ -61,7 +63,7 @@ export const AuthErrorBanner = forwardRef<HTMLDivElement, Props>(function AuthEr
           whiteSpace: 'nowrap',
         }}
       >
-        Reauthorise
+        {actionLabel}
       </button>
     </div>
   );

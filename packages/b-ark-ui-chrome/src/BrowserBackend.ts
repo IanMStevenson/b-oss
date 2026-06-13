@@ -60,6 +60,15 @@ function csvEscape(s: string): string {
   return s;
 }
 
+// ── Lifecycle types (mirrored from sw.ts) ─────────────────────────────────
+
+interface BackupLifecycle {
+  tab_id: number;
+  launched_by: 'visit-trigger' | 'user';
+  started_at: string;
+  user_adopted: boolean;
+}
+
 // ── BrowserBackend ──────────────────────────────────────────────────────────
 
 export class BrowserBackend implements BackendContext {
@@ -68,6 +77,10 @@ export class BrowserBackend implements BackendContext {
   private readonly _listeners: Array<(event: MainEvent) => void> = [];
   private _engine: BackupEngine | null = null;
   private _handle: FileSystemDirectoryHandle | null = null;
+
+  // Phase 5 lifecycle — set in _initLifecycle()
+  private _autoLaunched = false;
+  private _adopted = false;
 
   // ── Events ─────────────────────────────────────────────────────────────
 
@@ -83,9 +96,36 @@ export class BrowserBackend implements BackendContext {
     for (const l of this._listeners) l(event);
   }
 
+  private async _initLifecycle(): Promise<void> {
+    let tab: chrome.tabs.Tab | undefined;
+    try {
+      tab = await chrome.tabs.getCurrent();
+    } catch {
+      return; // not in a tab context (e.g. content script)
+    }
+    if (!tab?.id) return;
+
+    const r = await chrome.storage.local.get('backup_lifecycle');
+    const lifecycle = r['backup_lifecycle'] as BackupLifecycle | undefined;
+    if (lifecycle?.tab_id === tab.id && lifecycle.launched_by === 'visit-trigger') {
+      this._autoLaunched = true;
+
+      const markAdopted = (): void => {
+        if (!this._adopted) {
+          this._adopted = true;
+          void chrome.runtime.sendMessage({ type: 'mark_tab_adopted' }).catch(() => {});
+        }
+      };
+      window.addEventListener('focus', markAdopted);
+      // Already focused (user had the tab open)
+      if (document.hasFocus()) markAdopted();
+    }
+  }
+
   notifyRendererReady(): void {
     void (async () => {
       this._handle = await loadHandle();
+      await this._initLifecycle();
 
       chrome.storage.onChanged.addListener((changes, area) => {
         if (area !== 'local') return;
@@ -110,6 +150,14 @@ export class BrowserBackend implements BackendContext {
 
       const store = await this.getStore();
       this._emit({ type: 'store:changed', store });
+
+      // Auto-start backup when launched by the visit-trigger
+      if (this._autoLaunched) {
+        const boot = await this.getBootState();
+        if (boot.stage === 'ready' && boot.store.accounts[0]) {
+          void this.startBackup(boot.store.accounts[0].id);
+        }
+      }
     })();
   }
 
@@ -131,6 +179,17 @@ export class BrowserBackend implements BackendContext {
     this._handle = await loadHandle();
     const store = await this.getStore();
     this._emit({ type: 'store:changed', store });
+  }
+
+  private _notifySwOnComplete(): void {
+    // Ask SW to close the tab if it was auto-launched and the user never adopted it.
+    // (SW re-checks backup_lifecycle.user_adopted before actually removing the tab.)
+    void chrome.runtime.sendMessage({ type: 'close_backup_tab' }).catch(() => {});
+  }
+
+  private _notifySwOnFailure(): void {
+    // Ask SW to raise the backup tab so the user sees the error (never silent).
+    void chrome.runtime.sendMessage({ type: 'raise_backup_tab' }).catch(() => {});
   }
 
   // ── Storage helpers ─────────────────────────────────────────────────────
@@ -250,6 +309,7 @@ export class BrowserBackend implements BackendContext {
     const perm = await queryFsaPermission(handle);
     if (perm !== 'granted') {
       await setFailed('filesystem', 'Folder access denied');
+      this._notifySwOnFailure();
       this._emit({
         type: 'backup:event',
         event: {
@@ -318,6 +378,7 @@ export class BrowserBackend implements BackendContext {
       if (event.type === 'completed') {
         const now = new Date().toISOString();
         void setCompleted(now, event.total_archived);
+        this._notifySwOnComplete();
         void logMgr.readAll().then((entries) => {
           for (const entry of entries) {
             this._emit({ type: 'log:entry', account_id: token.username, entry });
@@ -332,6 +393,7 @@ export class BrowserBackend implements BackendContext {
       }
 
       if (event.type === 'failed') {
+        this._notifySwOnFailure();
         void setFailed(event.error.kind, describeBackupError(event)).then(() =>
           this._reloadAndEmitStore(),
         );
@@ -383,6 +445,8 @@ export class BrowserBackend implements BackendContext {
       'chip_last_backup_at',
       'chip_error_kind',
       'chip_progress',
+      'folder_ready',
+      'backup_lifecycle',
     ]);
     const store = await this.getStore();
     this._emit({ type: 'store:changed', store });
@@ -395,6 +459,8 @@ export class BrowserBackend implements BackendContext {
       const dir = await window.showDirectoryPicker({ mode: 'readwrite' });
       await saveHandle(dir);
       this._handle = dir;
+      // Let the SW know a folder is ready so visit-triggers can fire.
+      await chrome.storage.local.set({ folder_ready: true });
       const store = await this.getStore();
       this._emit({ type: 'store:changed', store });
       return dir.name;
