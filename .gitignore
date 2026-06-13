@@ -35,3 +35,8 @@ ai-examples/
 # Versioning — local build counter and generated build artefact
 .build-counter
 version.generated.json
+
+# Chrome extension signing key (never commit) + packaged artefacts
+key.pem
+*.crx
+b-ark-chrome-*.zip

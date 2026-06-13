@@ -6,6 +6,8 @@
   "scripts": {
     "build": "vite build",
     "dev": "vite build --watch",
+    "package": "node scripts/package.mjs",
+    "dist": "vite build && node scripts/package.mjs",
     "typecheck": "tsc --noEmit && tsc -p tsconfig.node.json --noEmit"
   },
   "dependencies": {
