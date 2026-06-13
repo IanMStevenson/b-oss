@@ -1,7 +1,7 @@
 {
   "name": "b-oss",
   "image": "b-oss-devbase:latest",
-  "postCreateCommand": "npm install @rolldown/binding-linux-x64-gnu && npm run setup",
+  "postCreateCommand": "npm run setup",
   "forwardPorts": [5173, 3000],
   "mounts": ["source=b-oss-claude-config,target=/home/node/.claude,type=volume"],
   "containerEnv": {

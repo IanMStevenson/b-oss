@@ -5,7 +5,10 @@
       "PowerShell(npm install 2>&1)",
       "PowerShell(npm run lint 2>&1)",
       "Bash(npm test *)",
-      "Bash(npm run *)"
+      "Bash(npm run *)",
+      "PowerShell(npm run typecheck 2>&1)",
+      "PowerShell(npm test 2>&1)",
+      "PowerShell(npm run build 2>&1)"
     ]
   }
 }
