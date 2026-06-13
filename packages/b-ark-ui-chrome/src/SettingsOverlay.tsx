@@ -6,6 +6,7 @@ import { X, FolderOpen, CheckCircle, AlertTriangle } from 'lucide-react';
 import type { AccountConfig, BackendContext } from '@b-oss/b-ark-ui-components';
 import { SplitButton } from '@b-oss/b-ark-ui-components';
 import { loadHandle, queryFsaPermission, requestFsaPermission } from './fsa-persistence.js';
+import { clearError } from './status-storage.js';
 
 interface SettingsOverlayProps {
   backend: BackendContext;
@@ -33,6 +34,10 @@ export function SettingsOverlay({ backend, account, onClose }: SettingsOverlayPr
     if (!handle) return;
     const perm = await requestFsaPermission(handle);
     setPermState(perm);
+    if (perm === 'granted') {
+      // Folder access restored — clear any stale "Fix access" red on the page + chip.
+      await clearError();
+    }
   }
 
   const labelStyle: React.CSSProperties = {

@@ -5,6 +5,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import {
   BlipfotoClient,
   BlipfotoError,
+  NetworkError,
   type EntryResponse,
   type JournalEntriesResponse,
   type UserProfileResponse,
@@ -841,6 +842,34 @@ describe('BackupEngine — routine backup new posts', () => {
     expect(newPostCalls).toBe(1);
     expect(io.files.has('/backups/gbradley/entries/2024/2024-01-16.json')).toBe(true);
     expect(io.files.has('/backups/gbradley/entries/2024/2024-01-17.json')).toBe(false);
+    expect(events.some((e) => e.type === 'cancelled')).toBe(true);
+    expect(events.some((e) => e.type === 'failed')).toBe(false);
+  });
+
+  it('reports cancelled (not failed) when the in-flight request rejects after cancel()', async () => {
+    // cancel() only sets a flag; it cannot abort a pending fetch. The fetch then
+    // rejects with a NetworkError before the next checkCancelled(). This must be
+    // reported as a cancellation, not a network failure.
+    const io = new MockPlatformIO();
+    const client = makeClient();
+    seedJournal(io, baseJournal);
+
+    vi.spyOn(client, 'getUserProfile').mockResolvedValue(makeProfileResponse(2));
+    vi.spyOn(client, 'getJournalEntries').mockResolvedValue({
+      page: { index: 0, size: 100, more: 0 },
+      entries: [makeEntryStub('200', '2024-01-16'), makeEntryStub('100', '2024-01-15')],
+    });
+
+    const events: BackupEvent[] = [];
+    const engine = makeEngine(makeConfig({ redo_count: 1 }), io, client, (e) => events.push(e));
+    vi.spyOn(client, 'getEntry').mockImplementation((id: string) => {
+      if (id === '100') return Promise.resolve(makeEntryResponse('100', '2024-01-15'));
+      // User hits Stop while this request is in flight, then the fetch rejects.
+      engine.cancel();
+      return Promise.reject(new NetworkError('Network request failed', new Error('aborted')));
+    });
+
+    await expect(engine.run()).rejects.toThrow();
     expect(events.some((e) => e.type === 'cancelled')).toBe(true);
     expect(events.some((e) => e.type === 'failed')).toBe(false);
   });

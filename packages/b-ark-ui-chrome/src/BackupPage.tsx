@@ -77,6 +77,7 @@ type AppAction =
   | { type: 'backup:rate_limited'; account_id: string; seconds: number }
   | { type: 'backup:completed'; account_id: string }
   | { type: 'backup:failed'; account_id: string }
+  | { type: 'backup:cancelled'; account_id: string }
   | { type: 'log:entry'; account_id: string; entry: LogEntry }
   | { type: 'toast:show'; toast: Toast }
   | { type: 'toast:dismiss'; id: string };
@@ -215,6 +216,12 @@ function reducer(state: AppState, action: AppAction): AppState {
       return { ...state, backupProgress: next };
     }
 
+    case 'backup:cancelled': {
+      const next = { ...state.backupProgress };
+      delete next[action.account_id];
+      return { ...state, backupProgress: next };
+    }
+
     case 'log:entry': {
       const current = state.logBuffer[action.account_id] ?? [];
       return {
@@ -328,9 +335,15 @@ function AppProvider({ backend, children }: { backend: BackendContext; children:
         if (e.type === 'failed') {
           dispatch({ type: 'backup:failed', account_id: e.account_id });
         }
+        if (e.type === 'cancelled') {
+          dispatch({ type: 'backup:cancelled', account_id: e.account_id });
+        }
       }
       if (event.type === 'log:entry') {
         dispatch({ type: 'log:entry', account_id: event.account_id, entry: event.entry });
+      }
+      if (event.type === 'toast') {
+        dispatch({ type: 'toast:show', toast: event.toast });
       }
     });
 

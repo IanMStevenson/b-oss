@@ -5,7 +5,7 @@
 // Injects a floating b-ark status chip into any host page.
 
 type RagState = 'green' | 'amber' | 'red';
-type ErrorKind = 'permission' | 'auth' | null;
+type ErrorKind = 'permission' | 'auth' | 'error' | null;
 
 interface ChipStorage {
   chip_rag?: RagState;
@@ -310,18 +310,25 @@ class BarkChip {
       this.textEl.textContent = `${progress.done}/${progress.total}`;
       this.tooltipEl.textContent = 'Backup in progress';
     } else if (rag === 'red') {
-      // Red error
+      // Red error — label depends on what the user must do.
       this.chipEl.classList.remove('icon-only');
-      this.textEl.textContent = errorKind === 'auth' ? 'Reauthorise' : 'Fix access';
-      this.tooltipEl.textContent =
-        errorKind === 'auth'
-          ? 'Authentication expired'
-          : 'Folder access denied — double-click to fix';
+      if (errorKind === 'auth') {
+        this.textEl.textContent = 'Reauthorise';
+        this.tooltipEl.textContent = 'Authentication expired';
+      } else if (errorKind === 'permission') {
+        this.textEl.textContent = 'Fix access';
+        this.tooltipEl.textContent = 'Folder access denied — double-click to fix';
+      } else {
+        this.textEl.textContent = 'Backup error';
+        this.tooltipEl.textContent = 'Backup error — double-click to view';
+      }
     } else {
-      // Amber idle (chip_rag set to amber at backup start before progress arrives)
-      this.chipEl.classList.remove('icon-only');
-      this.textEl.textContent = 'Starting…';
-      this.tooltipEl.textContent = 'Backup starting';
+      // Amber idle: working/incomplete-but-not-errored (starting, or a resumed/
+      // cancelled run that hasn't completed). Rest as a bare icon with the amber dot.
+      this.chipEl.classList.add('icon-only');
+      this.dotEl.style.display = 'block';
+      this.textEl.textContent = '';
+      this.tooltipEl.textContent = 'Backup incomplete — will resume';
     }
   }
 }

@@ -833,6 +833,13 @@ export class BackupEngine {
     try {
       return await this.callWithRateLimitPause(fn);
     } catch (err) {
+      // If the user cancelled while this request was in flight, cancel() only set a
+      // flag — it cannot abort the pending fetch. The fetch then rejects (a
+      // NetworkError) before the next checkCancelled(). Treat that as the
+      // cancellation it really is, not a network failure.
+      if (this.cancelled) {
+        throw new BackupCancelledError();
+      }
       if (err instanceof BlipfotoError && err.isTokenInvalid) {
         throw new BackupAbortedError({ kind: 'auth_expired' });
       }

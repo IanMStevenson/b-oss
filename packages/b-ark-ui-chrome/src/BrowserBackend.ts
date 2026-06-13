@@ -17,6 +17,14 @@ import type {
 import { BrowserPlatformIO } from './browser-platform-io.js';
 import { loadToken, clearToken } from './token-storage.js';
 import { loadHandle, saveHandle, clearHandle, queryFsaPermission } from './fsa-persistence.js';
+import {
+  readStatus,
+  setWorking,
+  setCompleted,
+  setCancelledIncomplete,
+  setFailed,
+  clearError,
+} from './status-storage.js';
 
 // ── Persisted shapes (chrome.storage.local) ────────────────────────────────
 
@@ -28,14 +36,6 @@ interface ChromeSettings {
   api_delay_ms: number;
   thumbnailSizePercent: number;
   showInfoOverlay: boolean;
-}
-
-interface ChromeStatus {
-  last_backup_at: string | null;
-  total_archived: number;
-  journal_entry_total: number;
-  rag_state: 'green' | 'amber' | 'red';
-  error_message: string | null;
 }
 
 // ── Helpers ────────────────────────────────────────────────────────────────
@@ -89,12 +89,22 @@ export class BrowserBackend implements BackendContext {
 
       chrome.storage.onChanged.addListener((changes, area) => {
         if (area !== 'local') return;
-        if ('oauthStatus' in changes || 'b_ark_status' in changes || 'b_ark_settings' in changes) {
-          if (changes['oauthStatus']?.newValue === 'success') {
-            void this._onOAuthSuccess();
-          } else {
-            void this._reloadAndEmitStore();
-          }
+        const oauthStatus: unknown = changes['oauthStatus']?.newValue;
+        if (oauthStatus === 'success') {
+          void this._onOAuthSuccess();
+          return;
+        }
+        if (oauthStatus === 'error') {
+          const rawError: unknown = changes['oauthError']?.newValue;
+          const message = typeof rawError === 'string' ? rawError : 'Sign-in failed.';
+          this._emit({
+            type: 'toast',
+            toast: { id: crypto.randomUUID(), level: 'error', message },
+          });
+          return;
+        }
+        if ('b_ark_status' in changes || 'b_ark_settings' in changes) {
+          void this._reloadAndEmitStore();
         }
       });
 
@@ -111,6 +121,9 @@ export class BrowserBackend implements BackendContext {
       settings.account_added_at = new Date().toISOString();
       await chrome.storage.local.set({ b_ark_settings: settings });
     }
+    // A fresh token means any prior auth-error red is resolved — clear it so the
+    // banner/chip don't stay red until the next completed backup.
+    await clearError();
     await this._reloadAndEmitStore();
   }
 
@@ -127,19 +140,9 @@ export class BrowserBackend implements BackendContext {
     return (r['b_ark_settings'] ?? {}) as Partial<ChromeSettings>;
   }
 
-  private async _readStatus(): Promise<Partial<ChromeStatus>> {
-    const r = await chrome.storage.local.get('b_ark_status');
-    return (r['b_ark_status'] ?? {}) as Partial<ChromeStatus>;
-  }
-
   private async _patchSettings(partial: Partial<ChromeSettings>): Promise<void> {
     const current = await this._readSettings();
     await chrome.storage.local.set({ b_ark_settings: { ...current, ...partial } });
-  }
-
-  private async _patchStatus(partial: Partial<ChromeStatus>): Promise<void> {
-    const current = await this._readStatus();
-    await chrome.storage.local.set({ b_ark_status: { ...current, ...partial } });
   }
 
   // ── BackendContext: state ───────────────────────────────────────────────
@@ -157,7 +160,7 @@ export class BrowserBackend implements BackendContext {
     const token = await loadToken();
     const handle = this._handle ?? (await loadHandle());
     const settings = await this._readSettings();
-    const status = await this._readStatus();
+    const status = await readStatus();
 
     const accounts: AccountConfig[] = token
       ? [
@@ -246,8 +249,7 @@ export class BrowserBackend implements BackendContext {
 
     const perm = await queryFsaPermission(handle);
     if (perm !== 'granted') {
-      await this._patchStatus({ rag_state: 'red', error_message: 'Folder access denied' });
-      await chrome.storage.local.set({ chip_rag: 'red', chip_error_kind: 'permission' });
+      await setFailed('filesystem', 'Folder access denied');
       this._emit({
         type: 'backup:event',
         event: {
@@ -301,6 +303,12 @@ export class BrowserBackend implements BackendContext {
     const onEvent = (event: BackupEvent): void => {
       this._emit({ type: 'backup:event', event });
 
+      if (event.type === 'started') {
+        // First successful network transaction of a (re)started run — it's working
+        // again, so clear any stale red back to amber.
+        void setWorking().then(() => this._reloadAndEmitStore());
+      }
+
       if (event.type === 'progress') {
         void chrome.storage.local.set({
           chip_progress: { done: event.done, total: event.total },
@@ -309,18 +317,7 @@ export class BrowserBackend implements BackendContext {
 
       if (event.type === 'completed') {
         const now = new Date().toISOString();
-        void this._patchStatus({
-          last_backup_at: now,
-          total_archived: event.total_archived,
-          rag_state: 'green',
-          error_message: null,
-        });
-        void chrome.storage.local.set({
-          chip_rag: 'green',
-          chip_progress: null,
-          chip_last_backup_at: now,
-          chip_error_kind: null,
-        });
+        void setCompleted(now, event.total_archived);
         void logMgr.readAll().then((entries) => {
           for (const entry of entries) {
             this._emit({ type: 'log:entry', account_id: token.username, entry });
@@ -330,19 +327,14 @@ export class BrowserBackend implements BackendContext {
       }
 
       if (event.type === 'cancelled') {
-        void chrome.storage.local.set({ chip_progress: null });
-        void this._reloadAndEmitStore();
+        // Cancellation leaves the backup incomplete — amber, not red, not green.
+        void setCancelledIncomplete().then(() => this._reloadAndEmitStore());
       }
 
       if (event.type === 'failed') {
-        const errorKind = event.error.kind === 'auth_expired' ? 'auth' : 'permission';
-        void this._patchStatus({ rag_state: 'red', error_message: describeBackupError(event) });
-        void chrome.storage.local.set({
-          chip_rag: 'red',
-          chip_error_kind: errorKind,
-          chip_progress: null,
-        });
-        void this._reloadAndEmitStore();
+        void setFailed(event.error.kind, describeBackupError(event)).then(() =>
+          this._reloadAndEmitStore(),
+        );
       }
     };
 

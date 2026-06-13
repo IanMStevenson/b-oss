@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (C) 2026 Ian Stevenson
 
+import type { Toast } from './view-types.js';
+
 export type ScheduleInterval = 'daily' | 'weekly' | 'monthly';
 
 export interface PortableAccount {
@@ -117,12 +119,14 @@ export type BackupEvent =
     }
   | { type: 'rate_limited'; account_id: string; resume_in_seconds: number }
   | { type: 'completed'; account_id: string; total_archived: number }
+  | { type: 'cancelled'; account_id: string }
   | { type: 'failed'; account_id: string; error: BackupErrorPayload };
 
 export type MainEvent =
   | { type: 'store:changed'; store: AppStore }
   | { type: 'backup:event'; event: BackupEvent }
-  | { type: 'log:entry'; account_id: string; entry: LogEntry };
+  | { type: 'log:entry'; account_id: string; entry: LogEntry }
+  | { type: 'toast'; toast: Toast };
 
 export interface SharedSettingsPartial {
   schedule?: PortableSchedule;
