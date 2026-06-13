@@ -51,19 +51,26 @@ Write-Host "Creating container '$containerName' on branch '$Branch'..."
 # Create a dedicated code volume for this container
 docker volume create $volumeName | Out-Null
 
+# Build docker run args — only include CLAUDE_CODE_OAUTH_TOKEN if set on the host.
+# If absent, Claude Code falls through to ~/.claude/.credentials.json (stored login).
+$dockerRunArgs = @(
+    'run', '-d',
+    '--name', $containerName,
+    '-v', "${volumeName}:/workspaces/b-oss",
+    '-v', 'b-oss-claude-config:/home/node/.claude',
+    '-e', "GIT_AUTHOR_NAME=$gitName",
+    '-e', "GIT_AUTHOR_EMAIL=$gitEmail",
+    '-e', "GIT_COMMITTER_NAME=$gitName",
+    '-e', "GIT_COMMITTER_EMAIL=$gitEmail",
+    '-e', 'ELECTRON_SKIP_BINARY_DOWNLOAD=1'
+)
+if ($env:CLAUDE_CODE_OAUTH_TOKEN) {
+    $dockerRunArgs += @('-e', "CLAUDE_CODE_OAUTH_TOKEN=$env:CLAUDE_CODE_OAUTH_TOKEN")
+}
+$dockerRunArgs += @('b-oss-devbase:latest', 'sleep', 'infinity')
+
 # Start the container — sleep infinity keeps it alive for VS Code to attach
-docker run -d `
-    --name $containerName `
-    -v "${volumeName}:/workspaces/b-oss" `
-    -v "b-oss-claude-config:/home/node/.claude" `
-    -e "CLAUDE_CODE_OAUTH_TOKEN=$env:CLAUDE_CODE_OAUTH_TOKEN" `
-    -e "GIT_AUTHOR_NAME=$gitName" `
-    -e "GIT_AUTHOR_EMAIL=$gitEmail" `
-    -e "GIT_COMMITTER_NAME=$gitName" `
-    -e "GIT_COMMITTER_EMAIL=$gitEmail" `
-    -e "ELECTRON_SKIP_BINARY_DOWNLOAD=1" `
-    b-oss-devbase:latest `
-    sleep infinity | Out-Null
+& docker @dockerRunArgs | Out-Null
 
 # Clone the repo at the requested branch
 Write-Host "Cloning $repo@$Branch..."
