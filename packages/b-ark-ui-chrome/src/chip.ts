@@ -263,6 +263,9 @@ class BarkChip {
         this._applyStorageResult(result);
       });
     });
+
+    // Visit-trigger: ask the SW whether a backup is due and auto-launch if so.
+    void chrome.runtime.sendMessage({ type: 'trigger_if_due' }).catch(() => {});
   }
 
   private _applyStorageResult(r: ChipStorage): void {
