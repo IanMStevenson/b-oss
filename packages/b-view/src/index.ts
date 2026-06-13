@@ -8,4 +8,5 @@ export { InfoPopup } from './components/InfoPopup.js';
 export { Pagination } from './components/Pagination.js';
 export { useJournal } from './hooks/useJournal.js';
 export { useEntry } from './hooks/useEntry.js';
+export type { EntryState } from './hooks/useEntry.js';
 export type * from './types.js';

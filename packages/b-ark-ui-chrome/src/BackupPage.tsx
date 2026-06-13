@@ -30,13 +30,15 @@ import {
   Avatar,
   AuthErrorBanner,
   BackupBanner,
+  InfoBadge,
   StatusBar,
   ToastHost,
 } from '@b-oss/b-ark-ui-components';
-import { ThumbnailGrid } from '@b-oss/b-view';
+import { ThumbnailGrid, EntryDetail } from '@b-oss/b-view';
 import type { BlipEntry } from '@b-oss/b-view';
-import { loadHandle } from './fsa-persistence.js';
-import { useFsaJournal, readFileText } from './useFsaJournal.js';
+import { loadHandle, queryFsaPermission, requestFsaPermission } from './fsa-persistence.js';
+import { clearError } from './status-storage.js';
+import { useFsaJournal, useFsaAssets, useFsaEntry, readFileText } from './useFsaJournal.js';
 import { SettingsOverlay } from './SettingsOverlay.js';
 import { LogOverlay } from './LogOverlay.js';
 
@@ -263,7 +265,7 @@ class RenderErrorBoundary extends Component<{ children: ReactNode }, { error: Er
     if (this.state.error) {
       return (
         <div style={{ padding: 24, color: '#b03030', fontSize: 13, fontFamily: 'monospace' }}>
-          <div style={{ fontWeight: 700, marginBottom: 8 }}>b-ark failed to load</div>
+          <div style={{ fontWeight: 700, marginBottom: 8 }}>b-ark-chrome failed to load</div>
           <div>{this.state.error.message}</div>
         </div>
       );
@@ -353,6 +355,29 @@ function AppProvider({ backend, children }: { backend: BackendContext; children:
   return <AppContext.Provider value={{ state, dispatch, backend }}>{children}</AppContext.Provider>;
 }
 
+// ── Green product header ──────────────────────────────────────────────────────
+
+function ProductHeader({ appVersion }: { appVersion: string }) {
+  return (
+    <div
+      style={{
+        height: 48,
+        background: 'var(--green-800)',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        padding: '0 16px',
+        flexShrink: 0,
+      }}
+    >
+      <span style={{ fontSize: 17, fontWeight: 700, color: 'white', letterSpacing: '-0.01em' }}>
+        b-ark-chrome
+      </span>
+      <InfoBadge appVersion={appVersion} productName="b-ark-chrome" />
+    </div>
+  );
+}
+
 // ── BackupPageRoot ────────────────────────────────────────────────────────────
 
 function BackupPageRoot() {
@@ -407,9 +432,58 @@ function BackupPageRoot() {
     [dirHandle, account],
   );
 
+  const { resolveAsset } = useFsaAssets(dirHandle, account?.username ?? null);
+
+  // Folder access can lapse (permission resets to "prompt" on browser restart, or the
+  // user revokes it). Detect it proactively so we can offer a one-click re-grant — without
+  // it, journal/thumbnail reads fail silently and b-view renders nothing.
+  const [folderPerm, setFolderPerm] = useState<PermissionState | null>(null);
+  useEffect(() => {
+    if (!dirHandle) {
+      setFolderPerm(null);
+      return;
+    }
+    let cancelled = false;
+    queryFsaPermission(dirHandle).then(
+      (p) => {
+        if (!cancelled) setFolderPerm(p);
+      },
+      () => {
+        if (!cancelled) setFolderPerm(null);
+      },
+    );
+    return () => {
+      cancelled = true;
+    };
+  }, [dirHandle, refreshNonce]);
+
+  const handleRegrantFolder = useCallback(async () => {
+    const handle = dirHandle ?? (await loadHandle());
+    if (!handle) return;
+    const perm = await requestFsaPermission(handle);
+    setFolderPerm(perm);
+    if (perm === 'granted') {
+      await clearError();
+      setRefreshNonce((n) => n + 1); // re-read journal + thumbnails now that we can read
+    }
+  }, [dirHandle]);
+
+  // Selected entry → detail view (mirrors b-view FolderApp). Index is descending
+  // (newest first), so prev = older = idx+1, next = newer = idx-1.
+  const selectedIndex = entries.findIndex((e) => e.entry_id === selectedEntryId);
+  const prevEntryId =
+    selectedIndex >= 0 && selectedIndex < entries.length - 1
+      ? entries[selectedIndex + 1].entry_id
+      : null;
+  const nextEntryId = selectedIndex > 0 ? entries[selectedIndex - 1].entry_id : null;
+  const selectedJsonPath = selectedIndex >= 0 ? entries[selectedIndex].json_path : null;
+  const selectedEntryState = useFsaEntry(dirHandle, account?.username ?? null, selectedJsonPath);
+
+  // The backup engine caches the avatar to `{username}/avatar.jpg`; read it from the
+  // FSA folder (same mechanism as thumbnails) rather than hitting the network.
   const loadAvatar = useCallback(
-    () => backend.getAccountAvatar(account?.id ?? ''),
-    [backend, account?.id],
+    () => (dirHandle && account ? resolveAsset('avatar.jpg') : Promise.resolve(null)),
+    [resolveAsset, dirHandle, account],
   );
 
   const progress: BackupProgress | undefined = account ? backupProgress[account.id] : undefined;
@@ -470,7 +544,7 @@ function BackupPageRoot() {
           padding: 32,
         }}
       >
-        <div style={{ fontSize: 22, fontWeight: 700, color: 'var(--green-900)' }}>b-ark</div>
+        <div style={{ fontSize: 22, fontWeight: 700, color: 'var(--green-900)' }}>b-ark-chrome</div>
         <div style={{ fontSize: 14, color: 'var(--muted)', maxWidth: 320, textAlign: 'center' }}>
           Back up your Blipfoto journal automatically from your browser.
         </div>
@@ -511,7 +585,7 @@ function BackupPageRoot() {
           padding: 32,
         }}
       >
-        <div style={{ fontSize: 22, fontWeight: 700, color: 'var(--green-900)' }}>b-ark</div>
+        <div style={{ fontSize: 22, fontWeight: 700, color: 'var(--green-900)' }}>b-ark-chrome</div>
         <div style={{ fontSize: 14, color: 'var(--muted)', maxWidth: 320, textAlign: 'center' }}>
           Choose a folder on your computer where your journal backups will be saved.
         </div>
@@ -547,29 +621,37 @@ function BackupPageRoot() {
   // ── Overlays ─────────────────────────────────────────────────────────────
   if (panel === 'settings') {
     return (
-      <SettingsOverlay
-        backend={backend}
-        account={account}
-        onClose={() => dispatch({ type: 'panel:close' })}
-      />
+      <div style={{ display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden' }}>
+        <ProductHeader appVersion={backend.appVersion} />
+        <SettingsOverlay
+          backend={backend}
+          account={account}
+          onClose={() => dispatch({ type: 'panel:close' })}
+        />
+      </div>
     );
   }
 
   if (panel === 'log') {
     return (
-      <LogOverlay
-        accounts={store.accounts}
-        liveLogBuffer={logBuffer}
-        backend={backend}
-        onClose={() => dispatch({ type: 'panel:close' })}
-      />
+      <div style={{ display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden' }}>
+        <ProductHeader appVersion={backend.appVersion} />
+        <LogOverlay
+          accounts={store.accounts}
+          liveLogBuffer={logBuffer}
+          backend={backend}
+          onClose={() => dispatch({ type: 'panel:close' })}
+        />
+      </div>
     );
   }
 
   // ── Main view ─────────────────────────────────────────────────────────────
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden' }}>
-      {/* TopBar */}
+      <ProductHeader appVersion={backend.appVersion} />
+
+      {/* Account / actions bar */}
       <div
         style={{
           height: 52,
@@ -582,18 +664,6 @@ function BackupPageRoot() {
           background: 'var(--bg)',
         }}
       >
-        <div
-          style={{
-            fontSize: 14,
-            fontWeight: 700,
-            color: 'var(--green-900)',
-            marginRight: 2,
-            letterSpacing: -0.3,
-          }}
-        >
-          b-ark
-        </div>
-
         <Avatar
           name={account.username}
           remoteUrl={account.avatar_url}
@@ -710,41 +780,75 @@ function BackupPageRoot() {
         />
       )}
 
-      {/* Auth / permission error banner */}
-      {account.rag_state === 'red' && !isBackingUp && (
+      {/* Folder access lapsed — always offer a direct one-click re-grant. Takes
+          precedence over the auth/error banner so the user is never stranded on an
+          OAuth-only "Reauthorise" when the real problem is folder permission. */}
+      {folderPerm !== null && folderPerm !== 'granted' && !isBackingUp ? (
         <AuthErrorBanner
-          errorMessage={account.error_message}
+          errorMessage="Folder access needs renewing to read and back up your journal."
           highlighted={false}
-          actionLabel={chipErrorKind === 'permission' ? 'Open Settings' : 'Reauthorise'}
-          onReauthorise={
-            chipErrorKind === 'permission'
-              ? () => dispatch({ type: 'panel:open', panel: 'settings' })
-              : () => {
-                  void backend.reauthoriseAccount(account.id);
-                }
-          }
+          actionLabel="Grant folder access"
+          onReauthorise={() => {
+            void handleRegrantFolder();
+          }}
         />
+      ) : (
+        account.rag_state === 'red' &&
+        !isBackingUp && (
+          <AuthErrorBanner
+            errorMessage={account.error_message}
+            highlighted={false}
+            actionLabel={chipErrorKind === 'permission' ? 'Open Settings' : 'Reauthorise'}
+            onReauthorise={
+              chipErrorKind === 'permission'
+                ? () => dispatch({ type: 'panel:open', panel: 'settings' })
+                : () => {
+                    void backend.reauthoriseAccount(account.id);
+                  }
+            }
+          />
+        )
       )}
 
-      {/* Journal grid */}
-      <div style={{ flex: 1, overflow: 'hidden' }}>
-        <ThumbnailGrid
-          entries={entries}
-          selectedEntryId={selectedEntryId}
-          onSelectEntry={(id) => dispatch({ type: 'entry:select', entryId: id })}
-          sizePercent={thumbnailSizePercent}
-          onSizeChange={(pct) => {
-            dispatch({ type: 'thumbnail:resize', percent: pct });
-            void backend.updateSettings({ thumbnailSizePercent: pct });
+      {/* Journal grid / entry detail */}
+      <div style={{ flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+        <div
+          style={{
+            display: selectedEntryId === null ? 'flex' : 'none',
+            flex: 1,
+            overflow: 'hidden',
+            flexDirection: 'column',
           }}
-          showInfoOverlay={showInfoOverlay}
-          onShowInfoOverlayChange={(v) => {
-            dispatch({ type: 'ui:set-overlay', showOverlay: v });
-            void backend.updateSettings({ showInfoOverlay: v });
-          }}
-          baseUrl={undefined}
-          resolveEntry={resolveEntry}
-        />
+        >
+          <ThumbnailGrid
+            entries={entries}
+            selectedEntryId={selectedEntryId}
+            onSelectEntry={(id) => dispatch({ type: 'entry:select', entryId: id })}
+            sizePercent={thumbnailSizePercent}
+            onSizeChange={(pct) => {
+              dispatch({ type: 'thumbnail:resize', percent: pct });
+              void backend.updateSettings({ thumbnailSizePercent: pct });
+            }}
+            showInfoOverlay={showInfoOverlay}
+            onShowInfoOverlayChange={(v) => {
+              dispatch({ type: 'ui:set-overlay', showOverlay: v });
+              void backend.updateSettings({ showInfoOverlay: v });
+            }}
+            resolveAsset={resolveAsset}
+            resolveEntry={resolveEntry}
+          />
+        </div>
+        {selectedEntryId !== null && (
+          <EntryDetail
+            entryState={selectedEntryState}
+            prevEntryId={prevEntryId}
+            nextEntryId={nextEntryId}
+            onNavigate={(id) => dispatch({ type: 'entry:select', entryId: id })}
+            onClose={() => dispatch({ type: 'entry:select', entryId: null })}
+            resolveAsset={resolveAsset}
+            entries={entries}
+          />
+        )}
       </div>
 
       {/* Status bar */}

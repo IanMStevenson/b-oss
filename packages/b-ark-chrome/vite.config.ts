@@ -22,6 +22,21 @@ export default defineConfig({
   },
   resolve: {
     dedupe: ['react', 'react-dom', 'react/jsx-runtime'],
+    // Resolve the workspace UI packages to their LIVE src (like b-view already does via
+    // its package "main"). Their package.json "main" points at compiled dist/index.js,
+    // which a `--workspace` build never recompiles — so bundling dist would ship stale
+    // components. Anchored regexes match only the bare specifier, leaving explicit
+    // subpath imports (e.g. `@b-oss/b-ark-ui-chrome/src/styles.css`) untouched.
+    alias: [
+      {
+        find: /^@b-oss\/b-ark-ui-chrome$/,
+        replacement: resolve(__dirname, '../b-ark-ui-chrome/src/index.ts'),
+      },
+      {
+        find: /^@b-oss\/b-ark-ui-components$/,
+        replacement: resolve(__dirname, '../b-ark-ui-components/src/index.ts'),
+      },
+    ],
   },
   plugins: [react(), crx({ manifest })],
   build: {

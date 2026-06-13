@@ -6,7 +6,13 @@ import { Info, X } from 'lucide-react';
 
 const YEAR = new Date().getFullYear();
 
-export function InfoBadge({ appVersion }: { appVersion: string }) {
+export function InfoBadge({
+  appVersion,
+  productName = 'b-ark',
+}: {
+  appVersion: string;
+  productName?: string;
+}) {
   const [open, setOpen] = useState(false);
   const popupRef = useRef<HTMLDivElement>(null);
 
@@ -25,7 +31,7 @@ export function InfoBadge({ appVersion }: { appVersion: string }) {
     <div style={{ position: 'relative' }}>
       <button
         onClick={() => setOpen((v) => !v)}
-        aria-label="About b-ark"
+        aria-label={`About ${productName}`}
         style={{
           display: 'flex',
           alignItems: 'center',
@@ -60,7 +66,7 @@ export function InfoBadge({ appVersion }: { appVersion: string }) {
             style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}
           >
             <span style={{ fontSize: 13, fontWeight: 700, letterSpacing: '-0.01em' }}>
-              About b-ark
+              About {productName}
             </span>
             <button
               onClick={() => setOpen(false)}
@@ -71,8 +77,8 @@ export function InfoBadge({ appVersion }: { appVersion: string }) {
             </button>
           </div>
           <p style={{ marginTop: 10, fontSize: 13, lineHeight: 1.55, color: 'var(--ink-2)' }}>
-            b-ark is an open-source Blipfoto journal backup app, part of the <strong>b-oss</strong>{' '}
-            project.
+            {productName} is an open-source Blipfoto journal backup app, part of the{' '}
+            <strong>b-oss</strong> project.
           </p>
           <p style={{ marginTop: 8, fontSize: 12, color: 'var(--muted)' }}>Version {appVersion}</p>
           <p style={{ marginTop: 4, fontSize: 12, color: 'var(--muted)' }}>

@@ -180,7 +180,7 @@ class BarkChip {
 
     this.tooltipEl = document.createElement('div');
     this.tooltipEl.className = 'tooltip';
-    this.tooltipEl.textContent = 'b-ark';
+    this.tooltipEl.textContent = 'b-ark-chrome';
 
     this.chipEl.appendChild(this.avatarEl);
     this.chipEl.appendChild(this.dotEl);

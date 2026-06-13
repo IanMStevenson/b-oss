@@ -260,8 +260,44 @@ export class BrowserBackend implements BackendContext {
     };
   }
 
-  getAccountAvatar(_accountId: string): Promise<string | null> {
-    return Promise.resolve(null);
+  private _avatarSourceUrl: string | null = null;
+  private _avatarDataUrl: string | null = null;
+
+  // Fetch the Blipfoto avatar via the extension context (host_permissions cover
+  // *.blipfoto.com / *.cloudfront.net, so cross-origin fetch is allowed) and return it
+  // as a data: URL. The page <img> can't always load the remote URL directly, so we
+  // resolve the bytes ourselves and cache by source URL.
+  async getAccountAvatar(_accountId: string): Promise<string | null> {
+    try {
+      let url = (await this._readSettings()).avatar_url ?? '';
+      if (!url) {
+        const token = await loadToken();
+        if (!token) return null;
+        const profile = await new BlipfotoClient(token.accessToken).getUserProfile({
+          username: token.username,
+          returnDetails: false,
+        });
+        url = profile.user.avatar_url ?? '';
+        if (url) await this._patchSettings({ avatar_url: url });
+      }
+      if (!url) return null;
+      if (this._avatarDataUrl && this._avatarSourceUrl === url) return this._avatarDataUrl;
+
+      const res = await fetch(url);
+      if (!res.ok) return null;
+      const blob = await res.blob();
+      const dataUrl = await new Promise<string | null>((resolve) => {
+        const reader = new FileReader();
+        reader.onloadend = () => resolve(typeof reader.result === 'string' ? reader.result : null);
+        reader.onerror = () => resolve(null);
+        reader.readAsDataURL(blob);
+      });
+      this._avatarSourceUrl = url;
+      this._avatarDataUrl = dataUrl;
+      return dataUrl;
+    } catch {
+      return null;
+    }
   }
 
   async getLogs(): Promise<LogEntry[]> {
