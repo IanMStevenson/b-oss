@@ -1,0 +1,22 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+# Copyright (C) 2026 Ian Stevenson
+FROM node:22-bookworm-slim
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    git \
+    curl \
+    ca-certificates \
+  && rm -rf /var/lib/apt/lists/*
+
+# Install Claude Code globally
+RUN npm install -g @anthropic-ai/claude-code
+
+# Allow the node user to work in /workspaces without dubious-ownership errors
+RUN git config --system --add safe.directory /workspaces/b-oss
+
+# Create .claude directory owned by node so Docker initialises the named volume
+# with correct ownership when it is first mounted on an empty volume
+RUN mkdir -p /home/node/.claude && chown node:node /home/node/.claude
+
+USER node
+WORKDIR /workspaces/b-oss

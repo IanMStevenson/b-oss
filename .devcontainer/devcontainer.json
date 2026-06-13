@@ -1,14 +1,16 @@
 {
   "name": "b-oss",
-  "image": "mcr.microsoft.com/devcontainers/javascript-node:22",
-  "features": {
-    "ghcr.io/anthropics/devcontainer-features/claude-code:1.0": {}
-  },
-  "mounts": ["source=b-oss-claude-config,target=/home/node/.claude,type=volume"],
+  "image": "b-oss-devbase:latest",
+  "postCreateCommand": "npm install @rolldown/binding-linux-x64-gnu && npm run setup",
   "forwardPorts": [5173, 3000],
-  "postCreateCommand": "sudo chown -R node:node /home/node/.claude && npm install @rolldown/binding-linux-x64-gnu && npm run setup",
+  "mounts": ["source=b-oss-claude-config,target=/home/node/.claude,type=volume"],
   "containerEnv": {
-    "CLAUDE_CODE_OAUTH_TOKEN": "${localEnv:CLAUDE_CODE_OAUTH_TOKEN}"
+    "CLAUDE_CODE_OAUTH_TOKEN": "${localEnv:CLAUDE_CODE_OAUTH_TOKEN}",
+    "GIT_AUTHOR_NAME": "${localEnv:GIT_AUTHOR_NAME}",
+    "GIT_AUTHOR_EMAIL": "${localEnv:GIT_AUTHOR_EMAIL}",
+    "GIT_COMMITTER_NAME": "${localEnv:GIT_AUTHOR_NAME}",
+    "GIT_COMMITTER_EMAIL": "${localEnv:GIT_AUTHOR_EMAIL}",
+    "ELECTRON_SKIP_BINARY_DOWNLOAD": "1"
   },
   "customizations": {
     "vscode": {
