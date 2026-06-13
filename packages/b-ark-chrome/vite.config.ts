@@ -20,6 +20,9 @@ export default defineConfig({
   define: {
     __APP_VERSION__: JSON.stringify(readGeneratedVersion()),
   },
+  resolve: {
+    dedupe: ['react', 'react-dom', 'react/jsx-runtime'],
+  },
   plugins: [react(), crx({ manifest })],
   build: {
     outDir: 'dist',

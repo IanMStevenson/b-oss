@@ -329,6 +329,11 @@ export class BrowserBackend implements BackendContext {
         });
       }
 
+      if (event.type === 'cancelled') {
+        void chrome.storage.local.set({ chip_progress: null });
+        void this._reloadAndEmitStore();
+      }
+
       if (event.type === 'failed') {
         const errorKind = event.error.kind === 'auth_expired' ? 'auth' : 'permission';
         void this._patchStatus({ rag_state: 'red', error_message: describeBackupError(event) });

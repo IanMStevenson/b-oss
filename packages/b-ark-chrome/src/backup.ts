@@ -169,6 +169,10 @@ async function runBackup(): Promise<void> {
         appendProgress(`✓ Backup complete — ${event.total_archived} entries archived`);
         eventHandled = true;
         break;
+      case 'cancelled':
+        appendProgress('Backup stopped.');
+        eventHandled = true;
+        break;
       case 'failed':
         appendProgress(`✗ Backup failed: ${describeError(event.error)}`);
         eventHandled = true;

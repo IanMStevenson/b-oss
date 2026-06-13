@@ -113,6 +113,7 @@ export type BackupEvent =
     }
   | { type: 'rate_limited'; account_id: string; resume_in_seconds: number }
   | { type: 'completed'; account_id: string; total_archived: number }
+  | { type: 'cancelled'; account_id: string }
   | { type: 'failed'; account_id: string; error: BackupErrorPayload };
 
 export interface AccountBackupConfig {

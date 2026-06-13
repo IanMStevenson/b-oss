@@ -445,6 +445,8 @@ describe('BackupEngine — cancellation', () => {
     expect(callCount).toBe(1);
     expect(io.files.has('/backups/gbradley/entries/2024/2024-01-15.json')).toBe(true);
     expect(io.files.has('/backups/gbradley/entries/2024/2024-01-14.json')).toBe(false);
+    expect(events.some((e) => e.type === 'cancelled')).toBe(true);
+    expect(events.some((e) => e.type === 'failed')).toBe(false);
   });
 });
 
@@ -824,7 +826,8 @@ describe('BackupEngine — routine backup new posts', () => {
       '300': '2024-01-17',
     };
     let newPostCalls = 0;
-    const engine = makeEngine(makeConfig({ redo_count: 1 }), io, client, () => {});
+    const events: BackupEvent[] = [];
+    const engine = makeEngine(makeConfig({ redo_count: 1 }), io, client, (e) => events.push(e));
     vi.spyOn(client, 'getEntry').mockImplementation((id: string) => {
       if (id === '100') return Promise.resolve(makeEntryResponse('100', '2024-01-15'));
       newPostCalls++;
@@ -838,6 +841,8 @@ describe('BackupEngine — routine backup new posts', () => {
     expect(newPostCalls).toBe(1);
     expect(io.files.has('/backups/gbradley/entries/2024/2024-01-16.json')).toBe(true);
     expect(io.files.has('/backups/gbradley/entries/2024/2024-01-17.json')).toBe(false);
+    expect(events.some((e) => e.type === 'cancelled')).toBe(true);
+    expect(events.some((e) => e.type === 'failed')).toBe(false);
   });
 });
 

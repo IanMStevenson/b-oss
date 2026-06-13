@@ -9,3 +9,10 @@ export class BackupAbortedError extends Error {
     this.name = 'BackupAbortedError';
   }
 }
+
+export class BackupCancelledError extends Error {
+  constructor() {
+    super('cancelled');
+    this.name = 'BackupCancelledError';
+  }
+}

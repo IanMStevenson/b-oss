@@ -38,3 +38,11 @@ npm run build
 
 **Run b-ark in dev mode**
 npm run dev --workspace=packages/b-ark
+
+## b-ark-chrome todos
+
+I still have a network error/reauthorise banner and a "fix access" flag on the chip even though backup and display are both working. Reauthorising doesn't clear it
+
+Update icon.
+
+When selecting a folder, warn when it has a b-ark (installed) config file and suggest not using it...

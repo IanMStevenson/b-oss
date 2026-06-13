@@ -9,7 +9,7 @@ import {
   type BlipEntryStub,
   type EntryResponse,
 } from '@b-oss/b-api';
-import { BackupAbortedError } from './errors.js';
+import { BackupAbortedError, BackupCancelledError } from './errors.js';
 import { CheckpointManager } from './checkpoint.js';
 import { JournalIndex, cacheAvatarIfMissing } from './journal-index.js';
 import type { LogManager } from './log-manager.js';
@@ -112,7 +112,10 @@ export class BackupEngine {
         await this.runRoutineBackup(journalFolder, existingIndex, checkpointMgr, journalIndex);
       }
     } catch (err) {
-      if (err instanceof BackupAbortedError) {
+      if (err instanceof BackupCancelledError) {
+        this.onEvent({ type: 'cancelled', account_id: this.config.id });
+        await this.appendLog('info', 'Backup stopped by user');
+      } else if (err instanceof BackupAbortedError) {
         this.onEvent({ type: 'failed', account_id: this.config.id, error: err.payload });
         await this.appendLog('error', `Backup failed: ${err.payload.kind}`);
       }
@@ -125,7 +128,7 @@ export class BackupEngine {
 
   private checkCancelled(): void {
     if (this.cancelled) {
-      throw new BackupAbortedError({ kind: 'network' });
+      throw new BackupCancelledError();
     }
   }
 
