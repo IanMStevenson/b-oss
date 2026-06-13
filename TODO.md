@@ -41,7 +41,13 @@ npm run dev --workspace=packages/b-ark
 
 ## b-ark-chrome todos
 
-I still have a network error/reauthorise banner and a "fix access" flag on the chip even though backup and display are both working. Reauthorising doesn't clear it
+Plan phase 4 done - debugging basics
+
+    I still have a network error/reauthorise banner and a "fix access" flag on the chip even though backup and display are both working. Reauthorising doesn't clear it
+
+Next - Plan phase 5 - plan is now in packages-b-ark folder
+
+Delete plan in packages-b-ark folder after completion
 
 Update icon.
 
