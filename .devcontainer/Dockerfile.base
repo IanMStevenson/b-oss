@@ -6,6 +6,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     git \
     curl \
     ca-certificates \
+    unzip \
   && rm -rf /var/lib/apt/lists/*
 
 # Install Claude Code globally
@@ -13,6 +14,19 @@ RUN npm install -g @anthropic-ai/claude-code
 
 # Allow the node user to work in /workspaces without dubious-ownership errors
 RUN git config --system --add safe.directory /workspaces/b-oss
+
+# Pre-install Claude Code VS Code extension.
+# VS Code Server scans ~/.vscode-server/extensions/ on startup and picks these up automatically,
+# so the extension is present without any manual install step after attaching.
+RUN curl -fsSL \
+      "https://marketplace.visualstudio.com/_apis/public/gallery/publishers/anthropic/vsextensions/claude-code/latest/vspackage" \
+      -o /tmp/claude-code.vsix \
+  && unzip -q /tmp/claude-code.vsix -d /tmp/claude-unpack \
+  && EXT_VERSION=$(node -p "require('/tmp/claude-unpack/extension/package.json').version") \
+  && mkdir -p /home/node/.vscode-server/extensions \
+  && mv /tmp/claude-unpack/extension "/home/node/.vscode-server/extensions/anthropic.claude-code-${EXT_VERSION}" \
+  && chown -R node:node /home/node/.vscode-server \
+  && rm -rf /tmp/claude-code.vsix /tmp/claude-unpack
 
 # Create .claude directory owned by node so Docker initialises the named volume
 # with correct ownership when it is first mounted on an empty volume

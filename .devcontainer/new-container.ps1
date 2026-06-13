@@ -50,13 +50,28 @@ docker run -d `
     b-oss-devbase:latest `
     sleep infinity | Out-Null
 
+function Exec-InContainer {
+    param([string]$Cmd)
+    docker exec $containerName bash -c $Cmd
+    if ($LASTEXITCODE -ne 0) {
+        Write-Error "Command failed (exit $LASTEXITCODE) in '$containerName': $Cmd"
+        exit $LASTEXITCODE
+    }
+}
+
 # Clone the repo at the requested branch
 Write-Host "Cloning $repo@$Branch..."
 docker exec $containerName git clone --branch $Branch $repo /workspaces/b-oss
+if ($LASTEXITCODE -ne 0) { Write-Error "git clone failed"; exit $LASTEXITCODE }
 
-# Install Linux-specific rolldown binding then run full setup
+# Nuke any devcontainer config from the branch (may be corrupt or a multi-config mess)
+# and replace with the clean version from origin/main so VS Code sees a known-good setup.
+Write-Host "Replacing .devcontainer/ with clean version from origin/main..."
+Exec-InContainer "cd /workspaces/b-oss && rm -rf .devcontainer/ && git restore --source=origin/main -- .devcontainer/"
+
+# Run full setup (npm install + typecheck + b-view build)
 Write-Host "Running setup (npm install + typecheck + b-view build)..."
-docker exec $containerName bash -c "cd /workspaces/b-oss && npm install @rolldown/binding-linux-x64-gnu && npm run setup"
+Exec-InContainer "cd /workspaces/b-oss && npm run setup"
 
 Write-Host ""
 Write-Host "Container '$containerName' is ready."
