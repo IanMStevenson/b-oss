@@ -2,7 +2,6 @@
   "name": "b-oss",
   "image": "b-oss-devbase:latest",
   "postCreateCommand": "npm run setup",
-  "forwardPorts": [5173, 3000],
   "mounts": ["source=b-oss-claude-config,target=/home/node/.claude,type=volume"],
   "containerEnv": {
     "CLAUDE_CODE_OAUTH_TOKEN": "${localEnv:CLAUDE_CODE_OAUTH_TOKEN}",

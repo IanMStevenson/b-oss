@@ -56,8 +56,6 @@ docker run -d `
     --name $containerName `
     -v "${volumeName}:/workspaces/b-oss" `
     -v "b-oss-claude-config:/home/node/.claude" `
-    -p 5173:5173 `
-    -p 3000:3000 `
     -e "CLAUDE_CODE_OAUTH_TOKEN=$env:CLAUDE_CODE_OAUTH_TOKEN" `
     -e "GIT_AUTHOR_NAME=$gitName" `
     -e "GIT_AUTHOR_EMAIL=$gitEmail" `
