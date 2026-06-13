@@ -47,22 +47,22 @@ npm run typecheck      # tsc --noEmit across all packages — run after every ch
 npm run lint           # ESLint --max-warnings 0
 npm test               # Vitest across all packages
 npm run build          # Build all packages (also bumps the local build counter)
-npm run build:release  # Build with RELEASE=1 — version shown as bare 0.1.0
+npm run build:release  # Build with RELEASE=1 — version shown as bare 1.0.0
 ```
 
 ## Versioning
 
 Display version format: `{pkg.major}.{pkg.minor}.{pkg.patch}[.{commits}.{build}]`.
 
-- Dev builds show e.g. `0.1.0.347.12` — third digit is `git rev-list --count HEAD`
+- Dev builds show e.g. `1.0.0.347.12` — third digit is `git rev-list --count HEAD`
   (timeline position, stable per commit), fourth digit is a local per-machine counter
   bumped every `npm run build` (proves the build ran on your box).
 - Release builds (`RELEASE=1 npm run build` or `npm run build:release`) drop the
-  suffix and show bare `0.1.0`.
+  suffix and show bare `1.0.0`.
 - `scripts/version.mjs` runs as the root `prebuild`, writes `version.generated.json`
   at the repo root, which both `vite.config.ts` (b-view) and `electron.vite.config.ts`
   (b-ark) inject as the `__APP_VERSION__` define.
-- `package.json` versions stay at the baseline (`0.1.0`) — installer filenames and
+- `package.json` versions stay at the baseline (`1.0.0`) — installer filenames and
   `app.getVersion()` are unaffected. Bumping `package.json` is a real release action.
 - Both `.build-counter` and `version.generated.json` are gitignored.
 - Single-workspace builds (`npm run build --workspace=…`) skip the root `prebuild`;

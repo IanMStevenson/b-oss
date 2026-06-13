@@ -5,6 +5,27 @@ import fs from 'node:fs/promises';
 import type { PlatformIO, LogEntry } from '@b-oss/backup-engine';
 import { net } from 'electron';
 
+const TRANSIENT_CODES = new Set(['EPERM', 'EACCES', 'EBUSY']);
+const RETRY_DELAYS = [100, 200, 400, 800];
+
+// On Windows, AV scanners and OneDrive briefly hold destination files open,
+// causing rename to fail transiently. Retry with escalating backoff.
+export async function renameWithRetry(from: string, to: string): Promise<void> {
+  for (let i = 0; ; i++) {
+    try {
+      await fs.rename(from, to);
+      return;
+    } catch (err) {
+      if (
+        !TRANSIENT_CODES.has((err as NodeJS.ErrnoException).code ?? '') ||
+        i >= RETRY_DELAYS.length
+      )
+        throw err;
+      await new Promise((r) => setTimeout(r, RETRY_DELAYS[i]));
+    }
+  }
+}
+
 type LogHandler = (entry: LogEntry) => void;
 
 export class ElectronPlatformIO implements PlatformIO {
@@ -48,7 +69,7 @@ export class ElectronPlatformIO implements PlatformIO {
   }
 
   async rename(from: string, to: string): Promise<void> {
-    await fs.rename(from, to);
+    await renameWithRetry(from, to);
   }
 
   async downloadFile(url: string, destPath: string): Promise<void> {
