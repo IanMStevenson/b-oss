@@ -415,6 +415,25 @@ function BackupPageRoot() {
   const progress: BackupProgress | undefined = account ? backupProgress[account.id] : undefined;
   const isBackingUp = progress !== undefined;
 
+  // Track chip_error_kind so we can show the right action on the error banner.
+  type ChipErrorKind = 'permission' | 'auth' | 'error' | null;
+  const [chipErrorKind, setChipErrorKind] = useState<ChipErrorKind>(null);
+  useEffect(() => {
+    chrome.storage.local.get('chip_error_kind', (r) => {
+      setChipErrorKind((r['chip_error_kind'] as ChipErrorKind) ?? null);
+    });
+    const onChanged = (
+      changes: Record<string, chrome.storage.StorageChange>,
+      area: string,
+    ): void => {
+      if (area === 'local' && 'chip_error_kind' in changes) {
+        setChipErrorKind((changes['chip_error_kind']?.newValue as ChipErrorKind) ?? null);
+      }
+    };
+    chrome.storage.onChanged.addListener(onChanged);
+    return () => chrome.storage.onChanged.removeListener(onChanged);
+  }, []);
+
   // ── Loading ─────────────────────────────────────────────────────────────
   if (bootStage === 'loading') {
     return (
@@ -691,14 +710,19 @@ function BackupPageRoot() {
         />
       )}
 
-      {/* Auth error banner */}
+      {/* Auth / permission error banner */}
       {account.rag_state === 'red' && !isBackingUp && (
         <AuthErrorBanner
           errorMessage={account.error_message}
           highlighted={false}
-          onReauthorise={() => {
-            void backend.reauthoriseAccount(account.id);
-          }}
+          actionLabel={chipErrorKind === 'permission' ? 'Open Settings' : 'Reauthorise'}
+          onReauthorise={
+            chipErrorKind === 'permission'
+              ? () => dispatch({ type: 'panel:open', panel: 'settings' })
+              : () => {
+                  void backend.reauthoriseAccount(account.id);
+                }
+          }
         />
       )}
 
