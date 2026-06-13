@@ -16,17 +16,23 @@ RUN npm install -g @anthropic-ai/claude-code
 RUN git config --system --add safe.directory /workspaces/b-oss
 
 # Pre-install Claude Code VS Code extension.
-# VS Code Server scans ~/.vscode-server/extensions/ on startup and picks these up automatically,
-# so the extension is present without any manual install step after attaching.
-RUN curl -fsSL \
-      "https://marketplace.visualstudio.com/_apis/public/gallery/publishers/anthropic/vsextensions/claude-code/latest/vspackage" \
-      -o /tmp/claude-code.vsix \
+# The /vspackage endpoint redirects to HTML without auth headers, so we use the gallery
+# JSON API (flags:3 = IncludeVersions|IncludeFiles) to discover the real CDN asset URL.
+RUN curl -sfL \
+      -X POST \
+      -H "Content-Type: application/json" \
+      -H "Accept: application/json;api-version=6.1-preview.1" \
+      "https://marketplace.visualstudio.com/_apis/public/gallery/extensionquery" \
+      -d '{"filters":[{"criteria":[{"filterType":7,"value":"anthropic.claude-code"}]}],"flags":3}' \
+      > /tmp/gallery.json \
+  && VSIX_URL=$(node -p "JSON.parse(require('fs').readFileSync('/tmp/gallery.json','utf8')).results[0].extensions[0].versions[0].files.find(f=>f.assetType==='Microsoft.VisualStudio.Services.VSIXPackage').source") \
+  && curl -fsSL "$VSIX_URL" -o /tmp/claude-code.vsix \
   && unzip -q /tmp/claude-code.vsix -d /tmp/claude-unpack \
   && EXT_VERSION=$(node -p "require('/tmp/claude-unpack/extension/package.json').version") \
   && mkdir -p /home/node/.vscode-server/extensions \
   && mv /tmp/claude-unpack/extension "/home/node/.vscode-server/extensions/anthropic.claude-code-${EXT_VERSION}" \
   && chown -R node:node /home/node/.vscode-server \
-  && rm -rf /tmp/claude-code.vsix /tmp/claude-unpack
+  && rm -rf /tmp/claude-code.vsix /tmp/claude-unpack /tmp/gallery.json
 
 # Create .claude directory owned by node so Docker initialises the named volume
 # with correct ownership when it is first mounted on an empty volume
