@@ -15,9 +15,9 @@ RUN npm install -g @anthropic-ai/claude-code
 # Allow the node user to work in /workspaces without dubious-ownership errors
 RUN git config --system --add safe.directory /workspaces/b-oss
 
-# Pre-install Claude Code VS Code extension.
-# The /vspackage endpoint redirects to HTML without auth headers, so we use the gallery
-# JSON API (flags:3 = IncludeVersions|IncludeFiles) to discover the real CDN asset URL.
+# Pre-install Claude Code VS Code extension (linux-x64 platform-specific VSIX).
+# The gallery API returns versions for multiple platforms; versions[0] is often macOS.
+# We filter explicitly for linux-x64 to get the ELF binary, not the Mach-O one.
 RUN curl -sfL \
       -X POST \
       -H "Content-Type: application/json" \
@@ -25,7 +25,10 @@ RUN curl -sfL \
       "https://marketplace.visualstudio.com/_apis/public/gallery/extensionquery" \
       -d '{"filters":[{"criteria":[{"filterType":7,"value":"anthropic.claude-code"}]}],"flags":3}' \
       > /tmp/gallery.json \
-  && VSIX_URL=$(node -p "JSON.parse(require('fs').readFileSync('/tmp/gallery.json','utf8')).results[0].extensions[0].versions[0].files.find(f=>f.assetType==='Microsoft.VisualStudio.Services.VSIXPackage').source") \
+  && VSIX_URL=$(node -p " \
+      const d=JSON.parse(require('fs').readFileSync('/tmp/gallery.json','utf8')); \
+      const v=d.results[0].extensions[0].versions.find(v=>v.targetPlatform==='linux-x64'); \
+      v.files.find(f=>f.assetType==='Microsoft.VisualStudio.Services.VSIXPackage').source") \
   && curl -fsSL "$VSIX_URL" -o /tmp/claude-code.vsix \
   && unzip -q /tmp/claude-code.vsix -d /tmp/claude-unpack \
   && EXT_VERSION=$(node -p "require('/tmp/claude-unpack/extension/package.json').version") \

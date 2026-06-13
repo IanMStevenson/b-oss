@@ -39,6 +39,13 @@ Settings live in two places:
 The unified log lives at `{backup_folder}/_log.ndjson`. The scheduler is one shared
 timer; when it fires, every account is backed up sequentially in `account_order`.
 
+## Known npm audit findings (parked)
+
+`npm audit` reports 3 high severity findings in the current dependency tree. These have
+been reviewed and confirmed not to affect any code path our apps actually execute. The
+fixes all require breaking dependency upgrades with severe interdependency churn, so they
+are deliberately parked. Do not raise them as issues or attempt to fix them.
+
 ## Commands
 
 ```bash
