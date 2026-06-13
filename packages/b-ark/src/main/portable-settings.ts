@@ -3,6 +3,7 @@
 
 import fs from 'node:fs/promises';
 import path from 'node:path';
+import { renameWithRetry } from './platform-io.js';
 import type { BArkSettings } from '@b-oss/b-ark-ui';
 import { B_ARK_SETTINGS_SCHEMA_VERSION } from './schema-version.js';
 import { computeNextRun } from './scheduler.js';
@@ -37,17 +38,7 @@ export class PortableSettingsManager {
   async save(settings: BArkSettings): Promise<void> {
     const serialised = JSON.stringify(settings, null, 2);
     await fs.writeFile(this.tmpPath, serialised);
-    // Windows AV scanners or concurrent readers can briefly hold the destination
-    // open, causing rename to fail with EPERM. Retry a few times before giving up.
-    for (let attempt = 0; attempt < 3; attempt++) {
-      try {
-        await fs.rename(this.tmpPath, this.filePath);
-        return;
-      } catch (err) {
-        if ((err as NodeJS.ErrnoException).code !== 'EPERM' || attempt === 2) throw err;
-        await new Promise((resolve) => setTimeout(resolve, 100));
-      }
-    }
+    await renameWithRetry(this.tmpPath, this.filePath);
   }
 
   static defaults(): BArkSettings {
