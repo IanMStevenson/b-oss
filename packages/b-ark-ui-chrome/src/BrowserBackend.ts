@@ -2,7 +2,7 @@
 // Copyright (C) 2026 Ian Stevenson
 
 import { BlipfotoClient } from '@b-oss/b-api';
-import { BackupEngine, LogManager, JournalIndex } from '@b-oss/backup-engine';
+import { BackupEngine, LogManager } from '@b-oss/backup-engine';
 import type { AccountBackupConfig, BackupEvent } from '@b-oss/backup-engine';
 import type {
   AccountConfig,
@@ -15,6 +15,7 @@ import type {
   SharedSettingsPartial,
 } from '@b-oss/b-ark-ui-components';
 import { BrowserPlatformIO } from './browser-platform-io.js';
+import { readJournal } from './journal-source.js';
 import { deployViewer } from './deploy-viewer.js';
 import { loadToken, clearToken } from './token-storage.js';
 import { loadHandle, saveHandle, clearHandle, queryFsaPermission } from './fsa-persistence.js';
@@ -278,12 +279,10 @@ export class BrowserBackend implements BackendContext {
     let lastEntryDate: string | null = null;
     if (token && handle) {
       try {
-        const meta = await new JournalIndex(new BrowserPlatformIO(handle), token.username).load();
-        if (meta) {
-          archived = meta.entries.length;
-          if (!entryTotal) entryTotal = meta.entry_total;
-          lastEntryDate = meta.entries[0]?.date ?? null;
-        }
+        const meta = await readJournal(handle, token.username);
+        archived = meta.entries.length;
+        if (!entryTotal) entryTotal = meta.entry_total;
+        lastEntryDate = meta.entries[0]?.date ?? null;
       } catch {
         // No journal yet / no permission — keep the persisted fallbacks.
       }

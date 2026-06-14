@@ -5,29 +5,16 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import type { BlipEntry, JournalMetadata } from '@b-oss/b-view';
 import type { EntryState } from '@b-oss/b-view';
 import { debug } from './debug.js';
+import { getNestedFileHandle, readFileText, readJournal } from './journal-source.js';
+
+// Re-export the FSA read helpers so existing importers (e.g. BackupPage) keep working.
+export { getNestedFileHandle, readFileText };
 
 export type FsaJournalState =
   | { status: 'idle' }
   | { status: 'loading' }
   | { status: 'loaded'; data: JournalMetadata }
   | { status: 'error'; error: string };
-
-export async function getNestedFileHandle(
-  root: FileSystemDirectoryHandle,
-  path: string,
-): Promise<FileSystemFileHandle> {
-  const parts = path.replace(/\\/g, '/').split('/').filter(Boolean);
-  let dir: FileSystemDirectoryHandle = root;
-  for (const seg of parts.slice(0, -1)) {
-    dir = await dir.getDirectoryHandle(seg);
-  }
-  return dir.getFileHandle(parts[parts.length - 1]);
-}
-
-export async function readFileText(root: FileSystemDirectoryHandle, path: string): Promise<string> {
-  const fileHandle = await getNestedFileHandle(root, path);
-  return (await fileHandle.getFile()).text();
-}
 
 export function useFsaJournal(
   handle: FileSystemDirectoryHandle | null,
@@ -48,10 +35,9 @@ export function useFsaJournal(
     }
     setState({ status: 'loading' });
     let cancelled = false;
-    readFileText(handle, `${username}/journal.json`)
-      .then((text) => {
+    readJournal(handle, username)
+      .then((data) => {
         if (cancelled) return;
-        const data = JSON.parse(text) as JournalMetadata;
         entryCountRef.current = data.entries.length;
         setState({ status: 'loaded', data });
       })
@@ -69,9 +55,8 @@ export function useFsaJournal(
   useEffect(() => {
     if (!refreshIntervalMs || !handle || !username) return;
     const id = setInterval(() => {
-      readFileText(handle, `${username}/journal.json`)
-        .then((text) => {
-          const data = JSON.parse(text) as JournalMetadata;
+      readJournal(handle, username)
+        .then((data) => {
           if (data.entries.length !== entryCountRef.current) {
             entryCountRef.current = data.entries.length;
             setState({ status: 'loaded', data });
@@ -92,9 +77,8 @@ export function useFsaJournal(
     if (refreshNonce === lastNonceRef.current) return;
     lastNonceRef.current = refreshNonce;
     if (!handle || !username) return;
-    readFileText(handle, `${username}/journal.json`)
-      .then((text) => {
-        const data = JSON.parse(text) as JournalMetadata;
+    readJournal(handle, username)
+      .then((data) => {
         entryCountRef.current = data.entries.length;
         setState({ status: 'loaded', data });
       })
