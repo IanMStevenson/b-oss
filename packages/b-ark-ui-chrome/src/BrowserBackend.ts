@@ -71,21 +71,35 @@ const PERIOD_MS: Record<'daily' | 'weekly', number> = {
 };
 
 /**
- * Visit-triggered "next backup" caption for the status bar. The extension has no
- * clock scheduler — a backup becomes due `period` after the last completion and
- * runs on the next blipfoto.com visit. Returns text the shared StatusBar renders
- * verbatim in place of its clock-based "next …".
+ * "Next backup" caption for the status bar, covering all four combinations of
+ * visit-trigger and publish-trigger being enabled or disabled.
  */
-function visitCaption(lastBackupAt: string | null, period: 'daily' | 'weekly'): string {
-  if (!lastBackupAt) return 'Next visit';
-  const due = new Date(lastBackupAt).getTime() + PERIOD_MS[period];
-  if (due <= Date.now()) return 'Next visit';
-  const d = new Date(due);
-  const when =
-    d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short' }) +
-    ' ' +
-    d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
-  return `Next visit after ${when}`;
+function nextBackupCaption(
+  scheduleEnabled: boolean,
+  backupOnPublish: boolean,
+  lastBackupAt: string | null,
+  period: 'daily' | 'weekly',
+): string {
+  const visitText = (): string => {
+    if (!lastBackupAt) return 'On next visit';
+    const due = new Date(lastBackupAt).getTime() + PERIOD_MS[period];
+    if (due <= Date.now()) return 'On next visit';
+    const d = new Date(due);
+    const when =
+      d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short' }) +
+      ' ' +
+      d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+    return `On visit after ${when}`;
+  };
+
+  if (!scheduleEnabled && !backupOnPublish) return 'Manual';
+  if (backupOnPublish && !scheduleEnabled) return 'On publish';
+  if (scheduleEnabled && !backupOnPublish) return visitText();
+  // both enabled
+  const visit = visitText();
+  return visit === 'On next visit'
+    ? 'On publish, or next visit'
+    : `On publish, or visit after ${visit.replace('On visit after ', '')}`;
 }
 
 // ── Lifecycle types (mirrored from sw.ts) ─────────────────────────────────
@@ -171,7 +185,11 @@ export class BrowserBackend implements BackendContext {
           });
           return;
         }
-        if ('b_ark_status' in changes || 'b_ark_settings' in changes) {
+        if (
+          'b_ark_status' in changes ||
+          'b_ark_settings' in changes ||
+          'backup_on_publish' in changes
+        ) {
           void this._reloadAndEmitStore();
         }
       });
@@ -253,6 +271,8 @@ export class BrowserBackend implements BackendContext {
     const settings = await this._readSettings();
     const status = await readStatus();
     const period = settings.period ?? 'weekly';
+    const bopResult = await chrome.storage.local.get('backup_on_publish');
+    const backupOnPublish = bopResult['backup_on_publish'] === true;
 
     // Best-effort: read the on-disk journal index so the counts and "Last entry"
     // reflect real progress even when idle (e.g. an incomplete first run). Falls
@@ -288,7 +308,12 @@ export class BrowserBackend implements BackendContext {
               hour: 2,
               interval: period,
             },
-            schedule_caption: visitCaption(status.last_backup_at ?? null, period),
+            schedule_caption: nextBackupCaption(
+              settings.schedule_enabled ?? true,
+              backupOnPublish,
+              status.last_backup_at ?? null,
+              period,
+            ),
             gap_check_days: settings.gap_check_days ?? 30,
             redo_count: settings.redo_count ?? 7,
             api_delay_ms: settings.api_delay_ms ?? 0,

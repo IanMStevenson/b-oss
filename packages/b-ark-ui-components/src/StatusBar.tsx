@@ -116,8 +116,22 @@ export function StatusBar({ account, progress, onViewLog, compact }: StatusBarPr
         <Clock size={12} strokeWidth={1.6} />
         <span>
           Last backup: <strong>{relativeTime(account.last_backup_at)}</strong>
-          {' · '}
-          {account.schedule_caption ?? `next ${fmtScheduled(account.schedule.next_run)}`}
+        </span>
+      </div>
+
+      {sep}
+
+      {/* Next backup */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+        <Clock size={12} strokeWidth={1.6} />
+        <span>
+          Next backup:{' '}
+          <strong>
+            {account.schedule_caption ??
+              (account.schedule.enabled
+                ? `next ${fmtScheduled(account.schedule.next_run)}`
+                : 'Manual')}
+          </strong>
         </span>
       </div>
 
