@@ -6,6 +6,13 @@ Working!
 
 ## TODO
 
+Sort out v1-0-1
+
+Update b-oss website
+
+- Add provisional link for mac version
+- draft content for b-ark-chrome vs. b-ark
+
 ## Bugs
 
 Vite 8 deprecation warnings in b-view build — esbuild plugin option deprecated → migrate to oxc; optimizeDeps.esbuildOptions deprecated → migrate to optimizeDeps.rolldownOptions. Vite 9 will break these.
