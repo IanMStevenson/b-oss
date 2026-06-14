@@ -591,7 +591,20 @@ function BackupPageRoot() {
         </div>
         <button
           onClick={() => {
-            void backend.chooseBackupFolder();
+            void (async () => {
+              const result = await backend.chooseBackupFolder();
+              if (result?.existingSettings) {
+                dispatch({
+                  type: 'toast:show',
+                  toast: {
+                    id: 'b-ark-conflict',
+                    level: 'warn',
+                    message:
+                      'This folder is already used by b-ark (desktop). Running both at the same time may corrupt your backup — use a different folder, or only keep one active.',
+                  },
+                });
+              }
+            })();
           }}
           style={{
             height: 40,

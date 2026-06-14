@@ -583,7 +583,16 @@ export class BrowserBackend implements BackendContext {
   async chooseBackupFolder(): Promise<{ folder: string; existingSettings: boolean } | null> {
     const folder = await this.pickFolder();
     if (!folder) return null;
-    return { folder, existingSettings: false };
+    let existingSettings = false;
+    if (this._handle) {
+      try {
+        await this._handle.getFileHandle('b-ark-settings.json', { create: false });
+        existingSettings = true;
+      } catch {
+        // File not found — no conflict
+      }
+    }
+    return { folder, existingSettings };
   }
 
   async moveBackupFolder(_newPath: string): Promise<void> {
