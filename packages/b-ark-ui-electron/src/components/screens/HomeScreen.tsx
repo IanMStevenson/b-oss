@@ -6,12 +6,17 @@
 // This keeps all port/path details in the main process and out of the UI.
 
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { ExternalLink, FileText, Settings, CloudDownload } from 'lucide-react';
+import { ExternalLink, FileText, Settings } from 'lucide-react';
 import { ThumbnailGrid, EntryDetail, useJournal, useEntry } from '@b-oss/b-view';
 import type { BlipEntry, EntryIndex } from '@b-oss/b-view';
 import type { AccountConfig } from '../../backend.js';
 import { useApp } from '../../context/AppContext.js';
-import { BackupBanner } from '@b-oss/b-ark-ui-components';
+import {
+  BackupBanner,
+  AccountHeaderBar,
+  IconButton,
+  BackupButton,
+} from '@b-oss/b-ark-ui-components';
 import { AuthErrorBanner } from '../AuthErrorBanner.js';
 import { StatusBar } from '../StatusBar.js';
 import { Avatar } from '../Avatar.js';
@@ -19,45 +24,6 @@ import { Avatar } from '../Avatar.js';
 interface HomeScreenProps {
   account: AccountConfig;
   compact?: boolean;
-}
-
-function IconBtn({
-  onClick,
-  label,
-  children,
-}: {
-  onClick?: () => void;
-  label: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <button
-      onClick={onClick}
-      aria-label={label}
-      style={{
-        width: 28,
-        height: 28,
-        borderRadius: 6,
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        color: 'var(--ink-2)',
-        background: 'transparent',
-        border: 'none',
-        cursor: 'pointer',
-      }}
-      onMouseEnter={(e) => {
-        e.currentTarget.style.background = 'var(--green-100)';
-        e.currentTarget.style.color = 'var(--green-800)';
-      }}
-      onMouseLeave={(e) => {
-        e.currentTarget.style.background = 'transparent';
-        e.currentTarget.style.color = 'var(--ink-2)';
-      }}
-    >
-      {children}
-    </button>
-  );
 }
 
 export function HomeScreen({ account, compact }: HomeScreenProps) {
@@ -160,101 +126,62 @@ export function HomeScreen({ account, compact }: HomeScreenProps) {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0 }}>
       {/* Header */}
-      <div
-        style={{
-          padding: '18px 24px 14px',
-          display: 'flex',
-          alignItems: 'center',
-          gap: 14,
-          borderBottom: '1px solid var(--line)',
-          flexShrink: 0,
-        }}
-      >
-        <Avatar
-          accountId={account.id}
-          name={account.journal_title}
-          remoteUrl={account.avatar_url}
-          refreshKey={account.last_backup_at}
-          size={40}
-        />
-
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <div
-            style={{ fontSize: 18, fontWeight: 600, letterSpacing: '-0.01em', color: 'var(--ink)' }}
-          >
-            {account.journal_title}
-          </div>
-          <div style={{ fontSize: 12, color: 'var(--muted)', marginTop: 2 }}>
-            @{account.username}
-            {journalState.status === 'loaded' && (
-              <>
-                {' · since '}
-                {journalState.data.entries.length > 0
-                  ? new Date(
-                      journalState.data.entries[journalState.data.entries.length - 1]?.date ?? '',
-                    ).toLocaleDateString('en-GB', {
-                      day: '2-digit',
-                      month: 'short',
-                      year: 'numeric',
-                    })
-                  : '—'}
-                {' · '}
-                {journalState.data.entry_total.toLocaleString()} entries
-              </>
-            )}
-          </div>
-        </div>
-
-        {/* App actions */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
-          <IconBtn label="Open in browser" onClick={() => void backend.openViewer(account.id)}>
-            <ExternalLink size={15} strokeWidth={1.6} />
-          </IconBtn>
-
-          <IconBtn label="View log" onClick={() => dispatch({ type: 'panel:open', panel: 'log' })}>
-            <FileText size={15} strokeWidth={1.6} />
-          </IconBtn>
-
-          <IconBtn
-            label="Settings"
-            onClick={() => dispatch({ type: 'panel:open', panel: 'settings' })}
-          >
-            <Settings size={15} strokeWidth={1.6} />
-          </IconBtn>
-
-          <button
-            disabled={isBackingUp}
-            onClick={() => {
-              if (account.rag_state === 'red' && account.error_message) {
-                setBannerHighlighted(true);
-                bannerRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-                setTimeout(() => setBannerHighlighted(false), 1500);
-                return;
-              }
-              void backend.startBackup(account.id);
-            }}
-            style={{
-              height: 30,
-              padding: '0 14px',
-              borderRadius: 7,
-              background: 'var(--green-800)',
-              color: 'white',
-              fontSize: 13,
-              fontWeight: 600,
-              border: 'none',
-              cursor: isBackingUp ? 'default' : 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              gap: 6,
-              opacity: isBackingUp ? 0.7 : 1,
-              whiteSpace: 'nowrap',
-            }}
-          >
-            {!isBackingUp && <CloudDownload size={14} strokeWidth={1.6} />}
-            {backupButtonLabel()}
-          </button>
-        </div>
-      </div>
+      <AccountHeaderBar
+        avatar={
+          <Avatar
+            accountId={account.id}
+            name={account.journal_title}
+            remoteUrl={account.avatar_url}
+            refreshKey={account.last_backup_at}
+            size={40}
+          />
+        }
+        avatarSize={40}
+        title={account.journal_title}
+        titleFontSize={18}
+        username={account.username}
+        metaReady={journalState.status === 'loaded'}
+        sinceDate={
+          journalState.status === 'loaded' && journalState.data.entries.length > 0
+            ? (journalState.data.entries[journalState.data.entries.length - 1]?.date ?? null)
+            : null
+        }
+        entryTotal={journalState.status === 'loaded' ? journalState.data.entry_total : 0}
+        padding="18px 24px 14px"
+        gap={14}
+        actions={
+          <>
+            <IconButton label="Open in browser" onClick={() => void backend.openViewer(account.id)}>
+              <ExternalLink size={15} strokeWidth={1.6} />
+            </IconButton>
+            <IconButton
+              label="View log"
+              onClick={() => dispatch({ type: 'panel:open', panel: 'log' })}
+            >
+              <FileText size={15} strokeWidth={1.6} />
+            </IconButton>
+            <IconButton
+              label="Settings"
+              onClick={() => dispatch({ type: 'panel:open', panel: 'settings' })}
+            >
+              <Settings size={15} strokeWidth={1.6} />
+            </IconButton>
+            <BackupButton
+              label={backupButtonLabel()}
+              busy={isBackingUp}
+              onClick={() => {
+                if (account.rag_state === 'red' && account.error_message) {
+                  setBannerHighlighted(true);
+                  bannerRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                  setTimeout(() => setBannerHighlighted(false), 1500);
+                  return;
+                }
+                void backend.startBackup(account.id);
+              }}
+            />
+          </>
+        }
+      />
 
       {/* Auth error banner */}
       {account.rag_state === 'red' && account.error_message && (

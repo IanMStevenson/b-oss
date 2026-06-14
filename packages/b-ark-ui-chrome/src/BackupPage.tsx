@@ -28,6 +28,9 @@ import type {
 } from '@b-oss/b-ark-ui-components';
 import {
   Avatar,
+  AccountHeaderBar,
+  IconButton,
+  BackupButton,
   AuthErrorBanner,
   BackupBanner,
   InfoBadge,
@@ -693,18 +696,8 @@ function BackupPageRoot() {
       <ProductHeader appVersion={backend.appVersion} />
 
       {/* Account / actions bar */}
-      <div
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          padding: '14px 14px 12px',
-          gap: 12,
-          borderBottom: '1px solid var(--line)',
-          flexShrink: 0,
-          background: 'var(--bg)',
-        }}
-      >
-        <div style={{ position: 'relative', flexShrink: 0 }}>
+      <AccountHeaderBar
+        avatar={
           <Avatar
             name={account.journal_title}
             remoteUrl={account.avatar_url}
@@ -712,139 +705,48 @@ function BackupPageRoot() {
             size={56}
             loadAvatar={loadAvatar}
           />
-          <div
-            style={{
-              position: 'absolute',
-              bottom: 1,
-              right: 1,
-              width: 20,
-              height: 20,
-              borderRadius: '50%',
-              background: ragColour,
-              border: '1px solid white',
-            }}
-          />
-        </div>
-
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <div
-            style={{
-              fontSize: 16,
-              fontWeight: 600,
-              letterSpacing: '-0.01em',
-              color: 'var(--ink)',
-              overflow: 'hidden',
-              textOverflow: 'ellipsis',
-              whiteSpace: 'nowrap',
-            }}
-          >
-            {account.journal_title}
-          </div>
-          <div style={{ fontSize: 12, color: 'var(--muted)', marginTop: 2 }}>
-            @{account.username}
-            {journalState.status === 'loaded' && (
-              <>
-                {' · since '}
-                {journalState.data.entries.length > 0
-                  ? new Date(
-                      journalState.data.entries[journalState.data.entries.length - 1]?.date ?? '',
-                    ).toLocaleDateString('en-GB', {
-                      day: '2-digit',
-                      month: 'short',
-                      year: 'numeric',
-                    })
-                  : '—'}
-                {' · '}
-                {account.journal_entry_total.toLocaleString()} entries
-              </>
+        }
+        avatarSize={56}
+        statusDotColour={ragColour}
+        background="var(--bg)"
+        title={account.journal_title}
+        username={account.username}
+        metaReady={journalState.status === 'loaded'}
+        sinceDate={
+          journalState.status === 'loaded' && journalState.data.entries.length > 0
+            ? (journalState.data.entries[journalState.data.entries.length - 1]?.date ?? null)
+            : null
+        }
+        entryTotal={account.journal_entry_total}
+        actions={
+          <>
+            {isBackingUp ? (
+              <BackupButton
+                variant="cancel"
+                label="Cancel"
+                onClick={() => void backend.cancelBackup(account.id)}
+              />
+            ) : (
+              <BackupButton
+                label="Back up now"
+                onClick={() => void backend.startBackup(account.id)}
+              />
             )}
-          </div>
-        </div>
-
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
-          {isBackingUp ? (
-            <button
-              onClick={() => {
-                void backend.cancelBackup(account.id);
-              }}
-              style={{
-                height: 32,
-                padding: '0 14px',
-                borderRadius: 7,
-                background: 'rgba(208,69,69,0.1)',
-                color: 'var(--rag-red)',
-                fontSize: 13,
-                fontWeight: 600,
-                border: '1px solid rgba(208,69,69,0.2)',
-                cursor: 'pointer',
-                flexShrink: 0,
-              }}
+            <IconButton
+              label="Open settings"
+              onClick={() => dispatch({ type: 'panel:open', panel: 'settings' })}
             >
-              Cancel
-            </button>
-          ) : (
-            <button
-              onClick={() => {
-                void backend.startBackup(account.id);
-              }}
-              style={{
-                height: 32,
-                padding: '0 14px',
-                borderRadius: 7,
-                background: 'var(--green-800)',
-                color: 'white',
-                fontSize: 13,
-                fontWeight: 600,
-                border: 'none',
-                cursor: 'pointer',
-                flexShrink: 0,
-              }}
+              <Settings size={16} strokeWidth={1.8} />
+            </IconButton>
+            <IconButton
+              label="Open log"
+              onClick={() => dispatch({ type: 'panel:open', panel: 'log' })}
             >
-              Back up now
-            </button>
-          )}
-
-          <button
-            aria-label="Open settings"
-            onClick={() => dispatch({ type: 'panel:open', panel: 'settings' })}
-            style={{
-              width: 32,
-              height: 32,
-              borderRadius: 7,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              background: 'transparent',
-              border: 'none',
-              cursor: 'pointer',
-              color: 'var(--muted)',
-              flexShrink: 0,
-            }}
-          >
-            <Settings size={16} strokeWidth={1.8} />
-          </button>
-
-          <button
-            aria-label="Open log"
-            onClick={() => dispatch({ type: 'panel:open', panel: 'log' })}
-            style={{
-              width: 32,
-              height: 32,
-              borderRadius: 7,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              background: 'transparent',
-              border: 'none',
-              cursor: 'pointer',
-              color: 'var(--muted)',
-              flexShrink: 0,
-            }}
-          >
-            <FileText size={16} strokeWidth={1.8} />
-          </button>
-        </div>
-      </div>
+              <FileText size={16} strokeWidth={1.8} />
+            </IconButton>
+          </>
+        }
+      />
 
       {/* Backup progress banner */}
       {progress && (
