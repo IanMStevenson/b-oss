@@ -21,6 +21,9 @@ export type RagState = 'green' | 'amber' | 'red';
 /** What the chip shows when red. `error` covers network / api failures. */
 export type ChipErrorKind = 'permission' | 'auth' | 'error' | null;
 
+/** Set to 'rate' while the backup engine is paused at a rate limit. */
+export type ChipAmberReason = 'rate' | null;
+
 export interface ChromeStatus {
   last_backup_at: string | null;
   total_archived: number;
@@ -64,6 +67,7 @@ export async function setWorking(): Promise<void> {
     chip_rag: 'amber',
     chip_error_kind: null,
     chip_progress: null,
+    chip_amber_reason: null,
   });
 }
 
@@ -90,7 +94,13 @@ export async function setCancelledIncomplete(): Promise<void> {
     chip_rag: 'amber',
     chip_error_kind: null,
     chip_progress: null,
+    chip_amber_reason: null,
   });
+}
+
+/** The backup engine hit a rate limit — keeps chip_progress frozen so the pill stays visible. */
+export async function setRateLimited(): Promise<void> {
+  await chrome.storage.local.set({ chip_amber_reason: 'rate' });
 }
 
 /** A run aborted with an error — goes red with the correct chip label. */

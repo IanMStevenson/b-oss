@@ -120,6 +120,7 @@ export function SettingsOverlay({ backend, account, onClose }: SettingsOverlayPr
   const [permState, setPermState] = useState<PermissionState | null>(null);
   const [backupOnPublish, setBackupOnPublish] = useState(false);
   const [chipEnabled, setChipEnabled] = useState(true);
+  const [chipShowAvatar, setChipShowAvatar] = useState(false);
   const [scheduleEnabled, setScheduleEnabled] = useState(account.schedule.enabled ?? true);
   const [interval, setIntervalVal] = useState<'daily' | 'weekly'>(
     account.schedule.interval === 'monthly' ? 'weekly' : account.schedule.interval,
@@ -141,9 +142,10 @@ export function SettingsOverlay({ backend, account, onClose }: SettingsOverlayPr
   }, []);
 
   useEffect(() => {
-    chrome.storage.local.get(['backup_on_publish', 'chip_enabled'], (r) => {
+    chrome.storage.local.get(['backup_on_publish', 'chip_enabled', 'chip_show_avatar'], (r) => {
       setBackupOnPublish(r['backup_on_publish'] === true);
       setChipEnabled(r['chip_enabled'] !== false);
+      setChipShowAvatar(r['chip_show_avatar'] === true);
     });
   }, []);
 
@@ -304,6 +306,25 @@ export function SettingsOverlay({ backend, account, onClose }: SettingsOverlayPr
               />
               <span style={{ fontSize: 13, color: 'var(--ink-2)' }}>
                 {chipEnabled ? 'On' : 'Off'}
+              </span>
+            </div>
+          </SettingBlock>
+
+          {/* Show avatar on chip */}
+          <SettingBlock
+            label="Show avatar on chip"
+            description="Replace the b-ark logo on the chip with your Blipfoto profile photo."
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              <PillToggle
+                checked={chipShowAvatar}
+                onChange={(v) => {
+                  setChipShowAvatar(v);
+                  void chrome.storage.local.set({ chip_show_avatar: v });
+                }}
+              />
+              <span style={{ fontSize: 13, color: 'var(--ink-2)' }}>
+                {chipShowAvatar ? 'On' : 'Off'}
               </span>
             </div>
           </SettingBlock>

@@ -41,9 +41,4 @@ npm run dev --workspace=packages/b-ark
 
 ## b-ark-chrome todos
 
-Redo the chip icon - what is it trying to be? It's horrid
-Chip doesn't necessarily update itself - needs to refresh its own status regularly
-
-Add backup-on-submit/save changes feature
-
 Delete plan in packages-b-ark folder after completion

@@ -25,6 +25,7 @@ import {
   setCompleted,
   setCancelledIncomplete,
   setFailed,
+  setRateLimited,
   clearError,
 } from './status-storage.js';
 
@@ -459,6 +460,10 @@ export class BrowserBackend implements BackendContext {
       journalTitle = profile.details?.journal_title ?? token.username;
       avatarUrl = profile.user.avatar_url;
       await this._patchSettings({ journal_title: journalTitle, avatar_url: avatarUrl });
+      // Write avatar as data-URL so the chip content-script can display it without cross-origin fetching
+      void this.getAccountAvatar(token.username).then((dataUrl) => {
+        if (dataUrl) void chrome.storage.local.set({ chip_avatar_url: dataUrl });
+      });
       // Persist the journal's true entry total so the status bar's "X of Y"
       // shows a real denominator even before the first run completes.
       if (typeof profile.details?.entry_total === 'number') {
@@ -491,9 +496,14 @@ export class BrowserBackend implements BackendContext {
         void setWorking().then(() => this._reloadAndEmitStore());
       }
 
+      if (event.type === 'rate_limited') {
+        void setRateLimited();
+      }
+
       if (event.type === 'progress') {
         void chrome.storage.local.set({
           chip_progress: { done: event.done, total: event.total },
+          chip_amber_reason: null,
         });
       }
 
