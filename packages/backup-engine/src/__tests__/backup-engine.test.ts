@@ -28,6 +28,7 @@ class MockPlatformIO implements PlatformIO {
   files = new Map<string, string>();
   downloads: Array<{ url: string; destPath: string }> = [];
   renames: Array<{ from: string; to: string }> = [];
+  atomicWrites: string[] = [];
   logs: Array<LogEntry> = [];
 
   readFile(path: string): Promise<Uint8Array> {
@@ -55,6 +56,7 @@ class MockPlatformIO implements PlatformIO {
     return Promise.resolve();
   }
   atomicWrite(path: string, data: Uint8Array | string): Promise<void> {
+    this.atomicWrites.push(path);
     return this.writeFile(path, data);
   }
   rename(from: string, to: string): Promise<void> {
@@ -776,11 +778,11 @@ describe('BackupEngine — routine backup new posts', () => {
     }
   });
 
-  it('saves journal.json after each new-post fetch (not just at the end)', async () => {
-    const io = new MockPlatformIO();
-    const client = makeClient();
+  // Shared fixture for the metadata-write-interval tests: a routine backup that
+  // re-fetches 1 entry (redo) and discovers 3 new posts — 4 entry changes in total,
+  // each followed by a gated saveSnapshot(), plus the unconditional final save.
+  function setupIntervalScenario(io: MockPlatformIO, client: BlipfotoClient): void {
     seedJournal(io, baseJournal);
-
     vi.spyOn(client, 'getUserProfile').mockResolvedValue(makeProfileResponse(4));
     vi.spyOn(client, 'getJournalEntries').mockResolvedValue({
       page: { index: 0, size: 100, more: 0 },
@@ -800,15 +802,51 @@ describe('BackupEngine — routine backup new posts', () => {
     vi.spyOn(client, 'getEntry').mockImplementation((id: string) =>
       Promise.resolve(makeEntryResponse(id, dateMap[id])),
     );
+  }
 
-    const engine = makeEngine(makeConfig({ redo_count: 1 }), io, client, () => {});
+  const JOURNAL_PATH = '/backups/gbradley/journal.json';
+
+  it('with metadata_write_interval=1, saves journal.json after every entry change', async () => {
+    const io = new MockPlatformIO();
+    const client = makeClient();
+    setupIntervalScenario(io, client);
+
+    // journal.json is persisted via io.atomicWrite (JournalIndex.save), so each
+    // atomicWrite to the journal path counts as one save. With interval 1 every
+    // entry flushes: 1 redo + 3 new-posts + 1 unconditional final = 5 saves.
+    const engine = makeEngine(
+      makeConfig({ redo_count: 1, metadata_write_interval: 1 }),
+      io,
+      client,
+      () => {},
+    );
     await engine.run();
 
-    // journal.json is written via writeFile-to-tmp + rename, so each rename
-    // to the final journal.json path counts as one save. Expected:
-    //   1 redo + 3 new-posts + 1 final = 5 saves at minimum.
-    const journalRenames = io.renames.filter((r) => r.to === '/backups/gbradley/journal.json');
-    expect(journalRenames.length).toBeGreaterThanOrEqual(5);
+    const journalSaves = io.atomicWrites.filter((p) => p === JOURNAL_PATH);
+    expect(journalSaves.length).toBe(5);
+  });
+
+  it('with a larger metadata_write_interval, flushes journal.json less often (final save always written)', async () => {
+    const io = new MockPlatformIO();
+    const client = makeClient();
+    setupIntervalScenario(io, client);
+
+    // interval 2: shouldFlushMetadata() flushes on every 2nd of the 4 entry changes
+    // (the 2nd and 4th), and the final save is always written → 2 + 1 = 3 saves.
+    const engine = makeEngine(
+      makeConfig({ redo_count: 1, metadata_write_interval: 2 }),
+      io,
+      client,
+      () => {},
+    );
+    await engine.run();
+
+    const journalSaves = io.atomicWrites.filter((p) => p === JOURNAL_PATH);
+    expect(journalSaves.length).toBe(3);
+
+    // Regardless of cadence, the final journal.json must reflect all archived entries.
+    const finalJournal = JSON.parse(io.files.get(JOURNAL_PATH)!) as JournalMetadata;
+    expect(finalJournal.entries.length).toBe(4);
   });
 
   it('cancel() during new-posts stops further entries from being written', async () => {
