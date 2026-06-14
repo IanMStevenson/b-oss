@@ -22,7 +22,9 @@ react / react-dom peer warnings — lucide-react and @testing-library/react show
 
 electron-builder v26 → v27 upgrade — --publish always is now in place, so the breaking change in v27 is pre-empted. Upgrade itself is still future work.
 
-There are also 3 security alerts in electron build related modules - none of which apply to our circumstances and none of which have fixes that don't break things even more.
+3 high-severity dev-only security alerts — all from the chain `electron-vite@5 → vite@7.3.3 → old esbuild`. esbuild is a build-time dependency only and never ships in the app, so there is no user-facing exposure. There is no electron-vite 5.x that allows vite 8, so the only resolution is electron-vite@6 (peers vite ^6||^7||^8, bundles patched esbuild ^0.25.11) — currently beta-only (6.0.0-beta.1, no stable as of 2026-06-14). Holding for 6.0.0 stable; revisit then. The same electron-vite 6 upgrade also unblocks the deferred minor-and-patch Dependabot group (electron 42.4, vite 8.0.16, etc.), which can't apply while electron-vite 5 pins the tree to vite 7.
+
+Dependency-update branch `chore/deps-update-1.0.2` — validated clean (typecheck/lint/test/build all green) for the four bumps that do NOT depend on electron-vite 6: typescript 5.9→6.0 (needed `@types/node` declared + `types:["node"]` in backup-engine; TS 6 dropped implicit @types inclusion), electron-store 10→11 (build-bundled; runtime config/token migration still needs a GUI install-over-existing-data check), uuid 11→14, lint-staged 15→17 (pre-commit hook verified). Not yet merged to main.
 
 ## API Limitations
 
