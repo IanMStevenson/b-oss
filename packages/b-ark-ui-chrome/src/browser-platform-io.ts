@@ -37,6 +37,10 @@ export class BrowserPlatformIO implements PlatformIO {
     await w.close();
   }
 
+  async atomicWrite(path: string, data: Uint8Array | string): Promise<void> {
+    await this.writeFile(path, data);
+  }
+
   async ensureDir(path: string): Promise<void> {
     await this.resolveDir(this.segments(path), true);
   }

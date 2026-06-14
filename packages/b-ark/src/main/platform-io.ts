@@ -68,6 +68,12 @@ export class ElectronPlatformIO implements PlatformIO {
     await fs.unlink(p);
   }
 
+  async atomicWrite(p: string, data: Uint8Array | string): Promise<void> {
+    const tmp = `${p}.tmp`;
+    await fs.writeFile(tmp, data);
+    await renameWithRetry(tmp, p);
+  }
+
   async rename(from: string, to: string): Promise<void> {
     await renameWithRetry(from, to);
   }

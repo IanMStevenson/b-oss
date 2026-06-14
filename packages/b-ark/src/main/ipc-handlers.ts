@@ -130,6 +130,7 @@ export function registerIpcHandlers(
             redo_count: account.redo_count,
             gap_check_days: account.gap_check_days,
             api_delay_ms: account.api_delay_ms,
+            metadata_write_interval: 0,
             app_version: __APP_VERSION__,
           },
           pio,

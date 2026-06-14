@@ -5,7 +5,6 @@ import type { PlatformIO } from './platform.js';
 import type { BlipEntry, EntryIndex, JournalMetadata } from './types.js';
 
 const JOURNAL_FILENAME = 'journal.json';
-const JOURNAL_TMP_FILENAME = 'journal.tmp';
 export const AVATAR_FILENAME = 'avatar.jpg';
 
 /**
@@ -34,14 +33,12 @@ export async function cacheAvatarIfMissing(
 
 export class JournalIndex {
   private readonly path: string;
-  private readonly tmpPath: string;
 
   constructor(
     private readonly io: PlatformIO,
     private readonly journalFolder: string,
   ) {
     this.path = `${this.journalFolder}/${JOURNAL_FILENAME}`;
-    this.tmpPath = `${this.journalFolder}/${JOURNAL_TMP_FILENAME}`;
   }
 
   async load(): Promise<JournalMetadata | null> {
@@ -59,8 +56,7 @@ export class JournalIndex {
       ),
     };
     const serialised = JSON.stringify(sorted, null, 2);
-    await this.io.writeFile(this.tmpPath, serialised);
-    await this.io.rename(this.tmpPath, this.path);
+    await this.io.atomicWrite(this.path, serialised);
   }
 
   static toEntryIndex(entry: BlipEntry): EntryIndex {

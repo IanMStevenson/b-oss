@@ -5,11 +5,9 @@ import type { PlatformIO } from './platform.js';
 import type { LogEntry } from './types.js';
 
 const LOG_FILENAME = '_log.ndjson';
-const LOG_TMP_FILENAME = '_log.tmp';
 
 export class LogManager {
   private readonly path: string;
-  private readonly tmpPath: string;
 
   /**
    * `folder` is the directory the log file lives in. Historically this was a
@@ -22,7 +20,6 @@ export class LogManager {
     folder: string,
   ) {
     this.path = `${folder}/${LOG_FILENAME}`;
-    this.tmpPath = `${folder}/${LOG_TMP_FILENAME}`;
   }
 
   async append(entry: LogEntry): Promise<void> {
@@ -30,8 +27,7 @@ export class LogManager {
       const existing = await this.readAllRaw();
       const line = JSON.stringify(entry);
       const next = existing.length === 0 ? `${line}\n` : `${existing}${line}\n`;
-      await this.io.writeFile(this.tmpPath, next);
-      await this.io.rename(this.tmpPath, this.path);
+      await this.io.atomicWrite(this.path, next);
     } catch {
       // Silently swallow — we cannot log a log failure without recursing
     }
@@ -56,8 +52,7 @@ export class LogManager {
       if (entries.length <= maxLines) return;
       const kept = entries.slice(entries.length - maxLines);
       const next = kept.map((e) => JSON.stringify(e)).join('\n') + '\n';
-      await this.io.writeFile(this.tmpPath, next);
-      await this.io.rename(this.tmpPath, this.path);
+      await this.io.atomicWrite(this.path, next);
     } catch {
       // Silently swallow
     }

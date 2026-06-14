@@ -450,6 +450,7 @@ export class BrowserBackend implements BackendContext {
       redo_count: 7,
       gap_check_days: 30,
       api_delay_ms: settings.api_delay_ms ?? 500,
+      metadata_write_interval: 5,
       app_version: __APP_VERSION__,
     };
 

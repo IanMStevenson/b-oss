@@ -54,6 +54,9 @@ class MockPlatformIO implements PlatformIO {
     this.files.delete(path);
     return Promise.resolve();
   }
+  atomicWrite(path: string, data: Uint8Array | string): Promise<void> {
+    return this.writeFile(path, data);
+  }
   rename(from: string, to: string): Promise<void> {
     const content = this.files.get(from);
     if (content === undefined) {
@@ -85,6 +88,7 @@ function makeConfig(overrides: Partial<AccountBackupConfig> = {}): AccountBackup
     redo_count: 7,
     gap_check_days: 31,
     api_delay_ms: 0,
+    metadata_write_interval: 1,
     app_version: '0.1.0',
     ...overrides,
   };

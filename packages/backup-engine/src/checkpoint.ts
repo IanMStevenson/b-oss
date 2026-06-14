@@ -5,18 +5,15 @@ import type { PlatformIO } from './platform.js';
 import type { BackupCheckpoint } from './types.js';
 
 const CHECKPOINT_FILENAME = '_checkpoint.json';
-const CHECKPOINT_TMP_FILENAME = '_checkpoint.tmp';
 
 export class CheckpointManager {
   private readonly path: string;
-  private readonly tmpPath: string;
 
   constructor(
     private readonly io: PlatformIO,
     private readonly journalFolder: string,
   ) {
     this.path = `${this.journalFolder}/${CHECKPOINT_FILENAME}`;
-    this.tmpPath = `${this.journalFolder}/${CHECKPOINT_TMP_FILENAME}`;
   }
 
   async load(): Promise<BackupCheckpoint | null> {
@@ -28,8 +25,7 @@ export class CheckpointManager {
 
   async save(checkpoint: BackupCheckpoint): Promise<void> {
     const serialised = JSON.stringify(checkpoint, null, 2);
-    await this.io.writeFile(this.tmpPath, serialised);
-    await this.io.rename(this.tmpPath, this.path);
+    await this.io.atomicWrite(this.path, serialised);
   }
 
   async clear(): Promise<void> {

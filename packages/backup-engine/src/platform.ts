@@ -4,6 +4,7 @@
 export interface PlatformIO {
   readFile(path: string): Promise<Uint8Array>;
   writeFile(path: string, data: Uint8Array | string): Promise<void>;
+  atomicWrite(path: string, data: Uint8Array | string): Promise<void>;
   ensureDir(path: string): Promise<void>;
   fileExists(path: string): Promise<boolean>;
   listDir(path: string): Promise<string[]>;

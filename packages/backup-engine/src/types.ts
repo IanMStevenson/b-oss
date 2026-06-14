@@ -126,5 +126,6 @@ export interface AccountBackupConfig {
   redo_count: number;
   gap_check_days: number;
   api_delay_ms: number;
+  metadata_write_interval: number;
   app_version: string;
 }

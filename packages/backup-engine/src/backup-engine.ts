@@ -75,6 +75,7 @@ function lastNDates(n: number): string[] {
 
 export class BackupEngine {
   private cancelled = false;
+  private _sinceLastFlush = 0;
 
   // Set for the duration of run(); used by appendLog and callWithRateLimitPause
   private runLogMgr: LogManager | null = null;
@@ -124,6 +125,13 @@ export class BackupEngine {
       this.runLogMgr = null;
       this.runBackupId = null;
     }
+  }
+
+  private shouldFlushMetadata(): boolean {
+    const interval = this.config.metadata_write_interval;
+    if (interval <= 1) return true;
+    this._sinceLastFlush = (this._sinceLastFlush + 1) % interval;
+    return this._sinceLastFlush === 0;
   }
 
   private checkCancelled(): void {
@@ -230,22 +238,23 @@ export class BackupEngine {
         if (fetchedSet.size > checkpoint.total_to_fetch) {
           checkpoint.total_to_fetch = fetchedSet.size;
         }
-        await checkpointMgr.save(checkpoint);
-
         const currentIds = new Set(fetchedEntries.map((e) => e.entry_id));
         const mergedEntries: EntryIndex[] = [
           ...fetchedEntries.map((e) => JournalIndex.toEntryIndex(e)),
           ...[...priorEntryMap.values()].filter((e) => !currentIds.has(e.entry_id)),
         ];
-        await journalIndex.save({
-          schema_version: 1,
-          username: this.config.username,
-          journal_title: this.config.journal_title,
-          avatar_url: this.config.avatar_url,
-          entry_total: mergedEntries.length,
-          last_backup_at: nowIso(),
-          entries: mergedEntries,
-        });
+        if (this.shouldFlushMetadata()) {
+          await checkpointMgr.save(checkpoint);
+          await journalIndex.save({
+            schema_version: 1,
+            username: this.config.username,
+            journal_title: this.config.journal_title,
+            avatar_url: this.config.avatar_url,
+            entry_total: mergedEntries.length,
+            last_backup_at: nowIso(),
+            entries: mergedEntries,
+          });
+        }
 
         this.onEvent({
           type: 'progress',
@@ -348,6 +357,7 @@ export class BackupEngine {
     // viewer's polling picks up updates as the backup progresses, mirroring
     // the first-backup save cadence.
     const saveSnapshot = async (): Promise<void> => {
+      if (!this.shouldFlushMetadata()) return;
       await journalIndex.save({
         schema_version: 1,
         username: this.config.username,
@@ -785,9 +795,7 @@ export class BackupEngine {
     }
 
     const serialised = JSON.stringify(entry, null, 2);
-    const tmpAbs = `${jsonAbs}.tmp`;
-    await this.io.writeFile(tmpAbs, serialised);
-    await this.io.rename(tmpAbs, jsonAbs);
+    await this.io.atomicWrite(jsonAbs, serialised);
 
     return entry;
   }
