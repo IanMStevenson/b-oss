@@ -22,6 +22,15 @@ const SCHEME = 'bark-chrome://';
 const TIMEOUT_MS = 120_000;
 
 export async function startOAuthFlow(clientId: string): Promise<void> {
+  // Reset any prior OAuth status (and stale error) so the eventual success/error
+  // write is always a real storage transition. chrome.storage.onChanged does not
+  // fire when a value is re-set to its existing value, so without this a second
+  // sign-in with the same outcome as the last one (e.g. sign out → sign back in)
+  // would re-write oauthStatus:'success', emit no change event, and strand the UI
+  // on the sign-in screen even though the token was captured.
+  await chrome.storage.local.set({ oauthStatus: 'pending' });
+  await chrome.storage.local.remove('oauthError');
+
   if (!clientId) {
     await chrome.storage.local.set({
       oauthStatus: 'error',
