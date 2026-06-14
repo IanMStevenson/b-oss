@@ -3,7 +3,9 @@
 ## Project overview
 
 b-oss is a monorepo of Blipfoto backup tools. b-ark is the Electron desktop app.
-b-view is the browser-based journal viewer. All names are lowercase and hyphenated.
+b-ark-chrome is the Chrome-extension sibling (single-account, folder-based backup via
+the File System Access API). b-view is the browser-based journal viewer. All names are
+lowercase and hyphenated.
 
 ## Package structure
 
@@ -14,13 +16,19 @@ packages/b-view             No Node or Electron deps. React components + standal
 packages/b-ark-ui-components No Electron deps. Shared, prop-driven presentational kit. Defines BackendContext interface + view types.
 packages/b-ark-ui-electron  No Electron deps. Desktop React shell (multi-account App, Sidebar, AppContext reducer) + container wrappers around the kit; includes ElectronBackend (wraps window.api).
 packages/b-ark              Electron shell only. Implements PlatformIO (ElectronPlatformIO); wires up ElectronBackend from b-ark-ui-electron.
+packages/b-ark-ui-chrome    No Electron deps. Browser React shell (BackupPage) + BrowserBackend (wraps chrome.*) implementing BackendContext, BrowserPlatformIO (File System Access), and the mountChip content-script. Exports the Chrome platform primitives for the shell to reuse.
+packages/b-ark-chrome       Chrome extension shell only — service worker (sw.ts), OAuth capture, content scripts. Should consume BrowserBackend/BrowserPlatformIO and the platform primitives from b-ark-ui-chrome.
 ```
+
+The Chrome side mirrors the Electron split: `b-ark-chrome` is to `b-ark-ui-chrome` what
+`b-ark` is to `b-ark-ui-electron` (extension shell over a no-platform-deps React/backend kit).
 
 ## Architecture rules (never violate these)
 
-- b-api, backup-engine, b-view, b-ark-ui-components, b-ark-ui-electron must NEVER import from 'electron'
+- b-api, backup-engine, b-view, b-ark-ui-components, b-ark-ui-electron, b-ark-ui-chrome must NEVER import from 'electron'
+- b-api, backup-engine, b-view, b-ark-ui-components, b-ark-ui-electron must NEVER reference 'chrome'/`chrome.*` — Chrome APIs live only in b-ark-ui-chrome and b-ark-chrome
 - b-ark-ui components must NEVER call window.api directly — use useBackend() hook only
-- Access tokens: handled in main process only, never sent to renderer via IPC
+- Access tokens: handled in main process only (Electron), never sent to renderer via IPC. On Chrome, tokens are AES-GCM encrypted at rest and handed straight to BackupEngine — never broadcast over chrome.runtime messages
 - All Blipfoto \_id fields: always use the \_str string variant, store as string
 - Atomic file writes: write to `path + '.tmp'` then rename to final path
 - Naming: always lowercase hyphenated — b-ark, b-view, b-oss. Never capitalised.
@@ -39,6 +47,22 @@ Settings live in two places:
 
 The unified log lives at `{backup_folder}/_log.ndjson`. The scheduler is one shared
 timer; when it fires, every account is backed up sequentially in `account_order`.
+
+### Settings storage (Chrome extension variant)
+
+The Chrome extension is **single-account** and has no electron-store; it stores state differently:
+
+- **Portable** — `{backup_folder}/b-ark-settings.json`, same schema as desktop, written/read
+  through the File System Access API on the user-granted folder handle.
+- **Machine-local** — `chrome.storage.local`, keyed by:
+  - `b_ark_settings` — the account's settings mirror + UI prefs
+  - `b_ark_status` — backup RAG state, error message, last_backup_at, totals
+  - `tokenCiphertext` / `tokenIv` — AES-GCM-encrypted OAuth token (the non-extractable
+    CryptoKey lives in IndexedDB, never `chrome.storage`)
+  - `chip_*` — draggable status-chip state (rag, progress, error kind, last backup, avatar)
+  - `folder_ready`, `backup_lifecycle`, `backup_on_publish` — lifecycle/feature flags
+- **FSA handle** — the granted `FileSystemDirectoryHandle` is persisted in IndexedDB
+  (`b-ark-ui-chrome/src/fsa-persistence.ts`); permission is re-queried on each use.
 
 ## Commands
 
@@ -73,6 +97,9 @@ Display version format: `{pkg.major}.{pkg.minor}.{pkg.patch}[.{commits}.{build}]
 - Base URL: https://api.blipfoto.com/4/
 - OAuth authorize: https://www.blipfoto.com/oauth/authorize
 - Auth flow: distributed app type, response_type=token, redirect to b-ark://oauth/callback
+- Chrome extension auth: same distributed/implicit-grant flow but redirects to
+  `bark-chrome://oauth/callback` (scope `read`), captured via `chrome.webRequest.onBeforeRedirect`.
+  The distinct scheme avoids colliding with the desktop `b-ark://` handler.
 - Rate limits: 15-minute windows; check X-RateLimit-Remaining on every response
 - 64-bit IDs: always use entry_id_str (not entry_id integer)
 

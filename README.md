@@ -9,11 +9,14 @@ You can find more information on the [b-oss website](https://ianmstevenson.githu
 ## Applications
 
 - **b-ark** — desktop app (Windows, Mac compatible but we need a mac developer to release it) that backs up your Blipfoto journals to local disk
-- **b-view** — browser-based viewer for a b-ark backup, can be deployed to any static web host or run from local filesystem (packaged with b-ark)
+- **b-ark-chrome** — browser extension (Chrome/Edge/Chromium) that backs up a single Blipfoto journal to a local folder via the File System Access API (a lite, single-account sibling of desktop b-ark)
+- **b-view** — browser-based viewer for a b-ark backup, can be deployed to any static web host or run from local filesystem (packaged with both b-ark and b-ark-chrome)
 
 ## Status
 
 Pre-release. [Download the latest Windows installer](https://github.com/ianstevenson/b-oss/releases) from the Releases page. The installer is unsigned, so Windows SmartScreen will warn on first run — click _More info_ → _Run anyway_. Mac build coming once we find a Mac contributor.
+
+The **b-ark-chrome** extension is in active development; build it with `npm run build --workspace=@b-oss/b-ark-chrome` (or `npm run dist --workspace=@b-oss/b-ark-chrome` to also package it) and load it unpacked until a packaged release is published.
 
 ## Getting started (development)
 
