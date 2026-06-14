@@ -6,6 +6,7 @@ import { startOAuthFlow } from './oauth.js';
 const CLIENT_ID = import.meta.env.VITE_CHROME_CLIENT_ID ?? '';
 const BACKUP_PAGE = 'src/backup-page.html';
 const LIFECYCLE_KEY = 'backup_lifecycle';
+const PUBLISH_PENDING_KEY = 'publish_pending';
 
 // ── Inline types (mirrors b-ark-ui-chrome to avoid a cross-package dep) ──────
 
@@ -134,6 +135,41 @@ async function triggerIfDue(): Promise<void> {
   }
 }
 
+// ── Publish-trigger logic ─────────────────────────────────────────────────────
+
+/**
+ * Called when the user clicks Publish or Save changes on a Blipfoto entry page.
+ * If a backup is already running (or a tab is already open), sets a pending flag
+ * so that another pass starts as soon as the current one finishes.
+ */
+async function publishDetected(): Promise<void> {
+  const r = await chrome.storage.local.get([
+    'tokenCiphertext',
+    'folder_ready',
+    'chip_rag',
+    'chip_progress',
+  ]);
+
+  if (!r['tokenCiphertext'] || !r['folder_ready']) return;
+
+  const rag = (r['chip_rag'] as RagState | undefined) ?? 'green';
+  const progress = r['chip_progress'] as { done: number; total: number } | null | undefined;
+  const backupRunning = rag === 'amber' && progress != null;
+
+  if (backupRunning) {
+    await chrome.storage.local.set({ [PUBLISH_PENDING_KEY]: true });
+    return;
+  }
+
+  const existingTabId = await getLiveLifecycleTabId();
+  if (existingTabId !== null) {
+    await chrome.storage.local.set({ [PUBLISH_PENDING_KEY]: true });
+    return;
+  }
+
+  await launchBackupTabSilent();
+}
+
 // ── Lifecycle handlers (called by the backup page) ────────────────────────────
 
 /**
@@ -179,6 +215,13 @@ async function closeBackupTab(): Promise<void> {
     }
   }
   await chrome.storage.local.remove(LIFECYCLE_KEY);
+
+  // If a publish was detected while the backup was running, start another pass.
+  const pending = await chrome.storage.local.get(PUBLISH_PENDING_KEY);
+  if (pending[PUBLISH_PENDING_KEY]) {
+    await chrome.storage.local.remove(PUBLISH_PENDING_KEY);
+    await launchBackupTabSilent();
+  }
 }
 
 /**
@@ -208,6 +251,7 @@ chrome.runtime.onMessage.addListener((msg: unknown) => {
   if (type === 'raise_backup_tab') void raiseBackupTab();
   if (type === 'close_backup_tab') void closeBackupTab();
   if (type === 'mark_tab_adopted') void markTabAdopted();
+  if (type === 'publish_detected') void publishDetected();
 });
 
 export {};

@@ -16,6 +16,7 @@ interface SettingsOverlayProps {
 
 export function SettingsOverlay({ backend, account, onClose }: SettingsOverlayProps) {
   const [permState, setPermState] = useState<PermissionState | null>(null);
+  const [backupOnPublish, setBackupOnPublish] = useState(false);
 
   useEffect(() => {
     void (async () => {
@@ -27,6 +28,12 @@ export function SettingsOverlay({ backend, account, onClose }: SettingsOverlayPr
       const perm = await queryFsaPermission(handle);
       setPermState(perm);
     })();
+  }, []);
+
+  useEffect(() => {
+    chrome.storage.local.get('backup_on_publish', (r) => {
+      setBackupOnPublish(r['backup_on_publish'] === true);
+    });
   }, []);
 
   async function handleGrantPermission(): Promise<void> {
@@ -216,6 +223,34 @@ export function SettingsOverlay({ backend, account, onClose }: SettingsOverlayPr
                 );
               })}
             </div>
+          </section>
+
+          {/* Backup on publish */}
+          <section>
+            <div style={labelStyle}>Backup on publish</div>
+            <label
+              style={{
+                marginTop: 8,
+                display: 'flex',
+                alignItems: 'center',
+                gap: 10,
+                cursor: 'pointer',
+                fontSize: 13,
+                color: 'var(--ink)',
+              }}
+            >
+              <input
+                type="checkbox"
+                checked={backupOnPublish}
+                onChange={(e) => {
+                  const checked = e.target.checked;
+                  setBackupOnPublish(checked);
+                  void chrome.storage.local.set({ backup_on_publish: checked });
+                }}
+                style={{ cursor: 'pointer' }}
+              />
+              Back up immediately when you publish or save an entry
+            </label>
           </section>
 
           {/* Account */}

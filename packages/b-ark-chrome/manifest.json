@@ -32,6 +32,16 @@
       "matches": ["https://*.blipfoto.com/*"],
       "js": ["src/chip-entry.ts"],
       "run_at": "document_end"
+    },
+    {
+      "matches": [
+        "https://www.blipfoto.com/publish",
+        "https://www.blipfoto.com/publish?*",
+        "https://www.blipfoto.com/entry/*/edit",
+        "https://www.blipfoto.com/entry/*/edit?*"
+      ],
+      "js": ["src/publish-watch.ts"],
+      "run_at": "document_end"
     }
   ]
 }

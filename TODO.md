@@ -41,13 +41,8 @@ npm run dev --workspace=packages/b-ark
 
 ## b-ark-chrome todos
 
-Status bar content nonsense...
-
-When selecting a folder, warn when it has a b-ark (installed) config file and suggest not using it...
-
 Redo the chip icon - what is it trying to be? It's horrid
-
-Check logic for refresh during backup - b-view in b-ark-chrome doesn't refresh AT ALL !!!
+Chip doesn't necessarily update itself - needs to refresh its own status regularly
 
 Add backup-on-submit/save changes feature
 
