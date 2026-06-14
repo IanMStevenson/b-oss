@@ -1,6 +1,6 @@
 {
   "name": "b-ark",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "private": true,
   "description": "b-ark Blipfoto journal backup for desktop",
   "author": {
@@ -25,13 +25,13 @@
     "@b-oss/b-api": "*",
     "@b-oss/b-view": "*",
     "electron-log": "^5.0.0",
-    "electron-store": "^10.0.0",
+    "electron-store": "^11.0.2",
     "electron-updater": "^6.0.0",
     "lucide-react": "^1.16.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "serve-handler": "^6.1.0",
-    "uuid": "^11.0.0"
+    "uuid": "^14.0.0"
   },
   "devDependencies": {
     "@types/react": "^19.0.0",
