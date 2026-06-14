@@ -10,7 +10,9 @@
 // username } to chrome.storage.local so the popup can update its UI.
 
 import { buildImplicitGrantUrl, parseImplicitGrantCallback } from '@b-oss/b-api';
-import { storeToken } from './token-storage.js';
+// Import the shared platform primitive by subpath (not the package barrel) so the
+// service-worker bundle doesn't pull in the React BackupPage/chip from index.ts.
+import { storeToken } from '@b-oss/b-ark-ui-chrome/src/token-storage.js';
 
 const REDIRECT_URI = 'bark-chrome://oauth/callback';
 const SCHEME = 'bark-chrome://';

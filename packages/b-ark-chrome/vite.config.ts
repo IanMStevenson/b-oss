@@ -15,10 +15,18 @@ function readGeneratedVersion(): string {
   return parsed.version;
 }
 
+function readGeneratedRelease(): boolean {
+  const path = resolve(__dirname, '../../version.generated.json');
+  if (!existsSync(path)) return false;
+  const parsed = JSON.parse(readFileSync(path, 'utf8')) as { isRelease?: boolean };
+  return parsed.isRelease ?? false;
+}
+
 export default defineConfig({
   envDir: resolve(__dirname, '../..'),
   define: {
     __APP_VERSION__: JSON.stringify(readGeneratedVersion()),
+    __RELEASE__: JSON.stringify(readGeneratedRelease()),
   },
   resolve: {
     dedupe: ['react', 'react-dom', 'react/jsx-runtime'],
@@ -44,7 +52,6 @@ export default defineConfig({
     emptyOutDir: true,
     rollupOptions: {
       input: {
-        backup: resolve(__dirname, 'src/backup.html'),
         'backup-page': resolve(__dirname, 'src/backup-page.html'),
       },
     },

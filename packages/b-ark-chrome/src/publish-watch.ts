@@ -5,6 +5,8 @@
 // Runs only on /publish and /entry/*/edit — see manifest content_scripts.
 // Never calls preventDefault() or stopPropagation(); purely observes the click.
 
+import { debug } from '@b-oss/b-ark-ui-chrome/src/debug.js';
+
 // Cache the setting so the click handler can check it synchronously.
 let backupOnPublish = false;
 chrome.storage.local.get('backup_on_publish', (r) => {
@@ -21,7 +23,7 @@ if (btn) {
   btn.addEventListener('click', () => {
     if (!backupOnPublish) return;
     const label = btn.textContent?.trim() ?? 'Publish';
-    console.log(`[b-ark] "${label}" detected — triggering backup`);
+    debug.log(`[b-ark] "${label}" detected — triggering backup`);
     void chrome.runtime.sendMessage({ type: 'publish_detected' }).catch(() => {});
   });
 }

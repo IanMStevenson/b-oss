@@ -2,6 +2,7 @@
 // Copyright (C) 2026 Ian Stevenson
 
 import type { PlatformIO, LogEntry } from '@b-oss/backup-engine';
+import { debug } from './debug.js';
 
 export class BrowserPlatformIO implements PlatformIO {
   constructor(private readonly root: FileSystemDirectoryHandle) {}
@@ -37,6 +38,10 @@ export class BrowserPlatformIO implements PlatformIO {
     await w.close();
   }
 
+  // The File System Access API already makes writes atomic: createWritable() buffers into
+  // a swap file and close() moves it into place as a single operation, so the destination is
+  // never observed half-written. The explicit `.tmp`-then-rename dance the Electron PlatformIO
+  // performs is therefore redundant here — writeFile() is itself the atomic write.
   async atomicWrite(path: string, data: Uint8Array | string): Promise<void> {
     await this.writeFile(path, data);
   }
@@ -92,11 +97,16 @@ export class BrowserPlatformIO implements PlatformIO {
 
   async downloadFile(url: string, destPath: string): Promise<void> {
     const resp = await fetch(url);
+    // Guard against non-OK responses — without this, a 404 or 429 (rate-limit) would
+    // write the error body (or empty bytes) into the backup as if it were the image.
+    if (!resp.ok) {
+      throw new Error(`download failed: ${resp.status} ${resp.statusText} — ${url}`);
+    }
     const bytes = new Uint8Array(await resp.arrayBuffer());
     await this.writeFile(destPath, bytes);
   }
 
   log(entry: LogEntry): void {
-    console.log(`[b-ark] ${entry.level} ${entry.message}`);
+    debug.log(`[b-ark] ${entry.level} ${entry.message}`);
   }
 }

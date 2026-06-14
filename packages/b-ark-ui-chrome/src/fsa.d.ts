@@ -3,6 +3,10 @@
 
 // Chrome-specific FSA methods and async iterators not yet in TypeScript's DOM lib.
 
+// Build-time define injected by the b-ark-chrome vite config (see debug.ts). Declared here so
+// this package typechecks standalone; defaults to false in dev builds.
+declare const __RELEASE__: boolean;
+
 interface Window {
   showDirectoryPicker(options?: {
     mode?: 'read' | 'readwrite';

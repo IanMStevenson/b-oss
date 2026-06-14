@@ -4,6 +4,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { BlipEntry, JournalMetadata } from '@b-oss/b-view';
 import type { EntryState } from '@b-oss/b-view';
+import { debug } from './debug.js';
 
 export type FsaJournalState =
   | { status: 'idle' }
@@ -76,8 +77,10 @@ export function useFsaJournal(
             setState({ status: 'loaded', data });
           }
         })
-        .catch(() => {
-          // Silently ignore poll errors — initial load already surfaced any error state
+        .catch((err: unknown) => {
+          // Keep the last-good state on poll errors — the initial load already surfaced any
+          // hard error. Leave a breadcrumb so transient poll failures are debuggable.
+          debug.warn('[b-ark] journal poll failed:', err);
         });
     }, refreshIntervalMs);
     return () => clearInterval(id);
@@ -95,8 +98,9 @@ export function useFsaJournal(
         entryCountRef.current = data.entries.length;
         setState({ status: 'loaded', data });
       })
-      .catch(() => {
-        // Silently ignore — keep showing existing state
+      .catch((err: unknown) => {
+        // Keep showing existing state on refresh errors; leave a breadcrumb for debugging.
+        debug.warn('[b-ark] journal refresh failed:', err);
       });
   }, [refreshNonce, handle, username]);
 

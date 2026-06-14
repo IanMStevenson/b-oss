@@ -2,6 +2,7 @@
 // Copyright (C) 2026 Ian Stevenson
 
 import type { PlatformIO } from '@b-oss/backup-engine';
+import { debug } from './debug.js';
 
 const VIEWER_DIST_DIR = 'b-view-dist';
 
@@ -30,7 +31,7 @@ export async function deployViewer(io: PlatformIO, username: string): Promise<vo
       await io.writeFile(`${username}/${rel}`, bytes);
     }
   } catch (err) {
-    console.warn(
+    debug.warn(
       `[b-ark] viewer deploy skipped: ${err instanceof Error ? err.message : String(err)}`,
     );
   }

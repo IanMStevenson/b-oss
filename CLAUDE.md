@@ -30,7 +30,9 @@ The Chrome side mirrors the Electron split: `b-ark-chrome` is to `b-ark-ui-chrom
 - b-ark-ui components must NEVER call window.api directly — use useBackend() hook only
 - Access tokens: handled in main process only (Electron), never sent to renderer via IPC. On Chrome, tokens are AES-GCM encrypted at rest and handed straight to BackupEngine — never broadcast over chrome.runtime messages
 - All Blipfoto \_id fields: always use the \_str string variant, store as string
-- Atomic file writes: write to `path + '.tmp'` then rename to final path
+- Atomic file writes: write to `path + '.tmp'` then rename to final path (Electron). The Chrome
+  `BrowserPlatformIO` relies instead on the File System Access API's own write semantics —
+  `createWritable()`/`close()` swap the file in atomically — so its `atomicWrite` is just `writeFile`
 - Naming: always lowercase hyphenated — b-ark, b-view, b-oss. Never capitalised.
 - TypeScript: strict mode always. Never use `any`.
 
