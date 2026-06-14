@@ -33,7 +33,13 @@ import {
   setAvatar,
   clearAll as clearStatus,
 } from './status-storage.js';
-import { readLifecycle, clearLifecycle } from './lifecycle-storage.js';
+import {
+  readLifecycle,
+  clearLifecycle,
+  readBackupLock,
+  acquireBackupLock,
+  releaseBackupLock,
+} from './lifecycle-storage.js';
 import {
   type ChromeSettings,
   buildAppStore,
@@ -54,6 +60,7 @@ export class BrowserBackend implements BackendContext {
   // Phase 5 lifecycle — set in _initLifecycle()
   private _autoLaunched = false;
   private _adopted = false;
+  private _tabId: number | null = null;
 
   // ── Events ─────────────────────────────────────────────────────────────
 
@@ -77,6 +84,12 @@ export class BrowserBackend implements BackendContext {
       return; // not in a tab context (e.g. content script)
     }
     if (!tab?.id) return;
+    this._tabId = tab.id;
+
+    // Claim the singleton: the SW makes this the canonical backup tab, or — if another
+    // live backup tab already owns it (session-restore / manual duplicate) — focuses that
+    // one and closes this duplicate.
+    void chrome.runtime.sendMessage({ type: 'claim_backup_tab', tab_id: tab.id }).catch(() => {});
 
     const lifecycle = await readLifecycle();
     if (lifecycle?.tab_id === tab.id && lifecycle.launched_by === 'visit-trigger') {
@@ -288,7 +301,20 @@ export class BrowserBackend implements BackendContext {
   // ── BackendContext: backup ─────────────────────────────────────────────
 
   async startBackup(_accountId: string): Promise<void> {
-    if (this._engine) return;
+    if (this._engine) return; // same-tab guard
+
+    // Cross-tab guard: never let two tabs run BackupEngine against the same FSA folder.
+    // (Belt-and-braces alongside the single-tab enforcement; only bites in the brief window
+    // where a duplicate tab exists before it self-evicts.)
+    const lock = await readBackupLock();
+    if (
+      lock &&
+      this._tabId !== null &&
+      lock.tab_id !== this._tabId &&
+      (await this._tabIsLive(lock.tab_id))
+    ) {
+      return; // another live tab owns the backup
+    }
 
     const token = await loadToken();
     if (!token) throw new Error('Not signed in');
@@ -396,12 +422,23 @@ export class BrowserBackend implements BackendContext {
 
     const engine = new BackupEngine(config, io, client, onEvent, logMgr);
     this._engine = engine;
+    if (this._tabId !== null) await acquireBackupLock(this._tabId, new Date().toISOString());
     try {
       await engine.run();
     } catch {
       // engine.cancel() throws — expected
     } finally {
       this._engine = null;
+      if (this._tabId !== null) await releaseBackupLock(this._tabId);
+    }
+  }
+
+  private async _tabIsLive(tabId: number): Promise<boolean> {
+    try {
+      await chrome.tabs.get(tabId);
+      return true;
+    } catch {
+      return false;
     }
   }
 

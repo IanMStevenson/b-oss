@@ -63,6 +63,10 @@ The Chrome extension is **single-account** and has no electron-store; it stores 
     CryptoKey lives in IndexedDB, never `chrome.storage`)
   - `chip_*` — draggable status-chip state (rag, progress, error kind, last backup, avatar)
   - `folder_ready`, `backup_lifecycle`, `backup_on_publish` — lifecycle/feature flags
+  - `backup_tab_id` — id of the one canonical backup-page tab (the SW focuses it via
+    `tabs.get(id)` instead of a URL query, so no `tabs` permission is needed)
+  - `backup_lock`, `settings_lock` — cross-tab guards (owning tab id) preventing two tabs
+    running a backup or editing settings at once
 - **FSA handle** — the granted `FileSystemDirectoryHandle` is persisted in IndexedDB
   (`b-ark-ui-chrome/src/fsa-persistence.ts`); permission is re-queried on each use.
 

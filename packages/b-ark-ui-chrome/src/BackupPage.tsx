@@ -41,6 +41,7 @@ import { ThumbnailGrid, EntryDetail } from '@b-oss/b-view';
 import type { BlipEntry } from '@b-oss/b-view';
 import { loadHandle, queryFsaPermission, requestFsaPermission } from './fsa-persistence.js';
 import { clearError } from './status-storage.js';
+import { readSettingsLock, acquireSettingsLock, releaseSettingsLock } from './lifecycle-storage.js';
 import { useFsaJournal, useFsaAssets, useFsaEntry, readFileText } from './useFsaJournal.js';
 import { SettingsOverlay } from './SettingsOverlay.js';
 import { LogOverlay } from './LogOverlay.js';
@@ -532,6 +533,46 @@ function BackupPageRoot() {
     return () => chrome.storage.onChanged.removeListener(onChanged);
   }, []);
 
+  // ── Settings lock (cross-tab) ─────────────────────────────────────────────
+  // Only one tab may hold the full-screen settings panel open at a time, so two panels
+  // can't race read-modify-write on b_ark_settings. With single-tab enforcement this
+  // rarely engages, but it keeps settings edits safe during the brief duplicate-tab window.
+  const [selfTabId, setSelfTabId] = useState<number | null>(null);
+  useEffect(() => {
+    chrome.tabs
+      .getCurrent()
+      .then((tab) => setSelfTabId(tab?.id ?? null))
+      .catch(() => {});
+  }, []);
+
+  const [settingsLockOwner, setSettingsLockOwner] = useState<number | null>(null);
+  useEffect(() => {
+    void readSettingsLock().then((lock) => setSettingsLockOwner(lock?.tab_id ?? null));
+    const onChanged = (
+      changes: Record<string, chrome.storage.StorageChange>,
+      area: string,
+    ): void => {
+      if (area === 'local' && 'settings_lock' in changes) {
+        const lock = changes['settings_lock']?.newValue as { tab_id: number } | undefined;
+        setSettingsLockOwner(lock?.tab_id ?? null);
+      }
+    };
+    chrome.storage.onChanged.addListener(onChanged);
+    return () => chrome.storage.onChanged.removeListener(onChanged);
+  }, []);
+
+  const settingsLockedElsewhere =
+    settingsLockOwner !== null && selfTabId !== null && settingsLockOwner !== selfTabId;
+
+  // Hold the lock for as long as the settings panel is open in this tab.
+  useEffect(() => {
+    if (panel !== 'settings' || selfTabId === null) return;
+    void acquireSettingsLock(selfTabId);
+    return () => {
+      void releaseSettingsLock(selfTabId);
+    };
+  }, [panel, selfTabId]);
+
   // ── Loading ─────────────────────────────────────────────────────────────
   if (bootStage === 'loading') {
     return (
@@ -734,6 +775,8 @@ function BackupPageRoot() {
             )}
             <IconButton
               label="Open settings"
+              disabled={settingsLockedElsewhere}
+              title={settingsLockedElsewhere ? 'Settings are open in another tab' : undefined}
               onClick={() => dispatch({ type: 'panel:open', panel: 'settings' })}
             >
               <Settings size={16} strokeWidth={1.8} />

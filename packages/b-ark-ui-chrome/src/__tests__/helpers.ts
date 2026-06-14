@@ -54,8 +54,10 @@ class FakeFile {
   getFile(): Promise<{ arrayBuffer: () => Promise<ArrayBuffer>; text: () => Promise<string> }> {
     const bytes = this.data;
     return Promise.resolve({
-      arrayBuffer: () =>
-        Promise.resolve(bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength)),
+      // Copy the view's bytes into a fresh, plain ArrayBuffer. `bytes.buffer` is typed
+      // ArrayBufferLike (ArrayBuffer | SharedArrayBuffer), so slicing it wouldn't satisfy
+      // the ArrayBuffer return type; constructing a new Uint8Array gives a plain one.
+      arrayBuffer: () => Promise.resolve(new Uint8Array(bytes).buffer),
       text: () => Promise.resolve(new TextDecoder().decode(bytes)),
     });
   }

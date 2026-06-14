@@ -10,12 +10,12 @@
     "128": "icons/128.png"
   },
   "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA/G8T3P8QZpDkll9hckC+hoO21kvGoaS8o5AP9zx8PD0H3vxWTfaNHdri9+cWm6YqtbHFR8xHUTHi1dHT8IRQYnYO8deQSamLn3+92MOEGelk4AYVpOqdug1u9KrweGehcnrNnYmisHDMYFjuFuLbQTQAKQyPBPeoGhrIwJ2B5YXFA6axevoYhXcYswh7MMX0kgr+uZZX61mv2aXAtixNnlFnPzl1Ja3XZfhgwSK4j3KcIvJYcoucB1qZuaqcxa2uv75gvGWZxAg6cbxhrKXGmhpPlX234e3sjlxwVCgF9nVyihqOMgOwqDADJ47/Wt6SKLX3iSXJprZ+XJXznmWx2wIDAQAB",
-  "permissions": ["storage", "webRequest", "tabs"],
+  "permissions": ["storage", "webRequest"],
   "host_permissions": [
     "https://api.blipfoto.com/*",
     "https://*.cloudfront.net/*",
     "https://*.blipfoto.com/*",
-    "https://*.amazonaws.com/*"
+    "https://s3.eu-west-1.amazonaws.com/*"
   ],
   "background": {
     "service_worker": "src/sw.ts",

@@ -11,13 +11,19 @@ export interface IconButtonProps {
   label: string;
   onClick?: () => void;
   children: ReactNode;
+  /** When true, the button is non-interactive and dimmed. */
+  disabled?: boolean;
+  /** Native tooltip text (e.g. to explain why a button is disabled). */
+  title?: string;
 }
 
-export function IconButton({ label, onClick, children }: IconButtonProps) {
+export function IconButton({ label, onClick, children, disabled = false, title }: IconButtonProps) {
   return (
     <button
       aria-label={label}
+      title={title}
       onClick={onClick}
+      disabled={disabled}
       style={{
         width: 32,
         height: 32,
@@ -27,15 +33,17 @@ export function IconButton({ label, onClick, children }: IconButtonProps) {
         justifyContent: 'center',
         background: 'transparent',
         border: 'none',
-        cursor: 'pointer',
-        color: 'var(--muted)',
+        cursor: disabled ? 'not-allowed' : 'pointer',
+        color: disabled ? 'var(--border)' : 'var(--muted)',
         flexShrink: 0,
       }}
       onMouseEnter={(e) => {
+        if (disabled) return;
         e.currentTarget.style.background = 'var(--green-100)';
         e.currentTarget.style.color = 'var(--green-800)';
       }}
       onMouseLeave={(e) => {
+        if (disabled) return;
         e.currentTarget.style.background = 'transparent';
         e.currentTarget.style.color = 'var(--muted)';
       }}

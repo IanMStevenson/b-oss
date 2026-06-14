@@ -10,6 +10,13 @@ import {
   clearLifecycle,
   setPublishPending,
   consumePublishPending,
+  readBackupTabId,
+  saveBackupTabId,
+  clearBackupTabId,
+  readBackupLock,
+  releaseBackupLock,
+  readSettingsLock,
+  releaseSettingsLock,
 } from '@b-oss/b-ark-ui-chrome/src/lifecycle-storage.js';
 
 const CLIENT_ID = import.meta.env.VITE_CHROME_CLIENT_ID ?? '';
@@ -41,33 +48,44 @@ function getBackupPageUrl(): string {
   return chrome.runtime.getURL(BACKUP_PAGE);
 }
 
-/** Return the tab_id from backup_lifecycle if that tab still exists. */
-async function getLiveLifecycleTabId(): Promise<number | null> {
-  const lifecycle = await readLifecycle();
-  if (!lifecycle) return null;
+/**
+ * Return the id of the canonical backup tab if it still exists.
+ * Validates `backup_tab_id` with `tabs.get` (no `tabs` permission needed); a stale id
+ * self-heals here, clearing both the tracked id and any lifecycle that referenced it.
+ */
+async function getLiveBackupTabId(): Promise<number | null> {
+  const id = await readBackupTabId();
+  if (id === null) return null;
   try {
-    await chrome.tabs.get(lifecycle.tab_id);
-    return lifecycle.tab_id;
+    await chrome.tabs.get(id);
+    return id;
   } catch {
-    // Tab is gone — clean up stale lifecycle
+    // Tab is gone — clean up stale tracking
+    await clearBackupTabId();
     await clearLifecycle();
     return null;
+  }
+}
+
+/** Focus an existing tab and raise its window. */
+async function focusTab(tabId: number): Promise<void> {
+  const tab = await chrome.tabs.get(tabId);
+  await chrome.tabs.update(tabId, { active: true });
+  if (tab.windowId !== undefined) {
+    await chrome.windows.update(tab.windowId, { focused: true });
   }
 }
 
 // ── Tab management ────────────────────────────────────────────────────────────
 
 async function openOrFocusBackupPage(): Promise<void> {
-  const url = getBackupPageUrl();
-  const tabs = await chrome.tabs.query({ url });
-  if (tabs.length > 0 && tabs[0]?.id !== undefined) {
-    await chrome.tabs.update(tabs[0].id, { active: true });
-    if (tabs[0].windowId !== undefined) {
-      await chrome.windows.update(tabs[0].windowId, { focused: true });
-    }
-  } else {
-    await chrome.tabs.create({ url, active: true });
+  const id = await getLiveBackupTabId();
+  if (id !== null) {
+    await focusTab(id);
+    return;
   }
+  const tab = await chrome.tabs.create({ url: getBackupPageUrl(), active: true });
+  if (tab.id !== undefined) await saveBackupTabId(tab.id);
 }
 
 /** Open the backup page as an unfocused background tab (singleton). */
@@ -75,6 +93,7 @@ async function launchBackupTabSilent(): Promise<void> {
   const url = getBackupPageUrl();
   const tab = await chrome.tabs.create({ url, active: false });
   if (!tab.id) return;
+  await saveBackupTabId(tab.id);
   const lifecycle: BackupLifecycle = {
     tab_id: tab.id,
     launched_by: 'visit-trigger',
@@ -82,6 +101,26 @@ async function launchBackupTabSilent(): Promise<void> {
     user_adopted: false,
   };
   await saveLifecycle(lifecycle);
+}
+
+/**
+ * Arbitrate the singleton when a backup page reports for duty on mount.
+ * If no live canonical tab exists (or it's this very tab), this tab becomes canonical.
+ * Otherwise this is a duplicate (session-restore / manual duplicate): focus the canonical
+ * tab and close the duplicate. Centralized here so the page needs no `window.close`.
+ */
+async function claimBackupTab(tabId: number): Promise<void> {
+  const live = await getLiveBackupTabId();
+  if (live === null || live === tabId) {
+    await saveBackupTabId(tabId);
+    return;
+  }
+  await focusTab(live);
+  try {
+    await chrome.tabs.remove(tabId);
+  } catch {
+    // Already closed
+  }
 }
 
 // ── Visit-trigger logic ───────────────────────────────────────────────────────
@@ -110,7 +149,7 @@ async function triggerIfDue(): Promise<void> {
   if (rag === 'amber' && progress != null) return;
 
   // Singleton check — backup tab already open
-  const existingTabId = await getLiveLifecycleTabId();
+  const existingTabId = await getLiveBackupTabId();
   if (existingTabId !== null) return;
 
   if (rag === 'red') {
@@ -162,7 +201,7 @@ async function publishDetected(): Promise<void> {
     return;
   }
 
-  const existingTabId = await getLiveLifecycleTabId();
+  const existingTabId = await getLiveBackupTabId();
   if (existingTabId !== null) {
     await setPublishPending();
     return;
@@ -211,6 +250,8 @@ async function closeBackupTab(): Promise<void> {
     } catch {
       // Already closed
     }
+    // Tab is gone — drop the singleton tracking (the onRemoved listener also covers this)
+    await clearBackupTabId();
   }
   await clearLifecycle();
 
@@ -228,10 +269,28 @@ async function markTabAdopted(): Promise<void> {
   await updateLifecycle({ user_adopted: true });
 }
 
+/**
+ * A backup tab closed — drop it from the singleton tracking and release any cross-tab
+ * locks it held (a backup or settings panel in a closed tab is already gone). `onRemoved`
+ * carries only the tab id, so it needs no `tabs` permission.
+ */
+async function onBackupTabClosed(tabId: number): Promise<void> {
+  if ((await readBackupTabId()) === tabId) {
+    await clearBackupTabId();
+    await clearLifecycle();
+  }
+  if ((await readBackupLock())?.tab_id === tabId) await releaseBackupLock(tabId);
+  if ((await readSettingsLock())?.tab_id === tabId) await releaseSettingsLock(tabId);
+}
+
 // ── Listeners ─────────────────────────────────────────────────────────────────
 
 chrome.action.onClicked.addListener(() => {
   void openOrFocusBackupPage();
+});
+
+chrome.tabs.onRemoved.addListener((tabId) => {
+  void onBackupTabClosed(tabId);
 });
 
 chrome.runtime.onMessage.addListener((msg: unknown) => {
@@ -244,6 +303,10 @@ chrome.runtime.onMessage.addListener((msg: unknown) => {
   if (type === 'close_backup_tab') void closeBackupTab();
   if (type === 'mark_tab_adopted') void markTabAdopted();
   if (type === 'publish_detected') void publishDetected();
+  if (type === 'claim_backup_tab') {
+    const { tab_id } = msg as { tab_id?: number };
+    if (typeof tab_id === 'number') void claimBackupTab(tab_id);
+  }
 });
 
 export {};

@@ -19,9 +19,10 @@ page.
 **What it's used for.** All extension state lives in `chrome.storage.local`: the
 settings mirror (`b_ark_settings`), backup status/RAG (`b_ark_status`), the draggable
 status-chip state (`chip_*`), lifecycle/feature flags (`folder_ready`,
-`backup_lifecycle`, `backup_on_publish`), OAuth progress (`oauthStatus`), and the
-**AES-GCM-encrypted** OAuth token (`tokenCiphertext` / `tokenIv` — the non-extractable
-CryptoKey itself lives in IndexedDB, never in storage).
+`backup_lifecycle`, `backup_on_publish`), the single backup-tab tracking and cross-tab
+guards (`backup_tab_id`, `backup_lock`, `settings_lock`), OAuth progress (`oauthStatus`),
+and the **AES-GCM-encrypted** OAuth token (`tokenCiphertext` / `tokenIv` — the
+non-extractable CryptoKey itself lives in IndexedDB, never in storage).
 Call sites: `token-storage.ts`, `status-storage.ts`, `lifecycle-storage.ts`,
 `oauth.ts`.
 
@@ -34,25 +35,6 @@ and react to each other's changes. `chrome.storage.local` is the only API that i
 cross-context change notifications, so it cannot replace this coordination layer.
 `storage` is also a low-sensitivity permission with no user-facing install warning.
 **Cannot be removed.**
-
-### `tabs`
-
-**What it's used for.** Managing the single backup-page tab and the OAuth tab:
-opening/focusing/closing the backup page, launching it as a silent background tab,
-finding an already-open backup tab, and closing the OAuth tab after capture.
-Call sites: `sw.ts`, `oauth.ts`.
-
-**Why fewer isn't possible.** Note that `tabs.create` / `update` / `remove` / `get` do
-**not** require this permission. The single call that does is
-`chrome.tabs.query({ url })` in `sw.ts`, used to locate an existing backup tab so the
-extension never opens duplicates (singleton behaviour). Filtering `tabs.query` by URL
-requires either `tabs` or a host permission covering that URL. The extension
-deliberately scopes its tab access to its **own** extension page
-(`chrome.runtime.getURL(...)`) and the Blipfoto OAuth tab it opened itself — it never
-reads, queries, or injects into arbitrary user tabs.
-
-> _Reduction candidate:_ this permission could be removed by tracking the backup tab's
-> ID in storage and replacing the URL query with `tabs.get(id)`.
 
 ### `webRequest`
 
@@ -68,10 +50,7 @@ distributed apps: the access token is returned in the URL **fragment** of a redi
 a custom scheme the browser cannot itself navigate to. `onBeforeRedirect` is the **sole**
 capture mechanism: it fires on the HTTP 302 response at the network layer and surfaces
 that redirect target _with its fragment intact_ before the browser attempts the
-unhandled custom-scheme navigation. (`chrome.webNavigation.onBeforeNavigate` is unsuitable
-as an alternative or fallback: the `schemes` field of its `UrlFilter` is ignored, so it
-cannot be scoped to `bark-chrome://`, and an unhandled custom scheme is treated as an
-external-protocol launch that generally produces no navigation event at all.) The listener
+unhandled custom-scheme navigation. The listener
 is **observational only** (not `webRequestBlocking`) — it never blocks, modifies, or
 inspects any other traffic — and is host-scoped to `*.blipfoto.com`, so it cannot see
 requests to any other site. It is added only for the duration of a sign-in attempt and
@@ -143,36 +122,33 @@ The wildcard is the minimum viable scope given these constraints. The permission
 read access only to image URLs the Blipfoto API itself supplies; the extension makes no
 speculative requests to CloudFront.
 
-### `https://*.amazonaws.com/*`
+### `https://s3.eu-west-1.amazonaws.com/*`
 
 **What it's used for.** Downloading **original-resolution** images. Blipfoto serves
-originals differently from other versions: rather than a stable CDN URL, the API
-returns a **time-limited AWS S3 presigned URL** (expiring in approximately 10 minutes)
-pointing directly to the S3 bucket in the `eu-west-1` region
-(e.g. `https://s3.eu-west-1.amazonaws.com/...`). The extension must fetch these URLs
-promptly after receiving them from the API in order to write the original-resolution
-file into the backup folder.
+originals differently from other image versions: rather than a CloudFront CDN URL, the
+API returns a **time-limited AWS S3 presigned URL** (expiring in approximately 10
+minutes) pointing directly to the S3 bucket. Server-side code analysis identifies the
+endpoint as `s3.eu-west-1.amazonaws.com` — Blipfoto's infrastructure operates entirely
+in the `eu-west-1` region. The extension fetches these URLs promptly after receiving
+them from the API in order to write the original-resolution file into the backup folder.
 
 **Why fewer isn't possible.** Originals are served via presigned S3 URLs, not via
-CloudFront, so `*.cloudfront.net` does not cover them. The presigned URL includes a
-region-specific S3 hostname; while `s3.eu-west-1.amazonaws.com` is the current
-observed host, S3 endpoint formats can include path-style and virtual-hosted-style
-variants. Blipfoto is a community-owned, volunteer-run platform with no resource to
-document or stabilise the S3 endpoint format for client use. The `*.amazonaws.com`
-wildcard is therefore required to reliably reach original-resolution files regardless
-of S3 endpoint variant. The extension only fetches URLs supplied directly by the
-Blipfoto API; it makes no speculative requests to AWS infrastructure.
+CloudFront, so `\*.cloudfront.net` does not cover them. As with the CloudFront URLs, no
+S3 URLs are embedded in the extension source — they are returned at runtime by the
+Blipfoto API, which constructs them from private server-side configuration. The
+permission is scoped to the single, specific regional endpoint identified by that
+analysis; the extension makes no speculative requests to AWS infrastructure and only
+fetches URLs supplied directly by the Blipfoto API.
 
 ---
 
 ## Summary table (for the submission form)
 
-| Permission           | One-line justification                                                                                                                                                                                                                                                                                                                                               |
-| -------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `storage`            | Cross-context (worker/chip/page) shared state + encrypted token at rest, with `onChanged` events no other API provides.                                                                                                                                                                                                                                              |
-| `tabs`               | Singleton management of the extension's own backup page via `tabs.query({url})`; never touches arbitrary user tabs.                                                                                                                                                                                                                                                  |
-| `webRequest`         | Non-blocking, `*.blipfoto.com`-scoped capture of the implicit-grant OAuth token from the custom-scheme redirect fragment — the sole, proven capture mechanism. `chrome.identity.launchWebAuthFlow` is architecturally incompatible: Blipfoto's server enforces non-HTTP schemes for distributed apps and cannot be changed (community-run, no engineering resource). |
-| `api.blipfoto.com/*` | The Blipfoto REST API — lists/downloads the user's journal.                                                                                                                                                                                                                                                                                                          |
-| `*.blipfoto.com/*`   | Content-script chip + publish watcher, OAuth redirect filter, avatar fetch.                                                                                                                                                                                                                                                                                          |
-| `*.cloudfront.net/*` | Downloads versioned entry images (thumbnail/lores/stdres/hires) served from Blipfoto's CloudFront CDN. Multiple distributions, one per image version; hostnames are AWS-generated, stored in private server-side config, and only known at runtime from API response URLs — cannot be hardcoded.                                                                     |
-| `*.amazonaws.com/*`  | Downloads original-resolution images served as time-limited S3 presigned URLs (not via CloudFront). Only fetches URLs supplied by the Blipfoto API.                                                                                                                                                                                                                  |
+| Permission                                 | One-line justification                                                                                                                                                                                                                                                                                                                                               |
+| ------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `storage`                                  | Cross-context (worker/chip/page) shared state + encrypted token at rest, with `onChanged` events no other API provides.                                                                                                                                                                                                                                              |
+| `webRequest`                               | Non-blocking, `*.blipfoto.com`-scoped capture of the implicit-grant OAuth token from the custom-scheme redirect fragment — the sole, proven capture mechanism. `chrome.identity.launchWebAuthFlow` is architecturally incompatible: Blipfoto's server enforces non-HTTP schemes for distributed apps and cannot be changed (community-run, no engineering resource). |
+| `api.blipfoto.com/*`                       | The Blipfoto REST API — lists/downloads the user's journal.                                                                                                                                                                                                                                                                                                          |
+| `*.blipfoto.com/*`                         | Content-script chip + publish watcher, OAuth redirect filter, avatar fetch.                                                                                                                                                                                                                                                                                          |
+| `*.cloudfront.net/*`                       | Downloads versioned entry images (thumbnail/lores/stdres/hires) served from Blipfoto's CloudFront CDN. Multiple distributions, one per image version; hostnames are AWS-generated, stored in private server-side config, and only known at runtime from API response URLs — cannot be hardcoded.                                                                     |
+| `### https://s3.eu-west-1.amazonaws.com/*` | Downloads original-resolution images served as time-limited S3 presigned URLs (not via CloudFront). Only fetches URLs supplied by the Blipfoto API.                                                                                                                                                                                                                  |

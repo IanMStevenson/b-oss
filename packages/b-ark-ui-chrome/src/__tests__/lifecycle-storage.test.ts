@@ -11,6 +11,15 @@ import {
   clearLifecycle,
   setPublishPending,
   consumePublishPending,
+  readBackupTabId,
+  saveBackupTabId,
+  clearBackupTabId,
+  readBackupLock,
+  acquireBackupLock,
+  releaseBackupLock,
+  readSettingsLock,
+  acquireSettingsLock,
+  releaseSettingsLock,
 } from '../lifecycle-storage.js';
 
 let fake: FakeChromeStorage;
@@ -64,5 +73,67 @@ describe('lifecycle-storage', () => {
     // consumed — second read is false
     expect(await consumePublishPending()).toBe(false);
     expect(fake.store.has('publish_pending')).toBe(false);
+  });
+});
+
+describe('backup_tab_id', () => {
+  it('reads null when nothing is stored', async () => {
+    expect(await readBackupTabId()).toBeNull();
+  });
+
+  it('saves, reads back, and clears the tab id', async () => {
+    await saveBackupTabId(42);
+    expect(await readBackupTabId()).toBe(42);
+    expect(fake.store.get('backup_tab_id')).toBe(42);
+    await clearBackupTabId();
+    expect(await readBackupTabId()).toBeNull();
+  });
+});
+
+describe('backup_lock', () => {
+  it('reads null when no lock is held', async () => {
+    expect(await readBackupLock()).toBeNull();
+  });
+
+  it('acquires and reads back the owning tab + start time', async () => {
+    await acquireBackupLock(7, '2024-01-01T00:00:00Z');
+    expect(await readBackupLock()).toEqual({ tab_id: 7, started_at: '2024-01-01T00:00:00Z' });
+  });
+
+  it('release is a no-op when a different tab owns the lock', async () => {
+    await acquireBackupLock(7, '2024-01-01T00:00:00Z');
+    await releaseBackupLock(8); // not the owner
+    expect((await readBackupLock())?.tab_id).toBe(7);
+  });
+
+  it('the owning tab can release the lock', async () => {
+    await acquireBackupLock(7, '2024-01-01T00:00:00Z');
+    await releaseBackupLock(7);
+    expect(await readBackupLock()).toBeNull();
+  });
+
+  it('an unconditional release clears any lock', async () => {
+    await acquireBackupLock(7, '2024-01-01T00:00:00Z');
+    await releaseBackupLock();
+    expect(await readBackupLock()).toBeNull();
+  });
+});
+
+describe('settings_lock', () => {
+  it('reads null when no lock is held', async () => {
+    expect(await readSettingsLock()).toBeNull();
+  });
+
+  it('acquires, reads back, and the owner releases', async () => {
+    await acquireSettingsLock(3);
+    expect(await readSettingsLock()).toEqual({ tab_id: 3 });
+    await releaseSettingsLock(3);
+    expect(await readSettingsLock()).toBeNull();
+  });
+
+  it('release is a no-op when a different tab owns the lock', async () => {
+    await acquireSettingsLock(3);
+    await releaseSettingsLock(4); // not the owner
+    expect((await readSettingsLock())?.tab_id).toBe(3);
   });
 });
