@@ -2,11 +2,18 @@
 // Copyright (C) 2026 Ian Stevenson
 
 import { startOAuthFlow } from './oauth.js';
+import {
+  type BackupLifecycle,
+  readLifecycle,
+  saveLifecycle,
+  updateLifecycle,
+  clearLifecycle,
+  setPublishPending,
+  consumePublishPending,
+} from '@b-oss/b-ark-ui-chrome/src/lifecycle-storage.js';
 
 const CLIENT_ID = import.meta.env.VITE_CHROME_CLIENT_ID ?? '';
 const BACKUP_PAGE = 'src/backup-page.html';
-const LIFECYCLE_KEY = 'backup_lifecycle';
-const PUBLISH_PENDING_KEY = 'publish_pending';
 
 // ── Inline types (mirrors b-ark-ui-chrome to avoid a cross-package dep) ──────
 
@@ -20,13 +27,6 @@ interface ChromeStatus {
 interface ChromeSettings {
   period: 'daily' | 'weekly';
   schedule_enabled?: boolean;
-}
-
-interface BackupLifecycle {
-  tab_id: number;
-  launched_by: 'visit-trigger' | 'user';
-  started_at: string;
-  user_adopted: boolean;
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -43,15 +43,14 @@ function getBackupPageUrl(): string {
 
 /** Return the tab_id from backup_lifecycle if that tab still exists. */
 async function getLiveLifecycleTabId(): Promise<number | null> {
-  const r = await chrome.storage.local.get(LIFECYCLE_KEY);
-  const lifecycle = r[LIFECYCLE_KEY] as BackupLifecycle | undefined;
+  const lifecycle = await readLifecycle();
   if (!lifecycle) return null;
   try {
     await chrome.tabs.get(lifecycle.tab_id);
     return lifecycle.tab_id;
   } catch {
     // Tab is gone — clean up stale lifecycle
-    await chrome.storage.local.remove(LIFECYCLE_KEY);
+    await clearLifecycle();
     return null;
   }
 }
@@ -82,7 +81,7 @@ async function launchBackupTabSilent(): Promise<void> {
     started_at: new Date().toISOString(),
     user_adopted: false,
   };
-  await chrome.storage.local.set({ [LIFECYCLE_KEY]: lifecycle });
+  await saveLifecycle(lifecycle);
 }
 
 // ── Visit-trigger logic ───────────────────────────────────────────────────────
@@ -159,13 +158,13 @@ async function publishDetected(): Promise<void> {
   const backupRunning = rag === 'amber' && progress != null;
 
   if (backupRunning) {
-    await chrome.storage.local.set({ [PUBLISH_PENDING_KEY]: true });
+    await setPublishPending();
     return;
   }
 
   const existingTabId = await getLiveLifecycleTabId();
   if (existingTabId !== null) {
-    await chrome.storage.local.set({ [PUBLISH_PENDING_KEY]: true });
+    await setPublishPending();
     return;
   }
 
@@ -179,8 +178,7 @@ async function publishDetected(): Promise<void> {
  * Called by the backup page whenever a backup fails (never silent on error).
  */
 async function raiseBackupTab(): Promise<void> {
-  const r = await chrome.storage.local.get(LIFECYCLE_KEY);
-  const lifecycle = r[LIFECYCLE_KEY] as BackupLifecycle | undefined;
+  const lifecycle = await readLifecycle();
 
   if (lifecycle?.tab_id) {
     try {
@@ -190,8 +188,7 @@ async function raiseBackupTab(): Promise<void> {
         await chrome.windows.update(tab.windowId, { focused: true });
       }
       // Raising counts as adoption — user is now looking at it
-      const updated: BackupLifecycle = { ...lifecycle, user_adopted: true };
-      await chrome.storage.local.set({ [LIFECYCLE_KEY]: updated });
+      await updateLifecycle({ user_adopted: true });
       return;
     } catch {
       // Tab gone; fall through to openOrFocus
@@ -206,8 +203,7 @@ async function raiseBackupTab(): Promise<void> {
  * Called by the backup page on successful completion.
  */
 async function closeBackupTab(): Promise<void> {
-  const r = await chrome.storage.local.get(LIFECYCLE_KEY);
-  const lifecycle = r[LIFECYCLE_KEY] as BackupLifecycle | undefined;
+  const lifecycle = await readLifecycle();
 
   if (lifecycle?.launched_by === 'visit-trigger' && !lifecycle.user_adopted) {
     try {
@@ -216,12 +212,10 @@ async function closeBackupTab(): Promise<void> {
       // Already closed
     }
   }
-  await chrome.storage.local.remove(LIFECYCLE_KEY);
+  await clearLifecycle();
 
   // If a publish was detected while the backup was running, start another pass.
-  const pending = await chrome.storage.local.get(PUBLISH_PENDING_KEY);
-  if (pending[PUBLISH_PENDING_KEY]) {
-    await chrome.storage.local.remove(PUBLISH_PENDING_KEY);
+  if (await consumePublishPending()) {
     await launchBackupTabSilent();
   }
 }
@@ -231,11 +225,7 @@ async function closeBackupTab(): Promise<void> {
  * Called by BrowserBackend when window focus fires inside the backup page.
  */
 async function markTabAdopted(): Promise<void> {
-  const r = await chrome.storage.local.get(LIFECYCLE_KEY);
-  const lifecycle = r[LIFECYCLE_KEY] as BackupLifecycle | undefined;
-  if (!lifecycle) return;
-  const updated: BackupLifecycle = { ...lifecycle, user_adopted: true };
-  await chrome.storage.local.set({ [LIFECYCLE_KEY]: updated });
+  await updateLifecycle({ user_adopted: true });
 }
 
 // ── Listeners ─────────────────────────────────────────────────────────────────

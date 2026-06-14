@@ -27,7 +27,12 @@ import {
   setFailed,
   setRateLimited,
   clearError,
+  setStarting,
+  setProgress,
+  setAvatar,
+  clearAll as clearStatus,
 } from './status-storage.js';
+import { readLifecycle, clearLifecycle } from './lifecycle-storage.js';
 
 // ── Persisted shapes (chrome.storage.local) ────────────────────────────────
 
@@ -103,15 +108,6 @@ function nextBackupCaption(
     : `On publish, or visit after ${visit.replace('On visit after ', '')}`;
 }
 
-// ── Lifecycle types (mirrored from sw.ts) ─────────────────────────────────
-
-interface BackupLifecycle {
-  tab_id: number;
-  launched_by: 'visit-trigger' | 'user';
-  started_at: string;
-  user_adopted: boolean;
-}
-
 // ── BrowserBackend ──────────────────────────────────────────────────────────
 
 export class BrowserBackend implements BackendContext {
@@ -148,8 +144,7 @@ export class BrowserBackend implements BackendContext {
     }
     if (!tab?.id) return;
 
-    const r = await chrome.storage.local.get('backup_lifecycle');
-    const lifecycle = r['backup_lifecycle'] as BackupLifecycle | undefined;
+    const lifecycle = await readLifecycle();
     if (lifecycle?.tab_id === tab.id && lifecycle.launched_by === 'visit-trigger') {
       this._autoLaunched = true;
 
@@ -443,11 +438,7 @@ export class BrowserBackend implements BackendContext {
     const logMgr = new LogManager(io, '');
     const settings = await this._readSettings();
 
-    await chrome.storage.local.set({
-      chip_rag: 'amber',
-      chip_progress: null,
-      chip_error_kind: null,
-    });
+    await setStarting();
 
     const client = new BlipfotoClient(token.accessToken);
     let journalTitle = token.username;
@@ -462,7 +453,7 @@ export class BrowserBackend implements BackendContext {
       await this._patchSettings({ journal_title: journalTitle, avatar_url: avatarUrl });
       // Write avatar as data-URL so the chip content-script can display it without cross-origin fetching
       void this.getAccountAvatar(token.username).then((dataUrl) => {
-        if (dataUrl) void chrome.storage.local.set({ chip_avatar_url: dataUrl });
+        if (dataUrl) void setAvatar(dataUrl);
       });
       // Persist the journal's true entry total so the status bar's "X of Y"
       // shows a real denominator even before the first run completes.
@@ -501,10 +492,7 @@ export class BrowserBackend implements BackendContext {
       }
 
       if (event.type === 'progress') {
-        void chrome.storage.local.set({
-          chip_progress: { done: event.done, total: event.total },
-          chip_amber_reason: null,
-        });
+        void setProgress({ done: event.done, total: event.total });
       }
 
       if (event.type === 'completed') {
@@ -586,16 +574,11 @@ export class BrowserBackend implements BackendContext {
     await clearToken();
     await clearHandle();
     this._handle = null;
-    await chrome.storage.local.remove([
-      'b_ark_settings',
-      'b_ark_status',
-      'chip_rag',
-      'chip_last_backup_at',
-      'chip_error_kind',
-      'chip_progress',
-      'folder_ready',
-      'backup_lifecycle',
-    ]);
+    // Clear status/chip state and the backup lifecycle through their owning modules;
+    // the settings/folder keys here are owned directly by this backend.
+    await clearStatus();
+    await clearLifecycle();
+    await chrome.storage.local.remove(['b_ark_settings', 'folder_ready']);
     const store = await this.getStore();
     this._emit({ type: 'store:changed', store });
   }

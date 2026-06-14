@@ -32,6 +32,16 @@ export interface ChromeStatus {
   error_message: string | null;
 }
 
+/** Every chip_* key this module owns — the single list used to clear chip state. */
+const CHIP_KEYS = [
+  'chip_rag',
+  'chip_progress',
+  'chip_error_kind',
+  'chip_amber_reason',
+  'chip_last_backup_at',
+  'chip_avatar_url',
+] as const;
+
 // ── Low-level access to b_ark_status ──────────────────────────────────────────
 
 export async function readStatus(): Promise<Partial<ChromeStatus>> {
@@ -120,4 +130,33 @@ export async function clearError(): Promise<void> {
     chip_rag: 'amber',
     chip_error_kind: null,
   });
+}
+
+// ── Chip-only updates (no b_ark_status change) ────────────────────────────────
+
+/**
+ * Reset the chip to a clean "about to run" state before the first network call,
+ * for immediate UI feedback ahead of the engine's first `started` event.
+ */
+export async function setStarting(): Promise<void> {
+  await chrome.storage.local.set({
+    chip_rag: 'amber',
+    chip_progress: null,
+    chip_error_kind: null,
+  });
+}
+
+/** Update the live progress pill (clears any rate-limit amber reason). */
+export async function setProgress(progress: { done: number; total: number } | null): Promise<void> {
+  await chrome.storage.local.set({ chip_progress: progress, chip_amber_reason: null });
+}
+
+/** Cache the account avatar as a data-URL for the chip content-script. */
+export async function setAvatar(dataUrl: string): Promise<void> {
+  await chrome.storage.local.set({ chip_avatar_url: dataUrl });
+}
+
+/** Remove b_ark_status and every chip_* key — used when an account is removed. */
+export async function clearAll(): Promise<void> {
+  await chrome.storage.local.remove(['b_ark_status', ...CHIP_KEYS]);
 }
