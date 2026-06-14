@@ -409,6 +409,9 @@ function BackupPageRoot() {
       .catch(() => setDirHandle(null));
   }, [bootStage, account?.backup_folder]);
 
+  const progress: BackupProgress | undefined = account ? backupProgress[account.id] : undefined;
+  const isBackingUp = progress !== undefined;
+
   // Increment nonce when backup completes to trigger journal re-read
   const [refreshNonce, setRefreshNonce] = useState(0);
   const lastBackupAtRef = useRef<string | null>(null);
@@ -420,7 +423,12 @@ function BackupPageRoot() {
     }
   }, [account?.last_backup_at]);
 
-  const journalState = useFsaJournal(dirHandle, account?.username ?? null, refreshNonce);
+  const journalState = useFsaJournal(
+    dirHandle,
+    account?.username ?? null,
+    refreshNonce,
+    isBackingUp ? 5000 : undefined,
+  );
   const entries = journalState.status === 'loaded' ? journalState.data.entries : [];
 
   const resolveEntry = useCallback(
@@ -486,8 +494,6 @@ function BackupPageRoot() {
     [resolveAsset, dirHandle, account],
   );
 
-  const progress: BackupProgress | undefined = account ? backupProgress[account.id] : undefined;
-  const isBackingUp = progress !== undefined;
   const isRateLimited = progress?.rate_limited_seconds != null;
 
   const [countdown, setCountdown] = useState<number | null>(null);

@@ -32,12 +32,17 @@ export function useFsaJournal(
   handle: FileSystemDirectoryHandle | null,
   username: string | null,
   refreshNonce: number,
+  refreshIntervalMs?: number,
 ): FsaJournalState {
   const [state, setState] = useState<FsaJournalState>({ status: 'idle' });
+  const entryCountRef = useRef<number | null>(null);
+  const lastNonceRef = useRef<number>(refreshNonce);
 
+  // Effect 1: Initial load — shows loading state, seeds entryCountRef
   useEffect(() => {
     if (!handle || !username) {
       setState({ status: 'idle' });
+      entryCountRef.current = null;
       return;
     }
     setState({ status: 'loading' });
@@ -45,7 +50,9 @@ export function useFsaJournal(
     readFileText(handle, `${username}/journal.json`)
       .then((text) => {
         if (cancelled) return;
-        setState({ status: 'loaded', data: JSON.parse(text) as JournalMetadata });
+        const data = JSON.parse(text) as JournalMetadata;
+        entryCountRef.current = data.entries.length;
+        setState({ status: 'loaded', data });
       })
       .catch((e: unknown) => {
         if (cancelled) return;
@@ -55,7 +62,43 @@ export function useFsaJournal(
     return () => {
       cancelled = true;
     };
-  }, [handle, username, refreshNonce]);
+  }, [handle, username]);
+
+  // Effect 2: Polling during backup — silent, only updates when entry count changes
+  useEffect(() => {
+    if (!refreshIntervalMs || !handle || !username) return;
+    const id = setInterval(() => {
+      readFileText(handle, `${username}/journal.json`)
+        .then((text) => {
+          const data = JSON.parse(text) as JournalMetadata;
+          if (data.entries.length !== entryCountRef.current) {
+            entryCountRef.current = data.entries.length;
+            setState({ status: 'loaded', data });
+          }
+        })
+        .catch(() => {
+          // Silently ignore poll errors — initial load already surfaced any error state
+        });
+    }, refreshIntervalMs);
+    return () => clearInterval(id);
+  }, [handle, username, refreshIntervalMs]);
+
+  // Effect 3: Forced refresh on nonce change — silent, catches fast backups where
+  // the interval may not have fired before isBackingUp flipped false
+  useEffect(() => {
+    if (refreshNonce === lastNonceRef.current) return;
+    lastNonceRef.current = refreshNonce;
+    if (!handle || !username) return;
+    readFileText(handle, `${username}/journal.json`)
+      .then((text) => {
+        const data = JSON.parse(text) as JournalMetadata;
+        entryCountRef.current = data.entries.length;
+        setState({ status: 'loaded', data });
+      })
+      .catch(() => {
+        // Silently ignore — keep showing existing state
+      });
+  }, [refreshNonce, handle, username]);
 
   return state;
 }
