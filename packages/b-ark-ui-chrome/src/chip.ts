@@ -463,17 +463,22 @@ class BarkChip {
     void chrome.runtime.sendMessage({ type: 'trigger_if_due' }).catch(() => {});
   }
 
+  // Both callers (mount + onChanged) pass a full STORAGE_KEYS snapshot, so treat
+  // it as the complete source of truth: a key that is absent has been cleared
+  // (e.g. the chip_* status keys are removed on sign-out), so reset that field to
+  // its default rather than retaining the stale value. This keeps the live
+  // (onChanged) path identical to a fresh page load.
   private _applyStorageResult(r: ChipStorage): void {
     if ('chip_enabled' in r) {
       this.host.style.display = r.chip_enabled === false ? 'none' : '';
     }
-    if (r.chip_rag !== undefined) this.state.rag = r.chip_rag;
-    if ('chip_progress' in r) this.state.progress = r.chip_progress ?? null;
-    if ('chip_last_backup_at' in r) this.state.lastBackupAt = r.chip_last_backup_at ?? null;
-    if (r.chip_error_kind !== undefined) this.state.errorKind = r.chip_error_kind;
-    if ('chip_amber_reason' in r) this.state.amberReason = r.chip_amber_reason ?? null;
-    if ('chip_avatar_url' in r) this.state.avatarUrl = r.chip_avatar_url ?? null;
-    if (r.chip_show_avatar !== undefined) this.state.showAvatar = r.chip_show_avatar;
+    this.state.rag = r.chip_rag ?? DEFAULT_STATE.rag;
+    this.state.progress = r.chip_progress ?? DEFAULT_STATE.progress;
+    this.state.lastBackupAt = r.chip_last_backup_at ?? DEFAULT_STATE.lastBackupAt;
+    this.state.errorKind = r.chip_error_kind ?? DEFAULT_STATE.errorKind;
+    this.state.amberReason = r.chip_amber_reason ?? DEFAULT_STATE.amberReason;
+    this.state.avatarUrl = r.chip_avatar_url ?? DEFAULT_STATE.avatarUrl;
+    this.state.showAvatar = r.chip_show_avatar ?? DEFAULT_STATE.showAvatar;
     if (r.chip_position) {
       this.state.xPct = r.chip_position.xPct;
       this.state.yPct = r.chip_position.yPct;

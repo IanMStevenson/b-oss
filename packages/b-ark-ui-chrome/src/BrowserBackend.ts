@@ -451,7 +451,14 @@ export class BrowserBackend implements BackendContext {
     // the settings/folder keys here are owned directly by this backend.
     await clearStatus();
     await clearLifecycle();
-    await chrome.storage.local.remove(['b_ark_settings', 'folder_ready']);
+    // Also clear the transient OAuth status so no stale 'success'/'error' lingers
+    // for the next sign-in (the chip + page react to changes in these keys).
+    await chrome.storage.local.remove([
+      'b_ark_settings',
+      'folder_ready',
+      'oauthStatus',
+      'oauthError',
+    ]);
     const store = await this.getStore();
     this._emit({ type: 'store:changed', store });
   }
