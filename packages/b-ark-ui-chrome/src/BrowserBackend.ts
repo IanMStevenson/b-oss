@@ -3,7 +3,7 @@
 
 import { BlipfotoClient } from '@b-oss/b-api';
 import { BackupEngine, LogManager } from '@b-oss/backup-engine';
-import type { AccountBackupConfig, BackupEvent } from '@b-oss/backup-engine';
+import type { BackupEvent } from '@b-oss/backup-engine';
 import type {
   AccountConfig,
   AppStore,
@@ -34,80 +34,13 @@ import {
   clearAll as clearStatus,
 } from './status-storage.js';
 import { readLifecycle, clearLifecycle } from './lifecycle-storage.js';
-
-// ── Persisted shapes (chrome.storage.local) ────────────────────────────────
-
-interface ChromeSettings {
-  journal_title: string;
-  avatar_url: string;
-  account_added_at: string | null;
-  period: 'daily' | 'weekly';
-  schedule_enabled: boolean;
-  api_delay_ms: number;
-  gap_check_days: number;
-  redo_count: number;
-  thumbnailSizePercent: number;
-  showInfoOverlay: boolean;
-}
-
-// ── Helpers ────────────────────────────────────────────────────────────────
-
-function describeBackupError(err: BackupEvent & { type: 'failed' }): string {
-  switch (err.error.kind) {
-    case 'auth_expired':
-      return 'Authentication expired — reauthorise via Settings.';
-    case 'network':
-      return 'Network error.';
-    case 'api_error':
-      return `API error ${err.error.code}: ${err.error.message}`;
-    case 'filesystem':
-      return `Filesystem error: ${err.error.message}`;
-  }
-}
-
-function csvEscape(s: string): string {
-  if (s.includes(',') || s.includes('"') || s.includes('\n')) {
-    return `"${s.replace(/"/g, '""')}"`;
-  }
-  return s;
-}
-
-const PERIOD_MS: Record<'daily' | 'weekly', number> = {
-  daily: 86_400_000,
-  weekly: 7 * 86_400_000,
-};
-
-/**
- * "Next backup" caption for the status bar, covering all four combinations of
- * visit-trigger and publish-trigger being enabled or disabled.
- */
-function nextBackupCaption(
-  scheduleEnabled: boolean,
-  backupOnPublish: boolean,
-  lastBackupAt: string | null,
-  period: 'daily' | 'weekly',
-): string {
-  const visitText = (): string => {
-    if (!lastBackupAt) return 'On next visit';
-    const due = new Date(lastBackupAt).getTime() + PERIOD_MS[period];
-    if (due <= Date.now()) return 'On next visit';
-    const d = new Date(due);
-    const when =
-      d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short' }) +
-      ' ' +
-      d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
-    return `On visit after ${when}`;
-  };
-
-  if (!scheduleEnabled && !backupOnPublish) return 'Manual';
-  if (backupOnPublish && !scheduleEnabled) return 'On publish';
-  if (scheduleEnabled && !backupOnPublish) return visitText();
-  // both enabled
-  const visit = visitText();
-  return visit === 'On next visit'
-    ? 'On publish, or next visit'
-    : `On publish, or visit after ${visit.replace('On visit after ', '')}`;
-}
+import {
+  type ChromeSettings,
+  buildAppStore,
+  buildBackupConfig,
+  describeBackupError,
+} from './store-builder.js';
+import { buildLogsCsv } from './log-export.js';
 
 // ── BrowserBackend ──────────────────────────────────────────────────────────
 
@@ -267,7 +200,6 @@ export class BrowserBackend implements BackendContext {
     const handle = this._handle ?? (await loadHandle());
     const settings = await this._readSettings();
     const status = await readStatus();
-    const period = settings.period ?? 'weekly';
     const bopResult = await chrome.storage.local.get('backup_on_publish');
     const backupOnPublish = bopResult['backup_on_publish'] === true;
 
@@ -288,50 +220,16 @@ export class BrowserBackend implements BackendContext {
       }
     }
 
-    const accounts: AccountConfig[] = token
-      ? [
-          {
-            id: token.username,
-            username: token.username,
-            journal_title: settings.journal_title ?? token.username,
-            avatar_url: settings.avatar_url ?? '',
-            access_token: token.accessToken,
-            backup_folder: handle?.name ?? '',
-            schedule: {
-              enabled: settings.schedule_enabled ?? true,
-              next_run: new Date().toISOString(),
-              hour: 2,
-              interval: period,
-            },
-            schedule_caption: nextBackupCaption(
-              settings.schedule_enabled ?? true,
-              backupOnPublish,
-              status.last_backup_at ?? null,
-              period,
-            ),
-            gap_check_days: settings.gap_check_days ?? 30,
-            redo_count: settings.redo_count ?? 7,
-            api_delay_ms: settings.api_delay_ms ?? 0,
-            last_backup_at: status.last_backup_at ?? null,
-            last_entry_date: lastEntryDate,
-            total_archived: archived,
-            journal_entry_total: entryTotal,
-            rag_state: status.rag_state ?? 'green',
-            error_message: status.error_message ?? null,
-            account_added_at: settings.account_added_at ?? null,
-          },
-        ]
-      : [];
-
-    return {
-      accounts,
-      ui: {
-        thumbnailSizePercent: settings.thumbnailSizePercent ?? 100,
-        accountOrder: token ? [token.username] : [],
-        showInfoOverlay: settings.showInfoOverlay ?? true,
-      },
-      app: { startWithWindows: false, autoUpdateEnabled: false },
-    };
+    return buildAppStore({
+      token,
+      folderName: handle?.name ?? '',
+      settings,
+      status,
+      archived,
+      entryTotal,
+      lastEntryDate,
+      backupOnPublish,
+    });
   }
 
   private _avatarSourceUrl: string | null = null;
@@ -384,25 +282,7 @@ export class BrowserBackend implements BackendContext {
 
   async exportLogsCsv(filters: LogCsvFilters): Promise<string | null> {
     const logs = await this.getLogs();
-    const filtered = logs.filter((e) => {
-      if (filters.account_id && e.account_id !== filters.account_id) return false;
-      if (filters.backup_id && e.backup_id !== filters.backup_id) return false;
-      if (filters.level !== 'all' && e.level !== filters.level) return false;
-      return true;
-    });
-    if (filtered.length === 0) return null;
-    const header = 'id,backup_id,account_id,timestamp,level,message';
-    const rows = filtered.map((e) =>
-      [
-        csvEscape(e.id),
-        csvEscape(e.backup_id ?? ''),
-        csvEscape(e.account_id),
-        csvEscape(e.timestamp),
-        csvEscape(e.level),
-        csvEscape(e.message),
-      ].join(','),
-    );
-    return [header, ...rows].join('\n');
+    return buildLogsCsv(logs, filters);
   }
 
   // ── BackendContext: backup ─────────────────────────────────────────────
@@ -463,19 +343,13 @@ export class BrowserBackend implements BackendContext {
       // continue with defaults
     }
 
-    const config: AccountBackupConfig = {
-      id: token.username,
-      username: token.username,
-      journal_title: journalTitle,
-      avatar_url: avatarUrl,
-      access_token: token.accessToken,
-      backup_folder: '',
-      redo_count: settings.redo_count ?? 7,
-      gap_check_days: settings.gap_check_days ?? 30,
-      api_delay_ms: settings.api_delay_ms ?? 0,
-      metadata_write_interval: 5,
-      app_version: __APP_VERSION__,
-    };
+    const config = buildBackupConfig({
+      token,
+      settings,
+      appVersion: this.appVersion,
+      journalTitle,
+      avatarUrl,
+    });
 
     const onEvent = (event: BackupEvent): void => {
       this._emit({ type: 'backup:event', event });
