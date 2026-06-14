@@ -14,7 +14,8 @@
   "host_permissions": [
     "https://api.blipfoto.com/*",
     "https://*.cloudfront.net/*",
-    "https://*.blipfoto.com/*"
+    "https://*.blipfoto.com/*",
+    "https://*.amazonaws.com/*"
   ],
   "background": {
     "service_worker": "src/sw.ts",
