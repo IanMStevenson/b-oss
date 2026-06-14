@@ -19,6 +19,7 @@ interface ChromeStatus {
 
 interface ChromeSettings {
   period: 'daily' | 'weekly';
+  schedule_enabled?: boolean;
 }
 
 interface BackupLifecycle {
@@ -129,8 +130,9 @@ async function triggerIfDue(): Promise<void> {
   const status = (r['b_ark_status'] ?? {}) as Partial<ChromeStatus>;
   const settings = (r['b_ark_settings'] ?? {}) as Partial<ChromeSettings>;
   const period = settings.period ?? 'weekly';
+  const scheduleEnabled = settings.schedule_enabled ?? true;
 
-  if (isPeriodDue(status.last_backup_at ?? null, period)) {
+  if (scheduleEnabled && isPeriodDue(status.last_backup_at ?? null, period)) {
     await launchBackupTabSilent();
   }
 }

@@ -43,6 +43,12 @@ function describeError(err: BackupErrorPayload): string {
   }
 }
 
+interface ChromeSettings {
+  gap_check_days?: number;
+  redo_count?: number;
+  api_delay_ms?: number;
+}
+
 let activeEngine: BackupEngine | null = null;
 
 async function init(): Promise<void> {
@@ -135,6 +141,9 @@ async function runBackup(): Promise<void> {
   const io = new BrowserPlatformIO(handle);
   const logMgr = new LogManager(io, '');
 
+  const settingsRaw = await chrome.storage.local.get('b_ark_settings');
+  const settings = (settingsRaw['b_ark_settings'] ?? {}) as ChromeSettings;
+
   // backup_folder is "" because BrowserPlatformIO is already rooted at the chosen handle.
   // The engine computes journalFolder = joinPath("", username) → "/username" → segments ["username"].
   const config: AccountBackupConfig = {
@@ -144,9 +153,9 @@ async function runBackup(): Promise<void> {
     avatar_url: avatarUrl,
     access_token: token.accessToken,
     backup_folder: '',
-    redo_count: 7,
-    gap_check_days: 30,
-    api_delay_ms: 500,
+    redo_count: settings.redo_count ?? 7,
+    gap_check_days: settings.gap_check_days ?? 30,
+    api_delay_ms: settings.api_delay_ms ?? 0,
     metadata_write_interval: 5,
     app_version: __APP_VERSION__,
   };

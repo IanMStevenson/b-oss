@@ -35,7 +35,10 @@ interface ChromeSettings {
   avatar_url: string;
   account_added_at: string | null;
   period: 'daily' | 'weekly';
+  schedule_enabled: boolean;
   api_delay_ms: number;
+  gap_check_days: number;
+  redo_count: number;
   thumbnailSizePercent: number;
   showInfoOverlay: boolean;
 }
@@ -280,14 +283,14 @@ export class BrowserBackend implements BackendContext {
             access_token: token.accessToken,
             backup_folder: handle?.name ?? '',
             schedule: {
-              enabled: true,
+              enabled: settings.schedule_enabled ?? true,
               next_run: new Date().toISOString(),
               hour: 2,
               interval: period,
             },
             schedule_caption: visitCaption(status.last_backup_at ?? null, period),
-            gap_check_days: 30,
-            redo_count: 7,
+            gap_check_days: settings.gap_check_days ?? 30,
+            redo_count: settings.redo_count ?? 7,
             api_delay_ms: settings.api_delay_ms ?? 0,
             last_backup_at: status.last_backup_at ?? null,
             last_entry_date: lastEntryDate,
@@ -447,8 +450,8 @@ export class BrowserBackend implements BackendContext {
       avatar_url: avatarUrl,
       access_token: token.accessToken,
       backup_folder: '',
-      redo_count: 7,
-      gap_check_days: 30,
+      redo_count: settings.redo_count ?? 7,
+      gap_check_days: settings.gap_check_days ?? 30,
       api_delay_ms: settings.api_delay_ms ?? 0,
       metadata_write_interval: 5,
       app_version: __APP_VERSION__,
@@ -614,8 +617,17 @@ export class BrowserBackend implements BackendContext {
     if (partial.api_delay_ms !== undefined) {
       patch.api_delay_ms = partial.api_delay_ms;
     }
+    if (partial.gap_check_days !== undefined) {
+      patch.gap_check_days = partial.gap_check_days;
+    }
+    if (partial.redo_count !== undefined) {
+      patch.redo_count = partial.redo_count;
+    }
     if (partial.schedule?.interval !== undefined) {
       patch.period = partial.schedule.interval === 'monthly' ? 'weekly' : partial.schedule.interval;
+    }
+    if (partial.schedule?.enabled !== undefined) {
+      patch.schedule_enabled = partial.schedule.enabled;
     }
     if (Object.keys(patch).length > 0) {
       await this._patchSettings(patch);

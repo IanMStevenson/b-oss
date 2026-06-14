@@ -13,6 +13,7 @@ interface ChipStorage {
   chip_last_backup_at?: string | null;
   chip_error_kind?: ErrorKind;
   chip_position?: { xPct: number; yPct: number };
+  chip_enabled?: boolean;
 }
 
 const STORAGE_KEYS: (keyof ChipStorage)[] = [
@@ -21,6 +22,7 @@ const STORAGE_KEYS: (keyof ChipStorage)[] = [
   'chip_last_backup_at',
   'chip_error_kind',
   'chip_position',
+  'chip_enabled',
 ];
 
 // ── CSS ───────────────────────────────────────────────────────────────────────
@@ -269,6 +271,9 @@ class BarkChip {
   }
 
   private _applyStorageResult(r: ChipStorage): void {
+    if ('chip_enabled' in r) {
+      this.host.style.display = r.chip_enabled === false ? 'none' : '';
+    }
     if (r.chip_rag !== undefined) this.state.rag = r.chip_rag;
     if ('chip_progress' in r) this.state.progress = r.chip_progress ?? null;
     if ('chip_last_backup_at' in r) this.state.lastBackupAt = r.chip_last_backup_at ?? null;

@@ -14,9 +14,119 @@ interface SettingsOverlayProps {
   onClose: () => void;
 }
 
+function PillToggle({ checked, onChange }: { checked: boolean; onChange: (v: boolean) => void }) {
+  return (
+    <label style={{ display: 'inline-flex', alignItems: 'center', cursor: 'pointer' }}>
+      <input
+        type="checkbox"
+        checked={checked}
+        onChange={(e) => onChange(e.target.checked)}
+        style={{ position: 'absolute', opacity: 0, width: 0, height: 0 }}
+      />
+      <span
+        style={{
+          display: 'inline-block',
+          width: 36,
+          height: 20,
+          borderRadius: 10,
+          background: checked ? 'var(--green-700)' : 'var(--line)',
+          position: 'relative',
+          transition: 'background 150ms',
+          flexShrink: 0,
+        }}
+      >
+        <span
+          style={{
+            position: 'absolute',
+            top: 2,
+            left: checked ? 18 : 2,
+            width: 16,
+            height: 16,
+            borderRadius: '50%',
+            background: 'white',
+            transition: 'left 150ms',
+            boxShadow: '0 1px 3px rgba(0,0,0,0.2)',
+          }}
+        />
+      </span>
+    </label>
+  );
+}
+
+const inputStyle: React.CSSProperties = {
+  height: 32,
+  padding: '0 10px',
+  border: '1px solid var(--line)',
+  borderRadius: 6,
+  fontSize: 13,
+  background: 'white',
+  color: 'var(--ink)',
+  outline: 'none',
+};
+
+const selectStyle: React.CSSProperties = {
+  height: 32,
+  padding: '0 8px',
+  border: '1px solid var(--line)',
+  borderRadius: 6,
+  fontSize: 13,
+  background: 'white',
+  color: 'var(--ink)',
+  cursor: 'pointer',
+  outline: 'none',
+};
+
+function focusRingStyle(focused: boolean): React.CSSProperties {
+  return focused
+    ? { borderColor: 'var(--green-700)', boxShadow: '0 0 0 3px rgba(31,77,58,0.12)' }
+    : {};
+}
+
+function SettingBlock({
+  label,
+  hint,
+  description,
+  children,
+}: {
+  label: string;
+  hint?: string;
+  description?: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div style={{ padding: '18px 20px', borderBottom: '1px solid var(--line)' }}>
+      <div
+        style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'baseline',
+          marginBottom: description ? 6 : 12,
+        }}
+      >
+        <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--ink)' }}>{label}</span>
+        {hint && <span style={{ fontSize: 12, color: 'var(--muted)' }}>{hint}</span>}
+      </div>
+      {description && (
+        <p style={{ fontSize: 12, color: 'var(--muted)', lineHeight: 1.5, marginBottom: 12 }}>
+          {description}
+        </p>
+      )}
+      {children}
+    </div>
+  );
+}
+
 export function SettingsOverlay({ backend, account, onClose }: SettingsOverlayProps) {
   const [permState, setPermState] = useState<PermissionState | null>(null);
   const [backupOnPublish, setBackupOnPublish] = useState(false);
+  const [chipEnabled, setChipEnabled] = useState(true);
+  const [scheduleEnabled, setScheduleEnabled] = useState(account.schedule.enabled ?? true);
+  const [interval, setIntervalVal] = useState<'daily' | 'weekly'>(
+    account.schedule.interval === 'monthly' ? 'weekly' : account.schedule.interval,
+  );
+  const [gapCheckDays, setGapCheckDays] = useState(account.gap_check_days ?? 30);
+  const [redoCount, setRedoCount] = useState(account.redo_count ?? 7);
+  const [focusedField, setFocusedField] = useState<string | null>(null);
 
   useEffect(() => {
     void (async () => {
@@ -31,10 +141,19 @@ export function SettingsOverlay({ backend, account, onClose }: SettingsOverlayPr
   }, []);
 
   useEffect(() => {
-    chrome.storage.local.get('backup_on_publish', (r) => {
+    chrome.storage.local.get(['backup_on_publish', 'chip_enabled'], (r) => {
       setBackupOnPublish(r['backup_on_publish'] === true);
+      setChipEnabled(r['chip_enabled'] !== false);
     });
   }, []);
+
+  // Re-sync when account prop changes (e.g. after backend emits store:changed)
+  useEffect(() => {
+    setScheduleEnabled(account.schedule.enabled ?? true);
+    setIntervalVal(account.schedule.interval === 'monthly' ? 'weekly' : account.schedule.interval);
+    setGapCheckDays(account.gap_check_days ?? 30);
+    setRedoCount(account.redo_count ?? 7);
+  }, [account]);
 
   async function handleGrantPermission(): Promise<void> {
     const handle = await loadHandle();
@@ -42,18 +161,13 @@ export function SettingsOverlay({ backend, account, onClose }: SettingsOverlayPr
     const perm = await requestFsaPermission(handle);
     setPermState(perm);
     if (perm === 'granted') {
-      // Folder access restored — clear any stale "Fix access" red on the page + chip.
       await clearError();
     }
   }
 
-  const labelStyle: React.CSSProperties = {
-    fontSize: 12,
-    fontWeight: 600,
-    color: 'var(--muted)',
-    letterSpacing: 0.5,
-    textTransform: 'uppercase',
-  };
+  function save(partial: Parameters<typeof backend.updateSettings>[0]): void {
+    backend.updateSettings(partial).catch(() => {});
+  }
 
   return (
     <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
@@ -89,22 +203,11 @@ export function SettingsOverlay({ backend, account, onClose }: SettingsOverlayPr
       </div>
 
       {/* Body */}
-      <div style={{ flex: 1, overflowY: 'auto', padding: '24px 20px' }}>
-        <div
-          style={{
-            width: '100%',
-            maxWidth: 480,
-            minHeight: '100%',
-            margin: '0 auto',
-            display: 'flex',
-            flexDirection: 'column',
-            gap: 28,
-          }}
-        >
+      <div style={{ flex: 1, overflowY: 'auto' }}>
+        <div style={{ maxWidth: 520, margin: '0 auto' }}>
           {/* Backup folder */}
-          <section>
-            <div style={labelStyle}>Backup folder</div>
-            <div style={{ marginTop: 8, display: 'flex', alignItems: 'center', gap: 12 }}>
+          <SettingBlock label="Backup folder" hint="Where backups are stored">
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
               <code
                 style={{
                   flex: 1,
@@ -145,7 +248,6 @@ export function SettingsOverlay({ backend, account, onClose }: SettingsOverlayPr
                 Change
               </button>
             </div>
-
             {permState !== null && (
               <div
                 style={{
@@ -185,80 +287,159 @@ export function SettingsOverlay({ backend, account, onClose }: SettingsOverlayPr
                 )}
               </div>
             )}
-          </section>
+          </SettingBlock>
 
-          {/* Backup frequency */}
-          <section>
-            <div style={labelStyle}>Backup frequency</div>
-            <div style={{ marginTop: 8, display: 'flex', gap: 16 }}>
-              {(['daily', 'weekly'] as const).map((interval) => {
-                const active = account.schedule.interval === interval;
-                return (
-                  <label
-                    key={interval}
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: 7,
-                      cursor: 'pointer',
-                      fontSize: 13,
-                      color: active ? 'var(--ink)' : 'var(--muted)',
-                      fontWeight: active ? 600 : 400,
-                    }}
-                  >
-                    <input
-                      type="radio"
-                      name="b-ark-interval"
-                      value={interval}
-                      checked={active}
-                      onChange={() => {
-                        void backend.updateSettings({
-                          schedule: { ...account.schedule, interval },
-                        });
-                      }}
-                      style={{ cursor: 'pointer' }}
-                    />
-                    {interval.charAt(0).toUpperCase() + interval.slice(1)}
-                  </label>
-                );
-              })}
+          {/* Show chip */}
+          <SettingBlock
+            label="Show chip"
+            description="Display the floating b-ark status indicator on Blipfoto pages. Turn off to hide it — backups still run in the background."
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              <PillToggle
+                checked={chipEnabled}
+                onChange={(v) => {
+                  setChipEnabled(v);
+                  void chrome.storage.local.set({ chip_enabled: v });
+                }}
+              />
+              <span style={{ fontSize: 13, color: 'var(--ink-2)' }}>
+                {chipEnabled ? 'On' : 'Off'}
+              </span>
             </div>
-          </section>
+          </SettingBlock>
+
+          {/* Backup on visit */}
+          <SettingBlock
+            label="Backup on visit"
+            description="On each Blipfoto page visit, b-ark-chrome checks whether a backup is due and starts one silently in the background."
+          >
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 4 }}>
+                <PillToggle
+                  checked={scheduleEnabled}
+                  onChange={(v) => {
+                    setScheduleEnabled(v);
+                    save({ schedule: { ...account.schedule, enabled: v } });
+                  }}
+                />
+                <span style={{ fontSize: 13, color: 'var(--ink-2)' }}>
+                  {scheduleEnabled ? 'Enabled' : 'Disabled'}
+                </span>
+              </div>
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 10,
+                  opacity: scheduleEnabled ? 1 : 0.4,
+                  pointerEvents: scheduleEnabled ? 'auto' : 'none',
+                }}
+              >
+                <span
+                  style={{
+                    fontSize: 11,
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.06em',
+                    color: 'var(--muted)',
+                    width: 38,
+                    flexShrink: 0,
+                  }}
+                >
+                  Every
+                </span>
+                <select
+                  value={interval}
+                  onChange={(e) => {
+                    const v = e.target.value as 'daily' | 'weekly';
+                    setIntervalVal(v);
+                    save({ schedule: { ...account.schedule, interval: v } });
+                  }}
+                  style={{ ...selectStyle, width: 120 }}
+                >
+                  <option value="daily">Daily</option>
+                  <option value="weekly">Weekly</option>
+                </select>
+              </div>
+            </div>
+          </SettingBlock>
 
           {/* Backup on publish */}
-          <section>
-            <div style={labelStyle}>Backup on publish</div>
-            <label
-              style={{
-                marginTop: 8,
-                display: 'flex',
-                alignItems: 'center',
-                gap: 10,
-                cursor: 'pointer',
-                fontSize: 13,
-                color: 'var(--ink)',
-              }}
-            >
-              <input
-                type="checkbox"
+          <SettingBlock
+            label="Backup on publish"
+            description="Start a backup immediately when you publish or save an entry on Blipfoto."
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              <PillToggle
                 checked={backupOnPublish}
-                onChange={(e) => {
-                  const checked = e.target.checked;
-                  setBackupOnPublish(checked);
-                  void chrome.storage.local.set({ backup_on_publish: checked });
+                onChange={(v) => {
+                  setBackupOnPublish(v);
+                  void chrome.storage.local.set({ backup_on_publish: v });
                 }}
-                style={{ cursor: 'pointer' }}
               />
-              Back up immediately when you publish or save an entry
-            </label>
-          </section>
+              <span style={{ fontSize: 13, color: 'var(--ink-2)' }}>
+                {backupOnPublish ? 'On' : 'Off'}
+              </span>
+            </div>
+          </SettingBlock>
+
+          {/* Gap check */}
+          <SettingBlock
+            label="Gap check"
+            hint="Days to look back"
+            description="On each run, look back this many days and fill in any missing entries."
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <input
+                type="number"
+                value={gapCheckDays}
+                min={0}
+                onChange={(e) => setGapCheckDays(parseInt(e.target.value, 10) || 0)}
+                onFocus={() => setFocusedField('gap')}
+                onBlur={() => {
+                  setFocusedField(null);
+                  save({ gap_check_days: gapCheckDays });
+                }}
+                style={{
+                  ...inputStyle,
+                  width: 80,
+                  ...(focusedField === 'gap' ? focusRingStyle(true) : {}),
+                }}
+              />
+              <span style={{ fontSize: 13, color: 'var(--muted)' }}>days</span>
+            </div>
+          </SettingBlock>
+
+          {/* Redo */}
+          <SettingBlock
+            label="Redo"
+            hint="Most-recent entries to refresh"
+            description="Re-download this many of the latest entries each run, in case captions or comments have changed."
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <input
+                type="number"
+                value={redoCount}
+                min={0}
+                onChange={(e) => setRedoCount(parseInt(e.target.value, 10) || 0)}
+                onFocus={() => setFocusedField('redo')}
+                onBlur={() => {
+                  setFocusedField(null);
+                  save({ redo_count: redoCount });
+                }}
+                style={{
+                  ...inputStyle,
+                  width: 80,
+                  ...(focusedField === 'redo' ? focusRingStyle(true) : {}),
+                }}
+              />
+              <span style={{ fontSize: 13, color: 'var(--muted)' }}>entries</span>
+            </div>
+          </SettingBlock>
 
           {/* Account */}
-          <section>
-            <div style={labelStyle}>Account</div>
+          <SettingBlock label="Account" description="Your Blipfoto account.">
             <div
               style={{
-                marginTop: 8,
                 display: 'flex',
                 alignItems: 'center',
                 gap: 12,
@@ -301,14 +482,12 @@ export function SettingsOverlay({ backend, account, onClose }: SettingsOverlayPr
                 Sign out
               </button>
             </div>
-          </section>
+          </SettingBlock>
 
           {/* Version */}
           <div
             style={{
-              marginTop: 'auto',
-              paddingTop: 16,
-              borderTop: '1px solid var(--line)',
+              padding: '16px 20px',
               fontSize: 12,
               color: 'var(--muted-2)',
             }}
