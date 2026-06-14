@@ -40,3 +40,9 @@ version.generated.json
 key.pem
 *.crx
 b-ark-chrome-*.zip
+
+# Generated icon copies — single source of truth is assets/icons/
+# (copied into each package at build time by scripts/copy-icons.mjs)
+packages/b-ark/resources/
+packages/b-ark-chrome/icons/
+packages/b-view/src/spa/favicon.png

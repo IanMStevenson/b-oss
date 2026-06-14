@@ -9,14 +9,14 @@
   },
   "main": "dist/main/index.js",
   "scripts": {
-    "dev": "electron-vite dev",
-    "build": "electron-vite build",
+    "dev": "node ../../scripts/copy-icons.mjs && electron-vite dev",
+    "build": "node ../../scripts/copy-icons.mjs && electron-vite build",
     "typecheck": "electron-vite typecheck",
-    "release": "electron-builder --publish always",
-    "pack": "electron-vite build && electron-builder --dir",
+    "release": "node ../../scripts/copy-icons.mjs && electron-builder --publish always",
+    "pack": "node ../../scripts/copy-icons.mjs && electron-vite build && electron-builder --dir",
     "predist": "npm run build --workspace=packages/b-view",
-    "dist": "electron-vite build && electron-builder",
-    "dist:win": "electron-vite build && electron-builder --win",
+    "dist": "node ../../scripts/copy-icons.mjs && electron-vite build && electron-builder",
+    "dist:win": "node ../../scripts/copy-icons.mjs && electron-vite build && electron-builder --win",
     "test": "vitest run"
   },
   "dependencies": {

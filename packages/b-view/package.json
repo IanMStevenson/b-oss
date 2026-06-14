@@ -10,10 +10,10 @@
     "./package.json": "./package.json"
   },
   "scripts": {
-    "build:app": "vite build",
-    "build:debug": "vite build --mode development",
+    "build:app": "node ../../scripts/copy-icons.mjs && vite build",
+    "build:debug": "node ../../scripts/copy-icons.mjs && vite build --mode development",
     "build": "npm run build:app",
-    "dev": "vite",
+    "dev": "node ../../scripts/copy-icons.mjs && vite",
     "typecheck": "tsc --noEmit",
     "test": "vitest run"
   },
