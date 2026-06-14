@@ -15,6 +15,8 @@ react / react-dom peer warnings — lucide-react and @testing-library/react show
 
 electron-builder v26 → v27 upgrade — --publish always is now in place, so the breaking change in v27 is pre-empted. Upgrade itself is still future work.
 
+There are also 3 security alerts in electron build related modules - none of which apply to our circumstances and none of which have fixes that don't break things even more.
+
 ## API Limitations
 
 **Image URLs** — `hires` and `original` fields in `image_urls` come back null in practice despite the user uploading original-resolution images. Needs investigation/fix on the Blipfoto side. **These fields are only populated for trusted apps - how do I get trusted**
