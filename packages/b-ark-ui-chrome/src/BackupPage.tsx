@@ -488,6 +488,21 @@ function BackupPageRoot() {
 
   const progress: BackupProgress | undefined = account ? backupProgress[account.id] : undefined;
   const isBackingUp = progress !== undefined;
+  const isRateLimited = progress?.rate_limited_seconds != null;
+
+  const [countdown, setCountdown] = useState<number | null>(null);
+  useEffect(() => {
+    if (isRateLimited && progress?.rate_limited_seconds != null) {
+      setCountdown(progress.rate_limited_seconds);
+    } else {
+      setCountdown(null);
+    }
+  }, [isRateLimited, progress?.rate_limited_seconds]);
+  useEffect(() => {
+    if (countdown === null || countdown <= 0) return;
+    const t = setTimeout(() => setCountdown((c) => (c != null ? c - 1 : null)), 1000);
+    return () => clearTimeout(t);
+  }, [countdown]);
 
   // Track chip_error_kind so we can show the right action on the error banner.
   type ChipErrorKind = 'permission' | 'auth' | 'error' | null;
@@ -789,7 +804,7 @@ function BackupPageRoot() {
           journalTitle={account.journal_title}
           backupFolder={account.backup_folder}
           progress={progress}
-          countdownSeconds={progress.rate_limited_seconds}
+          countdownSeconds={countdown}
         />
       )}
 
