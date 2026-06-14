@@ -2,7 +2,7 @@
 // Copyright (C) 2026 Ian Stevenson
 
 import { BlipfotoClient } from '@b-oss/b-api';
-import { BackupEngine, LogManager } from '@b-oss/backup-engine';
+import { BackupEngine, LogManager, JournalIndex } from '@b-oss/backup-engine';
 import type { AccountBackupConfig, BackupEvent } from '@b-oss/backup-engine';
 import type {
   AccountConfig,
@@ -20,6 +20,7 @@ import { loadToken, clearToken } from './token-storage.js';
 import { loadHandle, saveHandle, clearHandle, queryFsaPermission } from './fsa-persistence.js';
 import {
   readStatus,
+  patchStatus,
   setWorking,
   setCompleted,
   setCancelledIncomplete,
@@ -59,6 +60,29 @@ function csvEscape(s: string): string {
     return `"${s.replace(/"/g, '""')}"`;
   }
   return s;
+}
+
+const PERIOD_MS: Record<'daily' | 'weekly', number> = {
+  daily: 86_400_000,
+  weekly: 7 * 86_400_000,
+};
+
+/**
+ * Visit-triggered "next backup" caption for the status bar. The extension has no
+ * clock scheduler — a backup becomes due `period` after the last completion and
+ * runs on the next blipfoto.com visit. Returns text the shared StatusBar renders
+ * verbatim in place of its clock-based "next …".
+ */
+function visitCaption(lastBackupAt: string | null, period: 'daily' | 'weekly'): string {
+  if (!lastBackupAt) return 'Next visit';
+  const due = new Date(lastBackupAt).getTime() + PERIOD_MS[period];
+  if (due <= Date.now()) return 'Next visit';
+  const d = new Date(due);
+  const when =
+    d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short' }) +
+    ' ' +
+    d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+  return `Next visit after ${when}`;
 }
 
 // ── Lifecycle types (mirrored from sw.ts) ─────────────────────────────────
@@ -225,6 +249,26 @@ export class BrowserBackend implements BackendContext {
     const handle = this._handle ?? (await loadHandle());
     const settings = await this._readSettings();
     const status = await readStatus();
+    const period = settings.period ?? 'weekly';
+
+    // Best-effort: read the on-disk journal index so the counts and "Last entry"
+    // reflect real progress even when idle (e.g. an incomplete first run). Falls
+    // back to the persisted status when the file or folder permission is absent.
+    let archived = status.total_archived ?? 0;
+    let entryTotal = status.journal_entry_total ?? 0;
+    let lastEntryDate: string | null = null;
+    if (token && handle) {
+      try {
+        const meta = await new JournalIndex(new BrowserPlatformIO(handle), token.username).load();
+        if (meta) {
+          archived = meta.entries.length;
+          if (!entryTotal) entryTotal = meta.entry_total;
+          lastEntryDate = meta.entries[0]?.date ?? null;
+        }
+      } catch {
+        // No journal yet / no permission — keep the persisted fallbacks.
+      }
+    }
 
     const accounts: AccountConfig[] = token
       ? [
@@ -239,14 +283,16 @@ export class BrowserBackend implements BackendContext {
               enabled: true,
               next_run: new Date().toISOString(),
               hour: 2,
-              interval: settings.period ?? 'weekly',
+              interval: period,
             },
+            schedule_caption: visitCaption(status.last_backup_at ?? null, period),
             gap_check_days: 30,
             redo_count: 7,
             api_delay_ms: settings.api_delay_ms ?? 500,
             last_backup_at: status.last_backup_at ?? null,
-            total_archived: status.total_archived ?? 0,
-            journal_entry_total: status.journal_entry_total ?? 0,
+            last_entry_date: lastEntryDate,
+            total_archived: archived,
+            journal_entry_total: entryTotal,
             rag_state: status.rag_state ?? 'green',
             error_message: status.error_message ?? null,
             account_added_at: settings.account_added_at ?? null,
@@ -384,6 +430,11 @@ export class BrowserBackend implements BackendContext {
       journalTitle = profile.details?.journal_title ?? token.username;
       avatarUrl = profile.user.avatar_url;
       await this._patchSettings({ journal_title: journalTitle, avatar_url: avatarUrl });
+      // Persist the journal's true entry total so the status bar's "X of Y"
+      // shows a real denominator even before the first run completes.
+      if (typeof profile.details?.entry_total === 'number') {
+        await patchStatus({ journal_entry_total: profile.details.entry_total });
+      }
     } catch {
       // continue with defaults
     }

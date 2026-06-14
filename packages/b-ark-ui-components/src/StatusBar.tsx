@@ -105,7 +105,7 @@ export function StatusBar({ account, progress, onViewLog, compact }: StatusBarPr
       <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
         <Calendar size={12} strokeWidth={1.6} />
         <span>
-          Last entry: <strong>{fmtDate(account.last_backup_at)}</strong>
+          Last entry: <strong>{fmtDate(account.last_entry_date ?? null)}</strong>
         </span>
       </div>
 
@@ -116,8 +116,8 @@ export function StatusBar({ account, progress, onViewLog, compact }: StatusBarPr
         <Clock size={12} strokeWidth={1.6} />
         <span>
           Last backup: <strong>{relativeTime(account.last_backup_at)}</strong>
-          {' · next '}
-          {fmtScheduled(account.schedule.next_run)}
+          {' · '}
+          {account.schedule_caption ?? `next ${fmtScheduled(account.schedule.next_run)}`}
         </span>
       </div>
 

@@ -162,6 +162,7 @@ export function registerIpcHandlers(
           await saveAccount({
             ...updated,
             last_backup_at: new Date().toISOString(),
+            last_entry_date: journal?.entries[0]?.date ?? updated.last_entry_date ?? null,
             total_archived: journal?.entries.length ?? updated.total_archived,
             journal_entry_total: journal?.entry_total ?? updated.journal_entry_total,
             rag_state: 'green',

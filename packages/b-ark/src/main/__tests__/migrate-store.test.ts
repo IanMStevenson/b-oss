@@ -55,6 +55,7 @@ describe('migrateV1Shape (pure helper)', () => {
     expect(result.status).toEqual({
       'acc-1': {
         last_backup_at: '2026-05-30T02:05:00.000Z',
+        last_entry_date: null,
         total_archived: 100,
         journal_entry_total: 100,
         rag_state: 'green',

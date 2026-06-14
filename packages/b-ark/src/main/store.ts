@@ -14,6 +14,7 @@ import { PortableSettingsManager } from './portable-settings.js';
 
 const DEFAULT_STATUS: AccountStatus = {
   last_backup_at: null,
+  last_entry_date: null,
   total_archived: 0,
   journal_entry_total: 0,
   rag_state: 'amber',
@@ -115,7 +116,10 @@ export async function savePortableSettings(next: BArkSettings): Promise<void> {
 }
 
 export function getStatus(id: string): AccountStatus {
-  return store.get('status')[id] ?? DEFAULT_STATUS;
+  const stored = store.get('status')[id];
+  // Merge over defaults so statuses persisted before a field was added (e.g.
+  // last_entry_date) still satisfy the AccountStatus contract.
+  return stored ? { ...DEFAULT_STATUS, ...stored } : DEFAULT_STATUS;
 }
 
 export function setStatus(id: string, partial: Partial<AccountStatus>): void {
@@ -180,6 +184,7 @@ function composeAccountConfig(p: PortableAccount): AccountConfig {
     gap_check_days: settings.gap_check_days,
     redo_count: settings.redo_count,
     last_backup_at: status.last_backup_at,
+    last_entry_date: status.last_entry_date,
     total_archived: status.total_archived,
     journal_entry_total: status.journal_entry_total,
     rag_state: status.rag_state,

@@ -32,6 +32,7 @@ export interface BArkSettings {
 
 export interface AccountStatus {
   last_backup_at: string | null;
+  last_entry_date: string | null;
   total_archived: number;
   journal_entry_total: number;
   rag_state: 'green' | 'amber' | 'red';
@@ -64,11 +65,19 @@ export interface AccountConfig {
   redo_count: number;
   api_delay_ms: number;
   last_backup_at: string | null;
+  /** Date (YYYY-MM-DD) of the newest archived journal entry, if known. */
+  last_entry_date?: string | null;
   total_archived: number;
   journal_entry_total: number;
   rag_state: 'green' | 'amber' | 'red';
   error_message: string | null;
   account_added_at: string | null;
+  /**
+   * Optional override for the "next backup" caption. When set (e.g. the Chrome
+   * extension's visit-triggered model), it replaces the clock-based "next …"
+   * text. Electron leaves it undefined to keep its real scheduled time.
+   */
+  schedule_caption?: string;
 }
 
 export interface AppStore {

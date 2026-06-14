@@ -80,6 +80,7 @@ export function migrateV1Shape(legacy: LegacyV1Shape): V1MigrationResult {
     if (a.access_token) tokens[a.username] = a.access_token;
     status[a.id] = {
       last_backup_at: a.last_backup_at,
+      last_entry_date: null,
       total_archived: a.total_archived,
       journal_entry_total: a.journal_entry_total,
       rag_state: a.rag_state,
