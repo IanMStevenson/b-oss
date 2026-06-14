@@ -412,6 +412,7 @@ export class BrowserBackend implements BackendContext {
 
     const io = new BrowserPlatformIO(handle);
     const logMgr = new LogManager(io, '');
+    const settings = await this._readSettings();
 
     await chrome.storage.local.set({
       chip_rag: 'amber',
@@ -448,7 +449,7 @@ export class BrowserBackend implements BackendContext {
       backup_folder: '',
       redo_count: 7,
       gap_check_days: 30,
-      api_delay_ms: 500,
+      api_delay_ms: settings.api_delay_ms ?? 500,
       app_version: __APP_VERSION__,
     };
 
