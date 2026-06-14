@@ -41,14 +41,14 @@ npm run dev --workspace=packages/b-ark
 
 ## b-ark-chrome todos
 
-Plan phase 4 done - debugging basics
+Status bar content nonsense...
 
-    I still have a network error/reauthorise banner and a "fix access" flag on the chip even though backup and display are both working. Reauthorising doesn't clear it
-
-Next - Plan phase 5 - plan is now in packages-b-ark folder
-
-Delete plan in packages-b-ark folder after completion
-
-Update icon.
+Redo the chip icon - what is it trying to be? It's horrid
 
 When selecting a folder, warn when it has a b-ark (installed) config file and suggest not using it...
+
+Check logic for refresh during backup - b-view in b-ark-chrome doesn't refresh AT ALL !!!
+
+Add backup-on-submit/save changes feature
+
+Delete plan in packages-b-ark folder after completion

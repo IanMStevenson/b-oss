@@ -38,7 +38,6 @@ import { ElectronPlatformIO } from './platform-io.js';
 import { startServer, stopServer, getServerPort } from './http-server.js';
 import { BackupScheduler, computeNextRun } from './scheduler.js';
 import { writeBViewFiles } from './b-view-files.js';
-import { writeBackupReadme } from './backup-readme.js';
 import { toCsv } from './log-csv.js';
 import { rebuildTrayMenu, refreshTrayIcon } from './tray.js';
 import { showBackupFailedNotification } from './notifications.js';
@@ -141,7 +140,6 @@ export function registerIpcHandlers(
 
         try {
           await writeBViewFiles(account.username, account.backup_folder);
-          await writeBackupReadme(account.username, account.backup_folder);
         } catch (err) {
           const message = err instanceof Error ? err.message : String(err);
           pio.log({
@@ -390,7 +388,6 @@ export function registerIpcHandlers(
     const existing = getServerPort(account.id);
     if (existing !== null) return existing;
     await writeBViewFiles(account.username, account.backup_folder);
-    await writeBackupReadme(account.username, account.backup_folder);
     const folder = path.join(account.backup_folder, account.username);
     return startServer(account.id, folder);
   }

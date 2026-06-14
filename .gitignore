@@ -46,3 +46,7 @@ b-ark-chrome-*.zip
 packages/b-ark/resources/
 packages/b-ark-chrome/icons/
 packages/b-view/src/spa/favicon.png
+
+# Generated b-view viewer copy — single source of truth is packages/b-view/dist-app/
+# (mirrored at build time by packages/b-ark-chrome/scripts/copy-b-view.mjs)
+packages/b-ark-chrome/public/b-view-dist/

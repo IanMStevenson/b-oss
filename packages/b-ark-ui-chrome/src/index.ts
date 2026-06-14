@@ -7,6 +7,7 @@ export { mountChip } from './chip.js';
 
 // Chrome platform primitives — shared with b-ark-chrome app entry points
 export { BrowserPlatformIO } from './browser-platform-io.js';
+export { deployViewer } from './deploy-viewer.js';
 export { loadToken, storeToken, clearToken } from './token-storage.js';
 export type { StoredToken } from './token-storage.js';
 export {

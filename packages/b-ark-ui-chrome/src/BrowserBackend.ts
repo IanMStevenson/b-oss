@@ -15,6 +15,7 @@ import type {
   SharedSettingsPartial,
 } from '@b-oss/b-ark-ui-components';
 import { BrowserPlatformIO } from './browser-platform-io.js';
+import { deployViewer } from './deploy-viewer.js';
 import { loadToken, clearToken } from './token-storage.js';
 import { loadHandle, saveHandle, clearHandle, queryFsaPermission } from './fsa-persistence.js';
 import {
@@ -150,6 +151,10 @@ export class BrowserBackend implements BackendContext {
 
       const store = await this.getStore();
       this._emit({ type: 'store:changed', store });
+
+      // Refresh the on-disk viewer/README on startup so a returning user tracks the
+      // installed extension version even without running a new backup.
+      void this._maybeDeployViewer();
 
       // Auto-start backup when launched by the visit-trigger
       if (this._autoLaunched) {
@@ -414,6 +419,7 @@ export class BrowserBackend implements BackendContext {
       if (event.type === 'completed') {
         const now = new Date().toISOString();
         void setCompleted(now, event.total_archived);
+        void deployViewer(io, token.username);
         this._notifySwOnComplete();
         void logMgr.readAll().then((entries) => {
           for (const entry of entries) {
@@ -450,6 +456,21 @@ export class BrowserBackend implements BackendContext {
   cancelBackup(_accountId: string): Promise<void> {
     this._engine?.cancel();
     return Promise.resolve();
+  }
+
+  /**
+   * Deploy the bundled b-view viewer + README into the journal folder, but only when a
+   * signed-in account and a permission-granted folder handle are both present. Used by the
+   * folder-pick and startup triggers; the completed-backup trigger calls deployViewer()
+   * directly with its in-scope io/username. Best-effort — never throws.
+   */
+  private async _maybeDeployViewer(): Promise<void> {
+    const token = await loadToken();
+    if (!token) return;
+    const handle = this._handle ?? (await loadHandle());
+    if (!handle) return;
+    if ((await queryFsaPermission(handle)) !== 'granted') return;
+    await deployViewer(new BrowserPlatformIO(handle), token.username);
   }
 
   // ── BackendContext: account management ─────────────────────────────────
@@ -499,6 +520,8 @@ export class BrowserBackend implements BackendContext {
       await chrome.storage.local.set({ folder_ready: true });
       const store = await this.getStore();
       this._emit({ type: 'store:changed', store });
+      // Drop the viewer/README into the freshly chosen folder.
+      void this._maybeDeployViewer();
       return dir.name;
     } catch (e) {
       if ((e as DOMException).name === 'AbortError') return null;

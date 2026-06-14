@@ -4,10 +4,10 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "build": "node ../../scripts/copy-icons.mjs && node ../../scripts/version.mjs && vite build",
-    "dev": "node ../../scripts/copy-icons.mjs && node ../../scripts/version.mjs && vite build --watch",
+    "build": "node ../../scripts/copy-icons.mjs && node ../../scripts/version.mjs && npm run build --workspace=@b-oss/b-view && node scripts/copy-b-view.mjs && vite build",
+    "dev": "node ../../scripts/copy-icons.mjs && node ../../scripts/version.mjs && npm run build --workspace=@b-oss/b-view && node scripts/copy-b-view.mjs && vite build --watch",
     "package": "node scripts/package.mjs",
-    "dist": "node ../../scripts/copy-icons.mjs && node ../../scripts/version.mjs && vite build && node scripts/package.mjs",
+    "dist": "node ../../scripts/copy-icons.mjs && node ../../scripts/version.mjs && npm run build --workspace=@b-oss/b-view && node scripts/copy-b-view.mjs && vite build && node scripts/package.mjs",
     "typecheck": "tsc --noEmit && tsc -p tsconfig.node.json --noEmit"
   },
   "dependencies": {
