@@ -65,12 +65,17 @@ Call site: `oauth.ts`.
 
 **Why fewer isn't possible.** Blipfoto uses the OAuth 2.0 **implicit grant** for
 distributed apps: the access token is returned in the URL **fragment** of a redirect to
-a custom scheme the browser cannot itself navigate to. `onBeforeRedirect` is the only
-mechanism that reliably surfaces that redirect target _with its fragment intact_ before
-the browser drops it. The listener is **observational only** (not `webRequestBlocking`)
-— it never blocks, modifies, or inspects any other traffic — and is host-scoped to
-`*.blipfoto.com`, so it cannot see requests to any other site. It is added only for the
-duration of a sign-in attempt and removed on capture or 120s timeout.
+a custom scheme the browser cannot itself navigate to. `onBeforeRedirect` is the **sole**
+capture mechanism: it fires on the HTTP 302 response at the network layer and surfaces
+that redirect target _with its fragment intact_ before the browser attempts the
+unhandled custom-scheme navigation. (`chrome.webNavigation.onBeforeNavigate` is unsuitable
+as an alternative or fallback: the `schemes` field of its `UrlFilter` is ignored, so it
+cannot be scoped to `bark-chrome://`, and an unhandled custom scheme is treated as an
+external-protocol launch that generally produces no navigation event at all.) The listener
+is **observational only** (not `webRequestBlocking`) — it never blocks, modifies, or
+inspects any other traffic — and is host-scoped to `*.blipfoto.com`, so it cannot see
+requests to any other site. It is added only for the duration of a sign-in attempt and
+removed on capture or 120s timeout.
 
 **Why `chrome.identity.launchWebAuthFlow` cannot replace this.** The standard MV3
 alternative (`chrome.identity.launchWebAuthFlow`) requires a
@@ -84,20 +89,6 @@ community-owned, volunteer-run platform with no engineering resource available t
 change its OAuth implementation. The `bark-chrome://` custom scheme is therefore the
 only viable redirect target, and `webRequest` is the only API that can reliably capture
 the token fragment from that redirect.
-
-### `webNavigation`
-
-**What it's used for.** A fallback for the same OAuth capture. A single
-`chrome.webNavigation.onBeforeNavigate` listener, filtered to the `bark-chrome` scheme,
-catches the custom-scheme navigation if the `webRequest` path misses it on certain
-Chrome versions.
-Call site: `oauth.ts`.
-
-**Why fewer isn't possible.** The two listeners are belt-and-braces for a flow that only
-runs during explicit user sign-in; in practice some Chrome versions deliver the
-custom-scheme target via one event and not the other. The filter restricts it to the
-`bark-chrome` scheme only, so it observes no normal web navigation. It is added and
-removed alongside the `webRequest` listener and never persists.
 
 ---
 
@@ -176,13 +167,12 @@ Blipfoto API; it makes no speculative requests to AWS infrastructure.
 
 ## Summary table (for the submission form)
 
-| Permission           | One-line justification                                                                                                                                                                                                                                                                                                          |
-| -------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `storage`            | Cross-context (worker/chip/page) shared state + encrypted token at rest, with `onChanged` events no other API provides.                                                                                                                                                                                                         |
-| `tabs`               | Singleton management of the extension's own backup page via `tabs.query({url})`; never touches arbitrary user tabs.                                                                                                                                                                                                             |
-| `webRequest`         | Non-blocking, `*.blipfoto.com`-scoped capture of the implicit-grant OAuth token from the custom-scheme redirect fragment. `chrome.identity.launchWebAuthFlow` is architecturally incompatible: Blipfoto's server enforces non-HTTP schemes for distributed apps and cannot be changed (community-run, no engineering resource). |
-| `webNavigation`      | `bark-chrome`-scheme-scoped fallback for the same OAuth capture on Chrome versions where `webRequest` misses it.                                                                                                                                                                                                                |
-| `api.blipfoto.com/*` | The Blipfoto REST API — lists/downloads the user's journal.                                                                                                                                                                                                                                                                     |
-| `*.blipfoto.com/*`   | Content-script chip + publish watcher, OAuth redirect filter, avatar fetch.                                                                                                                                                                                                                                                     |
-| `*.cloudfront.net/*` | Downloads versioned entry images (thumbnail/lores/stdres/hires) served from Blipfoto's CloudFront CDN. Multiple distributions, one per image version; hostnames are AWS-generated, stored in private server-side config, and only known at runtime from API response URLs — cannot be hardcoded.                                |
-| `*.amazonaws.com/*`  | Downloads original-resolution images served as time-limited S3 presigned URLs (not via CloudFront). Only fetches URLs supplied by the Blipfoto API.                                                                                                                                                                             |
+| Permission           | One-line justification                                                                                                                                                                                                                                                                                                                                               |
+| -------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `storage`            | Cross-context (worker/chip/page) shared state + encrypted token at rest, with `onChanged` events no other API provides.                                                                                                                                                                                                                                              |
+| `tabs`               | Singleton management of the extension's own backup page via `tabs.query({url})`; never touches arbitrary user tabs.                                                                                                                                                                                                                                                  |
+| `webRequest`         | Non-blocking, `*.blipfoto.com`-scoped capture of the implicit-grant OAuth token from the custom-scheme redirect fragment — the sole, proven capture mechanism. `chrome.identity.launchWebAuthFlow` is architecturally incompatible: Blipfoto's server enforces non-HTTP schemes for distributed apps and cannot be changed (community-run, no engineering resource). |
+| `api.blipfoto.com/*` | The Blipfoto REST API — lists/downloads the user's journal.                                                                                                                                                                                                                                                                                                          |
+| `*.blipfoto.com/*`   | Content-script chip + publish watcher, OAuth redirect filter, avatar fetch.                                                                                                                                                                                                                                                                                          |
+| `*.cloudfront.net/*` | Downloads versioned entry images (thumbnail/lores/stdres/hires) served from Blipfoto's CloudFront CDN. Multiple distributions, one per image version; hostnames are AWS-generated, stored in private server-side config, and only known at runtime from API response URLs — cannot be hardcoded.                                                                     |
+| `*.amazonaws.com/*`  | Downloads original-resolution images served as time-limited S3 presigned URLs (not via CloudFront). Only fetches URLs supplied by the Blipfoto API.                                                                                                                                                                                                                  |

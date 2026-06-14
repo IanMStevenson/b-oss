@@ -93,7 +93,6 @@ openssl rsa -in key.pem -pubout -outform DER -out pub.der
 | ---------------------------- | ------------------------------------------------------------- |
 | `storage`                    | settings, status, encrypted token ciphertext, chip position   |
 | `webRequest`                 | capture the OAuth custom-scheme redirect (`onBeforeRedirect`) |
-| `webNavigation`              | secondary OAuth redirect capture                              |
 | `tabs`                       | open/raise/close the backup page tab                          |
 | `https://api.blipfoto.com/*` | Blipfoto API fetch                                            |
 | `https://*.cloudfront.net/*` | image CDN (CloudFront subdomains rotate → wildcard)           |

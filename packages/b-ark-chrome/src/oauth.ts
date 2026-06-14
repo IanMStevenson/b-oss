@@ -5,9 +5,12 @@
 // Ported from spikes/oauth-distributed-capture/sw.js.
 //
 // Opens the Blipfoto authorize page in a tab; captures the custom-scheme 302
-// redirect via webRequest.onBeforeRedirect (proven to preserve the fragment).
-// On success, encrypts the token via storeToken and writes { oauthStatus,
-// username } to chrome.storage.local so the popup can update its UI.
+// redirect via the single, proven mechanism webRequest.onBeforeRedirect. This
+// fires on the HTTP 302 response at the network layer and surfaces the raw
+// Location header (with the token-bearing fragment intact) before the browser
+// attempts the unhandled bark-chrome:// navigation. On success, encrypts the
+// token via storeToken and writes { oauthStatus, username } to
+// chrome.storage.local so the popup can update its UI.
 
 import { buildImplicitGrantUrl, parseImplicitGrantCallback } from '@b-oss/b-api';
 // Import the shared platform primitive by subpath (not the package barrel) so the
@@ -33,11 +36,6 @@ export async function startOAuthFlow(clientId: string): Promise<void> {
 
   const cleanup = (): void => {
     chrome.webRequest.onBeforeRedirect.removeListener(onRedirect);
-    try {
-      chrome.webNavigation.onBeforeNavigate.removeListener(onNav);
-    } catch {
-      // listener may not have been added if the filter registration failed
-    }
   };
 
   async function handle(url: string, via: string): Promise<void> {
@@ -75,20 +73,9 @@ export async function startOAuthFlow(clientId: string): Promise<void> {
     if (dest.startsWith(SCHEME)) void handle(dest, 'webRequest.onBeforeRedirect');
   };
 
-  const onNav = (details: chrome.webNavigation.WebNavigationParentedCallbackDetails): void => {
-    if (details.url.startsWith(SCHEME)) void handle(details.url, 'webNavigation.onBeforeNavigate');
-  };
-
   chrome.webRequest.onBeforeRedirect.addListener(onRedirect, {
     urls: ['https://*.blipfoto.com/*'],
   });
-  try {
-    chrome.webNavigation.onBeforeNavigate.addListener(onNav, {
-      url: [{ schemes: [SCHEME.replace('://', '')] }],
-    });
-  } catch {
-    // Scheme filter may fail in some Chrome versions — webRequest capture is primary
-  }
 
   const authUrl = buildImplicitGrantUrl({
     clientId,
