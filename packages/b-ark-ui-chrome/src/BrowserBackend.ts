@@ -288,7 +288,7 @@ export class BrowserBackend implements BackendContext {
             schedule_caption: visitCaption(status.last_backup_at ?? null, period),
             gap_check_days: 30,
             redo_count: 7,
-            api_delay_ms: settings.api_delay_ms ?? 500,
+            api_delay_ms: settings.api_delay_ms ?? 0,
             last_backup_at: status.last_backup_at ?? null,
             last_entry_date: lastEntryDate,
             total_archived: archived,
@@ -449,7 +449,7 @@ export class BrowserBackend implements BackendContext {
       backup_folder: '',
       redo_count: 7,
       gap_check_days: 30,
-      api_delay_ms: settings.api_delay_ms ?? 500,
+      api_delay_ms: settings.api_delay_ms ?? 0,
       metadata_write_interval: 5,
       app_version: __APP_VERSION__,
     };

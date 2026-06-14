@@ -16,7 +16,6 @@ interface SettingsOverlayProps {
 
 export function SettingsOverlay({ backend, account, onClose }: SettingsOverlayProps) {
   const [permState, setPermState] = useState<PermissionState | null>(null);
-  const [apiDelay, setApiDelay] = useState(account.api_delay_ms ?? 500);
 
   useEffect(() => {
     void (async () => {
@@ -216,36 +215,6 @@ export function SettingsOverlay({ backend, account, onClose }: SettingsOverlayPr
                   </label>
                 );
               })}
-            </div>
-          </section>
-
-          {/* API delay */}
-          <section>
-            <div style={labelStyle}>Delay</div>
-            <div style={{ marginTop: 8, fontSize: 12, color: 'var(--muted)', marginBottom: 8 }}>
-              Pause between each entry fetch. Default 500&nbsp;ms.
-            </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <input
-                type="number"
-                min={0}
-                value={apiDelay}
-                onChange={(e) => setApiDelay(parseInt(e.target.value, 10) || 0)}
-                onBlur={() => {
-                  void backend.updateSettings({ api_delay_ms: apiDelay });
-                }}
-                style={{
-                  width: 80,
-                  height: 32,
-                  padding: '0 8px',
-                  borderRadius: 6,
-                  border: '1px solid var(--line)',
-                  background: 'var(--bg-alt)',
-                  color: 'var(--ink)',
-                  fontSize: 13,
-                }}
-              />
-              <span style={{ fontSize: 13, color: 'var(--muted)' }}>ms</span>
             </div>
           </section>
 
