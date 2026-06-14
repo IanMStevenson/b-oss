@@ -652,6 +652,13 @@ function BackupPageRoot() {
   // ── Ready — guard against null account ───────────────────────────────────
   if (!account || !store) return null;
 
+  const ragColour =
+    account.rag_state === 'green'
+      ? 'var(--rag-green)'
+      : account.rag_state === 'amber'
+        ? 'var(--rag-amber)'
+        : 'var(--rag-red)';
+
   // ── Overlays ─────────────────────────────────────────────────────────────
   if (panel === 'settings') {
     return (
@@ -688,120 +695,155 @@ function BackupPageRoot() {
       {/* Account / actions bar */}
       <div
         style={{
-          height: 52,
           display: 'flex',
           alignItems: 'center',
-          padding: '0 14px',
-          gap: 8,
+          padding: '14px 14px 12px',
+          gap: 12,
           borderBottom: '1px solid var(--line)',
           flexShrink: 0,
           background: 'var(--bg)',
         }}
       >
-        <Avatar
-          name={account.username}
-          remoteUrl={account.avatar_url}
-          refreshKey={account.last_backup_at}
-          size={26}
-          loadAvatar={loadAvatar}
-        />
-
-        <span
-          style={{
-            fontSize: 13,
-            fontWeight: 600,
-            color: 'var(--ink-2)',
-            flex: 1,
-            minWidth: 0,
-            overflow: 'hidden',
-            textOverflow: 'ellipsis',
-            whiteSpace: 'nowrap',
-          }}
-        >
-          {account.username}
-        </span>
-
-        {isBackingUp ? (
-          <button
-            onClick={() => {
-              void backend.cancelBackup(account.id);
-            }}
+        <div style={{ position: 'relative', flexShrink: 0 }}>
+          <Avatar
+            name={account.journal_title}
+            remoteUrl={account.avatar_url}
+            refreshKey={account.last_backup_at}
+            size={56}
+            loadAvatar={loadAvatar}
+          />
+          <div
             style={{
-              height: 32,
-              padding: '0 14px',
-              borderRadius: 7,
-              background: 'rgba(208,69,69,0.1)',
-              color: 'var(--rag-red)',
-              fontSize: 13,
+              position: 'absolute',
+              bottom: 1,
+              right: 1,
+              width: 20,
+              height: 20,
+              borderRadius: '50%',
+              background: ragColour,
+              border: '1px solid white',
+            }}
+          />
+        </div>
+
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div
+            style={{
+              fontSize: 16,
               fontWeight: 600,
-              border: '1px solid rgba(208,69,69,0.2)',
-              cursor: 'pointer',
-              flexShrink: 0,
+              letterSpacing: '-0.01em',
+              color: 'var(--ink)',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+              whiteSpace: 'nowrap',
             }}
           >
-            Cancel
-          </button>
-        ) : (
+            {account.journal_title}
+          </div>
+          <div style={{ fontSize: 12, color: 'var(--muted)', marginTop: 2 }}>
+            @{account.username}
+            {journalState.status === 'loaded' && (
+              <>
+                {' · since '}
+                {journalState.data.entries.length > 0
+                  ? new Date(
+                      journalState.data.entries[journalState.data.entries.length - 1]?.date ?? '',
+                    ).toLocaleDateString('en-GB', {
+                      day: '2-digit',
+                      month: 'short',
+                      year: 'numeric',
+                    })
+                  : '—'}
+                {' · '}
+                {account.journal_entry_total.toLocaleString()} entries
+              </>
+            )}
+          </div>
+        </div>
+
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
+          {isBackingUp ? (
+            <button
+              onClick={() => {
+                void backend.cancelBackup(account.id);
+              }}
+              style={{
+                height: 32,
+                padding: '0 14px',
+                borderRadius: 7,
+                background: 'rgba(208,69,69,0.1)',
+                color: 'var(--rag-red)',
+                fontSize: 13,
+                fontWeight: 600,
+                border: '1px solid rgba(208,69,69,0.2)',
+                cursor: 'pointer',
+                flexShrink: 0,
+              }}
+            >
+              Cancel
+            </button>
+          ) : (
+            <button
+              onClick={() => {
+                void backend.startBackup(account.id);
+              }}
+              style={{
+                height: 32,
+                padding: '0 14px',
+                borderRadius: 7,
+                background: 'var(--green-800)',
+                color: 'white',
+                fontSize: 13,
+                fontWeight: 600,
+                border: 'none',
+                cursor: 'pointer',
+                flexShrink: 0,
+              }}
+            >
+              Back up now
+            </button>
+          )}
+
           <button
-            onClick={() => {
-              void backend.startBackup(account.id);
-            }}
+            aria-label="Open settings"
+            onClick={() => dispatch({ type: 'panel:open', panel: 'settings' })}
             style={{
+              width: 32,
               height: 32,
-              padding: '0 14px',
               borderRadius: 7,
-              background: 'var(--green-800)',
-              color: 'white',
-              fontSize: 13,
-              fontWeight: 600,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              background: 'transparent',
               border: 'none',
               cursor: 'pointer',
+              color: 'var(--muted)',
               flexShrink: 0,
             }}
           >
-            Back up now
+            <Settings size={16} strokeWidth={1.8} />
           </button>
-        )}
 
-        <button
-          aria-label="Open settings"
-          onClick={() => dispatch({ type: 'panel:open', panel: 'settings' })}
-          style={{
-            width: 32,
-            height: 32,
-            borderRadius: 7,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            background: 'transparent',
-            border: 'none',
-            cursor: 'pointer',
-            color: 'var(--muted)',
-            flexShrink: 0,
-          }}
-        >
-          <Settings size={16} strokeWidth={1.8} />
-        </button>
-
-        <button
-          aria-label="Open log"
-          onClick={() => dispatch({ type: 'panel:open', panel: 'log' })}
-          style={{
-            width: 32,
-            height: 32,
-            borderRadius: 7,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            background: 'transparent',
-            border: 'none',
-            cursor: 'pointer',
-            color: 'var(--muted)',
-            flexShrink: 0,
-          }}
-        >
-          <FileText size={16} strokeWidth={1.8} />
-        </button>
+          <button
+            aria-label="Open log"
+            onClick={() => dispatch({ type: 'panel:open', panel: 'log' })}
+            style={{
+              width: 32,
+              height: 32,
+              borderRadius: 7,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              background: 'transparent',
+              border: 'none',
+              cursor: 'pointer',
+              color: 'var(--muted)',
+              flexShrink: 0,
+            }}
+          >
+            <FileText size={16} strokeWidth={1.8} />
+          </button>
+        </div>
       </div>
 
       {/* Backup progress banner */}
