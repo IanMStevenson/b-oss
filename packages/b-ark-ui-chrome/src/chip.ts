@@ -123,11 +123,11 @@ const CSS = `
     bottom: -1px;
     right: -1px;
     border-radius: 50%;
-    box-shadow: 0 0 0 2.5px #fff;
+    box-shadow: 0 0 0 2px #fff;
   }
 
-  .rag-dot.sz-34 { width: 12px; height: 12px; }
-  .rag-dot.sz-28 { width: 10px; height: 10px; }
+  .rag-dot.sz-34 { width: 10px; height: 10px; }
+  .rag-dot.sz-28 { width:  9px; height:  9px; }
 
   .rag-dot.col-grey   { background: #9AA0A6; }
   .rag-dot.col-amber  { background: #E0A020; }
@@ -226,12 +226,13 @@ const CSS = `
     white-space: nowrap;
     box-shadow: 0 10px 24px rgba(0,0,0,.34);
     pointer-events: none;
+    visibility: hidden;
     opacity: 0;
     transition: opacity 0.12s ease;
   }
 
-  .outer:hover .tooltip { opacity: 1; }
-  .outer.dragging .tooltip { opacity: 0; }
+  .outer:hover .tooltip { visibility: visible; opacity: 1; }
+  .outer.dragging .tooltip { visibility: hidden; opacity: 0; }
 
   .tooltip::after {
     content: '';
@@ -244,10 +245,24 @@ const CSS = `
     transform: rotate(45deg);
   }
 
+  .tooltip.flip-below {
+    bottom: auto;
+    top: calc(100% + 11px);
+    right: auto;
+    left: 0;
+  }
+
+  .tooltip.flip-below::after {
+    bottom: auto;
+    top: -4px;
+    right: auto;
+    left: 16px;
+  }
+
   /* ── Animations ─────────────────────────────────────────────────── */
   @keyframes barkPulse {
-    0%, 100% { box-shadow: 0 0 0 2.5px #fff, 0 0 0 4px rgba(224,160,32,0); }
-    50%       { box-shadow: 0 0 0 2.5px #fff, 0 0 0 7px rgba(224,160,32,.20); }
+    0%, 100% { box-shadow: 0 0 0 2px #fff, 0 0 0 3.5px rgba(224,160,32,0); }
+    50%       { box-shadow: 0 0 0 2px #fff, 0 0 0 6px   rgba(224,160,32,.20); }
   }
 
   @keyframes barkShimmer {
@@ -382,6 +397,7 @@ class BarkChip {
 
     this._setupDrag();
     this._setupDoubleClick();
+    this._setupTooltip();
   }
 
   private _setupDrag(): void {
@@ -432,6 +448,21 @@ class BarkChip {
 
       document.addEventListener('mousemove', onMove);
       document.addEventListener('mouseup', onUp);
+    });
+  }
+
+  private _setupTooltip(): void {
+    this.outerEl.addEventListener('mouseenter', () => {
+      const rect = this.host.getBoundingClientRect();
+      const ttW = this.tooltipEl.offsetWidth || 200;
+      const ttH = this.tooltipEl.offsetHeight || 36;
+      const fitsAbove = rect.top - ttH - 11 >= 0;
+      const fitsRight = rect.right >= ttW;
+      if (!fitsAbove || !fitsRight) {
+        this.tooltipEl.classList.add('flip-below');
+      } else {
+        this.tooltipEl.classList.remove('flip-below');
+      }
     });
   }
 
