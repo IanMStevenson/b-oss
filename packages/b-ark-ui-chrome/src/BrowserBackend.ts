@@ -396,15 +396,16 @@ export class BrowserBackend implements BackendContext {
 
       if (event.type === 'completed') {
         const now = new Date().toISOString();
-        void setCompleted(now, event.total_archived);
-        void deployViewer(io, token.username);
-        this._notifySwOnComplete();
-        void logMgr.readAll().then((entries) => {
+        void (async () => {
+          await setCompleted(now, event.total_archived);
+          void deployViewer(io, token.username);
+          this._notifySwOnComplete();
+          const entries = await logMgr.readAll();
           for (const entry of entries) {
             this._emit({ type: 'log:entry', account_id: token.username, entry });
           }
-          return this._reloadAndEmitStore();
-        });
+          await this._reloadAndEmitStore();
+        })();
       }
 
       if (event.type === 'cancelled') {
@@ -413,10 +414,11 @@ export class BrowserBackend implements BackendContext {
       }
 
       if (event.type === 'failed') {
-        this._notifySwOnFailure();
-        void setFailed(event.error.kind, describeBackupError(event)).then(() =>
-          this._reloadAndEmitStore(),
-        );
+        void (async () => {
+          await setFailed(event.error.kind, describeBackupError(event));
+          this._notifySwOnFailure();
+          await this._reloadAndEmitStore();
+        })();
       }
     };
 
