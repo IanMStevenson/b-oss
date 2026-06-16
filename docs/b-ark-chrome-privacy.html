@@ -1,0 +1,124 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Privacy Policy · b-ark-chrome · b-oss</title>
+    <meta
+      name="description"
+      content="Privacy policy for b-ark-chrome — the Chrome extension that backs up your blipfoto journal to a folder on your own device."
+    />
+    <link rel="icon" href="assets/favicon.ico" sizes="any" />
+    <link rel="icon" type="image/png" sizes="32x32" href="assets/favicon-32.png" />
+    <link rel="icon" type="image/png" sizes="16x16" href="assets/favicon-16.png" />
+    <link rel="apple-touch-icon" sizes="180x180" href="assets/apple-touch-icon.png" />
+    <link rel="manifest" href="assets/site.webmanifest" />
+    <meta name="theme-color" content="#1f4d3a" />
+    <link rel="stylesheet" href="site.css" />
+  </head>
+  <body>
+    <header class="topbar">
+      <div class="topbar-inner">
+        <a class="brand" href="index.html">b-oss</a>
+        <nav class="nav" aria-label="Primary">
+          <a href="index.html">Home</a>
+          <a href="b-ark.html">b-ark</a>
+          <a href="b-api.html">b-api</a>
+          <a href="contact.html">Contact</a>
+        </nav>
+      </div>
+    </header>
+
+    <main class="page narrow">
+      <section class="hero" data-screen-label="Privacy hero">
+        <h1>Privacy Policy — b-ark-chrome</h1>
+        <p class="lead">
+          b-ark-chrome is a Chrome browser extension that backs up your blipfoto journal
+          entries and images to a folder on your own device. This policy explains what data
+          the extension handles and what happens to it.
+        </p>
+      </section>
+
+      <section
+        class="block"
+        style="border-top: none; padding-top: 0"
+        data-screen-label="Privacy body"
+      >
+        <div class="prose">
+          <p><strong>Last updated:</strong> June 2026</p>
+
+          <h2>Who is responsible for this extension</h2>
+          <p>
+            b-ark-chrome is developed and maintained by Ian Stevenson. Questions about this
+            policy can be directed to the contact details in the Chrome Web Store listing.
+          </p>
+
+          <h2>What data the extension handles</h2>
+          <p>To back up your blipfoto journal, the extension:</p>
+          <ul>
+            <li>
+              Authenticates you to blipfoto using OAuth 2.0 and stores the resulting access
+              token, encrypted with AES-GCM, in your browser's local extension storage.
+            </li>
+            <li>
+              Fetches your journal entries, metadata, and images from the blipfoto API and
+              its associated content delivery infrastructure.
+            </li>
+            <li>Writes that content to a local folder on your device that you select.</li>
+            <li>
+              Stores extension settings and backup status in your browser's local extension
+              storage.
+            </li>
+          </ul>
+
+          <h2>Where your data goes</h2>
+          <p>
+            Nowhere except your own device. The extension communicates only with blipfoto's
+            own servers (<code>api.blipfoto.com</code> and associated infrastructure) to
+            retrieve your content. It does not send your data, your blipfoto credentials,
+            your journal content, or any usage information to the developer or any third
+            party. No analytics, crash reporting, or telemetry of any kind is collected.
+          </p>
+
+          <h2>What is stored and where</h2>
+          <p>
+            All extension state (settings, backup status, encrypted token) is held in
+            <code>chrome.storage.local</code> on your device. Your access token is stored
+            encrypted; the encryption key is held in your browser's IndexedDB and never
+            leaves your device. Your backed-up journal content is written to the local folder
+            you choose. Nothing is synced to your Google account or any remote storage.
+          </p>
+
+          <h2>blipfoto's own privacy practices</h2>
+          <p>
+            When you authenticate and when the extension fetches your journal, your requests
+            are processed by blipfoto's servers under blipfoto's own privacy policy. This
+            extension has no control over blipfoto's data practices.
+          </p>
+
+          <h2>Your rights</h2>
+          <p>
+            Because this extension holds no data about you on any server the developer
+            controls, there is nothing for the developer to retrieve, correct, or delete on
+            your behalf. All data held by the extension exists on your own device and is under
+            your control. You can remove it at any time by uninstalling the extension or
+            deleting the backup folder.
+          </p>
+
+          <h2>Changes to this policy</h2>
+          <p>
+            If this policy changes materially, the updated version will be published at this
+            URL with a revised date at the top.
+          </p>
+        </div>
+      </section>
+    </main>
+
+    <footer class="footer">
+      <div class="page footer-inner">
+        <div>&copy; b-oss : blipfoto open source software</div>
+        <div><a href="contact.html">Contact</a></div>
+      </div>
+    </footer>
+  </body>
+</html>
