@@ -320,6 +320,12 @@ section.block:first-of-type {
   background: var(--green-700);
   border-color: var(--green-700);
 }
+.btn.disabled,
+.btn[aria-disabled='true'] {
+  opacity: 0.45;
+  pointer-events: none;
+  cursor: default;
+}
 .btn-row {
   display: flex;
   gap: 10px;
