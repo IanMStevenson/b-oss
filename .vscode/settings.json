@@ -7,5 +7,6 @@
   "typescript.tsdk": "node_modules/typescript/lib",
   "typescript.enablePromptUseWorkspaceTsdk": true,
   "vitest.enable": true,
-  "vitest.commandLine": "npx vitest"
+  "vitest.commandLine": "npx vitest",
+  "vitest.rootConfig": "./vitest.config.ts"
 }
