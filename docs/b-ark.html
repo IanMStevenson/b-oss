@@ -33,7 +33,10 @@
       <section class="hero" data-screen-label="b-ark hero">
         <img class="hero-icon" src="assets/b-oss-icon-large.png" alt="b-ark" />
         <h1>b-ark</h1>
-        <p class="lead">Archive your blips on your own device (Windows).</p>
+        <p class="lead">
+          Archive your blips on your own device — as a Windows desktop app or a Chrome
+          browser extension.
+        </p>
       </section>
 
       <section class="block" data-screen-label="Introduction">
@@ -80,8 +83,45 @@
         </div>
       </div>
 
-      <section class="block" id="download" data-screen-label="Three big links">
-        <p class="section-eyebrow">Get b-ark</p>
+      <section class="block" data-screen-label="Desktop or Chrome">
+        <p class="section-eyebrow">Desktop or Chrome browser plugin</p>
+        <div
+          class="prose"
+          style="
+            margin-top: 18px;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 28px 44px;
+          "
+        >
+          <div>
+            <h3 style="margin-top: 0">Choose b-ark-chrome if…</h3>
+            <p>
+              you're on Mac or Linux, you usually post from your computer, or you want the
+              simplest possible setup — one click from the Chrome Web Store, no installer, no
+              security warnings, and silent automatic updates.
+            </p>
+          </div>
+          <div>
+            <h3 style="margin-top: 0">Choose b-ark if…</h3>
+            <p>
+              you regularly post from your phone or tablet and want your backup to happen on a
+              timer, automatically, regardless of whether you open a browser. As long as your
+              Windows PC is running, b-ark will keep your archive up to date.
+            </p>
+          </div>
+        </div>
+        <p style="margin-top: 18px">
+          <a href="b-ark-versions.html">Compare in detail →</a>
+        </p>
+      </section>
+
+      <section class="block" id="download" data-screen-label="Get it">
+        <p class="section-eyebrow">Get it</p>
+
+        <p id="get-b-ark" class="section-eyebrow" style="margin-top: 8px; color: var(--ink-2)">
+          b-ark · Windows desktop
+        </p>
         <div class="tri-links">
           <a
             class="tri-link"
@@ -130,7 +170,66 @@
             <h3>User Guide</h3>
             <p>Setup, scheduling, restoring: everything you'll need.</p>
           </a>
+        </div>
 
+        <p id="get-b-ark-chrome" class="section-eyebrow" style="margin-top: 24px; color: var(--ink-2)">
+          b-ark-chrome · browser extension
+        </p>
+        <div class="tri-links">
+          <!-- TODO: web store URL — swap this disabled tile for a real link once published -->
+          <a
+            class="tri-link"
+            aria-disabled="true"
+            style="opacity: 0.45; pointer-events: none; cursor: default"
+            data-link="web-store"
+          >
+            <span class="ico" aria-hidden="true">
+              <svg width="32" height="32" viewBox="0 0 32 32" fill="none">
+                <rect
+                  x="4"
+                  y="6"
+                  width="24"
+                  height="20"
+                  rx="3"
+                  stroke="currentColor"
+                  stroke-width="2"
+                />
+                <path d="M4 11h24" stroke="currentColor" stroke-width="2" />
+                <circle cx="8" cy="8.5" r="1" fill="currentColor" />
+                <circle cx="12" cy="8.5" r="1" fill="currentColor" />
+                <circle cx="16" cy="8.5" r="1" fill="currentColor" />
+              </svg>
+            </span>
+            <h3>Chrome Web Store</h3>
+            <p>Coming soon to the Chrome Web Store.</p>
+          </a>
+
+          <a class="tri-link" href="b-ark-chrome-guide.html" data-link="chrome-user-guide">
+            <span class="ico" aria-hidden="true">
+              <svg width="32" height="32" viewBox="0 0 32 32" fill="none">
+                <path
+                  d="M6 5h12a4 4 0 0 1 4 4v18l-5-3-5 3-5-3-5 3V7a2 2 0 0 1 2-2Z"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linejoin="round"
+                />
+                <path
+                  d="M10 11h10M10 16h10M10 21h6"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                />
+              </svg>
+            </span>
+            <h3>User Guide</h3>
+            <p>Install, connect, and back up from your browser.</p>
+          </a>
+        </div>
+
+        <p class="section-eyebrow" style="margin-top: 24px; color: var(--ink-2)">
+          Both versions
+        </p>
+        <div class="tri-links">
           <a class="tri-link" href="https://github.com/IanMStevenson/b-oss" data-link="open-source">
             <span class="ico" aria-hidden="true">
               <svg width="32" height="32" viewBox="0 0 32 32" fill="none">
