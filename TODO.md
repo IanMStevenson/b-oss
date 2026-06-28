@@ -41,4 +41,6 @@ npm run dev --workspace=packages/b-ark
 
 ## b-ark-chrome todos
 
-Delete plan in packages-b-ark folder after completion
+Live with it and test it thoroughly
+
+Consider release options once happy/stable - straight to chrome store?
