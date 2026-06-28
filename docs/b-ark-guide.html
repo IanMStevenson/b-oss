@@ -33,8 +33,8 @@
       <section class="hero" data-screen-label="Guide hero">
         <h1>b-ark user guide</h1>
         <p class="lead">
-          Install, set up, and get the most out of b-ark: every photo, caption, comment and
-          piece of metadata, safely on your own machine.
+          Install, set up, and get the most out of b-ark: every photo, caption, comment and piece of
+          metadata, safely on your own machine.
         </p>
       </section>
 
@@ -69,8 +69,9 @@
 
           <h2 id="browser-warning">2. Browser download warning</h2>
           <p>
-            Because the b-ark installer is not signed by a commercial certificate authority, your
-            browser will warn you before saving it. The steps differ slightly by browser.
+            Because the b-ark installer is not signed by a commercial certificate authority (and I'm
+            not spending hundreds of pounds on such a certificate), your browser will warn you
+            before saving it. The steps differ slightly by browser.
           </p>
 
           <h3>Microsoft Edge</h3>
@@ -137,9 +138,8 @@
 
           <h2 id="installation">4. Installation</h2>
           <p>
-            The installer runs silently with no options to choose. It installs b-ark into
-            your user profile (no administrator rights required) and launches the app when it
-            finishes.
+            The installer runs silently with no options to choose. It installs b-ark into your user
+            profile (no administrator rights required) and launches the app when it finishes.
           </p>
 
           <h2 id="choose-folder">5. Choose a backup folder</h2>
@@ -201,8 +201,8 @@
               If you need to sign in to blipfoto with a <em>different</em> browser identity (for
               example, you are already logged in to blipfoto in your browser as one user), click the
               small <strong>dropdown arrow</strong> next to the button and choose
-              <strong>"Force new sign-in…"</strong>. This opens a fresh sign-in window inside
-              b-ark so you don't have to log out of your browser first.
+              <strong>"Force new sign-in…"</strong>. This opens a fresh sign-in window inside b-ark
+              so you don't have to log out of your browser first.
             </li>
           </ul>
 
@@ -215,6 +215,12 @@
           <p>
             You can also start a backup at any time using the <strong>"Backup now"</strong>
             button in the main toolbar.
+          </p>
+          <p>
+            <strong>Your first backup may take hours</strong> if you have thousands of blips. The
+            blipfoto API which we use to access your blips has a rate limit which means we can only
+            retrieve about 450 images in a 15 minute period. When the rate limit is reached, b-ark
+            pauses and counts down automatically before resuming. No action needed.
           </p>
           <figure>
             <img src="assets/guide/backup-progress.png" alt="Backup in progress" />
@@ -315,8 +321,8 @@
               <tr>
                 <td>Start with Windows</td>
                 <td>
-                  When enabled, b-ark opens silently to the system tray each time you log in,
-                  so scheduled backups keep running without you having to remember to launch the app.
+                  When enabled, b-ark opens silently to the system tray each time you log in, so
+                  scheduled backups keep running without you having to remember to launch the app.
                 </td>
               </tr>
               <tr>
@@ -389,8 +395,8 @@
           </p>
           <ol>
             <li>
-              b-view prompts you to <strong>"Open backup folder"</strong>: click it and
-              select the backup folder using the native folder picker.
+              b-view prompts you to <strong>"Open backup folder"</strong>: click it and select the
+              backup folder using the native folder picker.
             </li>
             <li>After that, navigation is identical to the browser mode above.</li>
           </ol>
@@ -404,15 +410,15 @@
           <h3>b-view for publishing a website</h3>
           <p>
             b-view can be used to publish your backup as a website if you so wish. Copy your backup
-            folder to any static web host and browse to the URL. b-view does the rest. No
-            setup required.
+            folder to any static web host and browse to the URL. b-view does the rest. No setup
+            required.
           </p>
 
           <h2 id="ai">10. Using your backup with AI</h2>
           <p>
             Each account's backup folder contains a <code>README.md</code> file. It explains your
-            journal's data format and gives guidance on using the backup with AI assistants:
-            Claude, ChatGPT, Copilot, Gemini, and others.
+            journal's data format and gives guidance on using the backup with AI assistants: Claude,
+            ChatGPT, Copilot, Gemini, and others.
           </p>
           <p><strong>The README includes:</strong></p>
           <ul>
@@ -437,8 +443,8 @@
               <em>"Please read the README.md file in this backup before we start."</em>
             </li>
             <li>
-              Describe what you want: a photo book, a timeline, a search, a summary, or
-              something else.
+              Describe what you want: a photo book, a timeline, a search, a summary, or something
+              else.
             </li>
           </ol>
 
@@ -489,8 +495,7 @@
 
           <p><strong>Questions and searches</strong></p>
           <p>
-            Not every request needs to produce a document. Sometimes you just want an answer.
-            Try:
+            Not every request needs to produce a document. Sometimes you just want an answer. Try:
           </p>
           <ul>
             <li><em>"What are the dates of all my entries that mention Brighton?"</em></li>

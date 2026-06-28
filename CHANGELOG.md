@@ -12,6 +12,13 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   multi-account `App`, `ElectronBackend`, and thin container wrappers). Desktop b-ark
   behaviour is unchanged; the split lets the forthcoming Chrome plugin reuse the kit.
 
+## [1.0.1] - 2026-06-14
+
+### Fixed
+
+- File renames during atomic writes could fail on some systems; the rename
+  step is now reliable
+
 ## [1.0.0] - 2026-06-11
 
 ### Added
