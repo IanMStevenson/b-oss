@@ -187,7 +187,14 @@ function main() {
     process.exit(1);
   }
 
-  const files = collectFiles(DIST);
+  // Strip the "key" field from the distributed manifest — the Web Store rejects it.
+  // The source manifest keeps the key so local dev builds retain the pinned extension ID.
+  const files = collectFiles(DIST).map(f => {
+    if (f.rel !== 'manifest.json') return f;
+    const m = JSON.parse(f.data.toString('utf8'));
+    delete m.key;
+    return { rel: f.rel, data: Buffer.from(JSON.stringify(m, null, 2), 'utf8') };
+  });
   const zip = buildZip(files);
   const zipPath = join(PKG_ROOT, `b-ark-chrome-${version}.zip`);
   writeFileSync(zipPath, zip);

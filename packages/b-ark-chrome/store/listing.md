@@ -78,10 +78,16 @@ https://ianmstevenson.github.io/b-oss/b-ark-chrome-privacy.html
 
 ### Permission justifications
 
-See `packages/b-ark-chrome/chrome-permissions.md` for the full reviewer-facing
-justification of every permission and host permission, plus the one-line summary table
-to paste into the form. Covers: `storage`, `webRequest`, and the four host permissions
-(`api.blipfoto.com`, `*.blipfoto.com`, `*.cloudfront.net`, `s3.eu-west-1.amazonaws.com`).
+Paste one entry per permission field in the dashboard. Each is under 1000 characters.
+
+**storage**
+b-ark uses chrome.storage.local to share state between three separate browser contexts: the background service worker, the on-page status chip (a content script), and the backup page. All three must stay in sync and react to each other's changes. chrome.storage.local is the only API reachable from all three contexts that also fires cross-context change events, which the chip and backup page listen to for live status updates. It also stores the user's settings and holds the user's encrypted OAuth token (AES-GCM encrypted; the decryption key lives in IndexedDB and never touches storage). No alternative API provides both cross-context access and change notifications.
+
+**webRequest**
+b-ark signs in the user via Blipfoto's OAuth flow. Blipfoto's server requires a custom-scheme redirect URI (bark-chrome://) for distributed apps — it explicitly rejects standard https:// redirects, so chrome.identity.launchWebAuthFlow cannot be used. When the sign-in completes, Blipfoto issues a redirect to bark-chrome://oauth/callback with the access token in the URL fragment. webRequest.onBeforeRedirect is the only browser API that can intercept this redirect and read the token from the fragment before the browser discards it. The listener is read-only (non-blocking), scoped only to \*.blipfoto.com, active only during a sign-in attempt, and removed immediately on completion or timeout.
+
+**Host permissions (all four URLs — paste as one block)**
+b-ark needs four host permissions to back up a Blipfoto journal. api.blipfoto.com is the Blipfoto REST API used to list and download journal entries. _.blipfoto.com covers the on-page status chip and publish-watcher content scripts (which run on Blipfoto pages), plus the OAuth sign-in flow. _.cloudfront.net is required to download entry images: Blipfoto serves images via multiple CloudFront distributions whose hostnames are assigned by AWS and are only known at runtime from API responses — they cannot be hardcoded. s3.eu-west-1.amazonaws.com is required for original-resolution images, which Blipfoto serves as short-lived presigned S3 URLs rather than via CloudFront. All requests are made only to URLs supplied by the Blipfoto API; no speculative or unrelated requests are made to any of these hosts.
 
 ### Data usage declarations
 
