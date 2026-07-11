@@ -77,6 +77,7 @@ interface ThumbnailGridProps {
   jumpToEntryId?: string | null;
   onTopLeftEntryDate?: (date: string | null) => void;
   resolveEntry?: (jsonPath: string) => Promise<BlipEntry>;
+  assetRevision?: number;
 }
 
 function ThumbnailItem({
@@ -87,6 +88,7 @@ function ThumbnailItem({
   resolveAsset,
   tileSize,
   showInfoOverlay,
+  assetRevision,
 }: {
   entry: EntryIndex;
   selected: boolean;
@@ -95,6 +97,7 @@ function ThumbnailItem({
   resolveAsset?: ResolveAsset;
   tileSize: number;
   showInfoOverlay: boolean;
+  assetRevision?: number;
 }) {
   const [imgError, setImgError] = useState(false);
   const syncSrc = resolveAsset
@@ -108,13 +111,18 @@ function ThumbnailItem({
     if (!resolveAsset) return;
     let cancelled = false;
     setAsyncSrc(null);
-    void Promise.resolve(resolveAsset(entry.thumbnail_path)).then((url) => {
-      if (!cancelled) setAsyncSrc(url);
-    });
+    setImgError(false);
+    Promise.resolve(resolveAsset(entry.thumbnail_path))
+      .then((url) => {
+        if (!cancelled) setAsyncSrc(url);
+      })
+      .catch(() => {
+        if (!cancelled) setImgError(true);
+      });
     return () => {
       cancelled = true;
     };
-  }, [resolveAsset, entry.thumbnail_path]);
+  }, [resolveAsset, entry.thumbnail_path, assetRevision]);
 
   const src = resolveAsset ? asyncSrc : syncSrc;
 
@@ -162,6 +170,7 @@ export function ThumbnailGrid({
   jumpToEntryId,
   onTopLeftEntryDate,
   resolveEntry,
+  assetRevision,
 }: ThumbnailGridProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const { width, height } = useContainerSize(containerRef);
@@ -367,6 +376,7 @@ export function ThumbnailGrid({
                 resolveAsset={resolveAsset}
                 tileSize={tileSize}
                 showInfoOverlay={showInfoOverlay}
+                assetRevision={assetRevision}
               />
             ))}
           </div>

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (C) 2026 Ian Stevenson
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import {
   ChevronLeft,
   ChevronRight,
@@ -20,6 +20,7 @@ import {
 import type { BlipEntry, BlipComment, EntryIndex } from '../types.js';
 import type { EntryState } from '../hooks/useEntry.js';
 import { DatePicker } from './DatePicker.js';
+import { Lightbox } from './Lightbox.js';
 import styles from './EntryDetail.module.css';
 
 type ResolveAsset = (path: string) => Promise<string> | string;
@@ -57,6 +58,30 @@ interface EntryDetailProps {
   baseUrl?: string;
   resolveAsset?: ResolveAsset;
   entries?: EntryIndex[];
+}
+
+function AsyncThumb({
+  path,
+  syncSrc,
+  resolveAsset,
+}: {
+  path: string;
+  syncSrc: string | undefined;
+  resolveAsset: ResolveAsset | undefined;
+}) {
+  const [src, setSrc] = useState<string | null>(syncSrc ?? null);
+  useEffect(() => {
+    if (!resolveAsset) return;
+    let cancelled = false;
+    void Promise.resolve(resolveAsset(path)).then((url) => {
+      if (!cancelled) setSrc(url);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [path, resolveAsset]);
+  if (!src) return null;
+  return <img src={src} alt="" className={styles.extraThumbImg} />;
 }
 
 function ExifRows({ exif }: { exif: NonNullable<BlipEntry['exif']> }) {
@@ -116,20 +141,51 @@ export function EntryDetail({
   entries,
 }: EntryDetailProps) {
   const [asyncImageSrc, setAsyncImageSrc] = useState<string | null>(null);
+  const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
+  // Resolved URLs for all lightbox images: [main, ...extras stdres]
+  const [lightboxUrls, setLightboxUrls] = useState<string[]>([]);
 
   const imagePath =
     entryState.status === 'loaded'
       ? (entryState.data.images.image ?? entryState.data.images.thumbnail ?? null)
       : null;
 
+  const extras = entryState.status === 'loaded' ? (entryState.data.images.extras ?? []) : [];
+
+  const resolveUrl = useCallback(
+    (path: string): string | Promise<string> => {
+      if (resolveAsset) return resolveAsset(path);
+      return baseUrl ? `${baseUrl}/${path}` : path;
+    },
+    [resolveAsset, baseUrl],
+  );
+
+  // Resolve all lightbox URLs whenever entry or resolveAsset changes
+  useEffect(() => {
+    if (entryState.status !== 'loaded') return;
+    const entry = entryState.data;
+    const mainPath = entry.images.image ?? entry.images.thumbnail ?? null;
+    const extraPaths = (entry.images.extras ?? []).map((e) => e.image ?? e.thumbnail ?? null);
+    const allPaths = [mainPath, ...extraPaths].filter((p): p is string => p !== null);
+    let cancelled = false;
+    void Promise.all(allPaths.map((p) => Promise.resolve(resolveUrl(p)))).then((urls) => {
+      if (!cancelled) setLightboxUrls(urls);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [entryState, resolveUrl]);
+
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
+      // Only handle entry navigation keys when lightbox is closed
+      if (lightboxIndex !== null) return;
       if (e.key === 'ArrowLeft' && prevEntryId) onNavigate(prevEntryId);
       if (e.key === 'ArrowRight' && nextEntryId) onNavigate(nextEntryId);
     };
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
-  }, [prevEntryId, nextEntryId, onNavigate]);
+  }, [prevEntryId, nextEntryId, onNavigate, lightboxIndex]);
 
   useEffect(() => {
     if (!resolveAsset || !imagePath) {
@@ -144,6 +200,11 @@ export function EntryDetail({
       cancelled = true;
     };
   }, [resolveAsset, imagePath]);
+
+  // Reset lightbox when navigating to a new entry
+  useEffect(() => {
+    setLightboxIndex(null);
+  }, [entryState]);
 
   const syncImageSrc =
     !resolveAsset && imagePath ? (baseUrl ? `${baseUrl}/${imagePath}` : imagePath) : null;
@@ -304,12 +365,57 @@ export function EntryDetail({
                 )}
               </div>
 
+              {/* Extras thumbnail row */}
+              {extras.length > 0 && (
+                <div className={styles.extrasRow}>
+                  {extras.slice(0, 2).map((extra, i) => {
+                    const thumbPath = extra.thumbnail ?? extra.image ?? null;
+                    if (!thumbPath) return null;
+                    const thumbSrc = resolveAsset
+                      ? undefined
+                      : baseUrl
+                        ? `${baseUrl}/${thumbPath}`
+                        : thumbPath;
+                    // lightbox index: 0 = main, 1+ = extras
+                    const lightboxIdx = i + 1;
+                    const isLast = i === 1 && extras.length > 2;
+                    const overflow = extras.length - 2;
+                    return (
+                      <button
+                        key={extra.item_id}
+                        className={styles.extraThumb}
+                        onClick={() => setLightboxIndex(lightboxIdx)}
+                        aria-label={`View extra image ${i + 1}`}
+                      >
+                        <AsyncThumb
+                          path={thumbPath}
+                          syncSrc={thumbSrc}
+                          resolveAsset={resolveAsset}
+                        />
+                        {isLast && overflow > 0 && (
+                          <div className={styles.extraOverflow}>+{overflow}</div>
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+
               {/* EXIF */}
               {entry.exif && <ExifRows exif={entry.exif} />}
             </div>
           </div>
         </div>
       </div>
+
+      {lightboxIndex !== null && lightboxUrls.length > 0 && (
+        <Lightbox
+          images={lightboxUrls}
+          index={lightboxIndex}
+          onClose={() => setLightboxIndex(null)}
+          onNavigate={setLightboxIndex}
+        />
+      )}
     </div>
   );
 }

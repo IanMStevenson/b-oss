@@ -434,6 +434,7 @@ function BackupPageRoot() {
     isBackingUp ? 5000 : undefined,
   );
   const entries = journalState.status === 'loaded' ? journalState.data.entries : [];
+  const pollTick = journalState.status === 'loaded' ? journalState.pollTick : 0;
 
   const resolveEntry = useCallback(
     async (jsonPath: string): Promise<BlipEntry> => {
@@ -857,6 +858,7 @@ function BackupPageRoot() {
             }}
             resolveAsset={resolveAsset}
             resolveEntry={resolveEntry}
+            assetRevision={refreshNonce + pollTick}
           />
         </div>
         {selectedEntryId !== null && (

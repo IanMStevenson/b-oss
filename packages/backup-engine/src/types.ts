@@ -56,6 +56,14 @@ export interface BlipEntry {
     image?: string;
     original?: string;
     hires?: string;
+    extras?: Array<{
+      item_id: string;
+      thumbnail?: string;
+      image?: string;
+      hires?: string;
+      original?: string;
+    }>;
+    web_scraped?: boolean;
   };
 
   backed_up_at: string;
@@ -93,7 +101,7 @@ export type BackupErrorPayload =
   | { kind: 'api_error'; code: number; message: string }
   | { kind: 'filesystem'; message: string };
 
-export type BackupPhase = 'redo' | 'gap_fill' | 'new_posts' | 'image_repair';
+export type BackupPhase = 'redo' | 'gap_fill' | 'new_posts' | 'image_repair' | 'full_image_repair';
 
 export type BackupEvent =
   | {
@@ -128,4 +136,6 @@ export interface AccountBackupConfig {
   api_delay_ms: number;
   metadata_write_interval: number;
   app_version: string;
+  enable_web_scrape: boolean;
+  download_hires: boolean;
 }

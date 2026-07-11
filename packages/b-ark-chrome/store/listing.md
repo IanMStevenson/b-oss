@@ -48,7 +48,8 @@ your entries and their images — keeping your backup in step with your journal 
 Features
 
 - Backup. A local copy of every blip, updated automatically.
-- View. Browse your archive offline in the built-in viewer.
+- Original images. Optionally download the full-resolution original upload and any extra images attached to an entry (requires Blipfoto subscription for originals; must be signed in to Blipfoto in Chrome).
+- View. Browse your archive offline in the built-in viewer, including extra images.
 - Publish. Copy the backup folder to any web host to publish.
 - AI-ready. README.md for AI tools: Use AI to build photobooks, slideshows, statistics, custom sites.
 - Everything is stored on your own computer - nothing is uploaded to any third-party
@@ -86,8 +87,8 @@ b-ark uses chrome.storage.local to share state between three separate browser co
 **webRequest**
 b-ark signs in the user via Blipfoto's OAuth flow. Blipfoto's server requires a custom-scheme redirect URI (bark-chrome://) for distributed apps — it explicitly rejects standard https:// redirects, so chrome.identity.launchWebAuthFlow cannot be used. When the sign-in completes, Blipfoto issues a redirect to bark-chrome://oauth/callback with the access token in the URL fragment. webRequest.onBeforeRedirect is the only browser API that can intercept this redirect and read the token from the fragment before the browser discards it. The listener is read-only (non-blocking), scoped only to \*.blipfoto.com, active only during a sign-in attempt, and removed immediately on completion or timeout.
 
-**Host permissions (all four URLs — paste as one block)**
-b-ark needs four host permissions to back up a Blipfoto journal. api.blipfoto.com is the Blipfoto REST API used to list and download journal entries. _.blipfoto.com covers the on-page status chip and publish-watcher content scripts (which run on Blipfoto pages), plus the OAuth sign-in flow. _.cloudfront.net is required to download entry images: Blipfoto serves images via multiple CloudFront distributions whose hostnames are assigned by AWS and are only known at runtime from API responses — they cannot be hardcoded. s3.eu-west-1.amazonaws.com is required for original-resolution images, which Blipfoto serves as short-lived presigned S3 URLs rather than via CloudFront. All requests are made only to URLs supplied by the Blipfoto API; no speculative or unrelated requests are made to any of these hosts.
+**Host permissions (all five URLs — paste as one block)**
+b-ark needs five host permissions to back up a Blipfoto journal. api.blipfoto.com is the Blipfoto REST API used to list and download journal entries. _.blipfoto.com covers the on-page status chip and publish-watcher content scripts (which run on Blipfoto pages), the OAuth sign-in flow, and — when the user enables the optional original-image download feature — fetching entry pages to extract full-resolution image URLs using the user's existing browser session. _.cloudfront.net is required to download entry images: Blipfoto serves images via multiple CloudFront distributions whose hostnames are assigned by AWS and are only known at runtime from API responses — they cannot be hardcoded. s3.eu-west-1.amazonaws.com and \*.s3.eu-west-1.amazonaws.com are both required for original-resolution images: Blipfoto serves these as short-lived presigned S3 URLs, using either path-style or subdomain-style S3 addressing depending on the bucket. All requests are made only to URLs supplied by the Blipfoto API or Blipfoto page content; no speculative or unrelated requests are made to any of these hosts.
 
 ### Data usage declarations
 

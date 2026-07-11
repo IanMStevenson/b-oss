@@ -132,6 +132,8 @@ export function registerIpcHandlers(
             api_delay_ms: account.api_delay_ms,
             metadata_write_interval: 0,
             app_version: __APP_VERSION__,
+            enable_web_scrape: false,
+            download_hires: false,
           },
           pio,
           client,

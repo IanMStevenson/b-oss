@@ -13,7 +13,7 @@ export { getNestedFileHandle, readFileText };
 export type FsaJournalState =
   | { status: 'idle' }
   | { status: 'loading' }
-  | { status: 'loaded'; data: JournalMetadata }
+  | { status: 'loaded'; data: JournalMetadata; pollTick: number }
   | { status: 'error'; error: string };
 
 export function useFsaJournal(
@@ -24,6 +24,7 @@ export function useFsaJournal(
 ): FsaJournalState {
   const [state, setState] = useState<FsaJournalState>({ status: 'idle' });
   const entryCountRef = useRef<number | null>(null);
+  const pollTickRef = useRef<number>(0);
   const lastNonceRef = useRef<number>(refreshNonce);
 
   // Effect 1: Initial load — shows loading state, seeds entryCountRef
@@ -39,7 +40,7 @@ export function useFsaJournal(
       .then((data) => {
         if (cancelled) return;
         entryCountRef.current = data.entries.length;
-        setState({ status: 'loaded', data });
+        setState({ status: 'loaded', data, pollTick: 0 });
       })
       .catch((e: unknown) => {
         if (cancelled) return;
@@ -51,15 +52,20 @@ export function useFsaJournal(
     };
   }, [handle, username]);
 
-  // Effect 2: Polling during backup — silent, only updates when entry count changes
+  // Effect 2: Polling during backup — updates data when entry count changes;
+  // always increments pollTick so stuck thumbnail loads can retry each cycle.
   useEffect(() => {
     if (!refreshIntervalMs || !handle || !username) return;
     const id = setInterval(() => {
       readJournal(handle, username)
         .then((data) => {
+          pollTickRef.current += 1;
+          const tick = pollTickRef.current;
           if (data.entries.length !== entryCountRef.current) {
             entryCountRef.current = data.entries.length;
-            setState({ status: 'loaded', data });
+            setState({ status: 'loaded', data, pollTick: tick });
+          } else {
+            setState((prev) => (prev.status === 'loaded' ? { ...prev, pollTick: tick } : prev));
           }
         })
         .catch((err: unknown) => {
@@ -80,7 +86,7 @@ export function useFsaJournal(
     readJournal(handle, username)
       .then((data) => {
         entryCountRef.current = data.entries.length;
-        setState({ status: 'loaded', data });
+        setState({ status: 'loaded', data, pollTick: 0 });
       })
       .catch((err: unknown) => {
         // Keep showing existing state on refresh errors; leave a breadcrumb for debugging.

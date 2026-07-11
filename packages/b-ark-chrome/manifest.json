@@ -15,7 +15,8 @@
     "https://api.blipfoto.com/*",
     "https://*.cloudfront.net/*",
     "https://*.blipfoto.com/*",
-    "https://s3.eu-west-1.amazonaws.com/*"
+    "https://s3.eu-west-1.amazonaws.com/*",
+    "https://*.s3.eu-west-1.amazonaws.com/*"
   ],
   "background": {
     "service_worker": "src/sw.ts",
