@@ -729,7 +729,31 @@ export class BackupEngine {
           scrapeChecked++;
           continue;
         }
-        const needsScrape = !entry.images.web_scraped;
+        let needsScrape = !entry.images.web_scraped;
+        if (!needsScrape) {
+          const originalAbs = joinPath(
+            journalFolder,
+            JournalIndex.entryOriginalPath(entryIdx.date),
+          );
+          const missingMainOriginal =
+            !entry.images.original && !(await this.io.fileExists(originalAbs));
+          if (missingMainOriginal) {
+            needsScrape = true;
+          } else if (entry.images.extras) {
+            for (const extra of entry.images.extras) {
+              if (!extra.original) {
+                const extraOrigAbs = joinPath(
+                  journalFolder,
+                  JournalIndex.extraOriginalPath(entryIdx.date, extra.item_id),
+                );
+                if (!(await this.io.fileExists(extraOrigAbs))) {
+                  needsScrape = true;
+                  break;
+                }
+              }
+            }
+          }
+        }
         if (!needsScrape) {
           scrapeChecked++;
           this.onEvent({
