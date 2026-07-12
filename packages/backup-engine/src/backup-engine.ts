@@ -398,8 +398,8 @@ export class BackupEngine {
     // Save journal.json incrementally after each entry change so the embedded
     // viewer's polling picks up updates as the backup progresses, mirroring
     // the first-backup save cadence.
-    const saveSnapshot = async (): Promise<void> => {
-      if (!this.shouldFlushMetadata()) return;
+    const saveSnapshot = async (force = false): Promise<void> => {
+      if (!force && !this.shouldFlushMetadata()) return;
       await journalIndex.save({
         schema_version: 1,
         username: this.config.username,
@@ -625,7 +625,7 @@ export class BackupEngine {
         indexById.set(entry.entry_id, JournalIndex.toEntryIndex(entry));
         await this.appendLog('info', `Fetched new entry ${entry.date}`);
         consecutiveFailures = 0;
-        await saveSnapshot();
+        await saveSnapshot(true);
       } catch (err) {
         if (err instanceof BackupAbortedError) throw err;
         consecutiveFailures++;

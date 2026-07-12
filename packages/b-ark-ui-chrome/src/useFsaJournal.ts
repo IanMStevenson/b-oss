@@ -103,7 +103,7 @@ export function useFsaJournal(
 export function useFsaAssets(
   dirHandle: FileSystemDirectoryHandle | null,
   username: string | null,
-): { resolveAsset: (path: string) => Promise<string> } {
+): { resolveAsset: (path: string) => Promise<string>; invalidateAsset: (path: string) => void } {
   const blobCache = useRef<Map<string, string>>(new Map());
   const dirHandleRef = useRef<FileSystemDirectoryHandle | null>(dirHandle);
   dirHandleRef.current = dirHandle;
@@ -125,14 +125,32 @@ export function useFsaAssets(
     if (!dir || !user) throw new Error('No folder selected');
     const cached = blobCache.current.get(path);
     if (cached) return cached;
-    const fileHandle = await getNestedFileHandle(dir, `${user}/${path}`);
-    const file = await fileHandle.getFile();
-    const url = URL.createObjectURL(file);
-    blobCache.current.set(path, url);
-    return url;
+    // Retry up to 3 times with a short delay — the FSA can return transient
+    // errors (e.g. NoModificationAllowedError) when the backup engine holds a
+    // writable stream open on a file in the same directory.
+    let lastErr: unknown;
+    for (let attempt = 0; attempt < 3; attempt++) {
+      if (attempt > 0) await new Promise<void>((r) => setTimeout(r, 300 * attempt));
+      try {
+        const fileHandle = await getNestedFileHandle(dir, `${user}/${path}`);
+        const file = await fileHandle.getFile();
+        const url = URL.createObjectURL(file);
+        blobCache.current.set(path, url);
+        return url;
+      } catch (err) {
+        lastErr = err;
+      }
+    }
+    throw lastErr;
   }, []); // stable — reads dirHandle/username via refs at call time
 
-  return { resolveAsset };
+  const invalidateAsset = useCallback((path: string): void => {
+    const url = blobCache.current.get(path);
+    if (url) URL.revokeObjectURL(url);
+    blobCache.current.delete(path);
+  }, []);
+
+  return { resolveAsset, invalidateAsset };
 }
 
 // Loads a single entry's JSON from `{username}/{jsonPath}` into an EntryState.
