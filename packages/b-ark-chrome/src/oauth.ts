@@ -77,7 +77,9 @@ export async function startOAuthFlow(clientId: string): Promise<void> {
     await chrome.storage.local.set({ oauthStatus: 'success', username, via });
   }
 
-  const onRedirect = (details: chrome.webRequest.WebRedirectionResponseDetails): void => {
+  const onRedirect = (
+    details: Parameters<Parameters<typeof chrome.webRequest.onBeforeRedirect.addListener>[0]>[0],
+  ): void => {
     const dest = details.redirectUrl ?? '';
     if (dest.startsWith(SCHEME)) void handle(dest, 'webRequest.onBeforeRedirect');
   };
