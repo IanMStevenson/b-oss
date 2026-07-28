@@ -1,8 +1,70 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (C) 2026 Ian Stevenson
 
+import fs from 'node:fs';
 import http from 'node:http';
-import handler from 'serve-handler';
+import path from 'node:path';
+
+const MIME: Record<string, string> = {
+  '.html': 'text/html',
+  '.js': 'application/javascript',
+  '.css': 'text/css',
+  '.json': 'application/json',
+  '.jpg': 'image/jpeg',
+  '.jpeg': 'image/jpeg',
+  '.png': 'image/png',
+  '.gif': 'image/gif',
+  '.svg': 'image/svg+xml',
+  '.webp': 'image/webp',
+  '.mp4': 'video/mp4',
+  '.webm': 'video/webm',
+  '.woff': 'font/woff',
+  '.woff2': 'font/woff2',
+};
+
+function serveFile(req: http.IncomingMessage, res: http.ServerResponse, filePath: string): void {
+  let stat: fs.Stats;
+  try {
+    stat = fs.statSync(filePath);
+  } catch {
+    res.writeHead(404);
+    res.end('Not Found');
+    return;
+  }
+
+  if (!stat.isFile()) {
+    res.writeHead(404);
+    res.end('Not Found');
+    return;
+  }
+
+  const ext = path.extname(filePath).toLowerCase();
+  const contentType = MIME[ext] ?? 'application/octet-stream';
+  const fileSize = stat.size;
+  const rangeHeader = req.headers['range'];
+
+  if (rangeHeader) {
+    const match = /bytes=(\d*)-(\d*)/.exec(rangeHeader);
+    const start = match?.[1] ? parseInt(match[1], 10) : 0;
+    const end = match?.[2] ? parseInt(match[2], 10) : fileSize - 1;
+    const chunkSize = end - start + 1;
+    const stream = fs.createReadStream(filePath, { start, end });
+    res.writeHead(206, {
+      'Content-Range': `bytes ${start}-${end}/${fileSize}`,
+      'Accept-Ranges': 'bytes',
+      'Content-Length': chunkSize,
+      'Content-Type': contentType,
+    });
+    stream.pipe(res);
+  } else {
+    res.writeHead(200, {
+      'Accept-Ranges': 'bytes',
+      'Content-Length': fileSize,
+      'Content-Type': contentType,
+    });
+    fs.createReadStream(filePath).pipe(res);
+  }
+}
 
 const servers = new Map<string, { server: http.Server; port: number }>();
 
@@ -16,12 +78,23 @@ export async function startServer(accountId: string, backupFolder: string): Prom
     res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
     res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
     res.setHeader('Cache-Control', 'no-store');
+
     if (req.method === 'OPTIONS') {
       res.writeHead(204);
       res.end();
       return;
     }
-    void handler(req, res, { public: backupFolder });
+
+    const urlPath = decodeURIComponent((req.url ?? '/').split('?')[0]);
+    // Prevent path traversal
+    const resolved = path.resolve(backupFolder, '.' + urlPath);
+    if (!resolved.startsWith(path.resolve(backupFolder))) {
+      res.writeHead(403);
+      res.end('Forbidden');
+      return;
+    }
+
+    serveFile(req, res, resolved);
   });
 
   await new Promise<void>((resolve, reject) => {
