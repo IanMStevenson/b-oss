@@ -46,7 +46,7 @@ const CHIP_KEYS = [
 
 export async function readStatus(): Promise<Partial<ChromeStatus>> {
   const r = await chrome.storage.local.get('b_ark_status');
-  return (r['b_ark_status'] ?? {}) as Partial<ChromeStatus>;
+  return (r['b_ark_status'] as Partial<ChromeStatus>) ?? {};
 }
 
 export async function patchStatus(partial: Partial<ChromeStatus>): Promise<void> {

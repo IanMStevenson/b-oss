@@ -189,7 +189,7 @@ export class BrowserBackend implements BackendContext {
 
   private async _readSettings(): Promise<Partial<ChromeSettings>> {
     const r = await chrome.storage.local.get('b_ark_settings');
-    return (r['b_ark_settings'] ?? {}) as Partial<ChromeSettings>;
+    return (r['b_ark_settings'] as Partial<ChromeSettings>) ?? {};
   }
 
   private async _patchSettings(partial: Partial<ChromeSettings>): Promise<void> {
