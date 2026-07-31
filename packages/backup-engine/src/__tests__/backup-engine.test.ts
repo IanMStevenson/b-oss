@@ -784,8 +784,8 @@ describe('BackupEngine — routine backup new posts', () => {
   });
 
   // Shared fixture for the metadata-write-interval tests: a routine backup that
-  // re-fetches 1 entry (redo) and discovers 3 new posts — 4 entry changes in total,
-  // each followed by a gated saveSnapshot(), plus the unconditional final save.
+  // re-fetches 1 entry (redo, gated by metadata_write_interval) and discovers 3 new
+  // posts (each force-saved unconditionally), plus the unconditional final save.
   function setupIntervalScenario(io: MockPlatformIO, client: BlipfotoClient): void {
     seedJournal(io, baseJournal);
     vi.spyOn(client, 'getUserProfile').mockResolvedValue(makeProfileResponse(4));
@@ -831,13 +831,15 @@ describe('BackupEngine — routine backup new posts', () => {
     expect(journalSaves.length).toBe(5);
   });
 
-  it('with a larger metadata_write_interval, flushes journal.json less often (final save always written)', async () => {
+  it('with a larger metadata_write_interval, flushes journal.json less often for redo but always for new posts (final save always written)', async () => {
     const io = new MockPlatformIO();
     const client = makeClient();
     setupIntervalScenario(io, client);
 
-    // interval 2: shouldFlushMetadata() flushes on every 2nd of the 4 entry changes
-    // (the 2nd and 4th), and the final save is always written → 2 + 1 = 3 saves.
+    // interval 2: the redo entry's save is gated by shouldFlushMetadata() (1 change,
+    // not a multiple of 2 → 0 saves); new-posts entries force-save unconditionally so
+    // the embedded viewer sees each one land (3 saves); plus the unconditional final
+    // save → 0 + 3 + 1 = 4 saves.
     const engine = makeEngine(
       makeConfig({ redo_count: 1, metadata_write_interval: 2 }),
       io,
@@ -847,7 +849,7 @@ describe('BackupEngine — routine backup new posts', () => {
     await engine.run();
 
     const journalSaves = io.atomicWrites.filter((p) => p === JOURNAL_PATH);
-    expect(journalSaves.length).toBe(3);
+    expect(journalSaves.length).toBe(4);
 
     // Regardless of cadence, the final journal.json must reflect all archived entries.
     const finalJournal = JSON.parse(io.files.get(JOURNAL_PATH)!) as JournalMetadata;
