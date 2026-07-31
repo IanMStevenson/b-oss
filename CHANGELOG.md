@@ -5,6 +5,16 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Added
+
+- b-ark-chrome: back up Original and Extra images alongside the standard entry images,
+  with a lightbox viewer (b-view `Lightbox`/`EntryDetail`) for browsing them.
+
+### Fixed
+
+- backup-engine: improved missing-image detection and re-fetch logic.
+- b-ark-chrome: thumbnail display during an in-progress backup.
+
 ### Changed
 
 - Split `b-ark-ui` into `b-ark-ui-components` (shared, prop-driven presentational kit +

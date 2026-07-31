@@ -6,8 +6,6 @@ Working!
 
 ## TODO
 
-Sort out v1-0-1
-
 Update b-oss website
 
 - Add provisional link for mac version
@@ -48,6 +46,6 @@ npm run dev --workspace=packages/b-ark
 
 ## b-ark-chrome todos
 
-Live with it and test it thoroughly
+Original/Extra image backup and thumbnail-display-during-backup fixes merged. Live with it and test it thoroughly.
 
 Consider release options once happy/stable - straight to chrome store?
