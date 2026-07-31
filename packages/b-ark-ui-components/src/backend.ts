@@ -108,7 +108,7 @@ export type BackupErrorPayload =
   | { kind: 'api_error'; code: number; message: string }
   | { kind: 'filesystem'; message: string };
 
-export type BackupPhase = 'redo' | 'gap_fill' | 'new_posts' | 'image_repair';
+export type BackupPhase = 'redo' | 'gap_fill' | 'new_posts' | 'image_repair' | 'full_image_repair';
 
 export type BackupEvent =
   | {

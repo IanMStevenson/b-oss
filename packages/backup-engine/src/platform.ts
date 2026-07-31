@@ -12,6 +12,7 @@ export interface PlatformIO {
   rename(from: string, to: string): Promise<void>;
 
   downloadFile(url: string, destPath: string): Promise<void>;
+  fetchHtml(url: string): Promise<string>;
 
   log(entry: import('./types.js').LogEntry): void;
 }

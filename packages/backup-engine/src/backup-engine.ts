@@ -29,6 +29,48 @@ const MAX_CONSECUTIVE_FAILURES = 3;
 const DEFAULT_LOG_TRIM_LINES = 5000;
 const FETCH_PAGE_SIZE = 100;
 
+const BLIPFOTO_SITE = 'https://www.blipfoto.com';
+const GALLERY_MARKER = 'blipfoto.data.gallery = ';
+
+interface GalleryImageUrls {
+  stdres?: string;
+  hires?: string;
+  original?: string;
+}
+
+interface GalleryItem {
+  item_id_str: string;
+  thumbnail_url?: string;
+  image_urls?: GalleryImageUrls;
+}
+
+function extractGalleryItems(html: string): GalleryItem[] | null {
+  const start = html.indexOf(GALLERY_MARKER);
+  if (start === -1) return null;
+  const jsonStart = start + GALLERY_MARKER.length;
+  // The JSON object ends at the first semicolon after a closing brace at the top level.
+  // Walk forward tracking brace depth to find the end.
+  let depth = 0;
+  let end = -1;
+  for (let i = jsonStart; i < html.length; i++) {
+    if (html[i] === '{') depth++;
+    else if (html[i] === '}') {
+      depth--;
+      if (depth === 0) {
+        end = i + 1;
+        break;
+      }
+    }
+  }
+  if (end === -1) return null;
+  try {
+    const gallery = JSON.parse(html.slice(jsonStart, end)) as { items?: GalleryItem[] };
+    return gallery.items ?? null;
+  } catch {
+    return null;
+  }
+}
+
 function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
@@ -356,8 +398,8 @@ export class BackupEngine {
     // Save journal.json incrementally after each entry change so the embedded
     // viewer's polling picks up updates as the backup progresses, mirroring
     // the first-backup save cadence.
-    const saveSnapshot = async (): Promise<void> => {
-      if (!this.shouldFlushMetadata()) return;
+    const saveSnapshot = async (force = false): Promise<void> => {
+      if (!force && !this.shouldFlushMetadata()) return;
       await journalIndex.save({
         schema_version: 1,
         username: this.config.username,
@@ -583,7 +625,7 @@ export class BackupEngine {
         indexById.set(entry.entry_id, JournalIndex.toEntryIndex(entry));
         await this.appendLog('info', `Fetched new entry ${entry.date}`);
         consecutiveFailures = 0;
-        await saveSnapshot();
+        await saveSnapshot(true);
       } catch (err) {
         if (err instanceof BackupAbortedError) throw err;
         consecutiveFailures++;
@@ -660,6 +702,102 @@ export class BackupEngine {
           );
           const code = err instanceof BlipfotoError ? err.code : 0;
           throw new BackupAbortedError({ kind: 'api_error', code, message });
+        }
+      }
+    }
+
+    if (this.config.enable_web_scrape) {
+      const scrapeTotal = indexById.size;
+      this.onEvent({
+        type: 'progress',
+        account_id: this.config.id,
+        done: 0,
+        total: scrapeTotal,
+        current_date: '',
+        total_archived: indexByDate.size,
+        phase: 'full_image_repair',
+      });
+      let scrapeChecked = 0;
+      for (const entryIdx of [...indexById.values()]) {
+        this.checkCancelled();
+        const jsonAbs = joinPath(journalFolder, entryIdx.json_path);
+        let entry: BlipEntry;
+        try {
+          const buf = await this.io.readFile(jsonAbs);
+          entry = JSON.parse(new TextDecoder().decode(buf)) as BlipEntry;
+        } catch {
+          scrapeChecked++;
+          continue;
+        }
+        let needsScrape = !entry.images.web_scraped;
+        if (!needsScrape) {
+          const originalAbs = joinPath(
+            journalFolder,
+            JournalIndex.entryOriginalPath(entryIdx.date),
+          );
+          const missingMainOriginal =
+            !entry.images.original && !(await this.io.fileExists(originalAbs));
+          if (missingMainOriginal) {
+            needsScrape = true;
+          } else if (entry.images.extras) {
+            for (const extra of entry.images.extras) {
+              if (!extra.original) {
+                const extraOrigAbs = joinPath(
+                  journalFolder,
+                  JournalIndex.extraOriginalPath(entryIdx.date, extra.item_id),
+                );
+                if (!(await this.io.fileExists(extraOrigAbs))) {
+                  needsScrape = true;
+                  break;
+                }
+              }
+            }
+          }
+        }
+        if (!needsScrape) {
+          scrapeChecked++;
+          this.onEvent({
+            type: 'progress',
+            account_id: this.config.id,
+            done: scrapeChecked,
+            total: scrapeTotal,
+            current_date: entryIdx.date,
+            total_archived: indexByDate.size,
+            phase: 'full_image_repair',
+          });
+          continue;
+        }
+        await this.appendLog(
+          'info',
+          `Scraping full images for ${entryIdx.date} (full_image_repair)`,
+        );
+        try {
+          const items = await this.fetchGalleryData(entry.entry_id, entry.date);
+          if (items) {
+            await this.fetchExtras(entry, journalFolder, items);
+          }
+          // Always write back so web_scraped:true is persisted — even when the page
+          // had no extras or downloads failed. Without this, every run re-scrapes
+          // all entries that downloaded nothing, and the SW can hang on the Nth attempt.
+          const serialised = JSON.stringify(entry, null, 2);
+          await this.io.atomicWrite(jsonAbs, serialised);
+        } catch (err) {
+          if (err instanceof BackupAbortedError) throw err;
+          const message = err instanceof Error ? err.message : String(err);
+          await this.appendLog('warn', `full_image_repair failed for ${entryIdx.date}: ${message}`);
+        }
+        scrapeChecked++;
+        this.onEvent({
+          type: 'progress',
+          account_id: this.config.id,
+          done: scrapeChecked,
+          total: scrapeTotal,
+          current_date: entryIdx.date,
+          total_archived: indexByDate.size,
+          phase: 'full_image_repair',
+        });
+        if (this.config.api_delay_ms > 0) {
+          await sleep(this.config.api_delay_ms);
         }
       }
     }
@@ -794,10 +932,173 @@ export class BackupEngine {
       }
     }
 
+    if (this.config.enable_web_scrape) {
+      const items = await this.fetchGalleryData(entry.entry_id, entry.date);
+      if (items) {
+        await this.fetchExtras(entry, journalFolder, items);
+      }
+    }
+
     const serialised = JSON.stringify(entry, null, 2);
     await this.io.atomicWrite(jsonAbs, serialised);
 
     return entry;
+  }
+
+  private async fetchGalleryData(entryId: string, date: string): Promise<GalleryItem[] | null> {
+    try {
+      const url = `${BLIPFOTO_SITE}/entry/${entryId}`;
+      await this.appendLog('info', `Scraping gallery data for ${date}`);
+      const html = await this.io.fetchHtml(url);
+      const items = extractGalleryItems(html);
+      if (!items) {
+        await this.appendLog('warn', `Gallery marker not found in HTML for ${date}`);
+      }
+      return items;
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      await this.appendLog('warn', `Could not fetch gallery HTML for ${date}: ${message}`);
+      return null;
+    }
+  }
+
+  private async fetchExtras(
+    entry: BlipEntry,
+    journalFolder: string,
+    items: GalleryItem[],
+  ): Promise<void> {
+    const extras: NonNullable<BlipEntry['images']['extras']> = [];
+
+    for (let i = 0; i < items.length; i++) {
+      const item = items[i];
+      const isMain = i === 0;
+
+      if (isMain) {
+        // For the main image: attempt original, then hires only if original absent/failed
+        // and download_hires is on.
+        const originalRel = JournalIndex.entryOriginalPath(entry.date);
+        const originalAbs = joinPath(journalFolder, originalRel);
+        let gotOriginal = false;
+        if (item.image_urls?.original && !(await this.io.fileExists(originalAbs))) {
+          try {
+            const url = item.image_urls.original.startsWith('http')
+              ? item.image_urls.original
+              : `${BLIPFOTO_SITE}${item.image_urls.original}`;
+            await this.io.downloadFile(url, originalAbs);
+            entry.images.original = originalRel;
+            gotOriginal = true;
+          } catch (err) {
+            const message = err instanceof Error ? err.message : String(err);
+            await this.appendLog(
+              'warn',
+              `Failed to download main original for ${entry.date}: ${message}`,
+            );
+          }
+        } else if (await this.io.fileExists(originalAbs)) {
+          gotOriginal = true;
+        }
+
+        if (!gotOriginal && this.config.download_hires && item.image_urls?.hires) {
+          const hiresRel = JournalIndex.entryHiresPath(entry.date);
+          const hiresAbs = joinPath(journalFolder, hiresRel);
+          if (!(await this.io.fileExists(hiresAbs))) {
+            try {
+              await this.io.downloadFile(item.image_urls.hires, hiresAbs);
+              entry.images.hires = hiresRel;
+            } catch (err) {
+              const message = err instanceof Error ? err.message : String(err);
+              await this.appendLog(
+                'warn',
+                `Failed to download main hires for ${entry.date}: ${message}`,
+              );
+            }
+          }
+        }
+        continue;
+      }
+
+      // Extra images (i >= 1)
+      const itemId = item.item_id_str;
+      const extra: NonNullable<BlipEntry['images']['extras']>[number] = { item_id: itemId };
+
+      const downloads: Array<{
+        label: string;
+        url: string;
+        destAbs: string;
+        assign: (rel: string) => void;
+      }> = [];
+
+      if (item.thumbnail_url) {
+        downloads.push({
+          label: 'extra thumbnail',
+          url: item.thumbnail_url,
+          destAbs: joinPath(journalFolder, JournalIndex.extraThumbnailPath(entry.date, itemId)),
+          assign: (rel) => {
+            extra.thumbnail = rel;
+          },
+        });
+      }
+      if (item.image_urls?.stdres) {
+        downloads.push({
+          label: 'extra stdres',
+          url: item.image_urls.stdres,
+          destAbs: joinPath(journalFolder, JournalIndex.extraImagePath(entry.date, itemId)),
+          assign: (rel) => {
+            extra.image = rel;
+          },
+        });
+      }
+      if (item.image_urls?.original) {
+        const url = item.image_urls.original.startsWith('http')
+          ? item.image_urls.original
+          : `${BLIPFOTO_SITE}${item.image_urls.original}`;
+        downloads.push({
+          label: 'extra original',
+          url,
+          destAbs: joinPath(journalFolder, JournalIndex.extraOriginalPath(entry.date, itemId)),
+          assign: (rel) => {
+            extra.original = rel;
+          },
+        });
+      }
+      if (this.config.download_hires && item.image_urls?.hires) {
+        downloads.push({
+          label: 'extra hires',
+          url: item.image_urls.hires,
+          destAbs: joinPath(journalFolder, JournalIndex.extraHiresPath(entry.date, itemId)),
+          assign: (rel) => {
+            extra.hires = rel;
+          },
+        });
+      }
+
+      for (const dl of downloads) {
+        if (await this.io.fileExists(dl.destAbs)) {
+          // Derive relative path from absolute for the assign call
+          const rel = dl.destAbs.slice(journalFolder.length).replace(/^\//, '');
+          dl.assign(rel);
+          continue;
+        }
+        try {
+          await this.io.downloadFile(dl.url, dl.destAbs);
+          const rel = dl.destAbs.slice(journalFolder.length).replace(/^\//, '');
+          dl.assign(rel);
+        } catch (err) {
+          const message = err instanceof Error ? err.message : String(err);
+          await this.appendLog(
+            'warn',
+            `Failed to download ${dl.label} for ${entry.date} item ${itemId}: ${message}`,
+          );
+        }
+      }
+
+      extras.push(extra);
+    }
+
+    if (extras.length > 0) {
+      entry.images.extras = extras;
+    }
+    entry.images.web_scraped = true;
   }
 
   private mapToBlipEntry(response: EntryResponse): BlipEntry {

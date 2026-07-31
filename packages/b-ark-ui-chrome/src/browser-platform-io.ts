@@ -96,7 +96,10 @@ export class BrowserPlatformIO implements PlatformIO {
   }
 
   async downloadFile(url: string, destPath: string): Promise<void> {
-    const resp = await fetch(url);
+    // credentials:'include' is needed for Blipfoto /download URLs which require
+    // the session cookie. It is harmless for public CloudFront URLs.
+    const signal = AbortSignal.timeout(60_000);
+    const resp = await fetch(url, { credentials: 'include', signal });
     // Guard against non-OK responses — without this, a 404 or 429 (rate-limit) would
     // write the error body (or empty bytes) into the backup as if it were the image.
     if (!resp.ok) {
@@ -104,6 +107,17 @@ export class BrowserPlatformIO implements PlatformIO {
     }
     const bytes = new Uint8Array(await resp.arrayBuffer());
     await this.writeFile(destPath, bytes);
+  }
+
+  async fetchHtml(url: string): Promise<string> {
+    // credentials:'include' sends the user's existing Blipfoto session cookies,
+    // which can reasonably be assumed to be present in the browser context.
+    const signal = AbortSignal.timeout(60_000);
+    const resp = await fetch(url, { credentials: 'include', signal });
+    if (!resp.ok) {
+      throw new Error(`fetchHtml failed: ${resp.status} ${resp.statusText} — ${url}`);
+    }
+    return resp.text();
   }
 
   log(entry: LogEntry): void {

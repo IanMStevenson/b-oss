@@ -128,6 +128,9 @@ export function SettingsOverlay({ backend, account, onClose }: SettingsOverlayPr
   const [gapCheckDays, setGapCheckDays] = useState(account.gap_check_days ?? 30);
   const [redoCount, setRedoCount] = useState(account.redo_count ?? 7);
   const [focusedField, setFocusedField] = useState<string | null>(null);
+  const [enableWebScrape, setEnableWebScrape] = useState(false);
+  const [downloadHires, setDownloadHires] = useState(false);
+  const [showReprocessPrompt, setShowReprocessPrompt] = useState(false);
 
   useEffect(() => {
     void (async () => {
@@ -142,11 +145,17 @@ export function SettingsOverlay({ backend, account, onClose }: SettingsOverlayPr
   }, []);
 
   useEffect(() => {
-    chrome.storage.local.get(['backup_on_publish', 'chip_enabled', 'chip_show_avatar'], (r) => {
-      setBackupOnPublish(r['backup_on_publish'] === true);
-      setChipEnabled(r['chip_enabled'] !== false);
-      setChipShowAvatar(r['chip_show_avatar'] === true);
-    });
+    chrome.storage.local.get(
+      ['backup_on_publish', 'chip_enabled', 'chip_show_avatar', 'b_ark_settings'],
+      (r) => {
+        setBackupOnPublish(r['backup_on_publish'] === true);
+        setChipEnabled(r['chip_enabled'] !== false);
+        setChipShowAvatar(r['chip_show_avatar'] === true);
+        const s = r['b_ark_settings'] as Record<string, unknown> | undefined;
+        setEnableWebScrape(s?.['enable_web_scrape'] === true);
+        setDownloadHires(s?.['download_hires'] === true);
+      },
+    );
   }, []);
 
   // Re-sync when account prop changes (e.g. after backend emits store:changed)
@@ -169,6 +178,13 @@ export function SettingsOverlay({ backend, account, onClose }: SettingsOverlayPr
 
   function save(partial: Parameters<typeof backend.updateSettings>[0]): void {
     backend.updateSettings(partial).catch(() => {});
+  }
+
+  function patchStoredSettings(patch: Record<string, unknown>): void {
+    chrome.storage.local.get(['b_ark_settings'], (r) => {
+      const current = (r['b_ark_settings'] as Record<string, unknown>) ?? {};
+      void chrome.storage.local.set({ b_ark_settings: { ...current, ...patch } });
+    });
   }
 
   return (
@@ -454,6 +470,114 @@ export function SettingsOverlay({ backend, account, onClose }: SettingsOverlayPr
                 }}
               />
               <span style={{ fontSize: 13, color: 'var(--muted)' }}>entries</span>
+            </div>
+          </SettingBlock>
+
+          {/* Image quality */}
+          <SettingBlock
+            label="Fetch original uploaded image and extras if available"
+            description="During backup, load each entry page on Blipfoto to download the original uploaded image and any extra images attached to the entry. Requires you to be signed in to Blipfoto in this browser. Original images require a Blipfoto subscription."
+          >
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <PillToggle
+                  checked={enableWebScrape}
+                  onChange={(v) => {
+                    setEnableWebScrape(v);
+                    patchStoredSettings({ enable_web_scrape: v });
+                    if (v) {
+                      setShowReprocessPrompt(true);
+                    } else {
+                      setShowReprocessPrompt(false);
+                    }
+                  }}
+                />
+                <span style={{ fontSize: 13, color: 'var(--ink-2)' }}>
+                  {enableWebScrape ? 'On' : 'Off'}
+                </span>
+              </div>
+
+              {showReprocessPrompt && (
+                <div
+                  style={{
+                    background: 'var(--bg-alt)',
+                    border: '1px solid var(--line)',
+                    borderRadius: 8,
+                    padding: '12px 14px',
+                    fontSize: 13,
+                    color: 'var(--ink-2)',
+                    lineHeight: 1.5,
+                  }}
+                >
+                  <p style={{ margin: '0 0 10px' }}>
+                    Re-process existing entries to download original and extra images? This may take
+                    a while.
+                  </p>
+                  <div style={{ display: 'flex', gap: 8 }}>
+                    <button
+                      onClick={() => {
+                        setShowReprocessPrompt(false);
+                        void backend.startBackup(account.id);
+                        onClose();
+                      }}
+                      style={{
+                        height: 30,
+                        padding: '0 14px',
+                        borderRadius: 6,
+                        background: 'var(--green-800)',
+                        color: 'white',
+                        fontSize: 13,
+                        fontWeight: 600,
+                        cursor: 'pointer',
+                        border: 'none',
+                      }}
+                    >
+                      Yes, re-process now
+                    </button>
+                    <button
+                      onClick={() => setShowReprocessPrompt(false)}
+                      style={{
+                        height: 30,
+                        padding: '0 14px',
+                        borderRadius: 6,
+                        background: 'transparent',
+                        color: 'var(--ink-2)',
+                        fontSize: 13,
+                        cursor: 'pointer',
+                        border: '1px solid var(--line)',
+                      }}
+                    >
+                      No, new entries only
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              <div
+                style={{
+                  opacity: enableWebScrape ? 1 : 0.4,
+                  pointerEvents: enableWebScrape ? 'auto' : 'none',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: 6,
+                }}
+              >
+                <span style={{ fontSize: 12, color: 'var(--muted)' }}>
+                  Also download hires images (redundant when original is available)
+                </span>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                  <PillToggle
+                    checked={downloadHires}
+                    onChange={(v) => {
+                      setDownloadHires(v);
+                      patchStoredSettings({ download_hires: v });
+                    }}
+                  />
+                  <span style={{ fontSize: 13, color: 'var(--ink-2)' }}>
+                    {downloadHires ? 'On' : 'Off'}
+                  </span>
+                </div>
+              </div>
             </div>
           </SettingBlock>
 

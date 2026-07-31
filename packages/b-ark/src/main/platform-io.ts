@@ -87,6 +87,13 @@ export class ElectronPlatformIO implements PlatformIO {
     await fs.writeFile(destPath, buffer);
   }
 
+  // Web scraping via the user's browser session is not supported in Electron —
+  // it would require a separate authenticated browser session. The enable_web_scrape
+  // flag is always false in the Electron config so this is never called.
+  fetchHtml(_url: string): Promise<string> {
+    return Promise.reject(new Error('fetchHtml is not supported in the Electron platform'));
+  }
+
   log(entry: LogEntry): void {
     this.logHandler(entry);
   }
