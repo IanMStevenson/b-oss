@@ -93,4 +93,24 @@ export class JournalIndex {
     const year = date.slice(0, 4);
     return `entries/${year}/${date}-h.jpg`;
   }
+
+  static extraImagePath(date: string, itemId: string): string {
+    const year = date.slice(0, 4);
+    return `entries/${year}/${date}-${itemId}.jpg`;
+  }
+
+  static extraThumbnailPath(date: string, itemId: string): string {
+    const year = date.slice(0, 4);
+    return `entries/${year}/${date}-${itemId}-t.jpg`;
+  }
+
+  static extraOriginalPath(date: string, itemId: string): string {
+    const year = date.slice(0, 4);
+    return `entries/${year}/${date}-${itemId}-o.jpg`;
+  }
+
+  static extraHiresPath(date: string, itemId: string): string {
+    const year = date.slice(0, 4);
+    return `entries/${year}/${date}-${itemId}-h.jpg`;
+  }
 }

@@ -21,6 +21,8 @@ export interface ChromeSettings {
   redo_count: number;
   thumbnailSizePercent: number;
   showInfoOverlay: boolean;
+  enable_web_scrape: boolean;
+  download_hires: boolean;
 }
 
 const PERIOD_MS: Record<'daily' | 'weekly', number> = {
@@ -174,5 +176,7 @@ export function buildBackupConfig({
     api_delay_ms: settings.api_delay_ms ?? 0,
     metadata_write_interval: 5,
     app_version: appVersion,
+    enable_web_scrape: settings.enable_web_scrape ?? false,
+    download_hires: settings.download_hires ?? false,
   };
 }

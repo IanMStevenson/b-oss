@@ -74,6 +74,9 @@ class MockPlatformIO implements PlatformIO {
     this.files.set(destPath, `<image:${url}>`);
     return Promise.resolve();
   }
+  fetchHtml(_url: string): Promise<string> {
+    return Promise.resolve('');
+  }
   log(entry: LogEntry): void {
     this.logs.push(entry);
   }
@@ -92,6 +95,8 @@ function makeConfig(overrides: Partial<AccountBackupConfig> = {}): AccountBackup
     api_delay_ms: 0,
     metadata_write_interval: 1,
     app_version: '0.1.0',
+    enable_web_scrape: false,
+    download_hires: false,
     ...overrides,
   };
 }

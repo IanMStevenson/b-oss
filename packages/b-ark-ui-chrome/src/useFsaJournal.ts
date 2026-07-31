@@ -13,7 +13,7 @@ export { getNestedFileHandle, readFileText };
 export type FsaJournalState =
   | { status: 'idle' }
   | { status: 'loading' }
-  | { status: 'loaded'; data: JournalMetadata }
+  | { status: 'loaded'; data: JournalMetadata; pollTick: number }
   | { status: 'error'; error: string };
 
 export function useFsaJournal(
@@ -24,6 +24,7 @@ export function useFsaJournal(
 ): FsaJournalState {
   const [state, setState] = useState<FsaJournalState>({ status: 'idle' });
   const entryCountRef = useRef<number | null>(null);
+  const pollTickRef = useRef<number>(0);
   const lastNonceRef = useRef<number>(refreshNonce);
 
   // Effect 1: Initial load — shows loading state, seeds entryCountRef
@@ -39,7 +40,7 @@ export function useFsaJournal(
       .then((data) => {
         if (cancelled) return;
         entryCountRef.current = data.entries.length;
-        setState({ status: 'loaded', data });
+        setState({ status: 'loaded', data, pollTick: 0 });
       })
       .catch((e: unknown) => {
         if (cancelled) return;
@@ -51,15 +52,20 @@ export function useFsaJournal(
     };
   }, [handle, username]);
 
-  // Effect 2: Polling during backup — silent, only updates when entry count changes
+  // Effect 2: Polling during backup — updates data when entry count changes;
+  // always increments pollTick so stuck thumbnail loads can retry each cycle.
   useEffect(() => {
     if (!refreshIntervalMs || !handle || !username) return;
     const id = setInterval(() => {
       readJournal(handle, username)
         .then((data) => {
+          pollTickRef.current += 1;
+          const tick = pollTickRef.current;
           if (data.entries.length !== entryCountRef.current) {
             entryCountRef.current = data.entries.length;
-            setState({ status: 'loaded', data });
+            setState({ status: 'loaded', data, pollTick: tick });
+          } else {
+            setState((prev) => (prev.status === 'loaded' ? { ...prev, pollTick: tick } : prev));
           }
         })
         .catch((err: unknown) => {
@@ -80,7 +86,7 @@ export function useFsaJournal(
     readJournal(handle, username)
       .then((data) => {
         entryCountRef.current = data.entries.length;
-        setState({ status: 'loaded', data });
+        setState({ status: 'loaded', data, pollTick: 0 });
       })
       .catch((err: unknown) => {
         // Keep showing existing state on refresh errors; leave a breadcrumb for debugging.
@@ -97,7 +103,7 @@ export function useFsaJournal(
 export function useFsaAssets(
   dirHandle: FileSystemDirectoryHandle | null,
   username: string | null,
-): { resolveAsset: (path: string) => Promise<string> } {
+): { resolveAsset: (path: string) => Promise<string>; invalidateAsset: (path: string) => void } {
   const blobCache = useRef<Map<string, string>>(new Map());
   const dirHandleRef = useRef<FileSystemDirectoryHandle | null>(dirHandle);
   dirHandleRef.current = dirHandle;
@@ -119,14 +125,32 @@ export function useFsaAssets(
     if (!dir || !user) throw new Error('No folder selected');
     const cached = blobCache.current.get(path);
     if (cached) return cached;
-    const fileHandle = await getNestedFileHandle(dir, `${user}/${path}`);
-    const file = await fileHandle.getFile();
-    const url = URL.createObjectURL(file);
-    blobCache.current.set(path, url);
-    return url;
+    // Retry up to 3 times with a short delay — the FSA can return transient
+    // errors (e.g. NoModificationAllowedError) when the backup engine holds a
+    // writable stream open on a file in the same directory.
+    let lastErr: unknown;
+    for (let attempt = 0; attempt < 3; attempt++) {
+      if (attempt > 0) await new Promise<void>((r) => setTimeout(r, 300 * attempt));
+      try {
+        const fileHandle = await getNestedFileHandle(dir, `${user}/${path}`);
+        const file = await fileHandle.getFile();
+        const url = URL.createObjectURL(file);
+        blobCache.current.set(path, url);
+        return url;
+      } catch (err) {
+        lastErr = err;
+      }
+    }
+    throw lastErr;
   }, []); // stable — reads dirHandle/username via refs at call time
 
-  return { resolveAsset };
+  const invalidateAsset = useCallback((path: string): void => {
+    const url = blobCache.current.get(path);
+    if (url) URL.revokeObjectURL(url);
+    blobCache.current.delete(path);
+  }, []);
+
+  return { resolveAsset, invalidateAsset };
 }
 
 // Loads a single entry's JSON from `{username}/{jsonPath}` into an EntryState.

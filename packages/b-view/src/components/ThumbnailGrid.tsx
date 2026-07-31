@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (C) 2026 Ian Stevenson
 
-import { useState, useEffect, useRef, useDeferredValue } from 'react';
+import { useState, useEffect, useRef, useDeferredValue, useCallback } from 'react';
 import type { RefObject } from 'react';
 import { ZoomIn, ZoomOut, RotateCcw, Image, Home, Eye, EyeOff, Search, X } from 'lucide-react';
 import type { BlipEntry, EntryIndex } from '../types.js';
@@ -74,9 +74,11 @@ interface ThumbnailGridProps {
   onShowInfoOverlayChange?: (v: boolean) => void;
   baseUrl?: string;
   resolveAsset?: ResolveAsset;
+  invalidateAsset?: (path: string) => void;
   jumpToEntryId?: string | null;
   onTopLeftEntryDate?: (date: string | null) => void;
   resolveEntry?: (jsonPath: string) => Promise<BlipEntry>;
+  assetRevision?: number;
 }
 
 function ThumbnailItem({
@@ -85,16 +87,20 @@ function ThumbnailItem({
   onSelect,
   baseUrl,
   resolveAsset,
+  invalidateAsset,
   tileSize,
   showInfoOverlay,
+  assetRevision,
 }: {
   entry: EntryIndex;
   selected: boolean;
   onSelect: () => void;
   baseUrl?: string;
   resolveAsset?: ResolveAsset;
+  invalidateAsset?: (path: string) => void;
   tileSize: number;
   showInfoOverlay: boolean;
+  assetRevision?: number;
 }) {
   const [imgError, setImgError] = useState(false);
   const syncSrc = resolveAsset
@@ -103,18 +109,40 @@ function ThumbnailItem({
       ? `${baseUrl}/${entry.thumbnail_path}`
       : entry.thumbnail_path;
   const [asyncSrc, setAsyncSrc] = useState<string | null>(null);
+  // Track whether the last load attempt succeeded so that revision bumps only
+  // trigger a retry for items that previously failed, avoiding flicker on
+  // successfully-loaded thumbnails during active backup polling.
+  const loadedRef = useRef(false);
 
-  useEffect(() => {
+  const load = useCallback(() => {
     if (!resolveAsset) return;
     let cancelled = false;
     setAsyncSrc(null);
-    void Promise.resolve(resolveAsset(entry.thumbnail_path)).then((url) => {
-      if (!cancelled) setAsyncSrc(url);
-    });
+    setImgError(false);
+    loadedRef.current = false;
+    Promise.resolve(resolveAsset(entry.thumbnail_path))
+      .then((url) => {
+        if (!cancelled) {
+          loadedRef.current = true;
+          setAsyncSrc(url);
+        }
+      })
+      .catch(() => {
+        if (!cancelled) setImgError(true);
+      });
     return () => {
       cancelled = true;
     };
   }, [resolveAsset, entry.thumbnail_path]);
+
+  // Re-run on path/resolver changes (covers new entries and initial mount).
+  useEffect(load, [load]);
+
+  // On each revision bump, only retry if the previous attempt failed.
+  useEffect(() => {
+    if (loadedRef.current) return;
+    return load();
+  }, [assetRevision, load]);
 
   const src = resolveAsset ? asyncSrc : syncSrc;
 
@@ -135,7 +163,11 @@ function ThumbnailItem({
           src={src}
           alt={entry.title}
           loading="lazy"
-          onError={() => setImgError(true)}
+          onError={() => {
+            invalidateAsset?.(entry.thumbnail_path);
+            loadedRef.current = false;
+            setImgError(true);
+          }}
           className={styles.thumbImg}
         />
       )}
@@ -159,9 +191,11 @@ export function ThumbnailGrid({
   onShowInfoOverlayChange,
   baseUrl,
   resolveAsset,
+  invalidateAsset,
   jumpToEntryId,
   onTopLeftEntryDate,
   resolveEntry,
+  assetRevision,
 }: ThumbnailGridProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const { width, height } = useContainerSize(containerRef);
@@ -365,8 +399,10 @@ export function ThumbnailGrid({
                 onSelect={() => onSelectEntry(entry.entry_id)}
                 baseUrl={baseUrl}
                 resolveAsset={resolveAsset}
+                invalidateAsset={invalidateAsset}
                 tileSize={tileSize}
                 showInfoOverlay={showInfoOverlay}
+                assetRevision={assetRevision}
               />
             ))}
           </div>

@@ -232,16 +232,30 @@ Each entry has its own JSON file containing the full text and metadata.
 
 **Optional / nullable fields:**
 
-| Field              | Type                     | Notes                                                                                  |
-| ------------------ | ------------------------ | -------------------------------------------------------------------------------------- |
-| `location`         | `{ lat, lon }` or `null` | GPS coordinates if the user recorded a location                                        |
-| `exif`             | object or `null`         | Camera and lens metadata if available; all sub-fields are strings or `null`            |
-| `images.thumbnail` | string                   | Relative path to the thumbnail image; present only if downloaded                       |
-| `images.image`     | string                   | Relative path to the main display image; present only if downloaded                    |
-| `images.original`  | string                   | Relative path to the original-quality image; present only if available and downloaded  |
-| `images.hires`     | string                   | Relative path to the high-resolution variant; present only if available and downloaded |
+| Field                | Type                     | Notes                                                                                                                                                                                                   |
+| -------------------- | ------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `location`           | `{ lat, lon }` or `null` | GPS coordinates if the user recorded a location                                                                                                                                                         |
+| `exif`               | object or `null`         | Camera and lens metadata if available; all sub-fields are strings or `null`                                                                                                                             |
+| `images.thumbnail`   | string                   | Relative path to the thumbnail image; present only if downloaded                                                                                                                                        |
+| `images.image`       | string                   | Relative path to the main display image; present only if downloaded                                                                                                                                     |
+| `images.original`    | string                   | Relative path to the original-quality image; present only if available and downloaded. Requires a Blipfoto subscription and the "Fetch original uploaded image and extras" backup option to be enabled. |
+| `images.hires`       | string                   | Relative path to the high-resolution variant; present only if downloaded. Only saved when original is unavailable and the "Download hires images" option is enabled.                                    |
+| `images.extras`      | array or absent          | Extra images attached to the entry (see below). Only present when the "Fetch original uploaded image and extras" option is enabled and the entry has additional images.                                 |
+| `images.web_scraped` | boolean or absent        | `true` once the entry page has been successfully scraped for full-size and extra images. Absent on entries backed up before the option was enabled or before the scrape completed.                      |
 
-The `images` object contains only the variants that were successfully downloaded. For most entries, `thumbnail` and `image` are present; `original` and `hires` are less commonly available.
+The `images` object contains only the variants that were successfully downloaded. For most entries, `thumbnail` and `image` are present; `original`, `hires`, and `extras` require the web-scrape backup option to be enabled.
+
+**Extra images** (`images.extras` array — each item follows the same optional-path pattern):
+
+| Field       | Type   | Description                                                                                                 |
+| ----------- | ------ | ----------------------------------------------------------------------------------------------------------- |
+| `item_id`   | string | Unique identifier for the extra image                                                                       |
+| `thumbnail` | string | Relative path to the extra image's thumbnail; present if downloaded                                         |
+| `image`     | string | Relative path to the extra image's standard-resolution copy                                                 |
+| `original`  | string | Relative path to the extra image's original-quality copy; subscriber-only                                   |
+| `hires`     | string | Relative path to the extra image's high-resolution copy; only present if "Download hires images" is enabled |
+
+Extra image files use the naming pattern `YYYY-MM-DD-{item_id}.jpg` (and `-t`, `-o`, `-h` variants).
 
 **Comments** (the `comments` array; `replies` follow the same structure recursively):
 
@@ -270,11 +284,14 @@ The `images` object contains only the variants that were successfully downloaded
 ├── b-view/                   ← viewer assets
 └── entries/
     ├── 2006/
-    │   ├── 2006-03-14.json       ← full entry data
-    │   ├── 2006-03-14-t.jpg      ← thumbnail
-    │   ├── 2006-03-14.jpg        ← main display image
-    │   ├── 2006-03-14-o.jpg      ← original quality (if available)
-    │   └── 2006-03-14-h.jpg      ← high-res variant (if available)
+    │   ├── 2006-03-14.json           ← full entry data
+    │   ├── 2006-03-14-t.jpg          ← thumbnail
+    │   ├── 2006-03-14.jpg            ← main display image
+    │   ├── 2006-03-14-o.jpg          ← original quality (if available; requires subscription + option)
+    │   ├── 2006-03-14-h.jpg          ← high-res variant (if available; requires option)
+    │   ├── 2006-03-14-{item_id}.jpg  ← extra image, standard res (if entry has extras)
+    │   ├── 2006-03-14-{item_id}-t.jpg ← extra image thumbnail
+    │   └── 2006-03-14-{item_id}-o.jpg ← extra image original (if available; requires subscription)
     ├── 2007/
     │   └── ...
     └── 2026/
@@ -283,13 +300,17 @@ The `images` object contains only the variants that were successfully downloaded
 
 Entries are organised one subfolder per year. Within each year folder, the files for each entry share a base filename derived from the entry date:
 
-| File               | Description                                                          |
-| ------------------ | -------------------------------------------------------------------- |
-| `YYYY-MM-DD.json`  | Full entry content: text, tags, location, engagement, comments, Exif |
-| `YYYY-MM-DD-t.jpg` | Thumbnail image (small, used for grid views)                         |
-| `YYYY-MM-DD.jpg`   | Main display image                                                   |
-| `YYYY-MM-DD-o.jpg` | Original-quality image (not always available)                        |
-| `YYYY-MM-DD-h.jpg` | High-resolution variant (not always available)                       |
+| File                         | Description                                                          |
+| ---------------------------- | -------------------------------------------------------------------- |
+| `YYYY-MM-DD.json`            | Full entry content: text, tags, location, engagement, comments, Exif |
+| `YYYY-MM-DD-t.jpg`           | Thumbnail image (small, used for grid views)                         |
+| `YYYY-MM-DD.jpg`             | Main display image                                                   |
+| `YYYY-MM-DD-o.jpg`           | Original-quality image (subscriber-only; requires web-scrape option) |
+| `YYYY-MM-DD-h.jpg`           | High-resolution variant (requires web-scrape + hires options)        |
+| `YYYY-MM-DD-{item_id}.jpg`   | Extra image — standard resolution (requires web-scrape option)       |
+| `YYYY-MM-DD-{item_id}-t.jpg` | Extra image thumbnail                                                |
+| `YYYY-MM-DD-{item_id}-o.jpg` | Extra image original quality (subscriber-only)                       |
+| `YYYY-MM-DD-{item_id}-h.jpg` | Extra image high-resolution (requires hires option)                  |
 
 **b-view viewer:** `index.html` and the `b-view/` folder are a built-in journal browser. Open `index.html` in a web browser to browse the journal visually. These files are not needed for AI tasks.
 
