@@ -36,6 +36,8 @@ Dependency-update branch `chore/deps-update-1.0.2` — validated clean (typechec
 - _Native push token registration_ — App registers its FCM/APNs token via the API; Blipfoto delivers push notifications directly. Better end-user experience but requires Blipfoto to maintain FCM and APNs credentials.
 - _Token downscoping (fallback ask)_ — An API endpoint that accepts a `read,write` user token and issues a scoped-down `read`-only token. Removes the need for a second OAuth flow when handing a polling credential to a cloud service; the app authenticates once and derives the restricted token itself.
 
+** OAuth Redirect ** - Modern Chrome plugins are designed to use a redirect to" https://<id>.chromiumapp.org/". This would need to be added as a valid URL format for Distributed apps. Not any https:// option - specifically the restricted chromoiumapp.org domain.
+
 ## Key Commands
 
 **Rebuild Everything**
