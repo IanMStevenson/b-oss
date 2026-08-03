@@ -6,43 +6,41 @@ with "resume".
 
 ## Status
 
-**Phase 0 code is complete** (0.1 `b-tokens`, 0.2 `b-view`/`b-view-backup` split, 0.3 `b-api`
-seams — all committed on `b-mobile-prereqs`, in worktree `../b-oss-b-mobile-prereqs`, off
-`origin/main`). Full monorepo `typecheck && lint && test && build` green (226 tests) as of the
-last commit. **Phase 0.4 (open PR, get merge confirmation) is next and not yet done.** No
-`b-mobile` app code exists yet anywhere.
+**Phase 0 is fully done on my end and blocked on the user.** All three sub-phases (0.1
+`b-tokens`, 0.2 `b-view`/`b-view-backup` split, 0.3 `b-api` seams) are committed and pushed on
+`b-mobile-prereqs` (worktree `../b-oss-b-mobile-prereqs`, off `origin/main`). Full monorepo
+`typecheck && lint && test && build` green (226 tests). **PR opened:
+https://github.com/IanMStevenson/b-oss/pull/62 — deliberately not merged.** This is the plan's
+one check-in point; everything stops here until the user reviews/merges it (or asks for changes).
+No `b-mobile` app code exists yet anywhere.
 
 ## Last completed step
 
-Phase 0.3: `b-api` transport (`fetchImpl`) + multipart (`multipartImpl`) seams, `FileSource` type
-replacing `Blob` on the three multipart-backed methods, new tests. Committed
-(`feat(b-api): add transport and multipart seams`) and pushed to `origin/b-mobile-prereqs`.
+Opened PR #62 (`b-mobile-prereqs` → `main`) with the full test-plan checklist in its body.
 
 ## Next intended step
 
-1. **Phase 0.4**: push is already done (each Phase 0 commit was pushed as it landed). Open a PR
-   from `b-mobile-prereqs` → `main` (`gh pr create`, base `main`, head `b-mobile-prereqs`) —
-   3 commits: `feat(b-tokens): add shared design-tokens package`,
-   `feat(b-view): split backup data layer into b-view-backup`,
-   `feat(b-api): add transport and multipart seams`.
-2. **Stop there and ask the user to confirm before merging.** This is the one deliberate
-   check-in point in the whole plan — Phase 0 touches `b-api`/`b-view` that `b-ark` and
-   `b-ark-chrome` (shipping apps) depend on. Do not merge autonomously even though the rest of
-   the plan says to run without checking in.
-3. Once the user confirms and it's merged: in `../b-oss-b-mobile-initial` (this worktree),
-   `git fetch origin && git merge origin/main` (or rebase, whichever the user prefers) to pick up
-   Phase 0 before writing any `b-mobile` app code — building against the un-split `b-view` would
-   bake in coupling the split exists to remove.
-4. Then Phase 1 (package skeleton) onward, on `b-mobile-initial`, no more PRs until much later.
-5. Consider whether `../b-oss-b-mobile-prereqs` worktree should be removed once Phase 0 merges
-   (per CLAUDE.md: whichever agent created a worktree removes it once its PR merges) — hold off
-   asking until the merge actually happens.
+**A session resuming this should check `gh pr view 62` first, not assume.**
+
+- **If PR #62 is still open**: nothing to do but wait — don't merge it, don't start Phase 1. If
+  the user asks for changes, make them on `b-mobile-prereqs` in `../b-oss-b-mobile-prereqs`,
+  push, and the PR updates automatically.
+- **If PR #62 is merged**: in `../b-oss-b-mobile-initial` (this worktree),
+  `git fetch origin && git merge origin/main` (or rebase) before writing any `b-mobile` app code
+  — building against the un-split `b-view` would bake in coupling the split exists to remove.
+  Then consider removing the `../b-oss-b-mobile-prereqs` worktree (CLAUDE.md: whichever agent
+  created a worktree cleans it up once its PR merges) — ask first, don't just do it. Then start
+  Phase 1 (package skeleton) on `b-mobile-initial`. No more PRs against `main` until much later,
+  per the plan.
+- **If PR #62 was closed without merging**: stop and ask the user what they want instead —
+  don't guess.
 
 ## Open decisions / blockers
 
-None outstanding on the spec side. Waiting on the user for: (a) confirmation to merge the Phase 0
-PR, (b) eventually, real `VITE_BLIPFOTO_CLIENT_ID`/`VITE_MAP_TILES_KEY` values in a local
-`.env` (Phase 1's `.env.example` gets blank placeholders only).
+**Blocked on the user**: PR #62 needs review/merge decision before anything else in this project
+can proceed. Also eventually needed from the user (not blocking Phase 1's start, just needed
+before real device/browser testing): `VITE_BLIPFOTO_CLIENT_ID`/`VITE_MAP_TILES_KEY` values in a
+local `.env` — Phase 1's `.env.example` gets blank placeholders only.
 
 ## Gotchas discovered so far (not obvious from the code)
 
