@@ -158,3 +158,50 @@ Full monorepo `typecheck && lint && test && build` all green (219 tests). Commit
 (`feat(b-view): split backup data layer into b-view-backup`).
 
 **Next:** Phase 0.3 — the `b-api` transport + multipart seams.
+
+## 2026-08-03 — Phase 0.3 complete: `b-api` transport + multipart seams
+
+`BlipfotoClient`'s constructor gained `fetchImpl` (defaults to `globalThis.fetch`, wrapped in an
+arrow function rather than `.bind`'d, so `request`/`mutate`/the default `mutateMultipart` path all
+route through it) and `multipartImpl` (new, `undefined` by default) — both additive positional
+params, so `new BlipfotoClient(token)` call sites in `b-ark-ui-chrome`/`b-ark` needed no changes,
+confirming the Phase-0-planning audit's read on blast radius.
+
+New `FileSource` type (`{blob: Blob} | {path: string; mimeType: string}`) replaces the bare `Blob`
+on `publishEntry`/`updateEntry`/`updateUserSettings`'s `image`/`avatar` params. Zero external
+callers today (confirmed in planning), so no downstream migration — only `client.test.ts`'s own
+calls needed updating to the new shape.
+
+**Design decision on `multipartImpl`'s contract**, since `app-architecture.md` §7 doesn't pin the
+exact shape, only "given the target URL, the plain fields, and a file reference... it performs the
+upload and returns the parsed envelope": rather than have `multipartImpl` return an already-parsed,
+error-checked envelope (pushing Blipfoto's error-code semantics onto every future implementation,
+including b-mobile's own `platform/upload.ts`), it returns raw transport parts (`{status, headers?,
+body}`) and `BlipfotoClient` parses/throws exactly as it already does for the fetch-based path —
+refactored `parseEnvelope` into `updateRateLimit()` + `parseEnvelopeBody()` so both paths share one
+implementation. Recorded here since it's a real interpretation call, not dictated by the spec text.
+
+`mutateMultipart` now branches on whether `multipartImpl` is configured: unconfigured keeps
+today's `FormData`/`fetch` behaviour exactly, and throws a clear error if handed a `path`-sourced
+file (nothing to read from in a browser); configured, it delegates entirely regardless of file
+source. Both `publishEntry`/`updateEntry`/`updateUserSettings` pass their file param through
+unchanged in shape terms — only the internal `blob:` key became `source:`.
+
+Added test coverage: `fetchImpl` injection (success path asserts the custom impl actually receives
+the call; rejection path asserts `NetworkError`), `multipartImpl` delegation (asserts the exact
+`{url, method, fields, file}` shape it receives, a success round-trip including rate-limit-header
+parsing from the returned `headers`, `BlipfotoError` code-mapping from an error envelope exactly as
+the fetch path does, `NetworkError` wrapping on rejection), and the native-path-without-
+multipartImpl guard. Hit a small round of `@typescript-eslint/require-await` /
+`no-base-to-string` lint failures from async arrows with no `await` and a `String(input)` call on
+a `RequestInfo | URL` union — fixed by dropping `async` in favour of explicit `Promise.resolve()`/
+`Promise.reject()` and asserting `input as string` (b-api never calls `fetchImpl` with anything but
+a plain string URL, so the assertion is safe, just not something the type system can prove alone).
+
+98/98 `b-api` tests pass; full monorepo `typecheck && lint && test && build` all green (226 tests
+total). Committed (`feat(b-api): add transport and multipart seams`), pushed.
+
+**Phase 0 code is now complete** — 0.1 (`b-tokens`), 0.2 (`b-view`/`b-view-backup` split), 0.3
+(`b-api` seams) all committed on `b-mobile-prereqs`. **Next:** Phase 0.4 — open the PR against
+`main` and stop for the user's explicit merge confirmation, per the plan's one deliberate
+check-in point.
