@@ -2,7 +2,7 @@
 // Copyright (C) 2026 Ian Stevenson
 
 import { createRoot } from 'react-dom/client';
-import '@b-oss/b-tokens/tokens.css';
+import '@b-oss/b-visual/tokens.css';
 import './base.css';
 import App from './App.js';
 

@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-3.0-or-later */
 /* Copyright (C) 2026 Ian Stevenson */
 
-/* Base palette now lives in @b-oss/b-tokens — the app is a second real consumer of these values,
+/* Base palette now lives in @b-oss/b-visual — the app is a second real consumer of these values,
    and duplicating them is how two products drift apart. b-view keeps this file so existing
    `@b-oss/b-view/tokens.css` imports keep working. */
-@import '@b-oss/b-tokens/tokens.css';
+@import '@b-oss/b-visual/tokens.css';
