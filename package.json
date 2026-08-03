@@ -12,7 +12,7 @@
     "prebuild": "npm run version:bump && npm run copy-icons",
     "build": "npm run build --workspaces --if-present",
     "build:release": "node scripts/build-release.mjs",
-    "typecheck": "tsc --build packages/b-api packages/backup-engine packages/b-ark-ui-components packages/b-ark-ui-electron packages/b-ark packages/b-ark-ui-chrome && tsc -p packages/b-view --noEmit && tsc -p packages/b-ark-chrome --noEmit",
+    "typecheck": "tsc --build packages/b-api packages/backup-engine packages/b-ark-ui-components packages/b-ark-ui-electron packages/b-ark packages/b-ark-ui-chrome && tsc -p packages/b-tokens --noEmit && tsc -p packages/b-view --noEmit && tsc -p packages/b-ark-chrome --noEmit",
     "lint": "eslint \"packages/**/*.{ts,tsx}\" --max-warnings 0",
     "test": "vitest run",
     "test:watch": "vitest",
