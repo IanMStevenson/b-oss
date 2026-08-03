@@ -33,9 +33,10 @@ if (!existsSync(envLocal)) {
 console.log('🔍 Type-checking...');
 execSync('npm run typecheck', { cwd: root, stdio: 'inherit' });
 
-// Build b-view so its dist/ is available for b-ark to bundle into backup folders.
-console.log('🛠  Building b-view (required by b-ark)...');
-execSync('npm run build --workspace=packages/b-view', { cwd: root, stdio: 'inherit' });
+// Build b-view-backup (the standalone viewer SPA) so its dist-app/ is available for b-ark to
+// bundle into backup folders.
+console.log('🛠  Building b-view-backup (required by b-ark)...');
+execSync('npm run build --workspace=packages/b-view-backup', { cwd: root, stdio: 'inherit' });
 
 console.log('\n✅ Setup complete!');
 console.log('👉 Edit .env.local and add your VITE_BLIPFOTO_CLIENT_ID');

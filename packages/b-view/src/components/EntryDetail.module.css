@@ -28,7 +28,7 @@
 }
 
 .errorState {
-  color: var(--rag-red);
+  color: var(--color-danger);
   gap: 8px;
 }
 

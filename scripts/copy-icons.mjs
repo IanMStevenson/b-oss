@@ -28,9 +28,9 @@ for (const size of ['16', '32', '48', '128']) {
   copyFileSync(resolve(master, `icon-ico/${size}.png`), resolve(chromeIcons, `${size}.png`));
 }
 
-// 3) b-view — favicon (referenced by src/spa/index.html).
-const bviewSpa = resolve(repoRoot, 'packages/b-view/src/spa');
+// 3) b-view-backup — favicon for the standalone viewer SPA (referenced by src/spa/index.html).
+const bviewSpa = resolve(repoRoot, 'packages/b-view-backup/src/spa');
 mkdirSync(bviewSpa, { recursive: true });
 copyFileSync(resolve(master, 'icon-ico/128.png'), resolve(bviewSpa, 'favicon.png'));
 
-console.log('[copy-icons] master assets/icons → b-ark, b-ark-chrome, b-view');
+console.log('[copy-icons] master assets/icons → b-ark, b-ark-chrome, b-view-backup');

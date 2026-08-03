@@ -17,8 +17,7 @@ import {
   Ruler,
   SunMedium,
 } from 'lucide-react';
-import type { BlipEntry, BlipComment, EntryIndex } from '../types.js';
-import type { EntryState } from '../hooks/useEntry.js';
+import type { BlipEntry, BlipComment, EntryIndex, EntryState } from '../types.js';
 import { DatePicker } from './DatePicker.js';
 import { Lightbox } from './Lightbox.js';
 import styles from './EntryDetail.module.css';

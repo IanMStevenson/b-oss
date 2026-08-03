@@ -7,7 +7,7 @@
 // FileSystemDirectoryHandle; throws if the file is absent or unreadable — callers decide
 // whether that surfaces as an error or falls back to persisted status.
 
-import type { JournalMetadata } from '@b-oss/b-view';
+import type { JournalMetadata } from '@b-oss/b-view-backup';
 
 /** Walk a `a/b/c.json` path from a directory handle to the leaf file handle. */
 export async function getNestedFileHandle(

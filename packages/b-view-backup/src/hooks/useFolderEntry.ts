@@ -2,19 +2,18 @@
 // Copyright (C) 2026 Ian Stevenson
 
 import { useState, useEffect } from 'react';
-import type { BlipEntry } from '../types.js';
+import type { BlipEntry } from '@b-oss/backup-engine';
+import type { EntryState } from '@b-oss/b-view';
+import { getNestedFileHandle } from './useFolderAccess.js';
 
-export type EntryState =
-  | { status: 'idle' }
-  | { status: 'loading' }
-  | { status: 'error'; message: string }
-  | { status: 'loaded'; data: BlipEntry };
-
-export function useEntry(jsonPath: string | null): EntryState {
+export function useFolderEntry(
+  dirHandle: FileSystemDirectoryHandle | null,
+  jsonPath: string | null,
+): EntryState {
   const [state, setState] = useState<EntryState>({ status: 'idle' });
 
   useEffect(() => {
-    if (jsonPath === null) {
+    if (!dirHandle || jsonPath === null) {
       setState({ status: 'idle' });
       return;
     }
@@ -22,14 +21,12 @@ export function useEntry(jsonPath: string | null): EntryState {
     let cancelled = false;
     setState({ status: 'loading' });
 
-    fetch(jsonPath)
-      .then(async (res) => {
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        return res.json() as Promise<BlipEntry>;
-      })
-      .then((data) => {
+    getNestedFileHandle(dirHandle, jsonPath)
+      .then((fh) => fh.getFile())
+      .then((file) => file.text())
+      .then((text) => {
         if (cancelled) return;
-        setState({ status: 'loaded', data });
+        setState({ status: 'loaded', data: JSON.parse(text) as BlipEntry });
       })
       .catch((err: unknown) => {
         if (cancelled) return;
@@ -42,7 +39,7 @@ export function useEntry(jsonPath: string | null): EntryState {
     return () => {
       cancelled = true;
     };
-  }, [jsonPath]);
+  }, [dirHandle, jsonPath]);
 
   return state;
 }

@@ -10,7 +10,7 @@
   "files": ["dist/**/*", "package.json"],
   "extraResources": [
     { "from": "resources/", "to": "resources/" },
-    { "from": "../b-view/dist-app/", "to": "b-view/" }
+    { "from": "../b-view-backup/dist-app/", "to": "b-view/" }
   ],
   "win": {
     "target": [{ "target": "nsis", "arch": ["x64"] }],

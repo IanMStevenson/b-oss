@@ -2,7 +2,7 @@
 // Copyright (C) 2026 Ian Stevenson
 
 import { useState, useEffect, useRef } from 'react';
-import type { BlipEntry, EntryIndex } from '../types.js';
+import type { BlipEntry, EntryIndex } from '@b-oss/b-view';
 
 export type SearchStatus = 'idle' | 'scanning' | 'done';
 
