@@ -205,3 +205,22 @@ total). Committed (`feat(b-api): add transport and multipart seams`), pushed.
 (`b-api` seams) all committed on `b-mobile-prereqs`. **Next:** Phase 0.4 — open the PR against
 `main` and stop for the user's explicit merge confirmation, per the plan's one deliberate
 check-in point.
+
+## 2026-08-03 — Phase 0.4: PR opened, stopping for merge confirmation
+
+Opened https://github.com/IanMStevenson/b-oss/pull/62 (`b-mobile-prereqs` → `main`), 3 commits,
+full test-plan checklist in the PR body (typecheck/lint/test/build all confirmed green; manual
+smoke test of `b-ark`'s embedded viewer and `b-ark-chrome`'s backup page explicitly called out as
+**not** done — neither app was launched interactively this session).
+
+**Deliberately not merging.** This is the one check-in point the plan calls for: Phase 0 touches
+`b-api`/`b-view`, which `b-ark` and `b-ark-chrome` (shipping apps) depend on, so it crosses the
+bar for "affects shared systems" even under a general instruction to run autonomously. Stopping
+here for the user to review/merge (or ask for changes) before any `b-mobile` app code is written.
+
+**If a future session picks this up before the user has responded**: check the PR's state first
+(`gh pr view 62`) rather than assuming either outcome. If merged: `git fetch origin && git merge
+origin/main` (or rebase) into `b-mobile-initial` before touching `b-view`, per the plan, then
+proceed to Phase 1. If still open: do not merge it unilaterally — surface its status and wait.
+Once merged, also consider (per CLAUDE.md) removing the `../b-oss-b-mobile-prereqs` worktree,
+since whichever agent created a worktree is responsible for cleaning it up once its PR merges.
