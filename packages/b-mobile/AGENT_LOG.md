@@ -64,3 +64,36 @@ requirement that these files live in `packages/b-mobile/`, not just the external
 
 **Next:** create `../b-oss-b-mobile-prereqs` worktree on branch `b-mobile-prereqs` off
 `origin/main`, and start Phase 0.1 (`b-tokens`).
+
+## 2026-08-03 — Phase 0.1 complete: `b-tokens` package
+
+Worktree created (`../b-oss-b-mobile-prereqs`, branch `b-mobile-prereqs`, off `origin/main`).
+Note for later sessions: **this log file, and `PLAN.md`/`RESUME.md`, physically live on
+`b-mobile-initial`**, but Phase 0's actual code changes are committed on the separate
+`b-mobile-prereqs` branch/worktree (per the plan's worktree-per-package-of-work rule — Phase 0
+must be independently mergeable). I'm updating this log via absolute path while working in the
+other worktree, and committing the log update separately on `b-mobile-initial`. A cold-start
+session picking this file up mid-Phase-0 should check both worktrees' `git log` to see the full
+picture, not just this branch's.
+
+Added `packages/b-tokens`: `tokens.css` (base palette, minus the three `--rag-*` vars, plus a new
+`--color-danger` — see the audit entry above), `tokens.ts` (same values in TS), `package.json`/
+`tsconfig.json` following `b-view`'s source-consumption pattern (`main`/`types` point at
+`src/index.ts`, no build step), and `docs/style-guide.md`. Root `package.json`'s `typecheck`
+script gained `tsc -p packages/b-tokens --noEmit` (same treatment as `b-view`/`b-ark-chrome`).
+
+The style guide required actually reading `b-view`'s and `b-ark-ui-electron`'s CSS for concrete
+values (type scale, spacing set, radii-by-role, hover/disabled/selection states) rather than
+inventing conventions — recorded in the doc itself with the reasoning, e.g. why `--color-danger`
+gets a base-layer semantic token while a full RAG triad stays app-specific. Also confirmed
+`b-ark-ui-electron/src/styles/tokens.css` has a dead `--blue-info` var not present in `b-view`'s
+copy (unused anywhere in the repo) — left it alone; not in scope to clean up, and it's a live
+example of exactly the "duplicated values drift apart" problem `b-tokens` exists to fix.
+
+Ran `npm install` in the new worktree to register the workspace symlink (first attempt used
+`--workspaces=false`, which skips workspace linking entirely and produced no `@b-oss/*` symlinks —
+noted here in case that mistake looks tempting again). `tsc -p packages/b-tokens --noEmit` and
+`eslint packages/b-tokens/**/*.{ts,tsx}` both clean. Committed
+(`feat(b-tokens): add shared design-tokens package`).
+
+**Next:** Phase 0.2 — the `b-view`/`b-view-backup` split.
