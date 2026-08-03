@@ -97,3 +97,64 @@ noted here in case that mistake looks tempting again). `tsc -p packages/b-tokens
 (`feat(b-tokens): add shared design-tokens package`).
 
 **Next:** Phase 0.2 — the `b-view`/`b-view-backup` split.
+
+## 2026-08-03 — Phase 0.2 complete: `b-view`/`b-view-backup` split
+
+Session picked back up cold mid-Phase-0.2 (two "resume" triggers landed while this was
+in-flight, uncommitted). Verified real state via `git status` in `../b-oss-b-mobile-prereqs`
+against these files before continuing, per the resume protocol — this file and `PLAN.md`/
+`RESUME.md` had fallen behind actual progress (last entry ended at Phase 0.1), confirming the
+"write log entries as you go" discipline needs tighter adherence during long uninterrupted
+tool-call stretches; catching up now rather than mid-flight next time.
+
+Moved `useJournal`/`useEntry`/`useFolderAccess`/`useFolderEntry`/`useFolderJournal`/
+`useSearchEntries`, the FSA typings, and the standalone SPA (+ its vite/build config) into new
+`packages/b-view-backup`. `b-view` now defines its own `BlipEntry`/`BlipComment`/`EntryIndex`/
+`EntryState` (structurally close to `backup-engine`'s shapes minus pure bookkeeping fields —
+`schema_version`, `backed_up_at`, `backup_app_version`, `images.web_scraped` — dropped since a
+view-model has no use for them) and drops the `@b-oss/backup-engine` runtime dependency.
+
+**`ThumbnailGrid` had a deeper coupling than the audit first showed**: it called
+`useSearchEntries` directly for its in-grid search box, not just re-exporting a type. Fixed by
+making search fully prop-driven (`search?: {query, onQueryChange, results, status, progress}`)
+and moving the hook call to each caller (`HomeScreen.tsx`, `BackupPage.tsx`, the SPA's
+`FolderApp`/`HttpApp`) — same UI behaviour (debounced via `useDeferredValue` in each caller, same
+as `ThumbnailGrid` used to do internally), hook now lives with the rest of the backup-data layer.
+
+**Two more repointing targets beyond the original audit**: `b-ark-chrome` has its own
+`build`/`dev`/`dist` scripts that build the SPA and mirror it into `public/b-view-dist/` via
+`scripts/copy-b-view.mjs` (deployed into users' backup folders by `BrowserBackend`) — missed in
+the original blast-radius read because it's a shell-script/npm-workspace reference, not a TS
+import, so it didn't show up in the `@b-oss/b-view` import grep. Repointed alongside `b-ark`'s
+`electron-builder.json` (`from: ../b-view/dist-app/` → `../b-view-backup/dist-app/`) and
+`b-view-files.ts`. Also fixed a stale `.gitignore` entry (`packages/b-view/src/spa/favicon.png`)
+that would have let the build-generated favicon leak into `git status` as untracked forever.
+
+**A real TypeScript gotcha, worth remembering for Phase 3+**: giving `b-view-backup` its own
+`css.d.ts` (mirroring `b-view`'s, out of habit) produced ~107 phantom
+`'styles' is possibly 'undefined'` errors, but only for `.module.css` imports inside `.tsx` files
+pulled in cross-package from `b-view`'s source (not for `b-view`'s own standalone typecheck, and
+not for `b-ark-ui-electron`/`b-ark-ui-chrome`, which import the same files but have no local
+`css.d.ts` of their own). Root cause: `b-view-backup`'s local file declared `*.css` only; the
+root `types/globals.d.ts` already declares both `*.css` and `*.module.css` for the whole repo.
+A file literally named `X.module.css` matches *both* wildcard patterns, and having a *second*,
+narrower-but-still-matching `*.css` declaration local to the consuming package appears to
+confuse TypeScript's specificity ranking for module resolution originating outside that
+package's `rootDir` — it fell back to unioning in `undefined`. Tried and ruled out first:
+`declaration`/`noEmit` toggling, `rootDir` removal, and moving the package into the `tsc --build`
+composite chain — none of those were it. Fix: **delete the redundant local `css.d.ts`**; the root
+one already covers any package with no `.module.css` files of its own. If a future package
+(`b-mobile` included) needs its own `*.module.css` declaration because it has real CSS Modules,
+that's fine and matches `b-view`'s pattern — the bug is specifically from a *narrower duplicate*
+of a pattern the root file already covers, not from having ambient CSS declarations per se.
+
+Also caught and fixed mid-flight: an accidental `git checkout --` on `HomeScreen.tsx` (run while
+debugging the above, without checking `git status` first) reverted legitimate uncommitted edits
+to that file, not just a temporary test line appended to it. Redone from a fresh `Read`. Flagged
+here as a reminder to `git status` before any checkout, per the standing safety rule, even
+mid-investigation when it feels like "just resetting one small test change."
+
+Full monorepo `typecheck && lint && test && build` all green (219 tests). Committed
+(`feat(b-view): split backup data layer into b-view-backup`).
+
+**Next:** Phase 0.3 — the `b-api` transport + multipart seams.
