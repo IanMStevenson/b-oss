@@ -4,6 +4,9 @@
 import type {
   ApiEnvelope,
   RateLimitInfo,
+  FetchImpl,
+  MultipartImpl,
+  FileSource,
   UserProfileResponse,
   EntriesResponse,
   EntryResponse,
@@ -61,23 +64,39 @@ export class BlipfotoClient {
   constructor(
     private readonly accessToken: string,
     private readonly baseUrl: string = 'https://api.blipfoto.com/4/',
+    private readonly fetchImpl: FetchImpl = (...args) => globalThis.fetch(...args),
+    private readonly multipartImpl?: MultipartImpl,
   ) {}
 
   get rateLimitInfo(): RateLimitInfo | null {
     return this.lastRateLimit;
   }
 
-  private async parseEnvelope<T>(response: Response): Promise<T> {
-    const envelope = (await response.json()) as ApiEnvelope<T>;
-    this.lastRateLimit = {
-      limit: parseInt(response.headers.get('X-RateLimit-Limit') ?? '-1', 10),
-      remaining: parseInt(response.headers.get('X-RateLimit-Remaining') ?? '-1', 10),
-      resetInSeconds: parseInt(response.headers.get('X-RateLimit-Reset') ?? '-1', 10),
+  private updateRateLimit(headers: Headers | Record<string, string> | undefined): void {
+    const get = (name: string): string | null => {
+      if (!headers) return null;
+      if (headers instanceof Headers) return headers.get(name);
+      // A native transport's headers map isn't guaranteed to preserve casing.
+      return headers[name] ?? headers[name.toLowerCase()] ?? null;
     };
+    this.lastRateLimit = {
+      limit: parseInt(get('X-RateLimit-Limit') ?? '-1', 10),
+      remaining: parseInt(get('X-RateLimit-Remaining') ?? '-1', 10),
+      resetInSeconds: parseInt(get('X-RateLimit-Reset') ?? '-1', 10),
+    };
+  }
+
+  private parseEnvelopeBody<T>(bodyText: string): T {
+    const envelope = JSON.parse(bodyText) as ApiEnvelope<T>;
     if (envelope.error !== null) {
       throw new BlipfotoError(envelope.error.code, envelope.error.message);
     }
     return envelope.data as T;
+  }
+
+  private async parseEnvelope<T>(response: Response): Promise<T> {
+    this.updateRateLimit(response.headers);
+    return this.parseEnvelopeBody<T>(await response.text());
   }
 
   private async request<T>(
@@ -87,7 +106,7 @@ export class BlipfotoClient {
     const url = buildUrl(this.baseUrl, path, params);
     let response: Response;
     try {
-      response = await globalThis.fetch(url, {
+      response = await this.fetchImpl(url, {
         headers: { Authorization: `Bearer ${this.accessToken}` },
       });
     } catch (err) {
@@ -104,7 +123,7 @@ export class BlipfotoClient {
     const url = new URL(`${path}.json`, this.baseUrl).toString();
     let response: Response;
     try {
-      response = await globalThis.fetch(url, {
+      response = await this.fetchImpl(url, {
         method,
         headers: {
           Authorization: `Bearer ${this.accessToken}`,
@@ -122,21 +141,51 @@ export class BlipfotoClient {
     method: 'POST' | 'PUT',
     path: string,
     fields: Record<string, string | number | undefined>,
-    file?: { fieldName: string; blob: Blob; filename: string },
+    file?: { fieldName: string; filename: string; source: FileSource },
   ): Promise<T> {
     const url = new URL(`${path}.json`, this.baseUrl).toString();
+
+    if (this.multipartImpl) {
+      const stringFields: Record<string, string> = {};
+      for (const [key, value] of Object.entries(fields)) {
+        if (value !== undefined) stringFields[key] = String(value);
+      }
+      let result: { status: number; headers?: Record<string, string>; body: string };
+      try {
+        result = await this.multipartImpl({
+          url,
+          method,
+          headers: { Authorization: `Bearer ${this.accessToken}` },
+          fields: stringFields,
+          file,
+        });
+      } catch (err) {
+        throw new NetworkError('Network request failed', err);
+      }
+      this.updateRateLimit(result.headers);
+      return this.parseEnvelopeBody<T>(result.body);
+    }
+
+    // Default (web) path: FormData + Blob only — a native file path has nothing to read from
+    // in a browser/WebView, and needs a multipartImpl (see app-architecture.md §7).
+    if (file && !('blob' in file.source)) {
+      throw new Error(
+        'mutateMultipart received a native file path but no multipartImpl is configured — ' +
+          'pass one to the BlipfotoClient constructor (see app-architecture.md §7).',
+      );
+    }
     const form = new FormData();
     for (const [key, value] of Object.entries(fields)) {
       if (value !== undefined) {
         form.set(key, String(value));
       }
     }
-    if (file) {
-      form.set(file.fieldName, file.blob, file.filename);
+    if (file && 'blob' in file.source) {
+      form.set(file.fieldName, file.source.blob, file.filename);
     }
     let response: Response;
     try {
-      response = await globalThis.fetch(url, {
+      response = await this.fetchImpl(url, {
         method,
         headers: { Authorization: `Bearer ${this.accessToken}` },
         body: form,
@@ -305,8 +354,8 @@ export class BlipfotoClient {
     };
     return this.mutateMultipart<EntryResponse>('POST', 'entry', fields, {
       fieldName: 'image',
-      blob: image,
       filename: 'image.jpg',
+      source: image,
     });
   }
 
@@ -333,7 +382,7 @@ export class BlipfotoClient {
       'PUT',
       'entry',
       fields,
-      image ? { fieldName: 'image', blob: image, filename: 'image.jpg' } : undefined,
+      image ? { fieldName: 'image', filename: 'image.jpg', source: image } : undefined,
     );
   }
 
@@ -537,7 +586,7 @@ export class BlipfotoClient {
       'PUT',
       'user/settings',
       fields,
-      avatar ? { fieldName: 'avatar', blob: avatar, filename: 'avatar.jpg' } : undefined,
+      avatar ? { fieldName: 'avatar', filename: 'avatar.jpg', source: avatar } : undefined,
     );
   }
 

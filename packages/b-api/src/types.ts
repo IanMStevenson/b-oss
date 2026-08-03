@@ -13,6 +13,32 @@ export interface RateLimitInfo {
   resetInSeconds: number;
 }
 
+// ── Transport seams ──────────────────────────────────────────────────────────
+//
+// A `fetch`-shaped transport (defaults to `globalThis.fetch`) and an optional multipart
+// transport, so the same client serves Electron, the Chrome extension, and Capacitor without
+// forking. See b-mobile's app-architecture.md §7 — CapacitorHttp mishandles FormData/Blob, so a
+// native multipart implementation needs a file *reference* (a path) rather than an in-memory Blob.
+
+/** A file to upload: either an in-memory Blob (the web default) or a native file path. */
+export type FileSource = { blob: Blob } | { path: string; mimeType: string };
+
+export type FetchImpl = typeof fetch;
+
+/**
+ * Performs one multipart upload outside `fetch`/`FormData` (e.g. a hand-built body over
+ * `@capacitor/file-transfer`, per app-architecture.md §7). Returns the raw HTTP response parts;
+ * `BlipfotoClient` parses the envelope and applies Blipfoto's error-code semantics identically to
+ * the default web path, so a `multipartImpl` only needs to know about transport, not the API.
+ */
+export type MultipartImpl = (args: {
+  url: string;
+  method: 'POST' | 'PUT';
+  headers: Record<string, string>;
+  fields: Record<string, string>;
+  file?: { fieldName: string; filename: string; source: FileSource };
+}) => Promise<{ status: number; headers?: Record<string, string>; body: string }>;
+
 // ── Objects ──────────────────────────────────────────────────────────────────
 
 export interface BlipUser {
@@ -290,7 +316,7 @@ export type SearchEntriesOptions = {
 } & (SearchEntriesLocationType | { location_type?: undefined });
 
 export interface PublishEntryParams {
-  image: Blob;
+  image: FileSource;
   date?: string;
   title?: string;
   description?: string;
@@ -313,7 +339,7 @@ export interface PublishEntryParams {
 
 export interface UpdateEntryParams {
   entryId: string;
-  image?: Blob;
+  image?: FileSource;
   date?: string;
   title?: string;
   description?: string;
@@ -340,6 +366,6 @@ export interface UpdateUserSettingsParams {
   country_code?: string;
   privacy?: 0 | 1;
   comments?: 0 | 1;
-  avatar?: Blob;
+  avatar?: FileSource;
   delete_avatar?: 1;
 }

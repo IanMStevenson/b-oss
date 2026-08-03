@@ -536,7 +536,7 @@ describe('publishEntry (User auth only)', () => {
       }),
     );
     const blob = new Blob(['fake-image'], { type: 'image/jpeg' });
-    const result = await makeUserClient().publishEntry({ image: blob, title: 'Test entry' });
+    const result = await makeUserClient().publishEntry({ image: { blob }, title: 'Test entry' });
     expect(result.entry.entry_id_str).toBe('9876543210');
   });
 
@@ -552,7 +552,7 @@ describe('publishEntry (User auth only)', () => {
       }),
     );
     const blob = new Blob(['fake-image'], { type: 'image/jpeg' });
-    await makeUserClient().publishEntry({ image: blob });
+    await makeUserClient().publishEntry({ image: { blob } });
   });
 
   it('sends EXIF overrides when provided', async () => {
@@ -567,7 +567,7 @@ describe('publishEntry (User auth only)', () => {
       }),
     );
     const blob = new Blob(['fake-image'], { type: 'image/jpeg' });
-    await makeUserClient().publishEntry({ image: blob, exif_Make: 'Sony', exif_ISO: '800' });
+    await makeUserClient().publishEntry({ image: { blob }, exif_Make: 'Sony', exif_ISO: '800' });
   });
 });
 
@@ -587,7 +587,7 @@ describe('updateEntry (User auth only)', () => {
     const blob = new Blob(['fake-image'], { type: 'image/jpeg' });
     await makeUserClient().updateEntry({
       entryId: '9876543210',
-      image: blob,
+      image: { blob },
       title: 'Updated title',
     });
   });
@@ -1171,7 +1171,7 @@ describe('updateUserSettings (User auth only)', () => {
       }),
     );
     const avatarBlob = new Blob(['fake-avatar'], { type: 'image/jpeg' });
-    await makeUserClient().updateUserSettings({ avatar: avatarBlob });
+    await makeUserClient().updateUserSettings({ avatar: { blob: avatarBlob } });
   });
 });
 
@@ -1455,5 +1455,113 @@ describe('network failure', () => {
     await expect(
       makeUserClient().postComment({ entryId: '1', content: 'hi' }),
     ).rejects.toBeInstanceOf(NetworkError);
+  });
+});
+
+// ── Transport & multipart seams (b-mobile app-architecture.md §7) ─────────────
+
+describe('fetchImpl (transport seam)', () => {
+  it('routes GET/mutate calls through a custom fetchImpl instead of globalThis.fetch', async () => {
+    const calls: string[] = [];
+    const customFetch: typeof fetch = (input) => {
+      // b-api always calls fetchImpl with a plain string URL, never a Request/URL object.
+      calls.push(input as string);
+      return Promise.resolve(
+        new Response(JSON.stringify(envelope({ awards: [mockAward] })), {
+          headers: rateLimitHeaders(),
+        }),
+      );
+    };
+    const client = new BlipfotoClient(USER_TOKEN, BASE, customFetch);
+    const result = await client.getUserAwards();
+    expect(result.awards[0].award_id_str).toBe('1');
+    expect(calls).toEqual([`${BASE}user/awards.json`]);
+  });
+
+  it('still throws NetworkError when the custom fetchImpl rejects', async () => {
+    const failingFetch: typeof fetch = () => Promise.reject(new Error('offline'));
+    const client = new BlipfotoClient(USER_TOKEN, BASE, failingFetch);
+    await expect(client.getUserAwards()).rejects.toBeInstanceOf(NetworkError);
+  });
+});
+
+describe('multipartImpl (multipart seam)', () => {
+  it('delegates publishEntry to multipartImpl with a native file-path source', async () => {
+    const calls: Array<{
+      url: string;
+      method: string;
+      fields: Record<string, string>;
+      file?: { fieldName: string; filename: string; source: unknown };
+    }> = [];
+    const client = new BlipfotoClient(
+      USER_TOKEN,
+      BASE,
+      undefined,
+      ({ url, method, fields, file }) => {
+        calls.push({ url, method, fields, file });
+        return Promise.resolve({
+          status: 200,
+          headers: rateLimitHeaders(150, 200),
+          body: JSON.stringify(envelope({ entry: mockEntryStub })),
+        });
+      },
+    );
+    const result = await client.publishEntry({
+      title: 'Native publish',
+      image: { path: '/tmp/photo.jpg', mimeType: 'image/jpeg' },
+    });
+    expect(result.entry.entry_id_str).toBe('9876543210');
+    expect(calls).toHaveLength(1);
+    expect(calls[0]?.url).toBe(`${BASE}entry.json`);
+    expect(calls[0]?.method).toBe('POST');
+    expect(calls[0]?.fields.title).toBe('Native publish');
+    expect(calls[0]?.file).toEqual({
+      fieldName: 'image',
+      filename: 'image.jpg',
+      source: { path: '/tmp/photo.jpg', mimeType: 'image/jpeg' },
+    });
+    expect(client.rateLimitInfo).toEqual({ limit: 200, remaining: 150, resetInSeconds: 200 });
+  });
+
+  it('applies BlipfotoError semantics to a multipartImpl error response identically to fetch', async () => {
+    const client = new BlipfotoClient(USER_TOKEN, BASE, undefined, () =>
+      Promise.resolve({
+        status: 200,
+        body: JSON.stringify(errorEnvelope(240, 'Image is not a valid JPG.')),
+      }),
+    );
+    await expect(
+      client.publishEntry({ image: { path: '/tmp/bad.gif', mimeType: 'image/gif' } }),
+    ).rejects.toSatisfy((err: unknown) => err instanceof BlipfotoError && err.code === 240);
+  });
+
+  it('wraps a multipartImpl rejection in NetworkError', async () => {
+    const client = new BlipfotoClient(USER_TOKEN, BASE, undefined, () =>
+      Promise.reject(new Error('native upload failed')),
+    );
+    await expect(
+      client.publishEntry({ image: { path: '/tmp/photo.jpg', mimeType: 'image/jpeg' } }),
+    ).rejects.toBeInstanceOf(NetworkError);
+  });
+
+  it('rejects a native file-path source when no multipartImpl is configured', async () => {
+    const client = makeUserClient();
+    await expect(
+      client.publishEntry({ image: { path: '/tmp/photo.jpg', mimeType: 'image/jpeg' } }),
+    ).rejects.toThrow(/multipartImpl/);
+  });
+
+  it('still uses the default FormData/Blob path when multipartImpl is not configured', async () => {
+    server.use(
+      http.post(`${BASE}entry.json`, async ({ request }) => {
+        const form = await request.formData();
+        expect(form.get('image')).toBeInstanceOf(Blob);
+        return HttpResponse.json(envelope({ entry: mockEntryStub }), {
+          headers: rateLimitHeaders(),
+        });
+      }),
+    );
+    const blob = new Blob(['fake-image'], { type: 'image/jpeg' });
+    await makeUserClient().publishEntry({ image: { blob } });
   });
 });
