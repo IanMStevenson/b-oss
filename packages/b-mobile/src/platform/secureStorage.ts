@@ -31,3 +31,23 @@ export async function setToken(
 export async function deleteToken(accountId: string, purpose: TokenPurpose): Promise<void> {
   await SecureStorage.removeItem(tokenKey(accountId, purpose));
 }
+
+// The per-registration bearer secret notification-service.md's POST /v1/registrations returns
+// (distinct from either Blipfoto token above — it authenticates the app to *b-push*, never to
+// Blipfoto itself). Same secure-storage treatment: never a Zustand store, React state, prefs, or
+// log line. One secret per account, since an account has at most one live registration at a time.
+function registrationSecretKey(accountId: string): string {
+  return `push-registration-secret:${accountId}`;
+}
+
+export async function getRegistrationSecret(accountId: string): Promise<string | null> {
+  return SecureStorage.getItem(registrationSecretKey(accountId));
+}
+
+export async function setRegistrationSecret(accountId: string, secret: string): Promise<void> {
+  await SecureStorage.setItem(registrationSecretKey(accountId), secret);
+}
+
+export async function deleteRegistrationSecret(accountId: string): Promise<void> {
+  await SecureStorage.removeItem(registrationSecretKey(accountId));
+}

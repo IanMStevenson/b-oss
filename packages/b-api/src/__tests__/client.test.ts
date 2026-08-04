@@ -817,6 +817,18 @@ describe('getRecentComments (User auth only)', () => {
     expect(result.comments[0].comment_id_str).toBe('111');
   });
 
+  it('passes through the comments-inbox-only unread flag when present', async () => {
+    server.use(
+      http.get(`${BASE}messages/comments/recent.json`, () =>
+        HttpResponse.json(envelope({ comments: [{ ...mockComment, unread: 1 }] }), {
+          headers: rateLimitHeaders(),
+        }),
+      ),
+    );
+    const result = await makeUserClient().getRecentComments();
+    expect(result.comments[0].unread).toBe(1);
+  });
+
   it('sends size and since_id params', async () => {
     server.use(
       http.get(`${BASE}messages/comments/recent.json`, ({ request }) => {

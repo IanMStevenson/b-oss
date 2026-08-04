@@ -1,0 +1,37 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+# Copyright (C) 2026 Ian Stevenson
+
+# b-push — Cloudflare Worker config (notification-service.md). Static config only: nothing here
+# is ever run automatically. Deploying this service is a deliberate, manual, one-time-per-change
+# step the user performs themselves — see packages/b-mobile/RESUME.md and notification-service.md
+# ("no automated deploy on push, at least initially"). No CI job in this repo invokes `wrangler`.
+#
+# Manual setup, once, from this directory (never committed, never run by an agent):
+#   npx wrangler d1 create b-push
+#     -> paste the returned database_id below
+#   npx wrangler d1 execute b-push --file=src/schema.sql            (local dev)
+#   npx wrangler d1 execute b-push --file=src/schema.sql --remote   (production)
+#   npx wrangler secret put READ_TOKEN_ENCRYPTION_KEY
+#     -> 32 random bytes, base64-encoded, e.g.: node -e "console.log(require('crypto').randomBytes(32).toString('base64'))"
+#   npx wrangler secret put REGISTRATION_SECRET
+#     -> must match the app build's VITE_NOTIFY_REGISTRATION_SECRET (b-mobile/.env.local)
+#   npx wrangler secret put FCM_SERVICE_ACCOUNT_JSON
+#     -> the Firebase service-account key file's contents, as a single-line JSON string
+#   npx wrangler deploy
+#     -> paste the returned workers.dev URL into VITE_NOTIFY_SERVICE_URL
+
+name = "b-push"
+main = "src/index.ts"
+compatibility_date = "2026-08-04"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "b-push"
+database_id = "REPLACE_WITH_REAL_D1_DATABASE_ID"
+
+# Two independent cron triggers (notification-service.md "Polling design" / "Preference
+# freshness"): a 1-minute activity poll (counts-only, per due registration) and an hourly
+# cached-push-prefs refresh. Both run inside the same scheduled() handler, which reads
+# event.cron to tell them apart (src/index.ts).
+[triggers]
+crons = ["*/1 * * * *", "0 * * * *"]

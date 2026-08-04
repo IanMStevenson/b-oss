@@ -40,6 +40,26 @@ vi.mock('../oauthRound.js', async () => {
   return { ...actual, runOAuthRound };
 });
 
+// pushFlow.ts has its own dedicated tests (pushFlow.test.ts) — mocked at this boundary here so
+// accountsFlow's own token-lifecycle logic (this file's actual subject) doesn't also have to
+// stand up platform/push.js, platform/secureStorage.js's registration-secret calls, and
+// data/pushService.ts's network layer. Defaults to "permission granted, registration succeeds" —
+// individual tests override where the refusal/failure path itself is what's under test.
+const ensurePushPermission = vi
+  .fn<(...args: unknown[]) => Promise<boolean>>()
+  .mockResolvedValue(true);
+const registerAccountForPush = vi
+  .fn<(...args: unknown[]) => Promise<boolean>>()
+  .mockResolvedValue(true);
+const deregisterAccountFromPush = vi
+  .fn<(...args: unknown[]) => Promise<void>>()
+  .mockResolvedValue(undefined);
+vi.mock('../pushFlow.js', () => ({
+  ensurePushPermission: (...args: unknown[]) => ensurePushPermission(...args),
+  registerAccountForPush: (...args: unknown[]) => registerAccountForPush(...args),
+  deregisterAccountFromPush: (...args: unknown[]) => deregisterAccountFromPush(...args),
+}));
+
 const { useAccountsStore } = await import('../../state/accountsStore.js');
 const { getToken } = await import('../../platform/secureStorage.js');
 const {

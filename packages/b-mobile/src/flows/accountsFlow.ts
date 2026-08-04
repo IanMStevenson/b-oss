@@ -6,10 +6,14 @@
 // (change mode / remove), FLW-02 (forced logout). Not one screen's job — SCR-01/SCR-30 call
 // into this, they don't reimplement it.
 //
-// TODO(Phase 9): every place below marked "register/deregister with the notification service"
-// is a no-op until b-push exists. The token lifecycle (which tokens are held, in secure storage,
-// reflected in accountsStore) is fully implemented now regardless — registration is a separate
-// concern layered on top per notification-service.md.
+// Phase 9: every place below that registers/deregisters with the notification service now calls
+// flows/pushFlow.ts for real (b-push exists as of this phase). The token lifecycle (which tokens
+// are held, in secure storage, reflected in accountsStore) was already fully implemented in
+// Phase 2 regardless — registration is a separate concern layered on top, per notification-
+// service.md, and a failed/refused registration (permission denied, OS registration failure, a
+// service-call failure) simply leaves `hasServiceToken` false rather than being surfaced as a
+// hard error — the same "no separate blocked state" posture rules.md already establishes for push
+// permission generally.
 
 import { getToken, setToken, deleteToken } from '../platform/secureStorage.js';
 import { getClientForToken } from '../data/client.js';
@@ -20,6 +24,11 @@ import { deleteQueuedFile } from '../platform/upload.js';
 import { runOAuthRound, OAuthCancelledError } from './oauthRound.js';
 import type { OAuthResult } from './oauthRound.js';
 import { cancelReminderForAccount } from './reminderFlow.js';
+import {
+  ensurePushPermission,
+  registerAccountForPush,
+  deregisterAccountFromPush,
+} from './pushFlow.js';
 
 export { OAuthCancelledError };
 
@@ -62,24 +71,33 @@ export interface SignInModeChoice {
 
 /** FLW-20 — deliberate sign-in with the full mode choice. Read-write + notifications runs two
  * sequential, separately-visible OAuth rounds (auth.md); a failed/cancelled second round keeps
- * the first token — the account signs in read-write, just without notifications. */
+ * the first token — the account signs in read-write, just without notifications.
+ *
+ * Push permission is checked *before* either round runs for notifications (rules.md: never
+ * authorize something already known to be undeliverable) — a refusal skips the whole
+ * notifications branch, including the second interactive OAuth round for read-write, rather than
+ * asking the user through a sign-in step for a feature that can't be delivered. */
 export async function signInDeliberate(choice: SignInModeChoice): Promise<string> {
   const result = await runOAuthRound(choice.scope);
   const account = await storeAppToken(result);
   useAccountsStore.getState().setActiveAccountId(account.id);
 
-  if (choice.notifications) {
+  if (choice.notifications && (await ensurePushPermission())) {
     if (account.appTokenScope === 'read') {
       // Read-only + notifications: the same token serves both — no second round.
-      await setToken(account.id, 'service', result.accessToken);
-      useAccountsStore.getState().updateAccount(account.id, { hasServiceToken: true });
-      // TODO(Phase 9): register with the notification service.
+      const registered = await registerAccountForPush(account.id, result.accessToken);
+      if (registered) {
+        await setToken(account.id, 'service', result.accessToken);
+        useAccountsStore.getState().updateAccount(account.id, { hasServiceToken: true });
+      }
     } else {
       try {
         const serviceResult = await runOAuthRound('read');
-        await setToken(account.id, 'service', serviceResult.accessToken);
-        useAccountsStore.getState().updateAccount(account.id, { hasServiceToken: true });
-        // TODO(Phase 9): register with the notification service.
+        const registered = await registerAccountForPush(account.id, serviceResult.accessToken);
+        if (registered) {
+          await setToken(account.id, 'service', serviceResult.accessToken);
+          useAccountsStore.getState().updateAccount(account.id, { hasServiceToken: true });
+        }
       } catch (err) {
         // A failed/cancelled second round keeps the first token — signed in read-write,
         // simply without notifications (FLW-20 step 3). Not rethrown.
@@ -127,7 +145,9 @@ export async function removeAccount(accountId: string): Promise<void> {
         .catch(() => {});
     }
     await deleteToken(accountId, 'service');
-    // TODO(Phase 9): deregister from the notification service.
+  }
+  if (account.notificationRegistrationId) {
+    await deregisterAccountFromPush(accountId);
   }
 
   useAccountsStore.getState().removeAccountLocally(accountId);
@@ -187,19 +207,25 @@ export async function changeAccountMode(
   if (!refreshed) return;
   const finalAppScope = refreshed.appTokenScope;
 
-  if (target.notifications) {
+  if (target.notifications && !refreshed.hasServiceToken && (await ensurePushPermission())) {
     if (finalAppScope === 'read') {
       const appToken = await getToken(accountId, 'app');
-      if (appToken) await setToken(accountId, 'service', appToken);
-      useAccountsStore.getState().updateAccount(accountId, { hasServiceToken: true });
-      // TODO(Phase 9): register/refresh with the notification service.
-    } else if (!refreshed.hasServiceToken) {
+      if (appToken) {
+        const registered = await registerAccountForPush(accountId, appToken);
+        if (registered) {
+          await setToken(accountId, 'service', appToken);
+          useAccountsStore.getState().updateAccount(accountId, { hasServiceToken: true });
+        }
+      }
+    } else {
       const serviceResult = await runOAuthRound('read');
-      await setToken(accountId, 'service', serviceResult.accessToken);
-      useAccountsStore.getState().updateAccount(accountId, { hasServiceToken: true });
-      // TODO(Phase 9): register with the notification service.
+      const registered = await registerAccountForPush(accountId, serviceResult.accessToken);
+      if (registered) {
+        await setToken(accountId, 'service', serviceResult.accessToken);
+        useAccountsStore.getState().updateAccount(accountId, { hasServiceToken: true });
+      }
     }
-  } else if (refreshed.hasServiceToken) {
+  } else if (!target.notifications && refreshed.hasServiceToken) {
     // Revoking is only meaningful when the service token is a genuinely separate credential
     // (read-write + notifications) — in read-only mode it's the same string as the app token,
     // which the app itself still needs.
@@ -212,11 +238,12 @@ export async function changeAccountMode(
       }
     }
     await deleteToken(accountId, 'service');
-    useAccountsStore.getState().updateAccount(accountId, {
-      hasServiceToken: false,
-      notificationStatus: null,
-    });
-    // TODO(Phase 9): deregister from the notification service.
+    // deregisterAccountFromPush() clears the registration-specific fields
+    // (notificationRegistrationId/notificationStatus) and best-effort DELETEs the b-push row;
+    // hasServiceToken is this module's own concept (Blipfoto service-token possession) and stays
+    // its responsibility to clear, same as every other token-lifecycle field above.
+    useAccountsStore.getState().updateAccount(accountId, { hasServiceToken: false });
+    await deregisterAccountFromPush(accountId);
   }
 }
 

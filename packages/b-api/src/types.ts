@@ -113,6 +113,13 @@ export interface BlipComment {
   commenter: Pick<BlipUser, 'username' | 'avatar_url'>;
   actions: { reply: 0 | 1; edit: 0 | 1; delete: 0 | 1 };
   replies: BlipComment[] | null;
+  /** Only populated by `messages/comments/recent` (the comments inbox, SCR-24) — absent
+   * elsewhere `BlipComment` appears (an entry's own comment list has no notion of "unread").
+   * `1` = unread as of this response; per endpoints.md, fetching that endpoint at all marks
+   * *every* one of the account's unread comments read, so this flag only means anything captured
+   * from the *first* response of a session — see app-architecture.md §11's "first-page-unread-
+   * snapshot" trap. */
+  unread?: 0 | 1;
 }
 
 export interface BlipEntryComments {

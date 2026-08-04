@@ -3,7 +3,7 @@
 // @vitest-environment jsdom
 
 import { describe, it, expect, afterEach, beforeEach, vi } from 'vitest';
-import { render, screen, cleanup, waitFor } from '@testing-library/react';
+import { render, screen, cleanup, waitFor, fireEvent } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { BlipfotoError } from '@b-oss/b-api';
 import { NotificationsSection } from '../sections/NotificationsSection.js';
@@ -21,6 +21,12 @@ vi.mock('../../../data/settings.js', () => ({
 
 const { changeAccountMode } = vi.hoisted(() => ({ changeAccountMode: vi.fn() }));
 vi.mock('../../../flows/accountsFlow.js', () => ({ changeAccountMode }));
+
+const { pingRefreshPreferences, updatePollingInterval } = vi.hoisted(() => ({
+  pingRefreshPreferences: vi.fn().mockResolvedValue(undefined),
+  updatePollingInterval: vi.fn().mockResolvedValue(undefined),
+}));
+vi.mock('../../../flows/pushFlow.js', () => ({ pingRefreshPreferences, updatePollingInterval }));
 
 vi.mock('../../../platform/prefs.js', () => ({
   getPref: vi.fn().mockResolvedValue(null),
@@ -57,6 +63,8 @@ beforeEach(() => {
   });
   saveNotificationSettings.mockResolvedValue(undefined);
   changeAccountMode.mockResolvedValue(undefined);
+  pingRefreshPreferences.mockResolvedValue(undefined);
+  updatePollingInterval.mockResolvedValue(undefined);
 });
 
 afterEach(() => {
@@ -135,5 +143,68 @@ describe('NotificationsSection', () => {
     const input = screen.getByRole<HTMLInputElement>('spinbutton');
     expect(input.value).toBe('5');
     expect(input.min).toBe('5');
+  });
+
+  it('a successful save pings the notification service to refresh its cached preferences', async () => {
+    useAccountsStore.setState({
+      accounts: [account({ hasServiceToken: true, notificationRegistrationId: 'reg-1' })],
+      activeAccountId: 'a1',
+    });
+    render(<NotificationsSection />);
+    const followerToggle = await screen.findByText('New Follower');
+    followerToggle
+      .closest('ion-checkbox')!
+      .dispatchEvent(new CustomEvent('ionChange', { bubbles: true, detail: { checked: true } }));
+    await userEvent.click(await screen.findByText('Save', { selector: 'ion-button' }));
+
+    await waitFor(() => expect(pingRefreshPreferences).toHaveBeenCalledWith('a1'));
+  });
+
+  it('changing the Advanced interval, with a live registration, PATCHes it to the service', async () => {
+    useAccountsStore.setState({
+      accounts: [account({ hasServiceToken: true, notificationRegistrationId: 'reg-1' })],
+      activeAccountId: 'a1',
+    });
+    render(<NotificationsSection />);
+    await screen.findByText('Push'); // both groups render — Push only when the switch is on
+    await userEvent.click(screen.getByText(/Advanced/));
+    const input = screen.getByRole<HTMLInputElement>('spinbutton');
+
+    fireEvent.change(input, { target: { value: '20' } });
+
+    await waitFor(() => expect(updatePollingInterval).toHaveBeenCalledWith('a1', 20));
+    expect(useDevicePrefsStore.getState().notificationPollingIntervalMinutes).toBe(20);
+  });
+
+  it('changing the interval with no live registration stays local-only, no error shown', async () => {
+    // Default account (from beforeEach) has notificationRegistrationId: null.
+    render(<NotificationsSection />);
+    await screen.findByText('New Comment');
+    await userEvent.click(screen.getByText(/Advanced/));
+    const input = screen.getByRole<HTMLInputElement>('spinbutton');
+
+    fireEvent.change(input, { target: { value: '10' } });
+
+    await waitFor(() =>
+      expect(useDevicePrefsStore.getState().notificationPollingIntervalMinutes).toBe(10),
+    );
+    expect(updatePollingInterval).not.toHaveBeenCalled();
+  });
+
+  it('a PATCH failure against an existing registration rolls back the value and shows an error', async () => {
+    useAccountsStore.setState({
+      accounts: [account({ hasServiceToken: true, notificationRegistrationId: 'reg-1' })],
+      activeAccountId: 'a1',
+    });
+    updatePollingInterval.mockRejectedValueOnce(new Error('server floor rejected'));
+    render(<NotificationsSection />);
+    await screen.findByText('Push'); // both groups render — Push only when the switch is on
+    await userEvent.click(screen.getByText(/Advanced/));
+    const input = screen.getByRole<HTMLInputElement>('spinbutton');
+
+    fireEvent.change(input, { target: { value: '20' } });
+
+    expect(await screen.findByText('server floor rejected')).toBeDefined();
+    await waitFor(() => expect(input.value).toBe('5'));
   });
 });

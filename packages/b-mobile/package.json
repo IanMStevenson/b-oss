@@ -27,6 +27,7 @@
     "@capacitor/geolocation": "^8.2.0",
     "@capacitor/local-notifications": "^8.2.1",
     "@capacitor/preferences": "^8.0.1",
+    "@capacitor/push-notifications": "^8.1.2",
     "@ionic/react": "8.8.16",
     "@ionic/react-router": "8.8.16",
     "maplibre-gl": "6.1.0",

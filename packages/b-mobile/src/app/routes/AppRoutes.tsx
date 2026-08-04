@@ -11,7 +11,6 @@ import { lazy, Suspense } from 'react';
 import { Switch, Route, Redirect } from 'react-router-dom';
 import type { RouteComponentProps } from 'react-router-dom';
 import { IonPage, IonSpinner } from '@ionic/react';
-import { ScreenPlaceholder } from '../../components/ScreenPlaceholder.js';
 import { SignInScreen } from '../../screens/SCR-01-sign-in/SignInScreen.js';
 import { AccountsScreen } from '../../screens/SCR-30-accounts/AccountsScreen.js';
 import { BrowseScreen } from '../../screens/SCR-02-browse/BrowseScreen.js';
@@ -34,7 +33,10 @@ import { RefusedFollowersScreen } from '../../screens/SCR-21-refused-followers/R
 import { AwardsScreen } from '../../screens/SCR-22-awards/AwardsScreen.js';
 import { SettingsScreen } from '../../screens/SCR-25-settings/SettingsScreen.js';
 import { HelpInfoScreen } from '../../screens/SCR-29-help-and-info/HelpInfoScreen.js';
+import { NotificationsInboxScreen } from '../../screens/SCR-23-notifications-inbox/NotificationsInboxScreen.js';
+import { CommentsInboxScreen } from '../../screens/SCR-24-comments-inbox/CommentsInboxScreen.js';
 import { WriteGuardRoute } from './WriteGuardRoute.js';
+import { AccountGuardRoute } from './AccountGuardRoute.js';
 
 // MapLibre GL JS is by far the app's largest dependency (~19MB unpacked, app-architecture.md
 // §20) and only SCR-04/SCR-12 need it — lazy-loaded so it ships as its own chunk, fetched only
@@ -65,10 +67,6 @@ function LazyScreenFallback() {
       </div>
     </IonPage>
   );
-}
-
-function placeholder(screenId: string, title: string) {
-  return () => <ScreenPlaceholder screenId={screenId} title={title} />;
 }
 
 interface CommentRouteState {
@@ -229,8 +227,8 @@ export function AppRoutes() {
         render={({ match }) => <AwardsScreen username={match.params.username} />}
       />
       <Route exact path="/me/awards" render={() => <AwardsScreen />} />
-      <Route exact path="/notifications" render={placeholder('SCR-23', 'Notifications')} />
-      <Route exact path="/comments" render={placeholder('SCR-24', 'Comments')} />
+      <AccountGuardRoute exact path="/notifications" component={NotificationsInboxScreen} />
+      <AccountGuardRoute exact path="/comments" component={CommentsInboxScreen} />
       <Route exact path="/settings" render={() => <SettingsScreen />} />
       <Route
         exact
