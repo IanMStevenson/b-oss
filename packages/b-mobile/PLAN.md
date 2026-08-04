@@ -104,8 +104,19 @@ regularly. Order follows dependency, not spec priority tags.
    jsdom-rendered smoke test (no headless browser available in this sandbox — see
    `RESUME.md`'s gotchas) plus full typecheck/lint/test/build. Only `@capacitor/core` is
    installed so far; each plugin package lands with the phase that implements it for real.
-2. **Auth & accounts** — `FLW-01/02/20/21/22`, `SCR-01/30`. OAuth round (§8), full
-   `accountsStore` + `useCanWrite()`, write-gating route guard. Unblocks every write screen.
+2. **Auth & accounts — DONE, commit `e1dd621`.** OAuth round (`flows/oauthRound.ts`), real
+   `platform/secureStorage.ts`/`browser.ts`/`deepLinks.ts` (installed
+   `@aparajita/capacitor-secure-storage`, `@capacitor/browser`, `@capacitor/app`), full
+   `accountsStore` + `useCanWrite()`, `flows/accountsFlow.ts` implementing FLW-01/02/20/21/22 via
+   general rules against auth.md's token-lifecycle table (one documented deviation — see the file
+   itself), real `SCR-01`/`SCR-30` screens, `WriteGuardRoute`'s real upgrade-prompt (an `IonAlert`,
+   not yet the full imperative overlay). Fixed a real gap found in `b-api`: `verifyToken()` didn't
+   return the granted `scope` auth.md requires reading back. 17 new unit tests covering every
+   FLW-01/02/20/21/22 rule. **Deliberately deferred, each tagged with the phase that picks it up**:
+   notification-service registration (Phase 9 — `b-push` doesn't exist yet), the first-run mode
+   explainer and copy-deck polish, the account-switcher popover (Phase 3+, needs a persistent nav
+   chrome), `SCR-01`'s gated shape (no caller yet — no write action exists before Phase 4 to gate;
+   `signInGated()` is ready). Full detail in `AGENT_LOG.md`'s Phase 2 entry.
 3. **Browse & entry viewing core** — `SCR-02/05/06/07/08`, `FLW-03/05`. `useResource`/
    `usePagedResource`, `imageCache` + `CachedImage`, `b-view` integration via the live adapter,
    BBCode render-only.
