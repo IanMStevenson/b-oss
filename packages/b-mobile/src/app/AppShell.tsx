@@ -26,7 +26,7 @@ import { useDevicePrefsStore } from '../state/devicePrefsStore.js';
 import { useNotificationCountsStore } from '../state/notificationCountsStore.js';
 import { startUploadQueueRunner } from '../flows/uploadQueueRunner.js';
 import { onReminderTapped } from '../platform/localNotifications.js';
-import { switchAccount, handleForcedLogout } from '../flows/accountsFlow.js';
+import { switchAccount, handleForcedLogout, devSignInWithToken } from '../flows/accountsFlow.js';
 import { onPushReceived, onPushTapped, onPushTokenChanged } from '../platform/push.js';
 import { runLaunchBackstopCheck, handleDeviceTokenRotated } from '../flows/pushFlow.js';
 import { applyFontScale } from '../platform/accessibility.js';
@@ -197,6 +197,18 @@ export function AppShell() {
   useEffect(() => {
     void applyFontScale();
     const accountsHydrated = useAccountsStore.getState().hydrate();
+    // Dev-only, desktop-browser convenience: real OAuth needs a captured `bmobile://` redirect
+    // (platform/deepLinks.ts), which no desktop browser can deliver. VITE_DEV_TOKEN — a token
+    // obtained outside the app, e.g. Blipfoto's own app-admin pages — lets §19's "browser-mode
+    // development" cover signed-in screens too. Only fires when no account is already active, so
+    // it seeds once and never fights a real sign-in/switch-account/sign-out done afterwards.
+    if (import.meta.env.DEV && import.meta.env.VITE_DEV_TOKEN) {
+      void accountsHydrated.then(() => {
+        if (!useAccountsStore.getState().activeAccountId) {
+          void devSignInWithToken(import.meta.env.VITE_DEV_TOKEN as string);
+        }
+      });
+    }
     void useHiddenMembersStore.getState().hydrate();
     void useDevicePrefsStore.getState().hydrate();
     // The upload queue (§9) has non-React consumers by design — started once here rather than

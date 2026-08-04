@@ -23,7 +23,10 @@ function resolveBaseUrl(): string {
   if (isNativePlatform() || !import.meta.env.DEV) {
     return 'https://api.blipfoto.com/4/';
   }
-  return '/api/blipfoto/4/';
+  // Must be absolute — b-api's buildUrl() does `new URL(path, baseUrl)`, and the WHATWG URL
+  // constructor rejects a relative base ("Invalid base URL") even though a relative path here
+  // would otherwise resolve fine against the page's own origin via fetch().
+  return `${window.location.origin}/api/blipfoto/4/`;
 }
 
 function anonymousClient(): BlipfotoClient {
