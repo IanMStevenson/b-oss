@@ -845,3 +845,195 @@ conditional), the location picker (`SCR-12`, likely the `MapScreen`/`mapTiles.ts
 built this phase, reused for a single-marker picker rather than a browsable region), and
 `local-notifications` for `FLW-18`'s daily reminder (suppression by cancellation on successful
 upload, never a fire-time network check — §12).
+
+## 2026-08-04 — Phase 7 complete: Compose & publish
+
+Installed `@capacitor/camera` (`^8.2.2`, unpinned by the spec — matched the caret-range convention
+every other same-generation plugin already uses), `@capacitor/local-notifications` (`8.2.1`,
+pinned exactly per §12) and `react-easy-crop` (`6.2.3`, pinned exactly per §15).
+
+**`platform/upload.ts`'s multipart body**, built exactly to §7's spec: fields then file bytes,
+written to a temp `Directory.Cache` file, uploaded via `FileTransfer.uploadFile()` with an
+explicit `Content-Type: multipart/form-data; boundary=…` header so the plugin skips its own
+field-dropping-on-iOS multipart handling. Body construction itself is pure logic in
+`data/multipartBody.ts` (+ `data/binary.ts`'s base64⇄bytes helpers), kept out of `platform/upload.ts`
+specifically so it gets a direct unit test — the same "one platform-adjacent module tested
+directly" shape `platform/mapTiles.ts` established in Phase 6, applied here to the multipart
+assembly instead of a whole platform wrapper. `platform/upload.ts` also now owns the upload
+queue's file lifecycle end to end: `copyPhotoToAppStorage` (enqueue-time copy into
+`Directory.Data`, §9 — a picker/camera URI is a temporary grant), `readQueuedFileAsSource` (native:
+a path reference for `mutateMultipart`; web: an in-memory `Blob`, since the default `FormData` path
+can't read a native filesystem path), `deleteQueuedFile`, and `resolveQueuedFileDisplaySrc` for
+`SCR-14`'s thumbnail (native only — no web equivalent to `Capacitor.convertFileSrc` for the
+`Filesystem` web implementation's own storage, so desktop-browser dev shows title/status with no
+thumbnail image, which is all `SCR-14`'s acceptance criteria actually require).
+
+**A real bug found and fixed before it shipped, the load-bearing one of this phase:**
+`FileTransfer.uploadFile()` _rejects_ on an HTTP error status (4xx/5xx), unlike `fetch()`, which
+resolves and lets the caller inspect `response.ok`. But a 4xx/5xx from Blipfoto's API still carries
+a parseable error envelope that `BlipfotoClient.mutateMultipart`'s own `parseEnvelopeBody` needs to
+see, exactly like the default `fetch` path already handles for a non-2xx response. Treating every
+rejection as a transport failure would have misclassified every write/validation/forced-logout
+error from a native publish/edit as a `NetworkError` — defeating `data/errors.ts`'s entire outcome
+mapping for every multipart call, silently, since nothing would ever have exercised it without a
+device. Fixed in the `multipartImpl`: a rejection carrying an `httpStatus` and a `body` (the server
+was reached and responded) is returned as a normal result instead of rethrown; only a rejection
+with neither (a genuine transport failure) propagates. Documented prominently in the code, not just
+here, since it's exactly the kind of thing an implementer chasing TODO H's "closed by source-reading"
+note could plausibly miss.
+
+**The durable upload queue** (`state/uploadQueueStore.ts` + `flows/uploadQueueRunner.ts`, a plain
+module per §9, not a React component): one item at a time, serial, a monotonic backoff schedule
+(5s/15s/45s/2m/5m, capped, giving up after 6 attempts) for `transport` outcomes only — every other
+`mapApiError` outcome moves straight to `failed`. `startUploadQueueRunner()` (called once from
+`AppShell.tsx`, not any one screen) resets any item stuck `uploading` from a killed process back to
+`waiting` before draining — §9's "honest limitation" made concrete. `data/client.ts` gained
+`getClientForAccount(accountId)`, since the runner must keep uploading for account A even if the
+user switches the active account to B mid-upload — `getClient()` only ever reads the _active_
+account, which is the wrong thing here. `flows/composeFlow.ts`'s `enqueueDraft()` is the one place
+a `composeDraftStore` draft turns into a queue item, shared by `SCR-10` (publish) and `SCR-13`
+(edit) — same shape, `PublishQueueFields`/`EditQueueFields` (`Omit<...Params, 'image'>`) picked by
+`draft.mode`.
+
+**`platform/camera.ts`** uses the plugin's _current_ API (`takePhoto`/`chooseFromGallery`,
+8.1.0+), not the deprecated `getPhoto`/`pickImages` — confirmed by reading the plugin's own type
+defs before writing anything, same "check what a method actually returns before building on it"
+discipline every prior phase's gotcha list already establishes. This turned out to remove a whole
+piece of planned work: the current API's `MediaResult.metadata` (`includeMetadata: true`) already
+gives `creationDate` (ISO 8601) and `resolution` (`"WxH"`), which is exactly what `SCR-10`'s "date
+pre-filled from EXIF, else today" and too-small validation need — **no hand-rolled binary EXIF
+parser was written**, a deliberate scope reduction over what RESUME.md's plan implied might be
+needed. What's genuinely not available is _parsed_ GPS coordinates (`metadata.exif` is a raw,
+unparsed string) — `SCR-10`/`SCR-12`'s "location pre-filled from EXIF... when available" is
+satisfied only via `platform/geolocation.ts`'s device-location path, not from the photo itself;
+documented in `platform/camera.ts`'s own header comment so nobody goes looking for a GPS field
+that isn't there. Camera-permission-refused-permanently offers no "open Settings" button either —
+there's no cross-platform settings-deep-link plugin in this app's current dependency set, and
+adding one for a single button would be exactly the kind of speculative abstraction the ground
+rules warn against; the screen explains the situation in words instead.
+
+**Cropping**: `components/PhotoCropper.tsx` wraps `react-easy-crop` (square aspect, both
+operations), reporting the live crop rect on every change. `data/imageCrop.ts` is the pure-logic
+half — `cropToProportions()` (percentage rect → `thumbnail_crop`'s `x,y,w`, `SCR-10`, wired this
+phase) and `cropToJpegBlob()` (pixel rect → canvas-drawn, re-encoded JPEG `Blob`, `SCR-25`'s avatar
+path — built now per the Phase 7 plan, since the cropper component is shared, but not wired to any
+screen until Phase 8 exists to call it). `SCR-10` only offers the crop button to members
+(`fetchUserProfile().details.member`, the same field `SCR-17`/`SCR-18` already read — no cheaper
+source exists).
+
+**`data/journal.ts`**: `toDayEligibility()` is pure logic mapping `BlipDay.state` to `SCR-10`'s own
+wording table exactly, including the deliberate "suspended reads identically to already-an-entry,
+but only state 1 gets the jump-to-that-entry affordance" distinction. `fetchMonthEligibility()` and
+`fetchDayEligibility()` map to the two separate endpoints `SCR-10`'s own touchpoints list —
+`journal/month` drives `components/MonthDatePicker.tsx`'s greyed-out days (fetched once per
+_visited month_, cached for the component's lifetime, never per date change — the literal
+requirement), `journal/day` separately confirms the _currently selected_ date and is what actually
+gates Upload. `MonthDatePicker` is a small hand-rolled month grid, not a library — a plain
+`<input type="date">` can't grey out individual dates (no such native API), and pulling in a
+calendar-widget dependency for one screen's one field would be the reverse of this phase's "don't
+add speculative abstractions" instruction.
+
+**`FLW-18`'s reminder is a deliberate refinement of §12's literal wording, not a literal
+implementation of it — and this is the second real bug this phase caught before it shipped.** §12
+says to schedule `on: {hour, minute}, repeats: true` and, on a successful publish, "cancel today's
+occurrence and schedule tomorrow's." But a plain `on:`-pattern schedule has no notion of "skip just
+today": cancelling and re-issuing the _identical_ pattern doesn't skip today at all if today's
+reminder time hasn't passed yet — the plugin just recomputes the next `hour:minute` match from
+_now_, which is still today. That silently fails to suppress the reminder for exactly the case the
+feature exists for (publish in the morning, reminder set for the evening). Fixed by anchoring at an
+explicit `at` `Date` combined with `every: 'day'` instead: `platform/localNotifications.ts` computes
+the _next occurrence_ itself (today if not yet passed, else tomorrow — or always tomorrow for the
+post-publish reschedule, `rescheduleReminderSkippingToday`), which the plugin then repeats
+natively every day with no further app involvement — satisfying FLW-18's "fires reliably without
+the app having been opened that day" the same way `repeats: true` would have, while actually
+achieving the "skip today" behaviour §12 describes. Documented prominently in the module's own
+header comment, the same treatment as the multipart/HTTP-error bug above.
+
+`state/devicePrefsStore.ts` gained `reminders: Record<accountId, {enabled, hour, minute}>` (Phase-8
+UI, data model and scheduling built now — the same "gate built ahead of its screen" shape
+`confirmAccountBeforeReaction` established in Phase 4). `flows/reminderFlow.ts` is the one place
+that reads/writes it: `setReminderEnabled()` (not called by anything yet — no `SCR-25` toggle),
+`onEntryPublished()` (called from the upload queue runner on every successful publish/edit),
+`cancelReminderForAccount()` (wired into `accountsFlow.ts`'s `removeAccount` and the
+downgraded-to-read-only branch of `changeAccountMode` — a read-only account can't publish, so any
+reminder it had is cancelled the moment it stops being read-write). `AppShell.tsx` gained a
+`ReminderTapListener` (mounted inside `IonReactRouter`, so it has `useHistory()`) implementing
+FLW-18's "tapping it switches to that account, then opens SCR-09" — self-contained, not routed
+through the not-yet-built `deepLinkResolver.ts` (§16, still open beyond the OAuth round), since
+`@capacitor/local-notifications` fires its own distinct `localNotificationActionPerformed` event.
+
+**`SCR-06`'s overflow menu gained `FLW-13`'s Edit details / Replace photo / Delete entry**,
+owner-only _and_ only read-write (ownership doesn't imply write access) — `Delete` never routes
+through `SCR-13` at all, per `FLW-13`'s own diagram (confirm+delete happens directly from the
+overflow menu), implemented right there with a new `data/entries.ts#deleteEntry()`. `Edit`/`Replace
+photo` push to `/entry/:id/edit` with a `{mode}` router-state flag `AppRoutes.tsx` extracts, into
+`SCR-13`'s `EditEntryScreen` — which sits behind `WriteGuardRoute` as a second, redundant-by-design
+gate on top of the overflow menu's own `canWrite` check, the same "never trust one call site"
+posture `WriteGuardRoute` exists for everywhere else.
+
+**A third real bug, found only by a test that wouldn't stay green:** `EditEntryScreen`'s
+mount-effect used to depend on `isCurrentDraft` (`draft?.mode === 'edit' && draft.entryId ===
+entryId`) to decide whether to skip refetching. But `Save`'s own `clearDraft()` sets `draft` to
+`null`, which flips `isCurrentDraft` back to `false` — and since the effect had it in its
+dependency array, that _re-triggered a pointless refetch-and-reseed_ immediately after a successful
+save, briefly resurrecting the just-cleared draft before the route change unmounted the screen.
+Fixed with a `useRef` seeded once from `isCurrentDraft` at mount instead of a reactive dependency —
+same "a ref survives an internal state change without re-running the effect" fix shape as `SCR-06`'s
+Phase-4 optimistic-update bug, different root cause (an effect dependency reacting to its own
+side effect's aftermath, not a wrapper object's referential instability).
+
+**`components/BBCodeToolbar.tsx`**: extracted from `SCR-15`'s comment editor (Phase 4 left an
+explicit TODO to do this once `SCR-11` needed the same behaviour) — `wrapSelection()` plus a small
+presentational toolbar, parameterized by which tags to show. `SCR-15` passes `BBCODE_TAGS` minus
+`url` (comments exclude the link tag, unchanged behaviour); `SCR-11` passes the full five. Rendered
+as plain `<button>`s, not `IonButton` — sidesteps the already-known `IonButton`-in-jsdom gotchas
+(`aria-label` not reaching the DOM) preemptively, the same choice `UserRow.tsx` made in Phase 5.
+
+**One new gotcha, found writing `SCR-06`'s delete-entry test:** several _simultaneously-present_
+destructive `IonAlert`s can coexist on one screen (`SCR-06` now has four: Unfollow, Hide, delete-
+comment, delete-entry) — and per the already-known "`IonAlert` renders its buttons into the DOM
+unconditionally regardless of `isOpen`" gotcha, a bare
+`document.querySelector('button.alert-button-role-destructive')` matches whichever one happens to
+render first in source order, not necessarily the one actually open. The existing gotcha's own
+"a screen has at most one destructive alert open at a time" assumption doesn't hold once a screen
+has _multiple distinct_ destructive alerts defined at all, even if only one is ever open. Fixed by
+scoping through the alert's own `header` attribute:
+`document.querySelector('ion-alert[header="…"] button.alert-button-role-destructive')`. Worth
+remembering as the general form: scope by the alert's `header`, not just its button role, on any
+screen with more than one destructive confirmation.
+
+**Chunk-size check, per this phase's explicit instruction (`react-easy-crop`/`maplibre-gl`
+watch-list):** `npm run build`'s own output confirms both are correctly excluded from the eager
+bundle. `maplibre-gl` (942KB minified/244KB gzip) is one chunk shared between `SCR-04` and `SCR-12`
+(both lazy-loaded in `AppRoutes.tsx`, same `React.lazy()` pattern as Phase 6) — absent from
+`index.html`'s own script list. `react-easy-crop` is folded into `ComposeEntryScreen`'s own lazy
+chunk (32KB total, verified by grepping for its minified-but-still-present internal method names
+like `computeSizes` — absent from every eager chunk). The one chunk that _is_ eager and large
+(~1.05MB minified/217KB gzip, oddly named after `useAppNavigate.ts` — a bundler chunk-naming
+artifact, not its actual contents) is `@ionic/react`/`@ionic/core`'s own framework code, confirmed
+by grepping for `IonRouterOutlet`/`ionicons` inside it and cross-checked against `@ionic/core`'s
+unminified dist size (2.4MB) — a pre-existing cost of the Ionic framework choice (§5, made in
+Phase 1) that this phase didn't add to, not a new regression. `@capacitor/camera` and
+`@capacitor/local-notifications` show up only as the expected handful of small (<10KB) plugin-shim
+chunks alongside every other first-party Capacitor plugin already in the tree.
+
+85 new tests (436 total, up from 351): pure-logic coverage for `toDayEligibility` (every `BlipDay`
+state), `bytesToBase64`/`base64ToBytes` round-trips, `buildMultipartBody`'s exact byte layout,
+`cropToProportions`/`thumbnailCropToField`, `validatePickedPhoto`, `nextBackoffMs`'s exact backoff
+schedule; the upload-queue runner's full retry/success/forced-logout/kill-recovery matrix against a
+fake client; `reminderFlow`'s enable/disable/publish-triggers-reschedule/cancel behaviour against a
+mocked `platform/localNotifications.ts`; `uploadQueueStore`'s `cancelForAccount`; one test file per
+new screen (`SCR-09`–`SCR-14`) covering its own loading/empty/error/success states per §19, plus
+new owner-only-overflow tests added to `SCR-06`'s existing suite. Full monorepo
+`typecheck && lint && test && build` green throughout; `npm test` run 3 times consecutively with
+zero failures. Committed
+(`feat(b-mobile): Phase 7 — Compose & publish (SCR-09-14, FLW-12/13/18)`), pushed.
+
+**Next:** Phase 8 — Settings & device-level screens (`SCR-25/29`, `FLW-17`) per `PLAN.md`'s phase
+list: `devicePrefsStore`'s remaining fields (`SCR-25`'s General/Journal/Misc sections, the
+`confirmAccountBeforeReaction` toggle UI, the reminder on/off + time picker UI now that
+`flows/reminderFlow.ts` is fully built), `config/countries`/`locales`, an opt-in web-link
+`<activity-alias>` toggle (pulled forward from Phase 10), privacy-policy/delete-account links, and
+`SCR-25`'s avatar crop screen — `components/PhotoCropper.tsx` and `data/imageCrop.ts`'s
+`cropToJpegBlob()` are already built and waiting for it (this phase's "cropper component built now,
+even though the screen isn't" plan point).
