@@ -13,6 +13,11 @@ vi.mock('../../../data/entries.js', () => ({
   fetchPopularPage: vi.fn(),
   fetchFollowingPage: vi.fn(),
   fetchJustMePage: vi.fn(),
+  fetchNearbyPage: vi.fn(),
+}));
+
+vi.mock('../../../platform/geolocation.js', () => ({
+  getCurrentPosition: vi.fn(),
 }));
 
 vi.mock('../../../state/accountsStore.js', () => ({
@@ -105,5 +110,27 @@ describe('BrowseScreen', () => {
     segment.dispatchEvent(new CustomEvent('ionChange', { detail: { value: 'following' } }));
 
     expect(await screen.findByLabelText('Sunrise')).toBeDefined();
+  });
+
+  // Phase 6 made platform/geolocation.ts real: getCurrentPosition() can now resolve `null`
+  // (permission granted, no fix available), distinct from a rejection (permission refused).
+  // Before this test existed, resolving null left NearbyTab's `!coords` branch stuck on its
+  // spinner forever, since only the reject path set `locationDenied`.
+  it('Nearby tab shows the location-needed message rather than spinning forever when a fix is unavailable', async () => {
+    const { fetchRecentPage } = await import('../../../data/entries.js');
+    const { useActiveAccount } = await import('../../../state/accountsStore.js');
+    const { getCurrentPosition } = await import('../../../platform/geolocation.js');
+    vi.mocked(useActiveAccount).mockReturnValue(null);
+    vi.mocked(fetchRecentPage).mockResolvedValue({ items: [], more: false });
+    vi.mocked(getCurrentPosition).mockResolvedValue(null);
+    renderScreen();
+    await screen.findByText('Nothing here yet.');
+
+    const segment = document.querySelector('ion-segment')!;
+    segment.dispatchEvent(new CustomEvent('ionChange', { detail: { value: 'nearby' } }));
+
+    expect(
+      await screen.findByText('This tab needs location access to show entries near you.'),
+    ).toBeDefined();
   });
 });

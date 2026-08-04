@@ -59,6 +59,17 @@ export async function fetchTagPage(tag: string, pageIndex: number): Promise<Page
   return { items: res.entries.map(stubToEntryIndex), more: res.page.more === 1 };
 }
 
+/** SCR-03's Entries tab. Same shape as every other feed; the caller (SearchScreen) is what keeps
+ * this from running for an empty/whitespace term (FLW-04: "no search runs"). */
+export async function fetchSearchEntriesPage(
+  query: string,
+  pageIndex: number,
+): Promise<Page<EntryIndex>> {
+  const client = await getClient();
+  const res = await client.searchEntries({ query, pageIndex, pageSize: PAGE_SIZE });
+  return { items: res.entries.map(stubToEntryIndex), more: res.page.more === 1 };
+}
+
 export interface LoadedEntry {
   entry: BlipEntry;
   prevEntryId: string | null;
