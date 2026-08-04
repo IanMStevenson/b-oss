@@ -1,18 +1,22 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (C) 2026 Ian Stevenson
 
-// SCR-11 — Description Editor (§14). This phase wires it for its two compose-flow callers,
-// SCR-10 and SCR-13 — both read/write the same composeDraftStore.description field (§6), so this
-// screen needs no route param or router state to know what it's editing; it edits whatever draft
-// is currently open. TODO(Phase 8): SCR-25 -> Profile -> Biography is a third caller with a
-// different data source (no compose draft involved) — when that lands, this screen will need a
-// mode switch (e.g. a `?target=bio` route param) rather than always assuming a draft exists.
+// SCR-11 — Description Editor (§14). Two data sources, chosen by `target`:
+//   - `'draft'` (default) — the two compose-flow callers, SCR-10 and SCR-13, both read/write the
+//     same composeDraftStore.description field (§6); no route param needed to know what's being
+//     edited beyond "whatever draft is currently open".
+//   - `'bio'` (Phase 8) — SCR-25 -> Profile -> Biography, a third caller with a different data
+//     source (no compose draft involved, per the TODO this mode replaces): fetches the account's
+//     current biography via data/settings.ts on mount and saves it directly with `saveUserSettings`
+//     on OK, entirely self-contained — ProfileSection never round-trips the text itself. Routed via
+//     `/compose/description?target=bio` (AppRoutes.tsx parses the query param, §5's react-router
+//     boundary).
 //
 // Five buttons, not four (SCR-15's comment editor excludes the link tag; entries include it, per
 // §14/§21's corrected tag set) — components/BBCodeToolbar.tsx is shared between the two, this
 // screen just passes the full BBCODE_TAGS.
 
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
   IonPage,
   IonHeader,
@@ -22,13 +26,28 @@ import {
   IonButton,
   IonContent,
   IonAlert,
+  IonSpinner,
+  IonText,
 } from '@ionic/react';
 import { useAppNavigate } from '../../app/routes/useAppNavigate.js';
 import { useComposeDraftStore } from '../../state/composeDraftStore.js';
+import { fetchUserSettings, saveUserSettings } from '../../data/settings.js';
+import { mapApiError } from '../../data/errors.js';
 import { BBCodeToolbar } from '../../components/BBCodeToolbar.js';
 import { BBCODE_TAGS } from '../../data/bbcode.js';
 
-export function DescriptionEditorScreen() {
+interface DescriptionEditorScreenProps {
+  target?: 'draft' | 'bio';
+}
+
+export function DescriptionEditorScreen({ target = 'draft' }: DescriptionEditorScreenProps) {
+  if (target === 'bio') {
+    return <BiographyEditor />;
+  }
+  return <DraftDescriptionEditor />;
+}
+
+function DraftDescriptionEditor() {
   const navigate = useAppNavigate();
   const draft = useComposeDraftStore((s) => s.draft);
   const patchDraft = useComposeDraftStore((s) => s.patchDraft);
@@ -76,6 +95,120 @@ export function DescriptionEditorScreen() {
           rows={12}
           style={{ width: '100%', font: 'inherit', padding: 8 }}
         />
+      </IonContent>
+
+      <IonAlert
+        isOpen={confirmDiscard}
+        header="Discard changes?"
+        onDidDismiss={() => setConfirmDiscard(false)}
+        buttons={[
+          { text: 'Keep editing', role: 'cancel' },
+          { text: 'Discard', role: 'destructive', handler: () => navigate.goBack() },
+        ]}
+      />
+    </IonPage>
+  );
+}
+
+function BiographyEditor() {
+  const navigate = useAppNavigate();
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [initial, setInitial] = useState('');
+  const [content, setContent] = useState('');
+  const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
+  const [confirmDiscard, setConfirmDiscard] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetchUserSettings().then(
+      (settings) => {
+        if (cancelled) return;
+        setInitial(settings.biography);
+        setContent(settings.biography);
+        setLoading(false);
+      },
+      (err: unknown) => {
+        if (cancelled) return;
+        const outcome = mapApiError(err);
+        setLoadError(
+          outcome.kind === 'message' ? outcome.message : 'Could not load your biography.',
+        );
+        setLoading(false);
+      },
+    );
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const hasChanges = content !== initial;
+
+  function handleBack(): void {
+    if (hasChanges) {
+      setConfirmDiscard(true);
+      return;
+    }
+    navigate.goBack();
+  }
+
+  async function handleOk(): Promise<void> {
+    if (saving) return;
+    setSaving(true);
+    setSaveError(null);
+    try {
+      await saveUserSettings({ biography: content });
+      navigate.goBack();
+    } catch (err) {
+      const outcome = mapApiError(err);
+      setSaveError(outcome.kind === 'message' ? outcome.message : 'Could not save your biography.');
+      setSaving(false);
+    }
+  }
+
+  return (
+    <IonPage>
+      <IonHeader>
+        <IonToolbar>
+          <IonButtons slot="start">
+            <IonButton onClick={handleBack}>Cancel</IonButton>
+          </IonButtons>
+          <IonTitle>Biography</IonTitle>
+          <IonButtons slot="end">
+            <IonButton disabled={loading || saving} onClick={() => void handleOk()}>
+              {saving ? <IonSpinner name="dots" /> : 'OK'}
+            </IonButton>
+          </IonButtons>
+        </IonToolbar>
+      </IonHeader>
+      <IonContent className="ion-padding">
+        {loading ? (
+          <IonSpinner />
+        ) : loadError ? (
+          <IonText color="danger">
+            <p>{loadError}</p>
+          </IonText>
+        ) : (
+          <>
+            {saveError && (
+              <IonText color="danger">
+                <p>{saveError}</p>
+              </IonText>
+            )}
+            <BBCodeToolbar tags={BBCODE_TAGS} textareaRef={textareaRef} onChange={setContent} />
+            <textarea
+              ref={textareaRef}
+              value={content}
+              onChange={(e) => setContent(e.target.value)}
+              placeholder="Tell people about yourself…"
+              rows={12}
+              style={{ width: '100%', font: 'inherit', padding: 8 }}
+            />
+          </>
+        )}
       </IonContent>
 
       <IonAlert

@@ -32,6 +32,8 @@ import { FollowersFollowingScreen } from '../../screens/SCR-19-followers-followi
 import { PendingRequestsScreen } from '../../screens/SCR-20-pending-requests/PendingRequestsScreen.js';
 import { RefusedFollowersScreen } from '../../screens/SCR-21-refused-followers/RefusedFollowersScreen.js';
 import { AwardsScreen } from '../../screens/SCR-22-awards/AwardsScreen.js';
+import { SettingsScreen } from '../../screens/SCR-25-settings/SettingsScreen.js';
+import { HelpInfoScreen } from '../../screens/SCR-29-help-and-info/HelpInfoScreen.js';
 import { WriteGuardRoute } from './WriteGuardRoute.js';
 
 // MapLibre GL JS is by far the app's largest dependency (~19MB unpacked, app-architecture.md
@@ -181,7 +183,14 @@ export function AppRoutes() {
           </Suspense>
         )}
       />
-      <Route exact path="/compose/description" component={DescriptionEditorScreen} />
+      <Route
+        exact
+        path="/compose/description"
+        render={({ location }: RouteComponentProps) => {
+          const target = new URLSearchParams(location.search).get('target');
+          return <DescriptionEditorScreen target={target === 'bio' ? 'bio' : 'draft'} />;
+        }}
+      />
       <Route
         exact
         path="/compose/location"
@@ -222,9 +231,22 @@ export function AppRoutes() {
       <Route exact path="/me/awards" render={() => <AwardsScreen />} />
       <Route exact path="/notifications" render={placeholder('SCR-23', 'Notifications')} />
       <Route exact path="/comments" render={placeholder('SCR-24', 'Comments')} />
-      <Route exact path="/settings" render={placeholder('SCR-25', 'Settings')} />
-      <Route exact path="/settings/:section" render={placeholder('SCR-25', 'Settings')} />
-      <Route exact path="/help" render={placeholder('SCR-29', 'Help & Info')} />
+      <Route exact path="/settings" render={() => <SettingsScreen />} />
+      <Route
+        exact
+        path="/settings/:section"
+        render={({ match }: RouteComponentProps<{ section: string }>) => (
+          <SettingsScreen section={match.params.section} />
+        )}
+      />
+      <Route exact path="/help" render={() => <HelpInfoScreen />} />
+      <Route
+        exact
+        path="/help/:section"
+        render={({ match }: RouteComponentProps<{ section: string }>) => (
+          <HelpInfoScreen section={match.params.section} />
+        )}
+      />
       <Route exact path="/accounts" component={AccountsScreen} />
       <Route exact path="/hidden" component={HiddenMembersScreen} />
       <Route exact path="/sign-in" component={SignInScreen} />

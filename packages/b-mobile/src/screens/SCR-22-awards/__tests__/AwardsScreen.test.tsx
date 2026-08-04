@@ -46,7 +46,7 @@ describe('AwardsScreen', () => {
     renderScreen();
     const badge = await screen.findByAltText('Award');
     await userEvent.click(badge);
-    expect(push).toHaveBeenCalledWith('/help');
+    expect(push).toHaveBeenCalledWith('/help/icon-guide');
   });
 
   it('shows an error with retry on failure', async () => {

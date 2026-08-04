@@ -73,7 +73,7 @@ export function AwardsScreen({ username }: AwardsScreenProps) {
             {state.data.map((award) => (
               <button
                 key={award.award_id_str}
-                onClick={() => navigate.push('/help')}
+                onClick={() => navigate.push('/help/icon-guide')}
                 style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer' }}
               >
                 <CachedImage src={award.icon_url} alt="Award" style={{ width: 48, height: 48 }} />
