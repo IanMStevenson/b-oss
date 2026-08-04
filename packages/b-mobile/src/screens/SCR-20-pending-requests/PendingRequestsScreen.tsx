@@ -28,6 +28,7 @@ import { fetchPendingRequests } from '../../data/users.js';
 import { approveRequest, refuseRequest } from '../../flows/connectionsFlow.js';
 import { mapApiError } from '../../data/errors.js';
 import { useAppNavigate } from '../../app/routes/useAppNavigate.js';
+import { useOverlay } from '../../app/OverlayProvider.js';
 import { useCanWrite } from '../../state/accountsStore.js';
 import { useAccountsStore } from '../../state/accountsStore.js';
 import { useHiddenMembersStore } from '../../state/hiddenMembersStore.js';
@@ -37,16 +38,16 @@ import type { BlipUser } from '@b-oss/b-api';
 export function PendingRequestsScreen() {
   const navigate = useAppNavigate();
   const canWrite = useCanWrite();
+  const { showUpgradePrompt } = useOverlay();
   const resource = usePagedResource((pageIndex) => fetchPendingRequests(pageIndex), []);
 
   const [refuseTarget, setRefuseTarget] = useState<BlipUser | null>(null);
   const [refusedOk, setRefusedOk] = useState<BlipUser | null>(null);
-  const [upgradePromptOpen, setUpgradePromptOpen] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   function gateOrRun(action: () => void): void {
     if (!canWrite) {
-      setUpgradePromptOpen(true);
+      showUpgradePrompt();
       return;
     }
     action();
@@ -181,17 +182,6 @@ export function PendingRequestsScreen() {
         buttons={[
           { text: 'Done', handler: () => setRefusedOk(null) },
           { text: `Also hide ${refusedOk?.username ?? ''}`, handler: hideRefused },
-        ]}
-      />
-
-      <IonAlert
-        isOpen={upgradePromptOpen}
-        header="Read-only account"
-        message="This account is signed in read-only. Sign in for write access to continue."
-        onDidDismiss={() => setUpgradePromptOpen(false)}
-        buttons={[
-          { text: 'Cancel', role: 'cancel' },
-          { text: 'Manage accounts', handler: () => navigate.push('/accounts') },
         ]}
       />
 

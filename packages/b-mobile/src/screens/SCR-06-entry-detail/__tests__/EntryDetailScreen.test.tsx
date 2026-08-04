@@ -7,6 +7,7 @@ import { render, screen, cleanup, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
 import { EntryDetailScreen } from '../EntryDetailScreen.js';
+import { OverlayProvider, OverlayHost } from '../../../app/OverlayProvider.js';
 import { BlipfotoError } from '@b-oss/b-api';
 import { useAccountsStore } from '../../../state/accountsStore.js';
 import { useHiddenMembersStore } from '../../../state/hiddenMembersStore.js';
@@ -109,7 +110,10 @@ afterEach(() => {
 function renderScreen() {
   return render(
     <MemoryRouter>
-      <EntryDetailScreen entryId="1" />
+      <OverlayProvider>
+        <OverlayHost />
+        <EntryDetailScreen entryId="1" />
+      </OverlayProvider>
     </MemoryRouter>,
   );
 }

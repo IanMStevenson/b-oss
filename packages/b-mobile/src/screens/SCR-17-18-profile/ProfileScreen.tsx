@@ -46,6 +46,7 @@ import { followUser, unfollowUser } from '../../flows/reactionsFlow.js';
 import { signInGated } from '../../flows/accountsFlow.js';
 import { mapApiError } from '../../data/errors.js';
 import { useAppNavigate } from '../../app/routes/useAppNavigate.js';
+import { useOverlay } from '../../app/OverlayProvider.js';
 import { useAccountsStore, useActiveAccount } from '../../state/accountsStore.js';
 import { useHiddenMembersStore, useIsHidden } from '../../state/hiddenMembersStore.js';
 import { CachedImage } from '../../components/CachedImage.js';
@@ -105,6 +106,7 @@ function GridTab({
 
 export function ProfileScreen({ username }: ProfileScreenProps) {
   const navigate = useAppNavigate();
+  const { showUpgradePrompt } = useOverlay();
   const activeAccount = useActiveAccount();
   const isOwn = username === undefined || username === activeAccount?.username;
   const effectiveUsername = username ?? activeAccount?.username;
@@ -118,7 +120,6 @@ export function ProfileScreen({ username }: ProfileScreenProps) {
   const [confirmUnfollow, setConfirmUnfollow] = useState(false);
   const [confirmHide, setConfirmHide] = useState(false);
   const [overflowOpen, setOverflowOpen] = useState(false);
-  const [upgradePromptOpen, setUpgradePromptOpen] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const friendship =
@@ -141,7 +142,7 @@ export function ProfileScreen({ username }: ProfileScreenProps) {
     const fresh = useAccountsStore.getState();
     const active = fresh.accounts.find((a) => a.id === fresh.activeAccountId);
     if (active?.appTokenScope !== 'read,write') {
-      setUpgradePromptOpen(true);
+      showUpgradePrompt();
       return;
     }
     setFriendshipState(1);
@@ -368,17 +369,6 @@ export function ProfileScreen({ username }: ProfileScreenProps) {
         buttons={[
           { text: 'Cancel', role: 'cancel' },
           { text: 'Hide', role: 'destructive', handler: handleConfirmedHide },
-        ]}
-      />
-
-      <IonAlert
-        isOpen={upgradePromptOpen}
-        header="Read-only account"
-        message="This account is signed in read-only. Sign in for write access to continue."
-        onDidDismiss={() => setUpgradePromptOpen(false)}
-        buttons={[
-          { text: 'Cancel', role: 'cancel' },
-          { text: 'Manage accounts', handler: () => navigate.push('/accounts') },
         ]}
       />
 

@@ -30,6 +30,7 @@ import { fetchFollowers, fetchFollowing } from '../../data/users.js';
 import { removeFollower } from '../../flows/connectionsFlow.js';
 import { mapApiError } from '../../data/errors.js';
 import { useAppNavigate } from '../../app/routes/useAppNavigate.js';
+import { useOverlay } from '../../app/OverlayProvider.js';
 import { useActiveAccount, useCanWrite } from '../../state/accountsStore.js';
 import { UserRow } from '../../components/UserRow.js';
 import type { BlipUser } from '@b-oss/b-api';
@@ -41,6 +42,7 @@ interface FollowersFollowingScreenProps {
 
 export function FollowersFollowingScreen({ username, mode }: FollowersFollowingScreenProps) {
   const navigate = useAppNavigate();
+  const { showUpgradePrompt } = useOverlay();
   const activeAccount = useActiveAccount();
   const canWrite = useCanWrite();
   const isOwnFollowers = mode === 'followers' && activeAccount?.username === username;
@@ -54,12 +56,11 @@ export function FollowersFollowingScreen({ username, mode }: FollowersFollowingS
   );
 
   const [removeTarget, setRemoveTarget] = useState<BlipUser | null>(null);
-  const [upgradePromptOpen, setUpgradePromptOpen] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   function requestRemove(user: BlipUser): void {
     if (!canWrite) {
-      setUpgradePromptOpen(true);
+      showUpgradePrompt();
       return;
     }
     setRemoveTarget(user);
@@ -152,17 +153,6 @@ export function FollowersFollowingScreen({ username, mode }: FollowersFollowingS
         buttons={[
           { text: 'Cancel', role: 'cancel' },
           { text: 'Remove', role: 'destructive', handler: () => void confirmRemove() },
-        ]}
-      />
-
-      <IonAlert
-        isOpen={upgradePromptOpen}
-        header="Read-only account"
-        message="This account is signed in read-only. Sign in for write access to continue."
-        onDidDismiss={() => setUpgradePromptOpen(false)}
-        buttons={[
-          { text: 'Cancel', role: 'cancel' },
-          { text: 'Manage accounts', handler: () => navigate.push('/accounts') },
         ]}
       />
 

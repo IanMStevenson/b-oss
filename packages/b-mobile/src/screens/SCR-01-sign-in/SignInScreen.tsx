@@ -9,8 +9,14 @@
 //
 // Registration URL confirmed by the user 2026-08-04 (was previously the bare root domain, since
 // the spec never states it).
+//
+// First-run explainer (Phase 12.1): marked seen the moment it's *shown*, not on dismissal —
+// simpler than tracking the overlay's own open/close transition, and functionally equivalent for
+// "never shown again", since it covers a backdrop/swipe dismiss the same as tapping "Got it".
+// Gated on devicePrefsStore's own `hydrated` flag so a returning user's persisted `true` isn't
+// raced by a not-yet-loaded default `false`.
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   IonPage,
   IonHeader,
@@ -30,6 +36,8 @@ import { signInDeliberate, OAuthCancelledError } from '../../flows/accountsFlow.
 import type { SignInModeChoice } from '../../flows/accountsFlow.js';
 import { openUrl } from '../../platform/browser.js';
 import { useAppNavigate } from '../../app/routes/useAppNavigate.js';
+import { useOverlay } from '../../app/OverlayProvider.js';
+import { useDevicePrefsStore } from '../../state/devicePrefsStore.js';
 
 const SIGNUP_URL = 'https://www.blipfoto.com/account/signup';
 
@@ -37,10 +45,22 @@ type Status = 'idle' | 'authenticating' | 'error';
 
 export function SignInScreen() {
   const navigate = useAppNavigate();
+  const { showFirstRunExplainer } = useOverlay();
+  const hydrated = useDevicePrefsStore((s) => s.hydrated);
+  const seenFirstRunExplainer = useDevicePrefsStore((s) => s.seenFirstRunExplainer);
+  const setSeenFirstRunExplainer = useDevicePrefsStore((s) => s.setSeenFirstRunExplainer);
   const [scope, setScope] = useState<SignInModeChoice['scope']>('read,write');
   const [notifications, setNotifications] = useState(false);
   const [status, setStatus] = useState<Status>('idle');
   const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (hydrated && !seenFirstRunExplainer) {
+      showFirstRunExplainer();
+      setSeenFirstRunExplainer(true);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [hydrated, seenFirstRunExplainer]);
 
   async function handleContinue() {
     setError(null);

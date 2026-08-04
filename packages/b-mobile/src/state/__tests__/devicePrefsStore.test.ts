@@ -21,6 +21,7 @@ beforeEach(() => {
     uploadFullSize: true,
     openBlipfotoLinksInApp: false,
     notificationPollingIntervalMinutes: 5,
+    seenFirstRunExplainer: false,
     hydrated: true,
   });
 });
@@ -61,5 +62,14 @@ describe('devicePrefsStore — Phase 8 fields', () => {
   it('setNotificationPollingIntervalMinutes rounds a fractional value', () => {
     useDevicePrefsStore.getState().setNotificationPollingIntervalMinutes(7.6);
     expect(useDevicePrefsStore.getState().notificationPollingIntervalMinutes).toBe(8);
+  });
+
+  it('defaults seenFirstRunExplainer to false (Phase 12.1 — shown once, on first hydrated visit)', () => {
+    expect(useDevicePrefsStore.getState().seenFirstRunExplainer).toBe(false);
+  });
+
+  it('setSeenFirstRunExplainer marks it seen and persists it', () => {
+    useDevicePrefsStore.getState().setSeenFirstRunExplainer(true);
+    expect(useDevicePrefsStore.getState().seenFirstRunExplainer).toBe(true);
   });
 });

@@ -43,6 +43,7 @@ import { useLiveEntry } from '../../data/useLiveEntry.js';
 import { CachedImage } from '../../components/CachedImage.js';
 import { BBCodeText } from '../../components/BBCodeText.js';
 import { useAppNavigate } from '../../app/routes/useAppNavigate.js';
+import { useOverlay } from '../../app/OverlayProvider.js';
 import { useAccountsStore, useActiveAccount, useCanWrite } from '../../state/accountsStore.js';
 import { signInGated } from '../../flows/accountsFlow.js';
 import { useAccountConfirmGate } from '../../flows/useAccountConfirmGate.js';
@@ -130,6 +131,7 @@ interface ReactionOverlay {
 
 export function EntryDetailScreen({ entryId }: EntryDetailScreenProps) {
   const navigate = useAppNavigate();
+  const { showUpgradePrompt } = useOverlay();
   const activeAccount = useActiveAccount();
   const canWrite = useCanWrite();
   const { confirmAccount, dialog: accountConfirmDialog } = useAccountConfirmGate();
@@ -146,7 +148,6 @@ export function EntryDetailScreen({ entryId }: EntryDetailScreenProps) {
   } = useLiveEntry(entryId);
 
   const [reaction, setReaction] = useState<ReactionOverlay | null>(null);
-  const [upgradePromptOpen, setUpgradePromptOpen] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [confirmUnfollow, setConfirmUnfollow] = useState(false);
   const [confirmHide, setConfirmHide] = useState(false);
@@ -198,7 +199,7 @@ export function EntryDetailScreen({ entryId }: EntryDetailScreenProps) {
     const fresh = useAccountsStore.getState();
     const active = fresh.accounts.find((a) => a.id === fresh.activeAccountId);
     if (active?.appTokenScope !== 'read,write') {
-      setUpgradePromptOpen(true);
+      showUpgradePrompt();
       return false;
     }
     return true;
@@ -518,17 +519,6 @@ export function EntryDetailScreen({ entryId }: EntryDetailScreenProps) {
       </IonContent>
 
       {accountConfirmDialog}
-
-      <IonAlert
-        isOpen={upgradePromptOpen}
-        header="Read-only account"
-        message="This account is signed in read-only. Sign in for write access to continue."
-        onDidDismiss={() => setUpgradePromptOpen(false)}
-        buttons={[
-          { text: 'Cancel', role: 'cancel' },
-          { text: 'Manage accounts', handler: () => navigate.push('/accounts') },
-        ]}
-      />
 
       <IonAlert
         isOpen={!!errorMessage}
