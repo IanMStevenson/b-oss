@@ -1,0 +1,34 @@
+/* SPDX-License-Identifier: GPL-3.0-or-later */
+/* Copyright (C) 2026 Ian Stevenson */
+
+/*
+ * Maps @b-oss/b-visual's tokens onto Ionic's CSS custom properties, so the shell inherits
+ * b-view's palette rather than Ionic's default (app-architecture.md §5). Import Ionic's core
+ * CSS separately (main.tsx) — this file only overrides the variables Ionic reads.
+ */
+@import '@b-oss/b-visual/tokens.css';
+
+:root {
+  --ion-color-primary: var(--green-800);
+  --ion-color-primary-rgb: 31, 77, 58;
+  --ion-color-primary-contrast: #ffffff;
+  --ion-color-primary-contrast-rgb: 255, 255, 255;
+  --ion-color-primary-shade: var(--green-900);
+  --ion-color-primary-tint: var(--green-700);
+
+  --ion-color-danger: var(--color-danger);
+
+  --ion-background-color: var(--bg);
+  --ion-background-color-rgb: 255, 255, 255;
+  --ion-text-color: var(--ink);
+  --ion-text-color-rgb: 17, 17, 17;
+
+  --ion-toolbar-background: var(--bg);
+  --ion-toolbar-color: var(--ink);
+  --ion-item-background: var(--bg);
+  --ion-border-color: var(--line);
+
+  --ion-color-step-50: var(--bg-alt);
+  --ion-color-step-150: var(--line-2);
+  --ion-color-step-250: var(--line);
+}
