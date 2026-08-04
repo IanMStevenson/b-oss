@@ -145,7 +145,17 @@ regularly. Order follows dependency, not spec priority tags.
    every optimistic update, and an unstable empty-array selector fallback that could infinite-loop
    render. Full detail (including the debugging path for the first bug) in `AGENT_LOG.md`'s
    Phase 4 entry.
-5. **Profiles & connections** — `SCR-17–22`, `FLW-09`.
+5. **Profiles & connections — DONE, commit `e2f934d`.** `data/users.ts` + `flows/
+connectionsFlow.ts` (every endpoint already existed in `b-api`). `SCR-17`/`SCR-18` share one
+   `ProfileScreen` (the API treats `username: undefined` as "own"); real `SCR-19`/`SCR-20`/
+   `SCR-21`/`SCR-22`. New `components/UserRow.tsx` implements people lists' hidden-member
+   treatment (marked "(Hidden)", never suppressed — distinct from grids/comments). Found and
+   fixed a real UX bug (the friendship-status button's "Following" label collided with the
+   profile's own "Following" nav link; relabelled to "Unfollow" in both `SCR-06` and `SCR-18`).
+   `SCR-18`'s "Remove follower" deferred (documented TODO — needs data `getUserProfile` doesn't
+   provide; `SCR-19`'s list is the correct place for it instead). Full detail in `AGENT_LOG.md`'s
+   Phase 5 entry, including two reusable IonAlert/testing-library patterns worth keeping for
+   future screens.
 6. **Search & Map** — `SCR-03/04`, `FLW-04/14`. MapLibre behind `platform/mapTiles.ts`.
 7. **Compose & publish** — `SCR-09–14`, `FLW-12/13/18`. `platform/upload.ts` hand-built multipart
    body, durable `uploadQueueStore` + runner, camera/crop (two distinct crop operations — don't
