@@ -117,9 +117,19 @@ regularly. Order follows dependency, not spec priority tags.
    explainer and copy-deck polish, the account-switcher popover (Phase 3+, needs a persistent nav
    chrome), `SCR-01`'s gated shape (no caller yet — no write action exists before Phase 4 to gate;
    `signInGated()` is ready). Full detail in `AGENT_LOG.md`'s Phase 2 entry.
-3. **Browse & entry viewing core** — `SCR-02/05/06/07/08`, `FLW-03/05`. `useResource`/
-   `usePagedResource`, `imageCache` + `CachedImage`, `b-view` integration via the live adapter,
-   BBCode render-only.
+3. **Browse & entry viewing core — DONE, commit `4cb8fa1`.** `useResource`/`usePagedResource`
+   (§6); `platform/imageCache.ts` implemented for real (`@capacitor/filesystem` +
+   `file-transfer`, SHA-256-keyed, 15-min TTL) + `<CachedImage>`; `data/viewModel.ts`, the live
+   adapter (§2) mapping `b-api` responses into `b-view`'s view-model types — first cross-package
+   `.tsx` import from `b-view`. Real `SCR-02`/`SCR-05`/`SCR-06`/`SCR-07`/`SCR-08`. `SCR-06` built
+   from scratch (not `b-view`'s `EntryDetail`, which uses `dangerouslySetInnerHTML` — conflicts
+   with §14) rendering raw BBCode through a new `<BBCodeText>` (`@bbob/react`, 5-tag preset,
+   `onlyAllowTags` so unknown tags degrade to literal text). New `EntryGrid` component (not
+   `b-view`'s `ThumbnailGrid` — windowed Prev/Next pagination doesn't fit any `b-mobile` feed's
+   infinite scroll). `SCR-07`/`SCR-08` independently fetch via `useLiveEntry` rather than being
+   handed the entry from `SCR-06` — deep-link resilience over the spec's literal "no API calls"
+   wording. `AppShell`'s placeholder `IonMenu` replaced with the full primary nav. 29 new tests
+   (one per screen per state, §19). Full detail in `AGENT_LOG.md`'s Phase 3 entry.
 4. **Light social actions** — `FLW-06/07/08/10/11`, `SCR-15/16/31`. Optimistic updates,
    `hiddenMembersStore`, hidden-placeholder-tile convention on surfaces live so far.
 5. **Profiles & connections** — `SCR-17–22`, `FLW-09`.
