@@ -156,7 +156,30 @@ connectionsFlow.ts` (every endpoint already existed in `b-api`). `SCR-17`/`SCR-1
    provide; `SCR-19`'s list is the correct place for it instead). Full detail in `AGENT_LOG.md`'s
    Phase 5 entry, including two reusable IonAlert/testing-library patterns worth keeping for
    future screens.
-6. **Search & Map** — `SCR-03/04`, `FLW-04/14`. MapLibre behind `platform/mapTiles.ts`.
+6. **Search & Map — DONE.** `data/entries.ts`/`data/users.ts` gained `fetchSearchEntriesPage`/
+   `fetchSearchUsersPage` (reusing `EntryGrid`/`UserRow` unchanged — `searchUsers` returns the same
+   `BlipUser` shape every other people list already does). Real `SCR-03` (debounced entries/people
+   tabs, each tracking its own "committed" term synced from the shared term only while active, so
+   an inactive mounted tab never refetches on a term change elsewhere) and `SCR-04` (MapLibre GL JS
+   `6.1.0` behind new `platform/mapTiles.ts` — MapTiler's free tier, per the Q7 decision already on
+   record — and `platform/geolocation.ts` finally implemented for real against
+   `@capacitor/geolocation`, which also makes `SCR-02`'s Nearby tab functional for the first time).
+   New shared `data/useDebounce.ts` (`useDebouncedValue`) — debounces the _input_ to
+   `useResource`/`usePagedResource`'s existing request-id supersession rather than a second
+   cancellation mechanism, used by both the search term and the map's pan/zoom bounds. `SCR-06`'s
+   overflow menu gained a "Map" item for geotagged entries, completing `FLW-14`'s other entry
+   point. Found and fixed a real bug the always-rejecting Phase-1 geolocation stub had been
+   masking: `NearbyTab` only handled a _rejected_ position promise, so a real device with granted
+   permission but no GPS fix (`getCurrentPosition()` resolving `null`, a real, valid outcome) would
+   have spun forever instead of showing the location-needed message. Found and fixed a real
+   performance regression before it shipped: a static top-level `maplibre-gl` import bundled the
+   library into the main chunk, violating app-architecture.md §20's explicit lazy-load requirement
+   — fixed with `React.lazy()` on the `/map` route in `AppRoutes.tsx` (not in `MapScreen.tsx`
+   itself), verified by inspecting `npm run build`'s own chunk output rather than by a test. 35 new
+   tests, including `platform/mapTiles.ts`'s pure-logic test (the one `platform/*.ts` module with a
+   direct unit test, since it wraps no Capacitor plugin) and a wholesale `maplibre-gl` mock for
+   `MapScreen`'s tests (jsdom has no WebGL/canvas, same class of gap as the sandbox's missing
+   headless browser). Full detail in `AGENT_LOG.md`'s Phase 6 entry.
 7. **Compose & publish** — `SCR-09–14`, `FLW-12/13/18`. `platform/upload.ts` hand-built multipart
    body, durable `uploadQueueStore` + runner, camera/crop (two distinct crop operations — don't
    conflate), BBCode editor toolbar, location picker, local-notifications for the daily reminder.
