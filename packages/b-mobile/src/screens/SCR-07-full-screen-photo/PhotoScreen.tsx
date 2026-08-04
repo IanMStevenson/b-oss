@@ -21,7 +21,7 @@ interface PhotoScreenProps {
 
 export function PhotoScreen({ entryId }: PhotoScreenProps) {
   const navigate = useAppNavigate();
-  const { entryState, retry } = useLiveEntry(entryId);
+  const { entryState, reload } = useLiveEntry(entryId);
   const [imageError, setImageError] = useState(false);
 
   return (
@@ -63,7 +63,7 @@ export function PhotoScreen({ entryId }: PhotoScreenProps) {
             <IonText color="light">
               <p>{entryState.message}</p>
             </IonText>
-            <IonButton onClick={retry}>Retry</IonButton>
+            <IonButton onClick={reload}>Retry</IonButton>
           </div>
         )}
 

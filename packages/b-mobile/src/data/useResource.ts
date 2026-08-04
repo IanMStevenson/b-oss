@@ -15,11 +15,19 @@ export type ResourceState<T> =
   | { status: 'empty' }
   | { status: 'error'; message: string; retry: () => void };
 
+export interface UseResourceResult<T> {
+  state: ResourceState<T>;
+  /** Refetch unconditionally, whatever the current state — the error state's own `retry` calls
+   * the same function; this is the one a caller reaches for after a mutation succeeds (e.g. SCR-06
+   * reloading to show a newly-posted comment, FLW-07) rather than only on failure. */
+  reload: () => void;
+}
+
 export function useResource<T>(
   fetcher: () => Promise<T>,
   deps: unknown[],
   isEmpty?: (data: T) => boolean,
-): ResourceState<T> {
+): UseResourceResult<T> {
   const [state, setState] = useState<ResourceState<T>>({ status: 'loading' });
   const requestIdRef = useRef(0);
   const fetcherRef = useRef(fetcher);
@@ -49,5 +57,5 @@ export function useResource<T>(
     );
   }
 
-  return state;
+  return { state, reload: load };
 }

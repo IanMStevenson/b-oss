@@ -30,6 +30,14 @@ const baseEntry: BlipEntry = {
   images: {},
 };
 
+const reactionFields = {
+  actions: null,
+  starred: false,
+  favorited: false,
+  friendship: null,
+  comments: [],
+};
+
 afterEach(() => {
   cleanup();
   vi.resetAllMocks();
@@ -75,6 +83,7 @@ describe('EntryMetadataScreen', () => {
       },
       prevEntryId: null,
       nextEntryId: null,
+      ...reactionFields,
     });
     renderScreen();
     expect(await screen.findByText('Leica Q2')).toBeDefined();
@@ -90,6 +99,7 @@ describe('EntryMetadataScreen', () => {
       entry: baseEntry,
       prevEntryId: null,
       nextEntryId: null,
+      ...reactionFields,
     });
     renderScreen();
     expect(await screen.findByText('No camera information.')).toBeDefined();

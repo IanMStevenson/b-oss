@@ -30,6 +30,14 @@ const baseEntry: BlipEntry = {
   images: { image: 'https://example.com/photo.jpg' },
 };
 
+const reactionFields = {
+  actions: null,
+  starred: false,
+  favorited: false,
+  friendship: null,
+  comments: [],
+};
+
 afterEach(() => {
   cleanup();
   vi.resetAllMocks();
@@ -64,6 +72,7 @@ describe('PhotoScreen', () => {
       entry: baseEntry,
       prevEntryId: null,
       nextEntryId: null,
+      ...reactionFields,
     });
     renderScreen();
     const img = await screen.findByAltText('A day out');
@@ -77,6 +86,7 @@ describe('PhotoScreen', () => {
       entry: baseEntry,
       prevEntryId: null,
       nextEntryId: null,
+      ...reactionFields,
     });
     renderScreen();
     const img = await screen.findByAltText('A day out');

@@ -9,6 +9,7 @@ import { getClient } from './client.js';
 import { stubToEntryIndex, entryResponseToViewEntry } from './viewModel.js';
 import type { Page } from './usePagedResource.js';
 import type { EntryIndex, BlipEntry } from '@b-oss/b-view';
+import type { BlipEntryActions, BlipFriendship, BlipComment as ApiComment } from '@b-oss/b-api';
 
 const PAGE_SIZE = 30;
 
@@ -62,6 +63,18 @@ export interface LoadedEntry {
   entry: BlipEntry;
   prevEntryId: string | null;
   nextEntryId: string | null;
+  /** Per-viewer action flags (glossary.md) driving the action bar — null only if the server
+   * omitted them, treated as "nothing offered" rather than guessed. */
+  actions: BlipEntryActions | null;
+  starred: boolean;
+  favorited: boolean;
+  /** The viewer's relationship to the entry's author, for the Follow/Unfollow affordance (§FLW-08).
+   * Absent on one's own entry (nothing to follow). */
+  friendship: BlipFriendship | null;
+  /** Raw b-api comments, not routed through the b-view live adapter: comment actions (reply/edit/
+   * delete) are a live-interaction concept with no backup-viewer equivalent, so b-view's shared
+   * BlipComment type doesn't carry them (same reasoning as EntryIndex.username). */
+  comments: ApiComment[];
 }
 
 export async function fetchEntry(entryId: string): Promise<LoadedEntry> {
@@ -72,6 +85,7 @@ export async function fetchEntry(entryId: string): Promise<LoadedEntry> {
     returnComments: true,
     includeReplies: true,
     returnRelated: true,
+    returnFriendships: true,
     returnActions: true,
     returnImageUrls: true,
   });
@@ -79,5 +93,10 @@ export async function fetchEntry(entryId: string): Promise<LoadedEntry> {
     entry: entryResponseToViewEntry(res),
     prevEntryId: res.related?.previous?.entry_id_str ?? null,
     nextEntryId: res.related?.next?.entry_id_str ?? null,
+    actions: res.actions ?? null,
+    starred: res.details?.stars.starred === 1,
+    favorited: res.details?.favorites.favorited === 1,
+    friendship: res.friendships?.[0] ?? null,
+    comments: res.comments?.list ?? [],
   };
 }
