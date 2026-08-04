@@ -8,9 +8,15 @@
 // routes — see OverlayProvider.
 
 import { Switch, Route, Redirect } from 'react-router-dom';
+import type { RouteComponentProps } from 'react-router-dom';
 import { ScreenPlaceholder } from '../../components/ScreenPlaceholder.js';
 import { SignInScreen } from '../../screens/SCR-01-sign-in/SignInScreen.js';
 import { AccountsScreen } from '../../screens/SCR-30-accounts/AccountsScreen.js';
+import { BrowseScreen } from '../../screens/SCR-02-browse/BrowseScreen.js';
+import { TagEntriesScreen } from '../../screens/SCR-05-tag-entries/TagEntriesScreen.js';
+import { EntryDetailScreen } from '../../screens/SCR-06-entry-detail/EntryDetailScreen.js';
+import { PhotoScreen } from '../../screens/SCR-07-full-screen-photo/PhotoScreen.js';
+import { EntryMetadataScreen } from '../../screens/SCR-08-entry-metadata/EntryMetadataScreen.js';
 import { WriteGuardRoute } from './WriteGuardRoute.js';
 
 function placeholder(screenId: string, title: string) {
@@ -20,20 +26,36 @@ function placeholder(screenId: string, title: string) {
 export function AppRoutes() {
   return (
     <Switch>
-      <Route exact path="/browse" render={placeholder('SCR-02', 'Browse')} />
+      <Route exact path="/browse" component={BrowseScreen} />
       <Route exact path="/search" render={placeholder('SCR-03', 'Search')} />
       <Route exact path="/map" render={placeholder('SCR-04', 'Map')} />
-      <Route exact path="/tag/:tag" render={placeholder('SCR-05', 'Tag Entries')} />
-      <Route exact path="/entry/:entryId" render={placeholder('SCR-06', 'Entry Detail')} />
+      <Route
+        exact
+        path="/tag/:tag"
+        render={({ match }: RouteComponentProps<{ tag: string }>) => (
+          <TagEntriesScreen tag={decodeURIComponent(match.params.tag)} />
+        )}
+      />
+      <Route
+        exact
+        path="/entry/:entryId"
+        render={({ match }: RouteComponentProps<{ entryId: string }>) => (
+          <EntryDetailScreen entryId={match.params.entryId} />
+        )}
+      />
       <Route
         exact
         path="/entry/:entryId/photo"
-        render={placeholder('SCR-07', 'Full-screen Photo')}
+        render={({ match }: RouteComponentProps<{ entryId: string }>) => (
+          <PhotoScreen entryId={match.params.entryId} />
+        )}
       />
       <Route
         exact
         path="/entry/:entryId/metadata"
-        render={placeholder('SCR-08', 'Entry Metadata')}
+        render={({ match }: RouteComponentProps<{ entryId: string }>) => (
+          <EntryMetadataScreen entryId={match.params.entryId} />
+        )}
       />
       <WriteGuardRoute
         exact

@@ -67,4 +67,17 @@ module.exports = [
       }],
     },
   },
+  {
+    // Test-only exception to the router-confinement rule above: screens need a MemoryRouter
+    // harness for useAppNavigate()'s useHistory() to resolve in isolation. Production code under
+    // src/screens/** still may not import react-router directly.
+    files: ['packages/b-mobile/src/**/__tests__/**/*.{ts,tsx}'],
+    rules: {
+      'no-restricted-imports': ['error', {
+        patterns: [
+          { group: ['@capacitor/*'], message: 'Only packages/b-mobile/src/platform/** may import from @capacitor/*.' }
+        ]
+      }],
+    },
+  },
 ];
