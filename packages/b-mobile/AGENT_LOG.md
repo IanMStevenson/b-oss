@@ -1578,3 +1578,122 @@ still outside this phase's scope to manufacture.
 screen tests, pure-logic coverage gaps, and (finally possible, now that a real `android/` project
 and a real APK exist) an actual attempt at the manual §19 layer-3 on-device checklist if a device or
 emulator becomes available in a future session — this sandbox still has neither.
+
+## 2026-08-04 — Phase 11 complete: Testing hardening
+
+**Note on this session**: partway through this phase, another concurrent session (same machine,
+same worktree — HAPI runs multiple agents in parallel) landed an unrelated, already-finished
+change touching `flows/accountsFlow.ts` and `app/AppShell.tsx` (a dev-only `devSignInWithToken()`
+helper for browser-mode testing, gated on `VITE_DEV_TOKEN`). Confirmed with the user before
+continuing (root `CLAUDE.md`'s documented 2026-07-30 collision incident is exactly this
+scenario) — deliberately left both files untouched and out of this phase's own commit; every file
+below is new or edited by this phase alone. One side effect worth recording: their new
+`VITE_DEV_TOKEN`-gated code path fires during `npm test` too (Vite loads the repo-root
+`.env.local` regardless of dev/test), producing a harmless-but-noisy unhandled-rejection warning
+in `AppShell.test.tsx`'s run (a malformed base URL, since the token/client-id aren't real values
+in this sandbox) — doesn't fail any test (712/712 still pass, twice), not this phase's bug, not
+fixed here.
+
+### Four-state screen sweep
+
+Two screens had **zero** tests at all — `SCR-01` (`SignInScreen`) and `SCR-30` (`AccountsScreen`),
+both foundational (the only screens reachable before any account exists). New test files for both:
+6 tests for `SignInScreen` (idle/authenticating/error, plus the `OAuthCancelledError`-returns-to-
+idle case rules.md requires), 8 for `AccountsScreen` (empty/loaded, switch, `NeedsReauthError`,
+and the inline mode-change/remove detail view). **Writing `AccountsScreen`'s tests reproduced
+RESUME.md's own documented `IonLabel`-children-don't-render-in-jsdom gotcha firsthand** — every
+single text query failed until every `<IonLabel>` in the file was swapped for a plain `<span>`,
+the same fix `UserRow.tsx`/`SCR-25`'s `SettingsScreen`/`SCR-23`/`SCR-24` already made; this component
+had simply never had a test written against it since Phase 2, so it had never been forced to.
+
+Five screens that fetch a list via `usePagedResource`/`useResource` had real gaps in their
+existing test files — not missing entirely, but missing the `loading` and/or `error` branch their
+own component code visibly has: `SCR-19` (Followers/Following) and `SCR-20` (Pending requests) had
+**neither** loading nor error tested (only empty/loaded); `SCR-21` (Refused followers) the same;
+`SCR-17-18` (Profile) had its top-level `loading`/`error` states completely untested (5 existing
+tests all skipped straight to a resolved fetch); `SCR-25`'s `SettingsScreen` hub was missing only
+`loading` (`error` was already covered). Also added `loading` tests to `SCR-03` (Search) and
+`SCR-22` (Awards), which had `error` covered but not `loading`. **`SCR-04` (Map) was checked and
+left alone, deliberately**: its region fetch is documented as non-blocking (no loading spinner by
+design — markers just appear once ready), so there is no loading state to test; not a gap.
+14 new test cases across 7 files, all fetch-mocked with a never-resolving `Promise` for the
+loading assertions (the same technique `platform/http.test.ts` already established) and a
+reject-then-resolve pair for the error-then-retry assertions.
+
+### Pure-logic coverage sweep (§19's own explicit list)
+
+Checked every named item in §19's "error mapping, the write-gate selector, upload-queue state
+transitions, BBCode preset, image-cache TTL arithmetic, deep-link resolution" list against actual
+test coverage, not just assumed gaps:
+
+- **Error mapping (`data/errors.ts#mapApiError`)** — no test file existed anywhere, despite being
+  the single mapper every call site in the app uses. 7 new tests covering every outcome branch
+  (`transport`, `forced-logout`, `rate-limited`, `upgrade-prompt`, generic `message`, and the
+  non-`BlipfotoError`/non-`NetworkError` fallback).
+- **The write-gate selector (`state/accountsStore.ts#useCanWrite`)** — also never directly tested;
+  `app/routes/__tests__/WriteGuardRoute.test.tsx` mocks it away entirely rather than exercising the
+  real derivation, which is exactly backwards for the one selector every write-gated route in the
+  app trusts blindly. 8 new tests (`renderHook`, matching `hiddenMembersStore.test.ts`'s existing
+  pattern) against the real store, including the "`activeAccountId` points at an account no longer
+  in the list" edge case and a live account-switch-without-remount check.
+- **Image-cache TTL arithmetic (`platform/imageCache.ts#resolveImage`)** — its one consumer
+  (`components/CachedImage.tsx`) has no test either, so this logic was completely unexercised.
+  6 new tests: web no-op, fresh-cache hit (no re-download), stale-cache re-download, first-use
+  cache miss, download failure falling back to the raw URL (never a broken image — the module's
+  own stated invariant), and a rejecting `mkdir` (already-exists case) treated as non-fatal.
+- **BBCode preset (`data/bbcode.ts`)** — checked, **not a real gap**: `components/BBCodeText.tsx`'s
+  own test file already exercises every branch (all five tags, the unknown-tag-stays-literal
+  requirement, both `[url]` forms, scheme-present vs. bare vs. email-like targets) through the one
+  real consumer. Adding a second, duplicate direct unit test for the same logic would be pure
+  busywork — left alone.
+- **Deep-link resolution — a real, larger finding, not a test gap.** `app-architecture.md` §16
+  names `src/flows/deepLinkResolver.ts` as the one module that must handle all three inbound paths
+  (OAuth redirect, `bmobile://entry/:id` / `bmobile://user/:username` content links, and the
+  `ACTION_SEND` share intent) so cold start and warm start can't diverge. **That module does not
+  exist.** `platform/deepLinks.ts#onAppUrlOpen` (the thin `@capacitor/app` wrapper) has exactly one
+  consumer anywhere in the codebase — `flows/oauthRound.ts`, and only for the OAuth redirect, and
+  only while a round is actively in progress (the listener is added at the start of
+  `runOAuthRound()` and removed once it settles). A tap on a shared entry/profile link, or a
+  share-to-Blipfoto intent, currently does **nothing** — not silently wrong, just entirely
+  unhandled — despite Phase 10 adding the Android manifest intent filters for exactly these paths
+  this same session. Confirmed by grep, not assumed: no file anywhere references
+  `deepLinkResolver`, and nothing consumes `ACTION_SEND`. **Not fixed here** — building the actual
+  resolver (path parsing, FLW-01 account-gating for targets that need one, routing, plus wiring
+  `SCR-10`'s share-with-photo entry point) is a real feature addition, not a testing-hardening
+  task, and deserves its own scoped phase rather than being folded into this one as a surprise.
+  Flagged here prominently so it's picked up deliberately, not rediscovered from scratch.
+- **Upload-queue state transitions (`state/uploadQueueStore.ts`)** — already covered
+  (`state/__tests__/uploadQueueStore.test.ts`, pre-existing). Checked, not assumed.
+
+**Two small extras, cheap and high-signal, added along the way**: `data/dates.ts#formatLocalDate`/
+`gmtOffsetMinutes` — the module's own header comment already flags local-vs-UTC formatting as "the
+one place that has to get local-vs-UTC right," which is exactly the kind of self-identified risk
+§19 says deserves direct density; 5 new tests, including one specifically constructed to fail if
+the implementation were switched to `toISOString()` (a late-night local time that would roll over
+to the next UTC day). `data/id.ts#randomId` was checked and deliberately **not** given a test —
+a thin `crypto.getRandomValues` wrapper with nothing left to get subtly wrong beyond hex encoding,
+and already exercised transitively by the upload-queue tests that consume it.
+
+### Manual on-device checklist (§19 layer 3)
+
+Still not attemptable — confirmed again this phase, not a new finding: no Android device or
+emulator exists in this sandbox, same constraint noted in every phase since Phase 0's headless-
+browser gap. Phase 10's real APK remains the closest available substitute; nothing in this phase
+changed that.
+
+### Verification
+
+51 new tests altogether (6 `SignInScreen`, 8 `AccountsScreen`, 11 across the four-state sweep's 7
+other files, 7 `errors.ts`, 8 `accountsStore.ts`, 6 `imageCache.ts`, 5 `dates.ts`), taking the suite
+from 661 to 712. Full monorepo `typecheck && lint && test && build` green; `npm test` run twice
+consecutively at 712/712 (the one unhandled-rejection warning
+described above is not a test failure and reproduces identically on both runs — confirmed
+deterministic, not flaky). Chunk-size output unchanged from Phase 10 — no new runtime dependency
+was added anywhere in this phase.
+
+**Next:** No Phase 12 defined yet in `PLAN.md` beyond this point — Phase 11 was the last
+explicitly planned phase. Real candidates for whichever phase comes next, in rough priority order:
+building the actual `flows/deepLinkResolver.ts` (this phase's own largest finding — currently a
+silent no-op for shared links and the share intent), real on-device testing once a device/emulator
+is available, and closing `devicePrefsStore.uploadFullSize`'s still-unconsumed toggle
+(RESUME.md's own longstanding gotcha, unchanged since Phase 8).

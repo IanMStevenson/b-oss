@@ -124,6 +124,13 @@ describe('SettingsScreen hub', () => {
     expect(push).toHaveBeenCalledWith('/settings/general');
   });
 
+  it('loading: shows a spinner while the privacy fetch is in flight, without blocking the hub rows', () => {
+    fetchUserSettings.mockReturnValue(new Promise(() => {}));
+    renderHub();
+    expect(document.querySelector('ion-spinner')).not.toBeNull();
+    expect(screen.getByText('General')).toBeDefined();
+  });
+
   it('still shows the hub rows when the privacy fetch fails', async () => {
     fetchUserSettings.mockRejectedValue(new Error('down'));
     renderHub();

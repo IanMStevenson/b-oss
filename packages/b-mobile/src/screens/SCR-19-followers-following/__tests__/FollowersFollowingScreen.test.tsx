@@ -53,6 +53,24 @@ function renderScreen(username: string, mode: 'followers' | 'following') {
 }
 
 describe('FollowersFollowingScreen', () => {
+  it('loading: shows a spinner while the list fetch is in flight', async () => {
+    const { fetchFollowers } = await import('../../../data/users.js');
+    vi.mocked(fetchFollowers).mockReturnValue(new Promise(() => {}));
+    renderScreen('me', 'followers');
+    expect(document.querySelector('ion-spinner')).not.toBeNull();
+  });
+
+  it('error: shows the failure message with a Retry that reloads the list', async () => {
+    const { fetchFollowers } = await import('../../../data/users.js');
+    vi.mocked(fetchFollowers).mockRejectedValueOnce(new Error('Network down'));
+    renderScreen('me', 'followers');
+    expect(await screen.findByText('Network down')).toBeDefined();
+
+    vi.mocked(fetchFollowers).mockResolvedValue({ items: [], more: false });
+    await userEvent.click(screen.getByText('Retry'));
+    expect(await screen.findByText('No followers yet.')).toBeDefined();
+  });
+
   it('shows an empty state naming which list is empty', async () => {
     const { fetchFollowers } = await import('../../../data/users.js');
     vi.mocked(fetchFollowers).mockResolvedValue({ items: [], more: false });
