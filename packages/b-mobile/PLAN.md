@@ -180,9 +180,40 @@ connectionsFlow.ts` (every endpoint already existed in `b-api`). `SCR-17`/`SCR-1
    direct unit test, since it wraps no Capacitor plugin) and a wholesale `maplibre-gl` mock for
    `MapScreen`'s tests (jsdom has no WebGL/canvas, same class of gap as the sandbox's missing
    headless browser). Full detail in `AGENT_LOG.md`'s Phase 6 entry.
-7. **Compose & publish** — `SCR-09–14`, `FLW-12/13/18`. `platform/upload.ts` hand-built multipart
-   body, durable `uploadQueueStore` + runner, camera/crop (two distinct crop operations — don't
-   conflate), BBCode editor toolbar, location picker, local-notifications for the daily reminder.
+7. **Compose & publish — DONE.** Real `SCR-09`–`SCR-14`, `FLW-12`/`13`/`18`. `platform/upload.ts`
+   hand-builds the multipart body over `@capacitor/file-transfer` exactly to §7's spec, with a real
+   bug found and fixed in the process: `FileTransfer.uploadFile()` rejects on an HTTP error status
+   (unlike `fetch`), so the native `multipartImpl` must return a rejection carrying an
+   `httpStatus`/`body` as a normal result rather than rethrowing it as a transport failure, or every
+   write/validation/forced-logout error from a native publish gets misclassified. A durable
+   `uploadQueueStore` + non-React `uploadQueueRunner` (§9) drains one item at a time with capped
+   exponential backoff for transport failures only and killed-process recovery on launch. Real
+   `platform/camera.ts` uses `@capacitor/camera`'s _current_ API (`takePhoto`/`chooseFromGallery`,
+   not the deprecated `getPhoto`/`pickImages`), whose `metadata.creationDate`/`resolution` avoided
+   needing a hand-rolled EXIF parser for `SCR-10`'s date default and size validation — GPS
+   coordinates aren't exposed that way, so location pre-fill is device-location-only, not
+   EXIF-derived (documented scope reduction). `react-easy-crop` + new `components/PhotoCropper.tsx`
+   - `data/imageCrop.ts` implement `SCR-10`'s coordinate crop (wired) and `SCR-25`'s avatar JPEG
+     crop (built, not yet wired — Phase 8's job). `components/BBCodeToolbar.tsx` extracted from
+     `SCR-15`'s comment editor and reused for `SCR-11`'s full five-tag toolbar. `SCR-12` reuses
+     `SCR-04`'s MapLibre machinery for a single-marker picker, lazy-loaded the same way `SCR-04` is.
+     New `state/composeDraftStore.ts` (§6 "Draft state") is shared, in-memory state for `SCR-10`–
+     `SCR-13` — the one deliberate exception to this app's usual "screens refetch, never depend on a
+     prior screen's data" rule, since `SCR-11`/`SCR-12` write results into an in-progress draft with
+     no deep-link case to resolve instead. `FLW-18`'s reminder required a real design deviation from
+     app-architecture.md §12's literal wording: a plain `on: {hour, minute}, repeats: true` schedule
+     can't "skip just today" on cancel-and-reschedule if today's time hasn't passed yet, so
+     `platform/localNotifications.ts` anchors at an explicit `at` `Date` (+ `every: 'day'`) computed by
+     app code instead — same reliability, correct suppression. `SCR-06`'s overflow menu gained
+     `FLW-13`'s owner-only, read-write-only Edit details/Replace photo/Delete entry (Delete
+     implemented directly there, never routing through `SCR-13`, per `FLW-13`'s own diagram). One more
+     real bug found by a flaky test: an effect depending on a value its own success path clears
+     (`EditEntryScreen`'s `isCurrentDraft`) re-triggered itself right after a successful save — fixed
+     with a `useRef` seeded once, not a reactive dependency. Chunk-size check confirmed `maplibre-gl`
+     and `react-easy-crop` both stay out of the eager bundle; the one large eager chunk is
+     `@ionic/react` itself, a pre-existing Phase-1 cost, not a new regression. 85 new tests (436
+     total). Full detail in `AGENT_LOG.md`'s Phase 7 entry, including a new IonAlert-testing gotcha
+     (multiple simultaneous destructive alerts on one screen need `header`-scoped selectors).
 8. **Settings & device-level screens** — `SCR-25/29`, `FLW-17`. `devicePrefsStore`,
    `config/countries`/`locales`, opt-in web-link `<activity-alias>` toggle (pulled forward from
    Phase 10), privacy-policy/delete-account links.
@@ -207,6 +238,23 @@ Phases 7+ are sequenced but will get more detailed sub-planning here as I reach 
   `multipartImpl` handles both by delegating entirely (fields + file ref + method + URL in,
   `{status, headers?, body}` out — `b-api` still does the envelope parsing and error-code
   mapping, identically to the default fetch path).
+- **`platform/upload.ts`'s `multipartImpl` must treat a `FileTransfer.uploadFile()` rejection that
+  carries an `httpStatus`/`body` as a normal result, not a transport failure** (Phase 7) —
+  `FileTransfer.uploadFile()` rejects on HTTP error statuses, unlike `fetch()`; rethrowing every
+  rejection would misclassify every write/validation/forced-logout error from a native
+  publish/edit as `NetworkError`. See AGENT_LOG.md's Phase 7 entry for the full reasoning.
+- **`FLW-18`'s reminder schedule is `at: <next occurrence>` + `every: 'day'`, not a literal
+  `on: {hour, minute}, repeats: true`** (Phase 7, a deliberate deviation from app-architecture.md
+  §12's exact wording) — the latter can't skip today's occurrence on cancel-and-reschedule if
+  today's time hasn't passed yet, which defeats the whole suppression feature. App code computes
+  the next occurrence explicitly (today or tomorrow) at the two moments it's actually running
+  (enabling the reminder, a successful publish); the plugin's own `every: 'day'` then repeats it
+  natively with no further app involvement, so reliability-without-the-app-running still holds.
+- **`state/composeDraftStore.ts`** (Phase 7, app-architecture.md §6 "Draft state") is shared,
+  in-memory state across `SCR-10`–`SCR-13` — the one deliberate exception to this app's usual
+  "screens refetch, never depend on a prior screen's in-memory data" rule (§5's deep-link-
+  resilience posture), since `SCR-11`/`SCR-12` need to write results into an in-progress,
+  not-yet-submitted draft that has no deep-link case to resolve instead.
 
 ## Full plan file
 
