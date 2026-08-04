@@ -56,6 +56,23 @@ async function storeAppToken(result: OAuthResult): Promise<StoredAccount> {
   return account;
 }
 
+/** Dev-only: seeds an account from a token obtained outside the app (e.g. Blipfoto's own app-
+ * admin pages), for testing in a desktop browser where the real OAuth redirect can't be captured
+ * (platform/deepLinks.ts). Runs the same verification real OAuth does (`GET oauth/token`, §16)
+ * rather than trusting a hand-typed username/scope, then joins storeAppToken() — the exact same
+ * account-creation path signInGated/signInDeliberate use — so there is no separate "dev account"
+ * shape to keep in sync. Callers must gate this behind `import.meta.env.DEV` themselves; it does
+ * not check that itself, since AppShell's auto-seed is the only intended caller. */
+export async function devSignInWithToken(accessToken: string): Promise<string> {
+  const clientId = import.meta.env.VITE_BLIPFOTO_CLIENT_ID ?? '';
+  const verified = await getClientForToken(accessToken).verifyToken(clientId);
+  const grantedScope =
+    verified.scope === 'read' || verified.scope === 'read,write' ? verified.scope : 'read';
+  const account = await storeAppToken({ accessToken, grantedScope, username: verified.username });
+  useAccountsStore.getState().setActiveAccountId(account.id);
+  return account.id;
+}
+
 /** FLW-01 — a gated action always signs in read-write, notifications off, no mode choice. */
 export async function signInGated(): Promise<string> {
   const result = await runOAuthRound('read,write');

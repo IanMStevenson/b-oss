@@ -36,6 +36,14 @@ export default defineConfig({
     ],
   },
   server: {
+    // Dev-only: `--host` binds beyond localhost (e.g. testing from another machine on a NATed/
+    // VPN-only dev network), which puts Vite's DNS-rebinding check (server.allowedHosts) in the
+    // way — it rejects any Host header it doesn't recognise. `true` disables that check rather
+    // than hardcoding one dev machine's hostname into checked-in config; acceptable here because
+    // this server is never reachable except from an already-trusted, narrowly-routed network,
+    // and this setting has no production counterpart (production is a static build, not `vite
+    // dev`).
+    allowedHosts: true,
     // Blipfoto serves no CORS headers, so a browser fetch() to api.blipfoto.com is blocked in
     // `vite dev`. This proxy is dev-only — on device everything goes through native HTTP
     // (platform/http.ts, §7) instead, and this has no production counterpart. The client
