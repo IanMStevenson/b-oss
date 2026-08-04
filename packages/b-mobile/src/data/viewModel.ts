@@ -21,6 +21,7 @@ export function stubToEntryIndex(stub: BlipEntryStub): EntryIndex {
     title: stub.title,
     thumbnail_path: stub.thumbnail_url,
     json_path: stub.entry_id_str,
+    username: stub.username,
   };
 }
 
