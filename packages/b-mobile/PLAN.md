@@ -92,12 +92,18 @@ Full detail (including two TypeScript/build gotchas worth knowing before Phase 3
 No PRs opened against `main` for these — commits land directly on `b-mobile-initial`, pushed
 regularly. Order follows dependency, not spec priority tags.
 
-1. **Package skeleton & platform foundation** — `package.json`/`tsconfig.json`/`vite.config.ts`
-   (with dev CORS proxy)/`capacitor.config.ts`/`index.html`; `src/platform/*` stubs with web
-   fallbacks; `src/app/` shell (Ionic `IonApp`/`IonMenu`/`IonRouterOutlet`, route table to
-   placeholder screens, `OverlayProvider` stub); `src/data/client.ts` + `errors.ts`;
-   `accountsStore` skeleton; ESLint `no-restricted-imports` on `src/platform/**`; `.env.example`
-   additions (all blank). Verify: `vite dev` boots to empty Browse route.
+1. **Package skeleton & platform foundation — DONE, commit `77285db`.** `package.json`/
+   `tsconfig.json`/`vite.config.ts` (dev CORS proxy to `/api/blipfoto`)/`capacitor.config.ts`/
+   `index.html`; all 12 `src/platform/*` modules (real web fallbacks where the spec calls for
+   one — `browser.ts`, `prefs.ts`; native-only paths throw a labelled not-yet error rather than
+   no-op); `src/app/` shell (`AppShell`, full 28-screen route table on placeholders,
+   `WriteGuardRoute`, `useAppNavigate()`, `OverlayProvider` stub); `src/data/client.ts` +
+   `errors.ts`; `accountsStore` shape + `useCanWrite()`; two new ESLint
+   `no-restricted-imports` rules (`@capacitor/*` → `platform/**` only, `react-router*` →
+   `routes/**` + `AppShell.tsx` only); `.env.example` additions (all blank). Verified via a
+   jsdom-rendered smoke test (no headless browser available in this sandbox — see
+   `RESUME.md`'s gotchas) plus full typecheck/lint/test/build. Only `@capacitor/core` is
+   installed so far; each plugin package lands with the phase that implements it for real.
 2. **Auth & accounts** — `FLW-01/02/20/21/22`, `SCR-01/30`. OAuth round (§8), full
    `accountsStore` + `useCanWrite()`, write-gating route guard. Unblocks every write screen.
 3. **Browse & entry viewing core** — `SCR-02/05/06/07/08`, `FLW-03/05`. `useResource`/

@@ -264,3 +264,84 @@ worktree footprint is fully cleaned up.
 genuinely new work (first `b-mobile` app code), not a prerequisite refactor, so no more PRs
 against `main` until much later, per the plan. Proceeding without further check-ins, per the
 user's original instruction, now that the one deliberate gate (Phase 0's merge) has cleared.
+
+## 2026-08-04 — Phase 1 complete: package skeleton & platform foundation
+
+First `b-mobile` app code. `npm install` confirmed the pinned versions from app-architecture.md
+§3 all resolve (Capacitor 8.5.0, `@ionic/react`/`@ionic/react-router` 8.8.16, `react-router-dom`
+5.3.4, Zustand 5.0.14) — checked this early since a version mismatch here would ripple through
+everything else.
+
+**Scaffolding**: `package.json`/`tsconfig.json`/`tsconfig.node.json`/`vite.config.ts`/
+`capacitor.config.ts`/`index.html`, modelled on `b-ark-chrome`'s conventions (envDir at repo
+root, `__APP_VERSION__`/`__RELEASE__` defines from `version.generated.json`, a live-src alias
+for `@b-oss/b-api` since its `"main"` points at compiled `dist/` — `@b-oss/b-view`/`b-visual`
+need no alias, their `"main"` already points at `src/`). `vite.config.ts`'s dev-only
+`/api/blipfoto` proxy exists because Blipfoto serves no CORS headers (§7/§19); `client.ts`
+switches to it only when `!isNativePlatform() && import.meta.env.DEV`, never in a production
+bundle.
+
+**All twelve `src/platform/*` modules** from §4's table, each with the wrapper's real exported
+signature. Made a deliberate call on scope: where the spec's own text calls for a genuine web
+fallback (`browser.ts` opening a new tab, `prefs.ts` via `localStorage`), implemented it for
+real now rather than stubbing it, since those are trivial and make `vite dev` more genuinely
+useful immediately. Everything native-only (`secureStorage`, `http`'s CapacitorHttp path,
+`upload`, `imageCache`, `push`, `localNotifications`, `camera`, `geolocation`, `deepLinks`)
+throws a `platform/X.ts: not implemented until Phase N` error rather than silently no-opping —
+deliberate, so a caller built ahead of its dependency fails loudly instead of behaving as if a
+real network/permission/storage call quietly did nothing. None of the actual Capacitor plugin
+packages beyond `@capacitor/core` are installed yet — each gets added in the phase that
+implements it for real, so every dependency addition is traceable to the work that needed it.
+
+**App shell**: `AppShell.tsx` (`IonApp`/`IonMenu`/`IonRouterOutlet`), `OverlayProvider` stub, and
+the **full 28-screen route table** (`AppRoutes.tsx`) — every route from §5's table, pointing at a
+shared `ScreenPlaceholder` until its own phase builds the real `screens/SCR-NN-*/` component.
+`WriteGuardRoute` implements the write-gate once, on the routes §5 explicitly marks
+write-gated (`/compose`, `/entry/:id/edit`, `/entry/:id/comment`, `/entry/:id/report`) — reading
+`useCanWrite()`, currently always `false` since no accounts exist yet, so it redirects to
+`/browse` rather than the eventual in-place upgrade prompt (that's Phase 2). `useAppNavigate()`
+is the thin wrapper screens use instead of `react-router`'s own hooks.
+
+**New ESLint rules** (mirroring the existing electron/chrome pattern in `eslint.config.cjs`):
+`@capacitor/*` confined to `src/platform/**`; `react-router`/`react-router-dom` confined to
+`src/app/routes/**` **plus `AppShell.tsx`** — the one deliberate exception, since it's what sets
+up `IonReactRouter` in the first place, distinct from a _screen_ reaching for raw navigation
+hooks. Hit both rules against my own code while writing it (`client.ts` importing `Capacitor`
+directly, `AppShell.tsx` importing `@ionic/react-router`) — fixed by routing `client.ts` through
+`platform/appState.ts`'s `isNativePlatform()` instead, and widening the routes-only-react-router
+exception to include `AppShell.tsx`.
+
+**Data layer**: `client.ts` (anonymous-only factory for now — real account-token reading and the
+`purpose` param are Phase 2), `errors.ts` (`mapApiError`, the six-outcome shape from §7,
+implemented with the codes `error-codes.md` defines and a clearly-marked default branch; the
+`validation` outcome isn't produced by anything yet since classifying write/validation codes
+into copy-deck keys is per-flow work that lands with each write screen, not something a generic
+mapper can do in isolation — noted in the file itself).
+
+**State**: `accountsStore.ts` — the shape and `useCanWrite()` selector, no accounts yet. Modelled
+token possession as `appTokenScope: 'read' | 'read,write' | null` per account rather than a bare
+boolean, since `useCanWrite()` needs the _granted scope_, not just "a token exists" (auth.md:
+"the granted scope, not the requested one, is what sets hasAppToken's read/write value").
+
+**`.env.example`**: `VITE_BLIPFOTO_CLIENT_ID`, `VITE_OAUTH_REDIRECT_URI` (=`bmobile://oauth/`),
+`VITE_NOTIFY_SERVICE_URL`, `VITE_NOTIFY_REGISTRATION_SECRET`, `VITE_MAP_TILES_KEY` — all blank.
+
+**Verification, and an honest gap**: full monorepo `typecheck && lint && test` green (227 tests).
+Added `src/app/__tests__/AppShell.test.tsx` — a jsdom-rendered smoke test asserting `<AppShell
+/>` actually mounts and resolves the default route to the Browse placeholder, which exercises
+real React/Ionic/router wiring, not just that Vite can transform the files. `npm run build`
+produces a working bundle (harmless `lightningcss`/Ionic-CSS minifier warnings only). **Could
+not literally load the page in a browser**: started `vite dev` and confirmed it serves without
+transform errors, but headless Chromium couldn't launch in this sandbox (missing system shared
+libraries, no root to install them via `playwright install --with-deps`). The jsdom test is a
+real, environment-appropriate substitute for the mounting/routing logic specifically — it is not
+a substitute for actually looking at the rendered UI, which stays the user's own pass as
+instructed from the start.
+
+**Next:** Phase 2 — Auth & accounts (`FLW-01/02/20/21/22`, `SCR-01/30`). OAuth round (§8) via
+`b-api`'s `buildImplicitGrantUrl`/`parseImplicitGrantCallback`, real `platform/browser.ts` +
+`platform/deepLinks.ts` + `platform/secureStorage.ts` implementations (installing
+`@capacitor/browser`, `@capacitor/app`, `@aparajita/capacitor-secure-storage` at that point), the
+full `accountsStore` (token-lifecycle transitions, prefs persistence), and the write-gating route
+guard's real upgrade-prompt behaviour. This unblocks every later screen with a write affordance,
+which is why it comes right after the skeleton rather than any content screen.
