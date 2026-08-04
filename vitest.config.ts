@@ -10,5 +10,9 @@ export default defineConfig({
   test: {
     passWithNoTests: true,
     exclude: ['**/node_modules/**', '**/dist/**'],
+    // jsdom has no scroll implementation; Ionic components (b-mobile only, so far) that scroll
+    // their active item into view throw without this. Guarded so it's a no-op for every other
+    // package's test files, which don't touch the DOM at all.
+    setupFiles: ['./packages/b-mobile/src/test-setup.ts'],
   },
 });

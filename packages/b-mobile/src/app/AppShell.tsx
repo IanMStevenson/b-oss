@@ -18,21 +18,70 @@ import {
 import { IonReactRouter } from '@ionic/react-router';
 import { OverlayProvider } from './OverlayProvider.js';
 import { AppRoutes } from './routes/AppRoutes.js';
-import { useAccountsStore, useActiveAccount } from '../state/accountsStore.js';
+import { useAccountsStore, useActiveAccount, useCanWrite } from '../state/accountsStore.js';
 
 const MAIN_CONTENT_ID = 'main-content';
 
+// Primary nav per 01-information-architecture.md's navigation map. Every target route already
+// exists in AppRoutes (several still as ScreenPlaceholder pending their own phase), so the full
+// item set is wired now rather than growing the menu piecemeal each phase. TODO(Phase 5+): the
+// (av) account-switcher indicator next to My Profile (rules.md, Multi-account clarity).
 function NavMenu() {
   const activeAccount = useActiveAccount();
+  const canWrite = useCanWrite();
   return (
     <IonMenu contentId={MAIN_CONTENT_ID}>
       <IonContent>
         <IonList>
-          {/* TODO(Phase 3+): the full nav item set per 01-information-architecture.md, varying
-              by sign-in state, plus the (av) account-switcher indicator (rules.md). */}
+          {canWrite && (
+            <IonMenuToggle autoHide={false}>
+              <IonItem routerLink="/compose">
+                <IonLabel>New Entry</IonLabel>
+              </IonItem>
+            </IonMenuToggle>
+          )}
           <IonMenuToggle autoHide={false}>
             <IonItem routerLink="/browse">
               <IonLabel>Browse</IonLabel>
+            </IonItem>
+          </IonMenuToggle>
+          <IonMenuToggle autoHide={false}>
+            <IonItem routerLink="/search">
+              <IonLabel>Search</IonLabel>
+            </IonItem>
+          </IonMenuToggle>
+          <IonMenuToggle autoHide={false}>
+            <IonItem routerLink="/map">
+              <IonLabel>Map</IonLabel>
+            </IonItem>
+          </IonMenuToggle>
+          {activeAccount && (
+            <>
+              <IonMenuToggle autoHide={false}>
+                <IonItem routerLink="/me">
+                  <IonLabel>My Profile</IonLabel>
+                </IonItem>
+              </IonMenuToggle>
+              <IonMenuToggle autoHide={false}>
+                <IonItem routerLink="/notifications">
+                  <IonLabel>Notifications</IonLabel>
+                </IonItem>
+              </IonMenuToggle>
+              <IonMenuToggle autoHide={false}>
+                <IonItem routerLink="/comments">
+                  <IonLabel>Comments</IonLabel>
+                </IonItem>
+              </IonMenuToggle>
+              <IonMenuToggle autoHide={false}>
+                <IonItem routerLink="/settings">
+                  <IonLabel>Settings</IonLabel>
+                </IonItem>
+              </IonMenuToggle>
+            </>
+          )}
+          <IonMenuToggle autoHide={false}>
+            <IonItem routerLink="/help">
+              <IonLabel>Help & Info</IonLabel>
             </IonItem>
           </IonMenuToggle>
           <IonMenuToggle autoHide={false}>

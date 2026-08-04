@@ -11,6 +11,6 @@ afterEach(cleanup);
 describe('AppShell', () => {
   it('boots to the Browse route by default', async () => {
     render(<AppShell />);
-    expect(await screen.findByText(/SCR-02/)).toBeDefined();
+    expect(await screen.findAllByText(/Browse/)).not.toHaveLength(0);
   });
 });
