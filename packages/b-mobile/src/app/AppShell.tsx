@@ -18,7 +18,7 @@ import {
 } from '@ionic/react';
 import { IonReactRouter } from '@ionic/react-router';
 import { useHistory } from 'react-router-dom';
-import { OverlayProvider } from './OverlayProvider.js';
+import { OverlayProvider, OverlayHost } from './OverlayProvider.js';
 import { AppRoutes } from './routes/AppRoutes.js';
 import { useAccountsStore, useActiveAccount, useCanWrite } from '../state/accountsStore.js';
 import { useHiddenMembersStore } from '../state/hiddenMembersStore.js';
@@ -238,6 +238,7 @@ export function AppShell() {
           <NavMenu />
           <ReminderTapListener />
           <PushListener />
+          <OverlayHost />
           <IonRouterOutlet id={MAIN_CONTENT_ID}>
             <AppRoutes />
           </IonRouterOutlet>

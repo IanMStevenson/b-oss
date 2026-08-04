@@ -7,6 +7,7 @@ import { render, screen, cleanup, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
 import { FollowersFollowingScreen } from '../FollowersFollowingScreen.js';
+import { OverlayProvider, OverlayHost } from '../../../app/OverlayProvider.js';
 import { useAccountsStore } from '../../../state/accountsStore.js';
 import { useHiddenMembersStore } from '../../../state/hiddenMembersStore.js';
 
@@ -47,7 +48,10 @@ afterEach(() => {
 function renderScreen(username: string, mode: 'followers' | 'following') {
   return render(
     <MemoryRouter>
-      <FollowersFollowingScreen username={username} mode={mode} />
+      <OverlayProvider>
+        <OverlayHost />
+        <FollowersFollowingScreen username={username} mode={mode} />
+      </OverlayProvider>
     </MemoryRouter>,
   );
 }

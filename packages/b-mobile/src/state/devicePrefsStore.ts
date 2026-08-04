@@ -44,6 +44,9 @@ interface PersistedShape {
   /** SCR-25 Notifications' Advanced control. Server floor is 5 minutes (notification-service.md);
    * enforced client-side here too since there's no live service to enforce it yet. */
   notificationPollingIntervalMinutes: number;
+  /** SCR-01's first-run explainer (Phase 12.1, OverlayProvider) — shown once above the mode
+   * choice on the first deliberate visit, never again after dismissal. */
+  seenFirstRunExplainer: boolean;
 }
 
 interface DevicePrefsState extends PersistedShape {
@@ -55,6 +58,7 @@ interface DevicePrefsState extends PersistedShape {
   setUploadFullSize: (value: boolean) => void;
   setOpenBlipfotoLinksInApp: (value: boolean) => void;
   setNotificationPollingIntervalMinutes: (minutes: number) => void;
+  setSeenFirstRunExplainer: (value: boolean) => void;
 }
 
 const defaults: PersistedShape = {
@@ -63,6 +67,7 @@ const defaults: PersistedShape = {
   uploadFullSize: true,
   openBlipfotoLinksInApp: false,
   notificationPollingIntervalMinutes: 5,
+  seenFirstRunExplainer: false,
 };
 
 function persist(state: PersistedShape): void {
@@ -149,6 +154,14 @@ export const useDevicePrefsStore = create<DevicePrefsState>((set) => ({
       return shape;
     });
   },
+
+  setSeenFirstRunExplainer: (value) => {
+    set((prev) => {
+      const shape: PersistedShape = { ...toPersisted(prev), seenFirstRunExplainer: value };
+      persist(shape);
+      return shape;
+    });
+  },
 }));
 
 function toPersisted(state: PersistedShape): PersistedShape {
@@ -158,5 +171,6 @@ function toPersisted(state: PersistedShape): PersistedShape {
     uploadFullSize: state.uploadFullSize,
     openBlipfotoLinksInApp: state.openBlipfotoLinksInApp,
     notificationPollingIntervalMinutes: state.notificationPollingIntervalMinutes,
+    seenFirstRunExplainer: state.seenFirstRunExplainer,
   };
 }

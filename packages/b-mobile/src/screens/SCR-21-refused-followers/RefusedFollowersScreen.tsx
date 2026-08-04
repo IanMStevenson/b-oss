@@ -30,6 +30,7 @@ import { fetchBlockedUsers } from '../../data/users.js';
 import { restoreAccess } from '../../flows/connectionsFlow.js';
 import { mapApiError } from '../../data/errors.js';
 import { useAppNavigate } from '../../app/routes/useAppNavigate.js';
+import { useOverlay } from '../../app/OverlayProvider.js';
 import { useCanWrite } from '../../state/accountsStore.js';
 import { useIsHidden } from '../../state/hiddenMembersStore.js';
 import { UserRow } from '../../components/UserRow.js';
@@ -62,15 +63,15 @@ function RefusedRow({
 export function RefusedFollowersScreen() {
   const navigate = useAppNavigate();
   const canWrite = useCanWrite();
+  const { showUpgradePrompt } = useOverlay();
   const resource = usePagedResource((pageIndex) => fetchBlockedUsers(pageIndex), []);
 
-  const [upgradePromptOpen, setUpgradePromptOpen] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
   async function handleAllow(user: BlipUser): Promise<void> {
     if (!canWrite) {
-      setUpgradePromptOpen(true);
+      showUpgradePrompt();
       return;
     }
     try {
@@ -145,17 +146,6 @@ export function RefusedFollowersScreen() {
         message={toastMessage ?? ''}
         duration={2500}
         onDidDismiss={() => setToastMessage(null)}
-      />
-
-      <IonAlert
-        isOpen={upgradePromptOpen}
-        header="Read-only account"
-        message="This account is signed in read-only. Sign in for write access to continue."
-        onDidDismiss={() => setUpgradePromptOpen(false)}
-        buttons={[
-          { text: 'Cancel', role: 'cancel' },
-          { text: 'Manage accounts', handler: () => navigate.push('/accounts') },
-        ]}
       />
 
       <IonAlert

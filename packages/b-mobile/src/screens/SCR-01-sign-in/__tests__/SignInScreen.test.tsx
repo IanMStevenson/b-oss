@@ -11,6 +11,8 @@ import { render, screen, cleanup, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
 import { SignInScreen } from '../SignInScreen.js';
+import { OverlayProvider, OverlayHost } from '../../../app/OverlayProvider.js';
+import { useDevicePrefsStore } from '../../../state/devicePrefsStore.js';
 
 const { MockOAuthCancelledError, signInDeliberate } = vi.hoisted(() => {
   class MockOAuthCancelledError extends Error {
@@ -41,12 +43,16 @@ vi.mock('../../../app/routes/useAppNavigate.js', () => ({
 afterEach(() => {
   cleanup();
   vi.resetAllMocks();
+  useDevicePrefsStore.setState({ hydrated: false, seenFirstRunExplainer: false });
 });
 
 function renderScreen() {
   return render(
     <MemoryRouter>
-      <SignInScreen />
+      <OverlayProvider>
+        <OverlayHost />
+        <SignInScreen />
+      </OverlayProvider>
     </MemoryRouter>,
   );
 }
@@ -117,5 +123,24 @@ describe('SignInScreen', () => {
     renderScreen();
     await userEvent.click(screen.getByText('New to Blipfoto? Create account'));
     expect(openUrl).toHaveBeenCalledWith('https://www.blipfoto.com/account/signup');
+  });
+
+  it('shows the first-run explainer once, on the first hydrated visit, and marks it seen', async () => {
+    useDevicePrefsStore.setState({ hydrated: true, seenFirstRunExplainer: false });
+    renderScreen();
+    expect(await screen.findByText('Two ways to sign in')).toBeDefined();
+    await waitFor(() => expect(useDevicePrefsStore.getState().seenFirstRunExplainer).toBe(true));
+  });
+
+  it('does not show the first-run explainer once already seen', () => {
+    useDevicePrefsStore.setState({ hydrated: true, seenFirstRunExplainer: true });
+    renderScreen();
+    expect(screen.queryByText('Two ways to sign in')).toBeNull();
+  });
+
+  it('does not show the first-run explainer before devicePrefsStore has hydrated', () => {
+    useDevicePrefsStore.setState({ hydrated: false, seenFirstRunExplainer: false });
+    renderScreen();
+    expect(screen.queryByText('Two ways to sign in')).toBeNull();
   });
 });
