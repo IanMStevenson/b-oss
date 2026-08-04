@@ -421,3 +421,118 @@ imports `.tsx` source cross-package from `b-view`, so re-read the Phase 0.2 CSS-
 declaration gotcha before adding any local `css.d.ts`. Also the first phase where `AppShell`'s
 placeholder `IonMenu` becomes worth replacing with real navigation, which unblocks the
 account-switcher popover deferred from this phase.
+
+## 2026-08-04 — Phase 3 complete: Browse & entry viewing core
+
+Built `data/useResource.ts`/`usePagedResource.ts` (§6) — the four-state loading/loaded/empty/error
+primitive and its paged variant (`loadMore`/`refresh`, tracking page index + `more` internally).
+Both supersede rather than abort stale in-flight requests via a monotonic request id, matching §7's
+app-layer cancellation model (`CapacitorHttp` can't abort natively).
+
+Built `data/viewModel.ts`, the live adapter (§2) mapping `b-api`'s wire responses into `b-view`'s
+(now source-agnostic, post-Phase-0) `BlipEntry`/`BlipComment`/`EntryIndex` types. This is the first
+place `b-mobile` imports `.tsx` source cross-package from `b-view` — the Phase 0.2 CSS-ambient-
+declaration gotcha (redundant local `declare module '*.css'` conflicting with the root
+`types/globals.d.ts`) stayed avoided by simply never adding a local `css.d.ts` to `b-mobile`.
+
+Implemented `platform/imageCache.ts` for real: SHA-256 hash of the URL (`crypto.subtle.digest`) as
+the cache key, `@capacitor/filesystem` (`getUri`/`stat`/`mkdir`) + `@capacitor/file-transfer`
+(`downloadFile`) against `Directory.Cache`, 15-minute TTL checked against `stat().mtime`, falls
+back to the raw URL on any error (a cache miss must never become a broken image) and on web
+(`Capacitor.isNativePlatform()` false — no native filesystem to write into, browser HTTP cache is
+adequate for dev). Built `<CachedImage>` on top for every non-`b-view` image use. The launch/resume
+sweep to proactively evict expired entries is a documented TODO, not a correctness gap — every
+`resolveImage()` call already checks the TTL itself, and `Directory.Cache` is OS-evictable
+regardless.
+
+Built `data/bbcode.ts` + `<BBCodeText>` (§14): a `@bbob/react` preset covering exactly `b`/`i`/`u`/
+`s`/`url` (bare and `[url=target]label[/url]` forms; targets get a scheme/mailto/`http://` prefix
+via `normalizeUrl`), clicks routed through `platform/browser.ts` instead of navigating. Found by a
+failing test, not documentation: `@bbob/react`'s _default_ behaviour for an unrecognized tag is to
+try rendering it as a same-named HTML element (producing a React warning and silently stripping the
+bracket syntax) — not, as I'd assumed, to leave it as literal text. Fixed by wiring in `@bbob`'s
+`onlyAllowTags` parser option (restricts which tags get parsed as tags at all; anything else stays
+literal from the parse stage onward), with `BBCODE_TAGS` exported as the single source of truth for
+both the preset's tag map and this option.
+
+Real screens, replacing their `ScreenPlaceholder` route entries:
+
+- **`SCR-02` Browse** — five feeds as in-screen tab state (§5), not routes. Recent loads on open;
+  Following/Just Me/Popular/Nearby lazy-load their first page on first visit, then stay mounted
+  (`hidden`, not unmounted) so switching back doesn't re-query. Following/Just Me only render when
+  an account is active. Nearby currently always shows its "needs location access" state —
+  `platform/geolocation.ts` is still a Phase-1 stub (`getCurrentPosition()` always rejects) until
+  Phase 6.
+- **`SCR-06` Entry Detail** — built from scratch, **not** reusing `b-view`'s `EntryDetail`. Found
+  via `grep` that `EntryDetail` renders `description_html`/`content_html` via
+  `dangerouslySetInnerHTML`, which directly conflicts with `app-architecture.md` §14's explicit,
+  forcefully-worded "no `dangerouslySetInnerHTML` anywhere in the app" requirement (entry/comment
+  content is written by other members — this is the actual security-relevant property, not a
+  stylistic one). Renders the raw BBCode (`description`/`content`, not the `_html` variants)
+  through `<BBCodeText>` instead. Read-only this phase per `FLW-05`'s scope — the action bar
+  (comment/star/favourite/follow) is Phase 4; owner-only edit/delete/report/hide/share are Phase
+  5+/7; error codes 104/202 don't have their own copy-deck message yet (TODO F/G) and show the
+  server's message as-is in the meantime.
+- **`SCR-07` Full-screen Photo** — pinch-zoom/pan via `react-zoom-pan-pinch` (not in
+  `app-architecture.md`'s dependency list; it doesn't specify a gesture library for this screen, so
+  picked one — lightweight, no native deps, double-tap-to-toggle support built in). Standard
+  resolution is the ceiling per spec (this app is never served hi-res/original), so there's no
+  "view original" affordance to build, and none is offered.
+- **`SCR-08` Entry Metadata** — labelled EXIF fields, blank ones omitted, "No camera information"
+  when none exist.
+- **`SCR-05` Tag Entries** — a single infinite-scroll grid, same shape as Browse's feed tabs.
+
+**One deliberate, documented deviation from the literal spec text, applied to both `SCR-07` and
+`SCR-08`:** both fetch the entry themselves via `useLiveEntry(entryId)` rather than being handed
+the already-loaded entry object from `SCR-06`, even though both screens' spec text says "no API
+calls" / "data comes from the entry already loaded on SCR-06." Read that line as "no _dedicated_
+endpoint for this screen" rather than "literally zero network activity" — the alternative
+(passing the entry via router `location.state`) would leave both screens broken on a direct
+deep link or a page refresh, and would be the one screen boundary in the whole app not keyed
+purely on `entryId` as a plain prop. The cost is one extra `getEntry` call on each visit; noted in
+both screens' own header comments.
+
+**A second deliberate deviation, decided after Phase 0's own EntryDetail/dangerouslySetInnerHTML
+finding**: `b-view`'s `ThumbnailGrid` (windowed Prev/Next pagination, built for the backup viewer's
+fixed already-fetched list) doesn't match any `b-mobile` feed — every one of them (Browse's five
+tabs, Tag Entries, and later Search/profile grids) wants true infinite scroll. Built `EntryGrid`
+from scratch instead of reusing `ThumbnailGrid`. `b-view`'s `Lightbox` had no equivalent conflict
+(only renders `<img>`, no HTML content) — considered reusing it for `SCR-07`, but the pinch-zoom
+requirement pushed towards a purpose-built component either way.
+
+Replaced `AppShell`'s placeholder `IonMenu` with the full primary nav from
+`01-information-architecture.md`'s navigation map — every item routes somewhere real, several
+still `ScreenPlaceholder` pending their own phase. New Entry only shows when `useCanWrite()`; My
+Profile/Notifications/Comments/Settings only show when an account is active; Search/Map/Browse/
+Help/Accounts always show. The (av) account-switcher indicator next to My Profile stays a Phase 5+
+TODO (rules.md, Multi-account clarity).
+
+One self-caught bug, fixed before it was ever run: an early draft of `EntryDetailScreen` had a
+`ResolvedPhoto` helper misusing `useState`'s initializer as a side-effect hack
+(`useState(() => { resolveImage(url).then(setSrc, ...) })`) instead of `useEffect` — and needlessly
+duplicated `<CachedImage>`'s already-correct logic besides. Deleted it, used `<CachedImage>`
+directly.
+
+Two test-infrastructure fixes, both affecting every future test that renders an `ion-segment`, not
+just this phase's: jsdom has no `Element.scrollTo`, which `ion-segment` calls when its active
+button changes — added a guarded shim (`src/test-setup.ts`, no-ops if `Element` doesn't exist, so
+it's inert for non-jsdom test files) referenced from **both** `packages/b-mobile/vite.config.ts`
+(package-local `vitest run`) **and** the root `vitest.config.ts` (root `npm test` doesn't pick up
+per-package Vite configs at all — confirmed by running both and seeing the root run silently miss
+the shim until it was added there too). `vite.config.ts` also switched its `defineConfig` import
+from `vite` to `vitest/config` — needed for the `test` key to typecheck at all.
+
+29 new tests: one per screen for its loading/error/loaded(/empty) states (§19 layer 2), plus
+`BrowseScreen`'s sign-in-gated tab visibility and lazy-load-on-first-visit behaviour.
+
+Full monorepo `typecheck && lint && test && build` green throughout (272 tests). Committed
+(`feat(b-mobile): Browse & entry viewing core — SCR-02/05/06/07/08`, `4cb8fa1`), pushed.
+
+**Next:** Phase 4 — Light social actions (`FLW-06/07/08/10/11`, `SCR-15/16/31`). Read those
+screen/flow specs first. Key pieces: the optimistic-update pattern for star/favourite/follow
+(rules.md), a new `hiddenMembersStore`, and the hidden-placeholder-tile convention applied
+consistently across every surface that can show an entry/member from a hidden account — as of
+Phase 3 that's `SCR-02`, `SCR-05`, and `SCR-06`. `SCR-06`'s action bar (comment/star/favourite/
+follow) also belongs to this phase, closing out the read-only scope it shipped with in Phase 3.
+`signInGated()` (FLW-01, built in Phase 2, currently uncalled) finally gets its first caller here —
+any of these actions attempted while signed out.
