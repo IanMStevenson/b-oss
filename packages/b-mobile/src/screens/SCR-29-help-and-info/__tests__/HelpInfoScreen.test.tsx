@@ -66,15 +66,19 @@ describe('HelpInfoScreen hub — works with no account signed in (SCR-29 is not 
     expect(screen.getByText(/App version/)).toBeDefined();
   });
 
-  it('Help/Terms/Privacy policy/Delete my account each open the browser', async () => {
+  it('Help/Terms/Privacy policy/Delete my account each open their own real Blipfoto page', async () => {
     renderHub();
-    for (const label of ['Help', 'Terms & legal', 'Privacy policy', 'Delete my account']) {
+    const expected: Record<string, string> = {
+      Help: 'https://www.blipfoto.com/help',
+      'Terms & legal': 'https://www.blipfoto.com/legal/terms',
+      'Privacy policy': 'https://www.blipfoto.com/legal/privacy',
+      'Delete my account': 'https://www.blipfoto.com/settings/profile#sidebar',
+    };
+    for (const [label, url] of Object.entries(expected)) {
       await userEvent.click(screen.getByText(label));
+      expect(openUrl).toHaveBeenLastCalledWith(url);
     }
     expect(openUrl).toHaveBeenCalledTimes(4);
-    for (const call of openUrl.mock.calls) {
-      expect(call[0]).toBe('https://www.blipfoto.com');
-    }
   });
 
   it('the Delete my account row never names a specific stored account', () => {
@@ -125,6 +129,18 @@ describe('HelpInfoScreen sections', () => {
     expect(screen.getByText('Hide a member', { exact: false })).toBeDefined();
     expect(screen.getByText('Remove a follower', { exact: false })).toBeDefined();
     expect(screen.getByText('Refuse a follow request', { exact: false })).toBeDefined();
+  });
+
+  it('links out to the acceptable use policy and Be Excellent to Each Other', async () => {
+    render(
+      <MemoryRouter>
+        <HelpInfoScreen section="safety-privacy" />
+      </MemoryRouter>,
+    );
+    await userEvent.click(screen.getByText('Blipfoto’s acceptable use policy'));
+    expect(openUrl).toHaveBeenLastCalledWith('https://www.blipfoto.com/legal/acceptable-use');
+    await userEvent.click(screen.getByText('Be excellent to each other'));
+    expect(openUrl).toHaveBeenLastCalledWith('https://www.blipfoto.com/be-excellent');
   });
 
   it('renders open-source licences', () => {

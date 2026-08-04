@@ -7,9 +7,8 @@
 // Phase 4 to gate — so it isn't built here; signInGated() (FLW-01) already exists in
 // flows/accountsFlow.ts for whichever phase adds the first gated action.
 //
-// TODO: the exact Blipfoto registration/terms/help URLs aren't confirmed anywhere in the spec
-// (only the OAuth authorize and developer-apps URLs are). Linking to the confirmed root domain
-// for now rather than guessing a sub-path.
+// Registration URL confirmed by the user 2026-08-04 (was previously the bare root domain, since
+// the spec never states it).
 
 import { useState } from 'react';
 import {
@@ -32,7 +31,7 @@ import type { SignInModeChoice } from '../../flows/accountsFlow.js';
 import { openUrl } from '../../platform/browser.js';
 import { useAppNavigate } from '../../app/routes/useAppNavigate.js';
 
-const BLIPFOTO_ROOT = 'https://www.blipfoto.com';
+const SIGNUP_URL = 'https://www.blipfoto.com/account/signup';
 
 type Status = 'idle' | 'authenticating' | 'error';
 
@@ -109,7 +108,7 @@ export function SignInScreen() {
           {busy ? <IonSpinner name="dots" /> : 'Continue'}
         </IonButton>
 
-        <IonButton expand="block" fill="clear" onClick={() => void openUrl(BLIPFOTO_ROOT)}>
+        <IonButton expand="block" fill="clear" onClick={() => void openUrl(SIGNUP_URL)}>
           New to Blipfoto? Create account
         </IonButton>
       </IonContent>
