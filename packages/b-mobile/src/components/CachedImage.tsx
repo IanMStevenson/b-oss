@@ -9,16 +9,18 @@
 // etc., in later phases).
 
 import { useEffect, useState } from 'react';
+import type { CSSProperties } from 'react';
 import { resolveImage } from '../platform/imageCache.js';
 
 interface CachedImageProps {
   src: string;
   alt: string;
   className?: string;
+  style?: CSSProperties;
   loading?: 'lazy' | 'eager';
 }
 
-export function CachedImage({ src, alt, className, loading = 'lazy' }: CachedImageProps) {
+export function CachedImage({ src, alt, className, style, loading = 'lazy' }: CachedImageProps) {
   const [resolvedSrc, setResolvedSrc] = useState<string | null>(null);
 
   useEffect(() => {
@@ -38,8 +40,8 @@ export function CachedImage({ src, alt, className, loading = 'lazy' }: CachedIma
   }, [src]);
 
   if (!resolvedSrc) {
-    return <div className={className} aria-hidden="true" />;
+    return <div className={className} style={style} aria-hidden="true" />;
   }
 
-  return <img src={resolvedSrc} alt={alt} className={className} loading={loading} />;
+  return <img src={resolvedSrc} alt={alt} className={className} style={style} loading={loading} />;
 }
