@@ -20,6 +20,11 @@ import { EntryMetadataScreen } from '../../screens/SCR-08-entry-metadata/EntryMe
 import { NewCommentScreen } from '../../screens/SCR-15-new-comment/NewCommentScreen.js';
 import { ReportEntryScreen } from '../../screens/SCR-16-report-entry/ReportEntryScreen.js';
 import { HiddenMembersScreen } from '../../screens/SCR-31-hidden-members/HiddenMembersScreen.js';
+import { ProfileScreen } from '../../screens/SCR-17-18-profile/ProfileScreen.js';
+import { FollowersFollowingScreen } from '../../screens/SCR-19-followers-following/FollowersFollowingScreen.js';
+import { PendingRequestsScreen } from '../../screens/SCR-20-pending-requests/PendingRequestsScreen.js';
+import { RefusedFollowersScreen } from '../../screens/SCR-21-refused-followers/RefusedFollowersScreen.js';
+import { AwardsScreen } from '../../screens/SCR-22-awards/AwardsScreen.js';
 import { WriteGuardRoute } from './WriteGuardRoute.js';
 
 function placeholder(screenId: string, title: string) {
@@ -114,14 +119,34 @@ export function AppRoutes() {
       />
       <Route exact path="/compose/location" render={placeholder('SCR-12', 'Location Picker')} />
       <Route exact path="/uploads" render={placeholder('SCR-14', 'Upload Progress')} />
-      <Route exact path="/me" render={placeholder('SCR-17', 'My Profile')} />
-      <Route exact path="/user/:username" render={placeholder('SCR-18', 'User Profile')} />
-      <Route exact path="/user/:username/followers" render={placeholder('SCR-19', 'Followers')} />
-      <Route exact path="/user/:username/following" render={placeholder('SCR-19', 'Following')} />
-      <Route exact path="/me/requests" render={placeholder('SCR-20', 'Pending Requests')} />
-      <Route exact path="/me/refused" render={placeholder('SCR-21', 'Refused Followers')} />
-      <Route exact path="/user/:username/awards" render={placeholder('SCR-22', 'Awards')} />
-      <Route exact path="/me/awards" render={placeholder('SCR-22', 'Awards')} />
+      <Route exact path="/me" render={() => <ProfileScreen />} />
+      <Route
+        exact
+        path="/user/:username"
+        render={({ match }) => <ProfileScreen username={match.params.username} />}
+      />
+      <Route
+        exact
+        path="/user/:username/followers"
+        render={({ match }) => (
+          <FollowersFollowingScreen username={match.params.username} mode="followers" />
+        )}
+      />
+      <Route
+        exact
+        path="/user/:username/following"
+        render={({ match }) => (
+          <FollowersFollowingScreen username={match.params.username} mode="following" />
+        )}
+      />
+      <Route exact path="/me/requests" component={PendingRequestsScreen} />
+      <Route exact path="/me/refused" component={RefusedFollowersScreen} />
+      <Route
+        exact
+        path="/user/:username/awards"
+        render={({ match }) => <AwardsScreen username={match.params.username} />}
+      />
+      <Route exact path="/me/awards" render={() => <AwardsScreen />} />
       <Route exact path="/notifications" render={placeholder('SCR-23', 'Notifications')} />
       <Route exact path="/comments" render={placeholder('SCR-24', 'Comments')} />
       <Route exact path="/settings" render={placeholder('SCR-25', 'Settings')} />

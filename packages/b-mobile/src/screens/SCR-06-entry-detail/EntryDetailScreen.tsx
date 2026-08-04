@@ -444,7 +444,7 @@ export function EntryDetailScreen({ entryId }: EntryDetailScreenProps) {
                 <>
                   {reaction?.friendshipState === 1 && (
                     <IonButton size="small" fill="outline" onClick={() => setConfirmUnfollow(true)}>
-                      Following
+                      Unfollow
                     </IonButton>
                   )}
                   {reaction?.friendshipState === 2 && (
