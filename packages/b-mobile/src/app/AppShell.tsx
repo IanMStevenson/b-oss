@@ -19,6 +19,8 @@ import { IonReactRouter } from '@ionic/react-router';
 import { OverlayProvider } from './OverlayProvider.js';
 import { AppRoutes } from './routes/AppRoutes.js';
 import { useAccountsStore, useActiveAccount, useCanWrite } from '../state/accountsStore.js';
+import { useHiddenMembersStore } from '../state/hiddenMembersStore.js';
+import { useDevicePrefsStore } from '../state/devicePrefsStore.js';
 
 const MAIN_CONTENT_ID = 'main-content';
 
@@ -105,6 +107,8 @@ function NavMenu() {
 export function AppShell() {
   useEffect(() => {
     void useAccountsStore.getState().hydrate();
+    void useHiddenMembersStore.getState().hydrate();
+    void useDevicePrefsStore.getState().hydrate();
   }, []);
 
   return (

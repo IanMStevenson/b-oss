@@ -19,6 +19,10 @@ vi.mock('../../../state/accountsStore.js', () => ({
   useActiveAccount: vi.fn(),
 }));
 
+vi.mock('../../../state/hiddenMembersStore.js', () => ({
+  useHiddenMembers: () => [],
+}));
+
 const entry: EntryIndex = {
   entry_id: '1',
   date: '2026-01-01',
