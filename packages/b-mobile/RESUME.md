@@ -135,11 +135,36 @@ not new application code.
 
 ## Questions for the user (blocking, not urgent — collect when convenient)
 
-- **The five hardcoded Blipfoto URLs** (`SCR-01`'s "Create account", `SCR-29`'s Help/Terms &
-  legal/Privacy policy/Delete my account) all currently point at the bare `https://www.blipfoto.com`
-  root with a TODO. Needed: the real destination URL for each of the five.
+- ~~The five hardcoded Blipfoto URLs~~ — **resolved 2026-08-04**, see below.
 - **`photoValidation.ts`'s minimum photo dimension** — currently a 200px placeholder
   (`MIN_DIMENSION`); needs a real number (or confirmation 200 is fine).
+- **`VITE_MAP_TILES_KEY`** — needs a MapTiler Cloud API key (free tier, no card required, 100k map
+  loads/month). Sign up at [cloud.maptiler.com](https://cloud.maptiler.com), the dashboard
+  auto-generates a "Default" key on signup — copy it from the API keys page. For production usage
+  create a separate named key there and restrict it by HTTP origin, rather than reusing the
+  default one. Not blocking Phase 12 (only `SCR-04` Map needs it); `getMapStyleUrl()` already
+  returns `null` gracefully with no key configured, driving `SCR-04`'s "unavailable" state.
+
+### Blipfoto URLs — resolved 2026-08-04
+
+User-supplied, wired into `SignInScreen.tsx`/`HelpInfoScreen.tsx` this session:
+
+| Row                        | URL                                                 |
+| -------------------------- | --------------------------------------------------- |
+| `SCR-01` Create account    | `https://www.blipfoto.com/account/signup`           |
+| `SCR-29` Help              | `https://www.blipfoto.com/help`                     |
+| `SCR-29` Terms & legal     | `https://www.blipfoto.com/legal/terms`              |
+| `SCR-29` Privacy policy    | `https://www.blipfoto.com/legal/privacy`            |
+| `SCR-29` Delete my account | `https://www.blipfoto.com/settings/profile#sidebar` |
+
+Two more URLs the user supplied that don't map onto the spec's single-row-per-link wireframe:
+`https://www.blipfoto.com/legal/acceptable-use` and `https://www.blipfoto.com/be-excellent`
+("Be Excellent to Each Other" community guidelines). Both added as new outbound links inside the
+existing in-app **Safety & privacy** section instead (`SCR-29`'s "what you can do about someone
+else's behaviour" explainer) — that's the section already covering community conduct, and it
+keeps `SCR-29`'s wireframe-specified "Terms & legal" as the one row → one destination the spec
+draws it as. Not a spec deviation the user asked for explicitly; flagged here as a judgment call
+in case a future navigation-team pass wants it placed differently.
 
 ## Environment status (checked 2026-08-04, keys only — not values)
 
@@ -247,9 +272,9 @@ test-setup.ts']` resolves relative to whatever the invoking shell's cwd was, not
   `SCR-24` (Phase 9) fit the first pattern, not the exception.
 - **`changeAccountMode`'s one known deviation from auth.md's exact transition table**: documented
   in `flows/accountsFlow.ts`'s own docstring. Not a correctness bug.
-- **Blipfoto's exact registration/terms/help page URLs still aren't stated anywhere in the
-  spec** — `SCR-01`/`SCR-29`'s links all point at the bare `https://www.blipfoto.com` root with a
-  TODO. Still open; a real navigation-team pass fills these in eventually.
+- **Blipfoto's exact registration/terms/help/privacy/delete-account URLs weren't stated anywhere
+  in the spec** — resolved 2026-08-04, the user supplied all five real destinations directly (see
+  "Blipfoto URLs — resolved" above). No longer open.
 - **A large third-party dependency pulled in by a single screen needs an explicit lazy-loading
   check** — inspect `npm run build`'s own chunk-size output whenever a new screen/dependency lands.
   The two >500KB chunks flagged since Phase 6/7 (`maplibre-gl`, `@ionic/react` itself) are still

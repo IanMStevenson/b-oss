@@ -116,6 +116,6 @@ describe('SignInScreen', () => {
   it('opens the Blipfoto site for "Create account"', async () => {
     renderScreen();
     await userEvent.click(screen.getByText('New to Blipfoto? Create account'));
-    expect(openUrl).toHaveBeenCalledWith('https://www.blipfoto.com');
+    expect(openUrl).toHaveBeenCalledWith('https://www.blipfoto.com/account/signup');
   });
 });

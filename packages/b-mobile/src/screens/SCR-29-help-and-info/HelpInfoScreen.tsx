@@ -11,11 +11,14 @@
 // — Icon guide/Safety & privacy/Open-source licences are in-app static pushes, not separate
 // SCR-numbered screens.
 //
-// External links (Help, Terms, Privacy policy, Delete my account) all point at the bare
-// blipfoto.com root, same documented gap SCR-01's own "Create account" link has — the exact
-// registration/terms/help/privacy/delete-account URLs aren't stated anywhere in AppSpec/
-// ImplementationSpec (see AGENT_LOG.md's Phase 2 entry and RESUME.md's gotchas). Never invented
-// here; a real navigation-team pass fills these in later.
+// External link URLs confirmed by the user 2026-08-04 (were previously the bare root domain,
+// since the spec never states them — see AGENT_LOG.md's Phase 2 entry and RESUME.md's gotchas).
+// "Terms & legal"'s wireframe row (docs/AppSpec/screens/SCR-29-help-and-info.md) is one row with
+// one destination — the acceptable-use policy the user also supplied isn't a second link on this
+// row, it's added to the in-app Safety & privacy section below instead, alongside "Be Excellent
+// to Each Other" (also user-supplied, not in the original spec): both are about community conduct,
+// which is exactly what that section already covers, and neither forces the wireframe's single
+// external-link-per-row shape to change.
 //
 // Row labels are plain <span>s inside IonItem, not IonLabel — RESUME.md's documented gotcha
 // (IonLabel not reliably rendering its children in this jsdom test setup) reproduced on this
@@ -38,7 +41,12 @@ import { useAppNavigate } from '../../app/routes/useAppNavigate.js';
 import { useDevicePrefsStore } from '../../state/devicePrefsStore.js';
 import { openUrl } from '../../platform/browser.js';
 
-const BLIPFOTO_ROOT = 'https://www.blipfoto.com';
+const HELP_URL = 'https://www.blipfoto.com/help';
+const TERMS_URL = 'https://www.blipfoto.com/legal/terms';
+const ACCEPTABLE_USE_URL = 'https://www.blipfoto.com/legal/acceptable-use';
+const PRIVACY_URL = 'https://www.blipfoto.com/legal/privacy';
+const DELETE_ACCOUNT_URL = 'https://www.blipfoto.com/settings/profile#sidebar';
+const BE_EXCELLENT_URL = 'https://www.blipfoto.com/be-excellent';
 
 export type HelpInfoSection = 'icon-guide' | 'safety-privacy' | 'licences';
 
@@ -127,6 +135,12 @@ function SafetyPrivacy() {
         To cut someone off entirely: make your journal private, remove them as a follower, refuse
         any fresh request they send, and hide them. This is a sequence, not one switch.
       </p>
+      <IonButton expand="block" fill="outline" onClick={() => void openUrl(ACCEPTABLE_USE_URL)}>
+        Blipfoto&rsquo;s acceptable use policy
+      </IonButton>
+      <IonButton expand="block" fill="outline" onClick={() => void openUrl(BE_EXCELLENT_URL)}>
+        Be excellent to each other
+      </IonButton>
     </>
   );
 }
@@ -179,16 +193,16 @@ function HelpInfoHub() {
           <IonItem button onClick={() => navigate.push('/help/safety-privacy')}>
             <span>Safety &amp; privacy</span>
           </IonItem>
-          <IonItem button onClick={() => void openUrl(BLIPFOTO_ROOT)}>
+          <IonItem button onClick={() => void openUrl(HELP_URL)}>
             <span>Help</span>
           </IonItem>
-          <IonItem button onClick={() => void openUrl(BLIPFOTO_ROOT)}>
+          <IonItem button onClick={() => void openUrl(TERMS_URL)}>
             <span>Terms &amp; legal</span>
           </IonItem>
-          <IonItem button onClick={() => void openUrl(BLIPFOTO_ROOT)}>
+          <IonItem button onClick={() => void openUrl(PRIVACY_URL)}>
             <span>Privacy policy</span>
           </IonItem>
-          <IonItem button onClick={() => void openUrl(BLIPFOTO_ROOT)}>
+          <IonItem button onClick={() => void openUrl(DELETE_ACCOUNT_URL)}>
             <span>Delete my account</span>
             <IonNote slot="end" style={{ maxWidth: '55%', whiteSpace: 'normal' }}>
               Opens Blipfoto&rsquo;s own page — not scoped to any one account stored in this app
