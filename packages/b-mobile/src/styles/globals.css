@@ -1,0 +1,9 @@
+/* SPDX-License-Identifier: GPL-3.0-or-later */
+/* Copyright (C) 2026 Ian Stevenson */
+
+/* Ionic's own core CSS (imported in main.tsx) already normalizes box-sizing, margins, and
+   touch targets. This file is only for what's specific to this app on top of that. */
+
+html {
+  font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+}
