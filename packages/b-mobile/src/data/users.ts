@@ -101,3 +101,16 @@ export async function fetchAwards(username?: string): Promise<BlipAward[]> {
   const res = await client.getUserAwards({ username });
   return res.awards;
 }
+
+/** SCR-03's People tab. `users/search` returns the same `BlipUser` shape (`username`,
+ * `avatar_url`, `icons`) as every other people list — confirmed against `fetchFollowers`/
+ * `fetchFollowing` above, which is what lets SearchScreen reuse `UserRow` directly rather than a
+ * second row component. */
+export async function fetchSearchUsersPage(
+  query: string,
+  pageIndex: number,
+): Promise<Page<BlipUser>> {
+  const client = await getClient();
+  const res = await client.searchUsers({ query, pageIndex, pageSize: PAGE_SIZE });
+  return { items: res.users, more: res.page.more === 1 };
+}

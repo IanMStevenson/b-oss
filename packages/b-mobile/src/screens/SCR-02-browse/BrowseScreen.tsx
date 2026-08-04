@@ -45,7 +45,14 @@ function NearbyTab() {
   const [locationDenied, setLocationDenied] = useState(false);
 
   useEffect(() => {
-    getCurrentPosition().then(setCoords, () => setLocationDenied(true));
+    // A `null` resolution (permission granted, no fix available) is folded into the same
+    // "can't show this tab" state as a rejection (permission refused) — Phase 6 made
+    // getCurrentPosition() real, and both cases need the same treatment here or a device with
+    // no GPS fix but granted permission would spin forever instead of showing the message.
+    getCurrentPosition().then(
+      (result) => (result ? setCoords(result) : setLocationDenied(true)),
+      () => setLocationDenied(true),
+    );
   }, []);
 
   const resource = usePagedResource<EntryIndex>(

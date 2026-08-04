@@ -7,12 +7,15 @@
 // switcher, upgrade prompt, first-run explainer, confirmation dialogs) are deliberately not
 // routes — see OverlayProvider.
 
+import { lazy, Suspense } from 'react';
 import { Switch, Route, Redirect } from 'react-router-dom';
 import type { RouteComponentProps } from 'react-router-dom';
+import { IonPage, IonSpinner } from '@ionic/react';
 import { ScreenPlaceholder } from '../../components/ScreenPlaceholder.js';
 import { SignInScreen } from '../../screens/SCR-01-sign-in/SignInScreen.js';
 import { AccountsScreen } from '../../screens/SCR-30-accounts/AccountsScreen.js';
 import { BrowseScreen } from '../../screens/SCR-02-browse/BrowseScreen.js';
+import { SearchScreen } from '../../screens/SCR-03-search/SearchScreen.js';
 import { TagEntriesScreen } from '../../screens/SCR-05-tag-entries/TagEntriesScreen.js';
 import { EntryDetailScreen } from '../../screens/SCR-06-entry-detail/EntryDetailScreen.js';
 import { PhotoScreen } from '../../screens/SCR-07-full-screen-photo/PhotoScreen.js';
@@ -26,6 +29,23 @@ import { PendingRequestsScreen } from '../../screens/SCR-20-pending-requests/Pen
 import { RefusedFollowersScreen } from '../../screens/SCR-21-refused-followers/RefusedFollowersScreen.js';
 import { AwardsScreen } from '../../screens/SCR-22-awards/AwardsScreen.js';
 import { WriteGuardRoute } from './WriteGuardRoute.js';
+
+// MapLibre GL JS is by far the app's largest dependency (~19MB unpacked, app-architecture.md
+// §20) and only SCR-04 needs it — lazy-loaded so it ships as its own chunk, fetched only when
+// the Map destination is actually opened, rather than inflating every screen's first paint.
+const MapScreen = lazy(() =>
+  import('../../screens/SCR-04-map/MapScreen.js').then((m) => ({ default: m.MapScreen })),
+);
+
+function MapScreenFallback() {
+  return (
+    <IonPage>
+      <div className="ion-padding" style={{ display: 'flex', justifyContent: 'center' }}>
+        <IonSpinner />
+      </div>
+    </IonPage>
+  );
+}
 
 function placeholder(screenId: string, title: string) {
   return () => <ScreenPlaceholder screenId={screenId} title={title} />;
@@ -46,8 +66,19 @@ export function AppRoutes() {
   return (
     <Switch>
       <Route exact path="/browse" component={BrowseScreen} />
-      <Route exact path="/search" render={placeholder('SCR-03', 'Search')} />
-      <Route exact path="/map" render={placeholder('SCR-04', 'Map')} />
+      <Route exact path="/search" component={SearchScreen} />
+      <Route
+        exact
+        path="/map"
+        render={({ location }: RouteComponentProps) => {
+          const params = new URLSearchParams(location.search);
+          return (
+            <Suspense fallback={<MapScreenFallback />}>
+              <MapScreen focusedEntryId={params.get('entry') ?? undefined} />
+            </Suspense>
+          );
+        }}
+      />
       <Route
         exact
         path="/tag/:tag"

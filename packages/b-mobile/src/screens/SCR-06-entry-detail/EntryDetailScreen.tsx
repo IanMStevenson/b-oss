@@ -550,6 +550,9 @@ export function EntryDetailScreen({ entryId }: EntryDetailScreenProps) {
           ...(entryState.status === 'loaded' && entryState.data.exif
             ? [{ text: 'Camera info', handler: () => navigate.push(`/entry/${entryId}/metadata`) }]
             : []),
+          ...(entryState.status === 'loaded' && entryState.data.location
+            ? [{ text: 'Map', handler: () => navigate.push(`/map?entry=${entryId}`) }]
+            : []),
           {
             text: 'Report',
             handler: () =>
