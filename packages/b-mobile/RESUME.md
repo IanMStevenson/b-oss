@@ -22,7 +22,9 @@ untested foundational screens (`SignInScreen`, `AccountsScreen`) now have real t
 screens had missing `loading`/`error` states closed, and four pure-logic modules named explicitly
 in §19 (`errors.ts`, the write-gate selector, `imageCache.ts`, `dates.ts`) now have direct unit
 tests. Full monorepo `typecheck && lint && test && build` green (712 tests, confirmed stable
-across repeated runs). **No Phase 12 is defined in `PLAN.md` yet** — see "Next intended step".
+across repeated runs). **Phase 12 (a wishlist, not yet started) and Phase 13 (deploy/test
+`b-push`) are now defined below** — `PLAN.md` itself only formally covers through Phase 11; see
+the "Phase 12 wishlist" and "Phase 13" sections below for what's next.
 
 ## Last completed step
 
@@ -69,24 +71,90 @@ again — the complete reasoning is there; the short version:
    reproduced identically twice), not this phase's bug, not fixed here. If it's still there next
    session, it's exactly this — not a new regression to chase.
 
+## Phase 12 wishlist (compiled 2026-08-04, reviewed with the user same day)
+
+`PLAN.md` never defined a Phase 12 — everything below was compiled from a deliberate audit at the
+end of Phase 11 (a fresh grep for `TODO` across `src/`, cross-checked against what's actually
+wired up) plus TODO F/G's real status (also just resolved — see below). Reviewed with the user
+2026-08-04, who set priority and scope for what follows. **Active for Phase 12** (roughly the
+order to tackle them):
+
+1. **Overlay mechanism, finished for real.** `app/OverlayProvider.tsx`/`useOverlay()` exists
+   (wraps the whole app) but is dead — `OverlayState` only ever has `kind: null`, zero consumers
+   anywhere. Every overlay that got built since (upgrade prompts, confirmations) used local
+   `useState` per screen instead. **Decision: use the shared mechanism**, not per-screen local
+   state — retrofit it to actually own the overlays its own header comment already names (account
+   switcher, upgrade prompt, first-run explainer, confirmation dialogs), and wire new ones
+   (account switcher, first-run explainer) through it rather than inventing a second pattern.
+   `TextStrings.csv` already has the first-run explainer's copy drafted
+   (`SCR-01.explainer.first_run.*`), so that one has no copy blocker.
+2. **The account-switcher popover** (rules.md's "Multi-account clarity") — a lightweight quick-
+   switch reachable from anywhere in the nav chrome, distinct from the full `SCR-30` management
+   screen. Deferred since Phase 2 ("once there's a persistent nav chrome to anchor it to" — there
+   is now). Natural to build once the overlay mechanism (above) exists to host it in.
+3. **`flows/deepLinkResolver.ts`** (Phase 11's largest finding) — parse `bmobile://entry/:id` and
+   `bmobile://user/:username`, route to the right screen, gate account-requiring targets via
+   `FLW-01`/`signInGated()`, and wire the `ACTION_SEND` share intent into `SCR-10` with the photo
+   pre-loaded (`FLW-12`). One resolver for both cold start (`@capacitor/app`'s launch URL) and
+   warm start (`appUrlOpen`), per §16's explicit requirement that these can't diverge.
+4. **`platform/appState.ts`'s resume hook** — `onAppStateChange()` is a literal no-op stub
+   (`TODO(Phase 2+)`, never implemented), meant to back re-checking OS notification permission on
+   resume and resetting stale upload-queue items on launch. Zero consumers today.
+5. **TODO F/G — wiring, not spec decisions. Both are further along than assumed; see the answer
+   below for the full breakdown.** In short: build the typed copy-deck module `src/strings/`
+   (currently an empty stub directory) from the now-complete `TextStrings.csv`; wire
+   `data/errors.ts#mapApiError`'s `validation` outcome to actually classify the write/validation
+   codes error-codes.md already documents (240, 250–252, 516–528); reconcile the handful of
+   screens with their own pre-copy-deck ad hoc strings (e.g. `photoValidation.ts`'s messages
+   don't match `TextStrings.csv`'s `SCR-09.error.unusable_photo` wording) against the real deck.
+   One number is still a genuine open question, not a wiring task: `photoValidation.ts`'s
+   `MIN_DIMENSION = 200` is an engineering placeholder — the spec doesn't state a real minimum
+   photo pixel dimension anywhere. Needs a real answer from the user (see the question list below).
+
+**Explicitly parked, not forgotten** — deliberate scope decisions from the user, not gaps to
+silently backfill:
+
+- **Android signing keys + a real `applicationId`** — not needed while there's no commitment to
+  publishing. Debug builds already work with the auto-generated debug keystore; revisit only once
+  a Play submission is actually planned.
+- **Real on-device/emulator testing** — deferred until a decent chunk of testing has happened in
+  Vite's browser-mode dev server first (now unblocked — `VITE_BLIPFOTO_CLIENT_ID`/
+  `VITE_OAUTH_REDIRECT_URI`/`VITE_DEV_TOKEN` are already populated in the root `.env.local`, so
+  signed-in screens are reachable in a desktop browser via the other session's `devSignInWithToken`
+  path). Still no device/emulator in this sandbox regardless.
+
+## Phase 13 (per the user, 2026-08-04): deploy and test the notification service
+
+Deploy `b-push` for real (Cloudflare Workers + D1 + a Firebase project for FCM's service-account
+JSON) and test it to whatever extent is possible without a fully complete system (no Android
+signing/publishing, per the parked item above). Blocked on the user providing: a Cloudflare
+account, `VITE_NOTIFY_SERVICE_URL`/`VITE_NOTIFY_REGISTRATION_SECRET` (currently empty in
+`.env.local`), and Firebase project credentials. `b-push` itself has been fully built and tested
+against a local SQLite fake since Phase 9 — this phase is deployment and real-world verification,
+not new application code.
+
+## Questions for the user (blocking, not urgent — collect when convenient)
+
+- **The five hardcoded Blipfoto URLs** (`SCR-01`'s "Create account", `SCR-29`'s Help/Terms &
+  legal/Privacy policy/Delete my account) all currently point at the bare `https://www.blipfoto.com`
+  root with a TODO. Needed: the real destination URL for each of the five.
+- **`photoValidation.ts`'s minimum photo dimension** — currently a 200px placeholder
+  (`MIN_DIMENSION`); needs a real number (or confirmation 200 is fine).
+
+## Environment status (checked 2026-08-04, keys only — not values)
+
+Root `.env.local` (gitignored) currently has: `VITE_BLIPFOTO_CLIENT_ID`, `VITE_OAUTH_REDIRECT_URI`,
+`VITE_DEV_TOKEN` **populated**; `VITE_NOTIFY_SERVICE_URL`, `VITE_NOTIFY_REGISTRATION_SECRET`,
+`VITE_MAP_TILES_KEY`, `MAIN_VITE_BLIPFOTO_CLIENT_ID`, `VITE_CHROME_CLIENT_ID` **empty**. Matches
+expectations: the app is registered with Blipfoto and browser-mode dev sign-in works now; `b-push`
+isn't deployed yet (Phase 13, above) and the map tiles key is still needed independently.
+
 ## Next intended step
 
-**No Phase 12 is defined in `PLAN.md`.** In rough priority order, based on this phase's own
-findings:
-
-1. **Build `flows/deepLinkResolver.ts` for real** (Phase 11's largest finding, above) — parse
-   `bmobile://entry/:id` and `bmobile://user/:username`, route to the right screen, gate account-
-   requiring targets via `FLW-01`/`signInGated()`, and wire the `ACTION_SEND` share intent into
-   `SCR-10` with the photo pre-loaded (`FLW-12`). One resolver for both cold start
-   (`@capacitor/app`'s launch URL) and warm start (`appUrlOpen`), per §16's explicit requirement
-   that these can't diverge. This is real, scoped feature work — plan it as its own phase rather
-   than folding it into whatever comes next as an aside.
-2. **Real on-device testing, if a device or emulator becomes available.** Confirmed absent again
-   in Phase 11 (not a new finding) — this sandbox has had neither since Phase 0. The Phase 10 APK
-   is the closest available substitute in the meantime.
-3. **`devicePrefsStore.uploadFullSize` still has no consumer** (open since Phase 8) — whoever
-   builds client-side photo downscaling on the compose path wires this toggle to something real.
-4. **Verify**: full monorepo `typecheck && lint && test && build`, same as every phase.
+Start Phase 12 item 1 above (finish the overlay mechanism) — full plan to be written before
+touching code, since it touches `OverlayProvider.tsx`, `AppShell.tsx`'s render tree, and every
+screen currently doing its own local-state overlay (upgrade prompts, confirmations). Verify with
+the standard full monorepo `typecheck && lint && test && build` once done, same as every phase.
 
 ## Open decisions / blockers
 

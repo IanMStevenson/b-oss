@@ -295,9 +295,22 @@ avatar: {blob}})`); biography editing resolved a TODO Phase 7 planted specifical
     `typecheck && lint && test && build` green twice. Full detail in `AGENT_LOG.md`'s Phase 11
     entry.
 
-Phases 7+ are sequenced but will get more detailed sub-planning here as I reach them. No Phase 12
-is defined yet — see `AGENT_LOG.md`'s Phase 11 entry for real candidates (the deep-link resolver
-above is the front-runner).
+12. **Wishlist (not yet started)** — finish the overlay mechanism for real (`OverlayProvider`/
+    `useOverlay`, currently dead — decision: use it, not per-screen local state), the account-
+    switcher popover, `flows/deepLinkResolver.ts`, `platform/appState.ts`'s resume hook, and
+    wiring the now-complete `TextStrings.csv`/`error-codes.md` (TODO F/G) into a real
+    `src/strings/` copy deck. Android signing/`applicationId` and real on-device testing are
+    explicitly parked (no publishing commitment yet; device testing deferred until a decent chunk
+    of Vite browser-mode testing happens first). Full detail and priority order in `RESUME.md`'s
+    "Phase 12 wishlist" section.
+13. **Deploy and test the notification service** — `b-push` to a real Cloudflare account (Workers
+    - D1 + Firebase), tested to whatever extent is possible short of a full publishing setup.
+      Blocked on the user providing Cloudflare/Firebase credentials and
+      `VITE_NOTIFY_SERVICE_URL`/`VITE_NOTIFY_REGISTRATION_SECRET`. `b-push` itself is already fully
+      built and tested against a local fake (Phase 9) — this is deployment/real-world verification,
+      not new application code.
+
+Phases 7+ are sequenced but will get more detailed sub-planning here as I reach them.
 
 ## Architecture decisions of note (beyond what's already in `ImplementationSpec/`)
 
