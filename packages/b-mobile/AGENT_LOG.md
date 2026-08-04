@@ -720,3 +720,128 @@ cancellation model, same pattern `useResource`/`usePagedResource` already use vi
 `SCR-03`'s People tab reuses the same hidden-member-marked-not-suppressed treatment `UserRow`
 already implements — check whether `searchUsers` (confirmed to exist in `b-api`, not yet used
 anywhere in `b-mobile`) returns the same lightweight `BlipUser` shape before building a new type.
+
+## 2026-08-04 — Phase 6 complete: Search & Map
+
+`platform/geolocation.ts` implemented for real against `@capacitor/geolocation` (newly installed,
+`^8.2.0` — matches the rest of the app's first-party plugin pins; `8.2.1` doesn't exist as a
+release, only `-next`, so `8.2.0` is the true latest stable). It ships its own web implementation
+(backed by `navigator.geolocation`), so — unlike `platform/browser.ts` — it needs no manual
+`Capacitor.isNativePlatform()` branch; `vite dev` in a desktop browser gets a real, permission-
+prompting implementation for free. Contract: resolves with coordinates on success, resolves `null`
+when permission is held but no fix could be obtained (GPS off/timeout — distinct from a refusal),
+and rejects when permission is refused. Reads the _current_ permission state on every call rather
+than remembering a past answer, per rules.md. Fixed a real, previously-undiscoverable bug this
+surfaced immediately: `BrowseScreen`'s `NearbyTab` (built in Phase 3 against the always-rejecting
+stub) only had a reject handler, so a `null` resolution left it spinning forever instead of showing
+the "needs location access" message — folded both cases into the same branch, with a regression
+test.
+
+**Map tile provider: MapTiler's free tier**, per `app-architecture.md`'s own Q7 decision (already
+made before this phase — not a new choice, just the first phase to actually need it). Confirmed the
+reasoning still holds before wiring it up: no billing account required (unlike Google Maps
+Platform's current tiered pricing), tolerates a public/extractable key (§18's "anything in the
+bundle is extractable" honesty requirement — the same reason `VITE_BLIPFOTO_CLIENT_ID` is unsecret),
+and needs nothing beyond a style URL to hand to MapLibre GL JS. `platform/mapTiles.ts` is one
+function, `getMapStyleUrl()`, returning `https://api.maptiler.com/maps/streets-v2/style.json?key=…`
+or **`null` when no key is configured** — which is what drives `SCR-04`'s "Maps/location
+unavailable" state deliberately, rather than letting the map silently fail to load tiles with no
+explanation. `maplibre-gl` (`6.1.0`, exactly the version app-architecture.md pins) newly installed.
+This is the one platform file that gets a direct unit test (`platform/__tests__/mapTiles.test.ts`)
+rather than only being exercised through a mocked consumer — unlike every other `platform/*.ts`
+module, it wraps no Capacitor plugin and has no async/device dependency, so it's pure logic (§19
+layer 1), same class as the error mapper or the BBCode preset.
+
+**Debounce: one small shared hook, `data/useDebounce.ts` (`useDebouncedValue`), not a new
+request-cancellation mechanism.** Per PLAN.md's explicit instruction for this phase: debounce the
+_input_ (the search term, the map's raw viewport bounds) and let `useResource`/`usePagedResource`'s
+existing request-id supersession handle the actual fetch race, rather than building a second
+cancellation scheme. `SCR-04`'s bounds-fetch effect follows the identical shape to every other
+resource hook in the app: a request-id ref discards any response that's no longer the newest, since
+`CapacitorHttp` can't abort in flight (§7).
+
+**`SCR-03` Search.** Entries tab is exactly what PLAN.md predicted — `EntryGrid`/`usePagedResource`,
+same shape as every prior feed. People tab reuses `UserRow` directly: `searchUsers` returns the same
+`BlipUser` shape (`username`, `avatar_url`, `icons`) `fetchFollowers`/`fetchFollowing` already
+return, confirmed by reading `b-api`'s `searchUsers` before writing `fetchSearchUsersPage`, so no
+new row component was needed. The query field is a plain native `<input type="search">` in a
+`<form>`, not `IonSearchbar` — same reasoning as `SCR-15`'s plain `<textarea>` (Phase 4): this needs
+a real `onSubmit` for the keyboard's search action (search immediately, dismiss the keyboard,
+bypassing the debounce), which native form semantics give for free and reaching through Ionic's
+shadow DOM would not. Submit-bypass is one extra piece of state (`submittedValue`, cleared on the
+next keystroke) layered over `useDebouncedValue`, not a second debounce implementation.
+
+**Each tab tracks its own "committed" term, synced from the shared term only while that tab is
+active** — this is the one piece of real design work FLW-04's "switching tabs searches the new tab
+for the current term if it has no results yet" needed beyond reusing existing hooks. Both tabs stay
+mounted once visited (same `hidden`-not-unmounted pattern `BrowseScreen` uses for its five feeds,
+rules.md's explicit session-caching allowance for both `SCR-02` and `SCR-03`), but an _inactive_
+mounted tab does not refetch merely because the term changed elsewhere — its sync effect checks
+`active` before committing the new term, so only the visible tab ever issues a request. Switching to
+a not-yet-visited tab commits immediately on mount (first "switch" = mount), matching "search the
+new tab for the current term."
+
+**`SCR-04` Map.** MapLibre GL JS renders directly in the WebView — it isn't a Capacitor plugin, so
+unlike geolocation/tile config it lives in the screen itself, not behind `platform/**`, and the
+platform-boundary ESLint rule doesn't restrict it (confirmed by re-reading the rule before
+importing it). Focused mode (`?entry=<id>`, parsed from `location.search` in `AppRoutes.tsx` since
+screens may not import `react-router`) fetches the target entry's coordinates _before_ constructing
+the `maplibregl.Map` at all, so it never flashes the default region first. Entries by a hidden
+member get no marker created in the first place — filtered before markers exist, not rendered and
+then hidden, per rules.md's "a placeholder pin would be noise." `SCR-06`'s overflow menu gained a
+"Map" item (shown only when the entry has a location), completing `FLW-14`'s other entry point.
+
+**Performance regression caught and fixed before it shipped:** the first working build put
+`maplibre-gl` behind a static top-level import in `MapScreen.tsx`, which bundled it straight into
+the main chunk — 2.38MB gzipped down to 570KB, but still one chunk covering every screen's first
+paint. app-architecture.md §20 is explicit that MapLibre ("by far the largest dependency... ~19MB
+unpacked") must be lazy-loaded since only two screens use it. Fixed by `React.lazy()`-wrapping just
+the `/map` route's component in `AppRoutes.tsx` (with a `<Suspense>` fallback spinner) rather than
+touching `MapScreen.tsx` itself — Vite code-splits at the dynamic `import()` boundary, so
+`maplibre-gl`'s static import inside `MapScreen.tsx` now ships in its own ~946KB chunk, fetched only
+when `/map` is actually visited. Caught by inspecting `npm run build`'s own chunk-size output, not
+by a test — worth checking build output specifically for any future screen pulling in a large
+dependency, since neither typecheck nor lint would ever flag this.
+
+**Testing maplibre-gl itself: mocked wholesale, same principle as every platform-module consumer
+test, applied to a WebView-rendered library instead of a Capacitor plugin.** jsdom has no
+WebGL/canvas support (same class of gap as "no headless browser available in this sandbox"), so
+`maplibre-gl` is replaced with a minimal fake `Map`/`Marker`/`Popup` (via `vi.hoisted`, since the
+mock factory and the test's own assertions both need the same instance-tracking arrays) that
+records what the component asked of it — constructor options, `on()` handlers (triggerable
+manually, e.g. `mapInstances[0].trigger('load')`), `getBounds()`, `jumpTo()` calls, and every
+constructed `Marker`. This tests `MapScreen`'s actual logic (bounds → fetch → markers, focused-mode
+centring, hidden-member filtering, my-location recentring, the four map states) without needing a
+real renderer.
+
+**One new gotcha, `IonButton`'s `aria-label` prop, found writing the My-location test:** unlike a
+plain HTML button, an `aria-label` passed to `IonButton` in this jsdom test setup didn't reach the
+rendered `<ion-button>`'s DOM attributes, so `screen.getByLabelText(...)` couldn't find it —
+`screen.getByText('My location', { selector: 'ion-button' })` (the same trigger-scoping pattern
+Phase 5's `IonAlert` gotcha established) found it reliably instead. Same shape as the already-known
+`IonLabel`-doesn't-render-children gap: an Ionic component whose props don't reliably reach the DOM
+in this test environment. Worth checking for this specifically before reaching for
+`getByLabelText`/`getByRole` on any future `IonButton`.
+
+35 new tests: 1 regression test for the `NearbyTab` fix, 2 for `mapTiles.ts`, 11 for `SearchScreen`
+(idle/debounce/submit/empty/error/tap-through for both tabs, tab-switch search-on-first-visit,
+no-refetch-on-return, hidden-member marking), 7 for `MapScreen` (unavailable state, fetch-and-render,
+empty region, non-blocking error, hidden-member suppression, focused-mode centring, my-location).
+351 tests total, full monorepo `typecheck && lint && test && build` green throughout — `npm test`
+run 9 times consecutively (6 before the lazy-loading fix, 3 after) with zero failures, and
+`npm run build` (both the single-workspace and full monorepo forms) confirmed clean with the
+`MapScreen` chunk split verified by inspecting its own output. Committed
+(`feat(b-mobile): Phase 6 — Search & Map (SCR-03/04, FLW-04/14)`), pushed.
+
+**Next:** Phase 7 — Compose & publish (`SCR-09–14`, `FLW-12/13/18`). Read those screen/flow specs
+first. Key pieces per PLAN.md: `platform/upload.ts`'s hand-built multipart body (the seam and the
+reasoning are already fully specified in `app-architecture.md` §7 — no spike needed, just
+implementation), a durable `uploadQueueStore` + runner module (not a React component — §9), real
+`platform/camera.ts` (still a Phase-1 stub, same shape as `geolocation.ts` was before this phase),
+`react-easy-crop` (needs installing — not yet a dependency) for two genuinely different crop operations (`SCR-10`'s
+coordinate-only entry crop vs. `SCR-25`'s client-side-cropped avatar — §15 is explicit these must
+not be conflated), the BBCode editor toolbar (`SCR-11`, five buttons per §14's tag set, one
+conditional), the location picker (`SCR-12`, likely the `MapScreen`/`mapTiles.ts` machinery just
+built this phase, reused for a single-marker picker rather than a browsable region), and
+`local-notifications` for `FLW-18`'s daily reminder (suppression by cancellation on successful
+upload, never a fire-time network check — §12).
