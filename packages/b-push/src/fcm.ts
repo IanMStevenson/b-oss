@@ -119,6 +119,14 @@ function dataFor(payload: FcmPayload): Record<string, string> {
   return { kind: 'activity', stream: payload.stream, accountId: payload.accountId };
 }
 
+// Must match the channel ids b-mobile's android/ project creates at launch
+// (app-architecture.md §17's "notification channel per category"). 'reauth-required' is the one
+// payload kind that needs a user's attention outside the normal activity flow, so it gets the
+// higher-importance system_alerts channel; everything else is routine activity.
+function channelIdFor(payload: FcmPayload): string {
+  return payload.kind === 'reauth-required' ? 'system_alerts' : 'activity';
+}
+
 export async function sendFcmMessage(
   env: Env,
   deviceToken: string,
@@ -142,6 +150,7 @@ export async function sendFcmMessage(
           token: deviceToken,
           notification: { title, body },
           data: dataFor(payload),
+          android: { notification: { channel_id: channelIdFor(payload) } },
         },
       }),
     },

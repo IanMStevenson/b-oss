@@ -51,7 +51,9 @@ function RefusedRow({
         <IonButton size="small" onClick={onAllow}>
           Allow
         </IonButton>
-        {alsoHidden && <span style={{ fontSize: 12, color: 'var(--muted)' }}>also hidden</span>}
+        {alsoHidden && (
+          <span style={{ fontSize: '0.75rem', color: 'var(--muted)' }}>also hidden</span>
+        )}
       </div>
     </UserRow>
   );

@@ -46,6 +46,9 @@ b-ark-chrome-*.zip
 packages/b-ark/resources/
 packages/b-ark-chrome/icons/
 packages/b-view-backup/src/spa/favicon.png
+# Staging input for scripts/generate-android-assets.sh — the android/ output it generates is
+# committed (app-architecture.md §17), this intermediate copy of the master icon is not.
+packages/b-mobile/assets/
 
 # Generated b-view viewer copy — single source of truth is packages/b-view-backup/dist-app/
 # (mirrored at build time by packages/b-ark-chrome/scripts/copy-b-view.mjs)

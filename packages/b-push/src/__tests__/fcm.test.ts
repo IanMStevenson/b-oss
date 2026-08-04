@@ -90,6 +90,33 @@ describe('sendFcmMessage', () => {
     });
   });
 
+  it('routes activity pushes to the activity channel and reauth-required to system_alerts', async () => {
+    mockFetchSequence(
+      new Response(JSON.stringify({ access_token: 't' }), { status: 200 }),
+      new Response(JSON.stringify({}), { status: 200 }),
+      new Response(JSON.stringify({ access_token: 't' }), { status: 200 }),
+      new Response(JSON.stringify({}), { status: 200 }),
+    );
+    const fetchSpy = vi.mocked(globalThis.fetch);
+
+    await sendFcmMessage(testEnv(), 'device-token-1', {
+      kind: 'activity',
+      stream: 'comments',
+      accountId: 'gbradley',
+      count: 2,
+    });
+    await sendFcmMessage(testEnv(), 'device-token-1', {
+      kind: 'reauth-required',
+      accountId: 'gbradley',
+    });
+
+    type SentBody = { message: { android: { notification: { channel_id: string } } } };
+    const activityBody = JSON.parse(fetchSpy.mock.calls[1][1]!.body as string) as SentBody;
+    const reauthBody = JSON.parse(fetchSpy.mock.calls[3][1]!.body as string) as SentBody;
+    expect(activityBody.message.android.notification.channel_id).toBe('activity');
+    expect(reauthBody.message.android.notification.channel_id).toBe('system_alerts');
+  });
+
   it('singularizes the count-1 case', async () => {
     mockFetchSequence(
       new Response(JSON.stringify({ access_token: 't' }), { status: 200 }),
