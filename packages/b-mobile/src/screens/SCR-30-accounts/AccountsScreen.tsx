@@ -16,7 +16,6 @@ import {
   IonContent,
   IonList,
   IonItem,
-  IonLabel,
   IonNote,
   IonButton,
   IonButtons,
@@ -65,19 +64,19 @@ function AccountDetail({ account, onClose }: { account: StoredAccount; onClose: 
   return (
     <IonList>
       <IonItem>
-        <IonLabel>{account.username}</IonLabel>
+        <span>{account.username}</span>
       </IonItem>
       <IonItem>
-        <IonLabel>Mode</IonLabel>
+        <span>Mode</span>
         <IonNote slot="end">{modeLabel(account)}</IonNote>
       </IonItem>
       <IonItem>
-        <IonLabel>Notifications</IonLabel>
+        <span>Notifications</span>
         <IonNote slot="end">{account.hasServiceToken ? 'On' : 'Off'}</IonNote>
       </IonItem>
 
       <IonItem>
-        <IonLabel>Change mode</IonLabel>
+        <span>Change mode</span>
       </IonItem>
       <IonButton
         expand="block"
@@ -195,15 +194,15 @@ export function AccountsScreen() {
         <IonList>
           {accounts.map((account) => (
             <IonItem key={account.id} button onClick={() => handleRowTap(account)}>
-              <IonLabel>
+              <span>
                 {account.username}
                 {account.id === activeAccountId && <IonBadge color="success"> active</IonBadge>}
-              </IonLabel>
+              </span>
               <IonNote slot="end">{modeLabel(account)}</IonNote>
             </IonItem>
           ))}
           <IonItem button onClick={() => navigate.push('/sign-in')}>
-            <IonLabel>+ Add account</IonLabel>
+            <span>+ Add account</span>
           </IonItem>
         </IonList>
 

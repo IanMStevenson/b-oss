@@ -273,10 +273,31 @@ avatar: {blob}})`); biography editing resolved a TODO Phase 7 planted specifical
     `./gradlew assembleDebug` (400 tasks, a real APK produced) — no device/emulator available in
     this sandbox, so §19 layer 3's on-device checklist itself remains untested. Full detail in
     `AGENT_LOG.md`'s Phase 10 entry.
-11. **Testing hardening** — sweep for missing four-state screen tests, pure-logic coverage gaps,
-    manual on-device checklist (OAuth redirect, multipart upload, reminder timing).
+11. **Testing hardening — DONE.** Four-state sweep: two screens (`SignInScreen`, `AccountsScreen`)
+    had zero tests at all — new files add 14 tests between them (reproducing RESUME.md's
+    `IonLabel`-in-jsdom gotcha firsthand on `AccountsScreen`, fixed the same way every other
+    screen has). Five more screens (`SCR-17-18`/`19`/`20`/`21`/`25`) were missing `loading` and/or
+    `error` coverage their own component code visibly has; two more (`SCR-03`/`22`) were missing
+    only `loading` — 11 more tests. Pure-logic sweep against §19's own named list: real,
+    previously-untested gaps closed for `data/errors.ts#mapApiError` (7 tests), the write-gate
+    selector `state/accountsStore.ts#useCanWrite` (8 tests, `WriteGuardRoute.test.tsx` had only
+    ever mocked it away), and `platform/imageCache.ts#resolveImage`'s TTL arithmetic (6 tests) —
+    plus `data/dates.ts` (5 tests, its own header comment flags local-vs-UTC formatting as the
+    thing to get right). `data/bbcode.ts` checked and found already fully covered via
+    `BBCodeText.test.tsx`, not duplicated. **The sweep's largest finding wasn't a test gap at
+    all**: `flows/deepLinkResolver.ts`, which app-architecture.md §16 requires to handle
+    `bmobile://entry/:id`/`user/:username` links and the share intent, was never built —
+    `platform/deepLinks.ts` has exactly one consumer anywhere (the OAuth redirect, and only
+    mid-round), so a shared link or share-to-Blipfoto intent currently does nothing at all.
+    Documented prominently, not fixed (a real feature addition, not testing-hardening scope).
+    No device/emulator was available this phase either, so §19 layer 3 remains unattempted — the
+    Phase 10 APK is still the closest available substitute. 51 new tests, 661 → 712, full monorepo
+    `typecheck && lint && test && build` green twice. Full detail in `AGENT_LOG.md`'s Phase 11
+    entry.
 
-Phases 7+ are sequenced but will get more detailed sub-planning here as I reach them.
+Phases 7+ are sequenced but will get more detailed sub-planning here as I reach them. No Phase 12
+is defined yet — see `AGENT_LOG.md`'s Phase 11 entry for real candidates (the deep-link resolver
+above is the front-runner).
 
 ## Architecture decisions of note (beyond what's already in `ImplementationSpec/`)
 

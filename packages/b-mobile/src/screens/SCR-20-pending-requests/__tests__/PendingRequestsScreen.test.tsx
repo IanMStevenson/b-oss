@@ -61,6 +61,24 @@ function clickDestructiveConfirm(): Promise<void> {
 }
 
 describe('PendingRequestsScreen', () => {
+  it('loading: shows a spinner while the list fetch is in flight', async () => {
+    const { fetchPendingRequests } = await import('../../../data/users.js');
+    vi.mocked(fetchPendingRequests).mockReturnValue(new Promise(() => {}));
+    renderScreen();
+    expect(document.querySelector('ion-spinner')).not.toBeNull();
+  });
+
+  it('error: shows the failure message with a Retry that reloads the list', async () => {
+    const { fetchPendingRequests } = await import('../../../data/users.js');
+    vi.mocked(fetchPendingRequests).mockRejectedValueOnce(new Error('Network down'));
+    renderScreen();
+    expect(await screen.findByText('Network down')).toBeDefined();
+
+    vi.mocked(fetchPendingRequests).mockResolvedValue({ items: [], more: false });
+    await userEvent.click(screen.getByText('Retry'));
+    expect(await screen.findByText('No pending requests.')).toBeDefined();
+  });
+
   it('shows an empty state', async () => {
     const { fetchPendingRequests } = await import('../../../data/users.js');
     vi.mocked(fetchPendingRequests).mockResolvedValue({ items: [], more: false });

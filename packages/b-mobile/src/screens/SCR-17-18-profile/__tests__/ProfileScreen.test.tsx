@@ -74,6 +74,25 @@ function renderScreen(username?: string) {
 }
 
 describe('ProfileScreen', () => {
+  it('loading: shows a spinner while the profile fetch is in flight', async () => {
+    const { fetchUserProfile } = await import('../../../data/users.js');
+    vi.mocked(fetchUserProfile).mockReturnValue(new Promise(() => {}));
+    renderScreen('alice');
+    expect(document.querySelector('ion-spinner')).not.toBeNull();
+    expect(screen.queryByText('Follow')).toBeNull();
+  });
+
+  it('error: shows the failure message with a Retry that reloads', async () => {
+    const { fetchUserProfile } = await import('../../../data/users.js');
+    vi.mocked(fetchUserProfile).mockRejectedValueOnce(new Error('Network down'));
+    renderScreen('alice');
+    expect(await screen.findByText('Network down')).toBeDefined();
+
+    vi.mocked(fetchUserProfile).mockResolvedValue(aliceProfile);
+    await userEvent.click(screen.getByText('Retry'));
+    expect(await screen.findByText("alice's journal")).toBeDefined();
+  });
+
   it("renders another member's profile with a Follow button", async () => {
     const { fetchUserProfile } = await import('../../../data/users.js');
     vi.mocked(fetchUserProfile).mockResolvedValue(aliceProfile);

@@ -31,6 +31,13 @@ function renderScreen() {
 }
 
 describe('AwardsScreen', () => {
+  it('loading: shows a spinner while the awards fetch is in flight', async () => {
+    const { fetchAwards } = await import('../../../data/users.js');
+    vi.mocked(fetchAwards).mockReturnValue(new Promise(() => {}));
+    renderScreen();
+    expect(document.querySelector('ion-spinner')).not.toBeNull();
+  });
+
   it('shows an empty state and makes no assumption about award meaning text', async () => {
     const { fetchAwards } = await import('../../../data/users.js');
     vi.mocked(fetchAwards).mockResolvedValue([]);

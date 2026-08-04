@@ -52,6 +52,24 @@ function renderScreen() {
 }
 
 describe('RefusedFollowersScreen', () => {
+  it('loading: shows a spinner while the list fetch is in flight', async () => {
+    const { fetchBlockedUsers } = await import('../../../data/users.js');
+    vi.mocked(fetchBlockedUsers).mockReturnValue(new Promise(() => {}));
+    renderScreen();
+    expect(document.querySelector('ion-spinner')).not.toBeNull();
+  });
+
+  it('error: shows the failure message with a Retry that reloads the list', async () => {
+    const { fetchBlockedUsers } = await import('../../../data/users.js');
+    vi.mocked(fetchBlockedUsers).mockRejectedValueOnce(new Error('Network down'));
+    renderScreen();
+    expect(await screen.findByText('Network down')).toBeDefined();
+
+    vi.mocked(fetchBlockedUsers).mockResolvedValue({ items: [], more: false });
+    await userEvent.click(screen.getByText('Retry'));
+    expect(await screen.findByText('You haven’t refused anyone.')).toBeDefined();
+  });
+
   it('makes no fetch beyond the list itself and shows the paired explainer', async () => {
     const { fetchBlockedUsers } = await import('../../../data/users.js');
     vi.mocked(fetchBlockedUsers).mockResolvedValue({ items: [], more: false });

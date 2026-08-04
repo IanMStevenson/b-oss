@@ -99,6 +99,14 @@ describe('SearchScreen', () => {
     await waitFor(() => expect(fetchSearchEntriesPage).toHaveBeenCalledWith('sun', 0));
   });
 
+  it('loading: shows a spinner while the search fetch is in flight', async () => {
+    const { fetchSearchEntriesPage } = await import('../../../data/entries.js');
+    vi.mocked(fetchSearchEntriesPage).mockReturnValue(new Promise(() => {}));
+    renderScreen();
+    fireEvent.change(getInput(), { target: { value: 'sun' } });
+    await waitFor(() => expect(document.querySelector('ion-spinner')).not.toBeNull());
+  });
+
   it('shows an empty state naming the term', async () => {
     const { fetchSearchEntriesPage } = await import('../../../data/entries.js');
     vi.mocked(fetchSearchEntriesPage).mockResolvedValue({ items: [], more: false });
