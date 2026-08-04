@@ -911,6 +911,18 @@ describe('verifyToken', () => {
     expect(result.username).toBe('gbradley');
   });
 
+  it('returns the granted scope when present', async () => {
+    server.use(
+      http.get(`${BASE}oauth/token.json`, () =>
+        HttpResponse.json(envelope({ username: 'gbradley', scope: 'read,write' }), {
+          headers: rateLimitHeaders(),
+        }),
+      ),
+    );
+    const result = await makeUserClient().verifyToken('my-client-id');
+    expect(result.scope).toBe('read,write');
+  });
+
   it('throws BlipfotoError on error code 52 (invalid client)', async () => {
     server.use(
       http.get(`${BASE}oauth/token.json`, () =>

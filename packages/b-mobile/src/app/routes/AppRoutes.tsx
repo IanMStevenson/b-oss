@@ -9,6 +9,8 @@
 
 import { Switch, Route, Redirect } from 'react-router-dom';
 import { ScreenPlaceholder } from '../../components/ScreenPlaceholder.js';
+import { SignInScreen } from '../../screens/SCR-01-sign-in/SignInScreen.js';
+import { AccountsScreen } from '../../screens/SCR-30-accounts/AccountsScreen.js';
 import { WriteGuardRoute } from './WriteGuardRoute.js';
 
 function placeholder(screenId: string, title: string) {
@@ -70,9 +72,9 @@ export function AppRoutes() {
       <Route exact path="/settings" render={placeholder('SCR-25', 'Settings')} />
       <Route exact path="/settings/:section" render={placeholder('SCR-25', 'Settings')} />
       <Route exact path="/help" render={placeholder('SCR-29', 'Help & Info')} />
-      <Route exact path="/accounts" render={placeholder('SCR-30', 'Accounts')} />
+      <Route exact path="/accounts" component={AccountsScreen} />
       <Route exact path="/hidden" render={placeholder('SCR-31', 'Hidden Members')} />
-      <Route exact path="/sign-in" render={placeholder('SCR-01', 'Sign In')} />
+      <Route exact path="/sign-in" component={SignInScreen} />
       <Redirect exact from="/" to="/browse" />
     </Switch>
   );
