@@ -9,6 +9,7 @@ import {
   createContext,
   useCallback,
   useContext,
+  useDeferredValue,
   useEffect,
   useReducer,
   useRef,
@@ -39,6 +40,7 @@ import {
 } from '@b-oss/b-ark-ui-components';
 import { ThumbnailGrid, EntryDetail } from '@b-oss/b-view';
 import type { BlipEntry } from '@b-oss/b-view';
+import { useSearchEntries } from '@b-oss/b-view-backup';
 import { loadHandle, queryFsaPermission, requestFsaPermission } from './fsa-persistence.js';
 import { clearError } from './status-storage.js';
 import { readSettingsLock, acquireSettingsLock, releaseSettingsLock } from './lifecycle-storage.js';
@@ -446,6 +448,12 @@ function BackupPageRoot() {
   );
 
   const { resolveAsset, invalidateAsset } = useFsaAssets(dirHandle, account?.username ?? null);
+
+  // In-grid search is owned by this page since ThumbnailGrid moved to @b-oss/b-view and no
+  // longer imports a backup-data hook itself (see PLAN.md's Phase 0.2).
+  const [searchQuery, setSearchQuery] = useState('');
+  const deferredSearchQuery = useDeferredValue(searchQuery);
+  const searchState = useSearchEntries(deferredSearchQuery, entries, resolveEntry);
 
   // Folder access can lapse (permission resets to "prompt" on browser restart, or the
   // user revokes it). Detect it proactively so we can offer a one-click re-grant — without
@@ -858,7 +866,13 @@ function BackupPageRoot() {
             }}
             resolveAsset={resolveAsset}
             invalidateAsset={invalidateAsset}
-            resolveEntry={resolveEntry}
+            search={{
+              query: searchQuery,
+              onQueryChange: setSearchQuery,
+              results: searchState.results,
+              status: searchState.status,
+              progress: searchState.progress,
+            }}
             assetRevision={refreshNonce + pollTick}
           />
         </div>

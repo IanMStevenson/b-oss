@@ -2,8 +2,8 @@
 // Copyright (C) 2026 Ian Stevenson
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import type { BlipEntry, JournalMetadata } from '@b-oss/b-view';
-import type { EntryState } from '@b-oss/b-view';
+import type { BlipEntry, EntryState } from '@b-oss/b-view';
+import type { JournalMetadata } from '@b-oss/b-view-backup';
 import { debug } from './debug.js';
 import { getNestedFileHandle, readFileText, readJournal } from './journal-source.js';
 

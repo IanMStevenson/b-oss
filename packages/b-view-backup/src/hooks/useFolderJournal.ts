@@ -2,31 +2,32 @@
 // Copyright (C) 2026 Ian Stevenson
 
 import { useState, useEffect } from 'react';
-import type { BlipEntry } from '../types.js';
-import type { EntryState } from './useEntry.js';
+import type { JournalMetadata } from '@b-oss/backup-engine';
+import type { JournalState } from './useJournal.js';
 import { getNestedFileHandle } from './useFolderAccess.js';
 
-export function useFolderEntry(
-  dirHandle: FileSystemDirectoryHandle | null,
-  jsonPath: string | null,
-): EntryState {
-  const [state, setState] = useState<EntryState>({ status: 'idle' });
+export function useFolderJournal(dirHandle: FileSystemDirectoryHandle | null): JournalState {
+  const [state, setState] = useState<JournalState>({ status: 'loading' });
 
   useEffect(() => {
-    if (!dirHandle || jsonPath === null) {
-      setState({ status: 'idle' });
+    if (!dirHandle) {
+      setState({ status: 'loading' });
       return;
     }
 
     let cancelled = false;
     setState({ status: 'loading' });
 
-    getNestedFileHandle(dirHandle, jsonPath)
+    getNestedFileHandle(dirHandle, 'journal.json')
       .then((fh) => fh.getFile())
       .then((file) => file.text())
       .then((text) => {
         if (cancelled) return;
-        setState({ status: 'loaded', data: JSON.parse(text) as BlipEntry });
+        const data = JSON.parse(text) as JournalMetadata;
+        if (data.schema_version !== 1) {
+          throw new Error(`Unsupported journal schema version: ${String(data.schema_version)}`);
+        }
+        setState({ status: 'loaded', data });
       })
       .catch((err: unknown) => {
         if (cancelled) return;
@@ -39,7 +40,7 @@ export function useFolderEntry(
     return () => {
       cancelled = true;
     };
-  }, [dirHandle, jsonPath]);
+  }, [dirHandle]);
 
   return state;
 }

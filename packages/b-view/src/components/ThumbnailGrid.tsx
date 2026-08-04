@@ -1,11 +1,10 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (C) 2026 Ian Stevenson
 
-import { useState, useEffect, useRef, useDeferredValue, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import type { RefObject } from 'react';
 import { ZoomIn, ZoomOut, RotateCcw, Image, Home, Eye, EyeOff, Search, X } from 'lucide-react';
-import type { BlipEntry, EntryIndex } from '../types.js';
-import { useSearchEntries } from '../hooks/useSearchEntries.js';
+import type { EntryIndex } from '../types.js';
 import { DatePicker } from './DatePicker.js';
 import { Pagination } from './Pagination.js';
 import styles from './ThumbnailGrid.module.css';
@@ -64,6 +63,20 @@ function formatDate(iso: string): string {
 
 type ResolveAsset = (path: string) => Promise<string> | string;
 
+/**
+ * In-grid search is owned by the caller, not this component — it needs a hook
+ * (`useSearchEntries` in `@b-oss/b-view-backup`, or an app's own live-search resource) to produce
+ * this state, and this component has no opinion on where that comes from. Passing `search`
+ * shows the search box; omitting it hides it, same as today's `resolveEntry == null`.
+ */
+interface ThumbnailGridSearch {
+  query: string;
+  onQueryChange: (query: string) => void;
+  results: EntryIndex[];
+  status: 'idle' | 'scanning' | 'done';
+  progress: { loaded: number; total: number };
+}
+
 interface ThumbnailGridProps {
   entries: EntryIndex[];
   selectedEntryId: string | null;
@@ -77,7 +90,7 @@ interface ThumbnailGridProps {
   invalidateAsset?: (path: string) => void;
   jumpToEntryId?: string | null;
   onTopLeftEntryDate?: (date: string | null) => void;
-  resolveEntry?: (jsonPath: string) => Promise<BlipEntry>;
+  search?: ThumbnailGridSearch;
   assetRevision?: number;
 }
 
@@ -194,30 +207,16 @@ export function ThumbnailGrid({
   invalidateAsset,
   jumpToEntryId,
   onTopLeftEntryDate,
-  resolveEntry,
+  search,
   assetRevision,
 }: ThumbnailGridProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const { width, height } = useContainerSize(containerRef);
   const [topLeftIndex, setTopLeftIndex] = useState(0);
   const [topLeftDate, setTopLeftDate] = useState<string | null>(null);
-  const [searchQuery, setSearchQuery] = useState('');
-  // Defer the query used for search so the input updates immediately while
-  // the mode switch (to flat search results) happens on a lower-priority render.
-  const deferredSearchQuery = useDeferredValue(searchQuery);
 
-  // Stable no-op fallback so useSearchEntries can always be called unconditionally
-  const noopResolve = useRef<(jsonPath: string) => Promise<BlipEntry>>(() =>
-    Promise.reject(new Error('no resolveEntry')),
-  );
-  const {
-    results: searchResults,
-    status: searchStatus,
-    progress: searchProgress,
-  } = useSearchEntries(deferredSearchQuery, entries, resolveEntry ?? noopResolve.current);
-
-  const isSearchActive = resolveEntry != null && deferredSearchQuery.trim() !== '';
-  const displayEntries = isSearchActive ? searchResults : entries;
+  const isSearchActive = search != null && search.query.trim() !== '';
+  const displayEntries = search && isSearchActive ? search.results : entries;
 
   const tileSize = Math.round(BASE_TILE_PX * (sizePercent / 100));
   const gap = Math.round(tileSize * 0.2);
@@ -290,24 +289,24 @@ export function ThumbnailGrid({
 
   return (
     <div ref={containerRef} className={styles.container} style={{ overflow }}>
-      {(onSizeChange || resolveEntry) && (
+      {(onSizeChange || search) && (
         <div className={styles.controls}>
           <div style={{ flex: 1 }} />
-          {resolveEntry && (
+          {search && (
             <div className={styles.searchBox}>
               <Search size={13} strokeWidth={1.6} className={styles.searchIcon} />
               <input
                 type="search"
                 className={styles.searchInput}
                 placeholder="Search entries…"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
+                value={search.query}
+                onChange={(e) => search.onQueryChange(e.target.value)}
                 aria-label="Search entries"
               />
-              {searchQuery && (
+              {search.query && (
                 <button
                   className={styles.searchClear}
-                  onClick={() => setSearchQuery('')}
+                  onClick={() => search.onQueryChange('')}
                   aria-label="Clear search"
                 >
                   <X size={12} strokeWidth={2} />
@@ -315,9 +314,9 @@ export function ThumbnailGrid({
               )}
             </div>
           )}
-          {resolveEntry && isSearchActive && searchStatus === 'scanning' && (
+          {search && isSearchActive && search.status === 'scanning' && (
             <span className={styles.searchProgress}>
-              {searchProgress.loaded} / {searchProgress.total}
+              {search.progress.loaded} / {search.progress.total}
             </span>
           )}
           {!isSearchActive && (
@@ -384,8 +383,8 @@ export function ThumbnailGrid({
       )}
 
       <div className={styles.scroll} style={isSearchActive ? { overflowY: 'auto' } : undefined}>
-        {isSearchActive && searchStatus === 'done' && searchResults.length === 0 ? (
-          <div className={styles.searchEmpty}>No entries match &ldquo;{searchQuery}&rdquo;</div>
+        {search && isSearchActive && search.status === 'done' && search.results.length === 0 ? (
+          <div className={styles.searchEmpty}>No entries match &ldquo;{search.query}&rdquo;</div>
         ) : (
           <div
             className={styles.grid}

@@ -5,10 +5,11 @@
 // served by the Electron local HTTP server. journal.json is fetched from that URL.
 // This keeps all port/path details in the main process and out of the UI.
 
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback, useDeferredValue } from 'react';
 import { ExternalLink, FileText, Settings } from 'lucide-react';
-import { ThumbnailGrid, EntryDetail, useJournal, useEntry } from '@b-oss/b-view';
+import { ThumbnailGrid, EntryDetail } from '@b-oss/b-view';
 import type { BlipEntry, EntryIndex } from '@b-oss/b-view';
+import { useJournal, useEntry, useSearchEntries } from '@b-oss/b-view-backup';
 import type { AccountConfig } from '../../backend.js';
 import { useApp } from '../../context/AppContext.js';
 import {
@@ -116,6 +117,12 @@ export function HomeScreen({ account, compact }: HomeScreenProps) {
       : null;
 
   const entryState = useEntry(entryJsonPath);
+
+  // In-grid search is owned by this screen since ThumbnailGrid moved to @b-oss/b-view and no
+  // longer imports a backup-data hook itself (see PLAN.md's Phase 0.2).
+  const [searchQuery, setSearchQuery] = useState('');
+  const deferredSearchQuery = useDeferredValue(searchQuery);
+  const searchState = useSearchEntries(deferredSearchQuery, entries, resolveEntry);
 
   function backupButtonLabel(): string {
     if (isRateLimited && countdown != null) return `⏸ Rate limited — resuming in ${countdown}s`;
@@ -256,7 +263,17 @@ export function HomeScreen({ account, compact }: HomeScreenProps) {
                 void backend.updateSettings({ showInfoOverlay: v });
               }}
               baseUrl={viewerUrl ?? undefined}
-              resolveEntry={viewerUrl ? resolveEntry : undefined}
+              search={
+                viewerUrl
+                  ? {
+                      query: searchQuery,
+                      onQueryChange: setSearchQuery,
+                      results: searchState.results,
+                      status: searchState.status,
+                      progress: searchState.progress,
+                    }
+                  : undefined
+              }
             />
           </div>
         )}

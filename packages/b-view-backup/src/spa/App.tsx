@@ -1,17 +1,16 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (C) 2026 Ian Stevenson
 
-import { useState, useCallback, useRef, useEffect } from 'react';
+import { useState, useCallback, useRef, useEffect, useDeferredValue } from 'react';
 import { Info, FolderOpen } from 'lucide-react';
 import { useJournal } from '../hooks/useJournal.js';
 import { useEntry } from '../hooks/useEntry.js';
 import { useFolderAccess, getNestedFileHandle } from '../hooks/useFolderAccess.js';
 import { useFolderJournal } from '../hooks/useFolderJournal.js';
 import { useFolderEntry } from '../hooks/useFolderEntry.js';
-import type { BlipEntry } from '../types.js';
-import { ThumbnailGrid } from '../components/ThumbnailGrid.js';
-import { EntryDetail } from '../components/EntryDetail.js';
-import { InfoPopup } from '../components/InfoPopup.js';
+import { useSearchEntries } from '../hooks/useSearchEntries.js';
+import type { BlipEntry } from '@b-oss/backup-engine';
+import { ThumbnailGrid, EntryDetail, InfoPopup } from '@b-oss/b-view';
 
 const isFileProtocol = window.location.protocol === 'file:';
 const hasFolderPicker = typeof window.showDirectoryPicker === 'function';
@@ -181,6 +180,12 @@ function FolderApp({ embedded }: { embedded: boolean }) {
   const entryIndex = journal.status === 'loaded' ? journal.data.entries : [];
   const journalTitle = journal.status === 'loaded' ? journal.data.journal_title : '';
 
+  // In-grid search is owned by the caller since ThumbnailGrid moved to @b-oss/b-view and no
+  // longer imports a backup-data hook itself (see PLAN.md's Phase 0.2).
+  const [searchQuery, setSearchQuery] = useState('');
+  const deferredSearchQuery = useDeferredValue(searchQuery);
+  const searchState = useSearchEntries(deferredSearchQuery, entryIndex, resolveEntry);
+
   const selectedIndex = entryIndex.findIndex((e) => e.entry_id === selectedEntryId);
   const prevEntry =
     selectedIndex >= 0 && selectedIndex < entryIndex.length - 1
@@ -235,7 +240,7 @@ function FolderApp({ embedded }: { embedded: boolean }) {
               alignItems: 'center',
               justifyContent: 'center',
               gap: 16,
-              color: 'var(--rag-red)',
+              color: 'var(--color-danger)',
               padding: '24px',
               textAlign: 'center',
               maxWidth: '480px',
@@ -285,7 +290,13 @@ function FolderApp({ embedded }: { embedded: boolean }) {
                 showInfoOverlay={showInfoOverlay}
                 onShowInfoOverlayChange={handleOverlayChange}
                 resolveAsset={resolveAsset}
-                resolveEntry={resolveEntry}
+                search={{
+                  query: searchQuery,
+                  onQueryChange: setSearchQuery,
+                  results: searchState.results,
+                  status: searchState.status,
+                  progress: searchState.progress,
+                }}
               />
             </div>
             {selectedEntryId !== null && (
@@ -347,6 +358,10 @@ function HttpApp({ embedded }: { embedded: boolean }) {
     return data;
   }, []);
 
+  const [searchQuery, setSearchQuery] = useState('');
+  const deferredSearchQuery = useDeferredValue(searchQuery);
+  const searchState = useSearchEntries(deferredSearchQuery, entryIndex, resolveEntry);
+
   const selectedIndex = entryIndex.findIndex((e) => e.entry_id === selectedEntryId);
   const prevEntry =
     selectedIndex >= 0 && selectedIndex < entryIndex.length - 1
@@ -393,7 +408,7 @@ function HttpApp({ embedded }: { embedded: boolean }) {
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              color: 'var(--rag-red)',
+              color: 'var(--color-danger)',
               padding: '24px',
               textAlign: 'center',
               maxWidth: '480px',
@@ -422,7 +437,13 @@ function HttpApp({ embedded }: { embedded: boolean }) {
                 onSizeChange={setSizePercent}
                 showInfoOverlay={showInfoOverlay}
                 onShowInfoOverlayChange={handleOverlayChange}
-                resolveEntry={resolveEntry}
+                search={{
+                  query: searchQuery,
+                  onQueryChange: setSearchQuery,
+                  results: searchState.results,
+                  status: searchState.status,
+                  progress: searchState.progress,
+                }}
               />
             </div>
             {selectedEntryId !== null && (

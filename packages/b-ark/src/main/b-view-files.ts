@@ -12,7 +12,7 @@ function resolveBviewDist(): string {
   if (app.isPackaged) {
     return path.join(process.resourcesPath, 'b-view');
   }
-  const pkgJsonPath = requireFrom.resolve('@b-oss/b-view/package.json');
+  const pkgJsonPath = requireFrom.resolve('@b-oss/b-view-backup/package.json');
   return path.join(path.dirname(pkgJsonPath), 'dist-app');
 }
 
@@ -24,7 +24,7 @@ export async function writeBViewFiles(username: string, backupFolder: string): P
     await fs.access(src);
   } catch {
     throw new Error(
-      `b-view dist not found at ${src} — run "npm run build --workspace=packages/b-view"`,
+      `b-view dist not found at ${src} — run "npm run build --workspace=packages/b-view-backup"`,
     );
   }
 

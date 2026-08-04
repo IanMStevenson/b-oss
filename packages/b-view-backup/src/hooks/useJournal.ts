@@ -2,7 +2,7 @@
 // Copyright (C) 2026 Ian Stevenson
 
 import { useState, useEffect, useRef } from 'react';
-import type { JournalMetadata } from '../types.js';
+import type { JournalMetadata } from '@b-oss/backup-engine';
 
 export type JournalState =
   | { status: 'loading' }

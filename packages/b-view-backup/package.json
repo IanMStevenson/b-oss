@@ -1,5 +1,5 @@
 {
-  "name": "@b-oss/b-view",
+  "name": "@b-oss/b-view-backup",
   "version": "0.1.0",
   "private": true,
   "type": "module",
@@ -7,15 +7,19 @@
   "types": "src/index.ts",
   "exports": {
     ".": "./src/index.ts",
-    "./tokens.css": "./src/styles/tokens.css",
     "./package.json": "./package.json"
   },
   "scripts": {
+    "build:app": "node ../../scripts/copy-icons.mjs && vite build",
+    "build:debug": "node ../../scripts/copy-icons.mjs && vite build --mode development",
+    "build": "npm run build:app",
+    "dev": "node ../../scripts/copy-icons.mjs && vite",
     "typecheck": "tsc --noEmit",
     "test": "vitest run"
   },
   "dependencies": {
-    "@b-oss/b-visual": "*",
+    "@b-oss/b-view": "*",
+    "@b-oss/backup-engine": "*",
     "lucide-react": "^1.27.0",
     "react": "^19.2.8",
     "react-dom": "^19.2.8"
@@ -25,7 +29,9 @@
     "@testing-library/user-event": "^14.0.0",
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
+    "@vitejs/plugin-react": "^5.0.0",
     "jsdom": "^30.0.0",
+    "vite": "^8.1.5",
     "vitest": "^4.1.0"
   }
 }

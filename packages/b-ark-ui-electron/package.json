@@ -13,6 +13,7 @@
   "dependencies": {
     "@b-oss/b-ark-ui-components": "*",
     "@b-oss/b-view": "*",
+    "@b-oss/b-view-backup": "*",
     "lucide-react": "^1.27.0",
     "react": "^19.2.8",
     "react-dom": "^19.2.8"
