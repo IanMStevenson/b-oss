@@ -118,7 +118,10 @@ export function MonthDatePicker({ value, onChange }: MonthDatePickerProps) {
       {!loading && !error && (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 2 }}>
           {WEEKDAY_LABELS.map((label, i) => (
-            <div key={i} style={{ textAlign: 'center', fontSize: 12, color: 'var(--muted)' }}>
+            <div
+              key={i}
+              style={{ textAlign: 'center', fontSize: '0.75rem', color: 'var(--muted)' }}
+            >
               {label}
             </div>
           ))}

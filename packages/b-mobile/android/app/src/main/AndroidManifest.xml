@@ -1,0 +1,89 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <application
+        android:allowBackup="false"
+        android:icon="@mipmap/ic_launcher"
+        android:label="@string/app_name"
+        android:roundIcon="@mipmap/ic_launcher_round"
+        android:supportsRtl="true"
+        android:theme="@style/AppTheme">
+        <activity
+            android:configChanges="orientation|keyboardHidden|keyboard|screenSize|locale|smallestScreenSize|screenLayout|uiMode|navigation|density"
+            android:name=".MainActivity"
+            android:label="@string/title_activity_main"
+            android:theme="@style/AppTheme.NoActionBarLaunch"
+            android:launchMode="singleTask"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+
+            <!-- bmobile:// — OAuth redirect (bmobile://oauth/) and content links
+                 (bmobile://entry/:id, bmobile://user/:username). One scheme, two path
+                 namespaces (app-architecture.md §16); resolved uniformly by
+                 flows/deepLinkResolver.ts for both cold and warm start. -->
+            <intent-filter android:label="@string/title_activity_main">
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="bmobile" />
+            </intent-filter>
+
+            <!-- ACTION_SEND share-to-Blipfoto (app-architecture.md §16) — enters compose at
+                 SCR-10 with the photo pre-loaded, through the same write gate as SCR-09. -->
+            <intent-filter>
+                <action android:name="android.intent.action.SEND" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="image/*" />
+            </intent-filter>
+        </activity>
+
+        <!-- Opt-in web-link handling (devicePrefsStore.openBlipfotoLinksInApp, §16). Disabled by
+             default so the app doesn't appear in the chooser for blipfoto.com links until the
+             user turns this on in Settings; toggled at runtime via
+             PackageManager.setComponentEnabledSetting() from BlipfotoLinksPlugin. Deliberately
+             not android:autoVerify — App Links would need assetlinks.json hosted on
+             blipfoto.com, which isn't ours to place, so enabling this adds the app to the
+             chooser rather than silently hijacking links. -->
+        <activity-alias
+            android:name=".BlipfotoWebLinkAlias"
+            android:targetActivity=".MainActivity"
+            android:enabled="false"
+            android:exported="true">
+            <intent-filter android:label="@string/title_activity_main">
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="https" android:host="www.blipfoto.com" />
+            </intent-filter>
+        </activity-alias>
+
+        <provider
+            android:name="androidx.core.content.FileProvider"
+            android:authorities="${applicationId}.fileprovider"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data android:name="android.support.FILE_PROVIDER_PATHS" android:resource="@xml/file_paths" />
+        </provider>
+
+        <!-- Fallback channel for any FCM notification message that somehow arrives with no
+             android.notification.channel_id — b-push's fcm.ts always sets one explicitly
+             (§17), so this is a safety net, not the primary routing mechanism. -->
+        <meta-data
+            android:name="com.google.firebase.messaging.default_notification_channel_id"
+            android:value="activity"
+        />
+    </application>
+
+    <!-- Permissions (app-architecture.md §17) — exactly these, nothing more. No storage
+         permissions (the system photo picker grants per-item access, SCR-09), no
+         SCHEDULE_EXACT_ALARM / USE_EXACT_ALARM (§12's reminder-timing decision depends on this
+         never being requested). Every one is requested at point of use, never at launch. -->
+
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <uses-permission android:name="android.permission.CAMERA" />
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+</manifest>

@@ -90,6 +90,9 @@ async function scheduleAt(
         body: `${accountId} hasn't published an entry today.`,
         schedule: { at: nextOccurrence(time, skipToday), every: 'day' },
         extra: { accountId, kind: 'daily-reminder' },
+        // Must match the channel id android/'s MainActivity creates at launch
+        // (app-architecture.md §17's "notification channel per category").
+        channelId: 'reminders',
       },
     ],
   });

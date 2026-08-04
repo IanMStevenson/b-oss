@@ -29,6 +29,7 @@ import { onReminderTapped } from '../platform/localNotifications.js';
 import { switchAccount, handleForcedLogout } from '../flows/accountsFlow.js';
 import { onPushReceived, onPushTapped, onPushTokenChanged } from '../platform/push.js';
 import { runLaunchBackstopCheck, handleDeviceTokenRotated } from '../flows/pushFlow.js';
+import { applyFontScale } from '../platform/accessibility.js';
 
 const MAIN_CONTENT_ID = 'main-content';
 
@@ -194,6 +195,7 @@ export function AppShell() {
   const activeAccountId = useAccountsStore((s) => s.activeAccountId);
 
   useEffect(() => {
+    void applyFontScale();
     const accountsHydrated = useAccountsStore.getState().hydrate();
     void useHiddenMembersStore.getState().hydrate();
     void useDevicePrefsStore.getState().hydrate();

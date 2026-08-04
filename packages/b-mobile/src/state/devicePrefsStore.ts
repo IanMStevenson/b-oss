@@ -9,14 +9,14 @@
 // store: `uploadFullSize` (SCR-25 Misc — persisted now; SCR-10/SCR-13's compose path never reads
 // it, since no client-side downscaling exists anywhere in this app yet — that's a real gap
 // predating this phase, not something Phase 8 papers over, see AGENT_LOG.md's Phase 8 entry),
-// `openBlipfotoLinksInApp` (SCR-29's link-handling toggle — §16's opt-in `<activity-alias>`; the
-// toggle's value is stored here now, the native mechanism to *act* on it doesn't exist until
-// Phase 10 checks in an `android/` project to hold the alias), and
+// `openBlipfotoLinksInApp` (SCR-29's link-handling toggle — §16's opt-in `<activity-alias>`,
+// wired to a real native effect in Phase 10 via platform/blipfotoLinks.ts), and
 // `notificationPollingIntervalMinutes` (SCR-25 Notifications' Advanced control — stored locally
 // since there's no deployed b-push registration to PATCH yet; Phase 9 wires the live call).
 
 import { create } from 'zustand';
 import { getPref, setPref } from '../platform/prefs.js';
+import { setBlipfotoLinksEnabled } from '../platform/blipfotoLinks.js';
 
 const PREFS_KEY = 'b-mobile:device-prefs';
 
@@ -77,7 +77,12 @@ export const useDevicePrefsStore = create<DevicePrefsState>((set) => ({
     const raw = await getPref(PREFS_KEY);
     if (raw) {
       try {
-        set({ ...defaults, ...(JSON.parse(raw) as Partial<PersistedShape>), hydrated: true });
+        const parsed = { ...defaults, ...(JSON.parse(raw) as Partial<PersistedShape>) };
+        set({ ...parsed, hydrated: true });
+        // A fresh install always starts with the native <activity-alias> disabled (§16) — if a
+        // restored/synced backup folder carries a previously-enabled toggle, the native side
+        // needs re-syncing at launch, since nothing else does this on the app's behalf.
+        void setBlipfotoLinksEnabled(parsed.openBlipfotoLinksInApp);
         return;
       } catch {
         // Corrupt prefs — fall through to defaults rather than crash launch.
@@ -128,6 +133,7 @@ export const useDevicePrefsStore = create<DevicePrefsState>((set) => ({
     set((prev) => {
       const shape: PersistedShape = { ...toPersisted(prev), openBlipfotoLinksInApp: value };
       persist(shape);
+      void setBlipfotoLinksEnabled(value);
       return shape;
     });
   },
