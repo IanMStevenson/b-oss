@@ -1185,3 +1185,227 @@ scope, left dangling by Phase 8's own scope decision above: wiring `SCR-25`'s Ad
 polling-interval control to a real `PATCH /v1/registrations/:id` call once a registration id
 exists, and replacing every `TODO(Phase 9): register/deregister with the notification service`
 marker already sitting in `flows/accountsFlow.ts` (Phase 2) with the real registration calls.
+
+## 2026-08-04 — Phase 9 complete: Notifications — `b-push` + client (`SCR-23/24`, `FLW-15/16`)
+
+New top-level package `packages/b-push` (Cloudflare Worker + D1, per `notification-service.md`)
+plus the full app-side client. Root tooling needed real changes to pick it up — checked rather than
+assumed: `npm install` links it as a workspace automatically (`"workspaces": ["packages/*"]`
+already globs it, and `build`/`test` run via `--workspaces --if-present` / `vitest run` with no
+further config), but the root **`typecheck`** script explicitly lists every package's `tsc -p`
+invocation by name, so `&& tsc -p packages/b-push --noEmit` had to be added there by hand — the one
+place the "inherits root tooling unchanged" claim in app-architecture.md §2 doesn't quite hold
+without a one-line edit.
+
+### `b-push`'s shape
+
+**Zero runtime npm dependencies except `@b-oss/b-api`.** Everything else — routing, crypto, FCM's
+JWT signing and HTTP calls — is hand-rolled against Web Crypto and `fetch`, both native to the
+Workers runtime. `@b-oss/b-api` is reused for the exactly two Blipfoto calls this service is ever
+allowed to make (`messages/totals/unread`, `user/settings/notifications`) rather than a second
+hand-rolled client: `b-api` has no Node/Electron/browser-specific dependency (fetch/URL/
+URLSearchParams only), so it's precisely as safe to import from a Worker as from `b-mobile`, and
+reusing it keeps envelope parsing and error-code semantics (`BlipfotoError.isTokenInvalid`)
+identical between the app and the service instead of two implementations free to drift apart.
+
+**Module layout**: `types.ts` (Env bindings, the `registrations` row shape, the registration
+contract's request/response bodies), `crypto.ts` (pure Web Crypto helpers — AES-256-GCM for
+`read_token` at rest, SHA-256 + constant-time compare for the bearer-secret hash — directly
+testable in plain Node/Vitest since Node's global `crypto.subtle` _is_ the Web Crypto API),
+`db.ts` (all D1 access, see below), `blipfoto.ts` (the two allowed Blipfoto calls, plus a header
+comment listing the calls this file must _never_ make and why), `fcm.ts` (FCM HTTP v1: sign an
+RS256 JWT from the service-account PEM, exchange it for an OAuth2 access token, POST the message —
+two real network calls, both mocked in tests), `poll.ts` (the 1-minute activity-poll tick),
+`prefsRefresh.ts` (the hourly cached-push-prefs tick), `routes/registrations.ts` (the five HTTP
+handlers), `index.ts` (a ~20-line hand-rolled router + the `scheduled()` cron dispatcher —
+deliberately thin, so `src/__tests__` exercises the delegated logic, not routing glue).
+
+**D1 access is typed against a small hand-rolled `DbLike` interface** (`db.ts`:
+`{prepare(query): {bind, first, run, all}}`), not the full `D1Database` abstract class from
+`@cloudflare/workers-types` (which also has `batch`/`exec`/`withSession`/`dump`/`raw`). A real
+`D1Database` satisfies `DbLike` structurally with zero cast, since it has strictly more methods
+than `DbLike` asks for — `src/index.ts` passes `env.DB` straight into every business-logic
+function. This is what makes the test strategy below possible without reimplementing D1's whole
+surface in a fake.
+
+**Tested against a real, in-memory SQLite database (`node:sqlite`'s `DatabaseSync`, stable in this
+Node version), not a hand-rolled object-array fake and not miniflare/wrangler's local-D1
+emulation.** `src/__tests__/testDb.ts` wraps it in a `FakeStatement`/`TestDb` pair implementing
+exactly `DbLike`, loading the real `src/schema.sql` on construction — so the tests exercise the
+actual SQL the production code will run against real D1 (which is SQLite under the hood), not a
+second, parallel re-implementation of what the schema says that could silently drift from it. This
+was the deliberate "stub it, soundly" reading of the task's own scope note ("wrangler dev/local D1
+emulation if the test suite needs it... or stub/mock it instead") — no `wrangler`/`miniflare`
+dependency was added to the repo at all, and nothing in `src/__tests__` ever calls `wrangler`.
+FCM's two network calls and `b-api`'s Blipfoto calls are mocked at the `fetch` boundary instead
+(same "mock at the boundary" principle `b-mobile`'s own tests already use for platform wrappers).
+
+**`wrangler.toml` is present as static config only** — one D1 binding placeholder, two cron
+triggers (every-1-minute activity poll, hourly `0 * * * *` prefs refresh, dispatched from the same
+`scheduled()` handler via `event.cron`), and a header comment listing the exact manual
+`wrangler d1 create` / `d1 execute` / `secret put` / `deploy` sequence the user runs themselves.
+Nothing in this repo's tooling — no script, no CI job, no test — ever invokes `wrangler`, matching
+the task's explicit "do not attempt to actually deploy" boundary. `wrangler` itself was
+deliberately **not** added as a dependency (even a dev one); `npx wrangler` fetches it on demand
+whenever the user is ready for the real, manual deploy.
+
+**Two real bugs found and fixed while designing this, before either could ship:**
+
+1. **`routes/registrations.ts#createRegistration` seeds `last_seen_comments_total`/
+   `last_seen_notifications_total` (and `cached_push_prefs`) from a real, immediate
+   `messages/totals/unread` + `user/settings/notifications` round-trip at registration time**,
+   rather than leaving both counters at `0`. Not in `notification-service.md`'s own prose — found
+   by asking what happens on an account's very first activity-poll tick if it already had, say, 5
+   unread comments at the moment notifications were turned on: without seeding, the delta
+   `5 - 0 = 5` would read as "5 new comments" and push immediately, for items the user already
+   knew about. One extra call at registration time only (using the read token the request already
+   carries) closes this for free.
+2. **`prefsRefresh.ts`'s hourly tick must never itself call `markReauthRequired` on a dead read
+   token** — only the 1-minute activity poll may. First-draft code had the hourly job flip a
+   registration to `read-token-invalid` on the same `ReadTokenInvalidError` the activity poll
+   handles. But `listDueRegistrations` only selects `status = 'active'` rows, so a registration
+   marked dead by the _hourly_ job would be silently excluded from every future activity-poll
+   tick — the one job that's actually supposed to detect this and send the `reauth-required` push
+   — with no push ever sent at all. Fixed by having the hourly job skip (not mark) a dead token on
+   its own tick, deferring detection to the activity poll's next run (at most 1 minute later,
+   against the hourly job's 60). Documented prominently in `prefsRefresh.ts`'s own header comment,
+   the same treatment prior phases gave their own load-bearing bugs.
+
+### App side
+
+**`platform/push.ts`** wraps `@capacitor/push-notifications` (`^8.1.2`, newly installed): permission
+check/request, `registerPush()` (a one-shot promise from `register()` + its first `registration`/
+`registrationError` event, listeners torn down once settled), `onPushTokenChanged()` (a _separate_,
+long-lived listener for token rotation _after_ the initial registration — mounted once from
+`AppShell`), `onPushReceived`/`onPushTapped` (parsing the `{kind: 'activity', stream, accountId}` /
+`{kind: 'reauth-required', accountId}` payload shapes `b-push`'s FCM messages carry in their `data`
+fields). Web is a no-op throughout, same stance `platform/localNotifications.ts` already takes.
+
+**`flows/pushFlow.ts`** owns the registration lifecycle every other flow calls into:
+`ensurePushPermission()` (checked-before-requested, rules.md), `registerAccountForPush()`/
+`deregisterAccountFromPush()` (the `POST`/`DELETE` round-trips, storing the per-registration bearer
+secret in `platform/secureStorage.ts`'s two new functions — never a Zustand store, same treatment
+as the Blipfoto tokens), `pingRefreshPreferences()` (FLW-17's best-effort ping),
+`updatePollingInterval()` (SCR-25's Advanced control — the one call in this file that _doesn't_
+swallow its own failure, since it has a visible control to show the error against),
+`handleDeviceTokenRotated()` (PATCHes every currently-registered account on FCM rotation, one
+failure not blocking the rest), and `runLaunchBackstopCheck()` (FLW-16 step 8 — OS permission +
+`GET` registration health per account, feeding `handleForcedLogout('service')` on a stale token,
+imported from `accountsFlow.js`). **`pushFlow.ts` and `accountsFlow.ts` import from each other**
+(`accountsFlow` calls `pushFlow`'s registration functions; `pushFlow`'s backstop check calls
+`accountsFlow`'s `handleForcedLogout`) — a genuine circular ES-module dependency, safe here because
+every cross-reference is used only inside a function body, never at module-evaluation time; the
+full monorepo build and test suite (including `npm run build`'s Vite bundling) confirm it resolves
+cleanly.
+
+**`flows/accountsFlow.ts`'s notification-enabling branches now check push permission _before_ any
+interactive OAuth round for the service token**, in both `signInDeliberate` and `changeAccountMode`
+— rules.md's "never make the user authorize something already known to be undeliverable," which
+Phase 2 had left as a `TODO(Phase 9)` precisely because there was nothing to check against yet. A
+refusal skips the whole notifications branch, including a second sign-in round that would otherwise
+run for nothing. **A third real bug, found wiring this (not designing `b-push`):**
+`changeAccountMode`'s notification-enabling branch for the read-only case used to run
+unconditionally whenever `target.notifications` was true, even if the account already had
+`hasServiceToken: true` — meaning a same-scope, already-on `changeAccountMode` call (e.g. triggered
+indirectly by another field changing) would call `registerAccountForPush()` again, which always
+`POST`s a _new_ registration (there's no idempotent "refresh" verb in the contract), silently
+orphaning the previous row server-side and overwriting the locally stored registration id/secret
+for no reason. Fixed by gating the whole notifications branch on `!refreshed.hasServiceToken`
+(mirroring the guard the read-write case already had), matching every other transition in this
+function's "only do the token/registration work when something is actually changing" discipline.
+
+**`data/notifications.ts`** is the pure-logic half app-architecture.md §11 describes, split out for
+direct unit tests (§19's "this is where the density should be" — same shape `platform/mapTiles.ts`/
+`data/imageCrop.ts` established): `candidateActorsFromNotification()`/
+`isNotificationFromHiddenMember()` (the `SCR-23` href-parsing heuristic — regex-scans
+`content_html` for `href="..."` values, never touches the DOM/`dangerouslySetInnerHTML`, since it's
+read as text, not rendered), `resolveNotificationTarget()` (follow-request detection via the
+hardcoded `me/followers/requests` path takes priority over `link_url`'s own entry/profile shape,
+exactly as the spec orders it), and `unreadCommentIds()` (`SCR-24`'s first-page-unread-snapshot —
+a `Set` built once from whichever response is the _first_ one, since every later response marks
+everything as already read). **Notification text renders as plain text**
+(`notification.content`, the raw — not `_html` — field) in a bare `<span>`, not through
+`BBCodeText`/`dangerouslySetInnerHTML`: `content` is already server-composed prose, not BBCode, so
+there's nothing to parse, and the row's own tap target already routes correctly from the _same_
+underlying link data `content_html` carries — no inline-link-tappability was needed to satisfy
+"displayed as supplied."
+
+**Both inboxes clear their nav badge locally the moment they open** (`state/
+notificationCountsStore.ts`, a new in-memory-only Zustand store — deliberately not persisted, since
+a badge is a live server figure, not content worth remembering across launches), _before_ their own
+fetch resolves — FLW-15 step 2's "at the same time" as the real, server-side clear. The store is
+also refreshed on app launch and account switch (`AppShell.tsx`'s new effect) and on a received push
+(`PushListener`, which also handles the `reauth-required` foreground case and FCM-token-rotation
+forwarding). **Neither inbox implements infinite scroll / a "load more" affordance** — checked the
+wireframes and Actions sections of both `SCR-23`/`SCR-24` first: only "Open inbox" and "pull to
+refresh" are listed, no paging affordance, and `endpoints.md` gives no reverse (older-items) cursor
+parameter to page backward with, only `since_id` for "newer than." Building speculative pagination
+against a cursor shape the endpoint doesn't actually expose would have been exactly the kind of
+scope creep the ground rules warn against.
+
+**`SCR-25`'s Advanced polling-interval control** now PATCHes a live registration when one exists
+(`updatePollingInterval`), rolling back the locally-displayed value and showing an error on a
+genuine PATCH failure; with no registration yet (master switch never turned on) it stays silently
+local-only, matching Phase 8's original design for that state. The component itself, not
+`pushFlow.ts`, gates on `activeAccount?.notificationRegistrationId` before calling
+`updatePollingInterval` at all — cleaner than calling it unconditionally and relying on it to throw
+for the "nothing to PATCH" case, and it's what a test written against the no-registration path
+surfaced directly (the mocked `updatePollingInterval` doesn't reproduce the real function's own
+early-return, so a call that shouldn't have happened was visibly asserted against). A successful
+Feed/Push toggle save also pings `pingRefreshPreferences` (FLW-17), best-effort.
+
+**A real, pre-existing gap found — not fixed, out of this phase's scope, documented prominently
+instead:** `platform/http.ts`'s native `CapacitorHttp` transport is still exactly the Phase 1 stub
+(`throw new Error('platform/http.ts: native CapacitorHttp transport not implemented until Phase
+2')`), never actually closed by Phase 2 or any later phase despite Phases 3–8 building real
+device-facing data-fetching screens on top of it. This means every native GET request the app
+makes — not just this phase's `b-push` registration calls, _everything_ that goes through
+`data/client.ts#getClient()` on a real device — would throw today. `platform/push.ts`'s and
+`data/pushService.ts`'s new calls go through the same `platformFetch` abstraction every other
+data-fetching flow already uses, consistent with the architecture, so this phase didn't introduce
+the gap or need to work around it specially — it just also hits the same wall everything else
+already does. Not fixed here: unrelated to notifications, and `platform/http.ts` is a foundational,
+high-risk file to touch as a side effect of an unrelated phase. Whichever phase does real
+on-device testing (§19's "manual for v1... run once as each is built") needs to close this first,
+or nothing beyond the OAuth round itself will work on a real device.
+
+**A small, real gap found and fixed in `b-api` along the way**: `BlipComment` had no `unread`
+field, even though data-model.md and app-architecture.md §11 both describe the comments-inbox
+response as carrying one (`"a comment also carries the entry id and thumbnail and an unread
+flag"`). Same class of finding as Phase 8's `updateNotificationSettings` key-shape gap — a name
+match (`BlipComment` exists, `getRecentComments()` exists) doesn't mean the type is complete.
+Added `unread?: 0 | 1` as optional (it's only ever populated by `messages/comments/recent`, not
+elsewhere `BlipComment` appears, e.g. an entry's own comment list) plus a fixture-based test.
+
+**Testing**: 70 new tests in `b-push`'s own suite (crypto round-trips, `db.ts` against the real
+SQLite-backed fake including the poll-due/read-token-invalid-exclusion queries, `poll.ts`'s full
+delta/push-gate/reauth matrix with `fcm.ts` mocked, `prefsRefresh.ts`'s own matrix including the
+"never marks dead itself" bug's regression test, `fcm.ts`'s JWT-signing + two-call HTTP flow
+against a real generated RSA keypair, the registration-contract route handlers against a real DB +
+mocked Blipfoto calls, and the thin `index.ts` router/cron-dispatch glue), plus 83 new tests in
+`b-mobile` (18 pure-logic for `data/notifications.ts`'s suppression/routing/snapshot helpers, 25
+for `flows/pushFlow.ts`'s full lifecycle, 4 for the new counts store, 8 for `data/pushService.ts`'s
+HTTP client, 10 + 14 four-state screen tests for `SCR-23`/`SCR-24`, 4 new `NotificationsSection`
+tests for the Advanced-interval wiring), plus 1 `b-api` fixture test for the new `unread` field —
+154 new tests altogether, 653 in the full monorepo (up from 499 at the end of Phase 8). Full
+monorepo `typecheck && lint && test && build` green; `npm test` run twice consecutively at exactly
+653/653 with zero flakiness. Chunk-size check (this phase's explicit
+instruction, given a new Capacitor plugin was installed): `@capacitor/push-notifications` appears
+only in the eager main chunk (`grep -c PushNotifications` on the two pre-existing >500KB flagged
+chunks returns `0` for both — they're still `maplibre-gl`'s and `@ionic/react`'s own chunks,
+confirmed via the same telltale-symbol grep prior phases established, not a new regression), which
+is expected and consistent with every other core (non-lazy-loaded) Capacitor plugin already in the
+tree — it's a thin plugin shim, not a large library, so no lazy-loading was warranted.
+
+**Next:** Phase 10 — Android project & platform polish, per `PLAN.md`'s phase list: check in the
+`android/` project (currently only the `@capacitor/android` npm package exists, no native project
+directory), manifest/permissions (§17's table — `INTERNET`, `POST_NOTIFICATIONS`, `CAMERA`,
+coarse/fine location, explicitly _no_ storage permissions and _no_ `SCHEDULE_EXACT_ALARM`/
+`USE_EXACT_ALARM`), the `bmobile://` intent filter plus the disabled `<activity-alias>` for
+`openBlipfotoLinksInApp` (§16 — the toggle already exists, Phase 8, with no native effect yet since
+there's been no `android/` project to hold the manifest entry until now), notification channels
+per category, adaptive icon/splash, SDK levels (minSdk 24, compile/target 36), and the
+accessibility font-scale pass (smoke-tested as early as Phase 3 per §20, not deferred wholesale).
+Also worth picking up early in Phase 10, now that there's a real Android project to test against:
+closing this phase's own documented gap in `platform/http.ts`'s native transport, since real
+on-device testing can't get past the OAuth round without it.
