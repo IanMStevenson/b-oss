@@ -6,83 +6,88 @@ with "resume".
 
 ## Status
 
-**Phase 0 (prerequisite refactor) and Phase 1 (package skeleton) are both complete and pushed to
-`b-mobile-initial`.** The `b-mobile` package exists with a working Vite/Ionic/Capacitor
-skeleton, all 12 `src/platform/*` boundary modules, the full 28-screen route table (pointing at
-placeholders), the write-gate, the anonymous-only client factory, error mapper, and the
-`accountsStore` shape. Full monorepo `typecheck && lint && test && build` green (227 tests).
-**Phase 2 (Auth & accounts) has not started.**
+**Phases 0, 1, and 2 are all complete and pushed to `b-mobile-initial`.** Phase 0 (prerequisite
+`b-oss` refactor) is merged into `main`. The app itself now has: a working Vite/Ionic/Capacitor
+skeleton, the full 28-screen route table, a real OAuth round and full account-management flow
+(sign in, switch, remove, change mode, forced logout), real `SCR-01`/`SCR-30` screens, and a
+functional write-gate. Full monorepo `typecheck && lint && test && build` green (244 tests).
+**Phase 3 (Browse & entry viewing core) has not started.**
 
 ## Last completed step
 
-Committed and pushed `feat(b-mobile): package skeleton and platform foundation` (commit
-`77285db`). This is Phase 1 done in full, per `PLAN.md`'s own checklist.
+Committed and pushed `feat(b-mobile): auth & accounts — OAuth round, token lifecycle,
+SCR-01/SCR-30` (commit `e1dd621`). This is Phase 2's core done, per `PLAN.md`'s checklist — a
+few sub-items were deliberately deferred to later phases (see Gotchas below), not left
+unfinished by oversight.
 
 ## Next intended step
 
-Start **Phase 2 — Auth & accounts** on `b-mobile-initial` (no PR, per the plan — only Phase 0
-got one):
+Start **Phase 3 — Browse & entry viewing core** on `b-mobile-initial` (no PR):
 
-1. `platform/secureStorage.ts` — implement for real against `@aparajita/capacitor-secure-storage`
-   (install it now; currently only `@capacitor/core` is a dependency). Key scheme
-   `token:<accountId>:<purpose>`.
-2. `platform/browser.ts` — implement the native path against `@capacitor/browser` (install it).
-   Web fallback (new-tab open) already exists from Phase 1.
-3. `platform/deepLinks.ts` — implement against `@capacitor/app`'s `appUrlOpen` (install
-   `@capacitor/app`).
-4. The OAuth round itself (app-architecture.md §8, steps 1–7): `b-api`'s
-   `buildImplicitGrantUrl()`/`parseImplicitGrantCallback()` (check these exist already in
-   `b-api` — they're referenced by the spec as "existing"), `state` generation/verification,
-   `GET oauth/token` to confirm issuance + read granted scope, the two-token
-   (read-write + notifications) double-round case.
-5. Full `accountsStore`: token-lifecycle transitions per auth.md's mode-change table, `prefs`
-   persistence (identity + flags only, never tokens), forced-logout handling (`FLW-02`).
-6. `SCR-01` (Sign In) and `SCR-30` (Accounts) real screens, replacing their `ScreenPlaceholder`
-   route entries in `AppRoutes.tsx`.
-7. `WriteGuardRoute`'s real behaviour: the in-place "this account is read-only" upgrade prompt
-   instead of the current redirect-to-`/browse` placeholder.
-8. Verify: typecheck/lint/test, plus whatever jsdom-level testing is practical for the OAuth
-   round (the round itself needs a device/browser to fully exercise — flag that honestly rather
-   than claiming full coverage, same as Phase 1's browser-check gap).
-
-This phase unblocks every later screen with a write affordance, which is why it's next rather
-than a content screen (Browse/Entry Detail come in Phase 3).
+1. **Read `SCR-02`, `SCR-05`, `SCR-06`, `SCR-07`, `SCR-08`, `FLW-03`, `FLW-05` first** — same
+   deferred-until-the-phase-starts approach used for every phase so far. Don't skip this even
+   though the foundational docs (rules.md, glossary, etc.) are already familiar.
+2. `src/data/useResource.ts` / `usePagedResource.ts` (§6) — the four-state
+   (loading/loaded/empty/error) fetch primitives every data-loading screen uses.
+3. `platform/imageCache.ts` — currently a Phase-1 stub that throws on native; implement for real
+   against `@capacitor/filesystem` + `@capacitor/file-transfer` (15-minute TTL, URL-keyed,
+   disk-persisted — §10). Needs installing both packages. Plus a `<CachedImage>` component.
+4. **The `b-view` live adapter** (`b-mobile/src/data/` per §2 — not a package, this is the one
+   place it lives) mapping `b-api` responses into `b-view`'s view-model types (`BlipEntry`/
+   `BlipComment`/`EntryIndex`/`EntryState`, defined in `@b-oss/b-view` itself post-Phase-0-split).
+   **This is the first time `b-mobile` imports `.tsx` source cross-package from `b-view`** — before
+   adding any local `declare module '*.module.css'` file to `b-mobile`, re-read the Phase 0.2
+   gotcha below; it's about to become directly relevant for the first time.
+5. Real `SCR-02` (Browse, launch destination, five in-screen feed tabs per §5 — not five routes),
+   `SCR-06` (Entry Detail, the content hub), `SCR-07`, `SCR-08`, `SCR-05`, replacing their
+   `ScreenPlaceholder` route entries.
+6. **Replace `AppShell`'s placeholder `IonMenu` with real navigation** per
+   `01-information-architecture.md`, varying by sign-in state. This is also what unblocks the
+   account-switcher popover deferred from Phase 2 (needs a persistent nav chrome to anchor to).
+7. Verify: typecheck/lint/test, plus per-screen four-state test coverage (§19 layer 2 — "one test
+   per screen asserting its four loading/empty/error/loaded states").
 
 ## Open decisions / blockers
 
-None on the spec side — `app-architecture.md` states no open questions, and Phase 1 didn't
-surface any either, beyond the two ESLint self-violations already fixed (see `AGENT_LOG.md`).
-Still needed from the user eventually, not blocking Phase 2's start: real
+None on the spec side. Still needed from the user eventually, not blocking Phase 3's start: real
 `VITE_BLIPFOTO_CLIENT_ID`/`VITE_MAP_TILES_KEY` values in a local `.env` — never invented by me,
-never committed.
+never committed. The OAuth round built in Phase 2 is untested against the real API for the same
+reason (needs a real client ID and an actual device/browser with the custom URL scheme
+registered) — this is expected and matches the spec's own stance that this isn't a pre-build
+spike, just ordinary first-run verification once there's a device to run it on.
 
 ## Gotchas discovered so far (not obvious from the code)
 
 - **`b-visual`** is the current, correct name for the shared design-tokens/style-guide package
-  (was `b-tokens` for most of Phase 0, renamed partway through).
-- **Cross-package `.tsx` source imports need care with ambient CSS declarations** — see the
-  Phase 0.2 `AGENT_LOG.md` entry (2026-08-03). Don't add a package-local
-  `declare module '*.module.css'` unless that package truly has its own CSS Modules; the root
-  `types/globals.d.ts` already covers everything else. `b-mobile` doesn't have this problem yet
-  (no cross-package `.tsx` imports until Phase 3's `b-view` component reuse) but will need to
-  remember this when that lands.
-- **`b-api`'s `MultipartImpl` contract** (Phase 0.3) returns raw `{status, headers?, body}`, not
-  a pre-parsed envelope — `b-api` keeps error-code semantics centralized so `platform/upload.ts`
-  (Phase 7) doesn't have to reimplement them.
+  (was `b-tokens` for most of Phase 0).
+- **Cross-package `.tsx` source imports need care with ambient CSS declarations.** Don't add a
+  package-local `declare module '*.module.css'` to `b-mobile` unless it truly has its own CSS
+  Modules — the root `types/globals.d.ts` already covers everything. Full writeup: Phase 0.2's
+  `AGENT_LOG.md` entry (2026-08-03). **This becomes directly relevant in Phase 3**, the first
+  phase where `b-mobile` imports `b-view` components.
+- **`b-api`'s existing methods aren't fully trustworthy against the spec just because one with
+  the right name exists** — check what it actually returns/does before building on it. Found
+  twice so far: the multipart seam (Phase 0.3) and `verifyToken()` not returning `scope` (Phase
+  2, fixed — widened its return type, zero other callers, no migration needed).
+- **`b-api`'s `MultipartImpl` contract** returns raw `{status, headers?, body}`, not a pre-parsed
+  envelope — `b-api` keeps error-code semantics centralized so `platform/upload.ts` (Phase 7)
+  doesn't have to reimplement them.
 - **No headless browser available in this sandbox** — `playwright install --with-deps` needs
-  root (not available) for the shared libraries Chromium needs to launch. Phase 1's "vite dev
-  boots to Browse" verification used a jsdom-rendered Testing Library smoke test instead
-  (`src/app/__tests__/AppShell.test.tsx`), which genuinely exercises the React/Ionic/router
-  mounting logic but is not a substitute for actually looking at the rendered UI. If a future
-  session wants real screenshots, this constraint is still true unless the sandbox changes —
-  don't re-attempt `playwright install --with-deps` expecting a different result.
-- **ESLint's `@capacitor/*`-confined-to-`platform/**`** rule caught `src/data/client.ts`
-  importing `Capacitor` directly for `isNativePlatform()` — fixed by routing through
-  `platform/appState.ts`'s exported `isNativePlatform()` instead. Same pattern applies to any
-  future non-platform file that needs a native/web branch: go through an existing `platform/`
-  export, don't import `@capacitor/core` directly.
-- **`AppShell.tsx` is a deliberate, sole exception to "react-router only in `routes/`"** — it's
-  in the ESLint override's `files` list alongside `src/app/routes/**` because it's what sets up
-  `IonReactRouter` itself. If a screen or component ever seems to need a similar exception,
-  that's very likely a sign it should be using `useAppNavigate()` instead, not a cue to widen
-  this list further.
+  root. Verification uses jsdom-rendered Testing Library smoke tests instead, which genuinely
+  exercise mounting/routing/store logic but aren't a substitute for looking at the rendered UI.
+  Don't re-attempt `playwright install --with-deps` expecting a different result.
+- **`changeAccountMode`'s one known deviation from auth.md's exact transition table**: Read-only+
+  notifications → Read-write+notifications requests an extra read authorization instead of
+  reusing the already-held one. Documented in the function's own docstring
+  (`flows/accountsFlow.ts`). The account still ends up in the correct final state — this is a
+  one-extra-step inefficiency, not a correctness bug. Worth tightening if it ever becomes a real
+  user complaint, not urgent.
+- **`SCR-01`'s gated shape has no caller yet.** `signInGated()` (FLW-01) is fully implemented in
+  `flows/accountsFlow.ts`, but nothing invokes it — no write action exists before Phase 4
+  (star/favourite/comment/follow) to trigger a gated sign-in. Don't be surprised it's unused;
+  it's ready and waiting, not dead code to clean up.
+- **Blipfoto's exact registration/terms/help page URLs aren't stated anywhere in the spec** —
+  only the OAuth authorize and developer-apps URLs are confirmed. `SCR-01`'s "Create account"
+  link currently points at the bare `https://www.blipfoto.com` root with a TODO rather than
+  guessing a sub-path. If the exact URL becomes known, update the `BLIPFOTO_ROOT` constant in
+  `screens/SCR-01-sign-in/SignInScreen.tsx`.
