@@ -254,9 +254,25 @@ avatar: {blob}})`); biography editing resolved a TODO Phase 7 planted specifical
    supposed to raise the reauth-required alert. Also documented, not fixed (out of this phase's
    scope): `platform/http.ts`'s native `CapacitorHttp` transport is still an unimplemented stub
    left over from Phase 1 — every native GET, not just this phase's, would throw on a real device.
-10. **Android project & platform polish** — `android/` checked in, manifest/permissions,
-    activity-alias wiring, notification channels, adaptive icon/splash, SDK levels. Accessibility
-    font-scale pass (smoke-tested as early as Phase 3, not deferred entirely).
+10. **Android project & platform polish — DONE.** `android/` checked in (`cap add android`,
+    `@capacitor/android` added for real). Manifest: `allowBackup=false`, the four §17 permissions,
+    `bmobile://` + `SEND`/`image/*` intent filters, the disabled `<activity-alias>` for
+    `https://www.blipfoto.com`. Two new local (non-npm) plugins: `BlipfotoLinksPlugin` (finally
+    gives `devicePrefsStore.openBlipfotoLinksInApp` a real effect, synced at both toggle time and
+    hydrate time) and `AccessibilityPlugin` (`Configuration.fontScale`, backing
+    `platform/accessibility.ts#applyFontScale()` — a real root font-size multiplier applied at
+    launch, plus two hardcoded-px inline styles found and fixed along the way). Four notification
+    channels created natively, wired end to end (`b-push`'s `fcm.ts` now sets
+    `android.notification.channel_id` per payload kind, `platform/localNotifications.ts` sets one
+    on the reminder schedule). Adaptive icon + splash generated via `@capacitor/assets` (run once
+    via `npx`, deliberately not added as a dependency — see `scripts/generate-android-assets.sh`),
+    background color corrected from the tool's white default to the brand green. **Also closed
+    Phase 1's long-open gap**: `platform/http.ts`'s native `CapacitorHttp` transport is now
+    implemented (forces `responseType: 'text'`, constructs a real `Response` so `b-api`'s
+    `headers instanceof Headers` check holds, narrow body-type allow-list). Verified with a real
+    `./gradlew assembleDebug` (400 tasks, a real APK produced) — no device/emulator available in
+    this sandbox, so §19 layer 3's on-device checklist itself remains untested. Full detail in
+    `AGENT_LOG.md`'s Phase 10 entry.
 11. **Testing hardening** — sweep for missing four-state screen tests, pure-logic coverage gaps,
     manual on-device checklist (OAuth redirect, multipart upload, reminder timing).
 
