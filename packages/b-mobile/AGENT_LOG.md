@@ -645,3 +645,78 @@ first real test of the hidden-member consistency requirement extending to a peop
 rules.md, rather than suppressing them the way grids do). `SCR-30`'s account-switcher popover
 (deferred since Phase 2, needs a persistent nav chrome — now exists) is worth picking up here too
 if time allows, though it's not blocking.
+
+## 2026-08-04 — Phase 5 complete: Profiles & connections
+
+`data/users.ts` (profile + social-graph fetchers) and `flows/connectionsFlow.ts` (remove follower,
+approve/refuse request, restore access) round out the API surface — every endpoint this phase
+needed (`user/profile`, `entries/journal`/`entries/favorites` with a `username` param, `users/
+followers`/`following`, `users/requests/pending`/`blocked`) already existed in `b-api`, no gaps
+found this time.
+
+**`SCR-17` (My Profile) and `SCR-18` (User Profile) share one `ProfileScreen` component.** The API
+itself treats `username: undefined` as "the active account's own" for every relevant endpoint, and
+the two screens are ~90% identical (header, About/Entries/Faves tabs, Followers/Following/Awards
+links). Everything that differs is gated on one computed `isOwn` flag: the Follow/Unfollow button
+and Hide never apply to your own profile. Decided Followers/Following/Awards are plain nav buttons
+to `SCR-19`/`SCR-22`, not `IonSegment` tab content alongside About/Entries/Faves — the spec's own
+wording ("list (→ SCR-19)") describes a navigation shortcut, not inline content, and only About/
+Entries/Faves actually render something in place.
+
+New screens: `SCR-19` Followers/Following (one component for both — identical data shape and
+layout; Remove follower only offered on your own followers list), `SCR-20` Pending Requests
+(Approve/Refuse gated on read-write; Refuse's confirmation states both effect and non-effect per
+rules.md; Hide offered afterwards as a genuinely separate action, never automatic), `SCR-21`
+Refused Followers (Allow restores access immediately, no confirmation — exactly as reversible as
+`SCR-31`'s Unhide), `SCR-22` Awards (`user/awards` returns only an id + icon URL, no name/meaning
+text at all — so "tap a badge for its meaning" resolves to opening the icon guide, `/help`, rather
+than inventing per-badge copy the API doesn't provide).
+
+New shared component `components/UserRow.tsx`: avatar + username for the three paged people lists.
+Implements rules.md's _different_ treatment for people lists vs. grids/comments — a hidden member
+is marked **"(Hidden)"** inline, never suppressed, since removing them here would make them
+impossible to find in order to unhide. `CachedImage` gained an optional `style` prop (avatars need
+inline sizing; there's no shared CSS Modules file for this cross-cutting a use case yet).
+
+**One real UX bug found and fixed, via a test that wouldn't stay green rather than by inspection:**
+the friendship-status button read "Following" while active — directly colliding with `SCR-18`'s own
+"Following" nav-shortcut button rendered right below it, both visually (a real user could tap the
+wrong one) and in the test (an ambiguous query). Relabelled both it and `EntryDetailScreen`'s
+equivalent `SCR-06` follow button to **"Unfollow"** — the action the button performs, not the
+current state, which is clearer regardless of the collision and matches the confirm-dialog's own
+wording already used for the _action_ (rules.md: "Unfollow → confirm, then optimistic").
+
+**TODO(Phase 5+), documented directly in `ProfileScreen.tsx`:** `SCR-18`'s "Remove follower" (spec:
+"shown whenever they currently follow the active account") needs to know whether _they_ follow
+_you_ — `getUserProfile`'s `friendship` object is viewer-relative (do you follow them), not the
+reverse, and no cheap separate call provides that yet. Rather than guess or add a speculative
+extra fetch, `SCR-18`'s overflow simply doesn't offer it; `SCR-19`'s Followers list (built this
+phase) is the correct, already-working place for this action, since the list itself already
+confirms who's a follower.
+
+**Two IonAlert/testing-library patterns worth remembering for any future screen with a trigger
+button and a same-labelled confirm button** (this phase had several: Remove, Refuse, Unfollow):
+
+1. `IonAlert` renders its buttons into the DOM **unconditionally**, regardless of `isOpen` — a bare
+   `screen.getByText('Remove')` can match the hidden alert's own confirm button just as easily as
+   the visible trigger. Scope the trigger query with `{ selector: 'ion-button' }`.
+2. The alert's own destructive/confirm button's text sits on a nested `<span class="alert-button-
+inner">`, not directly on the `<button>` — Testing Library's `selector` option filters by which
+   element _owns_ the matched text, so it can't be used to target the ancestor `<button>` this way.
+   `document.querySelector('button.alert-button-role-destructive')` (a plain DOM query, bypassing
+   text matching entirely) is simpler and reliable here, since a screen has at most one destructive
+   alert open at a time.
+
+21 new tests. Full monorepo `typecheck && lint && test && build` green throughout (330 tests,
+6 repeated full-suite runs with zero failures). Committed
+(`feat(b-mobile): Phase 5 — Profiles & connections (SCR-17–22, FLW-09)`, `e2f934d`), pushed.
+
+**Next:** Phase 6 — Search & Map (`SCR-03/04`, `FLW-04/14`). Read those screen/flow specs first.
+Key pieces: MapLibre GL JS behind a new `platform/mapTiles.ts`; `platform/geolocation.ts`
+implemented for real against `@capacitor/geolocation` (currently a Phase-1 stub — `getCurrentPosition()`
+always rejects — which is why Browse's Nearby tab, built in Phase 3, has never actually loaded
+anything yet); application-layer request supersession for the map/search debounce (§7's
+cancellation model, same pattern `useResource`/`usePagedResource` already use via request ids).
+`SCR-03`'s People tab reuses the same hidden-member-marked-not-suppressed treatment `UserRow`
+already implements — check whether `searchUsers` (confirmed to exist in `b-api`, not yet used
+anywhere in `b-mobile`) returns the same lightweight `BlipUser` shape before building a new type.
