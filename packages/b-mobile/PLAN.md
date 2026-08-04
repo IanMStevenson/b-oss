@@ -214,9 +214,27 @@ connectionsFlow.ts` (every endpoint already existed in `b-api`). `SCR-17`/`SCR-1
      `@ionic/react` itself, a pre-existing Phase-1 cost, not a new regression. 85 new tests (436
      total). Full detail in `AGENT_LOG.md`'s Phase 7 entry, including a new IonAlert-testing gotcha
      (multiple simultaneous destructive alerts on one screen need `header`-scoped selectors).
-8. **Settings & device-level screens** — `SCR-25/29`, `FLW-17`. `devicePrefsStore`,
-   `config/countries`/`locales`, opt-in web-link `<activity-alias>` toggle (pulled forward from
-   Phase 10), privacy-policy/delete-account links.
+8. **Settings & device-level screens — DONE.** Real `SCR-25` (one hub component,
+   `SettingsScreen.tsx`, plus a `sections/*.tsx` file per General/Journal/Profile/Notifications/
+   Reminders/Misc — not eight separate `SCR`-numbered screens) and real `SCR-29`
+   (`HelpInfoScreen.tsx`, same hub-plus-pushed-sections shape). `devicePrefsStore` gained
+   `uploadFullSize` (defaults `true` — matches actual current behaviour, since no client-side photo
+   downscaling exists anywhere in this app yet, a real pre-existing gap this phase documented
+   rather than silently papering over), `openBlipfotoLinksInApp` (turned out to **be** the opt-in
+   `<activity-alias>` toggle, not a separate feature — `SCR-29`'s UI and app-architecture.md §16's
+   native mechanism are the same feature from two sides; no `android/` project exists yet to hold
+   the actual manifest entry, Phase 10's job), and `notificationPollingIntervalMinutes` (local only,
+   5-minute floor enforced client-side, no live `b-push` registration to PATCH yet). `config/
+countries`/`config/locales` (`data/config.ts`) are the one deliberate, spec-sanctioned exception
+   to rules.md's "no caching for display" — fetched once per app launch, not per screen visit.
+   Avatar crop wired end to end (`ProfileSection.tsx` → `cropToJpegBlob()` → `saveUserSettings({
+avatar: {blob}})`); biography editing resolved a TODO Phase 7 planted specifically for this phase
+   (`DescriptionEditorScreen`'s new `target="bio"` mode). **Scope decision**: built the Notifications
+   section's master switch and Feed/Push toggles for real (reusing `SCR-30`'s already-working
+   `changeAccountMode`, and `b-api`'s already-working `user/settings/notifications` endpoints — no
+   `b-push` dependency for either), leaving only the Advanced polling-interval control local-only
+   pending Phase 9's live registration. Full detail, including the `IonLabel`-children jsdom gotcha
+   reproduced firsthand on two new screens, in `AGENT_LOG.md`'s Phase 8 entry.
 9. **Notifications: `b-push` + client** — `SCR-23/24`, `FLW-15/16`. New peer package `b-push`
    (Cloudflare Worker + D1, counts-only polling, registration contract, `reauth-required`).
    App side: `platform/push.ts`, permission-before-auth sequencing, the two inboxes' asymmetric
@@ -255,6 +273,18 @@ Phases 7+ are sequenced but will get more detailed sub-planning here as I reach 
   "screens refetch, never depend on a prior screen's in-memory data" rule (§5's deep-link-
   resilience posture), since `SCR-11`/`SCR-12` need to write results into an in-progress,
   not-yet-submitted draft that has no deep-link case to resolve instead.
+- **`SCR-25`'s Notifications section is split across two phases, not deferred wholesale to
+  Phase 9** (Phase 8) — the master switch (reusing `flows/accountsFlow.ts#changeAccountMode()`,
+  already built in Phase 2 for `SCR-30`) and the Feed/Push toggle groups (`user/settings/
+notifications`, a real `b-api` endpoint with no `b-push` dependency) were built for real in
+  Phase 8; only the Advanced polling-interval control is local-only pending Phase 9's live
+  registration id to `PATCH`. See AGENT_LOG.md's Phase 8 entry for why this split, not an
+  all-or-nothing read of Phase 9's "Notifications: `b-push` + client" title, is correct.
+- **`devicePrefsStore.openBlipfotoLinksInApp` (Phase 8) is the opt-in `<activity-alias>` toggle**
+  app-architecture.md §16 describes, not a second, separate feature — `SCR-29`'s spec text and
+  §16's native mechanism describe the same toggle from the UI side and the native side
+  respectively. The boolean is persisted now; it has no native effect until Phase 10 checks in an
+  `android/` project (none exists yet) to hold the actual `<activity-alias>` manifest entry.
 
 ## Full plan file
 

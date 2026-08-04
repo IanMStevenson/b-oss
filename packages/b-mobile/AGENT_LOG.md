@@ -1037,3 +1037,151 @@ list: `devicePrefsStore`'s remaining fields (`SCR-25`'s General/Journal/Misc sec
 `SCR-25`'s avatar crop screen — `components/PhotoCropper.tsx` and `data/imageCrop.ts`'s
 `cropToJpegBlob()` are already built and waiting for it (this phase's "cropper component built now,
 even though the screen isn't" plan point).
+
+## 2026-08-04 — Phase 8 complete: Settings & device-level screens
+
+Real `SCR-25` (one hub component, `screens/SCR-25-settings/SettingsScreen.tsx`, plus six
+`sections/*.tsx` files for General/Journal/Profile/Notifications/Reminders/Misc — not eight
+separate `SCR`-numbered screens, per the spec's own "every setting lives on this one screen rather
+than in separate sub-screens": sections are pushed via `/settings/:section`, same component
+instance, not a new screen identity) and real `SCR-29` (`screens/SCR-29-help-and-info/
+HelpInfoScreen.tsx`, same hub-plus-pushed-sections shape via `/help/:section` for
+icon-guide/safety-privacy/licences). `FLW-17`'s load→edit→Save/Cancel/discard-guard pattern is
+implemented identically across General/Journal/Profile-username/Notifications; Reminders/Misc/the
+link-handling toggle persist immediately with no Save, per their own local-only nature.
+
+**Scope decision not spelled out in RESUME.md's 7-point plan, made and documented here rather than
+silently either including or excluding it:** RESUME's plan never mentioned the Notifications
+section at all, and `PLAN.md`'s Phase 9 is titled "Notifications: `b-push` + client," which could
+read as "all notification UI is Phase 9." Checked before assuming either way: `SCR-30`'s
+`AccountsScreen.tsx` (Phase 2) already has a working "Turn notifications on/off" button that calls
+`flows/accountsFlow.ts#changeAccountMode()` — the _exact_ token-lifecycle logic `SCR-25`'s spec
+says its master switch should reuse ("the same on/off logic as `SCR-30`'s Notifications row, via
+`FLW-22`") — and `b-api` already has real, working `getNotificationSettings`/
+`updateNotificationSettings` methods hitting `user/settings/notifications` directly, with no
+`b-push` dependency at all. Only the Advanced polling-interval control genuinely needs a live
+`b-push` registration (`PATCH /v1/registrations/:id`), which doesn't exist yet (no `packages/
+b-push` directory in this repo — confirmed, not assumed). So: **built the master switch and Feed/
+Push toggle groups for real** (`NotificationsSection.tsx`, reusing `changeAccountMode` exactly as
+`AccountsScreen` does, and `data/settings.ts`'s new `fetchNotificationSettings`/
+`saveNotificationSettings`), **left the Advanced interval control local-only** — its value is
+read/written via a new `devicePrefsStore.notificationPollingIntervalMinutes` field (floor of 5
+enforced client-side) with no network call, ready for Phase 9 to wire the real `PATCH` once a
+registration id exists. `saveNotificationSettings` sends feed and push keys in one flat
+`Record<string, 0|1>` PUT — confirmed against `b-api`'s own `client.test.ts` fixtures, which show
+`updateNotificationSettings` taking un-namespaced keys (`new_comment`, `new_follower`) with no
+per-channel prefix; `NotificationChannel.settings` itself is a server-defined `Record<string,
+0|1>` with no fixed key list in `b-api`'s types, so the toggle group renders whatever keys the
+server actually returns (humanised for display) rather than a hand-authored list that could drift.
+
+**`devicePrefsStore` grew three fields** (`uploadFullSize`, `openBlipfotoLinksInApp`,
+`notificationPollingIntervalMinutes`), all matching the set `app-architecture.md` §6's own table
+already assigns to this store. Two of the three needed a moment's checking before writing anything:
+
+- `uploadFullSize` defaults to `true`, not `false`, deliberately — it matches the app's actual
+  current behaviour, since **no client-side photo downscaling exists anywhere in this codebase**.
+  `app-architecture.md` §15 says `SCR-10` should "respect the upload-full-size preference," but
+  Phase 7's `ComposeEntryScreen`/`EditEntryScreen` never implemented a resize step at all (crop,
+  yes; downscale, no) — so this toggle currently has no consumer to wire it to. Building a canvas
+  downscale pass wasn't in RESUME's plan and isn't `SCR-25`'s own job (the preference belongs to
+  `SCR-10`/`SCR-13`'s upload path) — documented here as a real, pre-existing gap rather than quietly
+  papered over by pretending the toggle does something it doesn't yet.
+- `openBlipfotoLinksInApp` turned out to **be** the opt-in `<activity-alias>` toggle RESUME's plan
+  point 5 asked about as if it might be separate — `SCR-29`'s own spec text ("Open blipfoto.com
+  links in this app") and `app-architecture.md` §16 ("Opt-in web-link handling... needs a
+  mechanism... toggle it at runtime") are the same feature described from the UI side and the
+  native side respectively, not two features. Checked `android/` before assuming how much native
+  scaffolding existed: **there is no `android/` project in this repo yet** (only the
+  `@capacitor/android` _npm package_ under `node_modules`, not a checked-in native project — Phase
+  10's job per `PLAN.md`), so there's nothing yet to hold an `<activity-alias>` entry or a
+  `PackageManager.setComponentEnabledSetting()` plugin call. In scope for this phase, and all that
+  is: the `devicePrefsStore` boolean itself, persisted, with no native effect yet — the toggle
+  genuinely does nothing on-device until Phase 10 exists to read it, and the code says so.
+
+**`SCR-25`'s avatar crop is wired**, and needed only what RESUME's plan point 3 predicted checking
+for, nothing more: `ProfileSection.tsx`'s Take/Choose reuses `platform/camera.ts#takePhoto()`/
+`pickPhoto()` unchanged (same permission handling as `SCR-09`), shows the already-built
+`PhotoCropper`, and on confirm calls `data/imageCrop.ts#cropToJpegBlob()` → `saveUserSettings({
+avatar: { blob } })` — `cropToJpegBlob()` always returns a `Blob` regardless of platform (it's a
+canvas operation, not a filesystem one), so the resulting `FileSource` is always the `{blob}` arm,
+never `{path}` — no native-multipart-file-path branch to add here, unlike `platform/upload.ts`'s
+entry-photo path. Not member-gated, unlike `SCR-10`'s crop — `SCR-25`'s own spec places no
+membership condition on the avatar section, so none was added. The `PUT user/settings` response
+carries no updated `avatar_url`, so a successful avatar save/delete re-fetches
+`fetchUserSettings()` (`refreshFromServer()`) to get the fresh URL and pushes it into both the
+section's own displayed image and `accountsStore`'s cached `avatarUrl` — the "refresh any locally
+cached account state... other screens depend on" instruction in `SCR-25`'s spec, applied literally
+since nothing else in the response gives a shortcut.
+
+**Biography editing resolves a TODO Phase 7 planted specifically for this phase**, not something
+found from scratch: `DescriptionEditorScreen.tsx`'s own header comment already said `SCR-25` would
+need "a mode switch (e.g. a `?target=bio` route param) rather than always assuming a draft
+exists." Added exactly that — `target?: 'draft' | 'bio'` prop, parsed from `location.search` in
+`AppRoutes.tsx` (the one file allowed to touch `react-router` directly, §5), with a new, fully
+separate `BiographyEditor` sub-component alongside the existing `DraftDescriptionEditor` (same
+file, so `components/BBCodeToolbar.tsx` stays shared, but no code path pretends a compose draft
+exists when editing a biography). `BiographyEditor` fetches/saves biography directly via
+`data/settings.ts` — self-contained, no round-trip through `ProfileSection`'s own state at all,
+since biography (unlike username) has no local edit surface on `SCR-25` itself, just a link out.
+
+**`config/countries`/`config/locales`**: `b-api`'s `getCountries()`/`getLocales()` were exactly
+what their names promised this time (unlike several prior phases' gaps found in `b-api`) — no
+`FileSource`-shaped surprise, no missing field. New `data/config.ts` wraps them with an in-memory,
+fetch-once-per-app-launch cache (a genuine, spec-sanctioned exception to rules.md's "no caching for
+display" — `rules.md` itself calls out `config/countries`/`config/locales` as "static reference
+data for form pickers, not user content," the one deliberate carve-out) that clears itself on
+failure so a retry isn't permanently wedged; the only `data/*.ts` module in this app with real
+cache-state logic worth its own direct unit test (`data/__tests__/config.test.ts`), rather than
+being exercised only indirectly through a screen's mocked import like every other thin fetcher.
+
+**Privacy policy / Delete my account** (`SCR-29`) are plain `platform/browser.ts#openUrl()` calls
+at the bare `https://www.blipfoto.com` root — the same documented gap `SCR-01`'s "Create account"
+link already has (real registration/terms/help/privacy/delete-account URLs aren't stated anywhere
+in `AppSpec`/`ImplementationSpec`; RESUME's own gotcha list flagged this exact spot as worth
+re-checking in Phase 8, and it's still open). "Delete my account" carries a subtitle
+("not scoped to any one account stored in this app") rather than ever naming a specific stored
+account, per the spec's explicit warning against wording it as though it acts on the active
+account — verified with a dedicated test asserting the row's text never matches `/'s account/`.
+
+**A small, deliberate improvement to Phase 5 code, not a new-phase requirement**: `SCR-22`
+(`AwardsScreen.tsx`) already had a badge-tap handler navigating to `/help` with a comment
+explicitly saying it should go to "the icon guide (`SCR-29`, Phase 8)" once that existed — it
+didn't yet, so it pointed at the hub instead as a placeholder. Now that `/help/icon-guide` exists,
+repointed the tap target there and updated its one existing test's assertion
+(`toHaveBeenCalledWith('/help/icon-guide')`) to match — fulfilling a TODO a prior phase planted for
+this one, not scope creep.
+
+**A gotcha reproduced firsthand, not just cited from RESUME's list**: `IonLabel` failed to render
+its children on this screen's hub rows specifically (`getByText('Icon guide')` etc. all failed,
+while the exact same rows' sibling `IonNote`/`IonCheckbox` children rendered fine) — RESUME's
+existing note called this "at least one occasion... root cause not fully diagnosed," and it's still
+not diagnosed, but it's now been hit predictably on two fresh screens in the same session
+(`HelpInfoScreen`, then confirmed by preemptively converting `SettingsScreen`'s hub too rather than
+waiting to find out it was next). Fixed the same way `UserRow.tsx`/`BBCodeToolbar.tsx` already had:
+plain `<span>` children inside `IonItem`, not `IonLabel`. Existing screens that already use
+`IonLabel` successfully (`AccountsScreen.tsx` and others) were left alone — this isn't a "never use
+IonLabel" rule, just a documented trap for any _new_ screen to check for before trusting
+`getByText` against one.
+
+**Verification**: full monorepo `typecheck && lint && test && build` green. 63 new tests (272 in
+`b-mobile`, 499 total, up from 436) — four-state coverage (loading/loaded-or-empty/error, plus
+read-only-view-only where FLW-17 requires it) for every new section and both hubs, plus dedicated
+tests for `devicePrefsStore`'s three new fields (including the interval floor/rounding logic) and
+`data/config.ts`'s cache-once/clear-on-failure behaviour. `npm test` run twice consecutively at the
+package level and twice more at the monorepo level, all four runs at exactly the same count with
+zero flakiness. Chunk-size check: no new dependency was installed this phase (`package.json` diff
+is empty), and `npm run build`'s two flagged >500KB chunks are both pre-existing — grepped
+`mapTiles-*.js` for `maplibregl` (present) and the oddly-named `useAppNavigate-*.js` for `ion-app`
+(present), confirming they're the same MapLibre/Ionic-framework chunks Phase 6/7 already
+documented, not a new regression. Committed
+(`feat(b-mobile): Phase 8 — Settings & device-level screens (SCR-25/29, FLW-17)`), pushed.
+
+**Next:** Phase 9 — Notifications: `b-push` + client (`SCR-23/24`, `FLW-15/16`) per `PLAN.md`'s
+phase list: a new peer package `b-push` (Cloudflare Worker + D1, counts-only polling per
+`notification-service.md`, the registration API, `reauth-required` handling), plus the app side —
+`platform/push.ts`, permission-before-auth sequencing, the two inboxes' asymmetric hidden-member
+suppression, the first-page-unread-snapshot trap `notification-service.md` describes. Also now in
+scope, left dangling by Phase 8's own scope decision above: wiring `SCR-25`'s Advanced
+polling-interval control to a real `PATCH /v1/registrations/:id` call once a registration id
+exists, and replacing every `TODO(Phase 9): register/deregister with the notification service`
+marker already sitting in `flows/accountsFlow.ts` (Phase 2) with the real registration calls.
