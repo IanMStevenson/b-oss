@@ -122,7 +122,7 @@ export function ProfileSection() {
         setAvatarBusy(null);
         return;
       }
-      const validation = validatePickedPhoto(photo);
+      const validation = validatePickedPhoto(photo, 'avatar');
       if (!validation.ok) {
         setAvatarError(validation.message);
         setAvatarBusy(null);

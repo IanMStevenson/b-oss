@@ -107,9 +107,8 @@ order to tackle them):
    codes error-codes.md already documents (240, 250–252, 516–528); reconcile the handful of
    screens with their own pre-copy-deck ad hoc strings (e.g. `photoValidation.ts`'s messages
    don't match `TextStrings.csv`'s `SCR-09.error.unusable_photo` wording) against the real deck.
-   One number is still a genuine open question, not a wiring task: `photoValidation.ts`'s
-   `MIN_DIMENSION = 200` is an engineering placeholder — the spec doesn't state a real minimum
-   photo pixel dimension anywhere. Needs a real answer from the user (see the question list below).
+   **The photo-dimension number is resolved (2026-08-05)** — see "Photo upload limits" below;
+   no longer open.
 
 **Explicitly parked, not forgotten** — deliberate scope decisions from the user, not gaps to
 silently backfill:
@@ -136,8 +135,8 @@ not new application code.
 ## Questions for the user (blocking, not urgent — collect when convenient)
 
 - ~~The five hardcoded Blipfoto URLs~~ — **resolved 2026-08-04**, see below.
-- **`photoValidation.ts`'s minimum photo dimension** — currently a 200px placeholder
-  (`MIN_DIMENSION`); needs a real number (or confirmation 200 is fine).
+- ~~`photoValidation.ts`'s minimum photo dimension~~ — **resolved 2026-08-05**, see "Photo upload
+  limits" below.
 - **`VITE_MAP_TILES_KEY`** — needs a MapTiler Cloud API key (free tier, no card required, 100k map
   loads/month). Sign up at [cloud.maptiler.com](https://cloud.maptiler.com), the dashboard
   auto-generates a "Default" key on signup — copy it from the API keys page. For production usage
@@ -165,6 +164,32 @@ else's behaviour" explainer) — that's the section already covering community c
 keeps `SCR-29`'s wireframe-specified "Terms & legal" as the one row → one destination the spec
 draws it as. Not a spec deviation the user asked for explicitly; flagged here as a judgment call
 in case a future navigation-team pass wants it placed differently.
+
+### Photo upload limits — resolved 2026-08-05
+
+User-supplied, read from Blipfoto's own server source (`Image.php`/`JPG.php`/`AvatarUploader.php`)
+— not stated anywhere in AppSpec/ImplementationSpec, which is why `photoValidation.ts`'s
+`MIN_DIMENSION = 200` sat as a placeholder through Phase 11:
+
+|               | Entry photos                                                      | Avatar photos              |
+| ------------- | ----------------------------------------------------------------- | -------------------------- |
+| Min dimension | 600px on **at least one** edge                                    | 300px on at least one edge |
+| Max dimension | None — originals stored as-is, only derived renditions downscaled | None documented            |
+| Max file size | 20 MB (S3 upload policy)                                          | 3 MB (hard-coded check)    |
+| Min file size | 1 KB (S3 policy)                                                  | None documented            |
+
+Wired into `data/photoValidation.ts#validatePickedPhoto()` the same session, now taking a
+`purpose: 'entry' | 'avatar'` parameter (previously one shared `MIN_DIMENSION` for both call
+paths — genuinely wrong, not just imprecise, since entry/avatar limits differ). **The "at least
+one edge" wording matters**: the previous placeholder rejected unless _both_ width and height
+cleared the floor; the real rule only requires one, so a thin panorama or a tall crop that used to
+fail now correctly passes. File-size checking is new — `platform/camera.ts`'s `PickedPhoto`
+didn't carry a byte size at all before this (the `@capacitor/camera` plugin's `MediaMetadata.size`
+was available via the already-passed `includeMetadata: true` but silently dropped in
+`toPickedPhoto()`); now threaded through `PickedPhoto` → `state/composeDraftStore.ts`'s
+`ComposePhoto` → the validator, nullable throughout (unknown size skips that check, same
+null-safety precedent already used for unknown width/height). No maximum-dimension check exists
+or is needed — confirmed, not assumed, since Blipfoto itself never rejects on it.
 
 ## Environment status (checked 2026-08-04, keys only — not values)
 

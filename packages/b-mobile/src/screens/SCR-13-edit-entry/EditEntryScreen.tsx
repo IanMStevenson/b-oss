@@ -120,7 +120,7 @@ export function EditEntryScreen({ entryId, initialMode }: EditEntryScreenProps) 
     try {
       const photo: PickedPhoto | null = source === 'camera' ? await takePhoto() : await pickPhoto();
       if (!photo) return;
-      const validation = validatePickedPhoto(photo);
+      const validation = validatePickedPhoto(photo, 'entry');
       if (!validation.ok) {
         setPhotoError(validation.message);
         return;
@@ -133,6 +133,7 @@ export function EditEntryScreen({ entryId, initialMode }: EditEntryScreenProps) 
           width: photo.width,
           height: photo.height,
           createdAt: photo.createdAt,
+          sizeBytes: photo.sizeBytes,
         },
       });
     } catch (err) {

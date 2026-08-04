@@ -64,6 +64,7 @@ export function NewEntryScreen() {
         width: photo.width,
         height: photo.height,
         createdAt: photo.createdAt,
+        sizeBytes: photo.sizeBytes,
       },
       title: '',
       tags: '',

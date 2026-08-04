@@ -30,6 +30,9 @@ export interface ComposePhoto {
   width: number | null;
   height: number | null;
   createdAt: string | null;
+  /** Carried through from platform/camera.ts's PickedPhoto for data/photoValidation.ts's
+   * max-file-size check, re-run when SCR-10 mounts (SCR-09 itself doesn't validate). */
+  sizeBytes: number | null;
 }
 
 export interface ThumbnailCropDraft {
