@@ -46,36 +46,46 @@ Found by reading the current repo state before starting Phase 0; these refine (n
    lives there.
 2. **`b-view`'s own CSS depends on a RAG token.** `EntryDetail.module.css` uses `--rag-red` for its
    error-state colour. Since RAG tokens are backup-status vocabulary that doesn't belong in
-   `b-tokens`' base layer, Phase 0 adds a semantic `--color-danger` (same hex, `#d04545`) to
-   `b-tokens`' base palette and repoints `EntryDetail.module.css` at it.
+   `b-visual`' base layer, Phase 0 adds a semantic `--color-danger` (same hex, `#d04545`) to
+   `b-visual`' base palette and repoints `EntryDetail.module.css` at it.
 3. **The multipart seam's blast radius is zero outside `b-api`.** `publishEntry`, `updateEntry`,
    `updateUserSettings` have no callers anywhere else in the repo yet — safe to redesign their file
-   parameter (`Blob` → `MultipartFileRef` union) without touching any other package's call sites.
+   parameter (`Blob` → `FileSource` union) without touching any other package's call sites.
 4. **`BlipfotoClient`'s constructor is positional**, called as `new BlipfotoClient(token)`
    elsewhere. Adding `fetchImpl`/`multipartImpl` as further optional positional params (defaulting
    to today's web behaviour) keeps every existing call site unchanged.
-5. **No pre-existing style-guide document exists in the repo.** `b-tokens`' written style guidance
+5. **No pre-existing style-guide document exists in the repo.** `b-visual`' written style guidance
    has to be authored from what `b-ark-ui-electron`'s CSS actually does, not migrated.
 
 ## Phase breakdown
 
-### Phase 0 — Prerequisite `b-oss` refactor (own worktree/branch/PR — NOT this branch)
+### Phase 0 — Prerequisite `b-oss` refactor — **DONE, merged into `main` 2026-08-04**
 
-Worktree `../b-oss-b-mobile-prereqs`, branch `b-mobile-prereqs`, cut from `origin/main`. Must land
-(PR opened, full monorepo `typecheck && lint && test && build` green) before `b-mobile-initial`
-starts consuming `b-view`. `b-mobile-initial` merges `origin/main` back in once Phase 0 lands.
+Landed on its own worktree/branch/PR (`../b-oss-b-mobile-prereqs`, branch `b-mobile-prereqs`, cut
+from `origin/main`), per the plan — kept separate from this branch since it touched packages
+`b-ark`/`b-ark-chrome` already ship. PR #62, merged after explicit user confirmation (the one
+check-in point in the whole plan) and a clean `gh pr checks` pass. Pulled into `b-mobile-initial`
+via `git merge origin/main` — clean, no conflicts, re-verified green here too.
 
-- **0.1 `b-tokens`** — new package: base-layer `tokens.css` (palette minus `--rag-*`, plus
-  `--color-danger`), `tokens.ts` (same values in TS), `docs/style-guide.md` (spacing/radii/
-  interaction conventions written up from `b-ark-ui-electron`'s CSS).
+- **0.1 `b-visual`** (renamed from `b-tokens` mid-Phase-0 — the name describes what consumers use
+  it for, not just its file contents) — new package: base-layer `tokens.css` (palette minus
+  `--rag-*`, plus `--color-danger`), `tokens.ts` (same values in TS), `docs/style-guide.md`
+  (spacing/radii/interaction conventions written up from `b-ark-ui-electron`'s CSS).
 - **0.2 `b-view` / `b-view-backup` split** — new `b-view-backup` (backup hooks + SPA, depends on
   `b-view` + `backup-engine`). `b-view` keeps presentational components, gets its own view-model
-  types, drops `backup-engine` dependency, imports `tokens.css` from `b-tokens`. Repoint
-  `b-ark-ui-electron`, `b-ark-ui-chrome`, `b-ark/src/main/b-view-files.ts` per audit point 1.
+  types, drops `backup-engine` dependency, imports `tokens.css` from `b-visual`. Repointed
+  `b-ark-ui-electron`, `b-ark-ui-chrome`, `b-ark/src/main/b-view-files.ts`, and (found only during
+  implementation, not the original audit) `b-ark-chrome`'s own `copy-b-view.mjs` build step.
 - **0.3 `b-api` seams** — `fetchImpl` (transport) + `multipartImpl` (multipart) as optional
-  constructor params; new `MultipartFileRef` type; `publishEntry`/`updateEntry`/
-  `updateUserSettings` file params switch to it.
-- **0.4 Verify** — full monorepo gate, open PR, **stop for explicit merge confirmation.**
+  constructor params; new `FileSource` type (`{blob: Blob} | {path: string; mimeType: string}`);
+  `publishEntry`/`updateEntry`/`updateUserSettings` file params switch to it. `multipartImpl`
+  returns raw transport parts, not a pre-parsed envelope — `b-api` keeps error-code semantics
+  centralized (see the Phase 0.3 `AGENT_LOG.md` entry for the reasoning).
+- **0.4 Verify** — full monorepo gate, PR opened, explicit merge confirmation obtained, merged,
+  pulled into `b-mobile-initial`, re-verified. **Complete.**
+
+Full detail (including two TypeScript/build gotchas worth knowing before Phase 3) is in
+`AGENT_LOG.md`'s 2026-08-03/04 entries.
 
 ### Phases 1–11 — `b-mobile` itself (this branch, `b-mobile-initial`)
 
@@ -117,10 +127,13 @@ Phases 7+ are sequenced but will get more detailed sub-planning here as I reach 
 
 ## Architecture decisions of note (beyond what's already in `ImplementationSpec/`)
 
-- `--color-danger` added to `b-tokens`' base palette (see audit point 2).
-- `MultipartFileRef` shape (b-api, Phase 0.3): `{ fieldName, filename, mimeType } & ({ blob: Blob
-  } | { path: string })`. Web default impl only handles `blob`; a Capacitor `multipartImpl`
-  handles both by delegating entirely (it decides how to build the body).
+- `--color-danger` added to `b-visual`'s base palette (see audit point 2).
+- `FileSource` shape (b-api, Phase 0.3): `{blob: Blob} | {path: string; mimeType: string}`, used
+  as the type of `mutateMultipart`'s file-field value. Web default impl only handles `blob`
+  (throws on `path` — nothing to read a filesystem path from in a browser); a configured
+  `multipartImpl` handles both by delegating entirely (fields + file ref + method + URL in,
+  `{status, headers?, body}` out — `b-api` still does the envelope parsing and error-code
+  mapping, identically to the default fetch path).
 
 ## Full plan file
 

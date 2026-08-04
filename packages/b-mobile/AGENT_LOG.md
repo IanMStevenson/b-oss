@@ -27,6 +27,7 @@ specs get read when that screen's phase starts.
 Audited the current `b-oss` codebase against `app-architecture.md` §2/§21's claims about what
 needs to change, since the spec's assumptions about blast radius needed checking against the real
 tree rather than trusted blind:
+
 - `b-api`: confirmed `BlipfotoClient`'s constructor is positional
   (`accessToken, baseUrl = ...`), `request`/`mutate`/`mutateMultipart` all call
   `globalThis.fetch` directly with no injection point. Confirmed `publishEntry`/`updateEntry`/
@@ -137,7 +138,7 @@ pulled in cross-package from `b-view`'s source (not for `b-view`'s own standalon
 not for `b-ark-ui-electron`/`b-ark-ui-chrome`, which import the same files but have no local
 `css.d.ts` of their own). Root cause: `b-view-backup`'s local file declared `*.css` only; the
 root `types/globals.d.ts` already declares both `*.css` and `*.module.css` for the whole repo.
-A file literally named `X.module.css` matches *both* wildcard patterns, and having a *second*,
+A file literally named `X.module.css` matches _both_ wildcard patterns, and having a _second_,
 narrower-but-still-matching `*.css` declaration local to the consuming package appears to
 confuse TypeScript's specificity ranking for module resolution originating outside that
 package's `rootDir` — it fell back to unioning in `undefined`. Tried and ruled out first:
@@ -145,7 +146,7 @@ package's `rootDir` — it fell back to unioning in `undefined`. Tried and ruled
 composite chain — none of those were it. Fix: **delete the redundant local `css.d.ts`**; the root
 one already covers any package with no `.module.css` files of its own. If a future package
 (`b-mobile` included) needs its own `*.module.css` declaration because it has real CSS Modules,
-that's fine and matches `b-view`'s pattern — the bug is specifically from a *narrower duplicate*
+that's fine and matches `b-view`'s pattern — the bug is specifically from a _narrower duplicate_
 of a pattern the root file already covers, not from having ambient CSS declarations per se.
 
 Also caught and fixed mid-flight: an accidental `git checkout --` on `HomeScreen.tsx` (run while
@@ -224,3 +225,36 @@ origin/main` (or rebase) into `b-mobile-initial` before touching `b-view`, per t
 proceed to Phase 1. If still open: do not merge it unilaterally — surface its status and wait.
 Once merged, also consider (per CLAUDE.md) removing the `../b-oss-b-mobile-prereqs` worktree,
 since whichever agent created a worktree is responsible for cleaning it up once its PR merges.
+
+## 2026-08-04 — Phase 0 merged; **Phase 0 fully complete**
+
+Between the last entry and this session, a `b-tokens` → `b-visual` rename landed in the prereqs
+worktree (package renamed throughout: directory, `package.json` name, `b-view`'s dependency and
+`tokens.css` re-export, the SPA's `main.tsx` import, root `typecheck` script). Verified it —
+full monorepo `typecheck && lint && test && build` green, 226 tests — committed
+(`refactor(b-tokens): rename package to b-visual`) and pushed to `b-mobile-prereqs`, updating
+PR #62 in place.
+
+User confirmed: merge. Checked `gh pr checks 62` first (both `CLAAssistant` and `ci` passing),
+then `gh pr merge 62 --merge --delete-branch=false` — merged as `2ca0dda`. Kept the remote branch
+(didn't pass `--delete-branch`) since the local worktree still points at it; cleanup is a
+separate, explicit step per CLAUDE.md, not implied by the merge.
+
+Pulled into `b-mobile-initial`: `git fetch origin && git merge origin/main --no-edit` — clean
+merge, no conflicts (50 files). Ran `npm install` + full verify (`typecheck && lint && test`) in
+this worktree post-merge to confirm the merge itself didn't introduce anything broken — green,
+226 tests. Pushed.
+
+**Phase 0 is done, everywhere.** `b-view`/`b-view-backup` split, `b-tokens`→`b-visual` (now the
+canonical name — update any mental model or future references accordingly, `b-tokens` no longer
+exists), and the `b-api` transport/multipart seams are all on `main` and in this worktree.
+
+**Housekeeping still open, not yet done**: per CLAUDE.md's "audit branches after a merge"
+guidance, `../b-oss-b-mobile-prereqs` (worktree + local/remote `b-mobile-prereqs` branch) should
+be cleaned up now that its PR is merged — asking the user first rather than deleting unprompted,
+per the standing rule on destructive actions. Also should sanity-check for any other
+fully-merged branches lying around while I'm looking.
+
+**Next:** once worktree cleanup is settled, start **Phase 1** — the `b-mobile` package skeleton
+— on `b-mobile-initial`. This is genuinely new work (first `b-mobile` app code), not a
+prerequisite refactor, so no more PRs against `main` until much later, per the plan.
