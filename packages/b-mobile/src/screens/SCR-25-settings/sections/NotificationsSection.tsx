@@ -7,17 +7,20 @@
 //   - **Master switch** — a token action, not a content write (rules.md), so it's available
 //     regardless of sign-in mode and applies immediately, no Save. Reuses
 //     flows/accountsFlow.ts's changeAccountMode() exactly as SCR-30's own "Turn notifications
-//     on/off" button already does (AccountsScreen.tsx) — same FLW-22 logic, same TODO(Phase 9)
-//     no-op for the actual b-push registration call underneath it.
+//     on/off" button already does (AccountsScreen.tsx) — same FLW-22 logic, now wired to a real
+//     `b-push` registration underneath it (Phase 9).
 //   - **Feed / Push toggle groups** — server-backed (`user/settings/notifications`), Save/Cancel
 //     like General/Journal/Profile-username. The push group only renders when the master switch
 //     is on (spec: "not shown-disabled, not present at all"). Event keys are whatever the server
 //     returns (`NotificationChannel.settings`, a plain `Record<string, 0|1>` — b-api defines no
-//     fixed list, see data/settings.ts's header comment), humanised for display.
-//   - **Advanced polling interval** — local only (devicePrefsStore), collapsed by default, floor
-//     of 5 minutes enforced client-side. There is no live notification-service registration to
-//     PATCH yet (no `b-push` package exists in this repo — Phase 9's job), so this control has no
-//     server effect today; it's stored ready for Phase 9 to read when it wires the real call.
+//     fixed list, see data/settings.ts's header comment), humanised for display. A successful save
+//     also pings b-push's `refresh-preferences` (FLW-17 step 4) — best-effort, no retry, per
+//     notification-service.md.
+//   - **Advanced polling interval** — persisted locally (devicePrefsStore, floor of 5 minutes
+//     client-side) and, once this account has a live `b-push` registration, also PATCHed there
+//     (the server enforces the same floor regardless of what's sent). Without a registration yet
+//     (master switch never turned on) the control still works, purely locally — there's nothing
+//     to PATCH until one exists.
 
 import { useEffect, useState } from 'react';
 import { IonButton, IonCheckbox, IonSpinner, IonText, IonNote } from '@ionic/react';
@@ -29,6 +32,7 @@ import {
 import { mapApiError } from '../../../data/errors.js';
 import { useActiveAccount } from '../../../state/accountsStore.js';
 import { changeAccountMode } from '../../../flows/accountsFlow.js';
+import { pingRefreshPreferences, updatePollingInterval } from '../../../flows/pushFlow.js';
 import { useDevicePrefsStore } from '../../../state/devicePrefsStore.js';
 
 function humanize(key: string): string {
@@ -86,6 +90,7 @@ export function NotificationsSection() {
   const [advancedOpen, setAdvancedOpen] = useState(false);
   const pollingInterval = useDevicePrefsStore((s) => s.notificationPollingIntervalMinutes);
   const setPollingInterval = useDevicePrefsStore((s) => s.setNotificationPollingIntervalMinutes);
+  const [intervalError, setIntervalError] = useState<string | null>(null);
 
   const masterOn = activeAccount?.hasServiceToken ?? false;
 
@@ -145,7 +150,8 @@ export function NotificationsSection() {
     try {
       await saveNotificationSettings({ ...feed, ...(masterOn ? push : {}) });
       // FLW-17 step 4: a successful save also pings the notification service to refresh its
-      // cached preferences immediately. No live service exists yet (Phase 9) — nothing to call.
+      // cached preferences immediately — best-effort, no retry (notification-service.md).
+      if (activeAccount) void pingRefreshPreferences(activeAccount.id);
       setInitial({
         feed: { configured: 1, settings: feed },
         push: { configured: 1, settings: push },
@@ -164,6 +170,26 @@ export function NotificationsSection() {
     setPush(initial?.push?.settings ?? {});
     setSaveError(null);
     setSaved(false);
+  }
+
+  async function handlePollingIntervalChange(minutes: number): Promise<void> {
+    const previous = pollingInterval;
+    setPollingInterval(minutes); // local, immediate — matches every other local-only prefs field
+    setIntervalError(null);
+    // No live registration yet (master switch never turned on) — the control is still
+    // meaningfully local-only in that state, so there's nothing to PATCH.
+    if (!activeAccount?.notificationRegistrationId) return;
+    try {
+      await updatePollingInterval(activeAccount.id, minutes);
+    } catch (err) {
+      // A genuine PATCH failure against an existing registration is worth showing, so the local
+      // value is rolled back to match. Not mapApiError() here — that maps b-api's own error
+      // shapes (BlipfotoError/NetworkError), not b-push's (data/pushService.ts's PushServiceError).
+      setPollingInterval(previous);
+      setIntervalError(
+        err instanceof Error ? err.message : 'Could not update the polling interval.',
+      );
+    }
   }
 
   return (
@@ -242,11 +268,16 @@ export function NotificationsSection() {
                     min={5}
                     step={5}
                     value={pollingInterval}
-                    onChange={(e) => setPollingInterval(Number(e.target.value))}
+                    onChange={(e) => void handlePollingIntervalChange(Number(e.target.value))}
                     style={{ font: 'inherit', marginLeft: 8, width: 64 }}
                   />
                   minutes
                 </label>
+                {intervalError && (
+                  <IonText color="danger">
+                    <p>{intervalError}</p>
+                  </IonText>
+                )}
               </div>
             )}
           </div>
