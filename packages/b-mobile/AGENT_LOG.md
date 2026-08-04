@@ -255,6 +255,12 @@ be cleaned up now that its PR is merged — asking the user first rather than de
 per the standing rule on destructive actions. Also should sanity-check for any other
 fully-merged branches lying around while I'm looking.
 
-**Next:** once worktree cleanup is settled, start **Phase 1** — the `b-mobile` package skeleton
-— on `b-mobile-initial`. This is genuinely new work (first `b-mobile` app code), not a
-prerequisite refactor, so no more PRs against `main` until much later, per the plan.
+User confirmed worktree cleanup. Removed `../b-oss-b-mobile-prereqs` (`git worktree remove`),
+deleted `b-mobile-prereqs` locally (`git branch -d`) and on `origin` (`git push origin --delete`).
+`git worktree list` now shows only the shared `b-oss` checkout and this worktree — Phase 0's
+worktree footprint is fully cleaned up.
+
+**Next:** start **Phase 1** — the `b-mobile` package skeleton — on `b-mobile-initial`. This is
+genuinely new work (first `b-mobile` app code), not a prerequisite refactor, so no more PRs
+against `main` until much later, per the plan. Proceeding without further check-ins, per the
+user's original instruction, now that the one deliberate gate (Phase 0's merge) has cleared.
