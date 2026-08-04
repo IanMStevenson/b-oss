@@ -45,6 +45,7 @@ function baseDraft(overrides: Partial<ComposeDraft> = {}): ComposeDraft {
       width: 800,
       height: 600,
       createdAt: null,
+      sizeBytes: null,
     },
     title: '',
     tags: '',
@@ -127,7 +128,14 @@ describe('ComposeEntryScreen', () => {
   it('shows an unusable-photo message and offers to choose another, blocking Upload entirely', async () => {
     useComposeDraftStore.setState({
       draft: baseDraft({
-        photo: { webPath: 'x', mimeType: 'image/gif', width: 10, height: 10, createdAt: null },
+        photo: {
+          webPath: 'x',
+          mimeType: 'image/gif',
+          width: 10,
+          height: 10,
+          createdAt: null,
+          sizeBytes: null,
+        },
       }),
     });
     renderScreen();

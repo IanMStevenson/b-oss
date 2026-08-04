@@ -64,7 +64,7 @@ export function ComposeEntryScreen() {
       return;
     }
     if (draft.photo) {
-      const result = validatePickedPhoto(draft.photo);
+      const result = validatePickedPhoto(draft.photo, 'entry');
       if (!result.ok) setUnusablePhoto(result.message);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps

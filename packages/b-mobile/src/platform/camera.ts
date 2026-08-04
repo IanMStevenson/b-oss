@@ -28,6 +28,10 @@ export interface PickedPhoto {
   height: number | null;
   /** ISO 8601, from the photo's own metadata when available — SCR-10's EXIF-date default. */
   createdAt: string | null;
+  /** From the plugin's own MediaMetadata.size (bytes) — not always populated (e.g. some web
+   * fallback paths), so `data/photoValidation.ts`'s max-file-size check treats null as unknown
+   * rather than a rejection. */
+  sizeBytes: number | null;
 }
 
 export class CameraPermissionDeniedError extends Error {
@@ -58,7 +62,7 @@ function parseResolution(resolution: string | undefined): {
 function toPickedPhoto(result: {
   uri?: string;
   webPath?: string;
-  metadata?: { format: string; resolution?: string; creationDate?: string };
+  metadata?: { format: string; resolution?: string; creationDate?: string; size?: number };
 }): PickedPhoto {
   const { width, height } = parseResolution(result.metadata?.resolution);
   return {
@@ -68,6 +72,7 @@ function toPickedPhoto(result: {
     width,
     height,
     createdAt: result.metadata?.creationDate ?? null,
+    sizeBytes: result.metadata?.size ?? null,
   };
 }
 
