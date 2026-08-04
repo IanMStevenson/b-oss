@@ -1409,3 +1409,172 @@ accessibility font-scale pass (smoke-tested as early as Phase 3 per §20, not de
 Also worth picking up early in Phase 10, now that there's a real Android project to test against:
 closing this phase's own documented gap in `platform/http.ts`'s native transport, since real
 on-device testing can't get past the OAuth round without it.
+
+## 2026-08-04 — Phase 10 complete: Android project & platform polish
+
+The `android/` project is now checked into the repo (`npx cap add android`, run once against
+`@capacitor/android@8.5.0` added as a real dependency), matching app-architecture.md §17's "held
+and hand-edited, not generated at build time." SDK levels, application id, and dependency wiring
+all came pre-correct out of `cap add` (`variables.gradle`: minSdk 24, compile/target 36;
+`app/build.gradle`: `io.github.ianmstevenson.bmobile`) — nothing to change there, just to verify.
+
+### Manifest, deep links, and the opt-in web-link alias
+
+`AndroidManifest.xml`: `allowBackup` flipped `true → false` (§8); the four permissions §17's table
+lists (`INTERNET`, `POST_NOTIFICATIONS`, `CAMERA`, `ACCESS_COARSE_LOCATION`/
+`ACCESS_FINE_LOCATION`) added explicitly — deliberately redundant with what
+`@capacitor/local-notifications`'s own plugin manifest already contributes via Gradle's manifest
+merger, since app-architecture.md's own table is the source of truth to satisfy, not an assumption
+that a transitive plugin manifest will keep covering it. No storage permission, no
+`SCHEDULE_EXACT_ALARM`/`USE_EXACT_ALARM`, exactly as §17 requires.
+
+Three intent filters added to `MainActivity`: the launcher (untouched), one `VIEW`/`BROWSABLE`
+filter for `bmobile://` with no host restriction (deliberately — `bmobile://oauth/`,
+`bmobile://entry/:id`, `bmobile://user/:username` all share one scheme per §16's "one scheme, two
+path namespaces," so the Android filter only needs to match the scheme; `flows/deepLinkResolver.ts`
+already does the path-level dispatch), and a `SEND`/`image/*` filter for FLW-12's share-to-Blipfoto
+path. `android:launchMode="singleTask"` was already present from the `cap add` template — required
+for deep links to land in the existing instance via `onNewIntent` rather than spawning a second one.
+
+**The opt-in `<activity-alias>`** (§16) is declared disabled (`android:enabled="false"`),
+`exported="true"`, carrying a `VIEW`/`BROWSABLE` filter for `https://www.blipfoto.com` with
+deliberately no `android:autoVerify` — exactly as the spec requires, since App Links would need
+`assetlinks.json` hosted on blipfoto.com, which isn't ours to place. **A new local, single-project
+plugin (`android/app/.../BlipfotoLinksPlugin.java`, not an npm package) is what finally gives
+`devicePrefsStore.openBlipfotoLinksInApp` (persisted with zero native effect since Phase 8) a real
+effect**: `setEnabled({enabled})` calls `PackageManager.setComponentEnabledSetting()` on the alias's
+`ComponentName`. Registered in `MainActivity.onCreate()` before `super.onCreate()`, per Capacitor's
+own convention for local plugins. Wired from `platform/blipfotoLinks.ts` (no-op off native, same
+stance every other `platform/*.ts` module takes) into `devicePrefsStore.ts` at both write time
+(`setOpenBlipfotoLinksInApp`) and **hydrate time** — the latter matters because a fresh install
+always starts with the alias disabled regardless of what a restored/synced `b-ark-settings.json`
+folder says the toggle should be, so `hydrate()` re-syncs the native side from the persisted value
+on every launch rather than only reacting to the next explicit toggle.
+
+### Notification channels
+
+Four channels (`activity`, `system_alerts`, `reminders`, `uploads`) created idempotently in
+`MainActivity.onCreate()`, API 26+ guarded — §17's "so users can tune them in system settings," no
+custom `FirebaseMessagingService` per §11's already-made decision. Wiring them to something real
+touched two other files: `platform/localNotifications.ts`'s daily-reminder schedule now sets
+`channelId: 'reminders'`, and **`b-push`'s `fcm.ts` now sets `android.notification.channel_id`
+explicitly on every FCM v1 send** (`'system_alerts'` for `reauth-required`, `'activity'` for
+everything else) — a small cross-package change, but the only way the channel split has any real
+effect, since a notification message with no explicit channel silently falls back to Android's
+default channel regardless of what channels exist. A `default_notification_channel_id` meta-data
+pointing at `activity` was added as a safety net for that fallback case, not the primary mechanism.
+No channel is wired to `uploads` yet — no app-built upload-progress notification exists anywhere in
+this app (unchanged from earlier phases' own findings), so it's created and ready but unused,
+matching the same "infrastructure ahead of full usage" pattern `openBlipfotoLinksInApp` itself was
+in before this phase.
+
+### Icons and splash
+
+Generated via `@capacitor/assets@3.0.5`, run through `npx` and **deliberately not added as a
+project dependency** — a first attempt at `npm install --save-dev` pulled in a large, dated
+transitive tree (10 vulnerabilities, one critical, plus a `sharp` native build) for what is a
+one-off asset-generation step; uninstalled immediately once that became clear, and
+`scripts/generate-android-assets.sh` (new, mirrors `scripts/make-icns.sh`'s precedent of a
+manually-run, non-build-time asset script) now runs it via `npx` instead, matching the same
+"fetched on demand, never a committed dependency" treatment `b-push`'s own scope boundary gave
+`wrangler`. Master source is the same 1024×1024 PNG (`assets/icons/icon.iconset/
+icon_512x512@2x.png`) every other platform's icon already derives from.
+
+**The tool's default adaptive-icon background is plain white**, which doesn't match the green
+(`#1f4d3a`) background baked into that master PNG (and used by `icon.ico`/`icon.icns`/the tray
+icons) — `--iconBackgroundColor`/`--iconBackgroundColorDark '#1f4d3a'` closes that gap; the splash
+screen got the same treatment (`--splashBackgroundColor '#1f4d3a'`, a slightly darker
+`--splashBackgroundColorDark '#0f2e21'` for the night variant). Checked visually (rendered PNGs,
+not assumed from the generator's log output) before and after adding those flags — the default
+render genuinely was a green rounded-square icon floating on a stark white background, corrected to
+a seamless green field once the background color matched. `packages/b-mobile/assets/` (the tool's
+staging input directory) is gitignored, matching `packages/b-ark/resources/`'s existing precedent;
+the generated `android/app/src/main/res/{mipmap,drawable}-*/*` output is committed, since that's
+what §17 actually requires living in the repo.
+
+### `platform/http.ts` — closing the Phase 1 gap
+
+The native `CapacitorHttp` path flagged as missing since Phase 1 (and reconfirmed as a blocker in
+Phases 2, 8, and 9's own entries) is now implemented. Three choices worth recording:
+
+1. **`responseType: 'text'` is forced on every native request, unconditionally.** Every real caller
+   (`data/client.ts`'s `b-api` requests, `data/pushService.ts`'s `b-push` calls) only ever reads
+   the result via `response.text()` then its own `JSON.parse` — never `.json()`. Left unset,
+   CapacitorHttp auto-parses an `application/json` response into `data` as an object, which would
+   then need re-`JSON.stringify`-ing to satisfy `Response.text()`'s contract — an unnecessary
+   round trip, and a place a subtle bug (e.g. number precision) could hide for no benefit.
+2. **A real `Response` is constructed from the native result**, not a hand-rolled duck-typed
+   object — `new Response(data, {status, headers})`. This matters for one line already in `b-api`:
+   `updateRateLimit()`'s `headers instanceof Headers` check, added defensively (per its own
+   comment) for "a native transport['s] headers map [that] isn't guaranteed to preserve casing."
+   Using the real `Response` constructor means that branch is always true and the header lookup
+   always works, rather than silently falling into the plain-object fallback path.
+3. **Body serialization is an explicit, narrow allow-list, not `String(body)`.** Every real call
+   site only ever passes `undefined`, a `URLSearchParams` (`b-api`'s form-urlencoded `mutate()`),
+   or an already-`JSON.stringify`'d string (`data/pushService.ts`) — never `FormData`/`Blob`
+   (those go through the separate multipart seam, `platform/upload.ts`, precisely because
+   CapacitorHttp mishandles `FormData`). A blanket `String(body)` would also satisfy
+   `@typescript-eslint/no-base-to-string`'s complaint by accident for the two types that matter,
+   but silently produce `"[object Object]"` for anything else; an explicit `typeof`/`instanceof`
+   check with a thrown error for anything else was chosen instead, on the theory that a body type
+   this function doesn't know how to serialize should fail loudly, not send garbage.
+
+Five new direct unit tests (`platform/__tests__/http.test.ts`) — this is one of the few
+`platform/*.ts` modules exercised directly rather than only through a mocked consumer (the same
+choice `mapTiles.test.ts` made for pure logic), because this was a real, previously-unimplemented
+gap rather than a thin wrapper.
+
+### Accessibility font-scale pass
+
+A second local plugin, `AccessibilityPlugin.java` (`getFontScale()` → `Resources.getConfiguration()
+.fontScale`), backs `platform/accessibility.ts#applyFontScale()`, called once from `AppShell.tsx`'s
+existing mount effect (alongside the other store-hydration calls). Sets
+`document.documentElement.style.fontSize` to `16 * fontScale` px — every `rem`-based size in
+`b-visual`'s `tokens.css` and this app's own screens scales off that root value, so one write at
+launch is enough for the whole app, not a per-component change. No-op on web/off-native, matching
+the stance every other `platform/*.ts` module takes (desktop browsers already honour the OS/browser
+text-size preference on their own; applying a second multiplier there would double-scale).
+
+**A real, if small, violation found while auditing for this**: two inline `style={{fontSize: 12}}`
+usages (`MonthDatePicker.tsx`'s weekday labels, `RefusedFollowersScreen.tsx`'s "also hidden" note)
+set an absolute pixel size that the root multiplier can't reach, defeating §20's "layouts must be
+built in relative units" for those two spots specifically. Fixed to `'0.75rem'` (the equivalent at
+the 16px base). A repo-wide grep for `font-size:` in `.css` files found none in px (everything
+already relative or unset), so this was a small, contained fix, not a wholesale pass — consistent
+with §20's own framing that this is meant to be checked early and incrementally, not swept in one
+pass at the end.
+
+### Verification
+
+**No real device or emulator is available in this sandbox** (same constraint noted for headless
+browser testing since Phase 0) — `./gradlew assembleDebug`, run for real against the SDK already
+present on this machine (`~/Android/Sdk`, platform 36, build-tools 35.0.0 — AGP tolerated the
+build-tools/compileSdk mismatch without complaint), is the closest available substitute: 400 real
+Gradle tasks executed, a real `app-debug.apk` produced, confirming the manifest XML, both new Java
+plugins, and the generated resources all actually compile and package together — not just that the
+TypeScript/JSON pieces are internally consistent. This is **not** equivalent to §19 layer 3's
+on-device checklist (OAuth redirect, multipart upload, push delivery, reminder timing) — none of
+that is exercisable without a real device, and remains genuinely untested end-to-end, same as every
+prior phase's own honest accounting of this gap.
+
+Full monorepo `typecheck && lint && test && build` green; `npm test` run twice consecutively at
+661/661 (8 new: 5 for `platform/http.ts`, 2 for `platform/accessibility.ts`, 1 for `b-push`'s new
+channel routing), up from 653 at the end of Phase 9, zero flakiness. `npm run build`'s chunk-size
+output unchanged from Phase 9 — no new runtime dependency was added to `b-mobile` itself
+(`@capacitor/android` is Android-native tooling, never bundled into the web JS output; the
+`@capacitor/assets` devDependency detour was fully reverted, not left in `package.json`).
+
+### Open items carried forward
+
+Same as RESUME.md's "Open decisions / blockers" before this phase, unchanged by it: no real
+`VITE_BLIPFOTO_CLIENT_ID`/`VITE_MAP_TILES_KEY`/`VITE_NOTIFY_SERVICE_URL`/
+`VITE_NOTIFY_REGISTRATION_SECRET`, no deployed `b-push`, no `google-services.json` (the
+`app/build.gradle` template already conditionally skips the `google-services` Gradle plugin when
+that file is absent, so its absence doesn't break this phase's build — confirmed by the green
+`assembleDebug` above, not assumed), and no Android signing keys. All expected at this stage, all
+still outside this phase's scope to manufacture.
+
+**Next:** Phase 11 — Testing hardening, per `PLAN.md`'s phase list: sweep for missing four-state
+screen tests, pure-logic coverage gaps, and (finally possible, now that a real `android/` project
+and a real APK exist) an actual attempt at the manual §19 layer-3 on-device checklist if a device or
+emulator becomes available in a future session — this sandbox still has neither.
