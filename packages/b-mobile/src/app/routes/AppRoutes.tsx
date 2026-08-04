@@ -17,10 +17,24 @@ import { TagEntriesScreen } from '../../screens/SCR-05-tag-entries/TagEntriesScr
 import { EntryDetailScreen } from '../../screens/SCR-06-entry-detail/EntryDetailScreen.js';
 import { PhotoScreen } from '../../screens/SCR-07-full-screen-photo/PhotoScreen.js';
 import { EntryMetadataScreen } from '../../screens/SCR-08-entry-metadata/EntryMetadataScreen.js';
+import { NewCommentScreen } from '../../screens/SCR-15-new-comment/NewCommentScreen.js';
+import { ReportEntryScreen } from '../../screens/SCR-16-report-entry/ReportEntryScreen.js';
+import { HiddenMembersScreen } from '../../screens/SCR-31-hidden-members/HiddenMembersScreen.js';
 import { WriteGuardRoute } from './WriteGuardRoute.js';
 
 function placeholder(screenId: string, title: string) {
   return () => <ScreenPlaceholder screenId={screenId} title={title} />;
+}
+
+interface CommentRouteState {
+  replyToCommentId?: string;
+  editCommentId?: string;
+  editInitialContent?: string;
+}
+
+interface ReportRouteState {
+  targetUsername?: string;
+  reportedComment?: { username: string; excerpt: string };
 }
 
 export function AppRoutes() {
@@ -65,12 +79,31 @@ export function AppRoutes() {
       <WriteGuardRoute
         exact
         path="/entry/:entryId/comment"
-        render={placeholder('SCR-15', 'New Comment')}
+        render={({ match, location }) => {
+          const state = (location.state ?? {}) as CommentRouteState;
+          return (
+            <NewCommentScreen
+              entryId={match.params.entryId as string}
+              replyToCommentId={state.replyToCommentId}
+              editCommentId={state.editCommentId}
+              editInitialContent={state.editInitialContent}
+            />
+          );
+        }}
       />
       <WriteGuardRoute
         exact
         path="/entry/:entryId/report"
-        render={placeholder('SCR-16', 'Report Entry')}
+        render={({ match, location }) => {
+          const state = (location.state ?? {}) as ReportRouteState;
+          return (
+            <ReportEntryScreen
+              entryId={match.params.entryId as string}
+              targetUsername={state.targetUsername}
+              reportedComment={state.reportedComment}
+            />
+          );
+        }}
       />
       <WriteGuardRoute exact path="/compose" render={placeholder('SCR-09', 'New Entry')} />
       <Route exact path="/compose/details" render={placeholder('SCR-10', 'Compose Details')} />
@@ -95,7 +128,7 @@ export function AppRoutes() {
       <Route exact path="/settings/:section" render={placeholder('SCR-25', 'Settings')} />
       <Route exact path="/help" render={placeholder('SCR-29', 'Help & Info')} />
       <Route exact path="/accounts" component={AccountsScreen} />
-      <Route exact path="/hidden" render={placeholder('SCR-31', 'Hidden Members')} />
+      <Route exact path="/hidden" component={HiddenMembersScreen} />
       <Route exact path="/sign-in" component={SignInScreen} />
       <Redirect exact from="/" to="/browse" />
     </Switch>

@@ -41,7 +41,7 @@ function metadataFields(exif: NonNullable<BlipEntry['exif']>): Array<[string, st
 }
 
 export function EntryMetadataScreen({ entryId }: EntryMetadataScreenProps) {
-  const { entryState, retry } = useLiveEntry(entryId);
+  const { entryState, reload } = useLiveEntry(entryId);
 
   return (
     <IonPage>
@@ -65,7 +65,7 @@ export function EntryMetadataScreen({ entryId }: EntryMetadataScreenProps) {
             <IonText color="danger">
               <p>{entryState.message}</p>
             </IonText>
-            <IonButton onClick={retry}>Retry</IonButton>
+            <IonButton onClick={reload}>Retry</IonButton>
           </div>
         )}
 

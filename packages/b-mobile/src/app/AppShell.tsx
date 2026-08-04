@@ -91,6 +91,13 @@ function NavMenu() {
               <IonLabel>Accounts</IonLabel>
             </IonItem>
           </IonMenuToggle>
+          {activeAccount && (
+            <IonMenuToggle autoHide={false}>
+              <IonItem routerLink="/hidden">
+                <IonLabel>Hidden members</IonLabel>
+              </IonItem>
+            </IonMenuToggle>
+          )}
           {!activeAccount && (
             <IonMenuToggle autoHide={false}>
               <IonItem routerLink="/sign-in">

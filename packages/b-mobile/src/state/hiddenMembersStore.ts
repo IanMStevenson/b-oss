@@ -65,12 +65,19 @@ export const useHiddenMembersStore = create<HiddenMembersState>((set, get) => ({
   },
 }));
 
+// A stable empty-array reference: useSyncExternalStore (which Zustand's hook is built on) treats
+// each selector call as returning a new snapshot if the reference differs, even for two
+// "equally empty" arrays — returning a fresh `[]` on every call is exactly the "getSnapshot
+// should be cached" infinite-loop trap. Falling back to this one shared instance instead keeps
+// the snapshot referentially stable across renders when there's genuinely nothing hidden.
+const EMPTY_HIDDEN: string[] = [];
+
 /** The active account's hidden list. Empty (never hidden) when signed out — hiding is account-
  * scoped and an anonymous session has no account to scope it to. */
 export function useHiddenMembers(): string[] {
   const activeAccountId = useAccountsStore((s) => s.activeAccountId);
   return useHiddenMembersStore((s) =>
-    activeAccountId ? (s.hiddenByAccount[activeAccountId] ?? []) : [],
+    activeAccountId ? (s.hiddenByAccount[activeAccountId] ?? EMPTY_HIDDEN) : EMPTY_HIDDEN,
   );
 }
 
