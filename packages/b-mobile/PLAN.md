@@ -235,10 +235,25 @@ avatar: {blob}})`); biography editing resolved a TODO Phase 7 planted specifical
    `b-push` dependency for either), leaving only the Advanced polling-interval control local-only
    pending Phase 9's live registration. Full detail, including the `IonLabel`-children jsdom gotcha
    reproduced firsthand on two new screens, in `AGENT_LOG.md`'s Phase 8 entry.
-9. **Notifications: `b-push` + client** — `SCR-23/24`, `FLW-15/16`. New peer package `b-push`
-   (Cloudflare Worker + D1, counts-only polling, registration contract, `reauth-required`).
-   App side: `platform/push.ts`, permission-before-auth sequencing, the two inboxes' asymmetric
-   hidden-member suppression, first-page-unread-snapshot trap.
+9. **Notifications: `b-push` + client — DONE.** `SCR-23/24`, `FLW-15/16`. New peer package
+   `b-push` (`packages/b-push`, Cloudflare Worker + D1): counts-only 1-minute activity poll,
+   hourly preference refresh, the full registration contract (`POST`/`PATCH`/`DELETE`/`GET`/
+   `refresh-preferences`), FCM HTTP v1 push (Web Crypto JWT signing, no SDK), `reauth-required`.
+   Zero runtime npm dependencies beyond `@b-oss/b-api` (reused for the two Blipfoto calls it's
+   allowed to make); tested against a real in-memory SQLite database (`node:sqlite`), not a
+   hand-rolled fake or miniflare — never deployed, per the phase's explicit scope boundary. App
+   side: real `platform/push.ts`, `flows/pushFlow.ts` (registration lifecycle, permission-before-
+   auth sequencing, launch backstop, FCM-token-rotation handling), real `SCR-23`/`SCR-24` with
+   asymmetric hidden-member suppression (best-effort href-parsing vs. exact structural filtering)
+   and the first-page-unread-snapshot pattern, `flows/accountsFlow.ts`'s five `TODO(Phase 9)`
+   markers replaced with real calls, `SCR-25`'s Advanced polling-interval control wired to a live
+   `PATCH`. Found and fixed two real bugs during this phase (see AGENT_LOG.md's Phase 9 entry):
+   `changeAccountMode`'s notifications-on branch would have re-POSTed (creating a new zombie
+   registration) on every idempotent call; the hourly prefs-refresh cron would have marked a dead
+   token `read-token-invalid` and made it invisible to the 1-minute activity poll that's actually
+   supposed to raise the reauth-required alert. Also documented, not fixed (out of this phase's
+   scope): `platform/http.ts`'s native `CapacitorHttp` transport is still an unimplemented stub
+   left over from Phase 1 — every native GET, not just this phase's, would throw on a real device.
 10. **Android project & platform polish** — `android/` checked in, manifest/permissions,
     activity-alias wiring, notification channels, adaptive icon/splash, SDK levels. Accessibility
     font-scale pass (smoke-tested as early as Phase 3, not deferred entirely).
@@ -285,6 +300,45 @@ notifications`, a real `b-api` endpoint with no `b-push` dependency) were built 
   §16's native mechanism describe the same toggle from the UI side and the native side
   respectively. The boolean is persisted now; it has no native effect until Phase 10 checks in an
   `android/` project (none exists yet) to hold the actual `<activity-alias>` manifest entry.
+- **`b-push` reuses `@b-oss/b-api`'s `BlipfotoClient` rather than a second hand-rolled HTTP
+  client** (Phase 9) — `b-api` has zero Node/Electron/browser-specific dependencies (just fetch/
+  URL/URLSearchParams, all Worker globals too), so it's exactly as safe to import from a
+  Cloudflare Worker as from `b-mobile`. Reusing it keeps envelope parsing and error-code semantics
+  (`BlipfotoError.isTokenInvalid`) identical between the two rather than risking drift.
+- **`b-push`'s D1 access is typed against a small hand-rolled `DbLike` interface, not the full
+  `@cloudflare/workers-types` `D1Database`** (Phase 9, `packages/b-push/src/db.ts`) — every
+  business-logic function takes only `{prepare(query): {bind, first, run, all}}`. A real
+  `D1Database` satisfies this structurally with no cast (it has strictly more methods); tests pass
+  a `node:sqlite`-backed fake satisfying the same minimal shape, exercising `src/schema.sql`'s
+  real SQL rather than a second, parallel re-implementation of what it says.
+- **`b-push`'s registration row is seeded with the account's _current_ unread totals and push-
+  configured flag at `POST` time** (Phase 9, `routes/registrations.ts#createRegistration`) — not
+  in notification-service.md's own prose, but a one-off extra call at registration time (using the
+  read token the request already carries) avoids a false-positive "N new comments" push on the
+  very first activity-poll tick for pre-existing unread items the user already knew about.
+- **`b-push`'s hourly prefs-refresh cron never itself marks a registration `read-token-invalid`**
+  (Phase 9, `prefsRefresh.ts`) — only the 1-minute activity poll does, since that's the only tick
+  that also sends the `reauth-required` push. If the hourly job flipped the status on a dead
+  token, the next activity-poll tick's `listDueRegistrations` (which only selects `status =
+'active'`) would silently skip the row forever, so the reauth-required alert would never fire.
+- **`data/pushService.ts`'s push-event gating is coarse (the `push` channel's on/off flag only),
+  not per-event-type** (Phase 9) — a push from this service is a bare count delta with no event
+  type attached (notification-service.md), and `NotificationChannel.settings`'s per-event keys are
+  server-defined with no fixed list (Phase 8's finding), so there's no reliable way to map an
+  aggregated stream total back onto one specific key. Precision the underlying signal can't
+  support wasn't attempted.
+- **`flows/accountsFlow.ts`'s notification-enabling branches now check push permission _before_
+  any interactive OAuth round for the service token** (Phase 9, `signInDeliberate`/
+  `changeAccountMode`) — rules.md's "never authorize something already known to be undeliverable."
+  A refusal skips the whole notifications branch, including a second sign-in step that would
+  otherwise run for nothing.
+- **A real, pre-existing gap found (not fixed) in Phase 9: `platform/http.ts`'s native
+  `CapacitorHttp` transport is still `platform/http.ts: not implemented until Phase 2`**, verbatim
+  from the Phase 1 skeleton — every native GET request (not just this phase's `b-push` calls)
+  would throw on a real device. No later phase closed it despite Phases 3–8 building real
+  device-facing data-fetching screens. Out of Phase 9's scope (unrelated to notifications, and a
+  foundational file too risky to touch as a side effect) — documented here so it isn't
+  re-discovered from scratch; whichever phase does real on-device testing needs to close it first.
 
 ## Full plan file
 
