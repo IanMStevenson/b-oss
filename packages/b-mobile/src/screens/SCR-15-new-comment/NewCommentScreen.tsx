@@ -8,9 +8,9 @@
 //
 // A plain native <textarea> (with a ref), not IonTextarea: the formatting toolbar needs real
 // cursor/selection access to wrap the selected text in a BBCode tag pair, which means reaching
-// past Ionic's shadow-DOM wrapper — a plain textarea gives that directly. TODO(Phase 7, SCR-11):
-// this toolbar is the "shared behaviour with SCR-11" the spec calls for; when the full Description
-// Editor is built, factor the shared parts out rather than duplicating.
+// past Ionic's shadow-DOM wrapper — a plain textarea gives that directly. The toolbar itself is
+// components/BBCodeToolbar.tsx (Phase 7), shared with SCR-11 — comments exclude the link tag
+// (§14: link creation is gated per account server-side; SCR-11's entry descriptions still show it).
 
 import { useRef, useState } from 'react';
 import {
@@ -28,6 +28,7 @@ import { useAppNavigate } from '../../app/routes/useAppNavigate.js';
 import { postComment, editComment } from '../../flows/commentsFlow.js';
 import { mapApiError } from '../../data/errors.js';
 import { BBCODE_TAGS } from '../../data/bbcode.js';
+import { BBCodeToolbar } from '../../components/BBCodeToolbar.js';
 
 interface NewCommentScreenProps {
   entryId: string;
@@ -37,24 +38,6 @@ interface NewCommentScreenProps {
 }
 
 const TOOLBAR_TAGS = BBCODE_TAGS.filter((tag) => tag !== 'url');
-
-function wrapSelection(
-  textarea: HTMLTextAreaElement,
-  tag: string,
-  setValue: (value: string) => void,
-): void {
-  const { selectionStart, selectionEnd, value } = textarea;
-  const before = value.slice(0, selectionStart);
-  const selected = value.slice(selectionStart, selectionEnd);
-  const after = value.slice(selectionEnd);
-  const next = `${before}[${tag}]${selected}[/${tag}]${after}`;
-  setValue(next);
-  const cursor = selectionStart + tag.length + 2 + selected.length;
-  requestAnimationFrame(() => {
-    textarea.focus();
-    textarea.setSelectionRange(cursor, cursor);
-  });
-}
 
 export function NewCommentScreen({
   entryId,
@@ -121,20 +104,7 @@ export function NewCommentScreen({
             <p>{error}</p>
           </IonText>
         )}
-        <div style={{ display: 'flex', gap: 4, marginBottom: 8 }}>
-          {TOOLBAR_TAGS.map((tag) => (
-            <IonButton
-              key={tag}
-              size="small"
-              fill="outline"
-              onClick={() => {
-                if (textareaRef.current) wrapSelection(textareaRef.current, tag, setContent);
-              }}
-            >
-              {tag.toUpperCase()}
-            </IonButton>
-          ))}
-        </div>
+        <BBCodeToolbar tags={TOOLBAR_TAGS} textareaRef={textareaRef} onChange={setContent} />
         <textarea
           ref={textareaRef}
           value={content}

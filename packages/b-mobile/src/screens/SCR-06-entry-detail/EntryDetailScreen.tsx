@@ -14,9 +14,14 @@
 // deliberately narrow. All four write actions hide entirely (not just disable) for a signed-in,
 // read-only account; an anonymous tap routes through FLW-01 first, then resumes.
 //
-// TODO(Phase 5+/7): owner-only edit/delete of the entry itself, and share. TODO(TODO F/G): 104
-// (protected)/202 (unavailable) get their own copy-deck messages once that work lands — for now
-// the server's own error message shows as-is.
+// FLW-13 (Phase 7): Edit details / Replace photo / Delete, owner-only AND only read-write (a
+// read-only owner never sees these — ownership doesn't imply write access, per rules.md). Edit/
+// Replace-photo push to SCR-13 (which itself sits behind WriteGuardRoute as a second, redundant-
+// by-design gate — the same "never trust one call site" posture WriteGuardRoute exists for at
+// all); Delete never routes through SCR-13 at all (FLW-13's own diagram: confirm+delete happens
+// directly from this overflow menu), so it's implemented right here.
+// TODO(TODO F/G): 104 (protected)/202 (unavailable) get their own copy-deck messages once that
+// work lands — for now the server's own error message shows as-is.
 
 import { useEffect, useState } from 'react';
 import {
@@ -38,7 +43,7 @@ import { useLiveEntry } from '../../data/useLiveEntry.js';
 import { CachedImage } from '../../components/CachedImage.js';
 import { BBCodeText } from '../../components/BBCodeText.js';
 import { useAppNavigate } from '../../app/routes/useAppNavigate.js';
-import { useAccountsStore, useActiveAccount } from '../../state/accountsStore.js';
+import { useAccountsStore, useActiveAccount, useCanWrite } from '../../state/accountsStore.js';
 import { signInGated } from '../../flows/accountsFlow.js';
 import { useAccountConfirmGate } from '../../flows/useAccountConfirmGate.js';
 import {
@@ -49,6 +54,7 @@ import {
   FavoriteQuotaError,
 } from '../../flows/reactionsFlow.js';
 import { deleteComment } from '../../flows/commentsFlow.js';
+import { deleteEntry } from '../../data/entries.js';
 import { useHiddenMembersStore, useIsHidden } from '../../state/hiddenMembersStore.js';
 import { mapApiError } from '../../data/errors.js';
 import type { BlipComment as ApiComment } from '@b-oss/b-api';
@@ -125,6 +131,7 @@ interface ReactionOverlay {
 export function EntryDetailScreen({ entryId }: EntryDetailScreenProps) {
   const navigate = useAppNavigate();
   const activeAccount = useActiveAccount();
+  const canWrite = useCanWrite();
   const { confirmAccount, dialog: accountConfirmDialog } = useAccountConfirmGate();
   const {
     entryState,
@@ -145,6 +152,8 @@ export function EntryDetailScreen({ entryId }: EntryDetailScreenProps) {
   const [confirmHide, setConfirmHide] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<ApiComment | null>(null);
   const [overflowOpen, setOverflowOpen] = useState(false);
+  const [confirmDeleteEntry, setConfirmDeleteEntry] = useState(false);
+  const [deletingEntry, setDeletingEntry] = useState(false);
 
   const authorUsername = entryState.status === 'loaded' ? entryState.data.username : null;
   const isOwnEntry = authorUsername !== null && authorUsername === activeAccount?.username;
@@ -336,6 +345,21 @@ export function EntryDetailScreen({ entryId }: EntryDetailScreenProps) {
     useHiddenMembersStore.getState().hide(account.activeAccountId, authorUsername);
   }
 
+  async function handleConfirmedDeleteEntry(): Promise<void> {
+    setConfirmDeleteEntry(false);
+    setDeletingEntry(true);
+    try {
+      await deleteEntry(entryId);
+      navigate.replace('/browse');
+    } catch (err) {
+      const outcome = mapApiError(err);
+      setErrorMessage(
+        outcome.kind === 'message' ? outcome.message : 'Could not delete this entry.',
+      );
+      setDeletingEntry(false);
+    }
+  }
+
   function handleUnhideAuthor(): void {
     const account = useAccountsStore.getState();
     if (!authorUsername || !account.activeAccountId) return;
@@ -352,7 +376,9 @@ export function EntryDetailScreen({ entryId }: EntryDetailScreenProps) {
           <IonTitle>Entry</IonTitle>
           <IonButtons slot="end">
             {entryState.status === 'loaded' && (
-              <IonButton onClick={() => setOverflowOpen(true)}>More</IonButton>
+              <IonButton disabled={deletingEntry} onClick={() => setOverflowOpen(true)}>
+                More
+              </IonButton>
             )}
             <IonButton
               disabled={!prevEntryId}
@@ -543,10 +569,38 @@ export function EntryDetailScreen({ entryId }: EntryDetailScreenProps) {
         ]}
       />
 
+      <IonAlert
+        isOpen={confirmDeleteEntry}
+        header="Delete this entry?"
+        message="This can't be undone."
+        onDidDismiss={() => setConfirmDeleteEntry(false)}
+        buttons={[
+          { text: 'Cancel', role: 'cancel' },
+          { text: 'Delete', role: 'destructive', handler: () => void handleConfirmedDeleteEntry() },
+        ]}
+      />
+
       <IonActionSheet
         isOpen={overflowOpen}
         onDidDismiss={() => setOverflowOpen(false)}
         buttons={[
+          ...(isOwnEntry && canWrite
+            ? [
+                {
+                  text: 'Edit details',
+                  handler: () => navigate.push(`/entry/${entryId}/edit`, { mode: 'details' }),
+                },
+                {
+                  text: 'Replace photo',
+                  handler: () => navigate.push(`/entry/${entryId}/edit`, { mode: 'photo' }),
+                },
+                {
+                  text: 'Delete entry',
+                  role: 'destructive',
+                  handler: () => setConfirmDeleteEntry(true),
+                },
+              ]
+            : []),
           ...(entryState.status === 'loaded' && entryState.data.exif
             ? [{ text: 'Camera info', handler: () => navigate.push(`/entry/${entryId}/metadata`) }]
             : []),

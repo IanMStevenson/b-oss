@@ -16,11 +16,15 @@ import {
   IonMenuToggle,
 } from '@ionic/react';
 import { IonReactRouter } from '@ionic/react-router';
+import { useHistory } from 'react-router-dom';
 import { OverlayProvider } from './OverlayProvider.js';
 import { AppRoutes } from './routes/AppRoutes.js';
 import { useAccountsStore, useActiveAccount, useCanWrite } from '../state/accountsStore.js';
 import { useHiddenMembersStore } from '../state/hiddenMembersStore.js';
 import { useDevicePrefsStore } from '../state/devicePrefsStore.js';
+import { startUploadQueueRunner } from '../flows/uploadQueueRunner.js';
+import { onReminderTapped } from '../platform/localNotifications.js';
+import { switchAccount } from '../flows/accountsFlow.js';
 
 const MAIN_CONTENT_ID = 'main-content';
 
@@ -111,11 +115,39 @@ function NavMenu() {
   );
 }
 
+// FLW-18's "tapping it switches to that account, then opens SCR-09" — needs Router context for
+// navigation, so it's mounted inside IonReactRouter rather than alongside the top-level hydrate
+// effect above (which has none).
+function ReminderTapListener() {
+  const history = useHistory();
+  useEffect(
+    () =>
+      onReminderTapped((accountId) => {
+        const active = useAccountsStore.getState().activeAccountId;
+        if (active !== accountId) {
+          try {
+            switchAccount(accountId);
+          } catch {
+            // Account no longer stored, or needs reauth — nothing sensible to switch to; still open
+            // compose so the tap isn't a dead end, against whichever account ends up active.
+          }
+        }
+        history.push('/compose');
+      }),
+    [history],
+  );
+  return null;
+}
+
 export function AppShell() {
   useEffect(() => {
     void useAccountsStore.getState().hydrate();
     void useHiddenMembersStore.getState().hydrate();
     void useDevicePrefsStore.getState().hydrate();
+    // The upload queue (§9) has non-React consumers by design — started once here rather than
+    // from any one screen, so a background upload resumes even if the app launches straight into
+    // a route that never touches uploadQueueStore itself.
+    startUploadQueueRunner();
   }, []);
 
   return (
@@ -123,6 +155,7 @@ export function AppShell() {
       <OverlayProvider>
         <IonReactRouter>
           <NavMenu />
+          <ReminderTapListener />
           <IonRouterOutlet id={MAIN_CONTENT_ID}>
             <AppRoutes />
           </IonRouterOutlet>

@@ -20,6 +20,10 @@ import { TagEntriesScreen } from '../../screens/SCR-05-tag-entries/TagEntriesScr
 import { EntryDetailScreen } from '../../screens/SCR-06-entry-detail/EntryDetailScreen.js';
 import { PhotoScreen } from '../../screens/SCR-07-full-screen-photo/PhotoScreen.js';
 import { EntryMetadataScreen } from '../../screens/SCR-08-entry-metadata/EntryMetadataScreen.js';
+import { NewEntryScreen } from '../../screens/SCR-09-new-entry/NewEntryScreen.js';
+import { DescriptionEditorScreen } from '../../screens/SCR-11-description-editor/DescriptionEditorScreen.js';
+import { EditEntryScreen } from '../../screens/SCR-13-edit-entry/EditEntryScreen.js';
+import { UploadProgressScreen } from '../../screens/SCR-14-upload-progress/UploadProgressScreen.js';
 import { NewCommentScreen } from '../../screens/SCR-15-new-comment/NewCommentScreen.js';
 import { ReportEntryScreen } from '../../screens/SCR-16-report-entry/ReportEntryScreen.js';
 import { HiddenMembersScreen } from '../../screens/SCR-31-hidden-members/HiddenMembersScreen.js';
@@ -31,13 +35,27 @@ import { AwardsScreen } from '../../screens/SCR-22-awards/AwardsScreen.js';
 import { WriteGuardRoute } from './WriteGuardRoute.js';
 
 // MapLibre GL JS is by far the app's largest dependency (~19MB unpacked, app-architecture.md
-// §20) and only SCR-04 needs it — lazy-loaded so it ships as its own chunk, fetched only when
-// the Map destination is actually opened, rather than inflating every screen's first paint.
+// §20) and only SCR-04/SCR-12 need it — lazy-loaded so it ships as its own chunk, fetched only
+// when a map destination is actually opened, rather than inflating every screen's first paint.
 const MapScreen = lazy(() =>
   import('../../screens/SCR-04-map/MapScreen.js').then((m) => ({ default: m.MapScreen })),
 );
+const LocationPickerScreen = lazy(() =>
+  import('../../screens/SCR-12-location-picker/LocationPickerScreen.js').then((m) => ({
+    default: m.LocationPickerScreen,
+  })),
+);
+// react-easy-crop (§15) is the other notably-sized Phase 7 dependency, pulled in by
+// components/PhotoCropper.tsx, which only SCR-10 (compose) uses — checked against npm run
+// build's own chunk output (see AGENT_LOG.md's Phase 7 entry) before lazy-loading this route too.
+const ComposeEntryScreen = lazy(() =>
+  import('../../screens/SCR-10-compose-entry-details/ComposeEntryScreen.js').then((m) => ({
+    default: m.ComposeEntryScreen,
+  })),
+);
 
-function MapScreenFallback() {
+// Shared Suspense fallback for every lazy-loaded route above.
+function LazyScreenFallback() {
   return (
     <IonPage>
       <div className="ion-padding" style={{ display: 'flex', justifyContent: 'center' }}>
@@ -62,6 +80,10 @@ interface ReportRouteState {
   reportedComment?: { username: string; excerpt: string };
 }
 
+interface EditEntryRouteState {
+  mode?: 'details' | 'photo';
+}
+
 export function AppRoutes() {
   return (
     <Switch>
@@ -73,7 +95,7 @@ export function AppRoutes() {
         render={({ location }: RouteComponentProps) => {
           const params = new URLSearchParams(location.search);
           return (
-            <Suspense fallback={<MapScreenFallback />}>
+            <Suspense fallback={<LazyScreenFallback />}>
               <MapScreen focusedEntryId={params.get('entry') ?? undefined} />
             </Suspense>
           );
@@ -110,7 +132,15 @@ export function AppRoutes() {
       <WriteGuardRoute
         exact
         path="/entry/:entryId/edit"
-        render={placeholder('SCR-13', 'Edit Entry')}
+        render={({ match, location }) => {
+          const state = (location.state ?? {}) as EditEntryRouteState;
+          return (
+            <EditEntryScreen
+              entryId={match.params.entryId as string}
+              initialMode={state.mode ?? 'details'}
+            />
+          );
+        }}
       />
       <WriteGuardRoute
         exact
@@ -141,15 +171,27 @@ export function AppRoutes() {
           );
         }}
       />
-      <WriteGuardRoute exact path="/compose" render={placeholder('SCR-09', 'New Entry')} />
-      <Route exact path="/compose/details" render={placeholder('SCR-10', 'Compose Details')} />
+      <WriteGuardRoute exact path="/compose" component={NewEntryScreen} />
       <Route
         exact
-        path="/compose/description"
-        render={placeholder('SCR-11', 'Description Editor')}
+        path="/compose/details"
+        render={() => (
+          <Suspense fallback={<LazyScreenFallback />}>
+            <ComposeEntryScreen />
+          </Suspense>
+        )}
       />
-      <Route exact path="/compose/location" render={placeholder('SCR-12', 'Location Picker')} />
-      <Route exact path="/uploads" render={placeholder('SCR-14', 'Upload Progress')} />
+      <Route exact path="/compose/description" component={DescriptionEditorScreen} />
+      <Route
+        exact
+        path="/compose/location"
+        render={() => (
+          <Suspense fallback={<LazyScreenFallback />}>
+            <LocationPickerScreen />
+          </Suspense>
+        )}
+      />
+      <Route exact path="/uploads" component={UploadProgressScreen} />
       <Route exact path="/me" render={() => <ProfileScreen />} />
       <Route
         exact

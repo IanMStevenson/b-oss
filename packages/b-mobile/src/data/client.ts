@@ -50,3 +50,20 @@ export async function getClient(purpose: TokenPurpose = 'app'): Promise<Blipfoto
 export function getClientForToken(accessToken: string): BlipfotoClient {
   return new BlipfotoClient(accessToken, resolveBaseUrl(), platformFetch, getMultipartImpl());
 }
+
+/** A client bearing a specific account's token, regardless of which account is currently active —
+ * the upload queue runner (§9) needs this: a background upload for account A must keep running
+ * even if the user switches the active account to B mid-upload. Throws (never silently falls
+ * back to the anonymous client) if the account has no token for the purpose, since a queued
+ * upload with no usable token is exactly the "needs reauth" case the runner must surface as a
+ * failed item, not attempt anonymously. */
+export async function getClientForAccount(
+  accountId: string,
+  purpose: TokenPurpose = 'app',
+): Promise<BlipfotoClient> {
+  const token = await getToken(accountId, purpose);
+  if (!token) {
+    throw new Error(`No ${purpose} token held for account ${accountId} — needs reauthorization.`);
+  }
+  return new BlipfotoClient(token, resolveBaseUrl(), platformFetch, getMultipartImpl());
+}
