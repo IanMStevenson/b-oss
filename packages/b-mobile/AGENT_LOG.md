@@ -536,3 +536,112 @@ Phase 3 that's `SCR-02`, `SCR-05`, and `SCR-06`. `SCR-06`'s action bar (comment/
 follow) also belongs to this phase, closing out the read-only scope it shipped with in Phase 3.
 `signInGated()` (FLW-01, built in Phase 2, currently uncalled) finally gets its first caller here —
 any of these actions attempted while signed out.
+
+## 2026-08-04 — Phase 4 complete: Light social actions
+
+Split into three commits for reviewability given the size: 4a (foundation), 4b/c (the actions,
+screens, and every fix found while building them).
+
+**4a — foundation** (`37bd454`). `platform/prefs.ts` implemented for real against
+`@capacitor/preferences` — found it was still throwing on native despite Phase 2's `accountsStore`
+already depending on it for persistence; a real pre-existing gap, not Phase 4 scope creep, fixed
+because this phase's two new stores need it too. New `state/hiddenMembersStore.ts` (FLW-10):
+per-account, device-local, persisted via prefs, switches with the active account, nothing in it
+ever sent anywhere. New `state/devicePrefsStore.ts` with exactly the one field FLW-06/07 need now
+(`confirmAccountBeforeReaction`, off by default) — grows into the full `SCR-25` set in Phase 8
+rather than being rebuilt then. `b-view`'s `EntryIndex` gains an optional `username` (backup-engine's
+own duck-typed equivalent doesn't carry one — single-journal, so it'd be redundant per entry — and
+doesn't need to), populated by the live adapter, which is what lets `EntryGrid` consult the hidden
+list per entry and render a placeholder tile (no thumbnail/title, still tappable through to
+`SCR-06`) for a hidden member's entries. Also fixed a real bug in `WriteGuardRoute`: it showed the
+read-only upgrade prompt for _both_ a read-only account and an anonymous one, but FLW-01/FLW-11 are
+explicit that anonymous must go straight to a gated sign-in round instead — a read-only-account
+upgrade prompt offered to an anonymous user makes no sense (there's no account to upgrade). Fixed
+by branching on `activeAccount` before `canWrite`.
+
+**4b/c — the actions themselves** (`959a20f`). `flows/reactionsFlow.ts` (star/favourite/follow/
+unfollow/report) and `flows/commentsFlow.ts` (post/edit/delete comment) as pure API wrappers, same
+split as `accountsFlow.ts` vs. its screens — gating and optimistic-update policy live in the
+screen, not the flow. The one thing that _does_ belong in the flow: error-codes.md's 221/222
+("already starred"/"already favourited") resolve as success rather than throwing — not a UI
+concern, call-specific API knowledge — and 223 (daily favourite quota) surfaces as a distinct
+`FavoriteQuotaError` so `SCR-06` can show its specific message.
+
+`flows/useAccountConfirmGate.tsx` implements the "confirm the account before Star, Favourite, or a
+comment/reply" dialog in full against the new `devicePrefsStore` flag, even though nothing can turn
+the flag on yet (no `SCR-25`) — FLW-06/07 require the gating logic to exist regardless of when the
+toggle ships, and building it now means Phase 8 only has to add a switch, not retrofit this.
+
+`SCR-06` gets its real action bar: Star/Favourite (optimistic +1, rollback only on a genuine
+refusal — the 221/222 codes leave the optimistic state alone per rules.md), Follow/Unfollow
+(optimistic; unfollow confirms first; a protected target's actual resulting state — following vs.
+pending — is corrected from the server's response rather than predicted client-side, since nothing
+in the data available here says whether the target journal is protected ahead of time), Comment
+(opens `SCR-15`), and an overflow menu (camera info when EXIF exists, Report, Hide — Hide never
+offered on the active account's own entry). Comments got real inline Reply/Edit/Delete/Report,
+driven entirely by the server's own per-comment action flags rather than reimplementing the
+edit-is-own-only/delete-is-own-or-own-entry rules client-side. All four write actions hide
+entirely (not just disable) for a signed-in read-only account; an anonymous tap routes through
+`signInGated()` first — its first real caller, since Phase 2 built it with nothing to call it yet.
+
+New screens: `SCR-15` New/Edit Comment (a plain native `<textarea>` with a ref, not `IonTextarea` —
+the formatting toolbar needs real `selectionStart`/`selectionEnd` to wrap the selected text in a
+BBCode tag pair, which means reaching past Ionic's shadow-DOM wrapper; a discard-confirmation guard
+fires only when backing out with unsaved text). `SCR-16` Report Entry (the same `entry/report`
+endpoint serves both entry and comment reports — a comment report is identified by a pre-seeded
+note rather than a separate call; Hide is offered as a separate action after a successful report,
+never applied automatically). `SCR-31` Hidden Members (fully device-local, no network request;
+switches with the active account). Reply/edit context and report targets travel through router
+`location.state` rather than a route param, since both are pure in-app handoffs with no deep-link
+use case — documented this as the deciding factor directly in `useAppNavigate.ts`'s `push`/
+`replace` doc comment, now that a real second case (beyond the rejected one from `SCR-07`/`SCR-08`
+in Phase 3) exists to justify the pattern.
+
+**Two real bugs found and fixed while building this, both would have shipped to a real device:**
+
+1. `EntryDetailScreen`'s reaction-seeding `useEffect` depended directly on `useLiveEntry`'s
+   `entryState` — a wrapper object `useLiveEntry` reconstructs on _every_ render, even when the
+   underlying resource hasn't changed. Depending on it made the effect refire on every render,
+   including the render the optimistic update itself causes — so tapping Star would flash
+   "Starred" for one frame and then silently revert, permanently. Found by a test that looked
+   correct but intermittently failed only under the full monorepo `npm test` run (never in
+   isolation) — chased through several false leads (cross-file store pollution, `localStorage`
+   sharing, CPU-contention timeout tuning) before finding the real cause via direct debug logging:
+   `starEntry` mock was being called and resolving successfully every time, but the DOM never
+   updated. Fixed by keying the effect off `entryState.data` (stable — a property of `useResource`'s
+   actual React state) instead of the wrapper. A second, related bug in the same code: every
+   optimistic `setReaction` used `prev ? {...prev, ...} : prev` — silently a no-op if `prev` was
+   still `null` (the seeding effect hadn't committed for the first time yet), which is exactly the
+   window a fast tap or a slow device could hit. Fixed by falling back to the render's own live
+   `starred`/`favorited`/`friendship`/`loadedEntry` values instead of passing through unchanged.
+2. `useHiddenMembers`'s `s.hiddenByAccount[activeAccountId] ?? []` fallback allocated a _new_ empty
+   array on every selector call. Zustand's hook is built on `useSyncExternalStore`, which compares
+   snapshots by reference — a fresh `[]` every call trips its "getSnapshot should be cached"
+   infinite-render-loop guard, and this is the _default_ case (any account that's never hidden
+   anyone, i.e. almost every account). Fixed with one shared `EMPTY_HIDDEN` constant. Both bugs are
+   the same shape — a fallback value that isn't referentially stable across otherwise-identical
+   calls — worth remembering as a category for future stores/selectors, not just these two spots.
+
+Also found, while chasing failure 1 above but not the root cause: a raw `element.click()` in a
+test doesn't reliably synchronize with a handler that chains multiple `await`s before its first
+`setState`, specifically under the CPU contention the full 24-file monorepo test run creates in
+this sandbox — `@testing-library/user-event`'s `await userEvent.click(...)` does. Switched to it
+for that one test; worth defaulting to `userEvent` over raw `.click()` for any future test
+exercising a multi-await async handler, not just this one.
+
+29 new tests across 4a/4b/c (hiddenMembersStore, WriteGuardRoute's anonymous/read-only branches,
+reactionsFlow's error-code handling, and one per new/changed screen). Full monorepo
+`typecheck && lint && test && build` green throughout — the flaky test above was re-run 6+ times
+consecutively post-fix with zero failures before treating it as resolved, given how long the false
+leads took. Committed (`feat(b-mobile): Phase 4a — hidden members, device prefs, write-gate fix`,
+`37bd454`; `feat(b-mobile): Phase 4b/c — reactions, comments, report, hidden members UI`,
+`959a20f`), pushed.
+
+**Next:** Phase 5 — Profiles & connections (`SCR-17–22`, `FLW-09`). Read those screen/flow specs
+first. This is the first phase to build `SCR-18` User Profile, which several earlier phases already
+link to (`/user/:username` routes exist since Phase 1, currently `ScreenPlaceholder`) — and the
+first real test of the hidden-member consistency requirement extending to a people-list context
+(followers/following/pending-requests show a hidden member's name/avatar marked **Hidden**, per
+rules.md, rather than suppressing them the way grids do). `SCR-30`'s account-switcher popover
+(deferred since Phase 2, needs a persistent nav chrome — now exists) is worth picking up here too
+if time allows, though it's not blocking.

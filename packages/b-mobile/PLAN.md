@@ -130,8 +130,21 @@ regularly. Order follows dependency, not spec priority tags.
    handed the entry from `SCR-06` — deep-link resilience over the spec's literal "no API calls"
    wording. `AppShell`'s placeholder `IonMenu` replaced with the full primary nav. 29 new tests
    (one per screen per state, §19). Full detail in `AGENT_LOG.md`'s Phase 3 entry.
-4. **Light social actions** — `FLW-06/07/08/10/11`, `SCR-15/16/31`. Optimistic updates,
-   `hiddenMembersStore`, hidden-placeholder-tile convention on surfaces live so far.
+4. **Light social actions — DONE, commits `37bd454` (foundation) + `959a20f` (actions).**
+   `flows/reactionsFlow.ts` (star/favourite/follow/unfollow/report) + `flows/commentsFlow.ts`
+   (post/edit/delete comment) as pure API wrappers; error-codes.md 221/222 resolve as success,
+   223 surfaces as `FavoriteQuotaError`. `flows/useAccountConfirmGate.tsx` implements the
+   confirm-account dialog against a new `devicePrefsStore` (off by default — no `SCR-25` toggle
+   yet). `SCR-06`'s real action bar (optimistic star/favourite/follow, inline comment
+   Reply/Edit/Delete/Report from server action flags, an overflow menu); real `SCR-15`/`SCR-16`/
+   `SCR-31`. New `state/hiddenMembersStore.ts` + `EntryGrid`'s hidden-placeholder tile (via a new
+   optional `username` on `b-view`'s `EntryIndex`). `platform/prefs.ts` implemented for real
+   (`@capacitor/preferences`) — was still throwing on native despite Phase 2 depending on it.
+   `WriteGuardRoute` fixed to route anonymous through sign-in rather than the read-only upgrade
+   prompt. Two real bugs found and fixed: an unstable effect dependency that silently reverted
+   every optimistic update, and an unstable empty-array selector fallback that could infinite-loop
+   render. Full detail (including the debugging path for the first bug) in `AGENT_LOG.md`'s
+   Phase 4 entry.
 5. **Profiles & connections** — `SCR-17–22`, `FLW-09`.
 6. **Search & Map** — `SCR-03/04`, `FLW-04/14`. MapLibre behind `platform/mapTiles.ts`.
 7. **Compose & publish** — `SCR-09–14`, `FLW-12/13/18`. `platform/upload.ts` hand-built multipart
