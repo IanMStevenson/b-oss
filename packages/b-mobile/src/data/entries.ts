@@ -88,6 +88,14 @@ export interface LoadedEntry {
   comments: ApiComment[];
 }
 
+/** FLW-13's Delete — a direct, immediate call (unlike Edit/Replace-photo, which enqueue a durable
+ * background upload via flows/composeFlow.ts): deleting has no file to send and no reason to
+ * survive leaving the screen, so there's nothing the queue would add here. */
+export async function deleteEntry(entryId: string): Promise<void> {
+  const client = await getClient();
+  await client.deleteEntry(entryId);
+}
+
 export async function fetchEntry(entryId: string): Promise<LoadedEntry> {
   const client = await getClient();
   const res = await client.getEntry(entryId, {

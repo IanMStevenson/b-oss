@@ -15,8 +15,11 @@ import { getToken, setToken, deleteToken } from '../platform/secureStorage.js';
 import { getClientForToken } from '../data/client.js';
 import { useAccountsStore } from '../state/accountsStore.js';
 import type { StoredAccount } from '../state/accountsStore.js';
+import { useUploadQueueStore } from '../state/uploadQueueStore.js';
+import { deleteQueuedFile } from '../platform/upload.js';
 import { runOAuthRound, OAuthCancelledError } from './oauthRound.js';
 import type { OAuthResult } from './oauthRound.js';
+import { cancelReminderForAccount } from './reminderFlow.js';
 
 export { OAuthCancelledError };
 
@@ -128,6 +131,16 @@ export async function removeAccount(accountId: string): Promise<void> {
   }
 
   useAccountsStore.getState().removeAccountLocally(accountId);
+  cancelReminderForAccount(accountId);
+  await cancelQueuedUploadsForAccount(accountId);
+}
+
+/** §9: "in-flight work using a removed account's token is cancelled, not left running." Also
+ * cleans up each cancelled item's copied photo file — there's no further use for it once the
+ * item itself is gone. */
+async function cancelQueuedUploadsForAccount(accountId: string): Promise<void> {
+  const cancelled = useUploadQueueStore.getState().cancelForAccount(accountId);
+  await Promise.all(cancelled.filter((i) => i.filePath).map((i) => deleteQueuedFile(i.filePath!)));
 }
 
 /** FLW-22 — change mode. Applies auth.md's token-lifecycle table via general rules rather than
@@ -161,6 +174,13 @@ export async function changeAccountMode(
     }
     await setToken(accountId, 'app', result.accessToken);
     store.updateAccount(accountId, { appTokenScope: result.grantedScope });
+
+    // FLW-18: a read-only account can't publish, so it's never offered a reminder — cancel any
+    // it had the moment it stops being read-write. (The reverse — gaining read-write — needs no
+    // action here: reminders start off until SCR-25 explicitly turns one on.)
+    if (result.grantedScope !== 'read,write') {
+      cancelReminderForAccount(accountId);
+    }
   }
 
   const refreshed = useAccountsStore.getState().accounts.find((a) => a.id === accountId);
