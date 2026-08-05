@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (C) 2026 Ian Stevenson
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, type ReactNode } from 'react';
 import {
   ChevronLeft,
   ChevronRight,
@@ -11,6 +11,7 @@ import {
   Star,
   Heart,
   MapPin,
+  Maximize2,
   Camera,
   Timer,
   Aperture,
@@ -20,6 +21,8 @@ import {
 import type { BlipEntry, BlipComment, EntryIndex, EntryState } from '../types.js';
 import { DatePicker } from './DatePicker.js';
 import { Lightbox } from './Lightbox.js';
+import { BBCodeText } from './BBCodeText.js';
+import { useSwipeNav } from '../useSwipeNav.js';
 import styles from './EntryDetail.module.css';
 
 type ResolveAsset = (path: string) => Promise<string> | string;
@@ -48,6 +51,13 @@ function formatLongDate(isoDate: string): string {
   return `${day}${ordinalSuffix(day)} ${month} ${d.getFullYear()}`;
 }
 
+interface EntryDetailReactions {
+  starred: boolean;
+  favorited: boolean;
+  onToggleStar: () => void;
+  onToggleFavorite: () => void;
+}
+
 interface EntryDetailProps {
   entryState: EntryState;
   prevEntryId: string | null;
@@ -57,6 +67,14 @@ interface EntryDetailProps {
   baseUrl?: string;
   resolveAsset?: ResolveAsset;
   entries?: EntryIndex[];
+  /** Undefined: stars/hearts render as today's static counts. Provided: they become tappable. */
+  reactions?: EntryDetailReactions;
+  /** Rendered immediately after the comment list — the host owns the whole compose UI/behaviour. */
+  commentComposer?: ReactNode;
+  /** Rendered in the nav header — the host supplies edit/delete triggers for entries it owns. */
+  entryActions?: ReactNode;
+  /** Per-comment slot (e.g. reply/delete) — the host decides ownership, this component doesn't. */
+  renderCommentActions?: (comment: BlipComment) => ReactNode;
 }
 
 function AsyncThumb({
@@ -106,22 +124,28 @@ function ExifRows({ exif }: { exif: NonNullable<BlipEntry['exif']> }) {
   );
 }
 
-function CommentThread({ comment }: { comment: BlipComment }) {
+function CommentThread({
+  comment,
+  renderCommentActions,
+}: {
+  comment: BlipComment;
+  renderCommentActions?: (comment: BlipComment) => ReactNode;
+}) {
   return (
     <div className={styles.comment}>
       <span className={styles.commentAuthor}>{comment.commenter_username}</span>
-      {comment.content_html ? (
-        <div
-          className={styles.commentBody}
-          dangerouslySetInnerHTML={{ __html: comment.content_html }}
-        />
-      ) : (
-        <div className={styles.commentBody}>{comment.content}</div>
+      <BBCodeText source={comment.content} className={styles.commentBody} />
+      {renderCommentActions && (
+        <div className={styles.commentActions}>{renderCommentActions(comment)}</div>
       )}
       {comment.replies && comment.replies.length > 0 && (
         <div className={styles.replies}>
           {comment.replies.map((reply) => (
-            <CommentThread key={reply.comment_id} comment={reply} />
+            <CommentThread
+              key={reply.comment_id}
+              comment={reply}
+              renderCommentActions={renderCommentActions}
+            />
           ))}
         </div>
       )}
@@ -138,11 +162,20 @@ export function EntryDetail({
   baseUrl,
   resolveAsset,
   entries,
+  reactions,
+  commentComposer,
+  entryActions,
+  renderCommentActions,
 }: EntryDetailProps) {
   const [asyncImageSrc, setAsyncImageSrc] = useState<string | null>(null);
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
   // Resolved URLs for all lightbox images: [main, ...extras stdres]
   const [lightboxUrls, setLightboxUrls] = useState<string[]>([]);
+
+  const photoSwipe = useSwipeNav({
+    onSwipeLeft: () => nextEntryId && onNavigate(nextEntryId),
+    onSwipeRight: () => prevEntryId && onNavigate(prevEntryId),
+  });
 
   const imagePath =
     entryState.status === 'loaded'
@@ -263,6 +296,7 @@ export function EntryDetail({
         </div>
 
         <div className={styles.navRight}>
+          {entryActions}
           <button
             className={styles.navBtn}
             onClick={() => nextEntryId && onNavigate(nextEntryId)}
@@ -278,7 +312,11 @@ export function EntryDetail({
       <div className={styles.photoOuter}>
         <div className={styles.photoMiddle}>
           {imageSrc && (
-            <div className={styles.photoInner}>
+            <div
+              className={styles.photoInner}
+              onTouchStart={photoSwipe.onTouchStart}
+              onTouchEnd={photoSwipe.onTouchEnd}
+            >
               <img src={imageSrc} alt={entry.title} className={styles.photo} />
               <div
                 className={`${styles.photoHalf} ${styles.photoHalfLeft}`}
@@ -304,11 +342,8 @@ export function EntryDetail({
           <div className={styles.metaColumns}>
             {/* Left column: description, tags, comments */}
             <div className={styles.metaLeft}>
-              {entry.description_html && (
-                <div
-                  className={styles.description}
-                  dangerouslySetInnerHTML={{ __html: entry.description_html }}
-                />
+              {entry.description && (
+                <BBCodeText source={entry.description} className={styles.description} />
               )}
 
               {entry.tags.length > 0 && (
@@ -321,12 +356,21 @@ export function EntryDetail({
                 </div>
               )}
 
-              {entry.comments.length > 0 && (
+              {(entry.comments.length > 0 || commentComposer) && (
                 <div className={styles.commentsSection}>
-                  <h3 className={styles.commentsHeader}>Comments ({entry.comments.length})</h3>
-                  {entry.comments.map((c) => (
-                    <CommentThread key={c.comment_id} comment={c} />
-                  ))}
+                  {entry.comments.length > 0 && (
+                    <>
+                      <h3 className={styles.commentsHeader}>Comments ({entry.comments.length})</h3>
+                      {entry.comments.map((c) => (
+                        <CommentThread
+                          key={c.comment_id}
+                          comment={c}
+                          renderCommentActions={renderCommentActions}
+                        />
+                      ))}
+                    </>
+                  )}
+                  {commentComposer}
                 </div>
               )}
             </div>
@@ -343,14 +387,55 @@ export function EntryDetail({
 
               {/* Stars + hearts */}
               <div className={styles.reactionsRow}>
-                <span className={styles.reactionItem}>
-                  <Star size={14} strokeWidth={1.5} />
-                  {entry.stars_total}
-                </span>
-                <span className={styles.reactionItem}>
-                  <Heart size={14} strokeWidth={1.5} />
-                  {entry.favorites_total}
-                </span>
+                {reactions ? (
+                  <button
+                    className={`${styles.reactionItem} ${styles.reactionButton}`}
+                    onClick={reactions.onToggleStar}
+                    aria-pressed={reactions.starred}
+                    aria-label={reactions.starred ? 'Remove star' : 'Star this entry'}
+                  >
+                    <Star
+                      size={14}
+                      strokeWidth={1.5}
+                      fill={reactions.starred ? 'currentColor' : 'none'}
+                    />
+                    {entry.stars_total}
+                  </button>
+                ) : (
+                  <span className={styles.reactionItem}>
+                    <Star size={14} strokeWidth={1.5} />
+                    {entry.stars_total}
+                  </span>
+                )}
+                {reactions ? (
+                  <button
+                    className={`${styles.reactionItem} ${styles.reactionButton}`}
+                    onClick={reactions.onToggleFavorite}
+                    aria-pressed={reactions.favorited}
+                    aria-label={reactions.favorited ? 'Remove favourite' : 'Favourite this entry'}
+                  >
+                    <Heart
+                      size={14}
+                      strokeWidth={1.5}
+                      fill={reactions.favorited ? 'currentColor' : 'none'}
+                    />
+                    {entry.favorites_total}
+                  </button>
+                ) : (
+                  <span className={styles.reactionItem}>
+                    <Heart size={14} strokeWidth={1.5} />
+                    {entry.favorites_total}
+                  </span>
+                )}
+                {imagePath && (
+                  <button
+                    className={`${styles.reactionItem} ${styles.reactionButton}`}
+                    onClick={() => setLightboxIndex(0)}
+                    aria-label="View photo full-screen"
+                  >
+                    <Maximize2 size={14} strokeWidth={1.5} />
+                  </button>
+                )}
                 {entry.location && (
                   <a
                     className={styles.reactionItem}

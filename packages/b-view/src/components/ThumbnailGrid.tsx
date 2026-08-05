@@ -7,6 +7,7 @@ import { ZoomIn, ZoomOut, RotateCcw, Image, Home, Eye, EyeOff, Search, X } from 
 import type { EntryIndex } from '../types.js';
 import { DatePicker } from './DatePicker.js';
 import { Pagination } from './Pagination.js';
+import { useSwipeNav } from '../useSwipeNav.js';
 import styles from './ThumbnailGrid.module.css';
 
 // Matches CSS constants: grid padding:18px top/bottom 24px sides,
@@ -263,6 +264,20 @@ export function ThumbnailGrid({
   const hasPrev = safeTopLeft > 0;
   const hasNext = safeTopLeft + pageSize < entries.length;
 
+  const goToPrevPage = useCallback(
+    () => setTopLeftIndex(Math.max(0, safeTopLeft - pageSize)),
+    [safeTopLeft, pageSize],
+  );
+  const goToNextPage = useCallback(
+    () => setTopLeftIndex(safeTopLeft + pageSize),
+    [safeTopLeft, pageSize],
+  );
+
+  const swipe = useSwipeNav({
+    onSwipeLeft: () => hasNext && goToNextPage(),
+    onSwipeRight: () => hasPrev && goToPrevPage(),
+  });
+
   // Track the top-left entry date for the internal calendar and external callback.
   useEffect(() => {
     if (isSearchActive) return;
@@ -382,7 +397,12 @@ export function ThumbnailGrid({
         </div>
       )}
 
-      <div className={styles.scroll} style={isSearchActive ? { overflowY: 'auto' } : undefined}>
+      <div
+        className={styles.scroll}
+        style={isSearchActive ? { overflowY: 'auto' } : undefined}
+        onTouchStart={isSearchActive ? undefined : swipe.onTouchStart}
+        onTouchEnd={isSearchActive ? undefined : swipe.onTouchEnd}
+      >
         {search && isSearchActive && search.status === 'done' && search.results.length === 0 ? (
           <div className={styles.searchEmpty}>No entries match &ldquo;{search.query}&rdquo;</div>
         ) : (
@@ -416,8 +436,8 @@ export function ThumbnailGrid({
             onPage={(n) => setTopLeftIndex(Math.max(0, safeTopLeft + (n - displayPage) * pageSize))}
             hasPrev={hasPrev}
             hasNext={hasNext}
-            onPrev={() => setTopLeftIndex(Math.max(0, safeTopLeft - pageSize))}
-            onNext={() => setTopLeftIndex(safeTopLeft + pageSize)}
+            onPrev={goToPrevPage}
+            onNext={goToNextPage}
             prevRef={prevBtnRef}
             nextRef={nextBtnRef}
           />
