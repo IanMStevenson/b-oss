@@ -139,9 +139,16 @@ describe('EntryDetailScreen', () => {
     vi.mocked(fetchEntry).mockResolvedValue(baseLoadedEntry);
     renderScreen();
     expect(await screen.findByText('A day out')).toBeDefined();
-    await waitFor(() => expect(screen.getByText('#beach')).toBeDefined());
-    expect(screen.getByText('#sun')).toBeDefined();
-    expect(screen.getByText(/12 views/)).toBeDefined();
+    // b-view's EntryDetail renders tags as plain text (no leading '#') and the view count/label
+    // as two separate elements ("12" then "views"), not one combined text node. "beach" also
+    // appears inside the [b]beach[/b] description, so tag text needs a selector scoped away from
+    // that rather than a bare getByText.
+    await waitFor(() =>
+      expect(screen.getByText('beach', { selector: 'span,button' })).toBeDefined(),
+    );
+    expect(screen.getByText('sun', { selector: 'span,button' })).toBeDefined();
+    expect(screen.getByText('12')).toBeDefined();
+    expect(screen.getByText('views')).toBeDefined();
   });
 
   it('starring optimistically updates the count and label, then persists on success', async () => {
@@ -149,14 +156,17 @@ describe('EntryDetailScreen', () => {
     vi.mocked(fetchEntry).mockResolvedValue(baseLoadedEntry);
     starEntry.mockResolvedValue(undefined);
     renderScreen();
-    const starButton = await screen.findByText('Star');
+    // b-view's EntryDetail renders the star as an icon + count, identified by aria-label rather
+    // than visible text ("Star"/"Starred").
+    const starButton = await screen.findByLabelText('Star this entry');
     // userEvent (not a raw .click()) properly wraps the interaction in act() and awaits its own
     // internal microtask flushes — this handler chains two awaits (gateReaction) before its
     // first setState, and a bare .click() doesn't synchronize with that the way userEvent does.
     await userEvent.click(starButton);
     await waitFor(() => {
-      expect(screen.getByText('Starred')).toBeDefined();
-      expect(screen.getByText(/4 stars/)).toBeDefined();
+      const starred = screen.getByLabelText('Remove star');
+      expect(starred).toBeDefined();
+      expect(starred.textContent).toContain('4');
     });
     expect(starEntry).toHaveBeenCalledWith('1');
   }, 15000);
@@ -166,11 +176,11 @@ describe('EntryDetailScreen', () => {
     vi.mocked(fetchEntry).mockResolvedValue(baseLoadedEntry);
     starEntry.mockRejectedValue(new BlipfotoError(500, 'Server refused'));
     renderScreen();
-    const starButton = await screen.findByText('Star');
+    const starButton = await screen.findByLabelText('Star this entry');
     starButton.click();
     expect(await screen.findByText('Server refused')).toBeDefined();
-    expect(await screen.findByText('Star')).toBeDefined();
-    expect(screen.queryByText('Starred')).toBeNull();
+    expect(await screen.findByLabelText('Star this entry')).toBeDefined();
+    expect(screen.queryByLabelText('Remove star')).toBeNull();
   });
 
   it('routes an anonymous tap through sign-in rather than calling the API directly', async () => {
@@ -179,7 +189,7 @@ describe('EntryDetailScreen', () => {
     vi.mocked(fetchEntry).mockResolvedValue(baseLoadedEntry);
     signInGated.mockReturnValue(new Promise(() => {}));
     renderScreen();
-    const starButton = await screen.findByText('Star');
+    const starButton = await screen.findByLabelText('Star this entry');
     starButton.click();
     await waitFor(() => expect(signInGated).toHaveBeenCalledOnce());
     expect(starEntry).not.toHaveBeenCalled();

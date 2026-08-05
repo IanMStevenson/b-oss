@@ -14,7 +14,7 @@
 // conditional on context — SCR-11 (entry description) shows it, SCR-15 (comments) doesn't, per
 // each screen's own `tags` prop. This module doesn't decide that; callers do.
 
-import { BBCODE_TAGS } from '../data/bbcode.js';
+import { BBCODE_TAGS } from '@b-oss/b-view';
 
 export type BBCodeTag = (typeof BBCODE_TAGS)[number];
 

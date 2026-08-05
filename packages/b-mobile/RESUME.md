@@ -6,28 +6,53 @@ with "resume".
 
 ## Status
 
-**Phases 0–12 are all complete.** Phase 0 (prerequisite `b-oss` refactor) is merged into `main`;
-Phases 1–12 are committed on `b-mobile-initial` (confirm pushed — see "Last completed step"). The
-app now has: a working Vite/Ionic/Capacitor skeleton, the full 28-screen route table, a real OAuth
-round and full account-management flow, a functional write-gate, real Browse/Tag-Entries/Entry-
-Detail/Full-screen-Photo/Entry-Metadata screens, a full social action bar, inline comment reply/
-edit/delete/report, a working hidden-members system, real profile/followers/following/pending-
-requests/refused-followers/awards screens, real Search and Map, a full compose/publish/edit
-pipeline with a durable background upload queue, real Settings and Help & Info, a fully live
-notification pipeline (`packages/b-push`, never deployed per its own scope boundary but fully
-built/tested), a real checked-in Android native project (`packages/b-mobile/android/` — manifest,
-three local plugins now including `ShareIntentPlugin` from Phase 12, notification channels,
-brand-correct icon/splash, a real accessibility font-scale mechanism), meaningfully hardened test
-coverage from Phase 11, and — as of Phase 12 — a genuinely finished app rather than one with known
-open wiring gaps: the shared overlay mechanism, the account-switcher popover, a real deep-link/
-share-intent resolver, the app-resume permission recheck, and a fully wired typed copy deck are
-all in place. Full monorepo `typecheck && lint && test && build` green (803 tests, confirmed
-stable across repeated runs). **Only Phase 13 (deploy/test `b-push`) remains, and it's blocked on
-the user providing Cloudflare/Firebase credentials** — see "Phase 13" below.
+**Phases 0–12 are all complete, plus the off-sequence Phase 12.6 b-view-reuse adoption.** Phase 0
+(prerequisite `b-oss` refactor) is merged into `main`; Phases 1–12 and 12.6 are committed on
+`b-mobile-initial` (confirm pushed — see "Last completed step"). The app now has: a working
+Vite/Ionic/Capacitor skeleton, the full 28-screen route table, a real OAuth round and full
+account-management flow, a functional write-gate, real Browse/Tag-Entries/Entry-Detail/Full-screen-
+Photo/Entry-Metadata screens — as of 12.6, `EntryGrid`/`PhotoScreen`/`EntryDetailScreen` all
+compose `b-view`'s shared `ThumbnailGrid`/`Lightbox`/`EntryDetail` directly rather than hand-built
+equivalents — a full social action bar, inline comment reply/edit/delete/report, a working
+hidden-members system, real profile/followers/following/pending-requests/refused-followers/awards
+screens, real Search and Map, a full compose/publish/edit pipeline with a durable background
+upload queue, real Settings and Help & Info, a fully live notification pipeline (`packages/b-push`,
+never deployed per its own scope boundary but fully built/tested), a real checked-in Android
+native project (`packages/b-mobile/android/` — manifest, three local plugins including
+`ShareIntentPlugin` from Phase 12, notification channels, brand-correct icon/splash, a real
+accessibility font-scale mechanism), meaningfully hardened test coverage from Phase 11, and — as of
+Phase 12 — a genuinely finished app rather than one with known open wiring gaps: the shared overlay
+mechanism, the account-switcher popover, a real deep-link/share-intent resolver, the app-resume
+permission recheck, and a fully wired typed copy deck are all in place. Full monorepo
+`typecheck && lint && test && build` green (817 tests). **Only Phase 13 (deploy/test `b-push`)
+remains, and it's blocked on the user providing Cloudflare/Firebase credentials** — see "Phase 13"
+below.
 
 ## Last completed step
 
-Committed (confirm pushed — do that first if resuming) Phase 12's full scope. Worth reading
+Committed (confirm pushed — do that first if resuming) Phase 12.6's full scope: rebased onto
+`origin/main` to pull in `b-oss` PR #67 (the merged `b-view` work `EntryDetail`/`ThumbnailGrid`/
+`Lightbox`/`BBCodeText` needed before this app could adopt them — see "b-view reuse" below,
+superseded now that this is done); rewrote `EntryGrid.tsx` to wrap `b-view`'s `ThumbnailGrid`
+(background auto-load-more bridge over `usePagedResource`'s incremental paging, sentinel-based
+hidden-tile placeholder, `resolveAsset={resolveImage}` replacing `CachedImage`, free zoom controls);
+rewrote `PhotoScreen.tsx` to render `b-view`'s `Lightbox`; rewrote `EntryDetailScreen.tsx` to
+compose `b-view`'s `EntryDetail` with all four of its optional slots; deleted the now-redundant
+local `bbcode.ts`/`BBCodeText.tsx` in favour of `@b-oss/b-view`'s promoted versions. Along the way,
+found and fixed four small, real gaps in `b-view`'s own `EntryDetail`/`Lightbox` — `onLinkClick`
+(comment/description links were silently falling back to a WebView-unsafe `window.open`),
+`onFullscreen` (its Maximize2 button opened an internal Lightbox overlay by default, but SCR-07
+needed to stay a real routed screen), `onTagClick` (tags rendered with no tap target at all,
+silently dropping SCR-05 navigation), and `Lightbox`'s `onImageError` (no way to satisfy SCR-07's
+own "show a retry on a broken image" acceptance criterion without it) — each a small, optional,
+host-injected callback in the same pattern PR #67 already established for its other four slots, so
+Electron/Chrome (which pass none of them) see no behaviour change. Verified visually via
+`.claude/skills/run-b-view` against a fresh synthetic fixture, not just by test assertion. Full
+detail, including two accepted-not-fixed gaps (the `reactions` slot can't independently hide just
+Star or just Favourite; `EntryDetail`'s own inline location pin isn't WebView-safe), in
+`AGENT_LOG.md`'s Phase 12.6 entry.
+
+Before that: Phase 12's full scope. Worth reading
 `AGENT_LOG.md`'s Phase 12 entry in full before touching the same modules again; the short version:
 
 1. **`OverlayProvider`/`useOverlay` finished for real** (12.1) — went from a dead stub to the
@@ -181,57 +206,29 @@ deployment.
 
 **Phase 13 is next, and it's blocked** — deploy `b-push` needs the user to provide a Cloudflare
 account and Firebase project credentials (see "Phase 13" above); nothing to do on the code side
-until then. If picking up code-only work in the meantime, the two loose ends flagged in "Phase 12
-wishlist — DONE" above are the honest candidates: giving `OverlayState` an on-decline callback so
+until then. If picking up code-only work in the meantime, the honest candidates are: the two loose
+ends flagged in "Phase 12 wishlist — DONE" above (giving `OverlayState` an on-decline callback so
 `WriteGuardRoute.tsx`'s duplicate `IonAlert` can retire, or reconciling `useResource`'s generic
-error text against the deck (deliberately not attempted in Phase 12 — see that section for why).
-Neither was asked for; check with the user before starting either. Verify with the standard full
-monorepo `typecheck && lint && test && build` once anything lands, same as every phase.
+error text against the deck — deliberately not attempted in Phase 12, see that section for why);
+or the two gaps 12.6 found and deliberately left as accepted, documented limitations rather than
+further `b-view` changes (`EntryDetail`'s single `reactions` slot can't independently hide just
+Star or just Favourite; its own inline location pin isn't routed through Capacitor's Browser plugin
+the way its description/comment links now are, via `onLinkClick`) — see `AGENT_LOG.md`'s Phase 12.6
+entry for the full reasoning on both. None of the four was asked for; check with the user before
+starting any of them. Verify with the standard full monorepo `typecheck && lint && test && build`
+once anything lands, same as every phase.
 
-**Also pending, from a separate `b-oss` session — see "b-view reuse" below**: `b-oss` PR #67
-(`b-view-mobile-reuse`) **merged to `main` 2026-08-05T08:09:20Z.** The reasons this file's own
-"Gotchas" section gave for `EntryGrid`/`BBCodeText`/`PhotoScreen`'s custom code existing are no
-longer valid, and this is now genuinely actionable — the only remaining step before starting is
-`git fetch && git rebase origin/main` on `b-mobile-initial` (not yet done as of this note) to pull
-in the merged `b-view` changes.
+## b-view reuse — done (Phase 12.6, 2026-08-05)
 
-## b-view reuse — ready to start (added 2026-08-05, updated same day once PR #67 merged)
-
-Not part of this branch's own phase sequence — flagged here so it isn't lost across the hiatus.
-A separate `b-oss` session (not on `b-mobile-initial`) worked through *why* `b-view`'s components
-weren't reused here (see this file's "Gotchas" entry below, and `b-oss`'s PR #67 description for
-the full reasoning) and found both reasons were spec-execution gaps, not real conflicts, once
-checked against the user's actual intent:
-
-- `EntryDetail`'s `dangerouslySetInnerHTML` — **fixed at the `b-view` level**: `BBCodeText`
-  (`@bbob/react`-based, parses to real React elements, no raw HTML injection) has been promoted
-  from this package into `b-view` itself, so `EntryDetail` no longer violates §14 for anyone.
-- `ThumbnailGrid`'s windowed pagination "doesn't fit any feed here" — **the premise was wrong**:
-  the user confirmed infinite scroll was never the intended design for this app; pagination (with
-  `ThumbnailGrid`'s existing thumbnail-size/zoom controls) is what's actually wanted. `SCR-06`/
-  `SCR-07`'s AppSpec docs also have a real, separate error worth knowing about regardless of this
-  adoption work: they say tapping the main photo opens `SCR-07` full-screen, which isn't how the
-  live Blipfoto site works — the live site (and `b-view`'s `EntryDetail`, now) uses a dedicated
-  fullscreen button next to the star/heart reaction counts instead.
-
-`b-view` also gained, this session: optional interactive slots on `EntryDetail` (`reactions`,
-`commentComposer`, `entryActions`, `renderCommentActions` — all opt-in, so ownership/write-action
-logic stays entirely host-side, not `b-view`'s concern) plus pinch/pan zoom and swipe-left/right
-navigation in `Lightbox`/`EntryDetail`/`ThumbnailGrid` (touch capability isn't mobile-specific, so
-it lives in `b-view` itself now, gated by touch input rather than platform).
-
-**PR #67 has merged — this is now the next real adoption phase here** (not started yet as of this
-note): rebase `b-mobile-initial` onto the updated `main`; delete `EntryGrid.tsx`'s custom
-tile/grid logic and render `<ThumbnailGrid>` from `@b-oss/b-view` directly; delete
-`PhotoScreen.tsx`'s hand-built `TransformWrapper` zoom code and render `<Lightbox>` directly;
-rewrite `EntryDetailScreen.tsx` to compose `<EntryDetail>` with the new slots (its existing
-`starEntry`/`favoriteEntry`/`commentsFlow`/`deleteEntry`/`useAccountConfirmGate` logic doesn't
-move, it just fills the slots); delete this package's local `src/data/bbcode.ts`/
-`src/components/BBCodeText.tsx` in favour of importing from `@b-oss/b-view`; and correct
-`docs/AppSpec/screens/SCR-06-entry-detail.md`/`SCR-07-full-screen-photo.md` to remove the
-"photo tap → SCR-07" language and describe the fullscreen button instead. Full phase-by-phase
-detail lives in the `b-oss` session's plan file and PR #67's description — read those first
-rather than re-deriving the reasoning from scratch.
+Not part of this branch's own phase sequence (same footing as Phase 12's own wishlist) — this
+section used to track the adoption as blocked-then-ready; now folded into "Last completed step"
+above and `AGENT_LOG.md`'s Phase 12.6 entry, which has the full detail (including four small, real
+gaps found and fixed in `b-view`'s own `EntryDetail`/`Lightbox` along the way — `onLinkClick`,
+`onFullscreen`, `onTagClick`, `Lightbox`'s `onImageError` — and two deliberately left as accepted
+limitations rather than a fifth/sixth). `EntryGrid.tsx`/`PhotoScreen.tsx`/`EntryDetailScreen.tsx`
+now all compose `b-view`'s `ThumbnailGrid`/`Lightbox`/`EntryDetail` directly, and the local
+`bbcode.ts`/`BBCodeText.tsx` are gone in favour of `@b-oss/b-view`'s promoted versions. Nothing
+left to do here.
 
 ## Open decisions / blockers
 
@@ -269,13 +266,13 @@ since Phase 10).
   available" note** — a separate `b-oss` session got real headless Chromium working on this
   machine 2026-08-05 (see `b-oss` PR #68, `.claude/skills/run-b-view`): `playwright-core` is a root
   devDependency, and the ~62 missing system libraries were installed via `sudo env "PATH=$PATH"
-  npx playwright install-deps chromium` (a one-time, machine-level, human-run step — an agent
+npx playwright install-deps chromium` (a one-time, machine-level, human-run step — an agent
   session still can't do this itself, no interactive sudo password). After that,
   `chromium.executablePath()` resolves automatically. Still true, unchanged: **no Android
   device/emulator available in this sandbox** (confirmed again Phase 10) — there's no `adb devices`
   target. Verification still uses jsdom-rendered Testing Library smoke tests, a real
   `node:sqlite`-backed fake for `b-push`'s D1 access (Phase 9), and a real `./gradlew
-  assembleDebug` as the closest available substitute for on-device verification of the native
+assembleDebug` as the closest available substitute for on-device verification of the native
   Android side — but a real headless-browser pass (Vite dev server + Playwright, per
   `run-b-view`) is now a genuine option for the web/Ionic side too, not just jsdom. None of these
   are a substitute for §19 layer 3's actual manual checklist; don't claim on-device behaviour is
@@ -324,11 +321,11 @@ test-setup.ts']` resolves relative to whatever the invoking shell's cwd was, not
 - ~~`b-view`'s `EntryDetail` and `ThumbnailGrid` are not reused by `b-mobile`, on purpose —
   `EntryDetail`'s `dangerouslySetInnerHTML` conflicts with §14's ban; `ThumbnailGrid`'s windowed
   pagination doesn't fit any feed here. `EntryGrid`/`BBCodeText` were built instead.`~~ —
-  **superseded 2026-08-05, both reasons no longer hold.** `b-view` fixed the `dangerouslySetInnerHTML`
-  conflict itself (see "b-view reuse" above); the pagination premise was also just wrong — the user
-  confirmed infinite scroll was never the intended design, pagination was. Don't build further on
-  the old reasoning; see the "b-view reuse" section above for the actual adoption plan — `b-oss`
-  PR #67 has merged, so this is now ready to start.
+**done, Phase 12.6 (2026-08-05).** `EntryGrid.tsx`/`PhotoScreen.tsx`/`EntryDetailScreen.tsx`all
+compose`b-view`'s `ThumbnailGrid`/`Lightbox`/`EntryDetail`directly now; the local`bbcode.ts`/`BBCodeText.tsx`are gone. See "b-view reuse — done" above and`AGENT_LOG.md`'s Phase
+12.6 entry for the adoption's own real findings (a background auto-load-more bridge over
+`ThumbnailGrid`'s client-side-only pagination; a sentinel-based hidden-tile placeholder; four
+small new optional `b-view` props found necessary along the way).
 - **`SCR-07`/`SCR-08`/`SCR-15`/`SCR-16` all deliberately avoid depending on a prior screen's
   in-memory data**, refetching via `useLiveEntry`/router state instead, for deep-link resilience.
   `SCR-10`–`SCR-13` (Phase 7) are the deliberate exception, sharing `composeDraftStore`. `SCR-23`/

@@ -75,6 +75,20 @@ interface EntryDetailProps {
   entryActions?: ReactNode;
   /** Per-comment slot (e.g. reply/delete) — the host decides ownership, this component doesn't. */
   renderCommentActions?: (comment: BlipComment) => ReactNode;
+  /** Forwarded to every internal BBCodeText (description + every comment/reply). Omitted: links
+   * open via BBCodeText's own default (a new browser tab) — fine for Electron/Chrome, but a host
+   * whose links must never navigate its own WebView away (e.g. a Capacitor system-browser open)
+   * needs to supply this rather than relying on the default. */
+  onLinkClick?: (href: string) => void;
+  /** Called instead of opening the internal Lightbox overlay when the fullscreen button (next to
+   * the reactions) is pressed — for a host with its own dedicated fullscreen-photo route/screen
+   * to navigate to rather than overlay in place. Omitted: the default internal Lightbox opens, as
+   * before. Extras thumbnails always still open the internal Lightbox regardless — this only
+   * covers the main-photo fullscreen button. */
+  onFullscreen?: () => void;
+  /** Called when a tag chip is tapped, with the raw tag text — for a host that has a tag-entries
+   * screen/route to navigate to. Omitted: tags render as plain, non-interactive text, as before. */
+  onTagClick?: (tag: string) => void;
 }
 
 function AsyncThumb({
@@ -127,14 +141,20 @@ function ExifRows({ exif }: { exif: NonNullable<BlipEntry['exif']> }) {
 function CommentThread({
   comment,
   renderCommentActions,
+  onLinkClick,
 }: {
   comment: BlipComment;
   renderCommentActions?: (comment: BlipComment) => ReactNode;
+  onLinkClick?: (href: string) => void;
 }) {
   return (
     <div className={styles.comment}>
       <span className={styles.commentAuthor}>{comment.commenter_username}</span>
-      <BBCodeText source={comment.content} className={styles.commentBody} />
+      <BBCodeText
+        source={comment.content}
+        className={styles.commentBody}
+        onLinkClick={onLinkClick}
+      />
       {renderCommentActions && (
         <div className={styles.commentActions}>{renderCommentActions(comment)}</div>
       )}
@@ -145,6 +165,7 @@ function CommentThread({
               key={reply.comment_id}
               comment={reply}
               renderCommentActions={renderCommentActions}
+              onLinkClick={onLinkClick}
             />
           ))}
         </div>
@@ -166,6 +187,9 @@ export function EntryDetail({
   commentComposer,
   entryActions,
   renderCommentActions,
+  onLinkClick,
+  onFullscreen,
+  onTagClick,
 }: EntryDetailProps) {
   const [asyncImageSrc, setAsyncImageSrc] = useState<string | null>(null);
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
@@ -343,16 +367,32 @@ export function EntryDetail({
             {/* Left column: description, tags, comments */}
             <div className={styles.metaLeft}>
               {entry.description && (
-                <BBCodeText source={entry.description} className={styles.description} />
+                <BBCodeText
+                  source={entry.description}
+                  className={styles.description}
+                  onLinkClick={onLinkClick}
+                />
               )}
 
               {entry.tags.length > 0 && (
                 <div className={styles.tags}>
-                  {entry.tags.map((tag) => (
-                    <span key={tag} className={styles.tag}>
-                      {tag}
-                    </span>
-                  ))}
+                  {entry.tags.map((tag) =>
+                    onTagClick ? (
+                      <button
+                        key={tag}
+                        className={styles.tag}
+                        onClick={() => onTagClick(tag)}
+                        aria-label={`Entries tagged ${tag}`}
+                        style={{ border: 'none', font: 'inherit', cursor: 'pointer' }}
+                      >
+                        {tag}
+                      </button>
+                    ) : (
+                      <span key={tag} className={styles.tag}>
+                        {tag}
+                      </span>
+                    ),
+                  )}
                 </div>
               )}
 
@@ -366,6 +406,7 @@ export function EntryDetail({
                           key={c.comment_id}
                           comment={c}
                           renderCommentActions={renderCommentActions}
+                          onLinkClick={onLinkClick}
                         />
                       ))}
                     </>
@@ -430,7 +471,7 @@ export function EntryDetail({
                 {imagePath && (
                   <button
                     className={`${styles.reactionItem} ${styles.reactionButton}`}
-                    onClick={() => setLightboxIndex(0)}
+                    onClick={() => (onFullscreen ? onFullscreen() : setLightboxIndex(0))}
                     aria-label="View photo full-screen"
                   >
                     <Maximize2 size={14} strokeWidth={1.5} />

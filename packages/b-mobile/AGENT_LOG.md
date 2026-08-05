@@ -1846,3 +1846,195 @@ favour of the shared overlay (flagged inline, 12.5); reconciling `useResource`'s
 against the deck properly, if that's ever wanted app-wide (flagged inline, 12.5, deliberately not
 attempted this phase); `devicePrefsStore.uploadFullSize`'s still-unconsumed toggle (unchanged since
 Phase 8); real on-device/emulator testing, still blocked on sandbox environment, not code.
+
+## 2026-08-05 — Phase 12.6: b-view reuse adoption (EntryGrid/PhotoScreen/EntryDetailScreen/BBCodeText)
+
+Not a `PLAN.md`-defined phase (same footing as 12's own wishlist) — deliberately numbered 12.6
+rather than 13, since PLAN.md's own "13" already names the separate, still-blocked `b-push`
+deployment phase. This is the adoption work RESUME.md's "b-view reuse" section described as
+"ready to start" once `b-oss` PR #67 (`b-view-mobile-reuse`) merged to `main` — that merge closed
+both reasons this package's own Gotchas section had on record for why `EntryGrid`/`BBCodeText`/
+`PhotoScreen` were hand-built instead of reusing `b-view`'s `ThumbnailGrid`/`BBCodeText`/
+`EntryDetail`/`Lightbox`: the `dangerouslySetInnerHTML` conflict (fixed by promoting `BBCodeText`
+into `b-view` itself) and the pagination-model mismatch (the user confirmed windowed pagination,
+not infinite scroll, was the actually-intended design all along).
+
+1. **Rebased onto `origin/main`** (`git fetch && git rebase origin/main`) to pull in PR #67 plus
+   the three other `main` commits merged since Phase 0 (`#64` npm audit fix, `#65` dependency
+   bump, `#68` `playwright-core`/`run-b-view`). 44 of this branch's own commits replayed (a plain
+   `git rebase`, no `--rebase-merges`, drops merge commits and replays what they brought in
+   individually — the branch's own history has one such merge, from an earlier no-op sync when
+   `origin/main` hadn't moved yet). One conflict, on the very first replayed commit
+   (`package-lock.json`, since both branches touched it): resolved by re-running
+   `npm install --package-lock-only` against the already-cleanly-merged `package.json` rather than
+   hand-editing the lockfile; every other commit replayed clean. Post-rebase baseline: 823 tests
+   (803 pre-rebase + PR #67's 20 new `b-view` tests), full monorepo `typecheck`/`lint`/`build`
+   green before touching any application code.
+
+2. **`EntryGrid.tsx` rewritten to wrap `b-view`'s `ThumbnailGrid`** instead of the hand-rolled
+   `IonInfiniteScroll` grid — same external props (`entries`/`onSelectEntry`/`hasMore`/
+   `onLoadMore`/`onRefresh`), so none of its four call sites (`BrowseScreen`'s five feed tabs via
+   `ResourceGrid`, `TagEntriesScreen`, `SearchScreen`'s Entries tab, `ProfileScreen`'s Entries/Faves
+   tabs via `GridTab`) needed to change at all. Two real design gaps closed along the way, neither
+   a `b-view` change:
+   - **`ThumbnailGrid` paginates entirely client-side over a fixed in-memory array** (built for
+     `b-view-backup`'s already-fully-scanned local journal) and has no "the user is nearing the end
+     of what's currently loaded" hook of its own — a real mismatch against `usePagedResource`'s
+     incremental server paging. Bridged with a background auto-load effect
+     (`useEffect(() => { if (hasMore) onLoadMore() }, [hasMore, entries.length])`): harmless to
+     call opportunistically since `usePagedResource#loadMore()` already no-ops mid-flight or once
+     exhausted, so by the time a user pages far enough to need more, the next server page has
+     usually already landed in the background. Chosen over eagerly fetching every page up front
+     (bad first-paint latency for a long-time user's thousands of entries) or a literal one-page-
+     ahead prefetch (no signal from `ThumbnailGrid` to trigger it on).
+   - **Hidden-member tiles**: `ThumbnailGrid` has no placeholder-tile concept (`EntryIndex.username`
+     exists specifically so a live adapter _can_ drive hiding, per its own doc comment, but
+     `ThumbnailGrid` itself never reads it). Substituted a sentinel `thumbnail_path` for a hidden
+     entry's tile and gave `resolveAsset` a branch that rejects immediately for that sentinel
+     (rather than ever calling `platform/imageCache.ts`), landing on `ThumbnailGrid`'s own built-in
+     broken-image placeholder — no thumbnail, no title (title blanked too), same "no title, no
+     thumbnail, stays tappable" contract as the old purpose-built `hiddenTile` style, via the
+     component's existing behaviour rather than a new one. `resolveAsset={resolveImage}` also
+     replaces `CachedImage` for this grid, exactly as `platform/imageCache.ts`'s own doc comment
+     already anticipated ("b-view's own `ThumbnailGrid`/`EntryDetail` call `resolveImage` directly
+     via their `resolveAsset` prop instead of this component"). Zoom controls
+     (`sizePercent`/`onSizeChange`) wired to local component state — a real, free UX gain from the
+     adoption, not previously buildable, and explicitly named as wanted in RESUME's own "b-view
+     reuse" write-up.
+
+3. **`PhotoScreen.tsx` (SCR-07) rewritten to render `b-view`'s `Lightbox`** in place of the
+   hand-built `TransformWrapper`/`react-zoom-pan-pinch` code — a single-image gallery
+   (`images={[imagePath]}`, `index={0}`), so `Lightbox`'s own prev/next chevrons and counter stay
+   hidden. One real gap found and fixed at the `b-view` level: `Lightbox` had no way to signal a
+   broken `<img>` back to its host, so the acceptance criterion this screen's own spec names
+   ("given an image fails to load, a placeholder/retry is shown rather than a blank screen") would
+   have silently stopped being met. Added an optional `onImageError` prop to `Lightbox` (fires the
+   `<img>`'s own `onError`) — Electron/Chrome, which don't pass it, are unaffected; `PhotoScreen`
+   uses it to fall back to the same retry UI as before, reset whenever the entry/image URL changes.
+
+4. **`EntryDetailScreen.tsx` (SCR-06) rewritten to compose `b-view`'s `EntryDetail`** with all four
+   of its optional slots — `reactions`, `commentComposer`, `entryActions`, `renderCommentActions` —
+   filled with this screen's existing `starEntry`/`favoriteEntry`/`followUser`/`unfollowUser`/
+   `commentsFlow`/`deleteEntry`/`useAccountConfirmGate` logic, none of which moved or changed
+   shape; the four `IonAlert`s and the owner-only `IonActionSheet` stay exactly as they were, just
+   triggered from slot-rendered buttons instead of hand-rendered ones. `entryState` was already
+   `EntryState`-shaped for `EntryDetail` (`useLiveEntry`'s own doc comment said so), and
+   `entryResponseToViewEntry` already mapped raw comments into `entry.comments` as real
+   `BlipComment[]` (`viewModel.ts`'s `toViewComment`, unnoticed as already-done until this phase) —
+   `renderCommentActions` looks up each comment's `reply`/`edit`/`delete` action flags (which
+   `BlipComment` doesn't carry) via a small id-keyed map flattened from the raw `ApiComment[]`
+   `useLiveEntry` returns alongside it, rather than re-fetching or duplicating that data.
+   Real, found-along-the-way gaps, each closed with a small, narrowly-scoped `EntryDetail`/
+   `Lightbox` prop addition — same "optional slot, host-injected behaviour" pattern PR #67 already
+   established for the other four, not a redesign:
+   - **`onLinkClick`** — `EntryDetail`'s _own_ internal `BBCodeText` calls (the description, and
+     every comment/reply) had no way to route link taps through Capacitor's `Browser.open`; left
+     alone, they'd have silently fallen back to `window.open`, which does not reliably leave a
+     Capacitor WebView — precisely the failure mode rules.md's "a tap never navigates the WebView
+     itself away from the app" exists to rule out. Threaded through `EntryDetail` → `CommentThread`
+     → every `BBCodeText` call; `EntryDetailScreen` wires `openUrl`.
+   - **`onFullscreen`** — `EntryDetail`'s Maximize2 button opens an internal `Lightbox` overlay by
+     default (no route change at all), but this app's task explicitly keeps SCR-07 a real,
+     separately-routed, deep-link-resilient screen — only the trigger description changed (photo
+     tap → dedicated button), not the destination. `onFullscreen`, when supplied, replaces the
+     internal-overlay behaviour entirely for the main-photo button (extras thumbnails, which
+     `b-mobile` never populates anyway — no multi-photo-per-entry feature here — still fall back to
+     it). `EntryDetailScreen` wires it to `navigate.push('/entry/:id/photo')`.
+   - **`onTagClick`** — `EntryDetail`'s tags rendered as inert text with no tap target at all,
+     which would have silently dropped `SCR-05`'s real, spec-named tag-entries navigation entirely
+     (not a cosmetic loss — a whole existing route becoming unreachable from this screen). Added as
+     an optional callback; tags render as a `<button>` (reset inline styles to avoid default UA
+     button chrome) only when it's supplied, `<span>` otherwise, unchanged for Electron/Chrome.
+   - **Both-or-neither reactions, accepted as-is, not fixed**: `EntryDetail`'s single `reactions`
+     slot can't independently hide just Star or just Favourite the way the old hand-built action
+     row could (each gated on its own `actions.star`/`actions.favorite` flag). Offered only when
+     both flags agree (or the viewer is anonymous, matching the old `!activeAccount || ...` per-flag
+     short-circuit, combined across both) — a deliberate compromise, not a further `b-view` change,
+     since the two flags aren't known to diverge in Blipfoto's actual API and a real split wasn't
+     judged worth a third slot for a case that may never occur.
+   - **`EntryDetail`'s own inline location pin, accepted as-is, not fixed**: a plain
+     `<a target="_blank" href="https://maps.google.com/...">` with no click-interception hook of its
+     own (unlike the description/comments, which now route through `onLinkClick`) — on native this
+     tap likely no-ops rather than opening Maps. Left alone: the overflow menu's own "Map" item
+     (this app's real, working, internal `SCR-04`) is the primary, unaffected "view on map" path,
+     and adding a fourth `b-view` callback for a redundant, secondary affordance wasn't judged worth
+     it here. Documented, not silently dropped, per this file's own convention for exactly this
+     class of gap.
+   - **A real bug caught by the test suite, not by inspection**: `EntryDetail` renders
+     `stars_total`/`favorites_total` straight from `entryState.data` — the optimistic bump/rollback
+     this screen already did lived only in a local `reaction` state that never fed back into what
+     `EntryDetail` actually displays. Without `displayEntryState`'s count projection (added once a
+     test caught the star count staying at 3 after an "optimistic" star), the star/heart icons
+     would have flipped `starred`/`favorited` state correctly (via the `reactions` slot's booleans)
+     while their counts stayed stuck at the last fetch until the next full reload — a real,
+     easy-to-miss regression this specific rewrite could have shipped silently.
+   - **Hidden-member comment suppression** moved from a per-node `useIsHidden` check inside a
+     hand-rolled `CommentThread` to a `filterHiddenComments` pass over `entryState.data.comments`
+     before handing it to `EntryDetail` (which has no hidden-member concept of its own — comments
+     by a hidden member need to be gone from what it renders, not selectively actioned). As a side
+     effect this also fixed a small pre-existing inconsistency: the old "Comments (N)" heading
+     counted the _raw_ comment list, not decremented for hidden ones, so it could overcount what
+     was actually visible below it; the new heading (computed by `EntryDetail` itself, from the
+     already-filtered list) doesn't have that gap.
+
+5. **Deleted `src/data/bbcode.ts`/`src/components/BBCodeText.tsx`** (and their now-redundant
+   `BBCodeText.test.tsx` — `b-view`'s own equivalent test, gained in PR #67, already covers the
+   same parsing/rendering behaviour) — both were byte-for-byte identical to what PR #67 promoted
+   into `b-view` (comment wording only differs, confirmed via `diff`). Every importer repointed
+   at `@b-oss/b-view`: `BBCodeToolbar.tsx`/`DescriptionEditorScreen.tsx`/`NewCommentScreen.tsx`
+   (just `BBCODE_TAGS`), `ProfileScreen.tsx` (biography rendering — the one other direct
+   `BBCodeText` call site outside `EntryDetailScreen`, now also wired with `onLinkClick={openUrl}`
+   for the same WebView-navigation reason as item 4's `onLinkClick` addition).
+
+6. **`SCR-06-entry-detail.md`/`SCR-07-full-screen-photo.md` corrected**: removed every "photo tap →
+   `SCR-07`" statement (wireframe annotation, components list, actions list, acceptance criteria,
+   and SCR-07's own "Reached from") in favour of "the dedicated fullscreen button next to the
+   reaction counts" — matching the live Blipfoto site and `b-view`'s own corrected `EntryDetail`
+   behaviour (PR #67), not this app's own invention. Photo taps are documented as prev/next-entry
+   navigation instead, matching what `EntryDetail` actually does.
+
+7. **Stale "`b-view`'s Lightbox is still reused for SCR-07`" comments** — resolved as a side effect
+of rewriting both files' header doc comments from scratch rather than patched in place; verified
+by grep that no "still reused"/"deliberately NOT b-view" wording survives anywhere in
+`b-mobile/src`.
+
+8. **`packages/b-mobile/src/test-setup.ts` gained a `ResizeObserver` stub** (guarded, matching the
+   file's existing `Element.scrollTo` shim's own pattern) — jsdom in this repo has neither, and
+   `ThumbnailGrid`'s `useContainerSize` now runs inside several `b-mobile` screens' own tests, not
+   just `b-view`'s own (which already stubbed it locally, per-file, since it was `b-view`'s only
+   consumer until now). Four existing test files needed their own fixups beyond that: `BrowseScreen`/
+   `TagEntriesScreen`/`SearchScreen` queried tiles by `aria-label` set to the entry _title_
+   (`EntryGrid`'s own old convention) — `ThumbnailGrid`'s tiles use the entry _date_ instead,
+   unrelated to hiding; updated to match. `EntryDetailScreen.test.tsx` needed the larger rework:
+   `EntryDetail` shows Star/Favourite as an icon + bare count with an `aria-label`
+   ("Star this entry"/"Remove star"), not visible "Star"/"Starred" text; tags render with no
+   leading `#`; the view count and its "views" label are two separate elements, not one combined
+   text node — and `getByText('beach')` in the loaded-entry test needed scoping away from the
+   `[b]beach[/b]` bold text inside the description, which also matches the word "beach".
+
+### Verification
+
+Real headless-Chromium pass (`.claude/skills/run-b-view`, Playwright against a fresh 26-entry
+synthetic fixture served from `b-view-backup`'s standalone SPA) — confirmed visually, not just by
+selector: `ThumbnailGrid` pagination (Next button and swipe both correctly move to page 2 of 26
+entries) and its zoom controls; multi-paragraph BBCode (bold/italic/link) and a two-level nested
+comment thread rendering correctly on `EntryDetail`; the fullscreen button (next to the star/heart
+counts) opening the internal `Lightbox` overlay; tapping the photo itself navigating to a
+different entry rather than opening the lightbox (confirmed on a middle entry, after first
+mistakenly picking the sequence's own boundary entry — no `nextEntryId` in that direction, a
+`run-b-view` gotcha the skill's own doc already calls out); tags rendering as pill chips. Pinch/
+wheel-zoom inside the open lightbox was attempted but not conclusively confirmed by screenshot
+(a flat-colour synthetic fixture image makes a scale change hard to see, and this exercises
+`react-zoom-pan-pinch` itself, not anything this phase touched) — not treated as a gap, since it's
+pre-existing, third-party behaviour PR #67's own test plan already covered. Fixture data and the
+scratch driver script were removed afterward; `dist-app/` itself is gitignored, confirmed clean via
+`git status --ignored`.
+
+Full monorepo `typecheck && lint && test && build` green. 817 tests (post-rebase baseline was 823 —
+this phase's own net change is `-7` from deleting `BBCodeText.test.tsx`, now redundant against
+`b-view`'s own equivalent, `+1` from `PhotoScreen.test.tsx` gaining back a real retry-on-image-error
+test once `Lightbox`'s `onImageError` restored that behaviour).
+
+**Next:** Phase 13 (deploy/test `b-push`) remains next per `PLAN.md`, still blocked on the user
+providing Cloudflare/Firebase credentials — unaffected by this phase. `RESUME.md` updated
+accordingly.

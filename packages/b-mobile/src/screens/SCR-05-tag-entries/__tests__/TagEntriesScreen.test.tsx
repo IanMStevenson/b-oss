@@ -66,6 +66,6 @@ describe('TagEntriesScreen', () => {
     const { fetchTagPage } = await import('../../../data/entries.js');
     vi.mocked(fetchTagPage).mockResolvedValue({ items: [entry], more: false });
     renderScreen();
-    expect(await screen.findByLabelText('Sunrise')).toBeDefined();
+    expect(await screen.findByLabelText('2026-01-01')).toBeDefined();
   });
 });

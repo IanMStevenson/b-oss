@@ -90,7 +90,7 @@ describe('SearchScreen', () => {
     await waitFor(() => expect(fetchSearchEntriesPage).toHaveBeenCalledWith('sun', 0), {
       timeout: 2000,
     });
-    expect(await screen.findByLabelText('Sunrise')).toBeDefined();
+    expect(await screen.findByLabelText('2026-01-01')).toBeDefined();
   });
 
   it('searches immediately on submit, bypassing the debounce', async () => {
@@ -132,7 +132,7 @@ describe('SearchScreen', () => {
     vi.mocked(fetchSearchEntriesPage).mockResolvedValue({ items: [entry], more: false });
     const { history } = renderScreen();
     fireEvent.change(getInput(), { target: { value: 'sun' } });
-    const tile = await screen.findByLabelText('Sunrise');
+    const tile = await screen.findByLabelText('2026-01-01');
     fireEvent.click(tile);
     expect(history.location.pathname).toBe('/entry/e1');
   });
@@ -198,7 +198,7 @@ describe('SearchScreen', () => {
     vi.mocked(fetchSearchUsersPage).mockResolvedValue({ items: [], more: false });
     renderScreen();
     fireEvent.change(getInput(), { target: { value: 'sun' } });
-    await screen.findByLabelText('Sunrise');
+    await screen.findByLabelText('2026-01-01');
     expect(fetchSearchEntriesPage).toHaveBeenCalledTimes(1);
 
     const segment = document.querySelector('ion-segment')!;

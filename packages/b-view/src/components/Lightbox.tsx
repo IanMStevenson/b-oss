@@ -12,9 +12,13 @@ interface LightboxProps {
   index: number;
   onClose: () => void;
   onNavigate: (index: number) => void;
+  /** Fired if the current image's own <img> fails to load — this component has no retry UI of
+   * its own (a broken image just renders as the browser's own broken-image glyph), so a host that
+   * needs one (e.g. a placeholder-with-retry state) supplies this and reacts however it likes. */
+  onImageError?: () => void;
 }
 
-export function Lightbox({ images, index, onClose, onNavigate }: LightboxProps) {
+export function Lightbox({ images, index, onClose, onNavigate, onImageError }: LightboxProps) {
   const hasPrev = index > 0;
   const hasNext = index < images.length - 1;
 
@@ -70,7 +74,7 @@ export function Lightbox({ images, index, onClose, onNavigate }: LightboxProps) 
             height (unlike a full-bleed single-photo screen, which does size the wrapper that way). */}
         <TransformWrapper doubleClick={{ mode: 'toggle' }}>
           <TransformComponent>
-            <img src={images[index]} alt="" className={styles.image} />
+            <img src={images[index]} alt="" className={styles.image} onError={onImageError} />
           </TransformComponent>
         </TransformWrapper>
         {images.length > 1 && (
