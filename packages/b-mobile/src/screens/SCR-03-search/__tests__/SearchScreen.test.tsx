@@ -7,6 +7,7 @@ import { render, screen, cleanup, fireEvent, waitFor } from '@testing-library/re
 import { Router } from 'react-router-dom';
 import { createMemoryHistory } from 'history';
 import { SearchScreen } from '../SearchScreen.js';
+import { OverlayProvider, OverlayHost } from '../../../app/OverlayProvider.js';
 import { useHiddenMembersStore } from '../../../state/hiddenMembersStore.js';
 import { useAccountsStore } from '../../../state/accountsStore.js';
 import type { EntryIndex } from '@b-oss/b-view';
@@ -50,7 +51,10 @@ function renderScreen() {
   const history = createMemoryHistory();
   const utils = render(
     <Router history={history}>
-      <SearchScreen />
+      <OverlayProvider>
+        <OverlayHost />
+        <SearchScreen />
+      </OverlayProvider>
     </Router>,
   );
   return { history, ...utils };

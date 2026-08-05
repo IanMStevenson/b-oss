@@ -40,6 +40,7 @@ import {
 import { useAppNavigate } from '../../app/routes/useAppNavigate.js';
 import { useDevicePrefsStore } from '../../state/devicePrefsStore.js';
 import { openUrl } from '../../platform/browser.js';
+import { AccountIndicator } from '../../components/AccountIndicator.js';
 
 const HELP_URL = 'https://www.blipfoto.com/help';
 const TERMS_URL = 'https://www.blipfoto.com/legal/terms';
@@ -183,6 +184,9 @@ function HelpInfoHub() {
       <IonHeader>
         <IonToolbar>
           <IonTitle>Help &amp; info</IonTitle>
+          <IonButtons slot="end">
+            <AccountIndicator />
+          </IonButtons>
         </IonToolbar>
       </IonHeader>
       <IonContent>

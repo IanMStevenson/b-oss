@@ -47,6 +47,7 @@ import { signInGated } from '../../flows/accountsFlow.js';
 import { mapApiError } from '../../data/errors.js';
 import { useAppNavigate } from '../../app/routes/useAppNavigate.js';
 import { useOverlay } from '../../app/OverlayProvider.js';
+import { AccountIndicator } from '../../components/AccountIndicator.js';
 import { useAccountsStore, useActiveAccount } from '../../state/accountsStore.js';
 import { useHiddenMembersStore, useIsHidden } from '../../state/hiddenMembersStore.js';
 import { CachedImage } from '../../components/CachedImage.js';
@@ -198,6 +199,7 @@ export function ProfileScreen({ username }: ProfileScreenProps) {
             {!isOwn && state.status === 'loaded' && (
               <IonButton onClick={() => setOverflowOpen(true)}>More</IonButton>
             )}
+            {isOwn && <AccountIndicator />}
           </IonButtons>
         </IonToolbar>
       </IonHeader>

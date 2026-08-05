@@ -35,6 +35,7 @@ import {
   IonRefresherContent,
 } from '@ionic/react';
 import type { RefresherEventDetail } from '@ionic/core';
+import { AccountIndicator } from '../../components/AccountIndicator.js';
 import { fetchRecentComments, unreadCommentIds } from '../../data/notifications.js';
 import { deleteComment } from '../../flows/commentsFlow.js';
 import { mapApiError } from '../../data/errors.js';
@@ -151,6 +152,9 @@ export function CommentsInboxScreen() {
             <IonBackButton defaultHref="/browse" />
           </IonButtons>
           <IonTitle>Comments</IonTitle>
+          <IonButtons slot="end">
+            <AccountIndicator />
+          </IonButtons>
         </IonToolbar>
       </IonHeader>
       <IonContent>

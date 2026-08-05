@@ -22,6 +22,7 @@ import {
   IonSpinner,
   IonText,
 } from '@ionic/react';
+import { AccountIndicator } from '../../components/AccountIndicator.js';
 import { usePagedResource } from '../../data/usePagedResource.js';
 import {
   fetchRecentPage,
@@ -147,6 +148,7 @@ export function BrowseScreen() {
           <IonTitle>Browse</IonTitle>
           <IonButtons slot="end">
             <IonButton onClick={() => navigate.push('/search')}>Search</IonButton>
+            <AccountIndicator />
           </IonButtons>
         </IonToolbar>
         <IonToolbar>

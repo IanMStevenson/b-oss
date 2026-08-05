@@ -6,6 +6,7 @@ import { describe, it, expect, afterEach, vi } from 'vitest';
 import { render, screen, cleanup } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { BrowseScreen } from '../BrowseScreen.js';
+import { OverlayProvider, OverlayHost } from '../../../app/OverlayProvider.js';
 import type { EntryIndex } from '@b-oss/b-view';
 
 vi.mock('../../../data/entries.js', () => ({
@@ -22,6 +23,10 @@ vi.mock('../../../platform/geolocation.js', () => ({
 
 vi.mock('../../../state/accountsStore.js', () => ({
   useActiveAccount: vi.fn(),
+  // AccountIndicator's own selector — fixed at "fewer than two accounts" (its own no-op case)
+  // since this file's tests aren't about multi-account switching.
+  useAccountsStore: (selector: (state: { accounts: never[] }) => unknown) =>
+    selector({ accounts: [] }),
 }));
 
 vi.mock('../../../state/hiddenMembersStore.js', () => ({
@@ -44,7 +49,10 @@ afterEach(() => {
 function renderScreen() {
   return render(
     <MemoryRouter>
-      <BrowseScreen />
+      <OverlayProvider>
+        <OverlayHost />
+        <BrowseScreen />
+      </OverlayProvider>
     </MemoryRouter>,
   );
 }

@@ -8,6 +8,7 @@ import userEvent from '@testing-library/user-event';
 import { Router } from 'react-router-dom';
 import { createMemoryHistory } from 'history';
 import { CommentsInboxScreen } from '../CommentsInboxScreen.js';
+import { OverlayProvider, OverlayHost } from '../../../app/OverlayProvider.js';
 import { useAccountsStore } from '../../../state/accountsStore.js';
 import { useHiddenMembersStore } from '../../../state/hiddenMembersStore.js';
 import { useNotificationCountsStore } from '../../../state/notificationCountsStore.js';
@@ -70,7 +71,10 @@ function renderScreen() {
   const history = createMemoryHistory();
   render(
     <Router history={history}>
-      <CommentsInboxScreen />
+      <OverlayProvider>
+        <OverlayHost />
+        <CommentsInboxScreen />
+      </OverlayProvider>
     </Router>,
   );
   return history;

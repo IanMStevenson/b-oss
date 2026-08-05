@@ -3,9 +3,9 @@
 
 // SCR-30 — Accounts. List + switch + add + an inline detail state for mode-change/remove
 // (FLW-21, FLW-20, FLW-22). The lighter-weight account-switcher popover (rules.md, Multi-account
-// clarity) that mirrors "switch" from anywhere in the nav chrome isn't built here — this is the
-// full management screen; the popover is Phase 3+ work once there's a persistent nav chrome to
-// anchor it to.
+// clarity) that mirrors "switch" from anywhere in the nav chrome is built separately
+// (app/AccountSwitcherOverlay.tsx, Phase 12.2) — this is the full management screen; `modeLabel`
+// is exported so that popover doesn't duplicate the mode-label logic.
 
 import { useState } from 'react';
 import {
@@ -32,7 +32,7 @@ import {
 } from '../../flows/accountsFlow.js';
 import { useAppNavigate } from '../../app/routes/useAppNavigate.js';
 
-function modeLabel(account: StoredAccount): string {
+export function modeLabel(account: StoredAccount): string {
   if (account.appTokenScope === null) return 'Needs re-auth';
   return account.appTokenScope === 'read,write' ? 'Read-write' : 'Read-only';
 }

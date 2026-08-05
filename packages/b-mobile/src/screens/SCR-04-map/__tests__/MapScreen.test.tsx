@@ -15,6 +15,7 @@ import { render, screen, cleanup, waitFor } from '@testing-library/react';
 import { Router } from 'react-router-dom';
 import { createMemoryHistory } from 'history';
 import { MapScreen } from '../MapScreen.js';
+import { OverlayProvider, OverlayHost } from '../../../app/OverlayProvider.js';
 import { useHiddenMembersStore } from '../../../state/hiddenMembersStore.js';
 import { useAccountsStore } from '../../../state/accountsStore.js';
 import type { MapEntry } from '../../../data/map.js';
@@ -152,7 +153,10 @@ function renderScreen(focusedEntryId?: string) {
   const history = createMemoryHistory();
   const utils = render(
     <Router history={history}>
-      <MapScreen focusedEntryId={focusedEntryId} />
+      <OverlayProvider>
+        <OverlayHost />
+        <MapScreen focusedEntryId={focusedEntryId} />
+      </OverlayProvider>
     </Router>,
   );
   return { history, ...utils };

@@ -7,6 +7,7 @@ import { render, screen, cleanup } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
 import { HelpInfoScreen } from '../HelpInfoScreen.js';
+import { OverlayProvider, OverlayHost } from '../../../app/OverlayProvider.js';
 import { useDevicePrefsStore } from '../../../state/devicePrefsStore.js';
 
 const { openUrl } = vi.hoisted(() => ({ openUrl: vi.fn() }));
@@ -43,7 +44,10 @@ afterEach(() => {
 function renderHub() {
   return render(
     <MemoryRouter>
-      <HelpInfoScreen />
+      <OverlayProvider>
+        <OverlayHost />
+        <HelpInfoScreen />
+      </OverlayProvider>
     </MemoryRouter>,
   );
 }
@@ -155,7 +159,10 @@ describe('HelpInfoScreen sections', () => {
   it('falls back to the hub for an unrecognised section', () => {
     render(
       <MemoryRouter>
-        <HelpInfoScreen section="not-a-real-section" />
+        <OverlayProvider>
+          <OverlayHost />
+          <HelpInfoScreen section="not-a-real-section" />
+        </OverlayProvider>
       </MemoryRouter>,
     );
     expect(screen.getByText('Icon guide')).toBeDefined();
