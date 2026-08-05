@@ -137,7 +137,9 @@ export async function handleDeviceTokenRotated(newToken: string): Promise<void> 
   }
 }
 
-/** FLW-16 step 8 — every app launch, for each account with notifications nominally on: the OS
+/** FLW-16 step 8 — every app launch *and* every resume (AppShell.tsx wires both via
+ * platform/appState.ts's `onAppStateChange`, per rules.md's "re-check the permission when the app
+ * resumes and act on what it now says") — for each account with notifications nominally on: the OS
  * permission and the service's own registration health, "handled exactly as if the corresponding
  * push/decision had already happened." A permission refusal is treated as the user having turned
  * notifications off (full `DELETE`); a `read-token-invalid` registration status is fed into the
