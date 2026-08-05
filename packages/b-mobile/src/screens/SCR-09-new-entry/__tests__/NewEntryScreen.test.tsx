@@ -35,6 +35,9 @@ vi.mock('../../../app/routes/useAppNavigate.js', () => ({
   useAppNavigate: () => ({ push, replace: vi.fn(), goBack: vi.fn() }),
 }));
 
+const { takePendingSharedPhoto } = vi.hoisted(() => ({ takePendingSharedPhoto: vi.fn() }));
+vi.mock('../../../platform/shareIntent.js', () => ({ takePendingSharedPhoto }));
+
 beforeEach(() => {
   useAccountsStore.setState({
     accounts: [
@@ -113,6 +116,34 @@ describe('NewEntryScreen', () => {
     await userEvent.click(screen.getByText('Choose from device'));
     expect(await screen.findByText('Could not read that file.')).toBeDefined();
     expect(push).not.toHaveBeenCalled();
+  });
+
+  it('FLW-12: a pending shared photo seeds the draft on mount, with no camera/picker interaction', async () => {
+    takePendingSharedPhoto.mockReturnValue({
+      uri: 'file:///cache/shared/shared-1.jpg',
+      webPath: 'file:///cache/shared/shared-1.jpg',
+      mimeType: 'image/jpeg',
+      width: 1200,
+      height: 900,
+      createdAt: null,
+      sizeBytes: 45000,
+    });
+    renderScreen();
+    await waitFor(() => expect(push).toHaveBeenCalledWith('/compose/details'));
+    expect(useComposeDraftStore.getState().draft).toMatchObject({
+      mode: 'publish',
+      accountId: 'a1',
+      photo: { webPath: 'file:///cache/shared/shared-1.jpg', mimeType: 'image/jpeg' },
+    });
+    expect(takePhoto).not.toHaveBeenCalled();
+    expect(pickPhoto).not.toHaveBeenCalled();
+  });
+
+  it('does nothing extra on mount when there is no pending shared photo', () => {
+    takePendingSharedPhoto.mockReturnValue(null);
+    renderScreen();
+    expect(push).not.toHaveBeenCalled();
+    expect(useComposeDraftStore.getState().draft).toBeNull();
   });
 
   it('picking from device seeds the draft the same way', async () => {

@@ -8,8 +8,15 @@
 // "Leads to" contract promises; SCR-10 reads the draft rather than being handed the photo via
 // route state, so a direct link to /compose/details after a process restart would find nothing
 // and can redirect back here (SCR-10's own job, not this screen's).
+//
+// A pending share-to-Blipfoto photo (FLW-12, platform/shareIntent.ts) is picked up here too, on
+// mount, via `takePendingSharedPhoto()` — reusing the exact same `startDraft()` a camera/gallery
+// pick uses, so there is no second, parallel draft-creation path to keep in sync. This screen is
+// where the gate (`WriteGuardRoute` on `/compose`) has already passed by the time it mounts,
+// which is exactly why the photo was consumed and cached earlier, in `AppShell.tsx`, rather than
+// read directly here — see `platform/shareIntent.ts`'s own header comment for the full reasoning.
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   IonPage,
   IonHeader,
@@ -29,6 +36,7 @@ import {
   CameraPermissionDeniedError,
 } from '../../platform/camera.js';
 import type { PickedPhoto } from '../../platform/camera.js';
+import { takePendingSharedPhoto } from '../../platform/shareIntent.js';
 import { useAppNavigate } from '../../app/routes/useAppNavigate.js';
 import { useActiveAccount } from '../../state/accountsStore.js';
 import { useComposeDraftStore } from '../../state/composeDraftStore.js';
@@ -77,6 +85,12 @@ export function NewEntryScreen() {
     });
     navigate.push('/compose/details');
   }
+
+  useEffect(() => {
+    const shared = takePendingSharedPhoto();
+    if (shared) startDraft(shared);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   async function handleTakePhoto(): Promise<void> {
     setCameraMessage(null);

@@ -2,19 +2,37 @@ package io.github.ianmstevenson.bmobile;
 
 import android.app.NotificationChannel;
 import android.app.NotificationManager;
+import android.content.Intent;
 import android.os.Build;
 import android.os.Bundle;
 import com.getcapacitor.BridgeActivity;
+import com.getcapacitor.PluginHandle;
 
 public class MainActivity extends BridgeActivity {
   @Override
   public void onCreate(Bundle savedInstanceState) {
     // Local, single-project plugins (not npm packages) — app-architecture.md §16's "small custom
-    // plugin" for toggling the BlipfotoWebLinkAlias activity-alias, and §20's font-scale reader.
+    // plugin" for toggling the BlipfotoWebLinkAlias activity-alias, §20's font-scale reader, and
+    // FLW-12's share-to-Blipfoto entry point (ACTION_SEND isn't a URL @capacitor/app can see).
     registerPlugin(BlipfotoLinksPlugin.class);
     registerPlugin(AccessibilityPlugin.class);
+    registerPlugin(ShareIntentPlugin.class);
     super.onCreate(savedInstanceState);
     createNotificationChannels();
+  }
+
+  // BridgeActivity's own onNewIntent already forwards a VIEW-action URL into appUrlOpen (the
+  // bmobile:// warm-start path platform/deepLinks.ts wraps) — this only adds the ACTION_SEND
+  // case on top, via ShareIntentPlugin's own JS listener event rather than duplicating its
+  // Intent-parsing logic here.
+  @Override
+  public void onNewIntent(Intent intent) {
+    super.onNewIntent(intent);
+    setIntent(intent);
+    PluginHandle handle = getBridge().getPlugin("ShareIntent");
+    if (handle != null) {
+      ((ShareIntentPlugin) handle.getInstance()).handleNewIntent(intent);
+    }
   }
 
   // app-architecture.md §17: "a notification channel per category (activity, system alerts,

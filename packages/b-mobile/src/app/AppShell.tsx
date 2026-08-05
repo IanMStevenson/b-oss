@@ -30,6 +30,9 @@ import { switchAccount, handleForcedLogout, devSignInWithToken } from '../flows/
 import { onPushReceived, onPushTapped, onPushTokenChanged } from '../platform/push.js';
 import { runLaunchBackstopCheck, handleDeviceTokenRotated } from '../flows/pushFlow.js';
 import { applyFontScale } from '../platform/accessibility.js';
+import { onAppUrlOpen, getLaunchUrl } from '../platform/deepLinks.js';
+import { resolveDeepLink, routeDeepLink } from '../flows/deepLinkResolver.js';
+import { checkForSharedImage, onShareReceived } from '../platform/shareIntent.js';
 
 const MAIN_CONTENT_ID = 'main-content';
 
@@ -167,6 +170,38 @@ function PushListener() {
   return null;
 }
 
+// app-architecture.md §16 — the one place all three inbound paths (cold start's launch URL/share
+// intent, warm start's appUrlOpen/share signal) reach their resolvers, so cold and warm start
+// can't diverge. Needs Router context for `history.push`, same shape as PushListener/
+// ReminderTapListener. The share-intent path only navigates to `/compose` here — the actual
+// photo was already consumed into platform/shareIntent.ts's cache by the time this runs (FLW-12
+// goes through `/compose`'s own WriteGuardRoute gate before NewEntryScreen ever mounts to pick
+// it up; see that module's header comment for why the consumption has to happen here, not there).
+function DeepLinkListener() {
+  const history = useHistory();
+  useEffect(() => {
+    void getLaunchUrl().then((url) => {
+      if (url) routeDeepLink(resolveDeepLink(url), (path) => history.push(path));
+    });
+    void checkForSharedImage().then((found) => {
+      if (found) history.push('/compose');
+    });
+    const offUrlOpen = onAppUrlOpen((url) => {
+      routeDeepLink(resolveDeepLink(url), (path) => history.push(path));
+    });
+    const offShareReceived = onShareReceived(() => {
+      void checkForSharedImage().then((found) => {
+        if (found) history.push('/compose');
+      });
+    });
+    return () => {
+      offUrlOpen();
+      offShareReceived();
+    };
+  }, [history]);
+  return null;
+}
+
 // FLW-18's "tapping it switches to that account, then opens SCR-09" — needs Router context for
 // navigation, so it's mounted inside IonReactRouter rather than alongside the top-level hydrate
 // effect above (which has none).
@@ -238,6 +273,7 @@ export function AppShell() {
           <NavMenu />
           <ReminderTapListener />
           <PushListener />
+          <DeepLinkListener />
           <OverlayHost />
           <IonRouterOutlet id={MAIN_CONTENT_ID}>
             <AppRoutes />
