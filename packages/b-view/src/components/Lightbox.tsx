@@ -1,8 +1,9 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (C) 2026 Ian Stevenson
 
-import { useEffect, useCallback } from 'react';
+import { useEffect, useCallback, useRef, type TouchEvent } from 'react';
 import { X, ChevronLeft, ChevronRight } from 'lucide-react';
+import { TransformWrapper, TransformComponent } from 'react-zoom-pan-pinch';
 import styles from './Lightbox.module.css';
 
 interface LightboxProps {
@@ -12,9 +13,15 @@ interface LightboxProps {
   onNavigate: (index: number) => void;
 }
 
+// Minimum horizontal travel (px), and horizontal dominance over vertical, for a touch gesture to
+// count as a swipe rather than an incidental pan/tap. Only fires on touch input; inert for mouse/
+// keyboard hosts.
+const SWIPE_THRESHOLD_PX = 48;
+
 export function Lightbox({ images, index, onClose, onNavigate }: LightboxProps) {
   const hasPrev = index > 0;
   const hasNext = index < images.length - 1;
+  const touchStart = useRef<{ x: number; y: number } | null>(null);
 
   const handleKey = useCallback(
     (e: KeyboardEvent) => {
@@ -30,8 +37,35 @@ export function Lightbox({ images, index, onClose, onNavigate }: LightboxProps) 
     return () => window.removeEventListener('keydown', handleKey);
   }, [handleKey]);
 
+  const handleTouchStart = useCallback((e: TouchEvent<HTMLDivElement>) => {
+    const t = e.touches[0];
+    touchStart.current = t ? { x: t.clientX, y: t.clientY } : null;
+  }, []);
+
+  const handleTouchEnd = useCallback(
+    (e: TouchEvent<HTMLDivElement>) => {
+      const start = touchStart.current;
+      touchStart.current = null;
+      const t = e.changedTouches[0];
+      if (!start || !t) return;
+      const dx = t.clientX - start.x;
+      const dy = t.clientY - start.y;
+      if (Math.abs(dx) < SWIPE_THRESHOLD_PX || Math.abs(dx) < Math.abs(dy)) return;
+      if (dx < 0 && hasNext) onNavigate(index + 1);
+      if (dx > 0 && hasPrev) onNavigate(index - 1);
+    },
+    [hasNext, hasPrev, index, onNavigate],
+  );
+
   return (
-    <div className={styles.backdrop} onClick={onClose} role="dialog" aria-modal="true">
+    <div
+      className={styles.backdrop}
+      onClick={onClose}
+      onTouchStart={handleTouchStart}
+      onTouchEnd={handleTouchEnd}
+      role="dialog"
+      aria-modal="true"
+    >
       <button className={styles.close} onClick={onClose} aria-label="Close">
         <X size={20} strokeWidth={1.8} />
       </button>
@@ -50,7 +84,15 @@ export function Lightbox({ images, index, onClose, onNavigate }: LightboxProps) 
       )}
 
       <div className={styles.imageWrap} onClick={(e) => e.stopPropagation()}>
-        <img src={images[index]} alt="" className={styles.image} />
+        {/* No explicit wrapperStyle: TransformComponent defaults to sizing itself to its content
+            (max-content), matching .imageWrap's existing shrink-to-fit/viewport-capped sizing —
+            an explicit 100%/100% would collapse to 0 since the flex-column parent has no fixed
+            height (unlike a full-bleed single-photo screen, which does size the wrapper that way). */}
+        <TransformWrapper doubleClick={{ mode: 'toggle' }}>
+          <TransformComponent>
+            <img src={images[index]} alt="" className={styles.image} />
+          </TransformComponent>
+        </TransformWrapper>
         {images.length > 1 && (
           <div className={styles.counter}>
             {index + 1} / {images.length}

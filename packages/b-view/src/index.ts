@@ -6,4 +6,7 @@ export { EntryDetail } from './components/EntryDetail.js';
 export { DatePicker } from './components/DatePicker.js';
 export { InfoPopup } from './components/InfoPopup.js';
 export { Pagination } from './components/Pagination.js';
+export { Lightbox } from './components/Lightbox.js';
+export { BBCodeText } from './components/BBCodeText.js';
+export { BBCODE_TAGS, bbcodePreset } from './bbcode.js';
 export type * from './types.js';

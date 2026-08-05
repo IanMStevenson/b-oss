@@ -27,6 +27,7 @@ The Chrome side mirrors the Electron split: `b-ark-chrome` is to `b-ark-ui-chrom
 
 - b-api, backup-engine, b-view, b-ark-ui-components, b-ark-ui-electron, b-ark-ui-chrome must NEVER import from 'electron'
 - b-api, backup-engine, b-view, b-ark-ui-components, b-ark-ui-electron must NEVER reference 'chrome'/`chrome.*` — Chrome APIs live only in b-ark-ui-chrome and b-ark-chrome
+- b-api, backup-engine, b-view, b-ark-ui-components, b-ark-ui-electron, b-ark-ui-chrome must NEVER import `@capacitor/*` — Capacitor APIs are for b-mobile only. b-view's components take host behaviour (e.g. link-click handling) as injectable props/callbacks instead, so they stay usable from a Capacitor host without depending on it
 - b-ark-ui components must NEVER call window.api directly — use useBackend() hook only
 - Access tokens: handled in main process only (Electron), never sent to renderer via IPC. On Chrome, tokens are AES-GCM encrypted at rest and handed straight to BackupEngine — never broadcast over chrome.runtime messages
 - All Blipfoto \_id fields: always use the \_str string variant, store as string
