@@ -188,13 +188,14 @@ error text against the deck (deliberately not attempted in Phase 12 — see that
 Neither was asked for; check with the user before starting either. Verify with the standard full
 monorepo `typecheck && lint && test && build` once anything lands, same as every phase.
 
-**Also pending, from a separate `b-oss` session, not yet actionable here — see "b-view reuse"
-below**: once `b-oss`'s PR #67 (`b-view-mobile-reuse`) merges to `main`, the reasons this file's
-own "Gotchas" section gives for `EntryGrid`/`BBCodeText`/`PhotoScreen`'s custom code existing are
-no longer valid, and a real adoption phase should follow. Don't start it before that PR has
-actually merged — check `gh pr view 67 --repo IanMStevenson/b-oss --json state`.
+**Also pending, from a separate `b-oss` session — see "b-view reuse" below**: `b-oss` PR #67
+(`b-view-mobile-reuse`) **merged to `main` 2026-08-05T08:09:20Z.** The reasons this file's own
+"Gotchas" section gave for `EntryGrid`/`BBCodeText`/`PhotoScreen`'s custom code existing are no
+longer valid, and this is now genuinely actionable — the only remaining step before starting is
+`git fetch && git rebase origin/main` on `b-mobile-initial` (not yet done as of this note) to pull
+in the merged `b-view` changes.
 
-## b-view reuse — pending, blocked on an external PR (added 2026-08-05, from a separate session)
+## b-view reuse — ready to start (added 2026-08-05, updated same day once PR #67 merged)
 
 Not part of this branch's own phase sequence — flagged here so it isn't lost across the hiatus.
 A separate `b-oss` session (not on `b-mobile-initial`) worked through *why* `b-view`'s components
@@ -219,8 +220,8 @@ logic stays entirely host-side, not `b-view`'s concern) plus pinch/pan zoom and 
 navigation in `Lightbox`/`EntryDetail`/`ThumbnailGrid` (touch capability isn't mobile-specific, so
 it lives in `b-view` itself now, gated by touch input rather than platform).
 
-**Once `b-oss`'s PR #67 (`b-view-mobile-reuse` → `main`) merges**, a real adoption phase here
-should: rebase `b-mobile-initial` onto the updated `main`; delete `EntryGrid.tsx`'s custom
+**PR #67 has merged — this is now the next real adoption phase here** (not started yet as of this
+note): rebase `b-mobile-initial` onto the updated `main`; delete `EntryGrid.tsx`'s custom
 tile/grid logic and render `<ThumbnailGrid>` from `@b-oss/b-view` directly; delete
 `PhotoScreen.tsx`'s hand-built `TransformWrapper` zoom code and render `<Lightbox>` directly;
 rewrite `EntryDetailScreen.tsx` to compose `<EntryDetail>` with the new slots (its existing
@@ -319,8 +320,8 @@ test-setup.ts']` resolves relative to whatever the invoking shell's cwd was, not
   **superseded 2026-08-05, both reasons no longer hold.** `b-view` fixed the `dangerouslySetInnerHTML`
   conflict itself (see "b-view reuse" above); the pagination premise was also just wrong — the user
   confirmed infinite scroll was never the intended design, pagination was. Don't build further on
-  the old reasoning; see the "b-view reuse" section above for the actual adoption plan, blocked on
-  `b-oss` PR #67 merging.
+  the old reasoning; see the "b-view reuse" section above for the actual adoption plan — `b-oss`
+  PR #67 has merged, so this is now ready to start.
 - **`SCR-07`/`SCR-08`/`SCR-15`/`SCR-16` all deliberately avoid depending on a prior screen's
   in-memory data**, refetching via `useLiveEntry`/router state instead, for deep-link resilience.
   `SCR-10`–`SCR-13` (Phase 7) are the deliberate exception, sharing `composeDraftStore`. `SCR-23`/
