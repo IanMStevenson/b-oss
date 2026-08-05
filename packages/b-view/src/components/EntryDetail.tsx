@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (C) 2026 Ian Stevenson
 
-import { useEffect, useState, useCallback, useRef, type ReactNode, type TouchEvent } from 'react';
+import { useEffect, useState, useCallback, type ReactNode } from 'react';
 import {
   ChevronLeft,
   ChevronRight,
@@ -22,14 +22,10 @@ import type { BlipEntry, BlipComment, EntryIndex, EntryState } from '../types.js
 import { DatePicker } from './DatePicker.js';
 import { Lightbox } from './Lightbox.js';
 import { BBCodeText } from './BBCodeText.js';
+import { useSwipeNav } from '../useSwipeNav.js';
 import styles from './EntryDetail.module.css';
 
 type ResolveAsset = (path: string) => Promise<string> | string;
-
-// Minimum horizontal travel (px), and horizontal dominance over vertical, for a touch gesture on
-// the photo to count as a swipe rather than an incidental scroll/tap. Additive to the existing
-// click-half navigation — never fires for mouse/keyboard input, so it's inert on non-touch hosts.
-const SWIPE_THRESHOLD_PX = 48;
 
 function ordinalSuffix(day: number): string {
   const mod100 = day % 100;
@@ -175,27 +171,11 @@ export function EntryDetail({
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
   // Resolved URLs for all lightbox images: [main, ...extras stdres]
   const [lightboxUrls, setLightboxUrls] = useState<string[]>([]);
-  const touchStart = useRef<{ x: number; y: number } | null>(null);
 
-  const handlePhotoTouchStart = useCallback((e: TouchEvent<HTMLDivElement>) => {
-    const t = e.touches[0];
-    touchStart.current = t ? { x: t.clientX, y: t.clientY } : null;
-  }, []);
-
-  const handlePhotoTouchEnd = useCallback(
-    (e: TouchEvent<HTMLDivElement>) => {
-      const start = touchStart.current;
-      touchStart.current = null;
-      const t = e.changedTouches[0];
-      if (!start || !t) return;
-      const dx = t.clientX - start.x;
-      const dy = t.clientY - start.y;
-      if (Math.abs(dx) < SWIPE_THRESHOLD_PX || Math.abs(dx) < Math.abs(dy)) return;
-      if (dx < 0 && nextEntryId) onNavigate(nextEntryId);
-      if (dx > 0 && prevEntryId) onNavigate(prevEntryId);
-    },
-    [nextEntryId, prevEntryId, onNavigate],
-  );
+  const photoSwipe = useSwipeNav({
+    onSwipeLeft: () => nextEntryId && onNavigate(nextEntryId),
+    onSwipeRight: () => prevEntryId && onNavigate(prevEntryId),
+  });
 
   const imagePath =
     entryState.status === 'loaded'
@@ -334,8 +314,8 @@ export function EntryDetail({
           {imageSrc && (
             <div
               className={styles.photoInner}
-              onTouchStart={handlePhotoTouchStart}
-              onTouchEnd={handlePhotoTouchEnd}
+              onTouchStart={photoSwipe.onTouchStart}
+              onTouchEnd={photoSwipe.onTouchEnd}
             >
               <img src={imageSrc} alt={entry.title} className={styles.photo} />
               <div
