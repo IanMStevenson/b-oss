@@ -31,6 +31,7 @@ import {
 } from '@ionic/react';
 import { Map as MapLibreMap, Marker, Popup } from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
+import { AccountIndicator } from '../../components/AccountIndicator.js';
 import { getMapStyleUrl } from '../../platform/mapTiles.js';
 import { getCurrentPosition } from '../../platform/geolocation.js';
 import { fetchEntriesInBounds } from '../../data/map.js';
@@ -221,6 +222,7 @@ export function MapScreen({ focusedEntryId }: MapScreenProps) {
             >
               My location
             </IonButton>
+            <AccountIndicator />
           </IonButtons>
         </IonToolbar>
       </IonHeader>

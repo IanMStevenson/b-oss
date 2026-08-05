@@ -33,6 +33,7 @@ import {
   IonSpinner,
   IonText,
 } from '@ionic/react';
+import { AccountIndicator } from '../../components/AccountIndicator.js';
 import { useResource } from '../../data/useResource.js';
 import { fetchUserSettings } from '../../data/settings.js';
 import { useAppNavigate } from '../../app/routes/useAppNavigate.js';
@@ -108,6 +109,9 @@ function SettingsHub() {
       <IonHeader>
         <IonToolbar>
           <IonTitle>Settings</IonTitle>
+          <IonButtons slot="end">
+            <AccountIndicator />
+          </IonButtons>
         </IonToolbar>
       </IonHeader>
       <IonContent>

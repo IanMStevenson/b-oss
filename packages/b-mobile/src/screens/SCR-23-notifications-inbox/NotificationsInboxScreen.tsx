@@ -36,6 +36,7 @@ import {
   IonRefresherContent,
 } from '@ionic/react';
 import type { RefresherEventDetail } from '@ionic/core';
+import { AccountIndicator } from '../../components/AccountIndicator.js';
 import {
   fetchRecentNotifications,
   isNotificationFromHiddenMember,
@@ -125,6 +126,9 @@ export function NotificationsInboxScreen() {
             <IonBackButton defaultHref="/browse" />
           </IonButtons>
           <IonTitle>Notifications</IonTitle>
+          <IonButtons slot="end">
+            <AccountIndicator />
+          </IonButtons>
         </IonToolbar>
       </IonHeader>
       <IonContent>

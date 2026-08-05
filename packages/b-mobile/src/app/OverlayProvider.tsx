@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (C) 2026 Ian Stevenson
 
-// Owns every overlay (upgrade prompt, first-run explainer — the account switcher joins these once
-// Phase 12.2 builds it) as Ionic overlays opened imperatively, kept out of the router (§5) —
-// dismissing a dialog is not a navigation, and rules.md is explicit the account switcher "is not
-// a new screen ID". `<OverlayHost />` is the one render site (mounted once from `AppShell.tsx`,
-// inside the router since the upgrade prompt navigates on "Manage accounts") — callers only ever
-// import `useOverlay()`, never render their own copy of these overlays.
+// Owns every overlay (upgrade prompt, first-run explainer, account switcher) as overlays opened
+// imperatively, kept out of the router (§5) — dismissing a dialog is not a navigation, and
+// rules.md is explicit the account switcher "is not a new screen ID". `<OverlayHost />` is the
+// one render site (mounted once from `AppShell.tsx`, inside the router since the upgrade prompt
+// and the account switcher both navigate) — callers only ever import `useOverlay()`, never render
+// their own copy of these overlays.
 //
 // Deliberately does NOT own per-screen destructive confirmations ("Remove account?", "Discard
 // comment?", "Delete entry?") — each names a different action with different consequences, so
@@ -19,9 +19,13 @@ import { createContext, useContext, useState } from 'react';
 import type { ReactNode } from 'react';
 import { IonAlert, IonButton } from '@ionic/react';
 import { useAppNavigate } from './routes/useAppNavigate.js';
+import { AccountSwitcherOverlay } from './AccountSwitcherOverlay.js';
 
 export type OverlayState =
-  { kind: null } | { kind: 'upgrade-prompt' } | { kind: 'first-run-explainer' };
+  | { kind: null }
+  | { kind: 'upgrade-prompt' }
+  | { kind: 'first-run-explainer' }
+  | { kind: 'account-switcher' };
 
 interface OverlayContextValue {
   overlay: OverlayState;
@@ -29,6 +33,8 @@ interface OverlayContextValue {
   showUpgradePrompt: () => void;
   /** SCR-01's one-time explainer, shown above the mode choice on first deliberate visit. */
   showFirstRunExplainer: () => void;
+  /** rules.md, "Multi-account clarity" — tapping the persistent account indicator. */
+  showAccountSwitcher: () => void;
   dismiss: () => void;
 }
 
@@ -40,6 +46,7 @@ export function OverlayProvider({ children }: { children: ReactNode }) {
     overlay,
     showUpgradePrompt: () => setOverlay({ kind: 'upgrade-prompt' }),
     showFirstRunExplainer: () => setOverlay({ kind: 'first-run-explainer' }),
+    showAccountSwitcher: () => setOverlay({ kind: 'account-switcher' }),
     dismiss: () => setOverlay({ kind: null }),
   };
   return <OverlayContext.Provider value={value}>{children}</OverlayContext.Provider>;
@@ -112,6 +119,7 @@ export function OverlayHost() {
         ]}
       />
       {overlay.kind === 'first-run-explainer' && <FirstRunExplainer onDismiss={dismiss} />}
+      {overlay.kind === 'account-switcher' && <AccountSwitcherOverlay onDismiss={dismiss} />}
     </>
   );
 }

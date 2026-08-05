@@ -7,6 +7,7 @@ import { render, screen, cleanup, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
 import { SettingsScreen } from '../SettingsScreen.js';
+import { OverlayProvider, OverlayHost } from '../../../app/OverlayProvider.js';
 import { useAccountsStore } from '../../../state/accountsStore.js';
 
 const { fetchUserSettings } = vi.hoisted(() => ({ fetchUserSettings: vi.fn() }));
@@ -72,7 +73,10 @@ afterEach(() => {
 function renderHub() {
   return render(
     <MemoryRouter>
-      <SettingsScreen />
+      <OverlayProvider>
+        <OverlayHost />
+        <SettingsScreen />
+      </OverlayProvider>
     </MemoryRouter>,
   );
 }
@@ -143,7 +147,10 @@ describe('SettingsScreen section routing', () => {
   it('renders the General section when given section="general"', async () => {
     render(
       <MemoryRouter>
-        <SettingsScreen section="general" />
+        <OverlayProvider>
+          <OverlayHost />
+          <SettingsScreen section="general" />
+        </OverlayProvider>
       </MemoryRouter>,
     );
     expect(await screen.findByText('General')).toBeDefined();
@@ -152,7 +159,10 @@ describe('SettingsScreen section routing', () => {
   it('falls back to the hub for an unrecognised section', async () => {
     render(
       <MemoryRouter>
-        <SettingsScreen section="not-a-real-section" />
+        <OverlayProvider>
+          <OverlayHost />
+          <SettingsScreen section="not-a-real-section" />
+        </OverlayProvider>
       </MemoryRouter>,
     );
     await waitFor(() => expect(fetchUserSettings).toHaveBeenCalled());
