@@ -30,6 +30,7 @@ import { switchAccount, handleForcedLogout, devSignInWithToken } from '../flows/
 import { onPushReceived, onPushTapped, onPushTokenChanged } from '../platform/push.js';
 import { runLaunchBackstopCheck, handleDeviceTokenRotated } from '../flows/pushFlow.js';
 import { applyFontScale } from '../platform/accessibility.js';
+import { onAppStateChange } from '../platform/appState.js';
 import { onAppUrlOpen, getLaunchUrl } from '../platform/deepLinks.js';
 import { resolveDeepLink, routeDeepLink } from '../flows/deepLinkResolver.js';
 import { checkForSharedImage, onShareReceived } from '../platform/shareIntent.js';
@@ -253,6 +254,12 @@ export function AppShell() {
     // FLW-16 step 8 — the launch-time backstop, run once accounts are known (it reads
     // accountsStore directly, not via a React selector, so it just needs hydrate() to resolve).
     void accountsHydrated.then(() => runLaunchBackstopCheck());
+    // rules.md: "returning from system settings is not assumed to have succeeded" — re-run the
+    // same backstop check on every resume, not only at launch, since the OS permission (or the
+    // service's registration health) may have changed while the app was backgrounded.
+    return onAppStateChange((isActive) => {
+      if (isActive) void runLaunchBackstopCheck();
+    });
   }, []);
 
   // Notification-count badges are per-account (a server figure for whichever account is
