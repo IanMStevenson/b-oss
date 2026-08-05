@@ -27,7 +27,7 @@ import {
 import { useAppNavigate } from '../../app/routes/useAppNavigate.js';
 import { postComment, editComment } from '../../flows/commentsFlow.js';
 import { describeError, mapApiError } from '../../data/errors.js';
-import { BBCODE_TAGS } from '../../data/bbcode.js';
+import { BBCODE_TAGS } from '@b-oss/b-view';
 import { BBCodeToolbar } from '../../components/BBCodeToolbar.js';
 
 interface NewCommentScreenProps {

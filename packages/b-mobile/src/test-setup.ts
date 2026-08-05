@@ -8,3 +8,17 @@
 if (typeof Element !== 'undefined' && !Element.prototype.scrollTo) {
   Element.prototype.scrollTo = () => {};
 }
+
+// jsdom in this repo's version has no built-in ResizeObserver; b-view's ThumbnailGrid (rendered
+// by several b-mobile screens as of the b-view-reuse adoption) uses one to measure its container
+// for column/row sizing — unmeasured falls back to a fixed 2x2 grid, fine for these tests. Same
+// stub as b-view's own ThumbnailGrid.test.tsx, just shared here since many screens pull it in.
+if (typeof ResizeObserver === 'undefined') {
+  class ResizeObserverStub {
+    observe() {}
+    unobserve() {}
+    disconnect() {}
+  }
+  (globalThis as unknown as { ResizeObserver: typeof ResizeObserverStub }).ResizeObserver =
+    ResizeObserverStub;
+}

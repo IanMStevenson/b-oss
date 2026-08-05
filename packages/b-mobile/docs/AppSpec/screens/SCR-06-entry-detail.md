@@ -1,4 +1,4 @@
-# SCR-06 — Entry Detail   [Must]
+# SCR-06 — Entry Detail [Must]
 
 **Purpose:** The content hub — view a single entry in full: photo, title, stats, description,
 tags, and the comment thread; react, comment, follow the author, and (if owner) manage it. Supports
@@ -15,14 +15,15 @@ moving to the previous/next entry within the same journal.
 `SCR-04 Map`, and the OS share sheet.
 
 ## Layout (ASCII wireframe)
+
 ```
 +--------------------------------------+
 | <   Mon 14 Jun 2026    [⋮]    >  ←→  |  date header, prev/next, overflow menu
 |                                      |
-|        [        photo        ]       |  photo (tap = full screen)
+|        [        photo        ]       |  photo (tap = prev/next entry)
 |                                      |
 |  Title of the entry                  |
-|  👁 1,204   ★ 42   ♥ 7               |  views / stars / favourites
+|  👁 1,204   ★ 42   ♥ 7   [⛶]         |  views / stars / favourites / fullscreen
 |                                      |
 |  Rich description text rendered      |  BBCode -> formatted
 |  from BBCode, with links…            |
@@ -39,12 +40,16 @@ moving to the previous/next entry within the same journal.
 ```
 
 ## Components & data shown
+
 - **Date header** with previous/next affordance (swipe and arrows) to adjacent entries in the
   journal.
 - **Overflow menu** (`⋮`) — context actions, shown per the entry's action flags: Author profile,
   Map (if geotagged), Report, **Hide this member** (`FLW-10`, unless it's the active account's own
   entry), and owner-only Edit details / Replace photo / Delete; Metadata (if present); Share.
-- **Photo** (tap → `SCR-07`).
+- **Photo** — tapping the left/right half loads the previous/next entry (same as the header's
+  arrows), matching the live Blipfoto site; it does not open the full-screen view.
+- **Fullscreen button** — a dedicated control next to the star/heart reaction counts, not a photo
+  tap → `SCR-07`.
 - **Title**; **counts**: views, stars, favourites (correct singular/plural).
 - **Rich description** — BBCode rendered to formatted text with working links.
 - **Tag chips** — tap → `SCR-05 Tag Entries` for that tag.
@@ -63,10 +68,12 @@ moving to the previous/next entry within the same journal.
 
   Edit and delete are driven by **separate action flags** and must not be collapsed into one
   "it's mine" check: a journal owner may delete a comment they cannot edit.
+
 - **Action bar** — Comment, Star, Favourite, Follow/Unfollow, enabled per the entry's action flags
   and the viewer's relationship to the author.
 
 ## States
+
 - **Loading / Loaded / Empty(no comments) / Error** (per [rules.md](../rules.md)).
 - **Protected / not visible** (error 104) → show a "this entry is protected" message and close.
 - **Entry by a hidden member** — reached deliberately, e.g. by tapping a placeholder in a grid.
@@ -89,6 +96,7 @@ moving to the previous/next entry within the same journal.
   photo area.
 
 ## Actions & rules
+
 - **Opening one's own entry clears its comments' unread state.** Loading an entry loads its
   comments, and that act marks the corresponding comment notifications read — so the comments badge
   can drop without the user ever opening `SCR-24`. This is a property of the platform, not a choice,
@@ -118,11 +126,15 @@ moving to the previous/next entry within the same journal.
 - **Edit / Delete** (owner) → `SCR-13`; Delete requires a confirm and, on success, closes the
   entry.
 - **Share** → OS share sheet with the entry's web URL.
-- **Tap photo** → `SCR-07`; **tap tag** → `SCR-05`; **tap username/avatar** → `SCR-18`.
+- **Tap photo** → previous/next entry (same as the header's prev/next arrows), not `SCR-07`.
+- **Tap the fullscreen button** (next to the reaction counts) → `SCR-07`; **tap tag** → `SCR-05`;
+  **tap username/avatar** → `SCR-18`.
 - **Prev/Next** → load the adjacent entry within the journal.
 
 ## API touchpoints
+
 See [endpoints.md](../api-appendix/endpoints.md).
+
 - Load: `entry` (with details, metadata, comments+replies, related, friendship, actions, image
   URLs).
 - React: `entry/star`, `entry/favorite`.
@@ -131,6 +143,7 @@ See [endpoints.md](../api-appendix/endpoints.md).
   comment, reporting, and editing happen on their own screens.)
 
 ## Acceptance criteria
+
 - [ ] Given a public entry, the photo, title, counts, description, tags, and comments (with
       replies) all render.
 - [ ] Given error 104 on load, the user sees a "protected" message and is returned.
@@ -145,8 +158,9 @@ See [endpoints.md](../api-appendix/endpoints.md).
       present per the action flags.
 - [ ] Given an entry with previous/next neighbours, swiping or tapping the arrows loads the
       adjacent entry.
-- [ ] Given a tap on a tag, photo, or username, the correct screen opens (`SCR-05` / `SCR-07` /
-      `SCR-18`).
+- [ ] Given a tap on a tag, the fullscreen button, or a username, the correct screen opens
+      (`SCR-05` / `SCR-07` / `SCR-18`); tapping the photo itself loads the previous/next entry
+      instead.
 - [ ] Given one's own comment, a delete affordance is shown, confirms, and removes it optimistically.
 - [ ] Given one's own comment, an edit affordance opens `SCR-15` seeded with its text, and the
       edited text shows on return.

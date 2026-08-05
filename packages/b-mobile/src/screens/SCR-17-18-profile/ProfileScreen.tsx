@@ -51,9 +51,10 @@ import { AccountIndicator } from '../../components/AccountIndicator.js';
 import { useAccountsStore, useActiveAccount } from '../../state/accountsStore.js';
 import { useHiddenMembersStore, useIsHidden } from '../../state/hiddenMembersStore.js';
 import { CachedImage } from '../../components/CachedImage.js';
-import { BBCodeText } from '../../components/BBCodeText.js';
 import { EntryGrid } from '../../components/EntryGrid.js';
+import { openUrl } from '../../platform/browser.js';
 import type { Page } from '../../data/usePagedResource.js';
+import { BBCodeText } from '@b-oss/b-view';
 import type { EntryIndex } from '@b-oss/b-view';
 
 interface ProfileScreenProps {
@@ -318,7 +319,10 @@ export function ProfileScreen({ username }: ProfileScreenProps) {
                 {tab === 'about' && (
                   <div className="ion-padding">
                     {state.data.details ? (
-                      <BBCodeText source={state.data.details.biography} />
+                      <BBCodeText
+                        source={state.data.details.biography}
+                        onLinkClick={(href) => void openUrl(href)}
+                      />
                     ) : (
                       <p>No biography.</p>
                     )}

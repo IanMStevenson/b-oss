@@ -82,7 +82,7 @@ describe('BrowseScreen', () => {
     vi.mocked(useActiveAccount).mockReturnValue(null);
     vi.mocked(fetchRecentPage).mockResolvedValue({ items: [entry], more: false });
     renderScreen();
-    expect(await screen.findByLabelText('Sunrise')).toBeDefined();
+    expect(await screen.findByLabelText('2026-01-01')).toBeDefined();
   });
 
   it('hides the Following/Just Me tabs when signed out', async () => {
@@ -117,7 +117,7 @@ describe('BrowseScreen', () => {
     const segment = document.querySelector('ion-segment')!;
     segment.dispatchEvent(new CustomEvent('ionChange', { detail: { value: 'following' } }));
 
-    expect(await screen.findByLabelText('Sunrise')).toBeDefined();
+    expect(await screen.findByLabelText('2026-01-01')).toBeDefined();
   });
 
   // Phase 6 made platform/geolocation.ts real: getCurrentPosition() can now resolve `null`

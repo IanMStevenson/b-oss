@@ -34,7 +34,7 @@ import { useComposeDraftStore } from '../../state/composeDraftStore.js';
 import { fetchUserSettings, saveUserSettings } from '../../data/settings.js';
 import { describeError, mapApiError } from '../../data/errors.js';
 import { BBCodeToolbar } from '../../components/BBCodeToolbar.js';
-import { BBCODE_TAGS } from '../../data/bbcode.js';
+import { BBCODE_TAGS } from '@b-oss/b-view';
 
 interface DescriptionEditorScreenProps {
   target?: 'draft' | 'bio';

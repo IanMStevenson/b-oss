@@ -1,13 +1,28 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (C) 2026 Ian Stevenson
 
-// SCR-06 — Entry Detail (FLW-05/06/07/08/10/11). Deliberately NOT b-view's EntryDetail: that
-// component renders `description_html`/`content_html` via dangerouslySetInnerHTML, which
-// app-architecture.md §14 explicitly rules out app-wide ("no dangerouslySetInnerHTML anywhere in
-// the app... the security-relevant property, not a stylistic one" — content here is written by
-// other members). Built from scratch instead, rendering the raw BBCode (`description`/`content`,
-// not the `_html` variants) through BBCodeText. b-view's Lightbox is still reused for SCR-07 — it
-// renders only <img>, no HTML content, so the same conflict doesn't apply there.
+// SCR-06 — Entry Detail (FLW-05/06/07/08/10/11). Composes b-view's EntryDetail (now that its
+// description/comment rendering goes through BBCodeText rather than dangerouslySetInnerHTML,
+// closing the §14 conflict that used to rule it out here) with this screen's own reactions/
+// commentComposer/entryActions/renderCommentActions slots and a few small b-view callback props
+// (onLinkClick, onFullscreen, onTagClick) added alongside those slots for the same reason: EntryDetail
+// itself has no host-platform opinions, so anything that needs one is host-injected. b-view's own
+// fullscreen button opens an internal Lightbox overlay by default; onFullscreen redirects it to
+// SCR-07 instead, which stays a real, separately-routed screen (deep-link resilient, back-
+// navigable) — see SCR-06-entry-detail.md/SCR-07-full-screen-photo.md for the corrected trigger
+// description ("dedicated fullscreen button", not a photo tap).
+//
+// Follow/Unfollow doesn't fit any of EntryDetail's slots (a backup viewer has no "follow a member"
+// concept) — rendered as this screen's own strip beneath EntryDetail instead, same gating as
+// before. Star/Favourite share EntryDetail's one `reactions` slot, which can't independently hide
+// just one of the two the way the old hand-built action row could — offered only when both
+// actions.star and actions.favorite agree (both permitted or the viewer is anonymous, matching
+// the old per-button "!activeAccount || actions?.x !== 0" rule combined across both flags); the
+// two are not known to diverge in practice, and splitting the slot for a case that may never occur
+// wasn't worth a further b-view change here. Known, accepted, not-fixed: EntryDetail's own inline
+// location pin is a plain `<a target="_blank">`, not routed through Capacitor's Browser plugin —
+// on native this tap likely no-ops rather than opening Maps, but the overflow menu's own "Map"
+// item (this app's real, working, internal SCR-04 map) is unaffected and remains the primary path.
 //
 // Star/Favourite/Comment carry the account-confirm gate (rules.md, "confirm the account before
 // Star, Favourite, or a comment/reply"); Follow/Report/Hide don't — the setting's scope is
@@ -24,7 +39,8 @@
 // fetchEntry — this screen's own entryState.message just renders whatever it threw, same as any
 // other error.
 
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import type { ReactNode } from 'react';
 import {
   IonPage,
   IonHeader,
@@ -36,13 +52,14 @@ import {
   IonSpinner,
   IonText,
   IonButton,
-  IonChip,
   IonAlert,
   IonActionSheet,
 } from '@ionic/react';
+import { EntryDetail } from '@b-oss/b-view';
+import type { BlipComment, EntryState } from '@b-oss/b-view';
 import { useLiveEntry } from '../../data/useLiveEntry.js';
-import { CachedImage } from '../../components/CachedImage.js';
-import { BBCodeText } from '../../components/BBCodeText.js';
+import { openUrl } from '../../platform/browser.js';
+import { resolveImage } from '../../platform/imageCache.js';
 import { useAppNavigate } from '../../app/routes/useAppNavigate.js';
 import { useOverlay } from '../../app/OverlayProvider.js';
 import { useAccountsStore, useActiveAccount, useCanWrite } from '../../state/accountsStore.js';
@@ -57,7 +74,11 @@ import {
 } from '../../flows/reactionsFlow.js';
 import { deleteComment } from '../../flows/commentsFlow.js';
 import { deleteEntry } from '../../data/entries.js';
-import { useHiddenMembersStore, useIsHidden } from '../../state/hiddenMembersStore.js';
+import {
+  useHiddenMembers,
+  useHiddenMembersStore,
+  useIsHidden,
+} from '../../state/hiddenMembersStore.js';
 import { describeError, mapApiError } from '../../data/errors.js';
 import type { BlipComment as ApiComment } from '@b-oss/b-api';
 
@@ -65,69 +86,24 @@ interface EntryDetailScreenProps {
   entryId: string;
 }
 
-function CommentThread({
-  comment,
-  depth = 0,
-  onReply,
-  onEdit,
-  onDelete,
-  onReport,
-}: {
-  comment: ApiComment;
-  depth?: number;
-  onReply: (comment: ApiComment) => void;
-  onEdit: (comment: ApiComment) => void;
-  onDelete: (comment: ApiComment) => void;
-  onReport: (comment: ApiComment) => void;
-}) {
-  const isHidden = useIsHidden(comment.commenter.username);
-  if (isHidden) return null;
-
-  return (
-    <div style={{ marginLeft: depth * 16, marginTop: 8 }}>
-      <strong>{comment.commenter.username}</strong>
-      <BBCodeText source={comment.content} />
-      <div style={{ display: 'flex', gap: 8 }}>
-        {comment.actions.reply === 1 && (
-          <IonButton size="small" fill="clear" onClick={() => onReply(comment)}>
-            Reply
-          </IonButton>
-        )}
-        {comment.actions.edit === 1 && (
-          <IonButton size="small" fill="clear" onClick={() => onEdit(comment)}>
-            Edit
-          </IonButton>
-        )}
-        {comment.actions.delete === 1 && (
-          <IonButton size="small" fill="clear" color="danger" onClick={() => onDelete(comment)}>
-            Delete
-          </IonButton>
-        )}
-        <IonButton size="small" fill="clear" onClick={() => onReport(comment)}>
-          Report
-        </IonButton>
-      </div>
-      {(comment.replies ?? []).map((reply) => (
-        <CommentThread
-          key={reply.comment_id_str}
-          comment={reply}
-          depth={depth + 1}
-          onReply={onReply}
-          onEdit={onEdit}
-          onDelete={onDelete}
-          onReport={onReport}
-        />
-      ))}
-    </div>
-  );
+/** Drops a comment (and its whole reply subtree) from what EntryDetail renders once its author
+ * is hidden — full suppression, not a placeholder, per rules.md (a different treatment from
+ * grids' hidden-tile placeholder, matching the old per-node CommentThread behaviour this
+ * replaces). */
+function filterHiddenComments(comments: BlipComment[], hidden: string[]): BlipComment[] {
+  return comments
+    .filter((c) => !hidden.includes(c.commenter_username))
+    .map((c) => ({ ...c, replies: filterHiddenComments(c.replies, hidden) }));
 }
 
-interface ReactionOverlay {
-  starred: boolean;
-  favorited: boolean;
-  starsTotal: number;
-  favoritesTotal: number;
-  friendshipState: 0 | 1 | 2 | 3 | null;
+/** EntryDetail's own comments are b-view-shaped (BlipComment, no per-comment action flags — see
+ * data/entries.ts's LoadedEntry doc comment). renderCommentActions only ever sees those, so this
+ * flattens the raw ApiComment list (which does carry `.actions`) into a lookup by id. */
+function flattenComments(comments: ApiComment[], map: Map<string, ApiComment>): void {
+  for (const c of comments) {
+    map.set(c.comment_id_str, c);
+    if (c.replies) flattenComments(c.replies, map);
+  }
 }
 
 export function EntryDetailScreen({ entryId }: EntryDetailScreenProps) {
@@ -135,6 +111,7 @@ export function EntryDetailScreen({ entryId }: EntryDetailScreenProps) {
   const { showUpgradePrompt } = useOverlay();
   const activeAccount = useActiveAccount();
   const canWrite = useCanWrite();
+  const hiddenMembers = useHiddenMembers();
   const { confirmAccount, dialog: accountConfirmDialog } = useAccountConfirmGate();
   const {
     entryState,
@@ -160,6 +137,30 @@ export function EntryDetailScreen({ entryId }: EntryDetailScreenProps) {
   const authorUsername = entryState.status === 'loaded' ? entryState.data.username : null;
   const isOwnEntry = authorUsername !== null && authorUsername === activeAccount?.username;
   const authorHidden = useIsHidden(authorUsername);
+
+  const commentActionsMap = useMemo(() => {
+    const map = new Map<string, ApiComment>();
+    flattenComments(comments, map);
+    return map;
+  }, [comments]);
+
+  // EntryDetail renders stars_total/favorites_total straight from entryState.data itself — it
+  // has no separate hook for an optimistic count the way the reactions slot does for the starred/
+  // favorited booleans, so the optimistic bump/rollback in `reaction` has to be projected into the
+  // entry data here too, or the star/heart icons would flip state while their counts stayed stuck
+  // at the last fetch until the next reload().
+  const displayEntryState: EntryState = useMemo(() => {
+    if (entryState.status !== 'loaded') return entryState;
+    return {
+      ...entryState,
+      data: {
+        ...entryState.data,
+        stars_total: reaction?.starsTotal ?? entryState.data.stars_total,
+        favorites_total: reaction?.favoritesTotal ?? entryState.data.favorites_total,
+        comments: filterHiddenComments(entryState.data.comments, hiddenMembers),
+      },
+    };
+  }, [entryState, hiddenMembers, reaction]);
 
   // `entryState` itself is a fresh wrapper object on every call to useLiveEntry (every render),
   // even when nothing about the underlying resource changed — depending on it directly would
@@ -358,6 +359,43 @@ export function EntryDetailScreen({ entryId }: EntryDetailScreenProps) {
     useHiddenMembersStore.getState().unhide(account.activeAccountId, authorUsername);
   }
 
+  function renderCommentActions(comment: BlipComment): ReactNode {
+    const apiComment = commentActionsMap.get(comment.comment_id);
+    if (!apiComment) return null;
+    return (
+      <>
+        {apiComment.actions.reply === 1 && (
+          <IonButton size="small" fill="clear" onClick={() => void handleReply(apiComment)}>
+            Reply
+          </IonButton>
+        )}
+        {apiComment.actions.edit === 1 && (
+          <IonButton size="small" fill="clear" onClick={() => handleEdit(apiComment)}>
+            Edit
+          </IonButton>
+        )}
+        {apiComment.actions.delete === 1 && (
+          <IonButton
+            size="small"
+            fill="clear"
+            color="danger"
+            onClick={() => setDeleteTarget(apiComment)}
+          >
+            Delete
+          </IonButton>
+        )}
+        <IonButton size="small" fill="clear" onClick={() => handleReportComment(apiComment)}>
+          Report
+        </IonButton>
+      </>
+    );
+  }
+
+  const showReactions =
+    !hideForReadOnly && (!activeAccount || (actions?.star !== 0 && actions?.favorite !== 0));
+  const showComment = !hideForReadOnly && (!activeAccount || actions?.comment !== 0);
+  const friendshipState = reaction?.friendshipState ?? null;
+
   return (
     <IonPage>
       <IonHeader>
@@ -366,28 +404,9 @@ export function EntryDetailScreen({ entryId }: EntryDetailScreenProps) {
             <IonBackButton defaultHref="/browse" />
           </IonButtons>
           <IonTitle>Entry</IonTitle>
-          <IonButtons slot="end">
-            {entryState.status === 'loaded' && (
-              <IonButton disabled={deletingEntry} onClick={() => setOverflowOpen(true)}>
-                More
-              </IonButton>
-            )}
-            <IonButton
-              disabled={!prevEntryId}
-              onClick={() => prevEntryId && navigate.replace(`/entry/${prevEntryId}`)}
-            >
-              ←
-            </IonButton>
-            <IonButton
-              disabled={!nextEntryId}
-              onClick={() => nextEntryId && navigate.replace(`/entry/${nextEntryId}`)}
-            >
-              →
-            </IonButton>
-          </IonButtons>
         </IonToolbar>
       </IonHeader>
-      <IonContent className="ion-padding">
+      <IonContent>
         {entryState.status === 'loading' && (
           <div style={{ display: 'flex', justifyContent: 'center', padding: 32 }}>
             <IonSpinner />
@@ -395,7 +414,7 @@ export function EntryDetailScreen({ entryId }: EntryDetailScreenProps) {
         )}
 
         {entryState.status === 'error' && (
-          <div>
+          <div className="ion-padding">
             <IonText color="danger">
               <p>{entryState.message}</p>
             </IonText>
@@ -404,7 +423,7 @@ export function EntryDetailScreen({ entryId }: EntryDetailScreenProps) {
         )}
 
         {entryState.status === 'loaded' && authorHidden && (
-          <div>
+          <div className="ion-padding">
             <p>You&rsquo;ve hidden this member.</p>
             <IonButton onClick={handleUnhideAuthor}>Unhide</IonButton>
           </div>
@@ -412,99 +431,59 @@ export function EntryDetailScreen({ entryId }: EntryDetailScreenProps) {
 
         {entryState.status === 'loaded' && !authorHidden && (
           <>
-            {entryState.data.images.image && (
-              <button
-                onClick={() => navigate.push(`/entry/${entryId}/photo`)}
-                style={{ padding: 0, border: 'none', background: 'none', width: '100%' }}
-              >
-                <CachedImage
-                  src={entryState.data.images.image}
-                  alt={entryState.data.title}
-                  loading="eager"
-                />
-              </button>
-            )}
-
-            <h1>{entryState.data.title || entryState.data.date}</h1>
-            <p style={{ color: 'var(--muted)' }}>
-              {entryState.data.views_total.toLocaleString()} views ·{' '}
-              {reaction?.starsTotal ?? entryState.data.stars_total} stars ·{' '}
-              {reaction?.favoritesTotal ?? entryState.data.favorites_total} favourites
-            </p>
-
-            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-              {!hideForReadOnly && (!activeAccount || actions?.star !== 0) && (
-                <IonButton
-                  size="small"
-                  fill={reaction?.starred ? 'solid' : 'outline'}
-                  disabled={reaction?.starred}
-                  onClick={() => void handleStar()}
-                >
-                  {reaction?.starred ? 'Starred' : 'Star'}
+            <EntryDetail
+              entryState={displayEntryState}
+              prevEntryId={prevEntryId}
+              nextEntryId={nextEntryId}
+              onNavigate={(id) => navigate.replace(`/entry/${id}`)}
+              resolveAsset={resolveImage}
+              onLinkClick={(href) => void openUrl(href)}
+              onFullscreen={() => navigate.push(`/entry/${entryId}/photo`)}
+              onTagClick={(tag) => navigate.push(`/tag/${encodeURIComponent(tag)}`)}
+              reactions={
+                showReactions
+                  ? {
+                      starred: reaction?.starred ?? starred,
+                      favorited: reaction?.favorited ?? favorited,
+                      onToggleStar: () => void handleStar(),
+                      onToggleFavorite: () => void handleFavorite(),
+                    }
+                  : undefined
+              }
+              commentComposer={
+                showComment ? (
+                  <IonButton fill="outline" onClick={() => void handleComment()}>
+                    Add a comment
+                  </IonButton>
+                ) : undefined
+              }
+              entryActions={
+                <IonButton disabled={deletingEntry} onClick={() => setOverflowOpen(true)}>
+                  More
                 </IonButton>
-              )}
-              {!hideForReadOnly && (!activeAccount || actions?.favorite !== 0) && (
-                <IonButton
-                  size="small"
-                  fill={reaction?.favorited ? 'solid' : 'outline'}
-                  disabled={reaction?.favorited}
-                  onClick={() => void handleFavorite()}
-                >
-                  {reaction?.favorited ? 'Favourited' : 'Favourite'}
-                </IonButton>
-              )}
-              {!hideForReadOnly && (!activeAccount || actions?.comment !== 0) && (
-                <IonButton size="small" fill="outline" onClick={() => void handleComment()}>
-                  Comment
-                </IonButton>
-              )}
-              {!hideForReadOnly && !isOwnEntry && authorUsername && (
-                <>
-                  {reaction?.friendshipState === 1 && (
-                    <IonButton size="small" fill="outline" onClick={() => setConfirmUnfollow(true)}>
-                      Unfollow
-                    </IonButton>
-                  )}
-                  {reaction?.friendshipState === 2 && (
-                    <IonButton size="small" fill="outline" disabled>
-                      Request sent
-                    </IonButton>
-                  )}
-                  {(reaction?.friendshipState === 0 || reaction?.friendshipState == null) && (
-                    <IonButton size="small" fill="outline" onClick={() => void handleFollow()}>
-                      Follow
-                    </IonButton>
-                  )}
-                </>
-              )}
-            </div>
+              }
+              renderCommentActions={renderCommentActions}
+            />
 
-            <BBCodeText source={entryState.data.description} />
-
-            {entryState.data.tags.length > 0 && (
-              <div>
-                {entryState.data.tags.map((tag) => (
-                  <IonChip
-                    key={tag}
-                    onClick={() => navigate.push(`/tag/${encodeURIComponent(tag)}`)}
-                  >
-                    #{tag}
-                  </IonChip>
-                ))}
+            {!hideForReadOnly && !isOwnEntry && authorUsername && (
+              <div className="ion-padding" style={{ paddingTop: 0 }}>
+                {friendshipState === 1 && (
+                  <IonButton size="small" fill="outline" onClick={() => setConfirmUnfollow(true)}>
+                    Unfollow
+                  </IonButton>
+                )}
+                {friendshipState === 2 && (
+                  <IonButton size="small" fill="outline" disabled>
+                    Request sent
+                  </IonButton>
+                )}
+                {(friendshipState === 0 || friendshipState == null) && (
+                  <IonButton size="small" fill="outline" onClick={() => void handleFollow()}>
+                    Follow
+                  </IonButton>
+                )}
               </div>
             )}
-
-            <h3>Comments ({comments.length})</h3>
-            {comments.map((comment) => (
-              <CommentThread
-                key={comment.comment_id_str}
-                comment={comment}
-                onReply={(c) => void handleReply(c)}
-                onEdit={handleEdit}
-                onDelete={setDeleteTarget}
-                onReport={handleReportComment}
-              />
-            ))}
           </>
         )}
       </IonContent>
@@ -609,4 +588,12 @@ export function EntryDetailScreen({ entryId }: EntryDetailScreenProps) {
       />
     </IonPage>
   );
+}
+
+interface ReactionOverlay {
+  starred: boolean;
+  favorited: boolean;
+  starsTotal: number;
+  favoritesTotal: number;
+  friendshipState: 0 | 1 | 2 | 3 | null;
 }
