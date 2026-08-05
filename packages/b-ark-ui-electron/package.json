@@ -14,15 +14,15 @@
     "@b-oss/b-ark-ui-components": "*",
     "@b-oss/b-view": "*",
     "@b-oss/b-view-backup": "*",
-    "lucide-react": "^1.27.0",
+    "lucide-react": "^1.28.0",
     "react": "^19.2.8",
     "react-dom": "^19.2.8"
   },
   "devDependencies": {
     "@testing-library/react": "^16.0.0",
     "@testing-library/user-event": "^14.0.0",
-    "@types/react": "^19.0.0",
-    "@types/react-dom": "^19.0.0",
+    "@types/react": "^19.2.18",
+    "@types/react-dom": "^19.2.4",
     "vitest": "^4.1.0"
   }
 }

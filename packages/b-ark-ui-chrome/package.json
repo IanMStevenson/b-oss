@@ -17,13 +17,13 @@
     "@b-oss/b-ark-ui-components": "*",
     "@b-oss/b-view": "*",
     "@b-oss/b-view-backup": "*",
-    "lucide-react": "^1.27.0",
+    "lucide-react": "^1.28.0",
     "react": "^19.2.8",
     "react-dom": "^19.2.8"
   },
   "devDependencies": {
-    "@types/chrome": "^0.2.2",
-    "@types/react": "^19.0.0",
-    "@types/react-dom": "^19.0.0"
+    "@types/chrome": "^0.2.5",
+    "@types/react": "^19.2.18",
+    "@types/react-dom": "^19.2.4"
   }
 }
