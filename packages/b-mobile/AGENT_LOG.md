@@ -1697,3 +1697,152 @@ building the actual `flows/deepLinkResolver.ts` (this phase's own largest findin
 silent no-op for shared links and the share intent), real on-device testing once a device/emulator
 is available, and closing `devicePrefsStore.uploadFullSize`'s still-unconsumed toggle
 (RESUME.md's own longstanding gotcha, unchanged since Phase 8).
+
+## 2026-08-05 — Phase 12 complete: Wishlist (overlay, account switcher, deep links, resume hook, copy deck)
+
+Not a `PLAN.md`-defined phase — compiled at the end of Phase 11 as a five-item audit, reviewed
+with the user 2026-08-04, then run as one continuous batch of "code-only tasks" per explicit
+instruction, with two check-ins folded in along the way (real photo-upload limits from the user,
+sourced from Blipfoto's own server code; a populated `VITE_MAP_TILES_KEY`). No Android signing/
+publishing and no real on-device testing were in scope (explicitly parked by the user); `b-push`
+deployment (Phase 13) is a separate, Cloudflare-credentials-blocked phase, not touched here.
+
+### 12.1 — `OverlayProvider`/`useOverlay`, finished for real
+
+Went from a dead stub (`OverlayState` only ever `{kind: null}`, zero consumers) to the shared
+mechanism every upgrade-prompt/first-run/account-switcher overlay now routes through — the user's
+explicit call ("use the shared mechanism", not per-screen local state). `FirstRunExplainer` is a
+plain fixed-position `<div role="dialog">`, not `IonModal` — `IonModal.present()` throws "framework
+delegate is missing" in this jsdom setup, with no existing precedent anywhere in the codebase to
+follow instead. Wiring ~14 screens' toolbars to the new `AccountIndicator` (12.2, below) surfaced
+`useOverlay must be used within OverlayProvider` failures across their existing test files, since
+none had ever rendered inside an `OverlayProvider`; fixed by wrapping each `render()`/
+`renderScreen()` call site with `<OverlayProvider><OverlayHost />…</OverlayProvider>`. One flaky
+`IonAlert`-lifecycle test (asserting only one overlay kind is ever open) was removed rather than
+fought — it was proving a JS truism (a discriminated union) via Ionic's own alert lifecycle timing
+in jsdom, not testing anything the type system doesn't already guarantee.
+
+### 12.2 — Account-switcher popover
+
+`AccountSwitcherOverlay.tsx` (new): lists every stored account (avatar/initial, username,
+`AccountsScreen.tsx`'s own `modeLabel()`, exported for reuse rather than duplicated), tap-to-switch
+via `switchAccount()`/`NeedsReauthError` (routes to `/accounts` on reauth needed), a "Manage
+accounts" row to the full `SCR-30`, backdrop-dismiss. `AccountIndicator.tsx` (new): renders nothing
+unless ≥2 accounts exist, otherwise an avatar/initial button opening the switcher — wired into
+eight screens' toolbars (`SCR-02/03/04/17-18/23/24/25/29`, `SCR-04`/`17-18`'s own-profile-only /
+hub-only nuances respected per screen).
+
+### 12.3 — `flows/deepLinkResolver.ts`
+
+Closed Phase 11's largest finding. `resolveDeepLink(url)` handles all three inbound paths app-
+architecture.md §16 requires — the OAuth redirect (recognised and ignored, never routed, so
+`flows/oauthRound.ts`'s own scoped listener still owns it), `bmobile://entry/:id` /
+`bmobile://user/:username`, and the opt-in `blipfoto.com/entry/{id}` / `blipfoto.com/{username}` /
+`blipfoto.com/me/followers/requests` web-link shapes — the last of these by exporting and reusing
+`data/notifications.ts#resolveWebPathTarget` rather than re-implementing the same path parsing a
+second time. `routeDeepLink()` takes a plain `{push}` callback rather than importing react-router,
+matching the ESLint platform-boundary rule (`flows/**` doesn't import router). 19 new tests.
+
+**Real scope escalation, reasoned through rather than deferred**: `@capacitor/app`'s
+`appUrlOpen`/`getLaunchUrl()` only ever expose VIEW-action launch URLs — never an `ACTION_SEND`
+intent's binary extras — so FLW-12's share-to-Blipfoto entry point needed genuinely new native
+code, not just app-layer wiring, to close at all. Built `ShareIntentPlugin.java` (new local, non-
+npm plugin, same precedent as the existing `BlipfotoLinksPlugin`): `getSharedImage()` reads the
+launching `Intent` once (one-shot — clears `EXTRA_STREAM` on read), decodes bounds without loading
+the full bitmap, copies the stream into `getCacheDir()/shared/`; `MainActivity.onNewIntent()` feeds
+a warm-start share into the same plugin instance via `getBridge().getPlugin("ShareIntent")`.
+`platform/shareIntent.ts` wraps it as `checkForSharedImage()` (the one-shot native read, called
+from `AppShell.tsx`'s new `DeepLinkListener`) / `takePendingSharedPhoto()` (the cached hand-off
+`NewEntryScreen` drains on mount) — split specifically because `/compose` sits behind
+`WriteGuardRoute`, which can run a full async OAuth round before `NewEntryScreen` ever mounts; the
+photo has to survive that wait, so it can't be read directly from the screen that needs it. Verified
+with a real `./gradlew assembleDebug` (native Java compiles) — no device/emulator to confirm
+runtime behaviour, same standing caveat since Phase 10.
+
+### 12.4 — `platform/appState.ts`'s resume hook
+
+`onAppStateChange()` went from a literal no-op stub to a real `@capacitor/app`
+`appStateChange`-listener wrapper (never fires for the initial launch state, only later
+transitions, so a caller with its own launch-time check needs no de-dup guard). One real consumer
+wired: `AppShell.tsx` now calls `flows/pushFlow.ts#runLaunchBackstopCheck()` on every resume, not
+only at launch — rules.md is explicit that "returning from system settings is not assumed to have
+succeeded... re-check the permission when the app resumes." `runLaunchBackstopCheck` already did
+exactly the right thing (OS-permission recheck, service-registration-health check, both already
+correct for a launch-time call) — reused as-is for resume rather than duplicated, with its doc
+comment updated to say so. Upload-queue stale-item reset stays launch-only, per §9's own wording —
+confirmed nothing needed adding there.
+
+### 12.5 — TODO F/G: the copy deck, wired for real
+
+`src/strings/` was an empty stub directory; `docs/AppSpec/TextStrings.csv` (TODO F) and
+`api-appendix/error-codes.md` (TODO G) were both actually complete, just never connected to code.
+
+- **`scripts/generate-strings.mjs`** (new): a hand-rolled RFC4180-ish CSV parser (quoted fields,
+  doubled-quote escaping, and literal newlines inside quoted fields — several `draft_text` values
+  are multi-paragraph, which a plain line-split can't handle) that regenerates
+  `src/strings/deck.ts`, a flat `Record<key, text>` of all 182 rows. Checked in as real content
+  (not gitignored, unlike `version.generated.json` — this moves with the spec, not the machine),
+  regenerated manually via `npm run strings:generate` when the CSV changes, not on every build.
+  `src/strings/index.ts` (hand-written): `t(key, vars?)` — `{placeholder}` interpolation for the
+  handful of draft strings that carry one (`{username}` etc.), leaving an unmatched token as-is
+  rather than silently dropping it.
+- **`data/errors.ts#mapApiError`'s `validation` outcome, wired for real.** `VALIDATION_CODES`: a
+  flat table from error-codes.md's write/validation codes (101, 102, 104, 202, 205, 240, 250–252,
+  303–306, 516–528) to the exact `ERR.<code>.<name>` keys `TextStrings.csv`'s own "validation"
+  category already used — confirming TODO F's keys were drafted expecting exactly this mapping. 221/
+  222/223 deliberately excluded: `flows/reactionsFlow.ts` already resolves 221/222 as non-failures
+  and throws its own `FavoriteQuotaError` for 223 before either ever reaches `mapApiError`. New
+  `describeError(outcome, fallback)` helper replaces the identical
+  `outcome.kind === 'message' ? outcome.message : '<fallback>'` ternary that ~30 call sites across
+  16 screens had each hand-rolled — mechanically swapped in everywhere via the same pattern, which
+  also fixed a real, pre-existing bug those ternaries all shared: `rate-limited`/`upgrade-prompt`
+  outcomes already carried a real `.message`, but every one of those call sites discarded it in
+  favour of its own generic fallback text, since neither kind is `'message'`.
+- **Reconciliation, scoped to correctness-bearing content** (not a wall-to-wall relabel of all 182
+  keys against every screen's JSX — most of those already matched, since the CSV was clearly
+  authored from/against the already-built screens). `OverlayProvider.tsx`'s upgrade-prompt `IonAlert`
+  and `FirstRunExplainer` had their own `TODO(Phase 12.5)` markers pointing at exactly this — both
+  now read from the deck, the upgrade prompt's body interpolating the active account's username via
+  `useActiveAccount()` read directly in `OverlayHost` (no per-caller plumbing needed, since the
+  gated account is always whichever one is currently active). Found and fixed the same duplicate
+  along the way: `WriteGuardRoute.tsx` has its own separate `IonAlert` (predates `OverlayProvider`,
+  its own comment already said so) — its decline action needs `history.goBack()`, which the shared
+  overlay has no per-caller hook for yet, so the duplicate stays, but now reads the same deck keys
+  rather than its own stale hardcoded text, with a `TODO` left for actually retiring it once
+  `OverlayState` grows an on-decline callback. `EntryDetailScreen.tsx`'s own `TODO(TODO F/G)`
+  marker (104/202 needing their own copy) and error-codes.md's SCR-18 note (101 and 103 must read
+  identically as "no such user", not 101 falling through to generic) both closed the same way:
+  rewritten at the fetcher (`data/entries.ts#fetchEntry`, `data/users.ts#fetchUserProfile`) rather
+  than teaching the shared `useResource` four-state primitive about per-screen copy keys — each
+  screen's existing `entryState.message`/`state.message` rendering already shows whatever
+  `Error.message` was thrown, so rewriting the message at the one fetch call site is sufficient and
+  doesn't touch the primitive 28 other screens also depend on. `reactionsFlow.ts`'s
+  `FavoriteQuotaError` message reconciled the same way (was `'Daily favourite limit reached.'`, now
+  `t('ERR.223.favourite_quota')`).
+
+Deliberately **not** attempted: rewriting `useResource`/`usePagedResource` itself to route every
+one of the 28 loading/error surfaces through `mapApiError`/`describeError` — that's a genuine
+architectural change (the primitive doesn't currently see the original error, only its
+`.message`), risks silently changing generic error text app-wide with no way to visually verify in
+this sandbox, and wasn't named as a gap by either TODO F or TODO G. Left as a documented option for
+whichever phase next touches error UX broadly, not folded in as a surprise here.
+
+### Verification
+
+91 new tests across the phase (`deepLinkResolver` 19, `shareIntent` 7, `deepLinks` 3,
+`AccountSwitcherOverlay`/`AccountIndicator`, `photoValidation` rewritten to 13, `appState` 4,
+`strings/index` 5, `errors.ts` extended, `entries.ts`/`users.ts` new, `OverlayProvider` extended),
+taking the full monorepo suite from 712 to 803 (92 test files). Full monorepo
+`typecheck && lint && test && build` green; `npm test` run twice consecutively at 803/803 (the
+`AppShell.test.tsx` unhandled-rejection warning from the concurrent session's `devSignInWithToken`
+work, documented in Phase 11, still reproduces identically and is still not this phase's bug).
+`./gradlew assembleDebug` green after `npx cap sync android` picked up `ShareIntentPlugin.java`
+(12.3) — no other native files changed in 12.1/12.2/12.4/12.5, so it wasn't re-run for those.
+
+**Next:** Phase 13 (deploy/test `b-push`) remains blocked on the user providing Cloudflare/Firebase
+credentials. Real candidates for further code-only work, in rough priority order: giving
+`OverlayState` an on-decline callback so `WriteGuardRoute.tsx`'s duplicate `IonAlert` can retire in
+favour of the shared overlay (flagged inline, 12.5); reconciling `useResource`'s generic error text
+against the deck properly, if that's ever wanted app-wide (flagged inline, 12.5, deliberately not
+attempted this phase); `devicePrefsStore.uploadFullSize`'s still-unconsumed toggle (unchanged since
+Phase 8); real on-device/emulator testing, still blocked on sandbox environment, not code.
