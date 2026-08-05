@@ -265,14 +265,21 @@ since Phase 10).
   worth reading existing defensive code for what future gap it's already anticipating, not just
   auditing for what's missing. Keep checking — don't assume every phase finds a gap, but don't
   assume a name match (or a defensive check with no caller yet) means nothing further is needed.
-- **No headless browser, and (confirmed again in Phase 10) no Android device/emulator, available
-  in this sandbox** — `playwright install --with-deps` needs root; there's no `adb devices` target
-  either. Verification uses jsdom-rendered Testing Library smoke tests, a real `node:sqlite`-backed
-  fake for `b-push`'s D1 access (Phase 9), and — new in Phase 10 — a real `./gradlew assembleDebug`
-  as the closest available substitute for on-device verification of the native Android side. None
-  of these are a substitute for §19 layer 3's actual manual checklist; don't re-attempt any of the
-  above sandbox-blocked tools expecting a different result, and don't claim on-device behaviour is
-  verified when only compilation/packaging was.
+- **Headless browser verification is now possible, updating earlier phases' "no headless browser
+  available" note** — a separate `b-oss` session got real headless Chromium working on this
+  machine 2026-08-05 (see `b-oss` PR #68, `.claude/skills/run-b-view`): `playwright-core` is a root
+  devDependency, and the ~62 missing system libraries were installed via `sudo env "PATH=$PATH"
+  npx playwright install-deps chromium` (a one-time, machine-level, human-run step — an agent
+  session still can't do this itself, no interactive sudo password). After that,
+  `chromium.executablePath()` resolves automatically. Still true, unchanged: **no Android
+  device/emulator available in this sandbox** (confirmed again Phase 10) — there's no `adb devices`
+  target. Verification still uses jsdom-rendered Testing Library smoke tests, a real
+  `node:sqlite`-backed fake for `b-push`'s D1 access (Phase 9), and a real `./gradlew
+  assembleDebug` as the closest available substitute for on-device verification of the native
+  Android side — but a real headless-browser pass (Vite dev server + Playwright, per
+  `run-b-view`) is now a genuine option for the web/Ionic side too, not just jsdom. None of these
+  are a substitute for §19 layer 3's actual manual checklist; don't claim on-device behaviour is
+  verified when only compilation/packaging (or a desktop-browser headless pass) was.
 - **`ReturnType<typeof vi.fn()>` used as a mock's declared type infers `any`, and returning `any`
   from an arrow function trips `@typescript-eslint/no-unsafe-return`** (Phase 9, reconfirmed Phase
   10 in `platform/__tests__/http.test.ts`) — always give `vi.fn<...>()` an explicit function-type
