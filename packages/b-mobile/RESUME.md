@@ -6,8 +6,8 @@ with "resume".
 
 ## Status
 
-**Phases 0–11 are all complete.** Phase 0 (prerequisite `b-oss` refactor) is merged into `main`;
-Phases 1–11 are committed on `b-mobile-initial` (confirm pushed — see "Last completed step"). The
+**Phases 0–12 are all complete.** Phase 0 (prerequisite `b-oss` refactor) is merged into `main`;
+Phases 1–12 are committed on `b-mobile-initial` (confirm pushed — see "Last completed step"). The
 app now has: a working Vite/Ionic/Capacitor skeleton, the full 28-screen route table, a real OAuth
 round and full account-management flow, a functional write-gate, real Browse/Tag-Entries/Entry-
 Detail/Full-screen-Photo/Entry-Metadata screens, a full social action bar, inline comment reply/
@@ -16,99 +16,76 @@ requests/refused-followers/awards screens, real Search and Map, a full compose/p
 pipeline with a durable background upload queue, real Settings and Help & Info, a fully live
 notification pipeline (`packages/b-push`, never deployed per its own scope boundary but fully
 built/tested), a real checked-in Android native project (`packages/b-mobile/android/` — manifest,
-two local plugins, notification channels, brand-correct icon/splash, a real accessibility font-
-scale mechanism), and — as of Phase 11 — meaningfully hardened test coverage: two previously-
-untested foundational screens (`SignInScreen`, `AccountsScreen`) now have real tests, five more
-screens had missing `loading`/`error` states closed, and four pure-logic modules named explicitly
-in §19 (`errors.ts`, the write-gate selector, `imageCache.ts`, `dates.ts`) now have direct unit
-tests. Full monorepo `typecheck && lint && test && build` green (712 tests, confirmed stable
-across repeated runs). **Phase 12 (a wishlist, not yet started) and Phase 13 (deploy/test
-`b-push`) are now defined below** — `PLAN.md` itself only formally covers through Phase 11; see
-the "Phase 12 wishlist" and "Phase 13" sections below for what's next.
+three local plugins now including `ShareIntentPlugin` from Phase 12, notification channels,
+brand-correct icon/splash, a real accessibility font-scale mechanism), meaningfully hardened test
+coverage from Phase 11, and — as of Phase 12 — a genuinely finished app rather than one with known
+open wiring gaps: the shared overlay mechanism, the account-switcher popover, a real deep-link/
+share-intent resolver, the app-resume permission recheck, and a fully wired typed copy deck are
+all in place. Full monorepo `typecheck && lint && test && build` green (803 tests, confirmed
+stable across repeated runs). **Only Phase 13 (deploy/test `b-push`) remains, and it's blocked on
+the user providing Cloudflare/Firebase credentials** — see "Phase 13" below.
 
 ## Last completed step
 
-Committed (confirm pushed — do that first if resuming) Phase 11's full scope per `PLAN.md`'s
-checklist. Worth reading `AGENT_LOG.md`'s Phase 11 entry in full before touching the same modules
-again — the complete reasoning is there; the short version:
+Committed (confirm pushed — do that first if resuming) Phase 12's full scope. Worth reading
+`AGENT_LOG.md`'s Phase 12 entry in full before touching the same modules again; the short version:
 
-1. **Two foundational screens had zero tests at all**: `SignInScreen` (SCR-01) and `AccountsScreen`
-   (SCR-30) — the only screens reachable before any account exists. New test files close both
-   (6 + 8 tests). Writing `AccountsScreen`'s tests reproduced the `IonLabel`-doesn't-render-
-   children-in-jsdom gotcha (below) firsthand — every `<IonLabel>` in that file had to be swapped
-   for a plain `<span>` before a single query would pass. The component had simply never had a
-   test written against it before, so the bug had never been forced to surface.
-2. **Five screens (`SCR-17-18`, `19`, `20`, `21`, `25`) were missing `loading` and/or `error`
-   coverage their own component code visibly has** — not missing entirely, just skipped straight
-   to a resolved fetch in every existing test. Two more (`SCR-03`, `22`) were missing only
-   `loading`. 11 new tests close these. `SCR-04` (Map) was checked and deliberately left alone —
-   its region fetch is non-blocking by design, so there is no loading state to test.
-3. **Pure-logic gaps closed against §19's own named list, checked one by one rather than assumed**:
-   `data/errors.ts#mapApiError` (7 tests — the single error mapper every call site uses, never
-   directly tested despite that), the write-gate selector `state/accountsStore.ts#useCanWrite`
-   (8 tests — `WriteGuardRoute.test.tsx` had only ever mocked it away, backwards for the one
-   selector every write-gated route trusts blindly), `platform/imageCache.ts#resolveImage`'s TTL
-   arithmetic (6 tests — its one consumer, `CachedImage.tsx`, has no test either, so this was
-   completely unexercised), and `data/dates.ts` (5 tests — its own comment flags local-vs-UTC
-   formatting as the thing to get right). `data/bbcode.ts` was checked and found **already**
-   fully covered via `BBCodeText.test.tsx`'s existing tests — not duplicated.
-4. **The sweep's largest finding wasn't a test gap — it's a missing feature.**
-   `flows/deepLinkResolver.ts`, which app-architecture.md §16 names as the one module that must
-   handle `bmobile://entry/:id`/`user/:username` content links and the `ACTION_SEND` share intent
-   (in addition to the OAuth redirect), **does not exist**. `platform/deepLinks.ts#onAppUrlOpen`
-   has exactly one consumer anywhere in the codebase — `flows/oauthRound.ts`, only for the OAuth
-   redirect, only while a round is in progress. A tap on a shared entry/profile link, or a
-   share-to-Blipfoto intent, currently does **nothing** — despite Phase 10 adding the Android
-   manifest intent filters for exactly these paths in the same session. Not fixed in Phase 11
-   (a real feature addition, not testing-hardening scope) — flagged prominently as the leading
-   candidate for whichever phase comes next.
-5. **A concurrent session touched `flows/accountsFlow.ts`/`app/AppShell.tsx` mid-phase** (HAPI runs
-   multiple agents on this machine in parallel, same worktree) — a `devSignInWithToken()` dev-only
-   helper, confirmed with the user as unrelated, already-finished work, deliberately left out of
-   this phase's own commit. Their `VITE_DEV_TOKEN`-gated code path fires during `npm test` too
-   (Vite loads root `.env.local` regardless of dev/test), producing a harmless but real unhandled-
-   rejection warning in `AppShell.test.tsx`'s run — not a test failure (712/712 still pass,
-   reproduced identically twice), not this phase's bug, not fixed here. If it's still there next
-   session, it's exactly this — not a new regression to chase.
+1. **`OverlayProvider`/`useOverlay` finished for real** (12.1) — went from a dead stub to the
+   shared mechanism every upgrade-prompt/first-run/account-switcher overlay now routes through,
+   per the user's explicit "use the shared mechanism, not per-screen local state." Wiring the new
+   account-switcher indicator into ~14 screens' toolbars surfaced `useOverlay must be used within
+OverlayProvider` failures across their existing tests — fixed by wrapping each render call site.
+2. **Account-switcher popover built** (12.2) — `AccountSwitcherOverlay`/`AccountIndicator`, wired
+   into eight screens' toolbars, reusing `AccountsScreen.tsx`'s own `modeLabel()`.
+3. **`flows/deepLinkResolver.ts` built for real** (12.3, Phase 11's largest finding) — handles the
+   OAuth redirect (recognised, ignored), `bmobile://entry/:id`/`user/:username`, and the opt-in
+   `blipfoto.com/...` web-link shapes, reusing `data/notifications.ts`'s existing path-parsing
+   rather than duplicating it. **Genuine scope escalation, reasoned through rather than deferred**:
+   `@capacitor/app` cannot see `ACTION_SEND` share intents at all, so FLW-12's share-to-Blipfoto
+   entry point needed real new native code — `ShareIntentPlugin.java` (a third local, non-npm
+   plugin), wired through `platform/shareIntent.ts`'s `checkForSharedImage()`/
+   `takePendingSharedPhoto()` split (the photo has to survive `/compose`'s `WriteGuardRoute` gate,
+   which can run an async OAuth round before `NewEntryScreen` ever mounts to claim it).
+4. **`platform/appState.ts`'s resume hook implemented for real** (12.4) — a real
+   `@capacitor/app` `appStateChange` wrapper, wired so `AppShell.tsx` re-runs
+   `pushFlow.ts#runLaunchBackstopCheck()` on every resume, not only at launch (rules.md: "re-check
+   the permission when the app resumes").
+5. **TODO F/G's copy deck wired for real** (12.5) — `scripts/generate-strings.mjs` turns
+   `TextStrings.csv` into a typed `src/strings/deck.ts` (182 keys); `mapApiError`'s `validation`
+   outcome now classifies every write/validation code error-codes.md documents; a new
+   `describeError()` helper replaced ~30 hand-duplicated ternaries across 16 screens (and fixed a
+   real pre-existing bug those ternaries all shared — `rate-limited`/`upgrade-prompt` messages were
+   being silently discarded); reconciled the specific ad hoc strings that were correctness-bearing
+   (upgrade prompt, SCR-06's 104/202, SCR-18's 101/103, the favourite-quota message) against the
+   real deck. Found (not fully fixed) along the way: `WriteGuardRoute.tsx` has its own duplicate
+   `IonAlert` predating `OverlayProvider` — now reads the same deck keys, but a real consolidation
+   needs `OverlayState` to grow an on-decline callback first (see "Open decisions" below).
+6. **91 new tests, 712 → 803**, full monorepo `typecheck && lint && test && build` green twice.
 
-## Phase 12 wishlist (compiled 2026-08-04, reviewed with the user same day)
+For the older Phase 11 history (foundational-screen test gaps, the four-state sweep, the pure-logic
+coverage sweep), see `AGENT_LOG.md`'s Phase 11 entry directly — not repeated here to keep this file
+from growing without bound.
 
-`PLAN.md` never defined a Phase 12 — everything below was compiled from a deliberate audit at the
-end of Phase 11 (a fresh grep for `TODO` across `src/`, cross-checked against what's actually
-wired up) plus TODO F/G's real status (also just resolved — see below). Reviewed with the user
-2026-08-04, who set priority and scope for what follows. **Active for Phase 12** (roughly the
-order to tackle them):
+## Phase 12 wishlist — DONE (compiled 2026-08-04, reviewed with the user same day, completed 2026-08-05)
 
-1. **Overlay mechanism, finished for real.** `app/OverlayProvider.tsx`/`useOverlay()` exists
-   (wraps the whole app) but is dead — `OverlayState` only ever has `kind: null`, zero consumers
-   anywhere. Every overlay that got built since (upgrade prompts, confirmations) used local
-   `useState` per screen instead. **Decision: use the shared mechanism**, not per-screen local
-   state — retrofit it to actually own the overlays its own header comment already names (account
-   switcher, upgrade prompt, first-run explainer, confirmation dialogs), and wire new ones
-   (account switcher, first-run explainer) through it rather than inventing a second pattern.
-   `TextStrings.csv` already has the first-run explainer's copy drafted
-   (`SCR-01.explainer.first_run.*`), so that one has no copy blocker.
-2. **The account-switcher popover** (rules.md's "Multi-account clarity") — a lightweight quick-
-   switch reachable from anywhere in the nav chrome, distinct from the full `SCR-30` management
-   screen. Deferred since Phase 2 ("once there's a persistent nav chrome to anchor it to" — there
-   is now). Natural to build once the overlay mechanism (above) exists to host it in.
-3. **`flows/deepLinkResolver.ts`** (Phase 11's largest finding) — parse `bmobile://entry/:id` and
-   `bmobile://user/:username`, route to the right screen, gate account-requiring targets via
-   `FLW-01`/`signInGated()`, and wire the `ACTION_SEND` share intent into `SCR-10` with the photo
-   pre-loaded (`FLW-12`). One resolver for both cold start (`@capacitor/app`'s launch URL) and
-   warm start (`appUrlOpen`), per §16's explicit requirement that these can't diverge.
-4. **`platform/appState.ts`'s resume hook** — `onAppStateChange()` is a literal no-op stub
-   (`TODO(Phase 2+)`, never implemented), meant to back re-checking OS notification permission on
-   resume and resetting stale upload-queue items on launch. Zero consumers today.
-5. **TODO F/G — wiring, not spec decisions. Both are further along than assumed; see the answer
-   below for the full breakdown.** In short: build the typed copy-deck module `src/strings/`
-   (currently an empty stub directory) from the now-complete `TextStrings.csv`; wire
-   `data/errors.ts#mapApiError`'s `validation` outcome to actually classify the write/validation
-   codes error-codes.md already documents (240, 250–252, 516–528); reconcile the handful of
-   screens with their own pre-copy-deck ad hoc strings (e.g. `photoValidation.ts`'s messages
-   don't match `TextStrings.csv`'s `SCR-09.error.unusable_photo` wording) against the real deck.
-   **The photo-dimension number is resolved (2026-08-05)** — see "Photo upload limits" below;
-   no longer open.
+All five items (overlay mechanism, account-switcher popover, `flows/deepLinkResolver.ts`,
+`platform/appState.ts`'s resume hook, TODO F/G copy-deck wiring) are complete — see "Last completed
+step" above and `AGENT_LOG.md`'s Phase 12 entry for full detail. Two loose ends left inline rather
+than fixed as a side effect of this phase, both real but neither urgent:
+
+- **`WriteGuardRoute.tsx`'s own `IonAlert` duplicates `OverlayProvider`'s shared upgrade prompt**
+  (predates it) — both now read the same `TextStrings.csv` keys so they can't drift on content, but
+  the duplicate itself is still there because `WriteGuardRoute`'s decline action needs
+  `history.goBack()`, which `OverlayState` has no per-caller hook for. Retiring it needs an
+  optional on-decline callback added to `OverlayState` first.
+- **`data/useResource.ts`/`usePagedResource.ts` don't route through `mapApiError`/`describeError`**
+  — all 28 loading/error surfaces still show whatever `Error.message` was thrown verbatim, same as
+  before Phase 12. Deliberately not changed: the primitive doesn't currently see the original
+  error, only its `.message`, so wiring it through would be a real architectural change with no way
+  to visually verify the result in this sandbox, and neither TODO F nor TODO G named it as a gap.
+  `data/entries.ts#fetchEntry`/`data/users.ts#fetchUserProfile` show the narrower alternative
+  already used successfully this phase — rewrite the message at the specific fetcher that needs
+  specific handling, not the shared primitive.
 
 **Explicitly parked, not forgotten** — deliberate scope decisions from the user, not gaps to
 silently backfill:
@@ -137,12 +114,11 @@ not new application code.
 - ~~The five hardcoded Blipfoto URLs~~ — **resolved 2026-08-04**, see below.
 - ~~`photoValidation.ts`'s minimum photo dimension~~ — **resolved 2026-08-05**, see "Photo upload
   limits" below.
-- **`VITE_MAP_TILES_KEY`** — needs a MapTiler Cloud API key (free tier, no card required, 100k map
-  loads/month). Sign up at [cloud.maptiler.com](https://cloud.maptiler.com), the dashboard
-  auto-generates a "Default" key on signup — copy it from the API keys page. For production usage
-  create a separate named key there and restrict it by HTTP origin, rather than reusing the
-  default one. Not blocking Phase 12 (only `SCR-04` Map needs it); `getMapStyleUrl()` already
-  returns `null` gracefully with no key configured, driving `SCR-04`'s "unavailable" state.
+- ~~`VITE_MAP_TILES_KEY`~~ — **resolved 2026-08-05**, the user populated it in the root
+  `.env.local` directly (a MapTiler Cloud key). No code change needed — `getMapStyleUrl()` already
+  reads it and only fell back to `null`/`SCR-04`'s "unavailable" state for its absence.
+- **Nothing else currently blocking.** Only remaining open item is Phase 13's Cloudflare/Firebase
+  credentials, tracked separately below (not a "question", a hard external dependency).
 
 ### Blipfoto URLs — resolved 2026-08-04
 
@@ -191,29 +167,34 @@ was available via the already-passed `includeMetadata: true` but silently droppe
 null-safety precedent already used for unknown width/height). No maximum-dimension check exists
 or is needed — confirmed, not assumed, since Blipfoto itself never rejects on it.
 
-## Environment status (checked 2026-08-04, keys only — not values)
+## Environment status (checked 2026-08-05, keys only — not values)
 
 Root `.env.local` (gitignored) currently has: `VITE_BLIPFOTO_CLIENT_ID`, `VITE_OAUTH_REDIRECT_URI`,
-`VITE_DEV_TOKEN` **populated**; `VITE_NOTIFY_SERVICE_URL`, `VITE_NOTIFY_REGISTRATION_SECRET`,
-`VITE_MAP_TILES_KEY`, `MAIN_VITE_BLIPFOTO_CLIENT_ID`, `VITE_CHROME_CLIENT_ID` **empty**. Matches
-expectations: the app is registered with Blipfoto and browser-mode dev sign-in works now; `b-push`
-isn't deployed yet (Phase 13, above) and the map tiles key is still needed independently.
+`VITE_DEV_TOKEN`, `VITE_MAP_TILES_KEY` **populated**; `VITE_NOTIFY_SERVICE_URL`,
+`VITE_NOTIFY_REGISTRATION_SECRET` **empty**; `MAIN_VITE_BLIPFOTO_CLIENT_ID`,
+`VITE_CHROME_CLIENT_ID` **populated** (b-ark/b-ark-chrome's own keys, unrelated to b-mobile).
+Matches expectations: the app is registered with Blipfoto, browser-mode dev sign-in works, and the
+map now has real tiles; only `b-push`'s two keys remain empty, blocked on Phase 13's Cloudflare
+deployment.
 
 ## Next intended step
 
-Start Phase 12 item 1 above (finish the overlay mechanism) — full plan to be written before
-touching code, since it touches `OverlayProvider.tsx`, `AppShell.tsx`'s render tree, and every
-screen currently doing its own local-state overlay (upgrade prompts, confirmations). Verify with
-the standard full monorepo `typecheck && lint && test && build` once done, same as every phase.
+**Phase 13 is next, and it's blocked** — deploy `b-push` needs the user to provide a Cloudflare
+account and Firebase project credentials (see "Phase 13" above); nothing to do on the code side
+until then. If picking up code-only work in the meantime, the two loose ends flagged in "Phase 12
+wishlist — DONE" above are the honest candidates: giving `OverlayState` an on-decline callback so
+`WriteGuardRoute.tsx`'s duplicate `IonAlert` can retire, or reconciling `useResource`'s generic
+error text against the deck (deliberately not attempted in Phase 12 — see that section for why).
+Neither was asked for; check with the user before starting either. Verify with the standard full
+monorepo `typecheck && lint && test && build` once anything lands, same as every phase.
 
 ## Open decisions / blockers
 
-None on the spec side. Still needed from the user eventually, not blocking further work: real
-`VITE_BLIPFOTO_CLIENT_ID`/`VITE_MAP_TILES_KEY`/`VITE_NOTIFY_SERVICE_URL`/
-`VITE_NOTIFY_REGISTRATION_SECRET` values in a local `.env`, an actual Cloudflare account to deploy
-`b-push` to (Workers + D1 + a Firebase project for FCM's service-account JSON and a real
-`google-services.json`), and Android signing keys for release (§17 — kept outside the repo; debug
-builds sign with the auto-generated debug keystore). None of the OAuth round, `b-push`'s
+None on the spec side. Still needed from the user eventually, not blocking further work: an actual
+Cloudflare account to deploy `b-push` to (Workers + D1 + a Firebase project for FCM's
+service-account JSON and a real `google-services.json`, populating `VITE_NOTIFY_SERVICE_URL`/
+`VITE_NOTIFY_REGISTRATION_SECRET`), and Android signing keys for release (§17 — kept outside the
+repo; debug builds sign with the auto-generated debug keystore). None of the OAuth round, `b-push`'s
 registration contract, or any live data/action/write screen built so far has been tested against
 the real services for the same reason — expected, matches the spec's own stance that this isn't a
 pre-build gate. Still no device or emulator in this sandbox to run the app's own APK on (unchanged
@@ -321,12 +302,18 @@ test-setup.ts']` resolves relative to whatever the invoking shell's cwd was, not
   or sampled from the source icon** — always pass an explicit `--iconBackgroundColor`/
   `--splashBackgroundColor` matching the brand, and check the _rendered_ output, not just the
   tool's log (Phase 10).
-- **`flows/deepLinkResolver.ts` does not exist, despite app-architecture.md §16 requiring it and
-  Phase 10 already adding the Android manifest intent filters that assume it does** (Phase 11) —
-  `platform/deepLinks.ts#onAppUrlOpen` has exactly one consumer anywhere (`flows/oauthRound.ts`,
-  OAuth redirect only, only mid-round). Content links and the share intent are currently silent
-  no-ops on a real device. See RESUME's "Next intended step" — this is real, scoped feature work,
-  not something to build as a side effect of an unrelated phase.
+- ~~`flows/deepLinkResolver.ts` does not exist~~ — **built in Phase 12** (12.3). No longer open;
+  see `AGENT_LOG.md`'s Phase 12 entry.
+- **`@capacitor/app`'s `appUrlOpen`/`getLaunchUrl()` can never see an `ACTION_SEND` share intent's
+  binary extras — only VIEW-action launch URLs** (Phase 12, discovered while building FLW-12's
+  share-to-Blipfoto entry point) — there's no app-layer workaround; closing a share-intent gap
+  needs genuine new native code (a custom `@CapacitorPlugin` reading `Activity.getIntent()`
+  directly), not just wiring the existing plugin surface differently. `ShareIntentPlugin.java` is
+  the precedent to copy for any future share-target work.
+- **`IonModal`/`IonPopover`'s `present()` throws "framework delegate is missing" in this jsdom test
+  setup** (Phase 12, `OverlayProvider.tsx`'s first-run explainer) — no fix found, and no precedent
+  anywhere else in the codebase using either component. Use a plain styled `<div role="dialog">`
+  instead for anything that needs a sheet/panel-style overlay and also needs a test.
 - **This machine runs multiple concurrent Claude Code / HAPI sessions that can share the same
   worktree** — confirmed happening live during Phase 11 (root `CLAUDE.md`'s documented 2026-07-30
   incident is exactly this scenario). If a file you didn't touch shows as modified mid-session,

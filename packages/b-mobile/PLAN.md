@@ -295,14 +295,26 @@ avatar: {blob}})`); biography editing resolved a TODO Phase 7 planted specifical
     `typecheck && lint && test && build` green twice. Full detail in `AGENT_LOG.md`'s Phase 11
     entry.
 
-12. **Wishlist (not yet started)** — finish the overlay mechanism for real (`OverlayProvider`/
-    `useOverlay`, currently dead — decision: use it, not per-screen local state), the account-
-    switcher popover, `flows/deepLinkResolver.ts`, `platform/appState.ts`'s resume hook, and
-    wiring the now-complete `TextStrings.csv`/`error-codes.md` (TODO F/G) into a real
-    `src/strings/` copy deck. Android signing/`applicationId` and real on-device testing are
-    explicitly parked (no publishing commitment yet; device testing deferred until a decent chunk
-    of Vite browser-mode testing happens first). Full detail and priority order in `RESUME.md`'s
-    "Phase 12 wishlist" section.
+12. **Wishlist — DONE.** Finished the overlay mechanism for real (`OverlayProvider`/`useOverlay`
+    went from a dead stub to the shared mechanism every upgrade-prompt/first-run/account-switcher
+    overlay routes through, per the user's explicit "use the shared mechanism, not per-screen
+    local state"); built the account-switcher popover (`AccountSwitcherOverlay`/`AccountIndicator`,
+    wired into eight screens' toolbars); built `flows/deepLinkResolver.ts` for real (Phase 11's
+    largest finding), including a genuine scope escalation — `@capacitor/app` can't see
+    `ACTION_SEND` share intents at all, so a new local Android plugin (`ShareIntentPlugin.java`)
+    was required to close FLW-12's share-to-Blipfoto entry point; implemented `platform/
+appState.ts`'s resume hook for real against `@capacitor/app`, wired to re-run the launch-time
+    push-permission backstop check on every resume (rules.md); and wired the now-complete
+    `TextStrings.csv`/`error-codes.md` (TODO F/G) into a real, generated `src/strings/` copy deck,
+    including `mapApiError`'s `validation` outcome classifying every write/validation code from
+    error-codes.md, a shared `describeError()` helper replacing ~30 hand-rolled duplicate ternaries
+    across 16 screens, and reconciling the specific ad hoc strings that were correctness-bearing
+    (the upgrade prompt, SCR-06's 104/202 handling, SCR-18's 101/103 handling, the favourite-quota
+    message) rather than a wall-to-wall relabel of every already-matching string. Android signing/
+    `applicationId` and real on-device testing remain explicitly parked (no publishing commitment
+    yet; device testing deferred). 91 new tests, 712 → 803, full monorepo
+    `typecheck && lint && test && build` green twice. Full detail in `AGENT_LOG.md`'s Phase 12
+    entry.
 13. **Deploy and test the notification service** — `b-push` to a real Cloudflare account (Workers
     - D1 + Firebase), tested to whatever extent is possible short of a full publishing setup.
       Blocked on the user providing Cloudflare/Firebase credentials and
