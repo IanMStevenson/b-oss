@@ -65,8 +65,10 @@ function extractHrefs(html: string): string[] {
 
 /** The path segment(s) after the host, lowercased, with a leading/trailing slash stripped — works
  * for both an absolute `https://www.blipfoto.com/...` URL and a bare relative `/...` path, since
- * `content_html`'s links aren't guaranteed to be one shape or the other. */
-function pathOf(href: string): string {
+ * `content_html`'s links aren't guaranteed to be one shape or the other. Exported for
+ * `flows/deepLinkResolver.ts`'s opt-in web-link handling (§16), which resolves the exact same
+ * `blipfoto.com/entry/{id}` / `blipfoto.com/{username}` shapes this module already implements. */
+export function pathOf(href: string): string {
   try {
     const url = new URL(href, 'https://www.blipfoto.com');
     return url.pathname.replace(/^\/+|\/+$/g, '').toLowerCase();
@@ -107,6 +109,31 @@ export type NotificationTarget =
   | { kind: 'follow-request' }
   | { kind: 'external'; url: string };
 
+/** The `blipfoto.com/entry/{id}` / `blipfoto.com/{username}` / `blipfoto.com/me/followers/
+ * requests` path shapes, resolved from an already-normalised `pathOf()` path — shared between
+ * `resolveNotificationTarget` below (called with `link_url`'s path) and
+ * `flows/deepLinkResolver.ts`'s opt-in web-link handling (§16, called with an incoming URL's
+ * path directly). Returns `null` for anything else, letting each caller decide its own fallback
+ * (SCR-23 opens it externally; the deep-link resolver ignores it). */
+export function resolveWebPathTarget(
+  path: string,
+):
+  | { kind: 'entry'; entryId: string }
+  | { kind: 'profile'; username: string }
+  | { kind: 'follow-request' }
+  | null {
+  if (path === FOLLOW_REQUEST_PATH) return { kind: 'follow-request' };
+
+  const entryMatch = /^entry\/([^/]+)/.exec(path);
+  if (entryMatch) return { kind: 'entry', entryId: entryMatch[1] };
+
+  if (path && !path.includes('/') && !RESERVED_PATH_SEGMENTS.has(path)) {
+    return { kind: 'profile', username: path };
+  }
+
+  return null;
+}
+
 /** SCR-23's tap routing, in the order the spec states it: follow-request first (a hardcoded
  * server-side path inside `content_html`, "a far more robust signal than username parsing"),
  * then `link_url`'s own entry/profile shape, else the link opens externally. */
@@ -116,13 +143,8 @@ export function resolveNotificationTarget(notification: BlipNotification): Notif
   );
   if (isFollowRequest) return { kind: 'follow-request' };
 
-  const linkPath = pathOf(notification.link_url);
-  const entryMatch = /^entry\/([^/]+)/.exec(linkPath);
-  if (entryMatch) return { kind: 'entry', entryId: entryMatch[1] };
-
-  if (linkPath && !linkPath.includes('/') && !RESERVED_PATH_SEGMENTS.has(linkPath)) {
-    return { kind: 'profile', username: linkPath };
-  }
+  const target = resolveWebPathTarget(pathOf(notification.link_url));
+  if (target) return target;
 
   return { kind: 'external', url: notification.link_url };
 }
