@@ -188,6 +188,50 @@ error text against the deck (deliberately not attempted in Phase 12 — see that
 Neither was asked for; check with the user before starting either. Verify with the standard full
 monorepo `typecheck && lint && test && build` once anything lands, same as every phase.
 
+**Also pending, from a separate `b-oss` session, not yet actionable here — see "b-view reuse"
+below**: once `b-oss`'s PR #67 (`b-view-mobile-reuse`) merges to `main`, the reasons this file's
+own "Gotchas" section gives for `EntryGrid`/`BBCodeText`/`PhotoScreen`'s custom code existing are
+no longer valid, and a real adoption phase should follow. Don't start it before that PR has
+actually merged — check `gh pr view 67 --repo IanMStevenson/b-oss --json state`.
+
+## b-view reuse — pending, blocked on an external PR (added 2026-08-05, from a separate session)
+
+Not part of this branch's own phase sequence — flagged here so it isn't lost across the hiatus.
+A separate `b-oss` session (not on `b-mobile-initial`) worked through *why* `b-view`'s components
+weren't reused here (see this file's "Gotchas" entry below, and `b-oss`'s PR #67 description for
+the full reasoning) and found both reasons were spec-execution gaps, not real conflicts, once
+checked against the user's actual intent:
+
+- `EntryDetail`'s `dangerouslySetInnerHTML` — **fixed at the `b-view` level**: `BBCodeText`
+  (`@bbob/react`-based, parses to real React elements, no raw HTML injection) has been promoted
+  from this package into `b-view` itself, so `EntryDetail` no longer violates §14 for anyone.
+- `ThumbnailGrid`'s windowed pagination "doesn't fit any feed here" — **the premise was wrong**:
+  the user confirmed infinite scroll was never the intended design for this app; pagination (with
+  `ThumbnailGrid`'s existing thumbnail-size/zoom controls) is what's actually wanted. `SCR-06`/
+  `SCR-07`'s AppSpec docs also have a real, separate error worth knowing about regardless of this
+  adoption work: they say tapping the main photo opens `SCR-07` full-screen, which isn't how the
+  live Blipfoto site works — the live site (and `b-view`'s `EntryDetail`, now) uses a dedicated
+  fullscreen button next to the star/heart reaction counts instead.
+
+`b-view` also gained, this session: optional interactive slots on `EntryDetail` (`reactions`,
+`commentComposer`, `entryActions`, `renderCommentActions` — all opt-in, so ownership/write-action
+logic stays entirely host-side, not `b-view`'s concern) plus pinch/pan zoom and swipe-left/right
+navigation in `Lightbox`/`EntryDetail`/`ThumbnailGrid` (touch capability isn't mobile-specific, so
+it lives in `b-view` itself now, gated by touch input rather than platform).
+
+**Once `b-oss`'s PR #67 (`b-view-mobile-reuse` → `main`) merges**, a real adoption phase here
+should: rebase `b-mobile-initial` onto the updated `main`; delete `EntryGrid.tsx`'s custom
+tile/grid logic and render `<ThumbnailGrid>` from `@b-oss/b-view` directly; delete
+`PhotoScreen.tsx`'s hand-built `TransformWrapper` zoom code and render `<Lightbox>` directly;
+rewrite `EntryDetailScreen.tsx` to compose `<EntryDetail>` with the new slots (its existing
+`starEntry`/`favoriteEntry`/`commentsFlow`/`deleteEntry`/`useAccountConfirmGate` logic doesn't
+move, it just fills the slots); delete this package's local `src/data/bbcode.ts`/
+`src/components/BBCodeText.tsx` in favour of importing from `@b-oss/b-view`; and correct
+`docs/AppSpec/screens/SCR-06-entry-detail.md`/`SCR-07-full-screen-photo.md` to remove the
+"photo tap → SCR-07" language and describe the fullscreen button instead. Full phase-by-phase
+detail lives in the `b-oss` session's plan file and PR #67's description — read those first
+rather than re-deriving the reasoning from scratch.
+
 ## Open decisions / blockers
 
 None on the spec side. Still needed from the user eventually, not blocking further work: an actual
@@ -269,9 +313,14 @@ test-setup.ts']` resolves relative to whatever the invoking shell's cwd was, not
   fixed by using plain `<span>`/`<strong>` children inside `IonItem` instead (not a blanket "never
   use IonLabel" rule). `IonButton`'s `aria-label` prop also didn't reach the rendered DOM attribute
   — `screen.getByText('label', { selector: 'ion-button' })` works reliably instead.
-- **`b-view`'s `EntryDetail` and `ThumbnailGrid` are not reused by `b-mobile`, on purpose** —
+- ~~`b-view`'s `EntryDetail` and `ThumbnailGrid` are not reused by `b-mobile`, on purpose —
   `EntryDetail`'s `dangerouslySetInnerHTML` conflicts with §14's ban; `ThumbnailGrid`'s windowed
-  pagination doesn't fit any feed here. `EntryGrid`/`BBCodeText` were built instead.
+  pagination doesn't fit any feed here. `EntryGrid`/`BBCodeText` were built instead.`~~ —
+  **superseded 2026-08-05, both reasons no longer hold.** `b-view` fixed the `dangerouslySetInnerHTML`
+  conflict itself (see "b-view reuse" above); the pagination premise was also just wrong — the user
+  confirmed infinite scroll was never the intended design, pagination was. Don't build further on
+  the old reasoning; see the "b-view reuse" section above for the actual adoption plan, blocked on
+  `b-oss` PR #67 merging.
 - **`SCR-07`/`SCR-08`/`SCR-15`/`SCR-16` all deliberately avoid depending on a prior screen's
   in-memory data**, refetching via `useLiveEntry`/router state instead, for deep-link resilience.
   `SCR-10`–`SCR-13` (Phase 7) are the deliberate exception, sharing `composeDraftStore`. `SCR-23`/
