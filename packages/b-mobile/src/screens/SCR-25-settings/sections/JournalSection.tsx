@@ -11,7 +11,7 @@
 import { useEffect, useState } from 'react';
 import { IonButton, IonCheckbox, IonSpinner, IonText, IonAlert } from '@ionic/react';
 import { fetchUserSettings, saveUserSettings } from '../../../data/settings.js';
-import { mapApiError } from '../../../data/errors.js';
+import { describeError, mapApiError } from '../../../data/errors.js';
 import { useCanWrite } from '../../../state/accountsStore.js';
 import { useAppNavigate } from '../../../app/routes/useAppNavigate.js';
 
@@ -49,9 +49,7 @@ export function JournalSection() {
       (err: unknown) => {
         if (cancelled) return;
         const outcome = mapApiError(err);
-        setLoadError(
-          outcome.kind === 'message' ? outcome.message : 'Could not load these settings.',
-        );
+        setLoadError(describeError(outcome, 'Could not load these settings.'));
         setLoading(false);
       },
     );
@@ -83,7 +81,7 @@ export function JournalSection() {
       navigate.goBack();
     } catch (err) {
       const outcome = mapApiError(err);
-      setSaveError(outcome.kind === 'message' ? outcome.message : 'Could not save these changes.');
+      setSaveError(describeError(outcome, 'Could not save these changes.'));
       setSaving(false);
     }
   }

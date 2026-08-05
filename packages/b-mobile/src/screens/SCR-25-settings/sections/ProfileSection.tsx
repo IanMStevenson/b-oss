@@ -22,7 +22,7 @@
 import { useEffect, useState } from 'react';
 import { IonButton, IonSpinner, IonText, IonAlert } from '@ionic/react';
 import { fetchUserSettings, saveUserSettings } from '../../../data/settings.js';
-import { mapApiError } from '../../../data/errors.js';
+import { describeError, mapApiError } from '../../../data/errors.js';
 import { useCanWrite, useActiveAccount, useAccountsStore } from '../../../state/accountsStore.js';
 import { useAppNavigate } from '../../../app/routes/useAppNavigate.js';
 import { takePhoto, pickPhoto, CameraPermissionDeniedError } from '../../../platform/camera.js';
@@ -79,7 +79,7 @@ export function ProfileSection() {
       () => setLoading(false),
       (err: unknown) => {
         const outcome = mapApiError(err);
-        setLoadError(outcome.kind === 'message' ? outcome.message : 'Could not load your profile.');
+        setLoadError(describeError(outcome, 'Could not load your profile.'));
         setLoading(false);
       },
     );
@@ -108,7 +108,7 @@ export function ProfileSection() {
       navigate.goBack();
     } catch (err) {
       const outcome = mapApiError(err);
-      setSaveError(outcome.kind === 'message' ? outcome.message : 'Could not save your username.');
+      setSaveError(describeError(outcome, 'Could not save your username.'));
       setSaving(false);
     }
   }
@@ -157,9 +157,7 @@ export function ProfileSection() {
       await refreshFromServer();
     } catch (err) {
       const outcome = mapApiError(err);
-      setAvatarError(
-        outcome.kind === 'message' ? outcome.message : 'Could not upload that avatar.',
-      );
+      setAvatarError(describeError(outcome, 'Could not upload that avatar.'));
     } finally {
       setAvatarBusy(null);
     }
@@ -173,9 +171,7 @@ export function ProfileSection() {
       await refreshFromServer();
     } catch (err) {
       const outcome = mapApiError(err);
-      setAvatarError(
-        outcome.kind === 'message' ? outcome.message : 'Could not remove your avatar.',
-      );
+      setAvatarError(describeError(outcome, 'Could not remove your avatar.'));
     } finally {
       setAvatarBusy(null);
     }

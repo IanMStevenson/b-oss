@@ -29,7 +29,7 @@ import {
   saveNotificationSettings,
   type NotificationSettings,
 } from '../../../data/settings.js';
-import { mapApiError } from '../../../data/errors.js';
+import { describeError, mapApiError } from '../../../data/errors.js';
 import { useActiveAccount } from '../../../state/accountsStore.js';
 import { changeAccountMode } from '../../../flows/accountsFlow.js';
 import { pingRefreshPreferences, updatePollingInterval } from '../../../flows/pushFlow.js';
@@ -107,9 +107,7 @@ export function NotificationsSection() {
       (err: unknown) => {
         if (cancelled) return;
         const outcome = mapApiError(err);
-        setLoadError(
-          outcome.kind === 'message' ? outcome.message : 'Could not load notification settings.',
-        );
+        setLoadError(describeError(outcome, 'Could not load notification settings.'));
         setLoading(false);
       },
     );
@@ -129,9 +127,7 @@ export function NotificationsSection() {
       });
     } catch (err) {
       const outcome = mapApiError(err);
-      setMasterError(
-        outcome.kind === 'message' ? outcome.message : 'Could not change notifications.',
-      );
+      setMasterError(describeError(outcome, 'Could not change notifications.'));
     } finally {
       setMasterBusy(false);
     }
@@ -159,7 +155,7 @@ export function NotificationsSection() {
       setSaved(true);
     } catch (err) {
       const outcome = mapApiError(err);
-      setSaveError(outcome.kind === 'message' ? outcome.message : 'Could not save these changes.');
+      setSaveError(describeError(outcome, 'Could not save these changes.'));
     } finally {
       setSaving(false);
     }

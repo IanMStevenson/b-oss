@@ -13,7 +13,7 @@ import { IonButton, IonCheckbox, IonSpinner, IonText, IonAlert } from '@ionic/re
 import { fetchUserSettings, saveUserSettings } from '../../../data/settings.js';
 import { fetchCountries, fetchLocales } from '../../../data/config.js';
 import type { ConfigOption } from '../../../data/config.js';
-import { mapApiError } from '../../../data/errors.js';
+import { describeError, mapApiError } from '../../../data/errors.js';
 import { useCanWrite } from '../../../state/accountsStore.js';
 import { useAppNavigate } from '../../../app/routes/useAppNavigate.js';
 
@@ -57,9 +57,7 @@ export function GeneralSection() {
       (err: unknown) => {
         if (cancelled) return;
         const outcome = mapApiError(err);
-        setLoadError(
-          outcome.kind === 'message' ? outcome.message : 'Could not load these settings.',
-        );
+        setLoadError(describeError(outcome, 'Could not load these settings.'));
         setLoading(false);
       },
     );
@@ -92,7 +90,7 @@ export function GeneralSection() {
       navigate.goBack();
     } catch (err) {
       const outcome = mapApiError(err);
-      setSaveError(outcome.kind === 'message' ? outcome.message : 'Could not save these changes.');
+      setSaveError(describeError(outcome, 'Could not save these changes.'));
       setSaving(false);
     }
   }

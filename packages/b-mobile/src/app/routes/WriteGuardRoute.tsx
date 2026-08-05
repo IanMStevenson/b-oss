@@ -13,10 +13,13 @@
 // hidden for a read-only account — deep links and share intents can land directly on a
 // write-gated route with no account at all.
 //
-// The upgrade prompt itself is a plain IonAlert here rather than the full imperative-overlay
-// pattern OverlayProvider will eventually own (§5) — that needs the account-switcher/upgrade-
-// prompt machinery later phases build. Functionally equivalent for now: the write screen never
-// mounts, and declining returns the user to where they came from.
+// The upgrade prompt itself is a plain IonAlert here rather than OverlayProvider's shared
+// `showUpgradePrompt()` (§5, app/OverlayProvider.tsx) — this one's decline action must return the
+// user to where they came from (`history.goBack()`), which the shared overlay has no per-caller
+// hook for yet (its own `dismiss()` only ever clears the overlay, with no side effect). Same copy
+// (TextStrings.csv's UPGRADE.* keys) either way, so the two don't drift even though they aren't
+// (yet) the same component instance. TODO: give OverlayState an optional on-decline callback and
+// retire this local copy in favour of the shared one.
 
 import { useEffect, useRef, useState } from 'react';
 import { Route, useHistory } from 'react-router-dom';
@@ -24,6 +27,7 @@ import type { RouteProps } from 'react-router-dom';
 import { IonAlert } from '@ionic/react';
 import { useActiveAccount, useCanWrite } from '../../state/accountsStore.js';
 import { signInGated } from '../../flows/accountsFlow.js';
+import { t } from '../../strings/index.js';
 
 export function WriteGuardRoute(props: RouteProps) {
   const activeAccount = useActiveAccount();
@@ -55,16 +59,16 @@ export function WriteGuardRoute(props: RouteProps) {
   return (
     <IonAlert
       isOpen
-      header="Read-only account"
-      message="This account is signed in read-only. Sign in for write access to continue."
+      header={t('UPGRADE.title')}
+      message={t('UPGRADE.body', { username: activeAccount.username })}
       onDidDismiss={() => {
         setDismissed(true);
         history.goBack();
       }}
       buttons={[
-        { text: 'Cancel', role: 'cancel' },
+        { text: t('UPGRADE.button.decline'), role: 'cancel' },
         {
-          text: 'Manage accounts',
+          text: t('UPGRADE.button.confirm'),
           handler: () => history.push('/accounts'),
         },
       ]}

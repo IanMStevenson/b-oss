@@ -31,7 +31,7 @@ import { useComposeDraftStore } from '../../state/composeDraftStore.js';
 import { useActiveAccount } from '../../state/accountsStore.js';
 import { fetchEntry } from '../../data/entries.js';
 import { enqueueDraft } from '../../flows/composeFlow.js';
-import { mapApiError } from '../../data/errors.js';
+import { describeError, mapApiError } from '../../data/errors.js';
 import { takePhoto, pickPhoto } from '../../platform/camera.js';
 import { validatePickedPhoto } from '../../data/photoValidation.js';
 import type { PickedPhoto } from '../../platform/camera.js';
@@ -95,7 +95,7 @@ export function EditEntryScreen({ entryId, initialMode }: EditEntryScreenProps) 
       (err: unknown) => {
         if (cancelled) return;
         const outcome = mapApiError(err);
-        setLoadError(outcome.kind === 'message' ? outcome.message : 'Could not load this entry.');
+        setLoadError(describeError(outcome, 'Could not load this entry.'));
         setLoading(false);
       },
     );
@@ -151,7 +151,7 @@ export function EditEntryScreen({ entryId, initialMode }: EditEntryScreenProps) 
       navigate.replace(`/entry/${entryId}`);
     } catch (err) {
       const outcome = mapApiError(err);
-      setSubmitError(outcome.kind === 'message' ? outcome.message : 'Could not queue this change.');
+      setSubmitError(describeError(outcome, 'Could not queue this change.'));
       setSubmitting(false);
     }
   }

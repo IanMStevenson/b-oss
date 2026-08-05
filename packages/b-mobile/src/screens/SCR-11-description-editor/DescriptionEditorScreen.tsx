@@ -32,7 +32,7 @@ import {
 import { useAppNavigate } from '../../app/routes/useAppNavigate.js';
 import { useComposeDraftStore } from '../../state/composeDraftStore.js';
 import { fetchUserSettings, saveUserSettings } from '../../data/settings.js';
-import { mapApiError } from '../../data/errors.js';
+import { describeError, mapApiError } from '../../data/errors.js';
 import { BBCodeToolbar } from '../../components/BBCodeToolbar.js';
 import { BBCODE_TAGS } from '../../data/bbcode.js';
 
@@ -134,9 +134,7 @@ function BiographyEditor() {
       (err: unknown) => {
         if (cancelled) return;
         const outcome = mapApiError(err);
-        setLoadError(
-          outcome.kind === 'message' ? outcome.message : 'Could not load your biography.',
-        );
+        setLoadError(describeError(outcome, 'Could not load your biography.'));
         setLoading(false);
       },
     );
@@ -164,7 +162,7 @@ function BiographyEditor() {
       navigate.goBack();
     } catch (err) {
       const outcome = mapApiError(err);
-      setSaveError(outcome.kind === 'message' ? outcome.message : 'Could not save your biography.');
+      setSaveError(describeError(outcome, 'Could not save your biography.'));
       setSaving(false);
     }
   }

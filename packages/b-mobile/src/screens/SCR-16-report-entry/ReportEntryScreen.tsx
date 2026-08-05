@@ -25,7 +25,7 @@ import {
 } from '@ionic/react';
 import { useAppNavigate } from '../../app/routes/useAppNavigate.js';
 import { reportEntry } from '../../flows/reactionsFlow.js';
-import { mapApiError } from '../../data/errors.js';
+import { describeError, mapApiError } from '../../data/errors.js';
 import { useAccountsStore } from '../../state/accountsStore.js';
 import { useHiddenMembersStore } from '../../state/hiddenMembersStore.js';
 import type { ReportReasons } from '@b-oss/b-api';
@@ -92,7 +92,7 @@ export function ReportEntryScreen({
       setReportedOk(true);
     } catch (err) {
       const outcome = mapApiError(err);
-      setError(outcome.kind === 'message' ? outcome.message : 'Could not submit this report.');
+      setError(describeError(outcome, 'Could not submit this report.'));
     } finally {
       setSubmitting(false);
     }

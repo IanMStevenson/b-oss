@@ -42,7 +42,7 @@ import {
   isNotificationFromHiddenMember,
   resolveNotificationTarget,
 } from '../../data/notifications.js';
-import { mapApiError } from '../../data/errors.js';
+import { describeError, mapApiError } from '../../data/errors.js';
 import { useAppNavigate } from '../../app/routes/useAppNavigate.js';
 import { useHiddenMembers } from '../../state/hiddenMembersStore.js';
 import { useNotificationCountsStore } from '../../state/notificationCountsStore.js';
@@ -76,9 +76,7 @@ export function NotificationsInboxScreen() {
       },
       (err: unknown) => {
         const outcome = mapApiError(err);
-        setErrorMessage(
-          outcome.kind === 'message' ? outcome.message : 'Could not load notifications.',
-        );
+        setErrorMessage(describeError(outcome, 'Could not load notifications.'));
         setStatus('error');
       },
     );

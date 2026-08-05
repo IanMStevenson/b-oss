@@ -44,7 +44,7 @@ import {
 } from '../../data/users.js';
 import { followUser, unfollowUser } from '../../flows/reactionsFlow.js';
 import { signInGated } from '../../flows/accountsFlow.js';
-import { mapApiError } from '../../data/errors.js';
+import { describeError, mapApiError } from '../../data/errors.js';
 import { useAppNavigate } from '../../app/routes/useAppNavigate.js';
 import { useOverlay } from '../../app/OverlayProvider.js';
 import { AccountIndicator } from '../../components/AccountIndicator.js';
@@ -153,9 +153,7 @@ export function ProfileScreen({ username }: ProfileScreenProps) {
     } catch (err) {
       setFriendshipState(friendship);
       const outcome = mapApiError(err);
-      setErrorMessage(
-        outcome.kind === 'message' ? outcome.message : 'Could not follow this member.',
-      );
+      setErrorMessage(describeError(outcome, 'Could not follow this member.'));
     }
   }
 
@@ -168,9 +166,7 @@ export function ProfileScreen({ username }: ProfileScreenProps) {
     } catch (err) {
       setFriendshipState(1);
       const outcome = mapApiError(err);
-      setErrorMessage(
-        outcome.kind === 'message' ? outcome.message : 'Could not unfollow this member.',
-      );
+      setErrorMessage(describeError(outcome, 'Could not unfollow this member.'));
     }
   }
 

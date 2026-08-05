@@ -10,6 +10,7 @@ import { describe, it, expect, afterEach, vi } from 'vitest';
 import { render, screen, cleanup } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { WriteGuardRoute } from '../WriteGuardRoute.js';
+import { t } from '../../../strings/index.js';
 
 const { signInGated } = vi.hoisted(() => ({ signInGated: vi.fn() }));
 vi.mock('../../../flows/accountsFlow.js', () => ({ signInGated }));
@@ -57,7 +58,7 @@ describe('WriteGuardRoute', () => {
     signInGated.mockReturnValue(new Promise(() => {}));
     renderGuard();
     expect(signInGated).toHaveBeenCalledOnce();
-    expect(screen.queryByText('Read-only account')).toBeNull();
+    expect(screen.queryByText(t('UPGRADE.title'))).toBeNull();
     expect(screen.queryByText('write screen')).toBeNull();
   });
 
@@ -74,7 +75,7 @@ describe('WriteGuardRoute', () => {
     });
     vi.mocked(useCanWrite).mockReturnValue(false);
     renderGuard();
-    expect(await screen.findByText('Read-only account')).toBeDefined();
+    expect(await screen.findByText(t('UPGRADE.title'))).toBeDefined();
     expect(signInGated).not.toHaveBeenCalled();
   });
 });

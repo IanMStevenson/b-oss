@@ -26,7 +26,7 @@ import {
 } from '@ionic/react';
 import { useAppNavigate } from '../../app/routes/useAppNavigate.js';
 import { postComment, editComment } from '../../flows/commentsFlow.js';
-import { mapApiError } from '../../data/errors.js';
+import { describeError, mapApiError } from '../../data/errors.js';
 import { BBCODE_TAGS } from '../../data/bbcode.js';
 import { BBCodeToolbar } from '../../components/BBCodeToolbar.js';
 
@@ -77,7 +77,7 @@ export function NewCommentScreen({
       navigate.goBack();
     } catch (err) {
       const outcome = mapApiError(err);
-      setError(outcome.kind === 'message' ? outcome.message : 'Could not post this comment.');
+      setError(describeError(outcome, 'Could not post this comment.'));
     } finally {
       setSubmitting(false);
     }

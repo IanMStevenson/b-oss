@@ -28,7 +28,7 @@ import type { RefresherEventDetail } from '@ionic/core';
 import { usePagedResource } from '../../data/usePagedResource.js';
 import { fetchBlockedUsers } from '../../data/users.js';
 import { restoreAccess } from '../../flows/connectionsFlow.js';
-import { mapApiError } from '../../data/errors.js';
+import { describeError, mapApiError } from '../../data/errors.js';
 import { useAppNavigate } from '../../app/routes/useAppNavigate.js';
 import { useOverlay } from '../../app/OverlayProvider.js';
 import { useCanWrite } from '../../state/accountsStore.js';
@@ -80,7 +80,7 @@ export function RefusedFollowersScreen() {
       setToastMessage(`${user.username} can see your journal again.`);
     } catch (err) {
       const outcome = mapApiError(err);
-      setErrorMessage(outcome.kind === 'message' ? outcome.message : 'Could not restore access.');
+      setErrorMessage(describeError(outcome, 'Could not restore access.'));
     }
   }
 
