@@ -20,8 +20,9 @@
 // by-design gate — the same "never trust one call site" posture WriteGuardRoute exists for at
 // all); Delete never routes through SCR-13 at all (FLW-13's own diagram: confirm+delete happens
 // directly from this overflow menu), so it's implemented right here.
-// TODO(TODO F/G): 104 (protected)/202 (unavailable) get their own copy-deck messages once that
-// work lands — for now the server's own error message shows as-is.
+// 104 (protected)/202 (unavailable) get their own copy-deck messages via data/entries.ts's
+// fetchEntry — this screen's own entryState.message just renders whatever it threw, same as any
+// other error.
 
 import { useEffect, useState } from 'react';
 import {
@@ -57,7 +58,7 @@ import {
 import { deleteComment } from '../../flows/commentsFlow.js';
 import { deleteEntry } from '../../data/entries.js';
 import { useHiddenMembersStore, useIsHidden } from '../../state/hiddenMembersStore.js';
-import { mapApiError } from '../../data/errors.js';
+import { describeError, mapApiError } from '../../data/errors.js';
 import type { BlipComment as ApiComment } from '@b-oss/b-api';
 
 interface EntryDetailScreenProps {
@@ -237,7 +238,7 @@ export function EntryDetailScreen({ entryId }: EntryDetailScreenProps) {
         return { ...base, starred: false, starsTotal: base.starsTotal - 1 };
       });
       const outcome = mapApiError(err);
-      setErrorMessage(outcome.kind === 'message' ? outcome.message : 'Could not star this entry.');
+      setErrorMessage(describeError(outcome, 'Could not star this entry.'));
     }
   }
 
@@ -258,9 +259,7 @@ export function EntryDetailScreen({ entryId }: EntryDetailScreenProps) {
         setErrorMessage(err.message);
       } else {
         const outcome = mapApiError(err);
-        setErrorMessage(
-          outcome.kind === 'message' ? outcome.message : 'Could not favourite this entry.',
-        );
+        setErrorMessage(describeError(outcome, 'Could not favourite this entry.'));
       }
     }
   }
@@ -276,9 +275,7 @@ export function EntryDetailScreen({ entryId }: EntryDetailScreenProps) {
     } catch (err) {
       setReaction((prev) => ({ ...(prev ?? baseReaction()), friendshipState: prevState }));
       const outcome = mapApiError(err);
-      setErrorMessage(
-        outcome.kind === 'message' ? outcome.message : 'Could not follow this member.',
-      );
+      setErrorMessage(describeError(outcome, 'Could not follow this member.'));
     }
   }
 
@@ -291,9 +288,7 @@ export function EntryDetailScreen({ entryId }: EntryDetailScreenProps) {
     } catch (err) {
       setReaction((prev) => ({ ...(prev ?? baseReaction()), friendshipState: 1 }));
       const outcome = mapApiError(err);
-      setErrorMessage(
-        outcome.kind === 'message' ? outcome.message : 'Could not unfollow this member.',
-      );
+      setErrorMessage(describeError(outcome, 'Could not unfollow this member.'));
     }
   }
 
@@ -333,9 +328,7 @@ export function EntryDetailScreen({ entryId }: EntryDetailScreenProps) {
       reload();
     } catch (err) {
       const outcome = mapApiError(err);
-      setErrorMessage(
-        outcome.kind === 'message' ? outcome.message : 'Could not delete this comment.',
-      );
+      setErrorMessage(describeError(outcome, 'Could not delete this comment.'));
     }
   }
 
@@ -354,9 +347,7 @@ export function EntryDetailScreen({ entryId }: EntryDetailScreenProps) {
       navigate.replace('/browse');
     } catch (err) {
       const outcome = mapApiError(err);
-      setErrorMessage(
-        outcome.kind === 'message' ? outcome.message : 'Could not delete this entry.',
-      );
+      setErrorMessage(describeError(outcome, 'Could not delete this entry.'));
       setDeletingEntry(false);
     }
   }

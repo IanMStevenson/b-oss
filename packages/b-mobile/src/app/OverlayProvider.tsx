@@ -20,6 +20,8 @@ import type { ReactNode } from 'react';
 import { IonAlert, IonButton } from '@ionic/react';
 import { useAppNavigate } from './routes/useAppNavigate.js';
 import { AccountSwitcherOverlay } from './AccountSwitcherOverlay.js';
+import { useActiveAccount } from '../state/accountsStore.js';
+import { t } from '../strings/index.js';
 
 export type OverlayState =
   | { kind: null }
@@ -64,13 +66,11 @@ export function useOverlay(): OverlayContextValue {
 // IonModal anywhere else in this codebase to follow instead), the same class of Ionic-component-
 // vs-jsdom friction RESUME.md already documents for IonLabel. A styled div is simpler, has no
 // such dependency, and satisfies "short panel/sheet" just as well as a real IonModal would.
-// TODO(Phase 12.5): copy hardcoded here rather than read from the typed copy deck Phase 12.5
-// builds at src/strings/ — that phase should repoint this, not re-invent the wording.
 function FirstRunExplainer({ onDismiss }: { onDismiss: () => void }) {
   return (
     <div
       role="dialog"
-      aria-label="Two ways to sign in"
+      aria-label={t('SCR-01.explainer.first_run.title')}
       style={{
         position: 'fixed',
         inset: 'auto 0 0 0',
@@ -82,40 +82,38 @@ function FirstRunExplainer({ onDismiss }: { onDismiss: () => void }) {
         boxShadow: '0 -2px 12px rgba(0,0,0,0.15)',
       }}
     >
-      <h2>Two ways to sign in</h2>
-      <p>
-        Read-write lets you do everything: post your daily photo, star, favourite, comment and
-        follow. Most people want this.
-      </p>
-      <p>
-        Read-only signs you in to browse and read, and nothing else. Nothing you do can change your
-        account. Useful if you mostly look rather than post, or you&rsquo;d rather this app
-        couldn&rsquo;t post as you.
-      </p>
-      <p>You can change this later for any account, and you can add more than one account.</p>
+      <h2>{t('SCR-01.explainer.first_run.title')}</h2>
+      {t('SCR-01.explainer.first_run.body')
+        .split('\n\n')
+        .map((paragraph) => (
+          <p key={paragraph}>{paragraph}</p>
+        ))}
       <IonButton expand="block" onClick={onDismiss}>
-        Got it
+        {t('SCR-01.explainer.first_run.button')}
       </IonButton>
     </div>
   );
 }
 
 /** The one place any of these overlays actually renders — mounted once from `AppShell.tsx`,
- * inside the router (needs `useAppNavigate()` for the upgrade prompt's "Manage accounts"). */
+ * inside the router (needs `useAppNavigate()` for the upgrade prompt's "Manage accounts", and
+ * `useActiveAccount()` to name the account UPGRADE.body's `{username}` token refers to — the one
+ * that was just read-only-gated, since that's always whichever account is currently active). */
 export function OverlayHost() {
   const { overlay, dismiss } = useOverlay();
   const navigate = useAppNavigate();
+  const activeAccount = useActiveAccount();
 
   return (
     <>
       <IonAlert
         isOpen={overlay.kind === 'upgrade-prompt'}
-        header="Read-only account"
-        message="This account is signed in read-only. Sign in for write access to continue."
+        header={t('UPGRADE.title')}
+        message={t('UPGRADE.body', { username: activeAccount?.username ?? 'This account' })}
         onDidDismiss={dismiss}
         buttons={[
-          { text: 'Cancel', role: 'cancel' },
-          { text: 'Manage accounts', handler: () => navigate.push('/accounts') },
+          { text: t('UPGRADE.button.decline'), role: 'cancel' },
+          { text: t('UPGRADE.button.confirm'), handler: () => navigate.push('/accounts') },
         ]}
       />
       {overlay.kind === 'first-run-explainer' && <FirstRunExplainer onDismiss={dismiss} />}

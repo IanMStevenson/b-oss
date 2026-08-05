@@ -8,6 +8,7 @@ import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
 import { RefusedFollowersScreen } from '../RefusedFollowersScreen.js';
 import { OverlayProvider, OverlayHost } from '../../../app/OverlayProvider.js';
+import { t } from '../../../strings/index.js';
 import { useAccountsStore } from '../../../state/accountsStore.js';
 import { useHiddenMembersStore } from '../../../state/hiddenMembersStore.js';
 
@@ -123,7 +124,7 @@ describe('RefusedFollowersScreen', () => {
     });
     renderScreen();
     await userEvent.click(await screen.findByText('Allow'));
-    expect(await screen.findByText('Read-only account')).toBeDefined();
+    expect(await screen.findByText(t('UPGRADE.title'))).toBeDefined();
     expect(restoreAccess).not.toHaveBeenCalled();
   });
 });

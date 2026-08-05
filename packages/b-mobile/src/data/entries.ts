@@ -7,8 +7,10 @@
 
 import { getClient } from './client.js';
 import { stubToEntryIndex, entryResponseToViewEntry } from './viewModel.js';
+import { t } from '../strings/index.js';
 import type { Page } from './usePagedResource.js';
 import type { EntryIndex, BlipEntry } from '@b-oss/b-view';
+import { BlipfotoError } from '@b-oss/b-api';
 import type { BlipEntryActions, BlipFriendship, BlipComment as ApiComment } from '@b-oss/b-api';
 
 const PAGE_SIZE = 30;
@@ -96,26 +98,39 @@ export async function deleteEntry(entryId: string): Promise<void> {
   await client.deleteEntry(entryId);
 }
 
+/** SCR-06's error-state message is whatever `Error.message` this throws (useResource/
+ * useLiveEntry display it as-is, with no mapApiError step of their own) — so codes 104/202 get
+ * their own copy-deck wording (error-codes.md's own TODO F/G note) by rewriting the error here,
+ * at the one place SCR-06 fetches an entry, rather than teaching the generic four-state primitive
+ * about per-screen copy keys. */
 export async function fetchEntry(entryId: string): Promise<LoadedEntry> {
   const client = await getClient();
-  const res = await client.getEntry(entryId, {
-    returnDetails: true,
-    returnMetadata: true,
-    returnComments: true,
-    includeReplies: true,
-    returnRelated: true,
-    returnFriendships: true,
-    returnActions: true,
-    returnImageUrls: true,
-  });
-  return {
-    entry: entryResponseToViewEntry(res),
-    prevEntryId: res.related?.previous?.entry_id_str ?? null,
-    nextEntryId: res.related?.next?.entry_id_str ?? null,
-    actions: res.actions ?? null,
-    starred: res.details?.stars.starred === 1,
-    favorited: res.details?.favorites.favorited === 1,
-    friendship: res.friendships?.[0] ?? null,
-    comments: res.comments?.list ?? [],
-  };
+  try {
+    const res = await client.getEntry(entryId, {
+      returnDetails: true,
+      returnMetadata: true,
+      returnComments: true,
+      includeReplies: true,
+      returnRelated: true,
+      returnFriendships: true,
+      returnActions: true,
+      returnImageUrls: true,
+    });
+    return {
+      entry: entryResponseToViewEntry(res),
+      prevEntryId: res.related?.previous?.entry_id_str ?? null,
+      nextEntryId: res.related?.next?.entry_id_str ?? null,
+      actions: res.actions ?? null,
+      starred: res.details?.stars.starred === 1,
+      favorited: res.details?.favorites.favorited === 1,
+      friendship: res.friendships?.[0] ?? null,
+      comments: res.comments?.list ?? [],
+    };
+  } catch (err) {
+    if (err instanceof BlipfotoError) {
+      if (err.code === 104) throw new Error(t('SCR-06.error.protected'));
+      if (err.code === 202) throw new Error(t('SCR-06.error.unavailable'));
+    }
+    throw err;
+  }
 }

@@ -15,31 +15,12 @@
 // `waiting` and resumed, not left stranded).
 
 import { getClientForAccount } from '../data/client.js';
-import { mapApiError } from '../data/errors.js';
+import { describeError, mapApiError } from '../data/errors.js';
 import { readQueuedFileAsSource, deleteQueuedFile } from '../platform/upload.js';
 import { useUploadQueueStore } from '../state/uploadQueueStore.js';
 import type { UploadQueueItem, PublishQueueFields } from '../state/uploadQueueStore.js';
 import { handleForcedLogout } from './accountsFlow.js';
 import { onEntryPublished } from './reminderFlow.js';
-import type { ApiErrorOutcome } from '../data/errors.js';
-
-/** Every non-transport, non-forced-logout outcome moves straight to `failed` (§9) — this just
- * picks the right message shape per outcome.kind, since `validation`'s copyKey isn't a message
- * yet (data/errors.ts: no copy-deck exists until TODO F/G land). */
-function failureMessage(outcome: ApiErrorOutcome): string {
-  switch (outcome.kind) {
-    case 'message':
-    case 'rate-limited':
-    case 'upgrade-prompt':
-      return outcome.message;
-    case 'validation':
-      return 'Please check the entry details and try again.';
-    case 'transport':
-    case 'forced-logout':
-      // Handled by their own branches above — never reaches here.
-      return 'Something went wrong. Please try again.';
-  }
-}
 
 /** 5s, 15s, 45s, 2m, 5m, capped — gives up after this many attempts (§9). */
 const BACKOFF_MS = [5_000, 15_000, 45_000, 120_000, 300_000];
@@ -177,7 +158,8 @@ function handleFailure(item: UploadQueueItem, err: unknown): void {
     return;
   }
 
-  useUploadQueueStore
-    .getState()
-    .updateItem(item.id, { status: 'failed', error: failureMessage(outcome) });
+  useUploadQueueStore.getState().updateItem(item.id, {
+    status: 'failed',
+    error: describeError(outcome, 'Something went wrong. Please try again.'),
+  });
 }

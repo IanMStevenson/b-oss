@@ -7,7 +7,8 @@
     "dev": "node ../../scripts/copy-icons.mjs && node ../../scripts/version.mjs && vite",
     "build": "node ../../scripts/copy-icons.mjs && node ../../scripts/version.mjs && vite build",
     "typecheck": "tsc --noEmit && tsc -p tsconfig.node.json --noEmit",
-    "test": "vitest run"
+    "test": "vitest run",
+    "strings:generate": "node scripts/generate-strings.mjs"
   },
   "dependencies": {
     "@aparajita/capacitor-secure-storage": "^8.0.0",

@@ -26,7 +26,7 @@ import type { RefresherEventDetail } from '@ionic/core';
 import { usePagedResource } from '../../data/usePagedResource.js';
 import { fetchPendingRequests } from '../../data/users.js';
 import { approveRequest, refuseRequest } from '../../flows/connectionsFlow.js';
-import { mapApiError } from '../../data/errors.js';
+import { describeError, mapApiError } from '../../data/errors.js';
 import { useAppNavigate } from '../../app/routes/useAppNavigate.js';
 import { useOverlay } from '../../app/OverlayProvider.js';
 import { useCanWrite } from '../../state/accountsStore.js';
@@ -59,9 +59,7 @@ export function PendingRequestsScreen() {
       resource.refresh();
     } catch (err) {
       const outcome = mapApiError(err);
-      setErrorMessage(
-        outcome.kind === 'message' ? outcome.message : 'Could not approve this request.',
-      );
+      setErrorMessage(describeError(outcome, 'Could not approve this request.'));
     }
   }
 
@@ -75,9 +73,7 @@ export function PendingRequestsScreen() {
       setRefusedOk(target);
     } catch (err) {
       const outcome = mapApiError(err);
-      setErrorMessage(
-        outcome.kind === 'message' ? outcome.message : 'Could not refuse this request.',
-      );
+      setErrorMessage(describeError(outcome, 'Could not refuse this request.'));
     }
   }
 

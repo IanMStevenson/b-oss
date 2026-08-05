@@ -13,6 +13,8 @@ import { render, screen, cleanup } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
 import { OverlayProvider, OverlayHost, useOverlay } from '../OverlayProvider.js';
+import { useAccountsStore } from '../../state/accountsStore.js';
+import { t } from '../../strings/index.js';
 
 const push = vi.fn();
 vi.mock('../routes/useAppNavigate.js', () => ({
@@ -22,6 +24,7 @@ vi.mock('../routes/useAppNavigate.js', () => ({
 afterEach(() => {
   cleanup();
   vi.resetAllMocks();
+  useAccountsStore.setState({ accounts: [], activeAccountId: null, hydrated: true });
 });
 
 function TestConsumer() {
@@ -59,21 +62,42 @@ describe('useOverlay', () => {
   it('starts with no overlay open', () => {
     renderWithHost();
     expect(screen.getByText('kind:none')).toBeDefined();
-    expect(screen.queryByText('Read-only account')).toBeNull();
+    expect(screen.queryByText(t('UPGRADE.title'))).toBeNull();
   });
 
   it('showUpgradePrompt opens the upgrade-prompt overlay, rendered by OverlayHost', async () => {
     renderWithHost();
     await userEvent.click(screen.getByText('trigger upgrade'));
     expect(screen.getByText('kind:upgrade-prompt')).toBeDefined();
-    expect(await screen.findByText('Read-only account')).toBeDefined();
+    expect(await screen.findByText(t('UPGRADE.title'))).toBeDefined();
   });
 
-  it('"Manage accounts" on the upgrade prompt navigates there', async () => {
+  it("names the active account in the upgrade prompt's body", async () => {
+    useAccountsStore.setState({
+      accounts: [
+        {
+          id: 'a1',
+          username: 'alex',
+          avatarUrl: null,
+          appTokenScope: 'read',
+          hasServiceToken: false,
+          notificationRegistrationId: null,
+          notificationStatus: null,
+        },
+      ],
+      activeAccountId: 'a1',
+      hydrated: true,
+    });
     renderWithHost();
     await userEvent.click(screen.getByText('trigger upgrade'));
-    await screen.findByText('Read-only account');
-    await userEvent.click(screen.getByText('Manage accounts'));
+    expect(await screen.findByText(t('UPGRADE.body', { username: 'alex' }))).toBeDefined();
+  });
+
+  it(`"${t('UPGRADE.button.confirm')}" on the upgrade prompt navigates to accounts`, async () => {
+    renderWithHost();
+    await userEvent.click(screen.getByText('trigger upgrade'));
+    await screen.findByText(t('UPGRADE.title'));
+    await userEvent.click(screen.getByText(t('UPGRADE.button.confirm')));
     expect(push).toHaveBeenCalledWith('/accounts');
   });
 
@@ -81,13 +105,13 @@ describe('useOverlay', () => {
     renderWithHost();
     await userEvent.click(screen.getByText('trigger explainer'));
     expect(screen.getByText('kind:first-run-explainer')).toBeDefined();
-    expect(await screen.findByText('Two ways to sign in')).toBeDefined();
+    expect(await screen.findByText(t('SCR-01.explainer.first_run.title'))).toBeDefined();
   });
 
   it('dismiss closes whichever overlay is open', async () => {
     renderWithHost();
     await userEvent.click(screen.getByText('trigger upgrade'));
-    await screen.findByText('Read-only account');
+    await screen.findByText(t('UPGRADE.title'));
     await userEvent.click(screen.getByText('trigger dismiss'));
     expect(screen.getByText('kind:none')).toBeDefined();
   });

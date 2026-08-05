@@ -10,6 +10,7 @@
 import { BlipfotoError } from '@b-oss/b-api';
 import type { BlipFriendship, ReportReasons } from '@b-oss/b-api';
 import { getClient } from '../data/client.js';
+import { t } from '../strings/index.js';
 
 /** error-codes.md 223 — daily favourite quota reached. Distinct from a generic failure so the
  * caller can show the quota-specific message FLW-06 requires. */
@@ -37,7 +38,7 @@ export async function favoriteEntry(entryId: string): Promise<void> {
   } catch (err) {
     if (err instanceof BlipfotoError) {
       if (err.code === 222) return;
-      if (err.code === 223) throw new FavoriteQuotaError('Daily favourite limit reached.');
+      if (err.code === 223) throw new FavoriteQuotaError(t('ERR.223.favourite_quota'));
     }
     throw err;
   }

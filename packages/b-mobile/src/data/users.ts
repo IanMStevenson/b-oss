@@ -8,8 +8,10 @@
 
 import { getClient } from './client.js';
 import { stubToEntryIndex } from './viewModel.js';
+import { t } from '../strings/index.js';
 import type { Page } from './usePagedResource.js';
 import type { EntryIndex } from '@b-oss/b-view';
+import { BlipfotoError } from '@b-oss/b-api';
 import type {
   BlipUser,
   BlipUserDetails,
@@ -31,21 +33,32 @@ export interface UserProfile {
   latestEntry: BlipEntryStub | null;
 }
 
+/** error-codes.md: 101 (malformed username) and 103 (user unavailable) must read identically on
+ * SCR-18 ("no such user"), rather than 101 falling through to a generic error — same rewrite-at-
+ * the-fetcher approach as entries.ts's fetchEntry, so useResource's generic error state shows the
+ * right text with no per-screen mapApiError step of its own. */
 export async function fetchUserProfile(username?: string): Promise<UserProfile> {
   const client = await getClient();
-  const res = await client.getUserProfile({
-    username,
-    returnDetails: true,
-    returnEntries: true,
-    returnFriendship: true,
-  });
-  return {
-    user: res.user,
-    details: res.details ?? null,
-    visible: res.visibility === 1,
-    friendship: res.friendship ?? null,
-    latestEntry: res.entries?.latest ?? null,
-  };
+  try {
+    const res = await client.getUserProfile({
+      username,
+      returnDetails: true,
+      returnEntries: true,
+      returnFriendship: true,
+    });
+    return {
+      user: res.user,
+      details: res.details ?? null,
+      visible: res.visibility === 1,
+      friendship: res.friendship ?? null,
+      latestEntry: res.entries?.latest ?? null,
+    };
+  } catch (err) {
+    if (err instanceof BlipfotoError && (err.code === 101 || err.code === 103)) {
+      throw new Error(t('SCR-18.error.not_found'));
+    }
+    throw err;
+  }
 }
 
 export async function fetchJournalEntriesFor(

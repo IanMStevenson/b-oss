@@ -38,7 +38,7 @@ import type { RefresherEventDetail } from '@ionic/core';
 import { AccountIndicator } from '../../components/AccountIndicator.js';
 import { fetchRecentComments, unreadCommentIds } from '../../data/notifications.js';
 import { deleteComment } from '../../flows/commentsFlow.js';
-import { mapApiError } from '../../data/errors.js';
+import { describeError, mapApiError } from '../../data/errors.js';
 import { useAppNavigate } from '../../app/routes/useAppNavigate.js';
 import { useAccountsStore } from '../../state/accountsStore.js';
 import { useHiddenMembers, useHiddenMembersStore } from '../../state/hiddenMembersStore.js';
@@ -79,7 +79,7 @@ export function CommentsInboxScreen() {
       },
       (err: unknown) => {
         const outcome = mapApiError(err);
-        setErrorMessage(outcome.kind === 'message' ? outcome.message : 'Could not load comments.');
+        setErrorMessage(describeError(outcome, 'Could not load comments.'));
         setStatus('error');
       },
     );
@@ -118,9 +118,7 @@ export function CommentsInboxScreen() {
       setItems((prev) => prev.filter((c) => c.comment_id_str !== target.comment_id_str));
     } catch (err) {
       const outcome = mapApiError(err);
-      setActionError(
-        outcome.kind === 'message' ? outcome.message : 'Could not delete this comment.',
-      );
+      setActionError(describeError(outcome, 'Could not delete this comment.'));
     }
   }
 

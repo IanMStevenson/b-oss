@@ -34,7 +34,7 @@ import type { DayEligibility } from '../../data/journal.js';
 import { validatePickedPhoto } from '../../data/photoValidation.js';
 import { fetchUserProfile } from '../../data/users.js';
 import { enqueueDraft } from '../../flows/composeFlow.js';
-import { mapApiError } from '../../data/errors.js';
+import { describeError, mapApiError } from '../../data/errors.js';
 import { MonthDatePicker } from '../../components/MonthDatePicker.js';
 import { PhotoCropper } from '../../components/PhotoCropper.js';
 import { cropToProportions } from '../../data/imageCrop.js';
@@ -129,7 +129,7 @@ export function ComposeEntryScreen() {
       navigate.replace('/uploads');
     } catch (err) {
       const outcome = mapApiError(err);
-      setSubmitError(outcome.kind === 'message' ? outcome.message : 'Could not queue this entry.');
+      setSubmitError(describeError(outcome, 'Could not queue this entry.'));
       setSubmitting(false);
     }
   }
