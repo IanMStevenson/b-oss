@@ -502,11 +502,13 @@ export class BlipfotoClient {
 
   /** Verify the token in use was issued to your app (Implicit Grant flow), and read back its
    * granted scope — the standard mitigation for implicit grant's token-substitution weakness,
-   * and how a caller confirms it actually got the scope it asked for (auth.md). */
+   * and how a caller confirms it actually got the scope it asked for (auth.md). Like every other
+   * oauth/token call, the payload comes back nested under `token` (TokenResponse), not flat. */
   async verifyToken(clientId: string): Promise<{ username: string; scope?: string }> {
-    return this.request<{ username: string; scope?: string }>('oauth/token', {
+    const { token } = await this.request<TokenResponse>('oauth/token', {
       client_id: clientId,
     });
+    return { username: token.username, scope: token.scope };
   }
 
   /** Exchange an authorization code for an access token (Authorization Code flow, App auth). */

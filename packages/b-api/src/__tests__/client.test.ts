@@ -916,7 +916,7 @@ describe('verifyToken', () => {
   it('returns username from token object', async () => {
     server.use(
       http.get(`${BASE}oauth/token.json`, () =>
-        HttpResponse.json(envelope({ username: 'gbradley' }), { headers: rateLimitHeaders() }),
+        HttpResponse.json(envelope({ token: mockToken }), { headers: rateLimitHeaders() }),
       ),
     );
     const result = await makeUserClient().verifyToken('my-client-id');
@@ -926,7 +926,7 @@ describe('verifyToken', () => {
   it('returns the granted scope when present', async () => {
     server.use(
       http.get(`${BASE}oauth/token.json`, () =>
-        HttpResponse.json(envelope({ username: 'gbradley', scope: 'read,write' }), {
+        HttpResponse.json(envelope({ token: { ...mockToken, scope: 'read,write' } }), {
           headers: rateLimitHeaders(),
         }),
       ),
