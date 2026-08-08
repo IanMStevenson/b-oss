@@ -113,7 +113,10 @@ export function ProfileScreen({ username }: ProfileScreenProps) {
   const isOwn = username === undefined || username === activeAccount?.username;
   const effectiveUsername = username ?? activeAccount?.username;
 
-  const { state, reload } = useResource(() => fetchUserProfile(username), [username]);
+  const { state, reload } = useResource(
+    () => fetchUserProfile(effectiveUsername),
+    [effectiveUsername],
+  );
   const isHidden = useIsHidden(effectiveUsername && !isOwn ? effectiveUsername : null);
 
   const [tab, setTab] = useState<Tab>('about');
