@@ -1,25 +1,63 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (C) 2026 Ian Stevenson
 
-// SCR-22 — Awards. Read-only, no fetch beyond the badge list itself. `user/awards` returns only
-// an id + icon URL per award, no name/meaning text — there's nothing to show inline for "tap a
-// badge for its meaning," so a tap goes straight to the icon guide (SCR-29, Phase 8) rather than
-// an invented per-badge description.
+// SCR-22 — Awards. Read-only, no fetch beyond the badge list itself. `user/awards` returns the
+// full award catalog for the account, not just the ones they've earned — each entry carries
+// `added_stamp` (null until earned) and `secret` (1 = not revealed until earned). Confirmed
+// 2026-08-11 against a live response: an account with only 2 real awards still got all 12 catalog
+// entries back, `added_stamp: null` on the other 10 — the previous version of this screen ignored
+// both fields and rendered every entry as if earned, which was the bug. Names below come from the
+// award slugs the user supplied (blipfoto.com doesn't expose them via this API), sentence-cased;
+// secret awards show "Secret" instead of their real name regardless of earned state, since the
+// point of a secret award is that its meaning isn't revealed up front.
 
-import { IonPage, IonHeader, IonContent, IonSpinner, IonText, IonButton } from '@ionic/react';
+import {
+  IonPage,
+  IonHeader,
+  IonContent,
+  IonSpinner,
+  IonText,
+  IonButton,
+  IonList,
+} from '@ionic/react';
 import { AppHeader } from '../../components/AppHeader.js';
 import { useResource } from '../../data/useResource.js';
 import { fetchAwards } from '../../data/users.js';
-import { useAppNavigate } from '../../app/routes/useAppNavigate.js';
 import { useActiveAccount } from '../../state/accountsStore.js';
 import { CachedImage } from '../../components/CachedImage.js';
+import type { BlipAward } from '@b-oss/b-api';
+
+const AWARD_SLUGS: Record<string, string> = {
+  '1': 'basics',
+  '2': 'founding_member',
+  '3': 'favorite_entry',
+  '5': 'tag_entry',
+  '6': 'geotag_entry',
+  '8': 'five_contiguous_entries',
+  '9': 'fifty_contiguous_entries',
+  '10': 'one_hundred_contiguous_entries',
+  '11': 'two_hundred_contiguous_entries',
+  '12': 'four_hundred_contiguous_entries',
+  '20': 'hotel_california',
+  '21': 'early_bird',
+};
+
+function slugToSentenceCase(slug: string): string {
+  const spaced = slug.replace(/_/g, ' ');
+  return spaced.charAt(0).toUpperCase() + spaced.slice(1);
+}
+
+function awardLabel(award: BlipAward): string {
+  if (award.secret) return 'Secret';
+  const slug = AWARD_SLUGS[award.award_id_str];
+  return slug ? slugToSentenceCase(slug) : `Award ${award.award_id_str}`;
+}
 
 interface AwardsScreenProps {
   username?: string;
 }
 
 export function AwardsScreen({ username }: AwardsScreenProps) {
-  const navigate = useAppNavigate();
   const activeAccount = useActiveAccount();
   // /me/awards mounts with no username prop at all, expecting a fall-back to the signed-in
   // account — same "raw route prop instead of the resolved one" bug ProfileScreen had.
@@ -55,23 +93,32 @@ export function AwardsScreen({ username }: AwardsScreenProps) {
         )}
         {state.status === 'empty' && <p>No awards yet.</p>}
         {state.status === 'loaded' && (
-          <div
-            style={{
-              display: 'grid',
-              gridTemplateColumns: 'repeat(auto-fill, minmax(64px, 1fr))',
-              gap: 8,
-            }}
-          >
-            {state.data.map((award) => (
-              <button
-                key={award.award_id_str}
-                onClick={() => navigate.push('/help/icon-guide')}
-                style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer' }}
-              >
-                <CachedImage src={award.icon_url} alt="Award" style={{ width: 48, height: 48 }} />
-              </button>
-            ))}
-          </div>
+          <IonList>
+            {[...state.data]
+              .sort((a, b) => Number(a.award_id_str) - Number(b.award_id_str))
+              .map((award) => {
+                const earned = award.added_stamp !== null;
+                return (
+                  <div
+                    key={award.award_id_str}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 12,
+                      padding: '8px 0',
+                      opacity: earned ? 1 : 0.35,
+                    }}
+                  >
+                    <CachedImage
+                      src={award.icon_url}
+                      alt=""
+                      style={{ width: 40, height: 40, flexShrink: 0 }}
+                    />
+                    <span>{awardLabel(award)}</span>
+                  </div>
+                );
+              })}
+          </IonList>
         )}
       </IonContent>
     </IonPage>

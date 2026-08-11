@@ -4,17 +4,11 @@
 
 import { describe, it, expect, afterEach, vi } from 'vitest';
 import { render, screen, cleanup } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
 import { AwardsScreen } from '../AwardsScreen.js';
 
 vi.mock('../../../data/users.js', () => ({
   fetchAwards: vi.fn(),
-}));
-
-const push = vi.fn();
-vi.mock('../../../app/routes/useAppNavigate.js', () => ({
-  useAppNavigate: () => ({ push, replace: vi.fn(), goBack: vi.fn() }),
 }));
 
 afterEach(() => {
@@ -45,15 +39,32 @@ describe('AwardsScreen', () => {
     expect(await screen.findByText('No awards yet.')).toBeDefined();
   });
 
-  it('renders earned awards as a badge grid, and a tap opens the icon guide', async () => {
+  it('shows the full catalog with names, dimming awards that have not been earned', async () => {
     const { fetchAwards } = await import('../../../data/users.js');
     vi.mocked(fetchAwards).mockResolvedValue([
-      { award_id_str: 'a1', icon_url: 'https://example.com/a1.png', added_stamp: 1, secret: 0 },
+      {
+        award_id_str: '5',
+        icon_url: 'https://example.com/5.png',
+        added_stamp: 1786470178,
+        secret: 0,
+      },
+      { award_id_str: '1', icon_url: 'https://example.com/1.png', added_stamp: null, secret: 0 },
     ]);
     renderScreen();
-    const badge = await screen.findByAltText('Award');
-    await userEvent.click(badge);
-    expect(push).toHaveBeenCalledWith('/help/icon-guide');
+    const earnedLabel = await screen.findByText('Tag entry');
+    const unearnedLabel = await screen.findByText('Basics');
+    expect((earnedLabel.parentElement as HTMLElement).style.opacity).toBe('1');
+    expect((unearnedLabel.parentElement as HTMLElement).style.opacity).toBe('0.35');
+  });
+
+  it('labels secret awards as "Secret" instead of their real name', async () => {
+    const { fetchAwards } = await import('../../../data/users.js');
+    vi.mocked(fetchAwards).mockResolvedValue([
+      { award_id_str: '20', icon_url: 'https://example.com/20.png', added_stamp: null, secret: 1 },
+    ]);
+    renderScreen();
+    expect(await screen.findByText('Secret')).toBeDefined();
+    expect(screen.queryByText('Hotel california')).toBeNull();
   });
 
   it('shows an error with retry on failure', async () => {
