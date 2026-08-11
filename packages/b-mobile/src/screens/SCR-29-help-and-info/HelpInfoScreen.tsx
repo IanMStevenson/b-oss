@@ -204,9 +204,16 @@ const THIRD_PARTY_LIBRARIES = [
 function Licences() {
   return (
     <>
-      <IonButton expand="block" fill="outline" onClick={() => void openUrl(SOURCE_URL)}>
-        View source code &amp; full licence
-      </IonButton>
+      <p>
+        Visit the{' '}
+        <button
+          onClick={() => void openUrl(SOURCE_URL)}
+          style={{ color: 'var(--green-700)', textDecoration: 'underline', font: 'inherit' }}
+        >
+          b-oss website
+        </button>{' '}
+        to find links to the source code and full licence and dependency information.
+      </p>
       <p>This app is built with these open-source libraries, among others:</p>
       <ul>
         {THIRD_PARTY_LIBRARIES.map((name) => (
