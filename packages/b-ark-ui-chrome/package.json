@@ -17,7 +17,7 @@
     "@b-oss/b-ark-ui-components": "*",
     "@b-oss/b-view": "*",
     "@b-oss/b-view-backup": "*",
-    "lucide-react": "^1.28.0",
+    "lucide-react": "^1.30.0",
     "react": "^19.2.8",
     "react-dom": "^19.2.8"
   },
