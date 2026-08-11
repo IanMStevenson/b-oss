@@ -22,12 +22,16 @@ export function MiscSection() {
     <div className="ion-padding">
       <IonCheckbox
         checked={uploadFullSize}
+        disabled
         onIonChange={(e) => setUploadFullSize(e.detail.checked)}
       >
         Upload full-size photos
       </IonCheckbox>
       <IonText color="medium">
-        <p>When off, entry photos are downscaled before upload to save data.</p>
+        <p>
+          Photo downscaling isn&rsquo;t implemented yet — entries always upload at full size
+          regardless of this setting for now.
+        </p>
       </IonText>
 
       {accountCount >= 2 && (
