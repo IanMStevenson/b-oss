@@ -134,7 +134,7 @@ function comment(overrides: Partial<BlipComment> = {}): BlipComment {
     thumbnail_url: 'https://example.com/thumb.jpg',
     content: 'lovely light!',
     content_html: '<p>lovely light!</p>',
-    commenter: { username: 'alice', avatar_url: 'https://example.com/avatar.jpg' },
+    commenter: { username: 'alice', avatar_url: 'https://example.com/avatar.jpg', icons: [] },
     actions: { reply: 1, edit: 0, delete: 1 },
     replies: null,
     ...overrides,

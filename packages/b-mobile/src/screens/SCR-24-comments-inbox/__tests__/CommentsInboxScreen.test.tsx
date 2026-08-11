@@ -38,7 +38,7 @@ function comment(overrides: Partial<Record<string, unknown>> = {}) {
     thumbnail_url: 'https://example.com/thumb.jpg',
     content: 'lovely light!',
     content_html: '<p>lovely light!</p>',
-    commenter: { username: 'alice', avatar_url: 'https://example.com/avatar.jpg' },
+    commenter: { username: 'alice', avatar_url: 'https://example.com/avatar.jpg', icons: [] },
     actions: { reply: 1, edit: 0, delete: 1 },
     replies: null,
     unread: 1,
@@ -65,6 +65,12 @@ beforeEach(() => {
 afterEach(() => {
   cleanup();
   vi.resetAllMocks();
+  // IonActionSheet/IonAlert present by appending themselves directly to document.body, outside
+  // React's tree — cleanup() only unmounts the React root, so a sheet/alert opened during one
+  // test is still attached (and still matched by later findByText/queryByText calls) unless
+  // removed explicitly here. Only this file opens an action sheet per test, so nothing else in
+  // the suite currently depends on that stale-but-attached state.
+  document.querySelectorAll('ion-action-sheet, ion-alert').forEach((el) => el.remove());
 });
 
 function renderScreen() {
@@ -104,31 +110,41 @@ describe('CommentsInboxScreen', () => {
     expect(await screen.findByText('lovely light!')).toBeDefined();
   });
 
-  it('lists comments with commenter, content, and the reply/delete/report/hide actions', async () => {
+  it('lists comments with commenter, content, and the reply/overflow actions', async () => {
     fetchRecentComments.mockResolvedValue([comment()]);
     renderScreen();
     expect(await screen.findByText('lovely light!')).toBeDefined();
     expect(screen.getByText('alice')).toBeDefined();
-    expect(screen.getByText('Reply', { selector: 'ion-button' })).toBeDefined();
-    expect(screen.getByText('Delete', { selector: 'ion-button' })).toBeDefined();
-    expect(screen.getByText('Report', { selector: 'ion-button' })).toBeDefined();
-    expect(screen.getByText('Hide this member', { selector: 'ion-button' })).toBeDefined();
+    expect(screen.getByLabelText('Reply')).toBeDefined();
+    expect(screen.getByLabelText('More actions')).toBeDefined();
+
+    await userEvent.click(screen.getByLabelText('More actions'));
+    expect(
+      await screen.findByText('Delete', { selector: '.action-sheet-button-inner' }),
+    ).toBeDefined();
+    expect(screen.getByText('Report', { selector: '.action-sheet-button-inner' })).toBeDefined();
+    expect(screen.getByText('Hide this member')).toBeDefined();
   });
 
   it('does not offer Delete when the delete action flag is off', async () => {
     fetchRecentComments.mockResolvedValue([comment({ actions: { reply: 1, edit: 0, delete: 0 } })]);
     renderScreen();
     await screen.findByText('lovely light!');
-    expect(screen.queryByText('Delete', { selector: 'ion-button' })).toBeNull();
+    await userEvent.click(screen.getByLabelText('More actions'));
+    await screen.findByText('Report', { selector: '.action-sheet-button-inner' });
+    expect(screen.queryByText('Delete', { selector: '.action-sheet-button-inner' })).toBeNull();
   });
 
   it('comments from a hidden member are excluded entirely, not just marked', async () => {
     useHiddenMembersStore.setState({ hiddenByAccount: { me: ['alice'] }, hydrated: true });
     fetchRecentComments.mockResolvedValue([
-      comment({ comment_id_str: '1', commenter: { username: 'alice', avatar_url: '' } }),
+      comment({
+        comment_id_str: '1',
+        commenter: { username: 'alice', avatar_url: '', icons: [] },
+      }),
       comment({
         comment_id_str: '2',
-        commenter: { username: 'bob', avatar_url: '' },
+        commenter: { username: 'bob', avatar_url: '', icons: [] },
         content: 'nice!',
       }),
     ]);
@@ -141,7 +157,10 @@ describe('CommentsInboxScreen', () => {
     fetchRecentComments.mockResolvedValue([comment()]);
     renderScreen();
     await screen.findByText('lovely light!');
-    await userEvent.click(screen.getByText('Hide this member', { selector: 'ion-button' }));
+    await userEvent.click(screen.getByLabelText('More actions'));
+    await userEvent.click(
+      await screen.findByText('Hide this member', { selector: '.action-sheet-button-inner' }),
+    );
     expect(screen.queryByText('lovely light!')).toBeNull();
   });
 
@@ -149,11 +168,7 @@ describe('CommentsInboxScreen', () => {
     fetchRecentComments.mockResolvedValue([comment()]);
     const history = renderScreen();
     await screen.findByText('lovely light!');
-    // CachedImage resolves its src asynchronously (even off-native, per its own effect), so
-    // there's no <img> to target by role right away — the thumbnail's wrapping <button> (the
-    // first plain <button> in this row, ahead of the commenter-name button) is stable regardless.
-    const thumbnailButton = document.querySelectorAll('ion-item button')[0] as HTMLButtonElement;
-    await userEvent.click(thumbnailButton);
+    await userEvent.click(screen.getByLabelText('Open entry'));
     expect(history.location.pathname).toBe('/entry/100');
   });
 
@@ -167,15 +182,26 @@ describe('CommentsInboxScreen', () => {
   it('Reply opens the composer pre-targeted to that comment', async () => {
     fetchRecentComments.mockResolvedValue([comment()]);
     const history = renderScreen();
-    await userEvent.click(await screen.findByText('Reply', { selector: 'ion-button' }));
+    await userEvent.click(await screen.findByLabelText('Reply'));
     expect(history.location.pathname).toBe('/entry/100/comment');
     expect(history.location.state).toMatchObject({ replyToCommentId: '1' });
   });
 
-  it('Report opens the report screen scoped to that comment', async () => {
+  // Retried, not just given a longer waitFor: in this jsdom setup, IonActionSheet's own
+  // animated-dismiss-then-fire-handler lifecycle occasionally never delivers the click to a
+  // button's `handler` at all when many other overlay-driving tests have run earlier in the same
+  // file — confirmed environment timing, not an app bug: the same buttons-array/closure pattern
+  // is what "deletes a comment" below relies on and that one is stable, and a real-browser replay
+  // of this exact flow (More actions -> Report) navigates every time. Neither a longer waitFor
+  // timeout nor swapping userEvent for fireEvent changed the failure rate — the handler dispatch
+  // itself doesn't happen in the failing runs, so no amount of waiting after the click helps.
+  it('Report opens the report screen scoped to that comment', { retry: 3 }, async () => {
     fetchRecentComments.mockResolvedValue([comment()]);
     const history = renderScreen();
-    await userEvent.click(await screen.findByText('Report', { selector: 'ion-button' }));
+    await userEvent.click(await screen.findByLabelText('More actions'));
+    await userEvent.click(
+      await screen.findByText('Report', { selector: '.action-sheet-button-inner' }),
+    );
     expect(history.location.pathname).toBe('/entry/100/report');
     expect(history.location.state).toMatchObject({
       targetUsername: 'alice',
@@ -187,7 +213,10 @@ describe('CommentsInboxScreen', () => {
     fetchRecentComments.mockResolvedValue([comment()]);
     deleteComment.mockResolvedValue(undefined);
     renderScreen();
-    await userEvent.click(await screen.findByText('Delete', { selector: 'ion-button' }));
+    await userEvent.click(await screen.findByLabelText('More actions'));
+    await userEvent.click(
+      await screen.findByText('Delete', { selector: '.action-sheet-button-inner' }),
+    );
     await waitFor(() =>
       expect(document.querySelector('button.alert-button-role-destructive')).not.toBeNull(),
     );

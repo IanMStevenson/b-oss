@@ -45,7 +45,7 @@ function makeUserClient() {
 const mockUser = {
   username: 'gbradley',
   avatar_url: 'https://example.com/avatar.jpg',
-  icons: [{ icon_id_str: '123', icon_url: 'https://example.com/icon.jpg' }],
+  icons: [{ icon_id: '123', icon_url: 'https://example.com/icon.jpg' }],
 };
 
 const mockUserDetails = {

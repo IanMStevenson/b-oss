@@ -21,21 +21,20 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   IonPage,
   IonHeader,
-  IonToolbar,
-  IonTitle,
-  IonButtons,
-  IonBackButton,
   IonContent,
   IonSpinner,
   IonText,
   IonButton,
-  IonItem,
   IonAlert,
+  IonActionSheet,
   IonRefresher,
   IonRefresherContent,
 } from '@ionic/react';
 import type { RefresherEventDetail } from '@ionic/core';
+import { CornerUpLeft, MoreVertical } from 'lucide-react';
+import { AppHeader } from '../../components/AppHeader.js';
 import { AccountIndicator } from '../../components/AccountIndicator.js';
+import { UserBadges } from '../../components/UserBadges.js';
 import { fetchRecentComments, unreadCommentIds } from '../../data/notifications.js';
 import { deleteComment } from '../../flows/commentsFlow.js';
 import { describeError, mapApiError } from '../../data/errors.js';
@@ -59,6 +58,7 @@ export function CommentsInboxScreen() {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<BlipComment | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
+  const [overflowTarget, setOverflowTarget] = useState<BlipComment | null>(null);
 
   const latestIdRef = useRef<string | null>(null);
   // Seeded once, from the first successful response only — see the file header comment.
@@ -145,15 +145,7 @@ export function CommentsInboxScreen() {
   return (
     <IonPage>
       <IonHeader>
-        <IonToolbar>
-          <IonButtons slot="start">
-            <IonBackButton defaultHref="/browse" />
-          </IonButtons>
-          <IonTitle>Comments</IonTitle>
-          <IonButtons slot="end">
-            <AccountIndicator />
-          </IonButtons>
-        </IonToolbar>
+        <AppHeader title="Comments" variant="back" backHref="/browse" end={<AccountIndicator />} />
       </IonHeader>
       <IonContent>
         {status === 'loading' && (
@@ -180,66 +172,101 @@ export function CommentsInboxScreen() {
               <IonRefresherContent />
             </IonRefresher>
             {visibleItems.map((comment) => (
-              <IonItem key={comment.comment_id_str}>
+              <div
+                key={comment.comment_id_str}
+                style={{
+                  display: 'flex',
+                  gap: 12,
+                  padding: '12px 16px',
+                  borderBottom: '1px solid var(--line-2)',
+                }}
+              >
                 <button
                   onClick={() =>
                     comment.entry_id_str &&
                     navigate.push(`/entry/${encodeURIComponent(comment.entry_id_str)}`)
                   }
-                  style={{ background: 'none', border: 'none', padding: 0, flexShrink: 0 }}
+                  aria-label="Open entry"
+                  style={{ flexShrink: 0 }}
                 >
                   <CachedImage
                     src={comment.thumbnail_url}
                     alt=""
-                    style={{ width: 48, height: 48, marginRight: 8 }}
+                    style={{ width: 56, height: 56, borderRadius: 4, objectFit: 'cover' }}
                   />
                 </button>
-                <div style={{ flex: 1, padding: '8px 0' }}>
-                  <button
-                    onClick={() =>
-                      navigate.push(`/user/${encodeURIComponent(comment.commenter.username)}`)
-                    }
-                    style={{ background: 'none', border: 'none', padding: 0, font: 'inherit' }}
-                  >
-                    <strong>{comment.commenter.username}</strong>
-                  </button>
-                  {newIdsRef.current?.has(comment.comment_id_str) && (
-                    <span style={{ color: 'var(--ion-color-success)' }}> New</span>
-                  )}
-                  <div>{comment.content}</div>
-                  <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                    {comment.actions.reply === 1 && (
-                      <IonButton size="small" fill="clear" onClick={() => handleReply(comment)}>
-                        Reply
-                      </IonButton>
-                    )}
-                    {comment.actions.delete === 1 && (
-                      <IonButton
-                        size="small"
-                        fill="clear"
-                        color="danger"
-                        onClick={() => setDeleteTarget(comment)}
-                      >
-                        Delete
-                      </IonButton>
-                    )}
-                    <IonButton size="small" fill="clear" onClick={() => handleReport(comment)}>
-                      Report
-                    </IonButton>
-                    <IonButton
-                      size="small"
-                      fill="clear"
-                      onClick={() => handleHide(comment.commenter.username)}
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                    <button
+                      onClick={() =>
+                        navigate.push(`/user/${encodeURIComponent(comment.commenter.username)}`)
+                      }
+                      style={{ font: 'inherit', color: 'var(--green-700)', fontWeight: 700 }}
                     >
-                      Hide this member
-                    </IonButton>
+                      {comment.commenter.username}
+                    </button>
+                    <UserBadges icons={comment.commenter.icons} />
+                    {newIdsRef.current?.has(comment.comment_id_str) && (
+                      <span style={{ color: 'var(--ion-color-success)', fontSize: 12 }}>New</span>
+                    )}
                   </div>
+                  <div style={{ fontSize: 14, marginTop: 4 }}>{comment.content}</div>
                 </div>
-              </IonItem>
+                <div
+                  style={{
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    gap: 12,
+                    flexShrink: 0,
+                    paddingTop: 4,
+                  }}
+                >
+                  {comment.actions.reply === 1 && (
+                    <button onClick={() => handleReply(comment)} aria-label="Reply">
+                      <CornerUpLeft size={18} strokeWidth={1.6} color="var(--muted)" />
+                    </button>
+                  )}
+                  <button onClick={() => setOverflowTarget(comment)} aria-label="More actions">
+                    <MoreVertical size={18} strokeWidth={1.6} color="var(--muted)" />
+                  </button>
+                </div>
+              </div>
             ))}
           </>
         )}
       </IonContent>
+
+      <IonActionSheet
+        isOpen={!!overflowTarget}
+        onDidDismiss={() => setOverflowTarget(null)}
+        buttons={[
+          ...(overflowTarget?.actions.delete === 1
+            ? [
+                {
+                  text: 'Delete',
+                  role: 'destructive' as const,
+                  handler: () => {
+                    if (overflowTarget) setDeleteTarget(overflowTarget);
+                  },
+                },
+              ]
+            : []),
+          {
+            text: 'Report',
+            handler: () => {
+              if (overflowTarget) handleReport(overflowTarget);
+            },
+          },
+          {
+            text: 'Hide this member',
+            handler: () => {
+              if (overflowTarget) handleHide(overflowTarget.commenter.username);
+            },
+          },
+          { text: 'Cancel', role: 'cancel' as const },
+        ]}
+      />
 
       <IonAlert
         isOpen={!!deleteTarget}

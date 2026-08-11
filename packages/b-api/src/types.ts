@@ -44,7 +44,11 @@ export type MultipartImpl = (args: {
 export interface BlipUser {
   username: string;
   avatar_url: string;
-  icons: Array<{ icon_id_str: string; icon_url: string }>;
+  // The live response sends `icon_id` (already string-valued, no separate `_str`/numeric pair
+  // the way 64-bit entry/comment ids get — these ids are small, e.g. "2000") — confirmed against
+  // a real `messages/comments/recent` response; the field name here previously didn't match and
+  // had no consumer yet to notice.
+  icons: Array<{ icon_id: string; icon_url: string }>;
 }
 
 export interface BlipUserDetails {
@@ -110,7 +114,7 @@ export interface BlipComment {
   thumbnail_url: string;
   content: string;
   content_html: string;
-  commenter: Pick<BlipUser, 'username' | 'avatar_url'>;
+  commenter: Pick<BlipUser, 'username' | 'avatar_url' | 'icons'>;
   actions: { reply: 0 | 1; edit: 0 | 1; delete: 0 | 1 };
   replies: BlipComment[] | null;
   /** Only populated by `messages/comments/recent` (the comments inbox, SCR-24) — absent
