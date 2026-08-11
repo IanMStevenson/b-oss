@@ -90,9 +90,7 @@ describe('FollowersFollowingScreen', () => {
     });
     renderScreen('me', 'followers');
     expect(await screen.findByText('alice')).toBeDefined();
-    // IonAlert's own (hidden) confirm button repeats the same label, so scope to the real
-    // trigger button rather than a bare text match.
-    expect(screen.getByText('Remove', { selector: 'ion-button' })).toBeDefined();
+    expect(screen.getByLabelText('Remove alice')).toBeDefined();
   });
 
   it("does not offer Remove on someone else's followers list", async () => {
@@ -103,7 +101,7 @@ describe('FollowersFollowingScreen', () => {
     });
     renderScreen('alice', 'followers');
     expect(await screen.findByText('bob')).toBeDefined();
-    expect(screen.queryByText('Remove', { selector: 'ion-button' })).toBeNull();
+    expect(screen.queryByLabelText('Remove bob')).toBeNull();
   });
 
   it('removes a follower optimistically after confirming', async () => {
@@ -114,7 +112,7 @@ describe('FollowersFollowingScreen', () => {
     });
     removeFollower.mockResolvedValue(undefined);
     renderScreen('me', 'followers');
-    await userEvent.click(await screen.findByText('Remove', { selector: 'ion-button' }));
+    await userEvent.click(await screen.findByLabelText('Remove alice'));
     // The confirm alert's own destructive button repeats the same "Remove" text, but the text
     // itself sits on a nested <span> — RTL's `selector` option filters by which element *owns*
     // the matched text, so it can't target the ancestor <button>. A direct DOM query is simpler

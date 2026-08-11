@@ -21,6 +21,7 @@ import {
   IonInfiniteScrollContent,
 } from '@ionic/react';
 import type { RefresherEventDetail } from '@ionic/core';
+import { X } from 'lucide-react';
 import { AppHeader } from '../../components/AppHeader.js';
 import { usePagedResource } from '../../data/usePagedResource.js';
 import { fetchFollowers, fetchFollowing } from '../../data/users.js';
@@ -126,9 +127,13 @@ export function FollowersFollowingScreen({ username, mode }: FollowersFollowingS
                 onTap={() => navigate.push(`/user/${encodeURIComponent(user.username)}`)}
               >
                 {isOwnFollowers && (
-                  <IonButton slot="end" size="small" onClick={() => requestRemove(user)}>
-                    Remove
-                  </IonButton>
+                  <button
+                    slot="end"
+                    onClick={() => requestRemove(user)}
+                    aria-label={`Remove ${user.username}`}
+                  >
+                    <X size={18} strokeWidth={1.6} color="var(--muted)" />
+                  </button>
                 )}
               </UserRow>
             ))}
