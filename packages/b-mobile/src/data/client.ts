@@ -15,6 +15,7 @@ import { getMultipartImpl } from '../platform/upload.js';
 import { getToken } from '../platform/secureStorage.js';
 import type { TokenPurpose } from '../platform/secureStorage.js';
 import { useAccountsStore } from '../state/accountsStore.js';
+import { authReady } from '../state/authReady.js';
 
 // Blipfoto serves no CORS headers, so a browser fetch() is blocked outside the dev proxy
 // vite.config.ts sets up. On device, platform/http.ts's CapacitorHttp path has no such
@@ -35,8 +36,13 @@ function anonymousClient(): BlipfotoClient {
 }
 
 /** A client bearing the active account's token for the given purpose, or the anonymous client
- * id if there's no active account or its token for that purpose is missing. */
+ * id if there's no active account or its token for that purpose is missing. Waits for authReady
+ * first — accountsStore's own hydration (and, in dev/browser-testing, the VITE_DEV_TOKEN seed)
+ * is asynchronous, and a screen that fetches on mount would otherwise race ahead of it and read
+ * a not-yet-populated activeAccountId as "signed out," silently falling back to the anonymous
+ * client (see authReady.ts's own doc comment for what that produces downstream). */
 export async function getClient(purpose: TokenPurpose = 'app'): Promise<BlipfotoClient> {
+  await authReady;
   const { accounts, activeAccountId } = useAccountsStore.getState();
   const active = accounts.find((a) => a.id === activeAccountId);
   if (!active) return anonymousClient();

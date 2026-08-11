@@ -11,6 +11,7 @@ import { AppHeader } from '../../components/AppHeader.js';
 import { useResource } from '../../data/useResource.js';
 import { fetchAwards } from '../../data/users.js';
 import { useAppNavigate } from '../../app/routes/useAppNavigate.js';
+import { useActiveAccount } from '../../state/accountsStore.js';
 import { CachedImage } from '../../components/CachedImage.js';
 
 interface AwardsScreenProps {
@@ -19,9 +20,13 @@ interface AwardsScreenProps {
 
 export function AwardsScreen({ username }: AwardsScreenProps) {
   const navigate = useAppNavigate();
+  const activeAccount = useActiveAccount();
+  // /me/awards mounts with no username prop at all, expecting a fall-back to the signed-in
+  // account — same "raw route prop instead of the resolved one" bug ProfileScreen had.
+  const effectiveUsername = username ?? activeAccount?.username;
   const { state, reload } = useResource(
-    () => fetchAwards(username),
-    [username],
+    () => fetchAwards(effectiveUsername),
+    [effectiveUsername],
     (awards) => awards.length === 0,
   );
 

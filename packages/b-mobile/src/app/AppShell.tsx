@@ -21,6 +21,7 @@ import { useHistory } from 'react-router-dom';
 import { OverlayProvider, OverlayHost } from './OverlayProvider.js';
 import { AppRoutes } from './routes/AppRoutes.js';
 import { useAccountsStore, useActiveAccount, useCanWrite } from '../state/accountsStore.js';
+import { markAuthReady } from '../state/authReady.js';
 import { useHiddenMembersStore } from '../state/hiddenMembersStore.js';
 import { useDevicePrefsStore } from '../state/devicePrefsStore.js';
 import { useNotificationCountsStore } from '../state/notificationCountsStore.js';
@@ -241,12 +242,23 @@ export function AppShell() {
     // `MODE === 'development'` rather than `DEV` — Vitest also sets `DEV: true`, and a real
     // VITE_DEV_TOKEN in .env.local would otherwise fire a real network call on every test run
     // that mounts AppShell, mutating the live accountsStore singleton in the background.
+    //
+    // markAuthReady() only fires once this (and hydration) has actually settled — data/client.ts's
+    // getClient() awaits authReady before reading accountsStore, so a screen that fetches on
+    // mount can't race ahead of the dev-seed's own network round-trip, silently fall back to the
+    // anonymous client, and get a confusing "user access token is missing" from a "User auth
+    // only" endpoint that's actually rejecting the *anonymous* request, not the real token.
+    // .catch() keeps this from ever hanging authReady forever if the seed's own network call fails.
     if (import.meta.env.MODE === 'development' && import.meta.env.VITE_DEV_TOKEN) {
-      void accountsHydrated.then(() => {
-        if (!useAccountsStore.getState().activeAccountId) {
-          void devSignInWithToken(import.meta.env.VITE_DEV_TOKEN as string);
-        }
-      });
+      void accountsHydrated
+        .then(async () => {
+          if (!useAccountsStore.getState().activeAccountId) {
+            await devSignInWithToken(import.meta.env.VITE_DEV_TOKEN as string).catch(() => {});
+          }
+        })
+        .finally(markAuthReady);
+    } else {
+      void accountsHydrated.finally(markAuthReady);
     }
     void useHiddenMembersStore.getState().hydrate();
     void useDevicePrefsStore.getState().hydrate();
