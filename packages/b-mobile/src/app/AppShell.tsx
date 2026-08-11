@@ -238,7 +238,10 @@ export function AppShell() {
     // obtained outside the app, e.g. Blipfoto's own app-admin pages — lets §19's "browser-mode
     // development" cover signed-in screens too. Only fires when no account is already active, so
     // it seeds once and never fights a real sign-in/switch-account/sign-out done afterwards.
-    if (import.meta.env.DEV && import.meta.env.VITE_DEV_TOKEN) {
+    // `MODE === 'development'` rather than `DEV` — Vitest also sets `DEV: true`, and a real
+    // VITE_DEV_TOKEN in .env.local would otherwise fire a real network call on every test run
+    // that mounts AppShell, mutating the live accountsStore singleton in the background.
+    if (import.meta.env.MODE === 'development' && import.meta.env.VITE_DEV_TOKEN) {
       void accountsHydrated.then(() => {
         if (!useAccountsStore.getState().activeAccountId) {
           void devSignInWithToken(import.meta.env.VITE_DEV_TOKEN as string);
