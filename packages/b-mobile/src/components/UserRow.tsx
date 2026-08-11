@@ -10,6 +10,7 @@
 import type { ReactNode } from 'react';
 import { IonItem } from '@ionic/react';
 import { CachedImage } from './CachedImage.js';
+import { UserBadges } from './UserBadges.js';
 import { useIsHidden } from '../state/hiddenMembersStore.js';
 import type { BlipUser } from '@b-oss/b-api';
 
@@ -43,9 +44,10 @@ export function UserRow({ user, onTap, children }: UserRowProps) {
           className="avatar"
           style={{ width: 32, height: 32, borderRadius: '50%' }}
         />
-        <span>
+        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
           {user.username}
-          {hidden && <span style={{ color: 'var(--muted)' }}> (Hidden)</span>}
+          <UserBadges icons={user.icons} size={14} />
+          {hidden && <span style={{ color: 'var(--muted)' }}>(Hidden)</span>}
         </span>
       </button>
       {children}

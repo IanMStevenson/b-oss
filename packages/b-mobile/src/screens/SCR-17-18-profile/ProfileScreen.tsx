@@ -48,6 +48,7 @@ import { AccountIndicator } from '../../components/AccountIndicator.js';
 import { useAccountsStore, useActiveAccount } from '../../state/accountsStore.js';
 import { useHiddenMembersStore, useIsHidden } from '../../state/hiddenMembersStore.js';
 import { CachedImage } from '../../components/CachedImage.js';
+import { UserBadges } from '../../components/UserBadges.js';
 import { EntryGrid } from '../../components/EntryGrid.js';
 import { openUrl } from '../../platform/browser.js';
 import type { Page } from '../../data/usePagedResource.js';
@@ -234,9 +235,9 @@ export function ProfileScreen({ username }: ProfileScreenProps) {
                 style={{ width: 64, height: 64, borderRadius: '50%' }}
               />
               <div>
-                <h2 style={{ margin: 0 }}>
+                <h2 style={{ margin: 0, display: 'flex', alignItems: 'center', gap: 6 }}>
                   {state.data.user.username}
-                  {state.data.details?.member === 1 && ' ★member'}
+                  <UserBadges icons={state.data.user.icons} size={18} />
                 </h2>
                 {state.data.details && (
                   <p style={{ margin: 0, color: 'var(--muted)' }}>
