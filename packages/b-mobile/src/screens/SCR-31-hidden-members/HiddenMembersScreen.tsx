@@ -29,8 +29,8 @@ export function HiddenMembersScreen() {
       </IonHeader>
       <IonContent className="ion-padding">
         <p>
-          You won&rsquo;t see their entries, comments or notifications. This doesn&rsquo;t stop them
-          seeing your journal or commenting on your entries.
+          You won&rsquo;t see their entries, comments or notifications on this app on this device.
+          This doesn&rsquo;t stop them seeing your journal or commenting on your entries.
         </p>
 
         {hidden.length === 0 ? (

@@ -128,7 +128,6 @@ function SettingsHub() {
           </IonItem>
           <IonItem button onClick={() => navigate.push('/hidden')}>
             <span>Hidden members</span>
-            <IonNote slot="end">People whose content you won&rsquo;t see</IonNote>
           </IonItem>
           {privacyProtected && (
             <IonItem button onClick={() => navigate.push('/me/refused')}>

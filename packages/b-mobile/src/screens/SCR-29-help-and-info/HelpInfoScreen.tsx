@@ -48,6 +48,7 @@ const ACCEPTABLE_USE_URL = 'https://www.blipfoto.com/legal/acceptable-use';
 const PRIVACY_URL = 'https://www.blipfoto.com/legal/privacy';
 const DELETE_ACCOUNT_URL = 'https://www.blipfoto.com/settings/profile#sidebar';
 const BE_EXCELLENT_URL = 'https://www.blipfoto.com/be-excellent';
+const SOURCE_URL = 'https://ianmstevenson.github.io/b-oss/';
 
 export type HelpInfoSection = 'icon-guide' | 'safety-privacy' | 'licences';
 
@@ -203,6 +204,9 @@ const THIRD_PARTY_LIBRARIES = [
 function Licences() {
   return (
     <>
+      <IonButton expand="block" fill="outline" onClick={() => void openUrl(SOURCE_URL)}>
+        View source code &amp; full licence
+      </IonButton>
       <p>This app is built with these open-source libraries, among others:</p>
       <ul>
         {THIRD_PARTY_LIBRARIES.map((name) => (
