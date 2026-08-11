@@ -26,8 +26,18 @@ import { ThumbnailGrid } from '@b-oss/b-view';
 import type { EntryIndex } from '@b-oss/b-view';
 import { resolveImage } from '../platform/imageCache.js';
 import { useHiddenMembers } from '../state/hiddenMembersStore.js';
+import { useAppNavigate } from '../app/routes/useAppNavigate.js';
 
 const HIDDEN_THUMBNAIL = '__hidden__';
+
+// ThumbnailGrid's tile size is baseTileSize * sizePercent/100. Its own default base (156px) is
+// tuned for b-view-backup's desktop viewport with its own zoom controls — at a typical ~360px
+// phone width that yields only 2 columns (3 would need ~578px). 86px comfortably fits 3 across
+// down to ~340px, degrading to 2 only on the narrowest phones (~320px) — still adjustable via
+// the same zoom control ThumbnailGrid already exposes, and sizePercent stays at the ordinary
+// 100% default rather than an odd-looking fraction, since 86px *is* this app's own "100%"
+// reference size, not a discount off the desktop one.
+const MOBILE_BASE_TILE_PX = 86;
 
 interface EntryGridProps {
   entries: EntryIndex[];
@@ -45,6 +55,7 @@ export function EntryGrid({
   onRefresh,
 }: EntryGridProps) {
   const hiddenMembers = useHiddenMembers();
+  const navigate = useAppNavigate();
   const [sizePercent, setSizePercent] = useState(100);
 
   const displayEntries = useMemo(
@@ -81,14 +92,22 @@ export function EntryGrid({
       <IonRefresher slot="fixed" onIonRefresh={handleRefresh}>
         <IonRefresherContent />
       </IonRefresher>
-      <div style={{ height: '100%' }}>
+      {/* ThumbnailGrid's own .container is `flex: 1` (ThumbnailGrid.module.css) — that only
+          stretches to fill available height when its parent is itself a flex container (which
+          is what b-view-backup's own shell already gives it). A plain block div here left
+          `flex: 1` inert, so the grid fell back to its content's natural height instead of the
+          real space available — only 2 rows fit in ~225px measured, well short of the ~690px
+          IonContent actually had, leaving the rest of the screen empty. */}
+      <div style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
         <ThumbnailGrid
           entries={displayEntries}
           selectedEntryId={null}
           onSelectEntry={onSelectEntry}
           sizePercent={sizePercent}
           onSizeChange={setSizePercent}
+          baseTileSize={MOBILE_BASE_TILE_PX}
           resolveAsset={resolveAsset}
+          onSearchClick={() => navigate.push('/search')}
         />
       </div>
     </>

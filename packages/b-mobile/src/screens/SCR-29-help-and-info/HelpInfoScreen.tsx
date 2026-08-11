@@ -27,16 +27,14 @@
 import {
   IonPage,
   IonHeader,
-  IonToolbar,
-  IonTitle,
-  IonButtons,
-  IonButton,
   IonContent,
   IonList,
   IonItem,
   IonNote,
   IonCheckbox,
+  IonButton,
 } from '@ionic/react';
+import { AppHeader } from '../../components/AppHeader.js';
 import { useAppNavigate } from '../../app/routes/useAppNavigate.js';
 import { useDevicePrefsStore } from '../../state/devicePrefsStore.js';
 import { openUrl } from '../../platform/browser.js';
@@ -73,16 +71,10 @@ export function HelpInfoScreen({ section }: HelpInfoScreenProps) {
 }
 
 function SectionScreen({ section }: { section: HelpInfoSection }) {
-  const navigate = useAppNavigate();
   return (
     <IonPage>
       <IonHeader>
-        <IonToolbar>
-          <IonButtons slot="start">
-            <IonButton onClick={() => navigate.goBack()}>Back</IonButton>
-          </IonButtons>
-          <IonTitle>{SECTION_TITLES[section]}</IonTitle>
-        </IonToolbar>
+        <AppHeader title={SECTION_TITLES[section]} variant="back" backHref="/help" />
       </IonHeader>
       <IonContent className="ion-padding">
         {section === 'icon-guide' && <IconGuide />}
@@ -182,12 +174,7 @@ function HelpInfoHub() {
   return (
     <IonPage>
       <IonHeader>
-        <IonToolbar>
-          <IonTitle>Help &amp; info</IonTitle>
-          <IonButtons slot="end">
-            <AccountIndicator />
-          </IonButtons>
-        </IonToolbar>
+        <AppHeader title="Help & info" end={<AccountIndicator />} />
       </IonHeader>
       <IonContent>
         <IonList>

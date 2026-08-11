@@ -22,10 +22,6 @@ import {
   IonPage,
   IonHeader,
   IonToolbar,
-  IonTitle,
-  IonButtons,
-  IonBackButton,
-  IonMenuButton,
   IonButton,
   IonContent,
   IonSpinner,
@@ -35,6 +31,7 @@ import {
   IonAlert,
   IonActionSheet,
 } from '@ionic/react';
+import { AppHeader } from '../../components/AppHeader.js';
 import { useResource } from '../../data/useResource.js';
 import { usePagedResource } from '../../data/usePagedResource.js';
 import {
@@ -190,18 +187,19 @@ export function ProfileScreen({ username }: ProfileScreenProps) {
   return (
     <IonPage>
       <IonHeader>
-        <IonToolbar>
-          <IonButtons slot="start">
-            {isOwn ? <IonMenuButton /> : <IonBackButton defaultHref="/browse" />}
-          </IonButtons>
-          <IonTitle>{isOwn ? 'My profile' : `${username}'s journal`}</IonTitle>
-          <IonButtons slot="end">
-            {!isOwn && state.status === 'loaded' && (
-              <IonButton onClick={() => setOverflowOpen(true)}>More</IonButton>
-            )}
-            {isOwn && <AccountIndicator />}
-          </IonButtons>
-        </IonToolbar>
+        <AppHeader
+          title={isOwn ? 'My profile' : `${username}'s journal`}
+          variant={isOwn ? 'menu' : 'back'}
+          backHref="/browse"
+          end={
+            <>
+              {!isOwn && state.status === 'loaded' && (
+                <IonButton onClick={() => setOverflowOpen(true)}>More</IonButton>
+              )}
+              {isOwn && <AccountIndicator />}
+            </>
+          }
+        />
       </IonHeader>
       <IonContent>
         {state.status === 'loading' && (

@@ -9,16 +9,8 @@
 // wiring FileTransfer's own progress events through the MultipartImpl seam would be a bigger,
 // separate change to b-api's shared contract for a bar the spec doesn't actually require.
 
-import {
-  IonPage,
-  IonHeader,
-  IonToolbar,
-  IonTitle,
-  IonButtons,
-  IonMenuButton,
-  IonContent,
-  IonText,
-} from '@ionic/react';
+import { IonPage, IonHeader, IonContent, IonText } from '@ionic/react';
+import { AppHeader } from '../../components/AppHeader.js';
 import { useAppNavigate } from '../../app/routes/useAppNavigate.js';
 import { useUploadQueueStore } from '../../state/uploadQueueStore.js';
 import type { UploadQueueItem, UploadStatus } from '../../state/uploadQueueStore.js';
@@ -53,12 +45,7 @@ export function UploadProgressScreen() {
   return (
     <IonPage>
       <IonHeader>
-        <IonToolbar>
-          <IonButtons slot="start">
-            <IonMenuButton />
-          </IonButtons>
-          <IonTitle>Uploads</IonTitle>
-        </IonToolbar>
+        <AppHeader title="Uploads" />
       </IonHeader>
       <IonContent className="ion-padding">
         {sorted.length === 0 && (

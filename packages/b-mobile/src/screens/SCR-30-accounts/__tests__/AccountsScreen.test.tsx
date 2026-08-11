@@ -74,7 +74,7 @@ describe('AccountsScreen', () => {
   it('empty: shows only "+ Add account" with no accounts configured', () => {
     useAccountsStore.setState({ accounts: [], activeAccountId: null });
     renderScreen();
-    expect(screen.getByText('+ Add account')).toBeDefined();
+    expect(screen.getByText('Add account')).toBeDefined();
     expect(screen.queryByText('alice')).toBeNull();
   });
 
@@ -86,14 +86,14 @@ describe('AccountsScreen', () => {
     renderScreen();
     expect(screen.getByText('alice')).toBeDefined();
     expect(screen.getByText('bob')).toBeDefined();
-    expect(screen.getByText('active')).toBeDefined();
+    expect(screen.getByText(/Active/)).toBeDefined();
     expect(screen.getByText('Read-only')).toBeDefined();
   });
 
   it('"+ Add account" navigates to sign-in', async () => {
     useAccountsStore.setState({ accounts: [], activeAccountId: null });
     renderScreen();
-    await userEvent.click(screen.getByText('+ Add account'));
+    await userEvent.click(screen.getByText('Add account'));
     expect(push).toHaveBeenCalledWith('/sign-in');
   });
 
@@ -138,7 +138,7 @@ describe('AccountsScreen', () => {
       document.querySelector('ion-alert[header="Remove account?"] .alert-button-role-destructive')!,
     );
     await waitFor(() => expect(removeAccount).toHaveBeenCalledWith('a1'));
-    expect(await screen.findByText('+ Add account')).toBeDefined();
+    expect(await screen.findByText('Add account')).toBeDefined();
   });
 
   it('detail view: changing mode calls changeAccountMode with the chosen scope', async () => {

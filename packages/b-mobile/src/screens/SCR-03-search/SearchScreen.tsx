@@ -25,9 +25,6 @@ import {
   IonPage,
   IonHeader,
   IonToolbar,
-  IonTitle,
-  IonButtons,
-  IonMenuButton,
   IonButton,
   IonSegment,
   IonSegmentButton,
@@ -41,6 +38,7 @@ import {
   IonInfiniteScrollContent,
 } from '@ionic/react';
 import type { RefresherEventDetail } from '@ionic/core';
+import { AppHeader } from '../../components/AppHeader.js';
 import { AccountIndicator } from '../../components/AccountIndicator.js';
 import { usePagedResource } from '../../data/usePagedResource.js';
 import { useDebouncedValue } from '../../data/useDebounce.js';
@@ -231,15 +229,7 @@ export function SearchScreen() {
   return (
     <IonPage>
       <IonHeader>
-        <IonToolbar>
-          <IonButtons slot="start">
-            <IonMenuButton />
-          </IonButtons>
-          <IonTitle>Search</IonTitle>
-          <IonButtons slot="end">
-            <AccountIndicator />
-          </IonButtons>
-        </IonToolbar>
+        <AppHeader title="Search" end={<AccountIndicator />} />
         <IonToolbar>
           <form
             onSubmit={handleSubmit}

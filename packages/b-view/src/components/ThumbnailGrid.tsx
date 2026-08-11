@@ -93,6 +93,18 @@ interface ThumbnailGridProps {
   onTopLeftEntryDate?: (date: string | null) => void;
   search?: ThumbnailGridSearch;
   assetRevision?: number;
+  /** A plain search icon, rendered right after Home, instead of `search`'s own inline
+   * query/results box — for a consumer whose "search" isn't a local filter over `entries` at
+   * all, just a navigation trigger to a search experience it owns elsewhere. Mutually exclusive
+   * with `search` in practice (a consumer wiring live local filtering has no use for a bare
+   * button), but not enforced — nothing stops both being passed. */
+  onSearchClick?: () => void;
+  /** What `sizePercent={100}` actually renders as, in px — defaults to BASE_TILE_PX(156), tuned
+   * for b-view-backup's desktop viewport. A consumer with a fundamentally different viewport
+   * (a ~360px phone screen, where 156px tiles can't fit 3 across) can override this so its own
+   * sensible default reads as a clean "100%" — rather than always inheriting the desktop
+   * reference size and looking like an odd fraction. */
+  baseTileSize?: number;
 }
 
 function ThumbnailItem({
@@ -210,6 +222,8 @@ export function ThumbnailGrid({
   onTopLeftEntryDate,
   search,
   assetRevision,
+  onSearchClick,
+  baseTileSize = BASE_TILE_PX,
 }: ThumbnailGridProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const { width, height } = useContainerSize(containerRef);
@@ -219,9 +233,9 @@ export function ThumbnailGrid({
   const isSearchActive = search != null && search.query.trim() !== '';
   const displayEntries = search && isSearchActive ? search.results : entries;
 
-  const tileSize = Math.round(BASE_TILE_PX * (sizePercent / 100));
+  const tileSize = Math.round(baseTileSize * (sizePercent / 100));
   const gap = Math.round(tileSize * 0.2);
-  const controlsH = onSizeChange ? CONTROLS_H : 0;
+  const controlsH = onSizeChange || search || onSearchClick ? CONTROLS_H : 0;
 
   // Derive cols/rows from available space; fall back to 2 until measured.
   const cols = width > 0 ? Math.max(2, Math.floor((width - H_PAD + gap) / (tileSize + gap))) : 2;
@@ -304,7 +318,7 @@ export function ThumbnailGrid({
 
   return (
     <div ref={containerRef} className={styles.container} style={{ overflow }}>
-      {(onSizeChange || search) && (
+      {(onSizeChange || search || onSearchClick) && (
         <div className={styles.controls}>
           <div style={{ flex: 1 }} />
           {search && (
@@ -343,6 +357,11 @@ export function ThumbnailGrid({
               >
                 <Home size={14} strokeWidth={1.6} />
               </button>
+              {onSearchClick && (
+                <button className={styles.iconBtn} onClick={onSearchClick} aria-label="Search">
+                  <Search size={14} strokeWidth={1.6} />
+                </button>
+              )}
               {entries.length > 0 && (
                 <DatePicker
                   entries={entries}

@@ -6,17 +6,8 @@
 // follower" per-row offer both need journal-privacy/follower-relationship data this phase doesn't
 // fetch (SCR-19/SCR-25 are Phase 5/8); both are left as documented TODOs rather than guessed at.
 
-import {
-  IonPage,
-  IonHeader,
-  IonToolbar,
-  IonTitle,
-  IonButtons,
-  IonButton,
-  IonContent,
-  IonList,
-  IonItem,
-} from '@ionic/react';
+import { IonPage, IonHeader, IonButton, IonContent, IonList, IonItem } from '@ionic/react';
+import { AppHeader } from '../../components/AppHeader.js';
 import { useAppNavigate } from '../../app/routes/useAppNavigate.js';
 import { useAccountsStore } from '../../state/accountsStore.js';
 import { useHiddenMembersStore, useHiddenMembers } from '../../state/hiddenMembersStore.js';
@@ -34,12 +25,7 @@ export function HiddenMembersScreen() {
   return (
     <IonPage>
       <IonHeader>
-        <IonToolbar>
-          <IonButtons slot="start">
-            <IonButton onClick={() => navigate.goBack()}>Back</IonButton>
-          </IonButtons>
-          <IonTitle>Hidden members</IonTitle>
-        </IonToolbar>
+        <AppHeader title="Hidden members" variant="back" backHref="/browse" />
       </IonHeader>
       <IonContent className="ion-padding">
         <p>

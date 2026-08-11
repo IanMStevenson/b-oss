@@ -17,18 +17,8 @@
 // read directly here — see `platform/shareIntent.ts`'s own header comment for the full reasoning.
 
 import { useEffect, useState } from 'react';
-import {
-  IonPage,
-  IonHeader,
-  IonToolbar,
-  IonTitle,
-  IonButtons,
-  IonBackButton,
-  IonContent,
-  IonButton,
-  IonText,
-  IonSpinner,
-} from '@ionic/react';
+import { IonPage, IonHeader, IonContent, IonButton, IonText, IonSpinner } from '@ionic/react';
+import { AppHeader } from '../../components/AppHeader.js';
 import {
   takePhoto,
   pickPhoto,
@@ -130,12 +120,7 @@ export function NewEntryScreen() {
   return (
     <IonPage>
       <IonHeader>
-        <IonToolbar>
-          <IonButtons slot="start">
-            <IonBackButton defaultHref="/browse" />
-          </IonButtons>
-          <IonTitle>New entry</IonTitle>
-        </IonToolbar>
+        <AppHeader title="New entry" variant="back" backHref="/browse" />
       </IonHeader>
       <IonContent className="ion-padding">
         {photoMessage && (

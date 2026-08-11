@@ -3,18 +3,8 @@
 
 // SCR-05 — Tag Entries. A single infinite-scroll grid, same paging shape as SCR-02's feed tabs.
 
-import {
-  IonPage,
-  IonHeader,
-  IonToolbar,
-  IonTitle,
-  IonButtons,
-  IonBackButton,
-  IonContent,
-  IonSpinner,
-  IonText,
-  IonButton,
-} from '@ionic/react';
+import { IonPage, IonHeader, IonContent, IonSpinner, IonText, IonButton } from '@ionic/react';
+import { AppHeader } from '../../components/AppHeader.js';
 import { usePagedResource } from '../../data/usePagedResource.js';
 import { fetchTagPage } from '../../data/entries.js';
 import { EntryGrid } from '../../components/EntryGrid.js';
@@ -31,12 +21,7 @@ export function TagEntriesScreen({ tag }: TagEntriesScreenProps) {
   return (
     <IonPage>
       <IonHeader>
-        <IonToolbar>
-          <IonButtons slot="start">
-            <IonBackButton defaultHref="/browse" />
-          </IonButtons>
-          <IonTitle>#{tag}</IonTitle>
-        </IonToolbar>
+        <AppHeader title={`#${tag}`} variant="back" backHref="/browse" />
       </IonHeader>
       <IonContent>
         {resource.status === 'loading' && (

@@ -8,10 +8,6 @@ import { useState } from 'react';
 import {
   IonPage,
   IonHeader,
-  IonToolbar,
-  IonTitle,
-  IonButtons,
-  IonBackButton,
   IonContent,
   IonSpinner,
   IonText,
@@ -23,6 +19,7 @@ import {
   IonInfiniteScrollContent,
 } from '@ionic/react';
 import type { RefresherEventDetail } from '@ionic/core';
+import { AppHeader } from '../../components/AppHeader.js';
 import { usePagedResource } from '../../data/usePagedResource.js';
 import { fetchPendingRequests } from '../../data/users.js';
 import { approveRequest, refuseRequest } from '../../flows/connectionsFlow.js';
@@ -98,12 +95,7 @@ export function PendingRequestsScreen() {
   return (
     <IonPage>
       <IonHeader>
-        <IonToolbar>
-          <IonButtons slot="start">
-            <IonBackButton defaultHref="/me" />
-          </IonButtons>
-          <IonTitle>Follow requests</IonTitle>
-        </IonToolbar>
+        <AppHeader title="Follow requests" variant="back" backHref="/me" />
       </IonHeader>
       <IonContent>
         {resource.status === 'loading' && (

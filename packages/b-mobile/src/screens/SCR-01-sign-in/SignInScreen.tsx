@@ -20,8 +20,6 @@ import { useEffect, useState } from 'react';
 import {
   IonPage,
   IonHeader,
-  IonToolbar,
-  IonTitle,
   IonContent,
   IonRadioGroup,
   IonRadio,
@@ -32,6 +30,7 @@ import {
   IonSpinner,
   IonText,
 } from '@ionic/react';
+import { AppHeader } from '../../components/AppHeader.js';
 import { signInDeliberate, OAuthCancelledError } from '../../flows/accountsFlow.js';
 import type { SignInModeChoice } from '../../flows/accountsFlow.js';
 import { openUrl } from '../../platform/browser.js';
@@ -83,9 +82,7 @@ export function SignInScreen() {
   return (
     <IonPage>
       <IonHeader>
-        <IonToolbar>
-          <IonTitle>Sign In</IonTitle>
-        </IonToolbar>
+        <AppHeader title="Sign In" />
       </IonHeader>
       <IonContent className="ion-padding">
         <p>How do you want to sign in?</p>

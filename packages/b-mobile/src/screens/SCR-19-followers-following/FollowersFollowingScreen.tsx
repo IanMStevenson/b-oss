@@ -10,10 +10,6 @@ import { useState } from 'react';
 import {
   IonPage,
   IonHeader,
-  IonToolbar,
-  IonTitle,
-  IonButtons,
-  IonBackButton,
   IonContent,
   IonSpinner,
   IonText,
@@ -25,6 +21,7 @@ import {
   IonInfiniteScrollContent,
 } from '@ionic/react';
 import type { RefresherEventDetail } from '@ionic/core';
+import { AppHeader } from '../../components/AppHeader.js';
 import { usePagedResource } from '../../data/usePagedResource.js';
 import { fetchFollowers, fetchFollowing } from '../../data/users.js';
 import { removeFollower } from '../../flows/connectionsFlow.js';
@@ -92,12 +89,11 @@ export function FollowersFollowingScreen({ username, mode }: FollowersFollowingS
   return (
     <IonPage>
       <IonHeader>
-        <IonToolbar>
-          <IonButtons slot="start">
-            <IonBackButton defaultHref={`/user/${encodeURIComponent(username)}`} />
-          </IonButtons>
-          <IonTitle>{mode === 'followers' ? 'Followers' : 'Following'}</IonTitle>
-        </IonToolbar>
+        <AppHeader
+          title={mode === 'followers' ? 'Followers' : 'Following'}
+          variant="back"
+          backHref={`/user/${encodeURIComponent(username)}`}
+        />
       </IonHeader>
       <IonContent>
         {resource.status === 'loading' && (

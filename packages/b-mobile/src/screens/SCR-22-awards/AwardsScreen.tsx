@@ -6,18 +6,8 @@
 // badge for its meaning," so a tap goes straight to the icon guide (SCR-29, Phase 8) rather than
 // an invented per-badge description.
 
-import {
-  IonPage,
-  IonHeader,
-  IonToolbar,
-  IonTitle,
-  IonButtons,
-  IonBackButton,
-  IonContent,
-  IonSpinner,
-  IonText,
-  IonButton,
-} from '@ionic/react';
+import { IonPage, IonHeader, IonContent, IonSpinner, IonText, IonButton } from '@ionic/react';
+import { AppHeader } from '../../components/AppHeader.js';
 import { useResource } from '../../data/useResource.js';
 import { fetchAwards } from '../../data/users.js';
 import { useAppNavigate } from '../../app/routes/useAppNavigate.js';
@@ -38,14 +28,11 @@ export function AwardsScreen({ username }: AwardsScreenProps) {
   return (
     <IonPage>
       <IonHeader>
-        <IonToolbar>
-          <IonButtons slot="start">
-            <IonBackButton
-              defaultHref={username ? `/user/${encodeURIComponent(username)}` : '/me'}
-            />
-          </IonButtons>
-          <IonTitle>Awards</IonTitle>
-        </IonToolbar>
+        <AppHeader
+          title="Awards"
+          variant="back"
+          backHref={username ? `/user/${encodeURIComponent(username)}` : '/me'}
+        />
       </IonHeader>
       <IonContent className="ion-padding">
         {state.status === 'loading' && (

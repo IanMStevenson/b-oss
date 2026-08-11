@@ -22,10 +22,6 @@
 import {
   IonPage,
   IonHeader,
-  IonToolbar,
-  IonTitle,
-  IonButtons,
-  IonButton,
   IonContent,
   IonList,
   IonItem,
@@ -33,6 +29,7 @@ import {
   IonSpinner,
   IonText,
 } from '@ionic/react';
+import { AppHeader } from '../../components/AppHeader.js';
 import { AccountIndicator } from '../../components/AccountIndicator.js';
 import { useResource } from '../../data/useResource.js';
 import { fetchUserSettings } from '../../data/settings.js';
@@ -73,16 +70,10 @@ export function SettingsScreen({ section }: SettingsScreenProps) {
 }
 
 function SectionScreen({ section }: { section: SettingsSection }) {
-  const navigate = useAppNavigate();
   return (
     <IonPage>
       <IonHeader>
-        <IonToolbar>
-          <IonButtons slot="start">
-            <IonButton onClick={() => navigate.goBack()}>Back</IonButton>
-          </IonButtons>
-          <IonTitle>{SECTION_TITLES[section]}</IonTitle>
-        </IonToolbar>
+        <AppHeader title={SECTION_TITLES[section]} variant="back" backHref="/settings" />
       </IonHeader>
       <IonContent>
         {section === 'general' && <GeneralSection />}
@@ -107,12 +98,7 @@ function SettingsHub() {
   return (
     <IonPage>
       <IonHeader>
-        <IonToolbar>
-          <IonTitle>Settings</IonTitle>
-          <IonButtons slot="end">
-            <AccountIndicator />
-          </IonButtons>
-        </IonToolbar>
+        <AppHeader title="Settings" end={<AccountIndicator />} />
       </IonHeader>
       <IonContent>
         <IonList>

@@ -23,10 +23,6 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   IonPage,
   IonHeader,
-  IonToolbar,
-  IonTitle,
-  IonButtons,
-  IonBackButton,
   IonContent,
   IonSpinner,
   IonText,
@@ -36,6 +32,7 @@ import {
   IonRefresherContent,
 } from '@ionic/react';
 import type { RefresherEventDetail } from '@ionic/core';
+import { AppHeader } from '../../components/AppHeader.js';
 import { AccountIndicator } from '../../components/AccountIndicator.js';
 import {
   fetchRecentNotifications,
@@ -119,15 +116,12 @@ export function NotificationsInboxScreen() {
   return (
     <IonPage>
       <IonHeader>
-        <IonToolbar>
-          <IonButtons slot="start">
-            <IonBackButton defaultHref="/browse" />
-          </IonButtons>
-          <IonTitle>Notifications</IonTitle>
-          <IonButtons slot="end">
-            <AccountIndicator />
-          </IonButtons>
-        </IonToolbar>
+        <AppHeader
+          title="Notifications"
+          variant="back"
+          backHref="/browse"
+          end={<AccountIndicator />}
+        />
       </IonHeader>
       <IonContent>
         {status === 'loading' && (

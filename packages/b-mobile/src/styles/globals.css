@@ -7,3 +7,30 @@
 html {
   font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
 }
+
+/* b-view's ThumbnailGrid/Pagination/DatePicker/InfoPopup render plain native <button>s (styled
+   only via inline style props), not Ionic components — Ionic's own CSS only resets its own
+   shadow-DOM ion-button, so these fall back to the browser's default grey button chrome unless
+   reset here too. b-view-backup's base.css carries the same rule for the same reason. */
+button {
+  font-family: inherit;
+  font-size: inherit;
+  cursor: pointer;
+  border: none;
+  background: none;
+  padding: 0;
+}
+
+button:disabled {
+  cursor: default;
+  opacity: 0.4;
+}
+
+/* Ionic's segment-button default (uppercase, ~14px) reads too loud next to AppHeader's title —
+   b-visual's type scale (style-guide.md) puts nav-bar text at 13px. `::part()`, not a plain
+   selector: Ionic's own text-transform/font-size rules live inside ion-segment-button's shadow
+   DOM, which a host-level style/class can't reach — only exposed parts can. */
+ion-segment-button::part(native) {
+  text-transform: none;
+  font-size: 13px;
+}

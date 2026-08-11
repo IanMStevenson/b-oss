@@ -9,10 +9,6 @@
 import {
   IonPage,
   IonHeader,
-  IonToolbar,
-  IonTitle,
-  IonButtons,
-  IonBackButton,
   IonContent,
   IonSpinner,
   IonText,
@@ -22,6 +18,7 @@ import {
   IonLabel,
   IonNote,
 } from '@ionic/react';
+import { AppHeader } from '../../components/AppHeader.js';
 import { useLiveEntry } from '../../data/useLiveEntry.js';
 import type { BlipEntry } from '@b-oss/b-view';
 
@@ -46,12 +43,7 @@ export function EntryMetadataScreen({ entryId }: EntryMetadataScreenProps) {
   return (
     <IonPage>
       <IonHeader>
-        <IonToolbar>
-          <IonButtons slot="start">
-            <IonBackButton defaultHref={`/entry/${entryId}`} />
-          </IonButtons>
-          <IonTitle>Camera info</IonTitle>
-        </IonToolbar>
+        <AppHeader title="Camera info" variant="back" backHref={`/entry/${entryId}`} />
       </IonHeader>
       <IonContent className="ion-padding">
         {entryState.status === 'loading' && (

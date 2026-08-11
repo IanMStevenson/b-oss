@@ -11,17 +11,15 @@ import {
   IonPage,
   IonHeader,
   IonToolbar,
-  IonTitle,
-  IonButtons,
-  IonMenuButton,
-  IonButton,
   IonSegment,
   IonSegmentButton,
   IonLabel,
   IonContent,
   IonSpinner,
   IonText,
+  IonButton,
 } from '@ionic/react';
+import { AppHeader } from '../../components/AppHeader.js';
 import { AccountIndicator } from '../../components/AccountIndicator.js';
 import { usePagedResource } from '../../data/usePagedResource.js';
 import {
@@ -131,7 +129,6 @@ export function BrowseScreen() {
   const [tab, setTab] = useState<Tab>('recent');
   const [visited, setVisited] = useState<Set<Tab>>(new Set(['recent']));
   const activeAccount = useActiveAccount();
-  const navigate = useAppNavigate();
 
   function handleTabChange(next: Tab): void {
     setTab(next);
@@ -141,16 +138,7 @@ export function BrowseScreen() {
   return (
     <IonPage>
       <IonHeader>
-        <IonToolbar>
-          <IonButtons slot="start">
-            <IonMenuButton />
-          </IonButtons>
-          <IonTitle>Browse</IonTitle>
-          <IonButtons slot="end">
-            <IonButton onClick={() => navigate.push('/search')}>Search</IonButton>
-            <AccountIndicator />
-          </IonButtons>
-        </IonToolbar>
+        <AppHeader title="Browse" end={<AccountIndicator />} />
         <IonToolbar>
           <IonSegment
             value={tab}
@@ -167,7 +155,7 @@ export function BrowseScreen() {
             )}
             {activeAccount && (
               <IonSegmentButton value="justme">
-                <IonLabel>Just Me</IonLabel>
+                <IonLabel>Me</IonLabel>
               </IonSegmentButton>
             )}
             <IonSegmentButton value="popular">

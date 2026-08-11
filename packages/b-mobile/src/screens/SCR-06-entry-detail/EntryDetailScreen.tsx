@@ -44,10 +44,6 @@ import type { ReactNode } from 'react';
 import {
   IonPage,
   IonHeader,
-  IonToolbar,
-  IonTitle,
-  IonButtons,
-  IonBackButton,
   IonContent,
   IonSpinner,
   IonText,
@@ -55,6 +51,7 @@ import {
   IonAlert,
   IonActionSheet,
 } from '@ionic/react';
+import { AppHeader } from '../../components/AppHeader.js';
 import { EntryDetail } from '@b-oss/b-view';
 import type { BlipComment, EntryState } from '@b-oss/b-view';
 import { useLiveEntry } from '../../data/useLiveEntry.js';
@@ -399,12 +396,7 @@ export function EntryDetailScreen({ entryId }: EntryDetailScreenProps) {
   return (
     <IonPage>
       <IonHeader>
-        <IonToolbar>
-          <IonButtons slot="start">
-            <IonBackButton defaultHref="/browse" />
-          </IonButtons>
-          <IonTitle>Entry</IonTitle>
-        </IonToolbar>
+        <AppHeader title="Entry" variant="back" backHref="/browse" />
       </IonHeader>
       <IonContent>
         {entryState.status === 'loading' && (

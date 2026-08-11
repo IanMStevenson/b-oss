@@ -11,9 +11,6 @@ import { useState } from 'react';
 import {
   IonPage,
   IonHeader,
-  IonToolbar,
-  IonTitle,
-  IonButtons,
   IonButton,
   IonContent,
   IonList,
@@ -23,6 +20,7 @@ import {
   IonText,
   IonAlert,
 } from '@ionic/react';
+import { AppHeader } from '../../components/AppHeader.js';
 import { useAppNavigate } from '../../app/routes/useAppNavigate.js';
 import { reportEntry } from '../../flows/reactionsFlow.js';
 import { describeError, mapApiError } from '../../data/errors.js';
@@ -101,17 +99,11 @@ export function ReportEntryScreen({
   return (
     <IonPage>
       <IonHeader>
-        <IonToolbar>
-          <IonButtons slot="start">
-            <IonButton onClick={() => navigate.goBack()}>Cancel</IonButton>
-          </IonButtons>
-          <IonTitle>{reportedComment ? 'Report this comment' : 'Report this entry'}</IonTitle>
-          <IonButtons slot="end">
-            <IonButton disabled={submitting} onClick={() => void handleSend()}>
-              Send
-            </IonButton>
-          </IonButtons>
-        </IonToolbar>
+        <AppHeader
+          title={reportedComment ? 'Report comment' : 'Report entry'}
+          variant="back"
+          backHref={`/entry/${entryId}`}
+        />
       </IonHeader>
       <IonContent className="ion-padding">
         {error && (
@@ -153,6 +145,10 @@ export function ReportEntryScreen({
           rows={4}
           style={{ width: '100%', font: 'inherit', padding: 8 }}
         />
+
+        <IonButton expand="block" disabled={submitting} onClick={() => void handleSend()}>
+          Send
+        </IonButton>
       </IonContent>
 
       <IonAlert

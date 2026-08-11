@@ -19,9 +19,9 @@ import {
   IonNote,
   IonButton,
   IonButtons,
-  IonBadge,
   IonAlert,
 } from '@ionic/react';
+import { AppHeader } from '../../components/AppHeader.js';
 import { useAccountsStore } from '../../state/accountsStore.js';
 import type { StoredAccount } from '../../state/accountsStore.js';
 import {
@@ -186,23 +186,26 @@ export function AccountsScreen() {
   return (
     <IonPage>
       <IonHeader>
-        <IonToolbar>
-          <IonTitle>Accounts</IonTitle>
-        </IonToolbar>
+        <AppHeader title="Accounts" />
       </IonHeader>
       <IonContent>
         <IonList>
-          {accounts.map((account) => (
-            <IonItem key={account.id} button onClick={() => handleRowTap(account)}>
-              <span>
-                {account.username}
-                {account.id === activeAccountId && <IonBadge color="success"> active</IonBadge>}
-              </span>
-              <IonNote slot="end">{modeLabel(account)}</IonNote>
-            </IonItem>
-          ))}
+          {accounts.map((account) => {
+            const isActive = account.id === activeAccountId;
+            return (
+              <IonItem key={account.id} button onClick={() => handleRowTap(account)}>
+                <span style={isActive ? { fontWeight: 600 } : undefined}>{account.username}</span>
+                <IonNote slot="end" style={isActive ? { color: 'var(--green-800)' } : undefined}>
+                  {isActive ? `Active · ${modeLabel(account)}` : modeLabel(account)}
+                </IonNote>
+              </IonItem>
+            );
+          })}
           <IonItem button onClick={() => navigate.push('/sign-in')}>
-            <span>+ Add account</span>
+            <span style={{ color: 'var(--green-700)', fontWeight: 600 }}>Add account</span>
+            <IonNote slot="end" style={{ color: 'var(--green-700)', fontSize: '18px' }}>
+              +
+            </IonNote>
           </IonItem>
         </IonList>
 

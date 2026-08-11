@@ -17,20 +17,10 @@
 // noise") — filtered out before markers are ever created, never rendered and then hidden.
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import {
-  IonPage,
-  IonHeader,
-  IonToolbar,
-  IonTitle,
-  IonButtons,
-  IonMenuButton,
-  IonButton,
-  IonContent,
-  IonSpinner,
-  IonText,
-} from '@ionic/react';
+import { IonPage, IonHeader, IonButton, IonContent, IonSpinner, IonText } from '@ionic/react';
 import { Map as MapLibreMap, Marker, Popup } from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
+import { AppHeader } from '../../components/AppHeader.js';
 import { AccountIndicator } from '../../components/AccountIndicator.js';
 import { getMapStyleUrl } from '../../platform/mapTiles.js';
 import { getCurrentPosition } from '../../platform/geolocation.js';
@@ -209,22 +199,21 @@ export function MapScreen({ focusedEntryId }: MapScreenProps) {
   return (
     <IonPage>
       <IonHeader>
-        <IonToolbar>
-          <IonButtons slot="start">
-            <IonMenuButton />
-          </IonButtons>
-          <IonTitle>Map</IonTitle>
-          <IonButtons slot="end">
-            <IonButton
-              onClick={() => void handleMyLocation()}
-              disabled={!styleUrl}
-              aria-label="My location"
-            >
-              My location
-            </IonButton>
-            <AccountIndicator />
-          </IonButtons>
-        </IonToolbar>
+        <AppHeader
+          title="Map"
+          end={
+            <>
+              <IonButton
+                onClick={() => void handleMyLocation()}
+                disabled={!styleUrl}
+                aria-label="My location"
+              >
+                My location
+              </IonButton>
+              <AccountIndicator />
+            </>
+          }
+        />
       </IonHeader>
       <IonContent>
         {!styleUrl ? (
