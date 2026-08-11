@@ -20,15 +20,13 @@ import { useEffect, useRef, useState } from 'react';
 import {
   IonPage,
   IonHeader,
-  IonToolbar,
-  IonTitle,
-  IonButtons,
   IonButton,
   IonContent,
   IonAlert,
   IonSpinner,
   IonText,
 } from '@ionic/react';
+import { AppHeader } from '../../components/AppHeader.js';
 import { useAppNavigate } from '../../app/routes/useAppNavigate.js';
 import { useComposeDraftStore } from '../../state/composeDraftStore.js';
 import { fetchUserSettings, saveUserSettings } from '../../data/settings.js';
@@ -75,15 +73,7 @@ function DraftDescriptionEditor() {
   return (
     <IonPage>
       <IonHeader>
-        <IonToolbar>
-          <IonButtons slot="start">
-            <IonButton onClick={handleBack}>Cancel</IonButton>
-          </IonButtons>
-          <IonTitle>Description</IonTitle>
-          <IonButtons slot="end">
-            <IonButton onClick={handleOk}>OK</IonButton>
-          </IonButtons>
-        </IonToolbar>
+        <AppHeader title="Description" variant="back" onBack={handleBack} />
       </IonHeader>
       <IonContent className="ion-padding">
         <BBCodeToolbar tags={BBCODE_TAGS} textareaRef={textareaRef} onChange={setContent} />
@@ -95,6 +85,9 @@ function DraftDescriptionEditor() {
           rows={12}
           style={{ width: '100%', font: 'inherit', padding: 8 }}
         />
+        <IonButton expand="block" onClick={handleOk}>
+          OK
+        </IonButton>
       </IonContent>
 
       <IonAlert
@@ -170,17 +163,7 @@ function BiographyEditor() {
   return (
     <IonPage>
       <IonHeader>
-        <IonToolbar>
-          <IonButtons slot="start">
-            <IonButton onClick={handleBack}>Cancel</IonButton>
-          </IonButtons>
-          <IonTitle>Biography</IonTitle>
-          <IonButtons slot="end">
-            <IonButton disabled={loading || saving} onClick={() => void handleOk()}>
-              {saving ? <IonSpinner name="dots" /> : 'OK'}
-            </IonButton>
-          </IonButtons>
-        </IonToolbar>
+        <AppHeader title="Biography" variant="back" onBack={handleBack} />
       </IonHeader>
       <IonContent className="ion-padding">
         {loading ? (
@@ -205,6 +188,9 @@ function BiographyEditor() {
               rows={12}
               style={{ width: '100%', font: 'inherit', padding: 8 }}
             />
+            <IonButton expand="block" disabled={loading || saving} onClick={() => void handleOk()}>
+              {saving ? <IonSpinner name="dots" /> : 'OK'}
+            </IonButton>
           </>
         )}
       </IonContent>

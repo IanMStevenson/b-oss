@@ -85,14 +85,14 @@ describe('DescriptionEditorScreen', () => {
   it('confirms discard when cancelling with changes', async () => {
     renderScreen();
     await userEvent.type(screen.getByPlaceholderText('Describe this entry…'), '!');
-    await userEvent.click(screen.getByText('Cancel'));
+    await userEvent.click(screen.getByLabelText('Back'));
     expect(await screen.findByText('Discard changes?')).toBeDefined();
     expect(goBack).not.toHaveBeenCalled();
   });
 
   it('goes straight back with no confirmation when nothing changed', async () => {
     renderScreen();
-    await userEvent.click(screen.getByText('Cancel'));
+    await userEvent.click(screen.getByLabelText('Back'));
     expect(goBack).toHaveBeenCalled();
   });
 });

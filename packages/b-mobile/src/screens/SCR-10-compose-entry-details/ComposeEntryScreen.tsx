@@ -17,9 +17,6 @@ import { useEffect, useState } from 'react';
 import {
   IonPage,
   IonHeader,
-  IonToolbar,
-  IonTitle,
-  IonButtons,
   IonButton,
   IonContent,
   IonText,
@@ -27,6 +24,7 @@ import {
   IonAlert,
   IonCheckbox,
 } from '@ionic/react';
+import { AppHeader } from '../../components/AppHeader.js';
 import { useAppNavigate } from '../../app/routes/useAppNavigate.js';
 import { useComposeDraftStore } from '../../state/composeDraftStore.js';
 import { fetchDayEligibility } from '../../data/journal.js';
@@ -149,17 +147,7 @@ export function ComposeEntryScreen() {
   return (
     <IonPage>
       <IonHeader>
-        <IonToolbar>
-          <IonButtons slot="start">
-            <IonButton onClick={handleBack}>Cancel</IonButton>
-          </IonButtons>
-          <IonTitle>New entry</IonTitle>
-          <IonButtons slot="end">
-            <IonButton disabled={!canUpload} onClick={() => void handleUpload()}>
-              {submitting ? <IonSpinner name="dots" /> : 'Upload'}
-            </IonButton>
-          </IonButtons>
-        </IonToolbar>
+        <AppHeader title="New entry" variant="back" onBack={handleBack} />
       </IonHeader>
       <IonContent className="ion-padding">
         {unusablePhoto ? (
@@ -300,6 +288,10 @@ export function ComposeEntryScreen() {
             </div>
           </>
         )}
+
+        <IonButton expand="block" disabled={!canUpload} onClick={() => void handleUpload()}>
+          {submitting ? <IonSpinner name="dots" /> : 'Upload'}
+        </IonButton>
       </IonContent>
 
       <IonAlert

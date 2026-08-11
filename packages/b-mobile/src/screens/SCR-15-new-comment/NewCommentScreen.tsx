@@ -13,17 +13,8 @@
 // (§14: link creation is gated per account server-side; SCR-11's entry descriptions still show it).
 
 import { useRef, useState } from 'react';
-import {
-  IonPage,
-  IonHeader,
-  IonToolbar,
-  IonTitle,
-  IonButtons,
-  IonButton,
-  IonContent,
-  IonAlert,
-  IonText,
-} from '@ionic/react';
+import { IonPage, IonHeader, IonButton, IonContent, IonAlert, IonText } from '@ionic/react';
+import { AppHeader } from '../../components/AppHeader.js';
 import { useAppNavigate } from '../../app/routes/useAppNavigate.js';
 import { postComment, editComment } from '../../flows/commentsFlow.js';
 import { describeError, mapApiError } from '../../data/errors.js';
@@ -86,17 +77,7 @@ export function NewCommentScreen({
   return (
     <IonPage>
       <IonHeader>
-        <IonToolbar>
-          <IonButtons slot="start">
-            <IonButton onClick={handleBack}>Cancel</IonButton>
-          </IonButtons>
-          <IonTitle>{title}</IonTitle>
-          <IonButtons slot="end">
-            <IonButton disabled={!content.trim() || submitting} onClick={() => void handleSubmit()}>
-              OK
-            </IonButton>
-          </IonButtons>
-        </IonToolbar>
+        <AppHeader title={title} variant="back" onBack={handleBack} />
       </IonHeader>
       <IonContent className="ion-padding">
         {error && (
@@ -113,6 +94,13 @@ export function NewCommentScreen({
           rows={8}
           style={{ width: '100%', font: 'inherit', padding: 8 }}
         />
+        <IonButton
+          expand="block"
+          disabled={!content.trim() || submitting}
+          onClick={() => void handleSubmit()}
+        >
+          OK
+        </IonButton>
       </IonContent>
 
       <IonAlert

@@ -97,14 +97,14 @@ describe('NewCommentScreen', () => {
   it('confirms discard when cancelling with text entered', async () => {
     renderScreen();
     await userEvent.type(screen.getByPlaceholderText('Your comment…'), 'Half-written');
-    await userEvent.click(screen.getByText('Cancel'));
+    await userEvent.click(screen.getByLabelText('Back'));
     expect(await screen.findByText('Discard comment?')).toBeDefined();
     expect(goBack).not.toHaveBeenCalled();
   });
 
   it('goes straight back with no confirmation when there is no text', async () => {
     renderScreen();
-    await userEvent.click(screen.getByText('Cancel'));
+    await userEvent.click(screen.getByLabelText('Back'));
     expect(goBack).toHaveBeenCalled();
   });
 });

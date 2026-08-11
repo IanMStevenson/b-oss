@@ -14,6 +14,7 @@
 
 import type { ReactNode } from 'react';
 import { IonToolbar, IonButtons, IonMenuButton, IonBackButton } from '@ionic/react';
+import { ChevronLeft } from 'lucide-react';
 
 interface AppHeaderProps {
   title: string;
@@ -21,14 +22,27 @@ interface AppHeaderProps {
    * drilling in from another screen. Same position either way. */
   variant?: 'menu' | 'back';
   /** Only used for variant="back" — where IonBackButton lands if there's no history to pop to
-   * (a deep link opened fresh, not navigated to from within the app). */
+   * (a deep link opened fresh, not navigated to from within the app). Ignored if `onBack` is
+   * given, since that takes over navigation entirely. */
   backHref?: string;
+  /** Only used for variant="back". A form/compose-style screen that must confirm before
+   * discarding unsaved changes can't use IonBackButton's default pop-navigation (there is no
+   * hook to intercept it first) — providing this swaps in a plain button with the same icon,
+   * calling this instead of navigating. Leave unset for a screen with nothing to lose by leaving
+   * immediately (the common case). */
+  onBack?: () => void;
   /** Extra content after the title (e.g. AccountIndicator) — kept optional rather than every
    * screen reimplementing the same IonButtons/slot="end" wrapper. */
   end?: ReactNode;
 }
 
-export function AppHeader({ title, variant = 'menu', backHref = '/browse', end }: AppHeaderProps) {
+export function AppHeader({
+  title,
+  variant = 'menu',
+  backHref = '/browse',
+  onBack,
+  end,
+}: AppHeaderProps) {
   return (
     <IonToolbar
       style={{
@@ -41,7 +55,17 @@ export function AppHeader({ title, variant = 'menu', backHref = '/browse', end }
       }}
     >
       <IonButtons slot="start">
-        {variant === 'back' ? <IonBackButton defaultHref={backHref} text="" /> : <IonMenuButton />}
+        {variant === 'back' ? (
+          onBack ? (
+            <button onClick={onBack} aria-label="Back" style={{ display: 'flex', padding: 8 }}>
+              <ChevronLeft size={22} strokeWidth={2} color="#fff" />
+            </button>
+          ) : (
+            <IonBackButton defaultHref={backHref} text="" />
+          )
+        ) : (
+          <IonMenuButton />
+        )}
         <span
           style={{
             fontWeight: 700,

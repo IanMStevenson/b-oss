@@ -16,9 +16,6 @@ import { useEffect, useRef, useState } from 'react';
 import {
   IonPage,
   IonHeader,
-  IonToolbar,
-  IonTitle,
-  IonButtons,
   IonButton,
   IonContent,
   IonText,
@@ -26,6 +23,7 @@ import {
   IonAlert,
   IonCheckbox,
 } from '@ionic/react';
+import { AppHeader } from '../../components/AppHeader.js';
 import { useAppNavigate } from '../../app/routes/useAppNavigate.js';
 import { useComposeDraftStore } from '../../state/composeDraftStore.js';
 import { useActiveAccount } from '../../state/accountsStore.js';
@@ -182,17 +180,11 @@ export function EditEntryScreen({ entryId, initialMode }: EditEntryScreenProps) 
   return (
     <IonPage>
       <IonHeader>
-        <IonToolbar>
-          <IonButtons slot="start">
-            <IonButton onClick={handleBack}>Cancel</IonButton>
-          </IonButtons>
-          <IonTitle>{initialMode === 'photo' ? 'Replace photo' : 'Edit details'}</IonTitle>
-          <IonButtons slot="end">
-            <IonButton disabled={submitting} onClick={() => void handleSave()}>
-              {submitting ? <IonSpinner name="dots" /> : 'Save'}
-            </IonButton>
-          </IonButtons>
-        </IonToolbar>
+        <AppHeader
+          title={initialMode === 'photo' ? 'Replace photo' : 'Edit details'}
+          variant="back"
+          onBack={handleBack}
+        />
       </IonHeader>
       <IonContent className="ion-padding">
         {submitError && (
@@ -292,6 +284,10 @@ export function EditEntryScreen({ entryId, initialMode }: EditEntryScreenProps) 
             </div>
           </>
         )}
+
+        <IonButton expand="block" disabled={submitting} onClick={() => void handleSave()}>
+          {submitting ? <IonSpinner name="dots" /> : 'Save'}
+        </IonButton>
       </IonContent>
 
       <IonAlert

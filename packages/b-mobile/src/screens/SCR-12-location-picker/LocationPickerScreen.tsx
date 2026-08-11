@@ -11,18 +11,10 @@
 // SCR-04: MapLibre is by far the app's largest dependency and most routes never need it.
 
 import { useEffect, useRef, useState } from 'react';
-import {
-  IonPage,
-  IonHeader,
-  IonToolbar,
-  IonTitle,
-  IonButtons,
-  IonButton,
-  IonContent,
-  IonText,
-} from '@ionic/react';
+import { IonPage, IonHeader, IonButton, IonContent, IonText } from '@ionic/react';
 import { Map as MapLibreMap, Marker } from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
+import { AppHeader } from '../../components/AppHeader.js';
 import { getMapStyleUrl } from '../../platform/mapTiles.js';
 import { getCurrentPosition } from '../../platform/geolocation.js';
 import { useAppNavigate } from '../../app/routes/useAppNavigate.js';
@@ -125,16 +117,7 @@ export function LocationPickerScreen() {
   return (
     <IonPage>
       <IonHeader>
-        <IonToolbar>
-          <IonButtons slot="start">
-            <IonButton onClick={() => navigate.goBack()}>Cancel</IonButton>
-          </IonButtons>
-          <IonTitle>Pick location</IonTitle>
-          <IonButtons slot="end">
-            <IonButton onClick={handleClear}>Clear</IonButton>
-            <IonButton onClick={handleDone}>Done</IonButton>
-          </IonButtons>
-        </IonToolbar>
+        <AppHeader title="Pick location" variant="back" />
       </IonHeader>
       <IonContent>
         {!styleUrl ? (
@@ -156,7 +139,7 @@ export function LocationPickerScreen() {
                 className="ion-padding"
                 style={{
                   position: 'absolute',
-                  bottom: 0,
+                  bottom: 64,
                   left: 0,
                   right: 0,
                   background: 'var(--bg)',
@@ -167,6 +150,25 @@ export function LocationPickerScreen() {
                 </IonText>
               </div>
             )}
+            <div
+              style={{
+                position: 'absolute',
+                bottom: 0,
+                left: 0,
+                right: 0,
+                display: 'flex',
+                gap: 8,
+                padding: 12,
+                background: 'var(--bg)',
+              }}
+            >
+              <IonButton fill="outline" style={{ flex: 1 }} onClick={handleClear}>
+                Clear
+              </IonButton>
+              <IonButton style={{ flex: 2 }} onClick={handleDone}>
+                Done
+              </IonButton>
+            </div>
           </div>
         )}
       </IonContent>
