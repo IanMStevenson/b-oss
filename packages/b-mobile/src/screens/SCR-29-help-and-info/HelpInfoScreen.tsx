@@ -24,15 +24,16 @@
 // (IonLabel not reliably rendering its children in this jsdom test setup) reproduced on this
 // screen's own hub; UserRow.tsx made the same choice for the same reason.
 
+import { useState } from 'react';
 import {
   IonPage,
   IonHeader,
   IonContent,
   IonList,
   IonItem,
-  IonNote,
   IonCheckbox,
   IonButton,
+  IonAlert,
 } from '@ionic/react';
 import { AppHeader } from '../../components/AppHeader.js';
 import { useAppNavigate } from '../../app/routes/useAppNavigate.js';
@@ -85,15 +86,52 @@ function SectionScreen({ section }: { section: HelpInfoSection }) {
   );
 }
 
+// Content drawn from Blipfoto's own icon guide (blipfoto.com/help/icons) — the badges shown next
+// to a username around the app (comments, profiles, etc., via UserBadges.tsx) are exactly these,
+// reformatted here as a scannable reference rather than the website's own icon-grid layout, which
+// doesn't fit a 360px screen. Kept as plain text, not the actual badge images — b-oss doesn't
+// have a stable icon_id-to-meaning mapping to pair each entry with its real icon reliably.
 function IconGuide() {
   return (
     <>
-      <p>Badges and icons you&rsquo;ll see around the app:</p>
+      <p>
+        Badges next to a member&rsquo;s name show two things: how long they&rsquo;ve been
+        journaling, and whether they support Blipfoto&rsquo;s Blipfuture pledge.
+      </p>
+
+      <p>
+        <strong>Entries</strong>
+      </p>
       <ul>
-        <li>Award badges — shown on a journal&rsquo;s Awards page, one per award earned.</li>
-        <li>Star / Favourite — mark an entry as starred or a favourite.</li>
-        <li>Follow status — whether you follow, are followed by, or have a pending request.</li>
-        <li>Protected journal — a lock indicates the journal requires a follow request.</li>
+        <li>Fewer than 10 — a new member</li>
+        <li>10&ndash;99 — a few weeks of entries</li>
+        <li>100&ndash;364 — several months of entries</li>
+        <li>365&ndash;999 — more than a year of entries!</li>
+        <li>1000&ndash;1499 — several years</li>
+        <li>1500&ndash;1999 — over 4 years</li>
+        <li>2000&ndash;2999 — up to 8 years</li>
+        <li>3000&ndash;3649 — nearly a decade&hellip;</li>
+        <li>3650&ndash;4999 — 10 years or more!</li>
+        <li>5000+ — wow, keep going!</li>
+      </ul>
+
+      <p>
+        <strong>Blipfuture pledges</strong>
+      </p>
+      <ul>
+        <li>Supporter — a non-value pledge badge</li>
+        <li>Bronze / Silver / Gold / Diamond Supporter — pledge tiers</li>
+        <li>Benefactor</li>
+        <li>Patron</li>
+      </ul>
+
+      <p>
+        <strong>Other</strong>
+      </p>
+      <ul>
+        <li>Member — a Full Member</li>
+        <li>New milestone — reached a new entry-count milestone today</li>
+        <li>Director — a Blipfoto director</li>
       </ul>
     </>
   );
@@ -167,6 +205,7 @@ function HelpInfoHub() {
   const navigate = useAppNavigate();
   const openLinksInApp = useDevicePrefsStore((s) => s.openBlipfotoLinksInApp);
   const setOpenLinksInApp = useDevicePrefsStore((s) => s.setOpenBlipfotoLinksInApp);
+  const [confirmDeleteAccount, setConfirmDeleteAccount] = useState(false);
   // __APP_VERSION__ (root CLAUDE.md's Versioning section, env.d.ts's ambient declaration) — this
   // is the first screen in b-mobile to actually display it.
   const version = typeof __APP_VERSION__ === 'string' ? __APP_VERSION__ : '1.0.0';
@@ -193,11 +232,8 @@ function HelpInfoHub() {
           <IonItem button onClick={() => void openUrl(PRIVACY_URL)}>
             <span>Privacy policy</span>
           </IonItem>
-          <IonItem button onClick={() => void openUrl(DELETE_ACCOUNT_URL)}>
+          <IonItem button onClick={() => setConfirmDeleteAccount(true)}>
             <span>Delete my account</span>
-            <IonNote slot="end" style={{ maxWidth: '55%', whiteSpace: 'normal' }}>
-              Opens Blipfoto&rsquo;s own page — not scoped to any one account stored in this app
-            </IonNote>
           </IonItem>
           <IonItem>
             <IonCheckbox
@@ -215,6 +251,20 @@ function HelpInfoHub() {
           </IonItem>
         </IonList>
       </IonContent>
+
+      <IonAlert
+        isOpen={confirmDeleteAccount}
+        header="Delete your account"
+        message="This opens Blipfoto's own website, not this app — account deletion isn't something b-mobile can do itself. Make sure you're signed in there to the account you want to delete before continuing."
+        onDidDismiss={() => setConfirmDeleteAccount(false)}
+        buttons={[
+          { text: 'Cancel', role: 'cancel' },
+          {
+            text: 'Continue',
+            handler: () => void openUrl(DELETE_ACCOUNT_URL),
+          },
+        ]}
+      />
     </IonPage>
   );
 }

@@ -70,19 +70,37 @@ describe('HelpInfoScreen hub — works with no account signed in (SCR-29 is not 
     expect(screen.getByText(/App version/)).toBeDefined();
   });
 
-  it('Help/Terms/Privacy policy/Delete my account each open their own real Blipfoto page', async () => {
+  it('Help/Terms/Privacy policy each open their own real Blipfoto page directly', async () => {
     renderHub();
     const expected: Record<string, string> = {
       Help: 'https://www.blipfoto.com/help',
       'Terms & legal': 'https://www.blipfoto.com/legal/terms',
       'Privacy policy': 'https://www.blipfoto.com/legal/privacy',
-      'Delete my account': 'https://www.blipfoto.com/settings/profile#sidebar',
     };
     for (const [label, url] of Object.entries(expected)) {
       await userEvent.click(screen.getByText(label));
       expect(openUrl).toHaveBeenLastCalledWith(url);
     }
-    expect(openUrl).toHaveBeenCalledTimes(4);
+    expect(openUrl).toHaveBeenCalledTimes(3);
+  });
+
+  it('Delete my account shows an interstitial first, and only opens the page on Continue', async () => {
+    renderHub();
+    await userEvent.click(screen.getByText('Delete my account'));
+    expect(openUrl).not.toHaveBeenCalled();
+    expect(
+      await screen.findByText(/Make sure you're signed in there to the account/),
+    ).toBeDefined();
+
+    await userEvent.click(document.querySelector('button.alert-button-role-cancel')!);
+    expect(openUrl).not.toHaveBeenCalled();
+
+    await userEvent.click(screen.getByText('Delete my account'));
+    const continueButton = Array.from(document.querySelectorAll('button.alert-button')).find(
+      (b) => b.textContent === 'Continue',
+    ) as HTMLButtonElement;
+    await userEvent.click(continueButton);
+    expect(openUrl).toHaveBeenCalledWith('https://www.blipfoto.com/settings/profile#sidebar');
   });
 
   it('the Delete my account row never names a specific stored account', () => {
@@ -121,7 +139,9 @@ describe('HelpInfoScreen sections', () => {
         <HelpInfoScreen section="icon-guide" />
       </MemoryRouter>,
     );
-    expect(screen.getByText(/Badges and icons/)).toBeDefined();
+    expect(screen.getByText(/Badges next to a member/)).toBeDefined();
+    expect(screen.getByText('Entries')).toBeDefined();
+    expect(screen.getByText('Blipfuture pledges')).toBeDefined();
   });
 
   it('renders the safety & privacy explainer distinguishing hide/remove/refuse', () => {
