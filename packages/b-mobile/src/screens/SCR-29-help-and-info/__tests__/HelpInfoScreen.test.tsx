@@ -3,7 +3,7 @@
 // @vitest-environment jsdom
 
 import { describe, it, expect, afterEach, beforeEach, vi } from 'vitest';
-import { render, screen, cleanup } from '@testing-library/react';
+import { render, screen, cleanup, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
 import { HelpInfoScreen } from '../HelpInfoScreen.js';
@@ -133,7 +133,7 @@ describe('HelpInfoScreen hub — works with no account signed in (SCR-29 is not 
 });
 
 describe('HelpInfoScreen sections', () => {
-  it('renders the icon guide', () => {
+  it('renders the icon guide', async () => {
     render(
       <MemoryRouter>
         <HelpInfoScreen section="icon-guide" />
@@ -141,7 +141,14 @@ describe('HelpInfoScreen sections', () => {
     );
     expect(screen.getByText(/Badges next to a member/)).toBeDefined();
     expect(screen.getByText('Entries')).toBeDefined();
-    expect(screen.getByText('Blipfuture pledges')).toBeDefined();
+    expect(screen.queryByText(/[Pp]ledge/)).toBeNull();
+    expect(screen.getByText('Other')).toBeDefined();
+    expect(screen.getByText('Full Member')).toBeDefined();
+    // 13 real icon_ids the API ever returns (10 entry-level tiers + milestone/member/staff) —
+    // confirmed against Blipfoto's own static icon set, not the website's full (unused) set.
+    // CachedImage resolves its src asynchronously even off-native (its own effect), so the actual
+    // <img> tags land a tick after render.
+    await waitFor(() => expect(document.querySelectorAll('img').length).toBe(13));
   });
 
   it('renders the safety & privacy explainer distinguishing hide/remove/refuse', () => {

@@ -36,6 +36,7 @@ import {
   IonAlert,
 } from '@ionic/react';
 import { AppHeader } from '../../components/AppHeader.js';
+import { CachedImage } from '../../components/CachedImage.js';
 import { useAppNavigate } from '../../app/routes/useAppNavigate.js';
 import { useDevicePrefsStore } from '../../state/devicePrefsStore.js';
 import { openUrl } from '../../platform/browser.js';
@@ -86,53 +87,65 @@ function SectionScreen({ section }: { section: HelpInfoSection }) {
   );
 }
 
-// Content drawn from Blipfoto's own icon guide (blipfoto.com/help/icons) — the badges shown next
-// to a username around the app (comments, profiles, etc., via UserBadges.tsx) are exactly these,
-// reformatted here as a scannable reference rather than the website's own icon-grid layout, which
-// doesn't fit a 360px screen. Kept as plain text, not the actual badge images — b-oss doesn't
-// have a stable icon_id-to-meaning mapping to pair each entry with its real icon reliably.
+// Content drawn from Blipfoto's own icon guide (blipfoto.com/help/icons), narrowed to exactly
+// the icon_ids the API ever actually returns (confirmed 2026-08-11) — the Blipfuture pledge
+// badges shown on the website are never sent to us, so they're dropped here entirely rather than
+// documenting a badge a user could never actually see in this app. Real icon images, not text —
+// the same badges rendered next to a username elsewhere (comments, profiles, etc., via
+// UserBadges.tsx) are exactly these, fetched from the same static path the API's own icon_url
+// values point at.
+const ICON_BASE = 'https://www.blipfoto.com/_assets/images/icons/';
+
+const ENTRY_LEVEL_ICONS: Array<{ id: string; label: string }> = [
+  { id: '0', label: 'Fewer than 10 — a new member' },
+  { id: '10', label: '10–99 — a few weeks of entries' },
+  { id: '100', label: '100–364 — several months of entries' },
+  { id: '365', label: '365–999 — more than a year of entries!' },
+  { id: '1000', label: '1000–1499 — several years' },
+  { id: '1500', label: '1500–1999 — over 4 years' },
+  { id: '2000', label: '2000–2999 — up to 8 years' },
+  { id: '3000', label: '3000–3649 — nearly a decade…' },
+  { id: '3650', label: '3650–4999 — 10 years or more!' },
+  { id: '5000', label: '5000+ — wow, keep going!' },
+];
+
+const OTHER_ICONS: Array<{ id: string; label: string }> = [
+  { id: '10000', label: 'Reached a new milestone today' },
+  { id: '20000', label: 'Full Member' },
+  { id: '30000', label: 'Blipfoto staff' },
+];
+
+function IconRow({ id, label }: { id: string; label: string }) {
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '6px 0' }}>
+      <CachedImage
+        src={`${ICON_BASE}${id}.png`}
+        alt=""
+        style={{ width: 32, height: 32, flexShrink: 0 }}
+      />
+      <span>{label}</span>
+    </div>
+  );
+}
+
 function IconGuide() {
   return (
     <>
-      <p>
-        Badges next to a member&rsquo;s name show two things: how long they&rsquo;ve been
-        journaling, and whether they support Blipfoto&rsquo;s Blipfuture pledge.
-      </p>
+      <p>Badges next to a member&rsquo;s name show how long they&rsquo;ve been journaling:</p>
 
       <p>
         <strong>Entries</strong>
       </p>
-      <ul>
-        <li>Fewer than 10 — a new member</li>
-        <li>10&ndash;99 — a few weeks of entries</li>
-        <li>100&ndash;364 — several months of entries</li>
-        <li>365&ndash;999 — more than a year of entries!</li>
-        <li>1000&ndash;1499 — several years</li>
-        <li>1500&ndash;1999 — over 4 years</li>
-        <li>2000&ndash;2999 — up to 8 years</li>
-        <li>3000&ndash;3649 — nearly a decade&hellip;</li>
-        <li>3650&ndash;4999 — 10 years or more!</li>
-        <li>5000+ — wow, keep going!</li>
-      </ul>
-
-      <p>
-        <strong>Blipfuture pledges</strong>
-      </p>
-      <ul>
-        <li>Supporter — a non-value pledge badge</li>
-        <li>Bronze / Silver / Gold / Diamond Supporter — pledge tiers</li>
-        <li>Benefactor</li>
-        <li>Patron</li>
-      </ul>
+      {ENTRY_LEVEL_ICONS.map((icon) => (
+        <IconRow key={icon.id} {...icon} />
+      ))}
 
       <p>
         <strong>Other</strong>
       </p>
-      <ul>
-        <li>Member — a Full Member</li>
-        <li>New milestone — reached a new entry-count milestone today</li>
-        <li>Director — a Blipfoto director</li>
-      </ul>
+      {OTHER_ICONS.map((icon) => (
+        <IconRow key={icon.id} {...icon} />
+      ))}
     </>
   );
 }
