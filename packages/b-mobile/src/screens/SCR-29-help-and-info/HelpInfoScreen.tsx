@@ -112,7 +112,7 @@ const ENTRY_LEVEL_ICONS: Array<{ id: string; label: string }> = [
 const OTHER_ICONS: Array<{ id: string; label: string }> = [
   { id: '10000', label: 'Reached a new milestone today' },
   { id: '20000', label: 'Full Member' },
-  { id: '30000', label: 'Blipfoto staff' },
+  { id: '30000', label: 'Director' },
 ];
 
 function IconRow({ id, label }: { id: string; label: string }) {
