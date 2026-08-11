@@ -112,34 +112,38 @@ export function JournalSection() {
         </IonText>
       )}
 
-      <label>
+      <label style={{ display: 'block', marginBottom: 18 }}>
         Journal title
         <input
           type="text"
           value={form.journalTitle}
           disabled={!canWrite}
           onChange={(e) => setForm({ ...form, journalTitle: e.target.value })}
-          style={{ width: '100%', font: 'inherit', padding: 8 }}
+          style={{ width: '100%', font: 'inherit', padding: 8, marginTop: 6 }}
         />
       </label>
 
-      <IonCheckbox
-        checked={form.privacy}
-        disabled={!canWrite}
-        onIonChange={(e) => setForm({ ...form, privacy: e.detail.checked })}
-      >
-        Protected journal
-      </IonCheckbox>
-      <IonText color="medium">
-        <p>
-          When on, people must ask to follow you, and you can refuse a request or remove a follower.
-        </p>
-      </IonText>
+      <div style={{ marginBottom: 18 }}>
+        <IonCheckbox
+          checked={form.privacy}
+          disabled={!canWrite}
+          onIonChange={(e) => setForm({ ...form, privacy: e.detail.checked })}
+        >
+          Protected journal
+        </IonCheckbox>
+        <IonText color="medium">
+          <p style={{ marginTop: 4 }}>
+            When on, people must ask to follow you, and you can refuse a request or remove a
+            follower.
+          </p>
+        </IonText>
+      </div>
 
       <IonCheckbox
         checked={form.comments}
         disabled={!canWrite}
         onIonChange={(e) => setForm({ ...form, comments: e.detail.checked })}
+        style={{ marginBottom: 18 }}
       >
         Allow comments
       </IonCheckbox>

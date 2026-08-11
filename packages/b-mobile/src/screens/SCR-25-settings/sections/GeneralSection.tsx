@@ -121,24 +121,24 @@ export function GeneralSection() {
         </IonText>
       )}
 
-      <label>
+      <label style={{ display: 'block', marginBottom: 18 }}>
         Real name
         <input
           type="text"
           value={form.realName}
           disabled={!canWrite}
           onChange={(e) => setForm({ ...form, realName: e.target.value })}
-          style={{ width: '100%', font: 'inherit', padding: 8 }}
+          style={{ width: '100%', font: 'inherit', padding: 8, marginTop: 6 }}
         />
       </label>
 
-      <label>
+      <label style={{ display: 'block', marginBottom: 18 }}>
         Country
         <select
           value={form.countryCode}
           disabled={!canWrite}
           onChange={(e) => setForm({ ...form, countryCode: e.target.value })}
-          style={{ width: '100%', font: 'inherit', padding: 8 }}
+          style={{ width: '100%', font: 'inherit', padding: 8, marginTop: 6 }}
         >
           {countries.map((c) => (
             <option key={c.code} value={c.code}>
@@ -148,13 +148,13 @@ export function GeneralSection() {
         </select>
       </label>
 
-      <label>
+      <label style={{ display: 'block', marginBottom: 18 }}>
         Locale
         <select
           value={form.localeCode}
           disabled={!canWrite}
           onChange={(e) => setForm({ ...form, localeCode: e.target.value })}
-          style={{ width: '100%', font: 'inherit', padding: 8 }}
+          style={{ width: '100%', font: 'inherit', padding: 8, marginTop: 6 }}
         >
           {locales.map((l) => (
             <option key={l.code} value={l.code}>
@@ -168,6 +168,7 @@ export function GeneralSection() {
         checked={form.realNameSearch}
         disabled={!canWrite}
         onIonChange={(e) => setForm({ ...form, realNameSearch: e.detail.checked })}
+        style={{ marginBottom: 18 }}
       >
         Let people find me by my real name
       </IonCheckbox>
