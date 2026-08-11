@@ -10,14 +10,20 @@
 // unread badge is cleared locally the moment the fetch starts (FLW-15 step 2), not derived from
 // the response afterward.
 //
-// Notification text is rendered as plain text (`notification.content`, the raw — not `_html` —
-// variant), never `dangerouslySetInnerHTML` (§14's app-wide ban): `content` is already
-// server-composed prose, not BBCode, so there is nothing to parse or hyperlink inline — the row's
-// own tap target already routes correctly via `resolveNotificationTarget` (data/notifications.ts),
-// which reads the *same* underlying link data `content_html` carries.
+// `notification.content` genuinely is BBCode (confirmed against a live response — e.g. a follow
+// notification's own "[url=...]see all requests[/url]"), so it goes through the same BBCodeText
+// component every other BBCode field in this app does — never `dangerouslySetInnerHTML` (§14's
+// app-wide ban) via `content_html`. The row's own primary tap target (the avatar) still routes via
+// `resolveNotificationTarget` (data/notifications.ts, reading `link_url`); BBCodeText's own inline
+// links are a separate, complementary mechanism for whatever `[url=]` tags `content` itself
+// carries — the two often point at related but not identical destinations (e.g. a follow
+// notification's inline link goes straight to the requests list, matching `link_url` for that
+// case, but that's not guaranteed for every notification kind).
 //
-// Row labels are plain <span>s, not IonLabel — RESUME.md's documented jsdom gotcha (IonLabel's
-// children not reliably reachable via getByText in this test setup).
+// No per-notification date grouping: `BlipNotification` (b-api's own type) carries no date/
+// timestamp field at all — the API never sends one — so there's nothing to group by. The
+// reference (blipfoto.com's own web client) groups by date, but must derive it from something
+// this endpoint doesn't expose to us.
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
@@ -27,11 +33,11 @@ import {
   IonSpinner,
   IonText,
   IonButton,
-  IonItem,
   IonRefresher,
   IonRefresherContent,
 } from '@ionic/react';
 import type { RefresherEventDetail } from '@ionic/core';
+import { BBCodeText } from '@b-oss/b-view';
 import { AppHeader } from '../../components/AppHeader.js';
 import { AccountIndicator } from '../../components/AccountIndicator.js';
 import {
@@ -148,20 +154,45 @@ export function NotificationsInboxScreen() {
               <IonRefresherContent />
             </IonRefresher>
             {visibleItems.map((notification) => (
-              <IonItem
+              <div
                 key={notification.notification_id_str}
-                button
-                onClick={() => handleTap(notification)}
+                style={{
+                  display: 'flex',
+                  gap: 12,
+                  padding: '12px 16px',
+                  borderBottom: '1px solid var(--line-2)',
+                }}
               >
-                {notification.image_url && (
-                  <CachedImage
-                    src={notification.image_url}
-                    alt=""
-                    style={{ width: 40, height: 40, marginRight: 8, flexShrink: 0 }}
+                <button
+                  onClick={() => handleTap(notification)}
+                  aria-label="Open"
+                  style={{ flexShrink: 0 }}
+                >
+                  {notification.image_url ? (
+                    <CachedImage
+                      src={notification.image_url}
+                      alt=""
+                      style={{ width: 48, height: 48, borderRadius: 6, objectFit: 'cover' }}
+                    />
+                  ) : (
+                    <div
+                      aria-hidden="true"
+                      style={{
+                        width: 48,
+                        height: 48,
+                        borderRadius: 6,
+                        background: 'var(--bg-alt)',
+                      }}
+                    />
+                  )}
+                </button>
+                <div style={{ flex: 1, minWidth: 0, paddingTop: 4 }}>
+                  <BBCodeText
+                    source={notification.content}
+                    onLinkClick={(href) => void openUrl(href)}
                   />
-                )}
-                <span>{notification.content}</span>
-              </IonItem>
+                </div>
+              </div>
             ))}
           </>
         )}

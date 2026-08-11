@@ -137,14 +137,16 @@ describe('NotificationsInboxScreen', () => {
       }),
     ]);
     const history = renderScreen();
-    await userEvent.click(await screen.findByText('your entry hit 50 stars'));
+    await screen.findByText('your entry hit 50 stars');
+    await userEvent.click(screen.getByLabelText('Open'));
     expect(history.location.pathname).toBe('/entry/998877');
   });
 
   it('tapping a profile notification opens the profile', async () => {
     fetchRecentNotifications.mockResolvedValue([notification()]); // links to /alice
     const history = renderScreen();
-    await userEvent.click(await screen.findByText('alice started following you'));
+    await screen.findByText('alice started following you');
+    await userEvent.click(screen.getByLabelText('Open'));
     expect(history.location.pathname).toBe('/user/alice');
   });
 
@@ -158,7 +160,8 @@ describe('NotificationsInboxScreen', () => {
       }),
     ]);
     const history = renderScreen();
-    await userEvent.click(await screen.findByText('alice wants to follow you'));
+    await screen.findByText('alice wants to follow you');
+    await userEvent.click(screen.getByLabelText('Open'));
     expect(history.location.pathname).toBe('/me/requests');
   });
 
@@ -171,7 +174,8 @@ describe('NotificationsInboxScreen', () => {
       }),
     ]);
     const history = renderScreen();
-    await userEvent.click(await screen.findByText('you earned an award'));
+    await screen.findByText('you earned an award');
+    await userEvent.click(screen.getByLabelText('Open'));
     await waitFor(() =>
       expect(openUrl).toHaveBeenCalledWith('https://www.blipfoto.com/awards/some-award'),
     );
