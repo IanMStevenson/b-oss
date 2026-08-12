@@ -7,9 +7,11 @@
 // 2026-08-11 against a live response: an account with only 2 real awards still got all 12 catalog
 // entries back, `added_stamp: null` on the other 10 — the previous version of this screen ignored
 // both fields and rendered every entry as if earned, which was the bug. Names below come from the
-// award slugs the user supplied (blipfoto.com doesn't expose them via this API), sentence-cased;
-// secret awards show "Secret" instead of their real name regardless of earned state, since the
-// point of a secret award is that its meaning isn't revealed up front.
+// award slugs the user supplied (blipfoto.com doesn't expose them via this API), sentence-cased.
+// `awardLabel` trusts each award's own `secret` flag rather than `added_stamp` — the assumption
+// (unverified against a live earned-secret-award response, since no test account has one) is that
+// the API itself clears `secret` once an award is earned, so showing "Secret" only when the flag
+// is actually set is correct without this screen needing its own earned/secret interaction logic.
 
 import {
   IonPage,

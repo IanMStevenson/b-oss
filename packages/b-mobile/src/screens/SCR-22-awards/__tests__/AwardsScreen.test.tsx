@@ -67,6 +67,21 @@ describe('AwardsScreen', () => {
     expect(screen.queryByText('Hotel california')).toBeNull();
   });
 
+  it("reveals a secret award's real name once the API reports it as no longer secret", async () => {
+    const { fetchAwards } = await import('../../../data/users.js');
+    vi.mocked(fetchAwards).mockResolvedValue([
+      {
+        award_id_str: '20',
+        icon_url: 'https://example.com/20.png',
+        added_stamp: 1786470178,
+        secret: 0,
+      },
+    ]);
+    renderScreen();
+    expect(await screen.findByText('Hotel california')).toBeDefined();
+    expect(screen.queryByText('Secret')).toBeNull();
+  });
+
   it('shows an error with retry on failure', async () => {
     const { fetchAwards } = await import('../../../data/users.js');
     vi.mocked(fetchAwards).mockRejectedValue(new Error('Network down'));
