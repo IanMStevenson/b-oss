@@ -24,6 +24,7 @@ import {
   IonHeader,
   IonContent,
   IonList,
+  IonListHeader,
   IonItem,
   IonNote,
   IonSpinner,
@@ -41,9 +42,10 @@ import { ProfileSection } from './sections/ProfileSection.js';
 import { NotificationsSection } from './sections/NotificationsSection.js';
 import { RemindersSection } from './sections/RemindersSection.js';
 import { MiscSection } from './sections/MiscSection.js';
+import { BrowsingSection } from './sections/BrowsingSection.js';
 
 export type SettingsSection =
-  'general' | 'journal' | 'profile' | 'notifications' | 'reminders' | 'misc';
+  'general' | 'journal' | 'profile' | 'notifications' | 'reminders' | 'misc' | 'browsing';
 
 const SECTION_TITLES: Record<SettingsSection, string> = {
   general: 'General',
@@ -52,6 +54,7 @@ const SECTION_TITLES: Record<SettingsSection, string> = {
   notifications: 'Notifications',
   reminders: 'Reminders',
   misc: 'Misc',
+  browsing: 'Browsing',
 };
 
 interface SettingsScreenProps {
@@ -82,6 +85,7 @@ function SectionScreen({ section }: { section: SettingsSection }) {
         {section === 'notifications' && <NotificationsSection />}
         {section === 'reminders' && <RemindersSection />}
         {section === 'misc' && <MiscSection />}
+        {section === 'browsing' && <BrowsingSection />}
       </IonContent>
     </IonPage>
   );
@@ -101,11 +105,15 @@ function SettingsHub() {
         <AppHeader title="Settings" end={<AccountIndicator />} />
       </IonHeader>
       <IonContent>
+        {/* Blipfoto account settings: server-backed (user/settings), follows whichever account
+            is active — switching accounts shows that account's own values. Notifications lives
+            here rather than in App settings below because a user thinks of it as "what am I
+            notified about from my Blipfoto account", even though its Advanced polling interval
+            happens to be stored locally (data/settings.ts's own header comment). */}
         <IonList>
-          <IonItem button onClick={() => navigate.push('/accounts')}>
-            <span>Accounts</span>
-            <IonNote slot="end">{activeAccount?.username}</IonNote>
-          </IonItem>
+          <IonListHeader>
+            <IonNote>Blipfoto Account Settings</IonNote>
+          </IonListHeader>
           <IonItem button onClick={() => navigate.push('/settings/general')}>
             <span>General</span>
           </IonItem>
@@ -118,23 +126,41 @@ function SettingsHub() {
           <IonItem button onClick={() => navigate.push('/settings/notifications')}>
             <span>Notifications</span>
           </IonItem>
-          {canWrite && (
-            <IonItem button onClick={() => navigate.push('/settings/reminders')}>
-              <span>Reminders</span>
-            </IonItem>
-          )}
-          <IonItem button onClick={() => navigate.push('/settings/misc')}>
-            <span>Misc</span>
-          </IonItem>
-          <IonItem button onClick={() => navigate.push('/hidden')}>
-            <span>Hidden members</span>
-          </IonItem>
           {privacyProtected && (
             <IonItem button onClick={() => navigate.push('/me/refused')}>
               <span>Refused followers</span>
               <IonNote slot="end">People who can&rsquo;t see your journal</IonNote>
             </IonItem>
           )}
+        </IonList>
+
+        {/* App settings: device-local, never round-trip to Blipfoto's server — how b-mobile
+            itself behaves on this phone, not the account. Accounts also has its own top-level
+            nav-menu entry (it must stay reachable pre-sign-in, before Settings itself is
+            reachable at all) — the row here is just a discoverable shortcut alongside its
+            siblings, not the only path to it. */}
+        <IonList>
+          <IonListHeader>
+            <IonNote>App Settings</IonNote>
+          </IonListHeader>
+          <IonItem button onClick={() => navigate.push('/accounts')}>
+            <span>Accounts</span>
+            <IonNote slot="end">{activeAccount?.username}</IonNote>
+          </IonItem>
+          {canWrite && (
+            <IonItem button onClick={() => navigate.push('/settings/reminders')}>
+              <span>Reminders</span>
+            </IonItem>
+          )}
+          <IonItem button onClick={() => navigate.push('/hidden')}>
+            <span>Hidden members</span>
+          </IonItem>
+          <IonItem button onClick={() => navigate.push('/settings/browsing')}>
+            <span>Browsing</span>
+          </IonItem>
+          <IonItem button onClick={() => navigate.push('/settings/misc')}>
+            <span>Misc</span>
+          </IonItem>
         </IonList>
 
         {state.status === 'loading' && (

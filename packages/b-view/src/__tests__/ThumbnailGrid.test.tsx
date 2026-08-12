@@ -81,3 +81,182 @@ describe('ThumbnailGrid swipe navigation', () => {
     expect(screen.queryByLabelText('2026-01-05')).toBeNull();
   });
 });
+
+function pinch(el: Element, startDist: number, endDist: number) {
+  const start = [
+    { clientX: 200 - startDist / 2, clientY: 200 },
+    { clientX: 200 + startDist / 2, clientY: 200 },
+  ];
+  const end = [
+    { clientX: 200 - endDist / 2, clientY: 200 },
+    { clientX: 200 + endDist / 2, clientY: 200 },
+  ];
+  fireEvent.touchStart(el, { touches: start });
+  fireEvent.touchMove(el, { touches: end });
+}
+
+describe('ThumbnailGrid pinch-to-zoom', () => {
+  it('two-finger pinch-out scales sizePercent up from the gesture start value', () => {
+    const entries = makeEntries(4);
+    let sizePercent = 100;
+    const handleSizeChange = (n: number) => {
+      sizePercent = n;
+    };
+    const { container } = render(
+      <ThumbnailGrid
+        entries={entries}
+        selectedEntryId={null}
+        onSelectEntry={() => {}}
+        sizePercent={sizePercent}
+        onSizeChange={handleSizeChange}
+      />,
+    );
+    const scroll = container.querySelector(`.${gridStyles.scroll}`)!;
+    pinch(scroll, 100, 200); // fingers move twice as far apart → ~2x
+    expect(sizePercent).toBe(200); // clamped to the same 30-200% range as the zoom buttons
+  });
+
+  it('two-finger pinch-in scales sizePercent down, clamped at 30%', () => {
+    const entries = makeEntries(4);
+    let sizePercent = 100;
+    const handleSizeChange = (n: number) => {
+      sizePercent = n;
+    };
+    const { container } = render(
+      <ThumbnailGrid
+        entries={entries}
+        selectedEntryId={null}
+        onSelectEntry={() => {}}
+        sizePercent={sizePercent}
+        onSizeChange={handleSizeChange}
+      />,
+    );
+    const scroll = container.querySelector(`.${gridStyles.scroll}`)!;
+    pinch(scroll, 200, 10); // fingers move much closer together
+    expect(sizePercent).toBe(30);
+  });
+
+  it('a single-finger touch never triggers zoom, and does not break swipe', () => {
+    const entries = makeEntries(10);
+    let sizePercent = 100;
+    const handleSizeChange = (n: number) => {
+      sizePercent = n;
+    };
+    const { container } = render(
+      <ThumbnailGrid
+        entries={entries}
+        selectedEntryId={null}
+        onSelectEntry={() => {}}
+        sizePercent={sizePercent}
+        onSizeChange={handleSizeChange}
+      />,
+    );
+    const scroll = container.querySelector(`.${gridStyles.scroll}`)!;
+    swipe(scroll, -100);
+    expect(sizePercent).toBe(100); // unaffected by an ordinary single-finger swipe
+    expect(screen.getByLabelText('2026-01-05')).toBeDefined(); // swipe still paged forward
+  });
+
+  it('does nothing when onSizeChange is not provided', () => {
+    const entries = makeEntries(4);
+    const { container } = render(
+      <ThumbnailGrid entries={entries} selectedEntryId={null} onSelectEntry={() => {}} />,
+    );
+    const scroll = container.querySelector(`.${gridStyles.scroll}`)!;
+    // Should not throw with no onSizeChange to call.
+    expect(() => pinch(scroll, 100, 200)).not.toThrow();
+  });
+});
+
+describe('ThumbnailGrid showZoomControls / showPagination', () => {
+  it('shows the zoom button group by default when onSizeChange is given', () => {
+    const entries = makeEntries(4);
+    render(
+      <ThumbnailGrid
+        entries={entries}
+        selectedEntryId={null}
+        onSelectEntry={() => {}}
+        onSizeChange={() => {}}
+      />,
+    );
+    expect(screen.getByLabelText('Zoom in')).toBeDefined();
+  });
+
+  it('hides the zoom button group when showZoomControls is false, without hiding Home/DatePicker', () => {
+    const entries = makeEntries(4);
+    render(
+      <ThumbnailGrid
+        entries={entries}
+        selectedEntryId={null}
+        onSelectEntry={() => {}}
+        onSizeChange={() => {}}
+        showZoomControls={false}
+      />,
+    );
+    expect(screen.queryByLabelText('Zoom in')).toBeNull();
+    expect(screen.getByLabelText('First page')).toBeDefined();
+  });
+
+  it('hides the pagination row when showPagination is false, even with multiple pages', () => {
+    const entries = makeEntries(10); // fallback pageSize is 4 → multiple pages
+    const { container } = render(
+      <ThumbnailGrid
+        entries={entries}
+        selectedEntryId={null}
+        onSelectEntry={() => {}}
+        showPagination={false}
+      />,
+    );
+    expect(container.querySelector(`.${gridStyles.paginationRow}`)).toBeNull();
+  });
+
+  it('shows the pagination row by default with multiple pages', () => {
+    const entries = makeEntries(10);
+    const { container } = render(
+      <ThumbnailGrid entries={entries} selectedEntryId={null} onSelectEntry={() => {}} />,
+    );
+    expect(container.querySelector(`.${gridStyles.paginationRow}`)).not.toBeNull();
+  });
+});
+
+describe('ThumbnailGrid margins', () => {
+  it('normal (default) margins render the CSS module padding with a 20%-of-tile gap', () => {
+    const entries = makeEntries(4);
+    const { container } = render(
+      <ThumbnailGrid entries={entries} selectedEntryId={null} onSelectEntry={() => {}} />,
+    );
+    const grid = container.querySelector(`.${gridStyles.grid}`) as HTMLElement;
+    expect(grid.style.padding).toBe('');
+    expect(grid.style.gap).toBe('31px'); // 20% of the default 156px tile
+  });
+
+  it('narrow margins render a 4px gap/padding', () => {
+    const entries = makeEntries(4);
+    const { container } = render(
+      <ThumbnailGrid
+        entries={entries}
+        selectedEntryId={null}
+        onSelectEntry={() => {}}
+        margins="narrow"
+      />,
+    );
+    const grid = container.querySelector(`.${gridStyles.grid}`) as HTMLElement;
+    expect(grid.style.padding).toBe('4px');
+    expect(grid.style.gap).toBe('4px');
+  });
+
+  it('none margins render zero gap/padding', () => {
+    const entries = makeEntries(4);
+    const { container } = render(
+      <ThumbnailGrid
+        entries={entries}
+        selectedEntryId={null}
+        onSelectEntry={() => {}}
+        margins="none"
+      />,
+    );
+    const grid = container.querySelector(`.${gridStyles.grid}`) as HTMLElement;
+    expect(grid.style.padding).toBe('0px');
+    expect(grid.style.gap).toBe('0px');
+  });
+});

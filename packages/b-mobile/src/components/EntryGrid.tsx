@@ -27,6 +27,7 @@ import type { EntryIndex } from '@b-oss/b-view';
 import { resolveImage } from '../platform/imageCache.js';
 import { useHiddenMembers } from '../state/hiddenMembersStore.js';
 import { useAppNavigate } from '../app/routes/useAppNavigate.js';
+import { useDevicePrefsStore } from '../state/devicePrefsStore.js';
 
 const HIDDEN_THUMBNAIL = '__hidden__';
 
@@ -57,6 +58,9 @@ export function EntryGrid({
   const hiddenMembers = useHiddenMembers();
   const navigate = useAppNavigate();
   const [sizePercent, setSizePercent] = useState(100);
+  const showZoomBar = useDevicePrefsStore((s) => s.showZoomBar);
+  const showPagination = useDevicePrefsStore((s) => s.showPagination);
+  const thumbnailMargins = useDevicePrefsStore((s) => s.thumbnailMargins);
 
   const displayEntries = useMemo(
     () =>
@@ -108,6 +112,9 @@ export function EntryGrid({
           baseTileSize={MOBILE_BASE_TILE_PX}
           resolveAsset={resolveAsset}
           onSearchClick={() => navigate.push('/search')}
+          showZoomControls={showZoomBar}
+          showPagination={showPagination}
+          margins={thumbnailMargins}
         />
       </div>
     </>

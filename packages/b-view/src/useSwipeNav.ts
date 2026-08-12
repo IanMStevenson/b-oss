@@ -19,7 +19,9 @@ export function useSwipeNav({ onSwipeLeft, onSwipeRight }: UseSwipeNavOptions) {
   const touchStart = useRef<{ x: number; y: number } | null>(null);
 
   const onTouchStart = useCallback((e: TouchEvent) => {
-    const t = e.touches[0];
+    // A second touch means this is a pinch, not a swipe (usePinchZoom.ts handles that instead) —
+    // ignoring it here keeps the two gestures from fighting over the same start/end coordinates.
+    const t = e.touches.length === 1 ? e.touches[0] : null;
     touchStart.current = t ? { x: t.clientX, y: t.clientY } : null;
   }, []);
 

@@ -8,17 +8,35 @@ import type { EntryIndex } from '../types.js';
 import { DatePicker } from './DatePicker.js';
 import { Pagination } from './Pagination.js';
 import { useSwipeNav } from '../useSwipeNav.js';
+import { usePinchZoom } from '../usePinchZoom.js';
 import styles from './ThumbnailGrid.module.css';
 
 // Matches CSS constants: grid padding:18px top/bottom 24px sides,
 // controls bar: 28px buttons + 8+8px padding + 1px border = 45px,
 // pagination row: 28px buttons + 12+12px padding = 52px.
-// Gap is computed dynamically as 20% of tileSize (set via inline style).
+// Gap is computed dynamically as 20% of tileSize in 'normal' margins mode (set via inline style).
 const H_PAD = 48; // 24px each side
 const V_PAD = 36; // 18px each side
 const CONTROLS_H = 45;
 const PAGINATION_H = 52;
 const BASE_TILE_PX = 156;
+const ZOOM_MIN_PERCENT = 30;
+const ZOOM_MAX_PERCENT = 200;
+
+type ThumbnailMargins = 'none' | 'narrow' | 'normal';
+
+// 'narrow' deliberately computes cols/rows/pageSize the same way 'normal' does (H_PAD/V_PAD and a
+// 20%-of-tileSize gap) — the spec is "same number of columns, but the margins/gaps themselves
+// render at a few px" — only the rendered padding/gap shrink, not the layout math, so there's a
+// few px of unused slack at the right/bottom edge rather than a stretched-to-fill tile size.
+// 'none' is the deliberate exception: it recomputes cols/rows from its own zero padding/gap, so
+// removing margins entirely also removes the space they used to reserve — "zoom becomes the
+// column-count control" is just what that recomputation naturally produces, not separate logic.
+const MARGIN_RENDER = {
+  normal: { padding: undefined, gapPx: null },
+  narrow: { padding: '4px', gapPx: 4 },
+  none: { padding: '0px', gapPx: 0 },
+} satisfies Record<ThumbnailMargins, { padding: string | undefined; gapPx: number | null }>;
 
 function useContainerSize(ref: RefObject<HTMLElement | null>) {
   const [size, setSize] = useState({ width: 0, height: 0 });
@@ -105,6 +123,17 @@ interface ThumbnailGridProps {
    * sensible default reads as a clean "100%" — rather than always inheriting the desktop
    * reference size and looking like an odd fraction. */
   baseTileSize?: number;
+  /** Hides the ZoomIn/ZoomOut/%/Reset button group even when `onSizeChange` is given, for a host
+   * that offers pinch-to-zoom (always wired up below when `onSizeChange` is present) as the only
+   * zoom affordance. Home/search/DatePicker in the same controls bar are unaffected — this only
+   * gates the zoom button cluster. Defaults true (today's behaviour). */
+  showZoomControls?: boolean;
+  /** Hides the pagination row entirely, regardless of page count. Defaults true (today's
+   * behaviour) — b-view-backup's desktop consumer is unaffected either way. */
+  showPagination?: boolean;
+  /** 'normal' (default) is today's spacing. See the MARGIN_RENDER/column-math comment above for
+   * what 'narrow'/'none' change. */
+  margins?: ThumbnailMargins;
 }
 
 function ThumbnailItem({
@@ -224,6 +253,9 @@ export function ThumbnailGrid({
   assetRevision,
   onSearchClick,
   baseTileSize = BASE_TILE_PX,
+  showZoomControls = true,
+  showPagination = true,
+  margins = 'normal',
 }: ThumbnailGridProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const { width, height } = useContainerSize(containerRef);
@@ -234,16 +266,27 @@ export function ThumbnailGrid({
   const displayEntries = search && isSearchActive ? search.results : entries;
 
   const tileSize = Math.round(baseTileSize * (sizePercent / 100));
-  const gap = Math.round(tileSize * 0.2);
+  const normalGap = Math.round(tileSize * 0.2);
+  const renderGap = MARGIN_RENDER[margins].gapPx ?? normalGap;
   const controlsH = onSizeChange || search || onSearchClick ? CONTROLS_H : 0;
+  const paginationH = showPagination ? PAGINATION_H : 0;
+
+  // cols/rows/pageSize: 'normal' and 'narrow' share this exact formula (H_PAD/V_PAD, normalGap) —
+  // see the MARGIN_RENDER comment above for why. 'none' uses its own zero padding/gap instead.
+  const calcHPad = margins === 'none' ? 0 : H_PAD;
+  const calcVPad = margins === 'none' ? 0 : V_PAD;
+  const calcGap = margins === 'none' ? renderGap : normalGap;
 
   // Derive cols/rows from available space; fall back to 2 until measured.
-  const cols = width > 0 ? Math.max(2, Math.floor((width - H_PAD + gap) / (tileSize + gap))) : 2;
+  const cols =
+    width > 0 ? Math.max(2, Math.floor((width - calcHPad + calcGap) / (tileSize + calcGap))) : 2;
   const rows =
     height > 0
       ? Math.max(
           2,
-          Math.floor((height - controlsH - PAGINATION_H - V_PAD + gap) / (tileSize + gap)),
+          Math.floor(
+            (height - controlsH - paginationH - calcVPad + calcGap) / (tileSize + calcGap),
+          ),
         )
       : 2;
   const pageSize = cols * rows;
@@ -291,6 +334,12 @@ export function ThumbnailGrid({
     onSwipeLeft: () => hasNext && goToNextPage(),
     onSwipeRight: () => hasPrev && goToPrevPage(),
   });
+  const pinch = usePinchZoom({
+    sizePercent,
+    onSizeChange,
+    min: ZOOM_MIN_PERCENT,
+    max: ZOOM_MAX_PERCENT,
+  });
 
   // Track the top-left entry date for the internal calendar and external callback.
   useEffect(() => {
@@ -311,10 +360,15 @@ export function ThumbnailGrid({
   }, [jumpToEntryId, entries]);
 
   // If 2×2 minimum doesn't fit, let the container scroll rather than clip.
-  const minTileSpan = 2 * (tileSize + gap) - gap;
-  const minFitsH = width === 0 || width - H_PAD >= minTileSpan;
-  const minFitsV = height === 0 || height - controlsH - PAGINATION_H - V_PAD >= minTileSpan;
+  const minTileSpan = 2 * (tileSize + calcGap) - calcGap;
+  const minFitsH = width === 0 || width - calcHPad >= minTileSpan;
+  const minFitsV = height === 0 || height - controlsH - paginationH - calcVPad >= minTileSpan;
   const overflow = minFitsH && minFitsV ? ('hidden' as const) : ('auto' as const);
+  // Two-finger pinch and the browser's own native pinch-to-zoom would otherwise fight over the
+  // same gesture — touch-action:none hands it entirely to usePinchZoom.ts. Left enabled (native
+  // touch scrolling/zoom) in the two states where this element genuinely needs to scroll instead:
+  // live search results, and the 2×2-doesn't-fit fallback above.
+  const gridTouchAction = isSearchActive || overflow === 'auto' ? undefined : ('none' as const);
 
   return (
     <div ref={containerRef} className={styles.container} style={{ overflow }}>
@@ -374,11 +428,11 @@ export function ThumbnailGrid({
               )}
             </>
           )}
-          {onSizeChange && (
+          {onSizeChange && showZoomControls && (
             <div className={styles.zoomGroup}>
               <button
                 className={styles.iconBtn}
-                onClick={() => onSizeChange(Math.max(30, sizePercent - 10))}
+                onClick={() => onSizeChange(Math.max(ZOOM_MIN_PERCENT, sizePercent - 10))}
                 aria-label="Zoom out"
               >
                 <ZoomOut size={14} strokeWidth={1.6} />
@@ -386,7 +440,7 @@ export function ThumbnailGrid({
               <span className={styles.zoomLabel}>{sizePercent}%</span>
               <button
                 className={styles.iconBtn}
-                onClick={() => onSizeChange(Math.min(200, sizePercent + 10))}
+                onClick={() => onSizeChange(Math.min(ZOOM_MAX_PERCENT, sizePercent + 10))}
                 aria-label="Zoom in"
               >
                 <ZoomIn size={14} strokeWidth={1.6} />
@@ -418,16 +472,38 @@ export function ThumbnailGrid({
 
       <div
         className={styles.scroll}
-        style={isSearchActive ? { overflowY: 'auto' } : undefined}
-        onTouchStart={isSearchActive ? undefined : swipe.onTouchStart}
-        onTouchEnd={isSearchActive ? undefined : swipe.onTouchEnd}
+        style={{
+          ...(isSearchActive ? { overflowY: 'auto' as const } : undefined),
+          touchAction: gridTouchAction,
+        }}
+        onTouchStart={
+          isSearchActive
+            ? undefined
+            : (e) => {
+                swipe.onTouchStart(e);
+                pinch.onTouchStart(e);
+              }
+        }
+        onTouchMove={isSearchActive ? undefined : pinch.onTouchMove}
+        onTouchEnd={
+          isSearchActive
+            ? undefined
+            : (e) => {
+                swipe.onTouchEnd(e);
+                pinch.onTouchEnd(e);
+              }
+        }
       >
         {search && isSearchActive && search.status === 'done' && search.results.length === 0 ? (
           <div className={styles.searchEmpty}>No entries match &ldquo;{search.query}&rdquo;</div>
         ) : (
           <div
             className={styles.grid}
-            style={{ gridTemplateColumns: `repeat(${cols}, ${tileSize}px)`, gap: `${gap}px` }}
+            style={{
+              gridTemplateColumns: `repeat(${cols}, ${tileSize}px)`,
+              gap: `${renderGap}px`,
+              padding: MARGIN_RENDER[margins].padding,
+            }}
           >
             {pageEntries.map((entry) => (
               <ThumbnailItem
@@ -447,7 +523,7 @@ export function ThumbnailGrid({
         )}
       </div>
 
-      {!isSearchActive && totalPages > 1 && (
+      {!isSearchActive && showPagination && totalPages > 1 && (
         <div className={styles.paginationRow}>
           <Pagination
             currentPage={displayPage}

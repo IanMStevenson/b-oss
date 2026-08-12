@@ -93,10 +93,25 @@ describe('SettingsScreen hub', () => {
       'Notifications',
       'Reminders',
       'Misc',
+      'Browsing',
       'Hidden members',
     ]) {
       expect(screen.getByText(label)).toBeDefined();
     }
+  });
+
+  it('groups rows under Blipfoto Account Settings and App Settings headers', async () => {
+    renderHub();
+    await waitFor(() => expect(fetchUserSettings).toHaveBeenCalled());
+    expect(screen.getByText('Blipfoto Account Settings')).toBeDefined();
+    expect(screen.getByText('App Settings')).toBeDefined();
+  });
+
+  it('tapping Browsing navigates to /settings/browsing', async () => {
+    renderHub();
+    await waitFor(() => expect(fetchUserSettings).toHaveBeenCalled());
+    await userEvent.click(screen.getByText('Browsing'));
+    expect(push).toHaveBeenCalledWith('/settings/browsing');
   });
 
   it('hides Refused followers for an unprotected journal', async () => {
@@ -154,6 +169,18 @@ describe('SettingsScreen section routing', () => {
       </MemoryRouter>,
     );
     expect(await screen.findByText('General')).toBeDefined();
+  });
+
+  it('renders the Browsing section when given section="browsing"', () => {
+    render(
+      <MemoryRouter>
+        <OverlayProvider>
+          <OverlayHost />
+          <SettingsScreen section="browsing" />
+        </OverlayProvider>
+      </MemoryRouter>,
+    );
+    expect(screen.getByText('Show zoom bar')).toBeDefined();
   });
 
   it('falls back to the hub for an unrecognised section', async () => {
