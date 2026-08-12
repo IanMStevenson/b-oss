@@ -8,12 +8,11 @@
 //
 // Every caller in this app (data/client.ts's b-api requests, data/pushService.ts's b-push
 // registration calls) only ever reads the result as text — `response.text()`, then its own
-// JSON.parse — never `.json()`/`.blob()`/`.arrayBuffer()`. That's what makes `responseType:
-// 'text'` safe to force unconditionally below: CapacitorHttp would otherwise auto-parse a
-// `application/json` response into `data` as an object, and re-serializing that back into a
-// string (to satisfy `typeof fetch`'s `Response.text()` contract) is both unnecessary and a
-// place a subtle round-trip bug could hide (e.g. number precision) — asking the native layer for
-// the raw body once, up front, avoids that entirely.
+// JSON.parse — never `.json()`/`.blob()`/`.arrayBuffer()`. `responseType: 'text'` is requested
+// below to keep that contract, but CapacitorHttp's Android implementation ignores it whenever the
+// response's Content-Type is `application/json` (see HttpRequestHandler.readData's "backward
+// compatibility" branch in @capacitor/android) and hands back an already-parsed object instead —
+// nativeFetch() re-serializes that case back to a string so `response.text()` always yields text.
 //
 // `init.body` is always `undefined`, a `URLSearchParams` (b-api's form-urlencoded mutate()), or
 // an already-`JSON.stringify`'d string (data/pushService.ts) — `String(body)` handles both
@@ -63,11 +62,14 @@ async function nativeFetch(
     data: toBody(init?.body),
     responseType: 'text',
   });
-  // CapacitorHttp's `data` is typed `any`; `responseType: 'text'` above guarantees it's a string
-  // at runtime. A real Response is constructed (rather than a hand-rolled duck-typed object) so
+  // CapacitorHttp's `data` is typed `any`. Despite `responseType: 'text'` above, Android hands
+  // back a parsed object rather than a string for `application/json` responses (see header
+  // comment) — re-stringify in that case so `response.text()` always yields the raw JSON text.
+  const data = typeof result.data === 'string' ? result.data : JSON.stringify(result.data);
+  // A real Response is constructed (rather than a hand-rolled duck-typed object) so
   // `response.headers instanceof Headers` holds for b-api's updateRateLimit() and every other
   // Response method callers might reasonably use continues to behave exactly like web fetch().
-  return new Response(result.data as string, { status: result.status, headers: result.headers });
+  return new Response(data, { status: result.status, headers: result.headers });
 }
 
 export const platformFetch: typeof fetch = (input, init) => {

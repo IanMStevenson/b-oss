@@ -84,6 +84,22 @@ describe('platformFetch — native path', () => {
     await expect(response.text()).resolves.toBe('{"data":{"id":"1"},"error":null}');
   });
 
+  it('re-stringifies data when CapacitorHttp ignores responseType: text (Android JSON quirk)', async () => {
+    const { platformFetch } = await import('../http.js');
+    // Android's CapacitorHttp auto-parses application/json responses into an object regardless of
+    // the requested responseType (see platform/http.ts's header comment) — assert that quirk is
+    // papered over rather than leaking `[object Object]` into callers' JSON.parse.
+    requestMock.mockResolvedValue({
+      data: { data: { id: '1' }, error: null } as unknown as string,
+      status: 200,
+      headers: {},
+    });
+
+    const response = await platformFetch('https://api.blipfoto.com/4/user.json');
+
+    await expect(response.text()).resolves.toBe('{"data":{"id":"1"},"error":null}');
+  });
+
   it('surfaces a non-2xx status via Response.ok rather than throwing', async () => {
     const { platformFetch } = await import('../http.js');
     requestMock.mockResolvedValue({ data: 'nope', status: 404, headers: {} });
