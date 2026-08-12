@@ -124,10 +124,27 @@ describe('signInDeliberate (FLW-20)', () => {
         username: 'carol',
       });
     await signInDeliberate({ scope: 'read,write', notifications: true });
-    expect(runOAuthRound).toHaveBeenNthCalledWith(1, 'read,write');
-    expect(runOAuthRound).toHaveBeenNthCalledWith(2, 'read');
+    expect(runOAuthRound).toHaveBeenNthCalledWith(1, 'read,write', { useEmbedded: undefined });
+    expect(runOAuthRound).toHaveBeenNthCalledWith(2, 'read', { useEmbedded: undefined });
     expect(await getToken('carol', 'app')).toBe('tok-rw');
     expect(await getToken('carol', 'service')).toBe('tok-r-service');
+  });
+
+  it('useEmbedded: true runs every round (including the notifications one) through the embedded browser', async () => {
+    runOAuthRound
+      .mockResolvedValueOnce({
+        accessToken: 'tok-rw',
+        grantedScope: 'read,write',
+        username: 'carol',
+      })
+      .mockResolvedValueOnce({
+        accessToken: 'tok-r-service',
+        grantedScope: 'read',
+        username: 'carol',
+      });
+    await signInDeliberate({ scope: 'read,write', notifications: true, useEmbedded: true });
+    expect(runOAuthRound).toHaveBeenNthCalledWith(1, 'read,write', { useEmbedded: true });
+    expect(runOAuthRound).toHaveBeenNthCalledWith(2, 'read', { useEmbedded: true });
   });
 
   it('a failed/cancelled second round keeps the first token — signed in read-write, no notifications', async () => {

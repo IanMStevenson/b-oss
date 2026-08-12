@@ -84,6 +84,10 @@ export async function signInGated(): Promise<string> {
 export interface SignInModeChoice {
   scope: 'read' | 'read,write';
   notifications: boolean;
+  /** Runs every OAuth round in this sign-in through the embedded WebView (oauthRound.ts) instead
+   * of the system browser, forcing a fresh login — SCR-01's "force new sign-in" toggle, for
+   * adding a second account without logging the system browser out of the first. */
+  useEmbedded?: boolean;
 }
 
 /** FLW-20 — deliberate sign-in with the full mode choice. Read-write + notifications runs two
@@ -95,7 +99,8 @@ export interface SignInModeChoice {
  * notifications branch, including the second interactive OAuth round for read-write, rather than
  * asking the user through a sign-in step for a feature that can't be delivered. */
 export async function signInDeliberate(choice: SignInModeChoice): Promise<string> {
-  const result = await runOAuthRound(choice.scope);
+  const embedded = { useEmbedded: choice.useEmbedded };
+  const result = await runOAuthRound(choice.scope, embedded);
   const account = await storeAppToken(result);
   useAccountsStore.getState().setActiveAccountId(account.id);
 
@@ -109,7 +114,7 @@ export async function signInDeliberate(choice: SignInModeChoice): Promise<string
       }
     } else {
       try {
-        const serviceResult = await runOAuthRound('read');
+        const serviceResult = await runOAuthRound('read', embedded);
         const registered = await registerAccountForPush(account.id, serviceResult.accessToken);
         if (registered) {
           await setToken(account.id, 'service', serviceResult.accessToken);

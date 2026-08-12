@@ -34,6 +34,7 @@ import { AppHeader } from '../../components/AppHeader.js';
 import { signInDeliberate, OAuthCancelledError } from '../../flows/accountsFlow.js';
 import type { SignInModeChoice } from '../../flows/accountsFlow.js';
 import { openUrl } from '../../platform/browser.js';
+import { isNativePlatform } from '../../platform/appState.js';
 import { useAppNavigate } from '../../app/routes/useAppNavigate.js';
 import { useOverlay } from '../../app/OverlayProvider.js';
 import { useDevicePrefsStore } from '../../state/devicePrefsStore.js';
@@ -50,6 +51,7 @@ export function SignInScreen() {
   const setSeenFirstRunExplainer = useDevicePrefsStore((s) => s.setSeenFirstRunExplainer);
   const [scope, setScope] = useState<SignInModeChoice['scope']>('read,write');
   const [notifications, setNotifications] = useState(false);
+  const [useEmbedded, setUseEmbedded] = useState(false);
   const [status, setStatus] = useState<Status>('idle');
   const [error, setError] = useState<string | null>(null);
 
@@ -65,7 +67,7 @@ export function SignInScreen() {
     setError(null);
     setStatus('authenticating');
     try {
-      await signInDeliberate({ scope, notifications });
+      await signInDeliberate({ scope, notifications, useEmbedded });
       navigate.replace('/accounts');
     } catch (err) {
       if (err instanceof OAuthCancelledError) {
@@ -114,6 +116,26 @@ export function SignInScreen() {
             Get notifications
           </IonToggle>
         </IonItem>
+
+        {isNativePlatform() && (
+          <>
+            <IonItem>
+              <IonToggle
+                checked={useEmbedded}
+                onIonChange={(e) => setUseEmbedded(e.detail.checked)}
+              >
+                Force new sign-in
+              </IonToggle>
+            </IonItem>
+            <IonText color="medium">
+              <p>
+                Signs in through a screen inside this app instead of your phone&rsquo;s browser, so
+                it always asks for a password — handy for adding a second account when your browser
+                is already signed in to the first.
+              </p>
+            </IonText>
+          </>
+        )}
 
         {status === 'error' && error && (
           <IonText color="danger">

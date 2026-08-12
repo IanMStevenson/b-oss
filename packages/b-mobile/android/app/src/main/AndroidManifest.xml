@@ -39,6 +39,14 @@
             </intent-filter>
         </activity>
 
+        <!-- EmbeddedAuthPlugin's "force new sign-in" WebView screen (FLW-20). Not exported — only
+             ever launched internally via startActivityForResult from within this app, never by
+             another app or a deep link. -->
+        <activity
+            android:name=".EmbeddedAuthActivity"
+            android:theme="@style/AppTheme"
+            android:exported="false" />
+
         <!-- Opt-in web-link handling (devicePrefsStore.openBlipfotoLinksInApp, §16). Disabled by
              default so the app doesn't appear in the chooser for blipfoto.com links until the
              user turns this on in Settings; toggled at runtime via

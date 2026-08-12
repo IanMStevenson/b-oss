@@ -35,6 +35,12 @@ vi.mock('../../../flows/accountsFlow.js', () => ({
 const openUrl = vi.fn<(url: string) => void>();
 vi.mock('../../../platform/browser.js', () => ({ openUrl: (url: string) => openUrl(url) }));
 
+// Defaults to false (matching a desktop-browser dev session) so every pre-existing test in this
+// file exercises the same "toggle hidden" shape it always has — only the tests that explicitly
+// flip this to true are testing the native-only toggle.
+let isNative = false;
+vi.mock('../../../platform/appState.js', () => ({ isNativePlatform: () => isNative }));
+
 const replace = vi.fn();
 vi.mock('../../../app/routes/useAppNavigate.js', () => ({
   useAppNavigate: () => ({ push: vi.fn(), replace, goBack: vi.fn() }),
@@ -44,6 +50,7 @@ afterEach(() => {
   cleanup();
   vi.resetAllMocks();
   useDevicePrefsStore.setState({ hydrated: false, seenFirstRunExplainer: false });
+  isNative = false;
 });
 
 function renderScreen() {
@@ -92,9 +99,36 @@ describe('SignInScreen', () => {
     await userEvent.click(screen.getByText('Continue'));
 
     await waitFor(() =>
-      expect(signInDeliberate).toHaveBeenCalledWith({ scope: 'read', notifications: true }),
+      expect(signInDeliberate).toHaveBeenCalledWith({
+        scope: 'read',
+        notifications: true,
+        useEmbedded: false,
+      }),
     );
     expect(replace).toHaveBeenCalledWith('/accounts');
+  });
+
+  it('hides "Force new sign-in" off-native (web)', () => {
+    renderScreen();
+    expect(screen.queryByText('Force new sign-in')).toBeNull();
+  });
+
+  it('shows and wires "Force new sign-in" on native', async () => {
+    isNative = true;
+    signInDeliberate.mockResolvedValue('acct1');
+    renderScreen();
+
+    const toggle = screen.getByText('Force new sign-in').closest('ion-toggle')!;
+    expect(toggle.getAttribute('checked')).not.toBe('true');
+    toggle.dispatchEvent(
+      new CustomEvent('ionChange', { bubbles: true, detail: { checked: true } }),
+    );
+
+    await userEvent.click(screen.getByText('Continue'));
+
+    await waitFor(() =>
+      expect(signInDeliberate).toHaveBeenCalledWith(expect.objectContaining({ useEmbedded: true })),
+    );
   });
 
   it('error: a real sign-in failure shows the message and stays on the form', async () => {

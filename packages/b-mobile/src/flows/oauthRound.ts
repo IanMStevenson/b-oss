@@ -10,6 +10,13 @@
 // error, since it wasn't this app's sign-in. `GET oauth/token` then confirms the token was
 // issued to this app and reads back its *granted* scope, which is what actually sets
 // hasAppToken's read/write value — never the requested scope.
+//
+// Two ways to run a round: the system browser (default — Custom Tabs, shares the OS browser's
+// own cookies so an already-logged-in session carries over) or `useEmbedded` (an app-owned
+// WebView with cookies cleared up front, platform/embeddedAuth.ts — forces a fresh login, for
+// adding a second account without having to log the first one out of the system browser first).
+// Both converge on the same finishRound() once a redirect URL is in hand, so state/scope
+// verification is identical either way.
 
 import {
   buildImplicitGrantUrl,
@@ -18,6 +25,7 @@ import {
 } from '@b-oss/b-api';
 import { openUrl, closeBrowser, onBrowserFinished } from '../platform/browser.js';
 import { onAppUrlOpen } from '../platform/deepLinks.js';
+import { openEmbeddedAuth, EmbeddedAuthCancelledError } from '../platform/embeddedAuth.js';
 import { getClientForToken } from '../data/client.js';
 
 const REDIRECT_URI = import.meta.env.VITE_OAUTH_REDIRECT_URI ?? 'bmobile://oauth/';
@@ -48,8 +56,15 @@ function generateState(): string {
 
 /** Runs a single OAuth round for the given scope. Resolves with the verified token, or rejects
  * with OAuthCancelledError (declined, closed without completing, or a state mismatch) or the
- * underlying error otherwise. */
-export function runOAuthRound(scope: 'read' | 'read,write'): Promise<OAuthResult> {
+ * underlying error otherwise. `useEmbedded` runs it in an app-owned WebView with cookies cleared
+ * up front (platform/embeddedAuth.ts) instead of the system browser — forces a fresh Blipfoto
+ * login even when another account is already signed in there, for adding a second account. */
+export function runOAuthRound(
+  scope: 'read' | 'read,write',
+  options: { useEmbedded?: boolean } = {},
+): Promise<OAuthResult> {
+  if (options.useEmbedded) return runOAuthRoundEmbedded(scope);
+
   return new Promise((resolve, reject) => {
     const state = generateState();
     const url = buildImplicitGrantUrl({
@@ -83,6 +98,28 @@ export function runOAuthRound(scope: 'read' | 'read,write'): Promise<OAuthResult
       });
     }
   });
+}
+
+async function runOAuthRoundEmbedded(scope: 'read' | 'read,write'): Promise<OAuthResult> {
+  const state = generateState();
+  const url = buildImplicitGrantUrl({
+    clientId: CLIENT_ID,
+    redirectUri: REDIRECT_URI,
+    scope,
+    state,
+  });
+
+  let redirectUrl: string;
+  try {
+    redirectUrl = await openEmbeddedAuth(url, REDIRECT_URI);
+  } catch (err) {
+    if (err instanceof EmbeddedAuthCancelledError) {
+      throw new OAuthCancelledError('embedded browser closed');
+    }
+    throw err;
+  }
+
+  return finishRound(redirectUrl, state, scope);
 }
 
 async function finishRound(
