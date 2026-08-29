@@ -427,8 +427,12 @@ export class BrowserBackend implements BackendContext {
     if (this._tabId !== null) await acquireBackupLock(this._tabId, new Date().toISOString());
     try {
       await engine.run();
-    } catch {
-      // engine.cancel() throws — expected
+    } catch (err) {
+      // engine.run() always emits a terminal event (completed/cancelled/failed) before
+      // rethrowing, so status/chip state is already up to date by the time we get here —
+      // this only stops the rejection surfacing as an unhandled promise rejection. Logged
+      // for visibility in case a future change reintroduces a silent-failure path.
+      console.error('[b-ark] engine.run() rejected after emitting its terminal event:', err);
     } finally {
       this._engine = null;
       if (this._tabId !== null) await releaseBackupLock(this._tabId);

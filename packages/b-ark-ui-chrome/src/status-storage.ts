@@ -64,6 +64,7 @@ function chipKindFor(kind: BackupErrorPayload['kind']): ChipErrorKind {
       return 'permission';
     case 'network':
     case 'api_error':
+    case 'unexpected':
       return 'error';
   }
 }

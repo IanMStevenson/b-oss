@@ -783,6 +783,39 @@ describe('BackupEngine — routine backup new posts', () => {
     }
   });
 
+  it('an unrecognised error (not BackupAbortedError/BackupCancelledError) still emits a failed event before rethrowing', async () => {
+    const io = new MockPlatformIO();
+    const client = makeClient();
+    seedJournal(io, baseJournal);
+
+    vi.spyOn(client, 'getUserProfile').mockResolvedValue(makeProfileResponse(2));
+    vi.spyOn(client, 'getJournalEntries').mockResolvedValue({
+      page: { index: 0, size: 100, more: 0 },
+      entries: [makeEntryStub('200', '2024-01-16'), makeEntryStub('100', '2024-01-15')],
+    });
+    vi.spyOn(client, 'getEntry').mockImplementation((id: string) =>
+      Promise.resolve(makeEntryResponse(id, id === '200' ? '2024-01-16' : '2024-01-15')),
+    );
+    // journal.json's write always rejects with a plain Error — never BackupAbortedError —
+    // simulating an unclassified failure (e.g. a filesystem quota error) at the one write
+    // site (the final, unconditional metadata save) that isn't covered by any per-entry
+    // try/catch. Before this was fixed, run() would rethrow with zero events emitted.
+    vi.spyOn(io, 'atomicWrite').mockImplementation((path, data) => {
+      if (path === '/backups/gbradley/journal.json') return Promise.reject(new Error('disk full'));
+      return io.writeFile(path, data);
+    });
+
+    const events: BackupEvent[] = [];
+    const engine = makeEngine(makeConfig({ redo_count: 1 }), io, client, (e) => events.push(e));
+    await expect(engine.run()).rejects.toThrow('disk full');
+
+    const failed = events.find((e) => e.type === 'failed');
+    expect(failed).toBeDefined();
+    if (failed && failed.type === 'failed') {
+      expect(failed.error.kind).toBe('unexpected');
+    }
+  });
+
   // Shared fixture for the metadata-write-interval tests: a routine backup that
   // re-fetches 1 entry (redo, gated by metadata_write_interval) and discovers 3 new
   // posts (each force-saved unconditionally), plus the unconditional final save.

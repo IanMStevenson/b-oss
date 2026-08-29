@@ -145,11 +145,14 @@ async function triggerIfDue(): Promise<void> {
   const rag = (r['chip_rag'] as RagState | undefined) ?? 'green';
   const progress = r['chip_progress'] as { done: number; total: number } | null | undefined;
 
-  // Backup already running (amber + progress) — do nothing
-  if (rag === 'amber' && progress != null) return;
-
   // Singleton check — backup tab already open
   const existingTabId = await getLiveBackupTabId();
+
+  // Backup already running (amber + progress, with a live tab actually driving it) — do
+  // nothing. If no live tab exists, a previous run left this state stuck without finishing
+  // (e.g. it crashed mid-run) — fall through to the amber-resume branch below instead of
+  // wedging every future trigger forever.
+  if (rag === 'amber' && progress != null && existingTabId !== null) return;
   if (existingTabId !== null) return;
 
   if (rag === 'red') {
@@ -194,15 +197,16 @@ async function publishDetected(): Promise<void> {
 
   const rag = (r['chip_rag'] as RagState | undefined) ?? 'green';
   const progress = r['chip_progress'] as { done: number; total: number } | null | undefined;
-  const backupRunning = rag === 'amber' && progress != null;
-
-  if (backupRunning) {
-    await setPublishPending();
-    return;
-  }
 
   const existingTabId = await getLiveBackupTabId();
-  if (existingTabId !== null) {
+
+  // Backup already running (amber + progress, with a live tab actually driving it) — defer
+  // via publish_pending. If no live tab exists, a previous run left this stuck without
+  // finishing (e.g. it crashed mid-run) — fall through and launch fresh rather than
+  // deferring forever behind a run that will never complete.
+  const backupRunning = rag === 'amber' && progress != null && existingTabId !== null;
+
+  if (backupRunning || existingTabId !== null) {
     await setPublishPending();
     return;
   }
