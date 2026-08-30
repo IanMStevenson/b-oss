@@ -6,89 +6,69 @@ with "resume".
 
 ## Status
 
-**Phases 0–12 are all complete, plus the off-sequence Phase 12.6 b-view-reuse adoption.** Phase 0
-(prerequisite `b-oss` refactor) is merged into `main`; Phases 1–12 and 12.6 are committed on
-`b-mobile-initial` (confirm pushed — see "Last completed step"). The app now has: a working
-Vite/Ionic/Capacitor skeleton, the full 28-screen route table, a real OAuth round and full
-account-management flow, a functional write-gate, real Browse/Tag-Entries/Entry-Detail/Full-screen-
-Photo/Entry-Metadata screens — as of 12.6, `EntryGrid`/`PhotoScreen`/`EntryDetailScreen` all
-compose `b-view`'s shared `ThumbnailGrid`/`Lightbox`/`EntryDetail` directly rather than hand-built
-equivalents — a full social action bar, inline comment reply/edit/delete/report, a working
-hidden-members system, real profile/followers/following/pending-requests/refused-followers/awards
-screens, real Search and Map, a full compose/publish/edit pipeline with a durable background
-upload queue, real Settings and Help & Info, a fully live notification pipeline (`packages/b-push`,
-never deployed per its own scope boundary but fully built/tested), a real checked-in Android
-native project (`packages/b-mobile/android/` — manifest, three local plugins including
-`ShareIntentPlugin` from Phase 12, notification channels, brand-correct icon/splash, a real
-accessibility font-scale mechanism), meaningfully hardened test coverage from Phase 11, and — as of
-Phase 12 — a genuinely finished app rather than one with known open wiring gaps: the shared overlay
-mechanism, the account-switcher popover, a real deep-link/share-intent resolver, the app-resume
-permission recheck, and a fully wired typed copy deck are all in place. Full monorepo
-`typecheck && lint && test && build` green (817 tests). **Only Phase 13 (deploy/test `b-push`)
-remains, and it's blocked on the user providing Cloudflare/Firebase credentials** — see "Phase 13"
-below.
+**Phases 0–12 are all complete, plus the off-sequence Phase 12.6 b-view-reuse adoption and Phase
+12.7 feedback-polish round.** Phase 0 (prerequisite `b-oss` refactor) is merged into `main`; Phases
+1–12, 12.6, and 12.7 are committed on `b-mobile-initial` (confirm pushed — see "Last completed
+step"). The app now has: a working Vite/Ionic/Capacitor skeleton, the full 28-screen route table, a
+real OAuth round and full account-management flow (including, as of 12.7, an embedded-WebView
+"force new sign-in" option for adding a second account without sharing the system browser's
+cookies), a functional write-gate, real Browse/Tag-Entries/Entry-Detail/Full-screen-Photo/Entry-
+Metadata screens — as of 12.6, `EntryGrid`/`PhotoScreen`/`EntryDetailScreen` all compose `b-view`'s
+shared `ThumbnailGrid`/`Lightbox`/`EntryDetail` directly rather than hand-built equivalents — a full
+social action bar, inline comment reply/edit/delete/report (as of 12.7, real member badges next to
+usernames throughout), a working hidden-members system, real profile/followers/following/pending-
+requests/refused-followers/awards screens (as of 12.7, Awards correctly distinguishes earned from
+unearned catalog entries), real Search and Map, a full compose/publish/edit pipeline with a durable
+background upload queue, real Settings (as of 12.7, split into account-backed vs. device-local
+groups, with a new Browsing display-prefs section and `ThumbnailGrid` pinch-to-zoom) and Help &
+Info, a fully live notification pipeline (`packages/b-push`, never deployed per its own scope
+boundary but fully built/tested), a real checked-in Android native project
+(`packages/b-mobile/android/` — manifest, three local plugins including `ShareIntentPlugin` from
+Phase 12, notification channels, brand-correct icon/splash, a real accessibility font-scale
+mechanism), meaningfully hardened test coverage from Phase 11, and — as of Phase 12 — a genuinely
+finished app rather than one with known open wiring gaps: the shared overlay mechanism, the
+account-switcher popover, a real deep-link/share-intent resolver, the app-resume permission
+recheck, and a fully wired typed copy deck are all in place. Full monorepo
+`typecheck && lint && test && build` green (854 tests, reconfirmed 2026-08-30). **Only Phase 13
+(deploy/test `b-push`) remains, and it's still blocked on the user providing Cloudflare/Firebase
+credentials** — see "Phase 13" below.
 
 ## Last completed step
 
-Committed (confirm pushed — do that first if resuming) Phase 12.6's full scope: rebased onto
-`origin/main` to pull in `b-oss` PR #67 (the merged `b-view` work `EntryDetail`/`ThumbnailGrid`/
-`Lightbox`/`BBCodeText` needed before this app could adopt them — see "b-view reuse" below,
-superseded now that this is done); rewrote `EntryGrid.tsx` to wrap `b-view`'s `ThumbnailGrid`
-(background auto-load-more bridge over `usePagedResource`'s incremental paging, sentinel-based
-hidden-tile placeholder, `resolveAsset={resolveImage}` replacing `CachedImage`, free zoom controls);
-rewrote `PhotoScreen.tsx` to render `b-view`'s `Lightbox`; rewrote `EntryDetailScreen.tsx` to
-compose `b-view`'s `EntryDetail` with all four of its optional slots; deleted the now-redundant
-local `bbcode.ts`/`BBCodeText.tsx` in favour of `@b-oss/b-view`'s promoted versions. Along the way,
-found and fixed four small, real gaps in `b-view`'s own `EntryDetail`/`Lightbox` — `onLinkClick`
-(comment/description links were silently falling back to a WebView-unsafe `window.open`),
-`onFullscreen` (its Maximize2 button opened an internal Lightbox overlay by default, but SCR-07
-needed to stay a real routed screen), `onTagClick` (tags rendered with no tap target at all,
-silently dropping SCR-05 navigation), and `Lightbox`'s `onImageError` (no way to satisfy SCR-07's
-own "show a retry on a broken image" acceptance criterion without it) — each a small, optional,
-host-injected callback in the same pattern PR #67 already established for its other four slots, so
-Electron/Chrome (which pass none of them) see no behaviour change. Verified visually via
-`.claude/skills/run-b-view` against a fresh synthetic fixture, not just by test assertion. Full
-detail, including two accepted-not-fixed gaps (the `reactions` slot can't independently hide just
-Star or just Favourite; `EntryDetail`'s own inline location pin isn't WebView-safe), in
-`AGENT_LOG.md`'s Phase 12.6 entry.
+Phase 12.7 (2026-08-08 through 2026-08-14, logged retroactively 2026-08-30 — see `AGENT_LOG.md`'s
+Phase 12.7 entry for full detail, including exact commit hashes). A feedback-polish round run
+across several sessions plus the user's own direct commits, not a single planned unit of work.
+Three threads:
 
-Before that: Phase 12's full scope. Worth reading
-`AGENT_LOG.md`'s Phase 12 entry in full before touching the same modules again; the short version:
+1. **Root-cause bug fixes surfaced by testing against real API data/devices, not by inspection** —
+   most notably `getClient()` reading `accountsStore` before hydration finished, the single cause
+   behind three separately-reported "bugs" (me-awards, me-refused/me-requests, four different
+   settings screens all showing "Could not load"); fixed with a new `state/authReady.ts` gate.
+   Also: `verifyToken()` (`b-api`) not unwrapping `GET oauth/token`'s envelope, `ProfileScreen`'s
+   own-profile fetch using the wrong username variable, and `user/awards.json` returning the full
+   award catalog (not just earned awards) with `AwardsScreen.tsx` rendering every entry as earned.
+2. **Screen redesigns driven directly by user screenshot feedback** — a shared `AppHeader` across
+   every screen, a real-badge redesign of the Comments inbox and every people-list row, real icon-
+   guide content (replacing invented content that didn't match blipfoto.com), a Settings hub split
+   into account-backed vs. device-local sections plus a new Browsing display-prefs section, and
+   several smaller copy/spacing fixes.
+3. **Native/platform fixes** — Android's `CapacitorHttp` force-parsing JSON responses regardless of
+   `responseType`, missing safe-area padding on `IonMenu`/scrollable `IonContent`, and a new
+   embedded-WebView "force new sign-in" option (its native cookie-clearing path still needs a
+   real-device check — no adb connection was available when it was built).
 
-1. **`OverlayProvider`/`useOverlay` finished for real** (12.1) — went from a dead stub to the
-   shared mechanism every upgrade-prompt/first-run/account-switcher overlay now routes through,
-   per the user's explicit "use the shared mechanism, not per-screen local state." Wiring the new
-   account-switcher indicator into ~14 screens' toolbars surfaced `useOverlay must be used within
-OverlayProvider` failures across their existing tests — fixed by wrapping each render call site.
-2. **Account-switcher popover built** (12.2) — `AccountSwitcherOverlay`/`AccountIndicator`, wired
-   into eight screens' toolbars, reusing `AccountsScreen.tsx`'s own `modeLabel()`.
-3. **`flows/deepLinkResolver.ts` built for real** (12.3, Phase 11's largest finding) — handles the
-   OAuth redirect (recognised, ignored), `bmobile://entry/:id`/`user/:username`, and the opt-in
-   `blipfoto.com/...` web-link shapes, reusing `data/notifications.ts`'s existing path-parsing
-   rather than duplicating it. **Genuine scope escalation, reasoned through rather than deferred**:
-   `@capacitor/app` cannot see `ACTION_SEND` share intents at all, so FLW-12's share-to-Blipfoto
-   entry point needed real new native code — `ShareIntentPlugin.java` (a third local, non-npm
-   plugin), wired through `platform/shareIntent.ts`'s `checkForSharedImage()`/
-   `takePendingSharedPhoto()` split (the photo has to survive `/compose`'s `WriteGuardRoute` gate,
-   which can run an async OAuth round before `NewEntryScreen` ever mounts to claim it).
-4. **`platform/appState.ts`'s resume hook implemented for real** (12.4) — a real
-   `@capacitor/app` `appStateChange` wrapper, wired so `AppShell.tsx` re-runs
-   `pushFlow.ts#runLaunchBackstopCheck()` on every resume, not only at launch (rules.md: "re-check
-   the permission when the app resumes").
-5. **TODO F/G's copy deck wired for real** (12.5) — `scripts/generate-strings.mjs` turns
-   `TextStrings.csv` into a typed `src/strings/deck.ts` (182 keys); `mapApiError`'s `validation`
-   outcome now classifies every write/validation code error-codes.md documents; a new
-   `describeError()` helper replaced ~30 hand-duplicated ternaries across 16 screens (and fixed a
-   real pre-existing bug those ternaries all shared — `rate-limited`/`upgrade-prompt` messages were
-   being silently discarded); reconciled the specific ad hoc strings that were correctness-bearing
-   (upgrade prompt, SCR-06's 104/202, SCR-18's 101/103, the favourite-quota message) against the
-   real deck. Found (not fully fixed) along the way: `WriteGuardRoute.tsx` has its own duplicate
-   `IonAlert` predating `OverlayProvider` — now reads the same deck keys, but a real consolidation
-   needs `OverlayState` to grow an on-decline callback first (see "Open decisions" below).
-6. **91 new tests, 712 → 803**, full monorepo `typecheck && lint && test && build` green twice.
+Before that: Phase 12.6's full scope (2026-08-05) — rebased onto `origin/main` to pull in `b-oss`
+PR #67, then rewrote `EntryGrid`/`PhotoScreen`/`EntryDetailScreen` to compose `b-view`'s shared
+`ThumbnailGrid`/`Lightbox`/`EntryDetail` directly, deleting the now-redundant local `bbcode.ts`/
+`BBCodeText.tsx`. Found and fixed four small, real gaps in `b-view`'s own `EntryDetail`/`Lightbox`
+along the way (`onLinkClick`, `onFullscreen`, `onTagClick`, `Lightbox`'s `onImageError`), verified
+visually via `.claude/skills/run-b-view`, not just by test assertion. Two gaps accepted rather than
+fixed: the `reactions` slot can't independently hide just Star or just Favourite; `EntryDetail`'s
+own inline location pin isn't WebView-safe. Full detail in `AGENT_LOG.md`'s Phase 12.6 entry.
 
-For the older Phase 11 history (foundational-screen test gaps, the four-state sweep, the pure-logic
-coverage sweep), see `AGENT_LOG.md`'s Phase 11 entry directly — not repeated here to keep this file
+For Phase 12's own scope (`OverlayProvider`/`useOverlay`, the account-switcher popover,
+`flows/deepLinkResolver.ts`, the app-resume hook, the typed copy deck) and older Phase 11 history,
+see `AGENT_LOG.md`'s Phase 12 and Phase 11 entries directly — not repeated here to keep this file
 from growing without bound.
 
 ## Phase 12 wishlist — DONE (compiled 2026-08-04, reviewed with the user same day, completed 2026-08-05)
@@ -206,17 +186,24 @@ deployment.
 
 **Phase 13 is next, and it's blocked** — deploy `b-push` needs the user to provide a Cloudflare
 account and Firebase project credentials (see "Phase 13" above); nothing to do on the code side
-until then. If picking up code-only work in the meantime, the honest candidates are: the two loose
-ends flagged in "Phase 12 wishlist — DONE" above (giving `OverlayState` an on-decline callback so
-`WriteGuardRoute.tsx`'s duplicate `IonAlert` can retire, or reconciling `useResource`'s generic
-error text against the deck — deliberately not attempted in Phase 12, see that section for why);
-or the two gaps 12.6 found and deliberately left as accepted, documented limitations rather than
-further `b-view` changes (`EntryDetail`'s single `reactions` slot can't independently hide just
-Star or just Favourite; its own inline location pin isn't routed through Capacitor's Browser plugin
-the way its description/comment links now are, via `onLinkClick`) — see `AGENT_LOG.md`'s Phase 12.6
-entry for the full reasoning on both. None of the four was asked for; check with the user before
-starting any of them. Verify with the standard full monorepo `typecheck && lint && test && build`
-once anything lands, same as every phase.
+until then. The feedback-polish cycle (Phase 12.7 and whatever comes after it) is otherwise
+open-ended and user-driven — check `/home/ims/dev/tmp/b-mobile-screenshots/feedback.md` for
+un-actioned entries before assuming there's nothing left there; it lives outside this repo (a
+scratch dir, not checked in) so it won't show up in `git log`.
+
+If picking up code-only work with no open feedback item to drive it, the honest candidates are:
+the two loose ends flagged in "Phase 12 wishlist — DONE" above (giving `OverlayState` an
+on-decline callback so `WriteGuardRoute.tsx`'s duplicate `IonAlert` can retire, or reconciling
+`useResource`'s generic error text against the deck — still untouched as of Phase 12.7); the two
+gaps 12.6 found and deliberately left as accepted, documented limitations (`EntryDetail`'s single
+`reactions` slot can't independently hide just Star or just Favourite; its own inline location pin
+isn't routed through Capacitor's Browser plugin the way its description/comment links now are, via
+`onLinkClick`) — see `AGENT_LOG.md`'s Phase 12.6 entry for the full reasoning on both; or Phase
+12.7's own carried-forward item, a real-device sign-in check of the new embedded-WebView "force new
+sign-in" cookie-clearing path (`614be11`), never exercised outside the build — see `AGENT_LOG.md`'s
+Phase 12.7 entry. None of these was asked for; check with the user before starting any of them.
+Verify with the standard full monorepo `typecheck && lint && test && build` once anything lands,
+same as every phase.
 
 ## b-view reuse — done (Phase 12.6, 2026-08-05)
 
@@ -396,3 +383,20 @@ small new optional `b-view` props found necessary along the way).
   returns award names/meanings. `awardLabel()` shows "Secret" purely off each award's own `secret`
   flag (not `added_stamp`), on the assumption the API clears `secret` once earned — unverified
   against a live earned-secret-award response, since no test account has one.
+- **Anything reading `accountsStore` on mount must await `state/authReady.ts` first** (Phase 12.7,
+  `9ce73b0`) — hydration (and, in dev/browser-testing, the `VITE_DEV_TOKEN` seed) is async;
+  `activeAccountId` being unset while it's still in flight looks identical to "signed out," so a
+  screen/fetcher that reads the store too early silently takes the signed-out branch instead of
+  erroring loudly. `getClient()` already awaits it; anything new that reads the store directly
+  (bypassing `getClient()`) needs to as well, or it'll reproduce the exact bug this fixed.
+- **Android's `CapacitorHttp` ignores `responseType: 'text'` whenever the response's
+  `Content-Type` is `application/json`** (Phase 12.7, `f34b7f3`) — hands back an already-parsed
+  object instead of a string, breaking any code (like `platformFetch`) that assumes a string
+  contract unconditionally and calls `JSON.parse` on it itself. Re-stringify if what comes back
+  isn't already a string; don't assume `responseType` is honoured on native.
+- **`IonHeader`/`IonToolbar` reserve safe-area padding automatically; nothing else does** (Phase
+  12.7, `40526a0`) — any screen area with no `IonHeader` above it (e.g. `IonMenu`'s content) or no
+  `IonFooter` below scrollable content needs its own explicit safe-area padding, or content renders
+  under the status bar / gesture nav bar on a real device. Confirmed via CDP against live device
+  insets (34px top / 48px bottom), not guessed — check actual insets again if this needs revisiting
+  rather than reusing these exact numbers on a different device class.

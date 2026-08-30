@@ -2038,3 +2038,112 @@ test once `Lightbox`'s `onImageError` restored that behaviour).
 **Next:** Phase 13 (deploy/test `b-push`) remains next per `PLAN.md`, still blocked on the user
 providing Cloudflare/Firebase credentials — unaffected by this phase. `RESUME.md` updated
 accordingly.
+
+## 2026-08-14 — Phase 12.7: feedback-polish round, root-cause bug fixes, native platform fixes
+
+Backfilled 2026-08-30 — this entry covers 2026-08-08 through 2026-08-14, written up retroactively
+because it wasn't logged as it happened (this file's own "written as it happens, not batched"
+convention lapsed across this stretch). Work in this window came from two sources: a recurring
+screenshot-review/`feedback.md` cycle with the user (Playwright captures of every screen, the user
+annotating "Happy" or specific complaints, fixed round by round) run across several HAPI sessions,
+and the user's own direct commits alongside them. Not part of `PLAN.md`'s original phase list —
+same footing as Phase 12.6.
+
+### Root-cause bug fixes (surfaced by real API/device testing, not by inspection)
+
+- **`getClient()` read `accountsStore` before hydration finished** (`9ce73b0`) — the single root
+  cause behind three separately-reported "bugs": me-awards ("No username(s) provided"),
+  me-refused/me-requests ("user access token is missing"), and settings-general/journal/profile/
+  notifications ("Could not load..."). Reading `activeAccountId` too early looks identical to
+  "signed out", so `getClient()` silently fell back to the anonymous client, which several of
+  these endpoints correctly (if confusingly) reject as user-auth-only. Fixed with a new
+  `state/authReady.ts` — a plain resolvable promise `AppShell` resolves once hydration (and any
+  `VITE_DEV_TOKEN` dev-seed) has genuinely settled; `getClient()` awaits it before touching the
+  store. `settings-notifications`'s "Could not load" turned out not to be an unimplemented service
+  at all, just this same race.
+- **`ProfileScreen`'s own-profile fetch used the raw `username` route prop, not
+  `effectiveUsername`** (`54c6ba0`) — `/me` mounts with no `username` prop at all, expecting a
+  fall-back to the active account; every other action on the screen already resolved through
+  `effectiveUsername`, the profile fetch alone didn't, so `/me` always requested a profile with no
+  username. Same class of bug independently found on `AwardsScreen` (`9ce73b0`'s second half).
+- **`verifyToken()` (`b-api`) didn't unwrap `GET oauth/token`'s envelope** (`ebea108`) — every
+  `oauth/token` response nests its payload under `token`, which `exchangeCode`/`loginWithPassword`
+  already expected but `verifyToken()` didn't, so `username`/`scope` silently came back
+  `undefined` on every real call. Masked in the real OAuth round by two independent fallbacks
+  (username from the redirect URL, scope from the requested value) that happen to match when the
+  server grants everything asked for — visible only via `VITE_DEV_TOKEN`'s direct-verify path,
+  where `username` persisted as the literal string `"undefined"`. Existing tests mocked the same
+  wrong flat shape as the bug, so they didn't catch it.
+- **`user/awards.json` returns the full award catalog, not just earned awards** (`879516c`,
+  `0c2a874`) — see `RESUME.md`'s gotchas list for full detail; `AwardsScreen.tsx` used to render
+  every catalog entry as earned.
+- **Dev-token auto-seed fired during Vitest runs** (`e1d2b06`) — guarded on
+  `import.meta.env.DEV`, which Vitest also sets true (`MODE` is `'test'`, not `'development'`), so
+  a real `VITE_DEV_TOKEN` was making a live network call and mutating the shared `accountsStore`
+  singleton on every test run mounting `AppShell`. Switched the guard to `MODE === 'development'`.
+
+### Screen redesigns from the feedback round
+
+- **Shared `AppHeader`** (`b7f795d`, `af4fa02`) — every screen (20 standard + 5 Cancel/Save modal
+  screens) now shares one header component instead of hand-rolled `IonHeader`/`IonToolbar` blocks;
+  fixed the icon-not-actually-white bug (`--ion-toolbar-color`, not `--color`), gave
+  Settings/Help/Accounts a menu-or-back button they previously lacked entirely, and moved the 5
+  modal screens' primary action to a bottom full-width button per `style-guide.md`.
+- **Comments inbox redesign + real badges** (`6879e10`) — matches blipfoto.com's own comment
+  styling; surfaced two real `b-api` typing bugs found against live data, not invented:
+  `BlipComment.commenter` dropped `icons` entirely, and `BlipUser.icons` was typed as
+  `icon_id_str` when the API actually sends `icon_id`. New `UserBadges` component now also used on
+  `UserRow` (Search/Followers/Following/Pending/Refused) and `ProfileScreen`'s own header
+  (`7a06430`), replacing a hand-rolled single-boolean "★member" marker.
+- **Icon guide now shows real content** (`1538050`, `8f22325`, `c914c6a`) — previously invented
+  content (award badges, star/favourite, follow status) with no correspondence to
+  blipfoto.com/help/icons at all; replaced with the real entry-count tiers and real badge images,
+  narrowed to exactly the `icon_id`s the API actually returns (Blipfuture pledge tiers dropped —
+  confirmed the API never sends them).
+- **Delete-account interstitial** (`1538050`) — now confirms via `IonAlert` before opening
+  Blipfoto's website, instead of navigating straight there.
+- **Followers/Following "Remove"** (`b25c430`) — swapped a full-width text button for a plain
+  icon; same handler, same confirmation dialog, just visually lighter.
+- **Notifications: BBCode rendering + spacious redesign** (`274ce90`).
+- **Settings split into Account/App sections + new Browsing section + pinch-to-zoom** (`bb88247`)
+  — `SettingsScreen.tsx`'s hub now groups server-backed rows ("Blipfoto Account Settings":
+  General/Journal/Profile/Notifications/Refused followers) separately from device-local ones ("App
+  Settings": Accounts/Reminders/Hidden members/Browsing/Misc), previously interleaved in one flat
+  list. New Browsing section adds three `ThumbnailGrid` display prefs (zoom bar, pagination,
+  margins mode); `ThumbnailGrid` itself (shared with the desktop viewer) gained
+  `showZoomControls`/`showPagination`/`margins` props, all defaulting to prior behaviour, plus a
+  new `usePinchZoom` hook alongside the existing swipe gesture.
+- Small copy/spacing fixes: licences link to the project's own source (`11c24fe`), Hidden-members
+  scope clarified as device-local (`0fd6d60`), General/Journal settings spacing (`550b5e8`), Misc's
+  downsizing checkbox disabled with honest copy instead of implying it works (`b14d46d`).
+
+### Native/platform fixes
+
+- **Android's `CapacitorHttp` force-parses JSON responses** (`f34b7f3`) — ignores
+  `responseType: 'text'` whenever `Content-Type: application/json`, handing back an
+  already-parsed object; `platformFetch` assumed the string contract held unconditionally, so
+  `response.text()` returned `"[object Object]"` and every `b-api` call's `JSON.parse` blew up on
+  first native launch. Re-stringify when the native layer hands back a non-string.
+- **Safe-area padding missing on `IonMenu` and scrollable `IonContent`** (`40526a0`) —
+  `IonHeader`/`IonToolbar` reserve top safe-area padding automatically, but `IonMenu` has no header
+  above it (first item rendered under the status bar) and nothing reserved bottom safe-area space
+  with no `IonFooter` anywhere (last row of a feed/grid rendered under the gesture nav bar).
+  Confirmed against a live device via CDP (34px top / 48px bottom), not guessed.
+- **"Force new sign-in" embedded-browser OAuth option** (`614be11`) — adding a second account was
+  cumbersome because Chrome Custom Tabs shares the OS browser's cookies, so sign-in usually reused
+  the first account's session; `@capacitor/browser` has no incognito option. New
+  `EmbeddedAuthPlugin`/`EmbeddedAuthActivity` open the OAuth URL in an app-owned `WebView` with
+  `CookieManager` cleared up front, mirroring `b-ark`'s Electron `startOAuthFlowEmbedded`. **The
+  native cookie-clearing path itself hasn't been exercised on a real device yet** — no adb
+  connection was available in that session; needs a real-device sign-in check before shipping.
+
+### Verification
+
+Full monorepo `typecheck && lint && test && build` green as of this backfill (2026-08-30): 854
+tests across 98 files, `b-mobile`'s own build succeeds. Chunk-size warning is now three >500KB
+chunks rather than the two `RESUME.md` last reconfirmed at Phase 10 (`mapTiles`, and a new
+`AppHeader`-named ~1MB chunk absorbing what was previously `@ionic/react`'s own chunk) — not
+investigated further as part of this backfill, flagged here for whoever next touches bundle size.
+
+**Next:** Phase 13 (deploy/test `b-push`) is still next and still blocked on the same Cloudflare/
+Firebase credentials. `RESUME.md`'s Status/Last-completed-step updated accordingly.
