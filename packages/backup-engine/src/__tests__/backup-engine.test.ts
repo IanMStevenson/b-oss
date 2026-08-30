@@ -1241,7 +1241,7 @@ describe('BackupEngine — writes BlipEntry schema', () => {
         thumbnail_url: 'https://example.com/c.jpg',
         content: 'Good colours',
         content_html: 'Good colours',
-        commenter: { username: 'annejohn', avatar_url: 'https://example.com/a.jpg' },
+        commenter: { username: 'annejohn', avatar_url: 'https://example.com/a.jpg', icons: [] },
         actions: { reply: 1 as const, edit: 0 as const, delete: 0 as const },
         replies: [],
       },
