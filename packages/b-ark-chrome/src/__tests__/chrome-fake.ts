@@ -20,6 +20,10 @@ export interface FakeChrome {
   storage: Map<string, unknown>;
   tabs: Map<number, FakeTab>;
   windowUpdates: Array<{ windowId: number; focused: boolean }>;
+  /** Messages sent via chrome.tabs.sendMessage(tabId, message), in call order. */
+  sentTabMessages: Array<{ tabId: number; message: unknown }>;
+  /** Tab ids for which the next chrome.tabs.sendMessage call should reject, simulating a tab with no receiving end (e.g. still loading). */
+  failSendMessageTo: Set<number>;
   /** Simulate a tab closing outside of sw.ts's own tabs.remove calls (e.g. the user closed it) — deletes it and fires onRemoved, same as a real tab closing. */
   removeTab(tabId: number): void;
   dispatchMessage(msg: unknown): void;
@@ -40,6 +44,8 @@ export function installChromeFake(): FakeChrome {
   const storage = new Map<string, unknown>();
   const tabs = new Map<number, FakeTab>();
   const windowUpdates: Array<{ windowId: number; focused: boolean }> = [];
+  const sentTabMessages: Array<{ tabId: number; message: unknown }> = [];
+  const failSendMessageTo = new Set<number>();
   const removedListeners: Array<(tabId: number) => void> = [];
   const messageListeners: Array<(msg: unknown) => void> = [];
   const actionClickListeners: Array<() => void> = [];
@@ -101,6 +107,15 @@ export function installChromeFake(): FakeChrome {
           removedListeners.push(fn);
         },
       },
+      sendMessage(tabId: number, message: unknown): Promise<void> {
+        sentTabMessages.push({ tabId, message });
+        if (failSendMessageTo.has(tabId)) {
+          return Promise.reject(
+            new Error('Could not establish connection. Receiving end does not exist.'),
+          );
+        }
+        return Promise.resolve();
+      },
     },
     windows: {
       update(windowId: number, props: { focused: boolean }): Promise<void> {
@@ -135,6 +150,8 @@ export function installChromeFake(): FakeChrome {
     storage,
     tabs,
     windowUpdates,
+    sentTabMessages,
+    failSendMessageTo,
     removeTab: removeTabAndNotify,
     dispatchMessage(msg: unknown) {
       for (const fn of messageListeners) fn(msg);
@@ -146,6 +163,8 @@ export function installChromeFake(): FakeChrome {
       storage.clear();
       tabs.clear();
       windowUpdates.length = 0;
+      sentTabMessages.length = 0;
+      failSendMessageTo.clear();
       nextTabId = 1;
     },
     uninstall() {

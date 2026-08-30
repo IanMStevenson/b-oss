@@ -192,8 +192,10 @@ export async function triggerIfDue(): Promise<void> {
 
 /**
  * Called when the user clicks Publish or Save changes on a Blipfoto entry page.
- * If a backup is already running (or a tab is already open), sets a pending flag
- * so that another pass starts as soon as the current one finishes.
+ * If a backup is genuinely running, sets a pending flag so that another pass starts
+ * as soon as the current one finishes. If a backup tab is merely open but idle (e.g.
+ * opened via the toolbar icon, so it never auto-started), nothing would ever consume
+ * that pending flag — so instead this asks the idle tab to start a backup directly.
  */
 export async function publishDetected(): Promise<void> {
   const r = await chrome.storage.local.get([
@@ -210,8 +212,19 @@ export async function publishDetected(): Promise<void> {
 
   const existingTabId = await getLiveBackupTabId();
 
-  if (isBackupStillRunning(rag, progress, existingTabId) || existingTabId !== null) {
+  if (isBackupStillRunning(rag, progress, existingTabId)) {
     await setPublishPending();
+    return;
+  }
+
+  if (existingTabId !== null) {
+    try {
+      await chrome.tabs.sendMessage(existingTabId, { type: 'start_backup_now' });
+    } catch {
+      // Tab isn't ready to receive messages (e.g. still loading) — fall back to the
+      // pending flag; it'll be replayed the next time a backup on that tab completes.
+      await setPublishPending();
+    }
     return;
   }
 

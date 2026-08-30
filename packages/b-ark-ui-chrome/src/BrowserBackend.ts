@@ -137,6 +137,16 @@ export class BrowserBackend implements BackendContext {
         }
       });
 
+      // The SW sends this when a publish is detected while this tab is open but idle
+      // (e.g. opened via the toolbar icon, so it never auto-started) — there'd otherwise
+      // be nothing to consume a deferred "backup pending" flag.
+      chrome.runtime.onMessage.addListener((msg: unknown) => {
+        if (typeof msg !== 'object' || msg === null || !('type' in msg)) return;
+        if ((msg as { type: string }).type === 'start_backup_now') {
+          void this._startFirstAccountBackup();
+        }
+      });
+
       const store = await this.getStore();
       this._emit({ type: 'store:changed', store });
 
@@ -145,13 +155,16 @@ export class BrowserBackend implements BackendContext {
       void this._maybeDeployViewer();
 
       // Auto-start backup when launched by the visit-trigger
-      if (this._autoLaunched) {
-        const boot = await this.getBootState();
-        if (boot.stage === 'ready' && boot.store.accounts[0]) {
-          void this.startBackup(boot.store.accounts[0].id);
-        }
-      }
+      if (this._autoLaunched) void this._startFirstAccountBackup();
     })();
+  }
+
+  /** startBackup() itself no-ops if a backup is already running in this tab. */
+  private async _startFirstAccountBackup(): Promise<void> {
+    const boot = await this.getBootState();
+    if (boot.stage === 'ready' && boot.store.accounts[0]) {
+      void this.startBackup(boot.store.accounts[0].id);
+    }
   }
 
   private async _onOAuthSuccess(): Promise<void> {

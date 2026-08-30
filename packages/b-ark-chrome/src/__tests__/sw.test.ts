@@ -171,14 +171,17 @@ describe('publishDetected', () => {
     fake.storage.set('folder_ready', true);
   }
 
-  it('defers via publish_pending when a live backup tab already exists', async () => {
+  it('defers via publish_pending when a backup is genuinely running on a live tab', async () => {
     markSetUp();
     const tab = await chrome.tabs.create({ url: 'x' });
-    fake.storage.set('backup_tab_id', tab.id);
+    fake.storage.set('backup_tab_id', requireId(tab));
+    fake.storage.set('chip_rag', 'amber');
+    fake.storage.set('chip_progress', { done: 0, total: 1 });
 
     await sw.publishDetected();
     expect(fake.storage.get('publish_pending')).toBe(true);
     expect(fake.tabs.size).toBe(1); // no second tab
+    expect(fake.sentTabMessages).toHaveLength(0);
   });
 
   it('regression: self-heals a stuck amber+progress state with no live tab, launching fresh instead of deferring forever', async () => {
@@ -196,6 +199,34 @@ describe('publishDetected', () => {
     fake.storage.set('chip_rag', 'green');
 
     await sw.publishDetected();
+    expect(fake.tabs.size).toBe(1);
+  });
+
+  it('regression: messages an open-but-idle tab to start a backup, instead of deferring into a flag nothing will ever consume', async () => {
+    markSetUp();
+    const tab = await chrome.tabs.create({ url: 'x' });
+    const tabId = requireId(tab);
+    fake.storage.set('backup_tab_id', tabId);
+    fake.storage.set('chip_rag', 'green'); // open, but not actively backing up
+
+    await sw.publishDetected();
+
+    expect(fake.sentTabMessages).toEqual([{ tabId, message: { type: 'start_backup_now' } }]);
+    expect(fake.tabs.size).toBe(1); // no second tab opened
+    expect(fake.storage.has('publish_pending')).toBe(false);
+  });
+
+  it('falls back to publish_pending when the idle tab cannot be reached', async () => {
+    markSetUp();
+    const tab = await chrome.tabs.create({ url: 'x' });
+    const tabId = requireId(tab);
+    fake.storage.set('backup_tab_id', tabId);
+    fake.storage.set('chip_rag', 'green');
+    fake.failSendMessageTo.add(tabId);
+
+    await sw.publishDetected();
+
+    expect(fake.storage.get('publish_pending')).toBe(true);
     expect(fake.tabs.size).toBe(1);
   });
 });
