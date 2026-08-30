@@ -344,7 +344,10 @@ small new optional `b-view` props found necessary along the way).
   API** — design is source-verified (app-architecture.md §7), still worth a real device test as
   part of the manual §19 layer-3 checklist once a device/emulator is available.
 - **`devicePrefsStore.uploadFullSize` has no consumer yet** — persists, defaults to `true`, but no
-  client-side photo downscaling exists anywhere in this app yet.
+  client-side photo downscaling exists anywhere in this app yet. As of the feedback-polish round
+  that ended 2026-08-12, `MiscSection.tsx`'s checkbox is disabled and its copy says so plainly
+  (it previously implied downscaling worked); the underlying feature itself is still unbuilt — see
+  `TODO.md`.
 - **`SCR-18`'s "Remove follower" is a documented, deliberate gap, not an oversight** — `SCR-19`'s
   Followers list is the correct place for it (already built, already works).
 - **`android/`'s manifest permission list is deliberately redundant with what individual Capacitor
@@ -383,3 +386,13 @@ small new optional `b-view` props found necessary along the way).
   failure rather than an obvious one. Always give every mocked async method in a multi-call chain
   an explicit `mockResolvedValue`/`mockRejectedValue`, even ones a given test doesn't think it
   needs, if the code under test calls them unconditionally.
+- **`user/awards.json` returns the account's full award catalog, not just what's been earned** —
+  confirmed 2026-08-11 against a live response: a test account with only 2 real awards still got
+  back all 12 catalog entries, with `added_stamp: null` on the unearned 10. `BlipAward` already
+  typed `added_stamp`/`secret` correctly, but `AwardsScreen.tsx` ignored both and rendered every
+  entry as earned — a real bug, not a display choice, fixed in the 2026-08-12 feedback-polish
+  round. Award names (`AWARD_SLUGS` in `AwardsScreen.tsx`) came from a slug/icon-URL table the user
+  supplied directly in chat, not from any Blipfoto API or public doc — there's no endpoint that
+  returns award names/meanings. `awardLabel()` shows "Secret" purely off each award's own `secret`
+  flag (not `added_stamp`), on the assumption the API clears `secret` once earned — unverified
+  against a live earned-secret-award response, since no test account has one.
