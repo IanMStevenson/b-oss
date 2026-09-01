@@ -44,6 +44,10 @@ export default defineConfig({
         find: /^@b-oss\/b-ark-ui-components$/,
         replacement: resolve(__dirname, '../b-ark-ui-components/src/index.ts'),
       },
+      {
+        find: /^@b-oss\/backup-engine$/,
+        replacement: resolve(__dirname, '../backup-engine/src/index.ts'),
+      },
     ],
   },
   plugins: [react(), crx({ manifest })],
