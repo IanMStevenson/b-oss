@@ -12,7 +12,10 @@ interface BackupBannerProps {
   countdownSeconds: number | null;
 }
 
-const PHASE_ORDER: BackupPhase[] = ['redo', 'gap_fill', 'new_posts', 'image_repair'];
+// Must match the engine's actual execution order (backup-engine.ts's runRoutineBackup) —
+// cellFill() below assumes cells before the active phase are complete and cells after it
+// haven't started, which only holds if this array's order matches reality. See b-oss#86.
+const PHASE_ORDER: BackupPhase[] = ['new_posts', 'gap_fill', 'redo', 'image_repair'];
 const PHASE_LABELS: Partial<Record<BackupPhase, string>> = {
   redo: 'REDO',
   gap_fill: 'GAPS',
