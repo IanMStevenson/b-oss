@@ -1460,6 +1460,90 @@ describe('BackupEngine — image_repair_complete (b-oss#85)', () => {
     expect(aEntry.images.web_scraped).toBe(true);
     expect(bEntry.images.web_scraped).toBe(true);
   });
+
+  it('only applies api_delay_ms to entries the repair pass actually did network work for', async () => {
+    const io = new MockPlatformIO();
+    const client = makeClient();
+
+    const journal: JournalMetadata = {
+      schema_version: 1,
+      username: 'gbradley',
+      journal_title: 't',
+      avatar_url: 'a',
+      entry_total: 3,
+      last_backup_at: '2024-01-01T00:00:00Z',
+      entries: [
+        {
+          entry_id: 'A1',
+          date: '2024-01-20',
+          title: 'a',
+          thumbnail_path: 'entries/2024/2024-01-20-t.jpg',
+          json_path: 'entries/2024/2024-01-20.json',
+        },
+        {
+          entry_id: 'B1',
+          date: '2024-01-10',
+          title: 'b',
+          thumbnail_path: 'entries/2024/2024-01-10-t.jpg',
+          json_path: 'entries/2024/2024-01-10.json',
+        },
+        {
+          entry_id: 'C1',
+          date: '2024-01-05',
+          title: 'c',
+          thumbnail_path: 'entries/2024/2024-01-05-t.jpg',
+          json_path: 'entries/2024/2024-01-05.json',
+        },
+      ],
+    };
+    io.files.set('/backups/gbradley/journal.json', JSON.stringify(journal));
+    // A1: image missing — real network work (full repair fetch + inline scrape).
+    // B1: image present, never scraped — real network work (scrape-only).
+    // C1: image present, already scraped with its original on disk — pure local checks,
+    // no network work at all; this is the entry the bug applied a needless sleep to.
+    io.files.set('/backups/gbradley/entries/2024/2024-01-10.jpg', '<placeholder>');
+    io.files.set(
+      '/backups/gbradley/entries/2024/2024-01-10.json',
+      JSON.stringify({ schema_version: 1, entry_id: 'B1', date: '2024-01-10', images: {} }),
+    );
+    io.files.set('/backups/gbradley/entries/2024/2024-01-05.jpg', '<placeholder>');
+    io.files.set('/backups/gbradley/entries/2024/2024-01-05-o.jpg', '<placeholder>');
+    io.files.set(
+      '/backups/gbradley/entries/2024/2024-01-05.json',
+      JSON.stringify({
+        schema_version: 1,
+        entry_id: 'C1',
+        date: '2024-01-05',
+        images: { web_scraped: true, original: 'entries/2024/2024-01-05-o.jpg' },
+      }),
+    );
+
+    vi.spyOn(client, 'getUserProfile').mockResolvedValue(makeProfileResponse(3));
+    vi.spyOn(client, 'getJournalEntries').mockResolvedValue({
+      page: { index: 0, size: 100, more: 0 },
+      entries: [],
+    });
+    vi.spyOn(client, 'getEntry').mockImplementation((id: string) =>
+      Promise.resolve(makeEntryResponse(id, id === 'A1' ? '2024-01-20' : '2024-01-10')),
+    );
+    vi.spyOn(io, 'fetchHtml').mockResolvedValue(
+      '<script>blipfoto.data.gallery = {"items":[]};</script>',
+    );
+    // sleep() calls the real global setTimeout — spy without replacing it so a tiny delay
+    // (1ms) keeps the test fast while still letting us count how many times it actually fired.
+    const setTimeoutSpy = vi.spyOn(global, 'setTimeout');
+
+    await makeEngine(
+      makeConfig({ redo_count: 0, enable_web_scrape: true, api_delay_ms: 1 }),
+      io,
+      client,
+      () => {},
+    ).run();
+
+    // Exactly 2 calls (A1's repair, B1's scrape) — not 3, which is what the bug produced by
+    // sleeping after every entry checked, including C1's pure local no-op.
+    expect(setTimeoutSpy).toHaveBeenCalledTimes(2);
+  });
 });
 
 describe('BackupEngine — entry replacement', () => {

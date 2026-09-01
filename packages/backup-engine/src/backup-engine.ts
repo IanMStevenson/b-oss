@@ -730,8 +730,16 @@ export class BackupEngine {
         this.checkCancelled();
         const imageAbs = joinPath(journalFolder, JournalIndex.entryImagePath(entryIdx.date));
         const imagePresent = await this.io.fileExists(imageAbs);
+        // Only entries that actually hit the network (a repair fetch or a scrape) pay the
+        // api_delay_ms courtesy pause — the plain existence/JSON checks below are local disk
+        // reads with nothing to be polite to the API about. Losing this distinction during
+        // the image_repair/full_image_repair merge meant every entry paid the delay
+        // regardless, turning a courtesy pause for real requests into ~6,800 sleeps on a
+        // large archive (invisible on Chrome's default 0ms, ~28 minutes on Electron's 250ms).
+        let didNetworkWork = false;
 
         if (!imagePresent) {
+          didNetworkWork = true;
           await this.appendLog('info', `Re-fetching entry ${entryIdx.date} (image repair)`);
           try {
             const entry = await this.fetchAndWriteEntry(entryIdx.entry_id, journalFolder);
@@ -797,6 +805,7 @@ export class BackupEngine {
               }
             }
             if (needsScrape) {
+              didNetworkWork = true;
               await this.appendLog(
                 'info',
                 `Scraping full images for ${entryIdx.date} (image repair)`,
@@ -834,7 +843,7 @@ export class BackupEngine {
           total_archived: indexByDate.size,
           phase: 'image_repair',
         });
-        if (this.config.api_delay_ms > 0) {
+        if (didNetworkWork && this.config.api_delay_ms > 0) {
           await sleep(this.config.api_delay_ms);
         }
       }
