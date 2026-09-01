@@ -20,15 +20,15 @@
   "dependencies": {
     "@b-oss/b-view": "*",
     "@b-oss/backup-engine": "*",
-    "lucide-react": "^1.33.0",
+    "lucide-react": "^1.37.0",
     "react": "^19.2.8",
     "react-dom": "^19.2.8"
   },
   "devDependencies": {
-    "@testing-library/react": "^16.0.0",
+    "@testing-library/react": "^16.3.3",
     "@testing-library/user-event": "^14.6.6",
     "@types/react": "^19.2.18",
-    "@types/react-dom": "^19.2.4",
+    "@types/react-dom": "^19.2.5",
     "@vitejs/plugin-react": "^5.0.0",
     "jsdom": "^30.0.1",
     "vite": "^8.2.2",
