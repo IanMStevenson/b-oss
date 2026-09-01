@@ -78,6 +78,12 @@ export interface EntryIndex {
   json_path: string;
 }
 
+/** The settings a completed image-repair/web-scrape pass found nothing outstanding under. */
+export interface ImageRepairState {
+  enable_web_scrape: boolean;
+  download_hires: boolean;
+}
+
 export interface JournalMetadata {
   schema_version: 1;
   username: string;
@@ -86,6 +92,12 @@ export interface JournalMetadata {
   entry_total: number;
   last_backup_at: string;
   entries: EntryIndex[];
+  /**
+   * Set only when a full image-repair pass most recently completed with zero gaps under
+   * exactly these settings — the next run skips the pass entirely as long as the current
+   * settings still match. Absent, or a settings mismatch, means a full pass is needed.
+   */
+  image_repair_complete?: ImageRepairState;
 }
 
 export interface BackupCheckpoint {
@@ -102,7 +114,7 @@ export type BackupErrorPayload =
   | { kind: 'filesystem'; message: string }
   | { kind: 'unexpected'; message: string };
 
-export type BackupPhase = 'redo' | 'gap_fill' | 'new_posts' | 'image_repair' | 'full_image_repair';
+export type BackupPhase = 'redo' | 'gap_fill' | 'new_posts' | 'image_repair';
 
 export type BackupEvent =
   | {

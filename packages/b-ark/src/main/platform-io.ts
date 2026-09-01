@@ -43,6 +43,10 @@ export class ElectronPlatformIO implements PlatformIO {
     await fs.writeFile(p, data);
   }
 
+  async appendFile(p: string, data: Uint8Array | string): Promise<void> {
+    await fs.appendFile(p, data);
+  }
+
   async ensureDir(p: string): Promise<void> {
     await fs.mkdir(p, { recursive: true });
   }

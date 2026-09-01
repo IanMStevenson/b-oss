@@ -20,12 +20,6 @@ const PHASE_LABELS: Partial<Record<BackupPhase, string>> = {
   image_repair: 'FIX',
 };
 
-// full_image_repair is a continuation of image_repair — map it for display purposes.
-function displayPhase(phase: BackupPhase | null): BackupPhase | null {
-  if (phase === 'full_image_repair') return 'image_repair';
-  return phase;
-}
-
 function phaseSubText(phase: BackupPhase | null, done: number, total: number): string {
   if (phase === null) return '';
   if (phase === 'redo') return `Re-checking recent · ${done} of ${total}`;
@@ -37,9 +31,6 @@ function phaseSubText(phase: BackupPhase | null, done: number, total: number): s
       ? 'Fetching new entries · none'
       : `Fetching new entries · ${done} of ${total}`;
   }
-  if (phase === 'full_image_repair') {
-    return `Fetching full images · ${done} of ${total}`;
-  }
   return total === 0 ? 'Repairing images · none' : `Repairing images · ${done} of ${total}`;
 }
 
@@ -49,10 +40,9 @@ function cellFill(
   done: number,
   total: number,
 ): number {
-  const mapped = displayPhase(activePhase);
-  if (mapped === null) return 0;
+  if (activePhase === null) return 0;
   const cellIdx = PHASE_ORDER.indexOf(cellPhase);
-  const activeIdx = PHASE_ORDER.indexOf(mapped);
+  const activeIdx = PHASE_ORDER.indexOf(activePhase);
   if (cellIdx < activeIdx) return 100;
   if (cellIdx > activeIdx) return 0;
   if (total === 0) return 100;
@@ -225,7 +215,7 @@ export function BackupBanner({
                   fontWeight: 600,
                   textAlign: 'center',
                   letterSpacing: 0.5,
-                  color: p === displayPhase(progress.phase) ? 'var(--green-900)' : 'var(--muted)',
+                  color: p === progress.phase ? 'var(--green-900)' : 'var(--muted)',
                 }}
               >
                 {PHASE_LABELS[p]}

@@ -21,6 +21,7 @@ import type {
   BlipComment,
   BlipEntry,
   EntryIndex,
+  ImageRepairState,
   JournalMetadata,
   LogEntry,
 } from './types.js';
@@ -123,6 +124,13 @@ export class BackupEngine {
   private runLogMgr: LogManager | null = null;
   private runBackupId: string | null = null;
 
+  // Set whenever any image/scrape download fails anywhere this run (not just inside the
+  // repair pass) — used to decide whether it's safe to persist image_repair_complete. See
+  // b-oss#85: a routine redo/gap-fill/new-posts run can otherwise "succeed" while silently
+  // leaving a fresh entry with a missing image, since per-download failures there are only
+  // warn-logged, not surfaced to the caller.
+  private hadImageGap = false;
+
   constructor(
     private readonly config: AccountBackupConfig,
     private readonly io: PlatformIO,
@@ -144,6 +152,7 @@ export class BackupEngine {
 
     this.runLogMgr = this.logMgr;
     this.runBackupId = newId();
+    this.hadImageGap = false;
 
     try {
       const checkpoint = await checkpointMgr.load();
@@ -341,6 +350,15 @@ export class BackupEngine {
       entry_total: finalEntries.length,
       last_backup_at: nowIso(),
       entries: finalEntries,
+      // Every entry above went through fetchAndWriteEntry(), which already attempts the
+      // scrape too — so a first backup with no gaps is already fully repaired, and the
+      // very next routine run can skip the repair pass entirely. See b-oss#85.
+      image_repair_complete: this.hadImageGap
+        ? undefined
+        : {
+            enable_web_scrape: this.config.enable_web_scrape,
+            download_hires: this.config.download_hires,
+          },
     };
     await journalIndex.save(metadata);
     await checkpointMgr.clear();
@@ -665,146 +683,150 @@ export class BackupEngine {
       }
     }
 
-    // Phase-entry emit for FIX. Total grows lazily as we discover repairs.
-    this.onEvent({
-      type: 'progress',
-      account_id: this.config.id,
-      done: 0,
-      total: 0,
-      current_date: '',
-      total_archived: indexByDate.size,
-      phase: 'image_repair',
-    });
-    let repairs = 0;
-    for (const entryIdx of [...indexById.values()]) {
-      this.checkCancelled();
-      const imageRel = JournalIndex.entryImagePath(entryIdx.date);
-      const imageAbs = joinPath(journalFolder, imageRel);
-      const present = await this.io.fileExists(imageAbs);
-      if (present) continue;
-      await this.appendLog('info', `Re-fetching entry ${entryIdx.date} (image repair)`);
-      try {
-        const entry = await this.fetchAndWriteEntry(entryIdx.entry_id, journalFolder);
-        indexByDate.set(entry.date, JournalIndex.toEntryIndex(entry));
-        indexById.set(entry.entry_id, JournalIndex.toEntryIndex(entry));
-        await this.appendLog('info', `Repaired missing image for ${entry.date}`);
-        consecutiveFailures = 0;
-        await saveSnapshot();
-        repairs++;
-        this.onEvent({
-          type: 'progress',
-          account_id: this.config.id,
-          done: repairs,
-          total: repairs,
-          current_date: entry.date,
-          total_archived: indexByDate.size,
-          phase: 'image_repair',
-        });
-      } catch (err) {
-        if (err instanceof BackupAbortedError) throw err;
-        consecutiveFailures++;
-        const message = err instanceof Error ? err.message : String(err);
-        await this.appendLog('warn', `Failed to repair image for ${entryIdx.date}: ${message}`);
-        if (consecutiveFailures >= MAX_CONSECUTIVE_FAILURES) {
-          await this.appendLog(
-            'warn',
-            'Backup paused after 3 consecutive errors — will retry at next scheduled run',
-          );
-          const code = err instanceof BlipfotoError ? err.code : 0;
-          throw new BackupAbortedError({ kind: 'api_error', code, message });
-        }
-      }
-    }
+    // Image repair (standard image) + web-scrape backstop (original/hires/extras), merged
+    // into one pass over every archived entry. Skipped entirely once a prior pass already
+    // confirmed every entry has everything the *current* enable_web_scrape/download_hires
+    // settings require, and nothing has gone wrong since (hadImageGap) — see b-oss#85.
+    const repairSettings: ImageRepairState = {
+      enable_web_scrape: this.config.enable_web_scrape,
+      download_hires: this.config.download_hires,
+    };
+    const priorRepairState = existing.image_repair_complete;
+    const skipRepair =
+      priorRepairState !== undefined &&
+      priorRepairState.enable_web_scrape === repairSettings.enable_web_scrape &&
+      priorRepairState.download_hires === repairSettings.download_hires;
 
-    if (this.config.enable_web_scrape) {
-      const scrapeTotal = indexById.size;
+    if (skipRepair) {
+      // Phase-entry emit so the FIX cell resolves even though nothing ran.
       this.onEvent({
         type: 'progress',
         account_id: this.config.id,
         done: 0,
-        total: scrapeTotal,
+        total: 0,
         current_date: '',
         total_archived: indexByDate.size,
-        phase: 'full_image_repair',
+        phase: 'image_repair',
       });
-      let scrapeChecked = 0;
+    } else {
+      const repairTotal = indexById.size;
+      this.onEvent({
+        type: 'progress',
+        account_id: this.config.id,
+        done: 0,
+        total: repairTotal,
+        current_date: '',
+        total_archived: indexByDate.size,
+        phase: 'image_repair',
+      });
+      let repairChecked = 0;
       for (const entryIdx of [...indexById.values()]) {
         this.checkCancelled();
-        const jsonAbs = joinPath(journalFolder, entryIdx.json_path);
-        let entry: BlipEntry;
-        try {
-          const buf = await this.io.readFile(jsonAbs);
-          entry = JSON.parse(new TextDecoder().decode(buf)) as BlipEntry;
-        } catch {
-          scrapeChecked++;
-          continue;
-        }
-        let needsScrape = !entry.images.web_scraped;
-        if (!needsScrape) {
-          const originalAbs = joinPath(
-            journalFolder,
-            JournalIndex.entryOriginalPath(entryIdx.date),
-          );
-          const missingMainOriginal =
-            !entry.images.original && !(await this.io.fileExists(originalAbs));
-          if (missingMainOriginal) {
-            needsScrape = true;
-          } else if (entry.images.extras) {
-            for (const extra of entry.images.extras) {
-              if (!extra.original) {
-                const extraOrigAbs = joinPath(
-                  journalFolder,
-                  JournalIndex.extraOriginalPath(entryIdx.date, extra.item_id),
-                );
-                if (!(await this.io.fileExists(extraOrigAbs))) {
-                  needsScrape = true;
-                  break;
+        const imageAbs = joinPath(journalFolder, JournalIndex.entryImagePath(entryIdx.date));
+        const imagePresent = await this.io.fileExists(imageAbs);
+
+        if (!imagePresent) {
+          await this.appendLog('info', `Re-fetching entry ${entryIdx.date} (image repair)`);
+          try {
+            const entry = await this.fetchAndWriteEntry(entryIdx.entry_id, journalFolder);
+            indexByDate.set(entry.date, JournalIndex.toEntryIndex(entry));
+            indexById.set(entry.entry_id, JournalIndex.toEntryIndex(entry));
+            await this.appendLog('info', `Repaired missing image for ${entry.date}`);
+            consecutiveFailures = 0;
+            await saveSnapshot();
+          } catch (err) {
+            if (err instanceof BackupAbortedError) throw err;
+            consecutiveFailures++;
+            const message = err instanceof Error ? err.message : String(err);
+            await this.appendLog('warn', `Failed to repair image for ${entryIdx.date}: ${message}`);
+            if (consecutiveFailures >= MAX_CONSECUTIVE_FAILURES) {
+              await this.appendLog(
+                'warn',
+                'Backup paused after 3 consecutive errors — will retry at next scheduled run',
+              );
+              const code = err instanceof BlipfotoError ? err.code : 0;
+              throw new BackupAbortedError({ kind: 'api_error', code, message });
+            }
+          }
+          // fetchAndWriteEntry() above already attempted the scrape too (if enabled), so
+          // this entry doesn't need the scrape-only check below regardless of how it went.
+        } else if (repairSettings.enable_web_scrape) {
+          const jsonAbs = joinPath(journalFolder, entryIdx.json_path);
+          let entry: BlipEntry | null = null;
+          try {
+            const buf = await this.io.readFile(jsonAbs);
+            entry = JSON.parse(new TextDecoder().decode(buf)) as BlipEntry;
+          } catch (err) {
+            this.hadImageGap = true;
+            const message = err instanceof Error ? err.message : String(err);
+            await this.appendLog(
+              'warn',
+              `Could not read/parse entry JSON for ${entryIdx.date} during image repair: ${message}`,
+            );
+          }
+          if (entry) {
+            let needsScrape = !entry.images.web_scraped;
+            if (!needsScrape) {
+              const originalAbs = joinPath(
+                journalFolder,
+                JournalIndex.entryOriginalPath(entryIdx.date),
+              );
+              const missingMainOriginal =
+                !entry.images.original && !(await this.io.fileExists(originalAbs));
+              if (missingMainOriginal) {
+                needsScrape = true;
+              } else if (entry.images.extras) {
+                for (const extra of entry.images.extras) {
+                  if (!extra.original) {
+                    const extraOrigAbs = joinPath(
+                      journalFolder,
+                      JournalIndex.extraOriginalPath(entryIdx.date, extra.item_id),
+                    );
+                    if (!(await this.io.fileExists(extraOrigAbs))) {
+                      needsScrape = true;
+                      break;
+                    }
+                  }
                 }
+              }
+            }
+            if (needsScrape) {
+              await this.appendLog(
+                'info',
+                `Scraping full images for ${entryIdx.date} (image repair)`,
+              );
+              try {
+                const items = await this.fetchGalleryData(entry.entry_id, entry.date);
+                if (items) {
+                  await this.fetchExtras(entry, journalFolder, items);
+                }
+                // Always write back so web_scraped:true is persisted — even when the page
+                // had no extras or downloads failed. Without this, every run re-scrapes
+                // all entries that downloaded nothing.
+                const serialised = JSON.stringify(entry, null, 2);
+                await this.io.atomicWrite(jsonAbs, serialised);
+              } catch (err) {
+                if (err instanceof BackupAbortedError) throw err;
+                this.hadImageGap = true;
+                const message = err instanceof Error ? err.message : String(err);
+                await this.appendLog(
+                  'warn',
+                  `Image scrape failed for ${entryIdx.date}: ${message}`,
+                );
               }
             }
           }
         }
-        if (!needsScrape) {
-          scrapeChecked++;
-          this.onEvent({
-            type: 'progress',
-            account_id: this.config.id,
-            done: scrapeChecked,
-            total: scrapeTotal,
-            current_date: entryIdx.date,
-            total_archived: indexByDate.size,
-            phase: 'full_image_repair',
-          });
-          continue;
-        }
-        await this.appendLog(
-          'info',
-          `Scraping full images for ${entryIdx.date} (full_image_repair)`,
-        );
-        try {
-          const items = await this.fetchGalleryData(entry.entry_id, entry.date);
-          if (items) {
-            await this.fetchExtras(entry, journalFolder, items);
-          }
-          // Always write back so web_scraped:true is persisted — even when the page
-          // had no extras or downloads failed. Without this, every run re-scrapes
-          // all entries that downloaded nothing, and the SW can hang on the Nth attempt.
-          const serialised = JSON.stringify(entry, null, 2);
-          await this.io.atomicWrite(jsonAbs, serialised);
-        } catch (err) {
-          if (err instanceof BackupAbortedError) throw err;
-          const message = err instanceof Error ? err.message : String(err);
-          await this.appendLog('warn', `full_image_repair failed for ${entryIdx.date}: ${message}`);
-        }
-        scrapeChecked++;
+
+        repairChecked++;
         this.onEvent({
           type: 'progress',
           account_id: this.config.id,
-          done: scrapeChecked,
-          total: scrapeTotal,
+          done: repairChecked,
+          total: repairTotal,
           current_date: entryIdx.date,
           total_archived: indexByDate.size,
-          phase: 'full_image_repair',
+          phase: 'image_repair',
         });
         if (this.config.api_delay_ms > 0) {
           await sleep(this.config.api_delay_ms);
@@ -820,6 +842,10 @@ export class BackupEngine {
       entry_total: entryTotal,
       last_backup_at: nowIso(),
       entries: [...indexByDate.values()],
+      // Carries the repair pass's outcome forward regardless of whether it ran this time
+      // (skipRepair) or ran clean just now — and drops it the moment anything (anywhere in
+      // this run, not just the repair pass) left a gap, so the next run does a full pass.
+      image_repair_complete: this.hadImageGap ? undefined : repairSettings,
     };
     await journalIndex.save(metadata);
     await this.runLogMgr!.trim(DEFAULT_LOG_TRIM_LINES);
@@ -934,6 +960,7 @@ export class BackupEngine {
         await this.io.downloadFile(dl.url, dl.destAbs);
         dl.assign();
       } catch (err) {
+        this.hadImageGap = true;
         const message = err instanceof Error ? err.message : String(err);
         await this.appendLog(
           'warn',
@@ -962,10 +989,17 @@ export class BackupEngine {
       const html = await this.io.fetchHtml(url);
       const items = extractGalleryItems(html);
       if (!items) {
-        await this.appendLog('warn', `Gallery marker not found in HTML for ${date}`);
+        // The page fetched fine but has no gallery marker — confirmed live on a real,
+        // large archive (b-oss#85) to be the normal, permanent state for plenty of
+        // entries (simple single-image posts never emit it), not evidence of a scrape
+        // failure. Treating this as a gap meant hadImageGap was ~always true on a real
+        // account, so the completion flag could never actually be set. Don't flag it —
+        // only a genuine fetch failure below (network error, non-OK response) counts.
+        await this.appendLog('info', `No gallery marker for ${date} — nothing to scrape`);
       }
       return items;
     } catch (err) {
+      this.hadImageGap = true;
       const message = err instanceof Error ? err.message : String(err);
       await this.appendLog('warn', `Could not fetch gallery HTML for ${date}: ${message}`);
       return null;
@@ -998,6 +1032,7 @@ export class BackupEngine {
             entry.images.original = originalRel;
             gotOriginal = true;
           } catch (err) {
+            this.hadImageGap = true;
             const message = err instanceof Error ? err.message : String(err);
             await this.appendLog(
               'warn',
@@ -1016,6 +1051,7 @@ export class BackupEngine {
               await this.io.downloadFile(item.image_urls.hires, hiresAbs);
               entry.images.hires = hiresRel;
             } catch (err) {
+              this.hadImageGap = true;
               const message = err instanceof Error ? err.message : String(err);
               await this.appendLog(
                 'warn',
@@ -1094,6 +1130,7 @@ export class BackupEngine {
           const rel = dl.destAbs.slice(journalFolder.length).replace(/^\//, '');
           dl.assign(rel);
         } catch (err) {
+          this.hadImageGap = true;
           const message = err instanceof Error ? err.message : String(err);
           await this.appendLog(
             'warn',
