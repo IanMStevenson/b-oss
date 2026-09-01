@@ -1288,6 +1288,37 @@ describe('BackupEngine — image_repair_complete (b-oss#85)', () => {
     expect(repairEvents[0]?.total).toBe(1); // phase-entry total = 1 archived entry, not the skip-path 0
   });
 
+  it('a fetched page with no gallery marker does not block the completion flag (only genuine fetch failures do)', async () => {
+    const io = new MockPlatformIO();
+    const client = makeClient();
+    seedBaseJournal(io);
+    // seedBaseJournal only seeds the image; the repair pass also needs to read the entry's
+    // own JSON to check its scrape state.
+    io.files.set(
+      '/backups/gbradley/entries/2024/2024-01-15.json',
+      JSON.stringify({ schema_version: 1, entry_id: '100', date: '2024-01-15', images: {} }),
+    );
+
+    vi.spyOn(client, 'getUserProfile').mockResolvedValue(makeProfileResponse(1));
+    vi.spyOn(client, 'getJournalEntries').mockResolvedValue({
+      page: { index: 0, size: 100, more: 0 },
+      entries: [makeEntryStub('100', '2024-01-15')],
+    });
+    vi.spyOn(client, 'getEntry').mockResolvedValue(makeEntryResponse('100', '2024-01-15'));
+    // MockPlatformIO.fetchHtml's default behaviour: resolves successfully with no gallery
+    // marker present — the normal case for a simple, single-image entry (b-oss#85).
+
+    await makeEngine(
+      makeConfig({ redo_count: 1, enable_web_scrape: true, download_hires: false }),
+      io,
+      client,
+      () => {},
+    ).run();
+
+    const saved = JSON.parse(io.files.get('/backups/gbradley/journal.json')!) as JournalMetadata;
+    expect(saved.image_repair_complete).toEqual({ enable_web_scrape: true, download_hires: false });
+  });
+
   it('persists image_repair_complete after a clean run with no gaps', async () => {
     const io = new MockPlatformIO();
     const client = makeClient();

@@ -984,11 +984,13 @@ export class BackupEngine {
       const html = await this.io.fetchHtml(url);
       const items = extractGalleryItems(html);
       if (!items) {
-        // Could mean the page genuinely has nothing to scrape, or that scraping just failed
-        // in a way we can't distinguish from here — treat it as unconfirmed either way (see
-        // b-oss#85's open question) rather than risk silently trusting a future "all clean".
-        this.hadImageGap = true;
-        await this.appendLog('warn', `Gallery marker not found in HTML for ${date}`);
+        // The page fetched fine but has no gallery marker — confirmed live on a real,
+        // large archive (b-oss#85) to be the normal, permanent state for plenty of
+        // entries (simple single-image posts never emit it), not evidence of a scrape
+        // failure. Treating this as a gap meant hadImageGap was ~always true on a real
+        // account, so the completion flag could never actually be set. Don't flag it —
+        // only a genuine fetch failure below (network error, non-OK response) counts.
+        await this.appendLog('info', `No gallery marker for ${date} — nothing to scrape`);
       }
       return items;
     } catch (err) {
