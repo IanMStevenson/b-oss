@@ -756,8 +756,13 @@ export class BackupEngine {
           try {
             const buf = await this.io.readFile(jsonAbs);
             entry = JSON.parse(new TextDecoder().decode(buf)) as BlipEntry;
-          } catch {
+          } catch (err) {
             this.hadImageGap = true;
+            const message = err instanceof Error ? err.message : String(err);
+            await this.appendLog(
+              'warn',
+              `Could not read/parse entry JSON for ${entryIdx.date} during image repair: ${message}`,
+            );
           }
           if (entry) {
             let needsScrape = !entry.images.web_scraped;
