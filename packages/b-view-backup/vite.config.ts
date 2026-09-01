@@ -35,6 +35,15 @@ export default defineConfig(({ mode }) => ({
   base: './',
   resolve: {
     dedupe: ['react', 'react-dom'],
+    // @b-oss/backup-engine's package.json "main" points at compiled dist/index.js, which a
+    // `--workspace` build never recompiles — bundling dist would ship stale backup-engine
+    // code. See b-ark-chrome/vite.config.ts for the same fix and full rationale.
+    alias: [
+      {
+        find: /^@b-oss\/backup-engine$/,
+        replacement: resolve(__dirname, '../backup-engine/src/index.ts'),
+      },
+    ],
   },
   build: {
     outDir: '../../dist-app',

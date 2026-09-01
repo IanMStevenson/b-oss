@@ -439,32 +439,84 @@ export class BackupEngine {
       });
     };
 
-    const toRedo = existing.entries.slice(0, this.config.redo_count);
-    // Phase-entry emit so the REDO cell appears even when redo_count is 0.
+    // Dates after the most recent archived entry are "not posted yet", not gaps. Computed
+    // once, up front, since both new-posts and gap-fill discovery need it.
+    const recentDates = new Set(lastNDates(this.config.gap_check_days));
+    const todayStr = todayYmd();
+    const windowStart = [...recentDates].sort()[0];
+    const mostRecentEntryDate = existing.entries[0]?.date ?? todayStr;
+
+    // New posts run first — this is the content the user most cares about and is most likely
+    // to be actively watching for (e.g. right after a publish-triggered backup). Redo and
+    // gap-fill run after, so that if either of them later hits enough consecutive failures to
+    // abort the whole run, the newest content has already been captured and saved. See
+    // b-oss#86 — there's no correctness dependency forcing any particular order between the
+    // three phases.
+    const newStubs: BlipEntryStub[] = [];
+    if (existing.entries.length > 0) {
+      let newPageIdx = 0;
+      let keepPagingNew = true;
+      while (keepPagingNew) {
+        await this.appendLog(
+          'info',
+          `API: getJournalEntries page ${newPageIdx} (new-posts discovery)`,
+        );
+        let page;
+        try {
+          page = await this.callApi(() =>
+            this.client.getJournalEntries({
+              username: this.config.username,
+              pageIndex: newPageIdx,
+              pageSize: FETCH_PAGE_SIZE,
+            }),
+          );
+        } catch (err) {
+          if (err instanceof BackupAbortedError) throw err;
+          const message = err instanceof Error ? err.message : String(err);
+          await this.appendLog('warn', `New-posts discovery failed: ${message}`);
+          break;
+        }
+        for (const stub of page.entries) {
+          if (stub.date > mostRecentEntryDate) {
+            newStubs.push(stub);
+          }
+        }
+        const oldestOnPage = page.entries.at(-1);
+        if (page.page.more === 0 || !oldestOnPage || oldestOnPage.date <= mostRecentEntryDate) {
+          keepPagingNew = false;
+        } else {
+          newPageIdx++;
+        }
+      }
+      newStubs.sort((a, b) => a.date.localeCompare(b.date));
+    }
+    // Phase-entry emit for NEW (also fires on the empty-journal short-circuit
+    // so the cell resolves consistently).
     this.onEvent({
       type: 'progress',
       account_id: this.config.id,
       done: 0,
-      total: this.config.redo_count,
+      total: newStubs.length,
       current_date: '',
-      total_archived: existing.entries.length,
-      phase: 'redo',
+      total_archived: indexByDate.size,
+      phase: 'new_posts',
     });
-    for (const entryIdx of toRedo) {
+    let newPostsDone = 0;
+    for (const stub of newStubs) {
       this.checkCancelled();
-      await this.appendLog('info', `Re-fetching entry ${entryIdx.date} (redo)`);
       try {
-        const entry = await this.fetchAndWriteEntry(entryIdx.entry_id, journalFolder);
+        await this.appendLog('info', `Fetching new entry ${stub.date}`);
+        const entry = await this.fetchAndWriteEntry(stub.entry_id_str, journalFolder);
         indexByDate.set(entry.date, JournalIndex.toEntryIndex(entry));
         indexById.set(entry.entry_id, JournalIndex.toEntryIndex(entry));
+        await this.appendLog('info', `Fetched new entry ${entry.date}`);
         consecutiveFailures = 0;
-        await this.appendLog('info', `Re-fetched entry ${entry.date}`);
-        await saveSnapshot();
+        await saveSnapshot(true);
       } catch (err) {
         if (err instanceof BackupAbortedError) throw err;
         consecutiveFailures++;
         const message = err instanceof Error ? err.message : String(err);
-        await this.appendLog('warn', `Failed to re-fetch ${entryIdx.entry_id}: ${message}`);
+        await this.appendLog('warn', `Failed to fetch new entry ${stub.entry_id_str}: ${message}`);
         if (consecutiveFailures >= MAX_CONSECUTIVE_FAILURES) {
           await this.appendLog(
             'warn',
@@ -474,27 +526,20 @@ export class BackupEngine {
           throw new BackupAbortedError({ kind: 'api_error', code, message });
         }
       }
-      done++;
+      newPostsDone++;
       this.onEvent({
         type: 'progress',
         account_id: this.config.id,
-        done,
-        total: this.config.redo_count,
-        current_date: entryIdx.date,
-        total_archived: existing.entries.length,
-        phase: 'redo',
+        done: newPostsDone,
+        total: newStubs.length,
+        current_date: stub.date,
+        total_archived: indexByDate.size,
+        phase: 'new_posts',
       });
       if (this.config.api_delay_ms > 0) {
         await sleep(this.config.api_delay_ms);
       }
     }
-
-    const recentDates = new Set(lastNDates(this.config.gap_check_days));
-    const todayStr = todayYmd();
-    const windowStart = [...recentDates].sort()[0];
-
-    // Dates after the most recent archived entry are "not posted yet", not gaps.
-    const mostRecentEntryDate = existing.entries[0]?.date ?? todayStr;
 
     // Only dates in the window that have no entry in the index AND are not
     // after the most recent post could be genuine gaps.
@@ -594,71 +639,32 @@ export class BackupEngine {
       });
     }
 
-    const newStubs: BlipEntryStub[] = [];
-    if (existing.entries.length > 0) {
-      let newPageIdx = 0;
-      let keepPagingNew = true;
-      while (keepPagingNew) {
-        await this.appendLog(
-          'info',
-          `API: getJournalEntries page ${newPageIdx} (new-posts discovery)`,
-        );
-        let page;
-        try {
-          page = await this.callApi(() =>
-            this.client.getJournalEntries({
-              username: this.config.username,
-              pageIndex: newPageIdx,
-              pageSize: FETCH_PAGE_SIZE,
-            }),
-          );
-        } catch (err) {
-          if (err instanceof BackupAbortedError) throw err;
-          const message = err instanceof Error ? err.message : String(err);
-          await this.appendLog('warn', `New-posts discovery failed: ${message}`);
-          break;
-        }
-        for (const stub of page.entries) {
-          if (stub.date > mostRecentEntryDate) {
-            newStubs.push(stub);
-          }
-        }
-        const oldestOnPage = page.entries.at(-1);
-        if (page.page.more === 0 || !oldestOnPage || oldestOnPage.date <= mostRecentEntryDate) {
-          keepPagingNew = false;
-        } else {
-          newPageIdx++;
-        }
-      }
-      newStubs.sort((a, b) => a.date.localeCompare(b.date));
-    }
-    // Phase-entry emit for NEW (also fires on the empty-journal short-circuit
-    // so the cell resolves consistently).
+    const toRedo = existing.entries.slice(0, this.config.redo_count);
+    // Phase-entry emit so the REDO cell appears even when redo_count is 0.
     this.onEvent({
       type: 'progress',
       account_id: this.config.id,
       done: 0,
-      total: newStubs.length,
+      total: this.config.redo_count,
       current_date: '',
-      total_archived: indexByDate.size,
-      phase: 'new_posts',
+      total_archived: existing.entries.length,
+      phase: 'redo',
     });
-    let newPostsDone = 0;
-    for (const stub of newStubs) {
+    for (const entryIdx of toRedo) {
       this.checkCancelled();
+      await this.appendLog('info', `Re-fetching entry ${entryIdx.date} (redo)`);
       try {
-        await this.appendLog('info', `Fetching new entry ${stub.date}`);
-        const entry = await this.fetchAndWriteEntry(stub.entry_id_str, journalFolder);
+        const entry = await this.fetchAndWriteEntry(entryIdx.entry_id, journalFolder);
         indexByDate.set(entry.date, JournalIndex.toEntryIndex(entry));
         indexById.set(entry.entry_id, JournalIndex.toEntryIndex(entry));
-        await this.appendLog('info', `Fetched new entry ${entry.date}`);
         consecutiveFailures = 0;
-        await saveSnapshot(true);
+        await this.appendLog('info', `Re-fetched entry ${entry.date}`);
+        await saveSnapshot();
       } catch (err) {
         if (err instanceof BackupAbortedError) throw err;
         consecutiveFailures++;
         const message = err instanceof Error ? err.message : String(err);
-        await this.appendLog('warn', `Failed to fetch new entry ${stub.entry_id_str}: ${message}`);
+        await this.appendLog('warn', `Failed to re-fetch ${entryIdx.entry_id}: ${message}`);
         if (consecutiveFailures >= MAX_CONSECUTIVE_FAILURES) {
           await this.appendLog(
             'warn',
@@ -668,15 +674,15 @@ export class BackupEngine {
           throw new BackupAbortedError({ kind: 'api_error', code, message });
         }
       }
-      newPostsDone++;
+      done++;
       this.onEvent({
         type: 'progress',
         account_id: this.config.id,
-        done: newPostsDone,
-        total: newStubs.length,
-        current_date: stub.date,
-        total_archived: indexByDate.size,
-        phase: 'new_posts',
+        done,
+        total: this.config.redo_count,
+        current_date: entryIdx.date,
+        total_archived: existing.entries.length,
+        phase: 'redo',
       });
       if (this.config.api_delay_ms > 0) {
         await sleep(this.config.api_delay_ms);

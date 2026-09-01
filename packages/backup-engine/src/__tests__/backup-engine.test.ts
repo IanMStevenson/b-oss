@@ -687,7 +687,9 @@ describe('BackupEngine — routine backup new posts', () => {
     const engine = makeEngine(makeConfig({ redo_count: 1 }), io, client, () => {});
     await engine.run();
 
-    expect(getEntrySpy.mock.calls.map((c) => c[0])).toEqual(['100', '200', '300']);
+    // new_posts now runs before redo (b-oss#86) — '200'/'300' (new, chronological) first,
+    // then '100' (redo re-fetching the pre-existing entry) last.
+    expect(getEntrySpy.mock.calls.map((c) => c[0])).toEqual(['200', '300', '100']);
     const journal = JSON.parse(io.files.get('/backups/gbradley/journal.json')!) as JournalMetadata;
     expect(journal.entries.map((e) => e.date)).toEqual(['2024-01-17', '2024-01-16', '2024-01-15']);
     expect(io.files.has('/backups/gbradley/entries/2024/2024-01-16.json')).toBe(true);
@@ -752,7 +754,9 @@ describe('BackupEngine — routine backup new posts', () => {
     await engine.run();
 
     expect(pageSpy).toHaveBeenCalledTimes(2);
-    expect(getEntrySpy.mock.calls.map((c) => c[0])).toEqual(['100', '150', '200', '300', '400']);
+    // new_posts now runs before redo (b-oss#86) — '150'-'400' (new, chronological) first,
+    // then '100' (redo re-fetching the pre-existing entry) last.
+    expect(getEntrySpy.mock.calls.map((c) => c[0])).toEqual(['150', '200', '300', '400', '100']);
   });
 
   it('three consecutive new-post fetch failures abort with BackupAbortedError', async () => {
@@ -1061,9 +1065,11 @@ describe('BackupEngine — phase events', () => {
     expect(phases).toContain('new_posts');
     expect(phases).toContain('image_repair');
 
-    expect(phases.indexOf('redo')).toBeLessThan(phases.indexOf('gap_fill'));
-    expect(phases.indexOf('gap_fill')).toBeLessThan(phases.indexOf('new_posts'));
-    expect(phases.indexOf('new_posts')).toBeLessThan(phases.indexOf('image_repair'));
+    // b-oss#86: new_posts first (the content the user most cares about), then gap_fill,
+    // then redo last, then the image-repair pass.
+    expect(phases.indexOf('new_posts')).toBeLessThan(phases.indexOf('gap_fill'));
+    expect(phases.indexOf('gap_fill')).toBeLessThan(phases.indexOf('redo'));
+    expect(phases.indexOf('redo')).toBeLessThan(phases.indexOf('image_repair'));
   });
 
   it('image-repair ticks every entry checked (not just repairs), against a fixed total', async () => {
