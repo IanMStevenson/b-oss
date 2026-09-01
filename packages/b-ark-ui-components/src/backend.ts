@@ -109,7 +109,7 @@ export type BackupErrorPayload =
   | { kind: 'filesystem'; message: string }
   | { kind: 'unexpected'; message: string };
 
-export type BackupPhase = 'redo' | 'gap_fill' | 'new_posts' | 'image_repair' | 'full_image_repair';
+export type BackupPhase = 'redo' | 'gap_fill' | 'new_posts' | 'image_repair';
 
 export type BackupEvent =
   | {
