@@ -42,6 +42,12 @@ class MockPlatformIO implements PlatformIO {
     this.files.set(path, typeof data === 'string' ? data : new TextDecoder().decode(data));
     return Promise.resolve();
   }
+  appendFile(path: string, data: Uint8Array | string): Promise<void> {
+    const existing = this.files.get(path) ?? '';
+    const text = typeof data === 'string' ? data : new TextDecoder().decode(data);
+    this.files.set(path, existing + text);
+    return Promise.resolve();
+  }
   ensureDir(_path: string): Promise<void> {
     return Promise.resolve();
   }
