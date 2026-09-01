@@ -38,10 +38,24 @@ interface ChromeSettings {
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
-function isPeriodDue(lastBackupAt: string | null, period: 'daily' | 'weekly'): boolean {
+export function isPeriodDue(lastBackupAt: string | null, period: 'daily' | 'weekly'): boolean {
   if (!lastBackupAt) return true;
   const ms = period === 'daily' ? 86_400_000 : 7 * 86_400_000;
   return Date.now() - new Date(lastBackupAt).getTime() >= ms;
+}
+
+/**
+ * True only when a backup is genuinely in progress: amber + a progress cursor, *and* a live
+ * tab is actually driving it. Without the live-tab check, a run that crashed mid-way (leaving
+ * chip_rag/chip_progress stuck) would look "running" forever and permanently block every
+ * future auto-trigger — see the b-ark-chrome "stuck at 0/1" incident this guards against.
+ */
+export function isBackupStillRunning(
+  rag: RagState,
+  progress: { done: number; total: number } | null | undefined,
+  liveBackupTabId: number | null,
+): boolean {
+  return rag === 'amber' && progress != null && liveBackupTabId !== null;
 }
 
 function getBackupPageUrl(): string {
@@ -53,7 +67,7 @@ function getBackupPageUrl(): string {
  * Validates `backup_tab_id` with `tabs.get` (no `tabs` permission needed); a stale id
  * self-heals here, clearing both the tracked id and any lifecycle that referenced it.
  */
-async function getLiveBackupTabId(): Promise<number | null> {
+export async function getLiveBackupTabId(): Promise<number | null> {
   const id = await readBackupTabId();
   if (id === null) return null;
   try {
@@ -109,7 +123,7 @@ async function launchBackupTabSilent(): Promise<void> {
  * Otherwise this is a duplicate (session-restore / manual duplicate): focus the canonical
  * tab and close the duplicate. Centralized here so the page needs no `window.close`.
  */
-async function claimBackupTab(tabId: number): Promise<void> {
+export async function claimBackupTab(tabId: number): Promise<void> {
   const live = await getLiveBackupTabId();
   if (live === null || live === tabId) {
     await saveBackupTabId(tabId);
@@ -129,7 +143,7 @@ async function claimBackupTab(tabId: number): Promise<void> {
  * Called by the chip content script on every Blipfoto page visit.
  * Decides whether to auto-launch the backup page as a silent background tab.
  */
-async function triggerIfDue(): Promise<void> {
+export async function triggerIfDue(): Promise<void> {
   const r = await chrome.storage.local.get([
     'tokenCiphertext',
     'folder_ready',
@@ -145,11 +159,10 @@ async function triggerIfDue(): Promise<void> {
   const rag = (r['chip_rag'] as RagState | undefined) ?? 'green';
   const progress = r['chip_progress'] as { done: number; total: number } | null | undefined;
 
-  // Backup already running (amber + progress) — do nothing
-  if (rag === 'amber' && progress != null) return;
-
   // Singleton check — backup tab already open
   const existingTabId = await getLiveBackupTabId();
+
+  if (isBackupStillRunning(rag, progress, existingTabId)) return;
   if (existingTabId !== null) return;
 
   if (rag === 'red') {
@@ -179,10 +192,12 @@ async function triggerIfDue(): Promise<void> {
 
 /**
  * Called when the user clicks Publish or Save changes on a Blipfoto entry page.
- * If a backup is already running (or a tab is already open), sets a pending flag
- * so that another pass starts as soon as the current one finishes.
+ * If a backup is genuinely running, sets a pending flag so that another pass starts
+ * as soon as the current one finishes. If a backup tab is merely open but idle (e.g.
+ * opened via the toolbar icon, so it never auto-started), nothing would ever consume
+ * that pending flag — so instead this asks the idle tab to start a backup directly.
  */
-async function publishDetected(): Promise<void> {
+export async function publishDetected(): Promise<void> {
   const r = await chrome.storage.local.get([
     'tokenCiphertext',
     'folder_ready',
@@ -194,16 +209,22 @@ async function publishDetected(): Promise<void> {
 
   const rag = (r['chip_rag'] as RagState | undefined) ?? 'green';
   const progress = r['chip_progress'] as { done: number; total: number } | null | undefined;
-  const backupRunning = rag === 'amber' && progress != null;
 
-  if (backupRunning) {
+  const existingTabId = await getLiveBackupTabId();
+
+  if (isBackupStillRunning(rag, progress, existingTabId)) {
     await setPublishPending();
     return;
   }
 
-  const existingTabId = await getLiveBackupTabId();
   if (existingTabId !== null) {
-    await setPublishPending();
+    try {
+      await chrome.tabs.sendMessage(existingTabId, { type: 'start_backup_now' });
+    } catch {
+      // Tab isn't ready to receive messages (e.g. still loading) — fall back to the
+      // pending flag; it'll be replayed the next time a backup on that tab completes.
+      await setPublishPending();
+    }
     return;
   }
 
@@ -216,7 +237,7 @@ async function publishDetected(): Promise<void> {
  * Raise the backup tab + focus its window so the user sees the error.
  * Called by the backup page whenever a backup fails (never silent on error).
  */
-async function raiseBackupTab(): Promise<void> {
+export async function raiseBackupTab(): Promise<void> {
   const lifecycle = await readLifecycle();
 
   if (lifecycle?.tab_id) {
@@ -241,7 +262,7 @@ async function raiseBackupTab(): Promise<void> {
  * Close the backup tab if the user never adopted it (i.e., they never focused it).
  * Called by the backup page on successful completion.
  */
-async function closeBackupTab(): Promise<void> {
+export async function closeBackupTab(): Promise<void> {
   const lifecycle = await readLifecycle();
 
   if (lifecycle?.launched_by === 'visit-trigger' && !lifecycle.user_adopted) {
@@ -274,7 +295,7 @@ async function markTabAdopted(): Promise<void> {
  * locks it held (a backup or settings panel in a closed tab is already gone). `onRemoved`
  * carries only the tab id, so it needs no `tabs` permission.
  */
-async function onBackupTabClosed(tabId: number): Promise<void> {
+export async function onBackupTabClosed(tabId: number): Promise<void> {
   if ((await readBackupTabId()) === tabId) {
     await clearBackupTabId();
     await clearLifecycle();
@@ -308,5 +329,3 @@ chrome.runtime.onMessage.addListener((msg: unknown) => {
     if (typeof tab_id === 'number') void claimBackupTab(tab_id);
   }
 });
-
-export {};

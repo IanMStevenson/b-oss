@@ -161,6 +161,16 @@ export class BackupEngine {
       } else if (err instanceof BackupAbortedError) {
         this.onEvent({ type: 'failed', account_id: this.config.id, error: err.payload });
         await this.appendLog('error', `Backup failed: ${err.payload.kind}`);
+      } else {
+        // Any other error type must still terminate the run with an event — callers rely on
+        // completed/cancelled/failed always firing exactly once to clear progress/RAG state.
+        const message = err instanceof Error ? err.message : String(err);
+        this.onEvent({
+          type: 'failed',
+          account_id: this.config.id,
+          error: { kind: 'unexpected', message },
+        });
+        await this.appendLog('error', `Backup failed unexpectedly: ${message}`);
       }
       throw err;
     } finally {
@@ -618,8 +628,8 @@ export class BackupEngine {
     let newPostsDone = 0;
     for (const stub of newStubs) {
       this.checkCancelled();
-      await this.appendLog('info', `Fetching new entry ${stub.date}`);
       try {
+        await this.appendLog('info', `Fetching new entry ${stub.date}`);
         const entry = await this.fetchAndWriteEntry(stub.entry_id_str, journalFolder);
         indexByDate.set(entry.date, JournalIndex.toEntryIndex(entry));
         indexById.set(entry.entry_id, JournalIndex.toEntryIndex(entry));

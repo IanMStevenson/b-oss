@@ -99,7 +99,8 @@ export type BackupErrorPayload =
   | { kind: 'auth_expired' }
   | { kind: 'network' }
   | { kind: 'api_error'; code: number; message: string }
-  | { kind: 'filesystem'; message: string };
+  | { kind: 'filesystem'; message: string }
+  | { kind: 'unexpected'; message: string };
 
 export type BackupPhase = 'redo' | 'gap_fill' | 'new_posts' | 'image_repair' | 'full_image_repair';
 

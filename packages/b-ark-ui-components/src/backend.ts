@@ -106,7 +106,8 @@ export type BackupErrorPayload =
   | { kind: 'auth_expired' }
   | { kind: 'network' }
   | { kind: 'api_error'; code: number; message: string }
-  | { kind: 'filesystem'; message: string };
+  | { kind: 'filesystem'; message: string }
+  | { kind: 'unexpected'; message: string };
 
 export type BackupPhase = 'redo' | 'gap_fill' | 'new_posts' | 'image_repair' | 'full_image_repair';
 
@@ -149,9 +150,7 @@ export interface SharedSettingsPartial {
 }
 
 export type BootState =
-  | { stage: 'pick-folder' }
-  | { stage: 'first-account' }
-  | { stage: 'ready'; store: AppStore };
+  { stage: 'pick-folder' } | { stage: 'first-account' } | { stage: 'ready'; store: AppStore };
 
 export interface BackendContext {
   /** Display version e.g. `0.1.0` (release) or `0.1.0.347.12` (dev build). */
