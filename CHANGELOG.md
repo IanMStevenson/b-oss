@@ -23,6 +23,8 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 
+- b-ark-chrome: thumbnails could fail to load or show stale images during an
+  in-progress backup.
 - b-ark-chrome: backup status chip could get stuck showing "in progress" after a
   publish-triggered backup.
 
