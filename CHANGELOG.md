@@ -5,22 +5,28 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [1.0.2] - 2026-09-02
+
 ### Added
 
+- b-ark-chrome: first general-availability release on the Chrome Web Store — back up
+  your Blipfoto journal directly from the browser, no separate app required.
 - b-ark-chrome: back up Original and Extra images alongside the standard entry images,
-  with a lightbox viewer (b-view `Lightbox`/`EntryDetail`) for browsing them.
-
-### Fixed
-
-- backup-engine: improved missing-image detection and re-fetch logic.
-- b-ark-chrome: thumbnail display during an in-progress backup.
+  with a lightbox viewer for browsing them.
 
 ### Changed
 
-- Split `b-ark-ui` into `b-ark-ui-components` (shared, prop-driven presentational kit +
-  `BackendContext` interface + view types) and `b-ark-ui-electron` (desktop shell:
-  multi-account `App`, `ElectronBackend`, and thin container wrappers). Desktop b-ark
-  behaviour is unchanged; the split lets the forthcoming Chrome plugin reuse the kit.
+- Faster backups.
+- b-ark-chrome: further backup speed-ups.
+- Backups now process newest posts first, running repair/redo passes last — so recent
+  entries are available sooner during a backup.
+
+### Fixed
+
+- b-ark-chrome: thumbnails could fail to load or show stale images during an
+  in-progress backup.
+- b-ark-chrome: backup status chip could get stuck showing "in progress" after a
+  publish-triggered backup.
 
 ## [1.0.1] - 2026-06-14
 
