@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "b-ark-chrome",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "description": "Back up your Blipfoto journal.",
   "minimum_chrome_version": "92",
   "icons": {
