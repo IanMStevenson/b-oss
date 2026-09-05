@@ -11,11 +11,19 @@ interface GlobalWithChrome {
 export interface FakeChromeStorage {
   store: Map<string, unknown>;
   uninstall: () => void;
+  /**
+   * Simulate a tab closing (e.g. the browser tab was closed directly rather than
+   * navigated away from), so a subsequent `chrome.tabs.get(tabId)` rejects like the
+   * real API does for a nonexistent tab. Tabs exist by default - only needed by tests
+   * of settings_lock's staleness self-heal (readSettingsLock).
+   */
+  closeTab: (tabId: number) => void;
 }
 
-/** Install a minimal in-memory chrome.storage.local onto globalThis. */
+/** Install a minimal in-memory chrome.storage.local + chrome.tabs.get onto globalThis. */
 export function installChromeStorageLocal(): FakeChromeStorage {
   const store = new Map<string, unknown>();
+  const closedTabIds = new Set<number>();
   const local = {
     get(keys?: string | string[] | null): Promise<Record<string, unknown>> {
       if (keys === undefined || keys === null) return Promise.resolve(Object.fromEntries(store));
@@ -34,11 +42,18 @@ export function installChromeStorageLocal(): FakeChromeStorage {
       return Promise.resolve();
     },
   };
+  const tabs = {
+    get(tabId: number): Promise<{ id: number }> {
+      if (closedTabIds.has(tabId)) return Promise.reject(new Error(`No tab with id: ${tabId}`));
+      return Promise.resolve({ id: tabId });
+    },
+  };
   const g = globalThis as GlobalWithChrome;
   const prior = g.chrome;
-  g.chrome = { storage: { local } };
+  g.chrome = { storage: { local }, tabs };
   return {
     store,
+    closeTab: (tabId: number) => closedTabIds.add(tabId),
     uninstall: () => {
       g.chrome = prior;
     },
