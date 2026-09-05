@@ -81,6 +81,26 @@ npm run build          # Build all packages (also bumps the local build counter)
 npm run build:release  # Build with RELEASE=1 — version shown as bare 1.0.0
 ```
 
+## Local build credentials (`.env.local`)
+
+`MAIN_VITE_BLIPFOTO_CLIENT_ID` (b-ark) and `VITE_CHROME_CLIENT_ID`
+(b-ark-chrome) are read from a `.env.local` at the **repo root** (`vite.config.ts`/
+`electron.vite.config.ts` set `envDir` there — see `.env.example` for the full
+list and where to register each app). `.env.local` is gitignored, so it only
+exists wherever someone manually put it.
+
+**Worktree gotcha:** `git worktree add` only populates tracked files from the
+checked-out branch — gitignored files like `.env.local` are not copied into a
+new worktree automatically, because each worktree is a separate directory on
+disk. A worktree without its own `.env.local` builds successfully (no error,
+no warning) but with an empty client ID, and the "Sign in to Blipfoto" button
+then does nothing at all - no console output anywhere (page, popup, or service
+worker), because `startOAuthFlow` treats a missing client ID as a silent,
+logged-to-storage-only error rather than throwing. Confirmed on 2026-09-05
+after exactly this happened on a fresh Mutagen-fed build. Copy or symlink
+`.env.local` from the main checkout into any new worktree before relying on
+OAuth-related functionality there.
+
 ## Versioning
 
 Display version format: `{pkg.major}.{pkg.minor}.{pkg.patch}[.{commits}.{build}]`.
