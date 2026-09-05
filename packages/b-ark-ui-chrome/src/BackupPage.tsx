@@ -397,7 +397,6 @@ function BackupPageRoot() {
     showInfoOverlay,
     backupProgress,
     logBuffer,
-    toasts,
   } = state;
 
   const account: AccountConfig | null = store?.accounts[0] ?? null;
@@ -895,10 +894,26 @@ function BackupPageRoot() {
         progress={progress}
         onViewLog={() => dispatch({ type: 'panel:open', panel: 'log' })}
       />
-
-      {/* Toast notifications */}
-      <ToastHost toasts={toasts} onDismiss={(id) => dispatch({ type: 'toast:dismiss', id })} />
     </div>
+  );
+}
+
+// Toasts are rendered once here, above every `bootStage` branch in
+// BackupPageRoot, rather than inside each branch's own early return - a
+// toast dispatched while on the 'loading'/'first-account'/'pick-folder'
+// screens (e.g. a missing-client-id OAuth error, which fires from the very
+// first "Sign in to Blipfoto" click, before any account exists) would
+// otherwise update state with nothing mounted to display it.
+function BackupPageWithToasts() {
+  const { state, dispatch } = useApp();
+  return (
+    <>
+      <BackupPageRoot />
+      <ToastHost
+        toasts={state.toasts}
+        onDismiss={(id) => dispatch({ type: 'toast:dismiss', id })}
+      />
+    </>
   );
 }
 
@@ -908,7 +923,7 @@ export function BackupPage({ backend }: { backend: BackendContext }) {
   return (
     <RenderErrorBoundary>
       <AppProvider backend={backend}>
-        <BackupPageRoot />
+        <BackupPageWithToasts />
       </AppProvider>
     </RenderErrorBoundary>
   );
