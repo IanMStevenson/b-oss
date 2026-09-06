@@ -71,6 +71,21 @@ The Chrome extension is **single-account** and has no electron-store; it stores 
 - **FSA handle** — the granted `FileSystemDirectoryHandle` is persisted in IndexedDB
   (`b-ark-ui-chrome/src/fsa-persistence.ts`); permission is re-queried on each use.
 
+## Mutagen dev-loop (Windows)
+
+Live Windows mirrors exist for local testing/debugging without a manual
+git-pull-and-refresh cycle - see
+`devutils/dev-vm-setup/mutagen-dev-loop-pattern.md` for the full pattern
+and the repoint command for "make that worktree available via Mutagen."
+
+- **b-ark** (debugging): local relay `b-ark-relay` → `~/live/b-ark-repo`
+  (the **whole monorepo**, not just `packages/b-ark` - `.vscode/launch.json`
+  needs the full workspace root) → Windows `D:\Dev\debugging\b-ark-build`.
+- **b-ark-chrome** (Chrome "Load unpacked"): local relay
+  `b-ark-chrome-relay` → `~/live/b-ark-chrome-dist` (built `dist/`, needs
+  `npm run dev` running in whichever worktree feeds it) → Windows
+  `D:\Dev\chrome-live\b-ark-chrome-build`.
+
 ## Commands
 
 ```bash
