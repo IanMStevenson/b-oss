@@ -55,6 +55,7 @@ export class PortableSettingsManager {
       api_delay_ms: 250,
       gap_check_days: 31,
       redo_count: 7,
+      enable_web_scrape: false,
       ui: { thumbnail_size_percent: 100, show_info_overlay: true },
     };
   }
@@ -88,9 +89,12 @@ export class PortableSettingsManager {
       throw new Error('b-ark-settings.json: missing schedule object');
     }
     const validated = r as unknown as BArkSettings;
-    // Normalise ui fields added after the initial schema v1 release.
+    // Normalise fields added after the initial schema v1 release.
     if (typeof validated.ui?.show_info_overlay !== 'boolean') {
       validated.ui = { ...validated.ui, show_info_overlay: true };
+    }
+    if (typeof validated.enable_web_scrape !== 'boolean') {
+      validated.enable_web_scrape = false;
     }
     return validated;
   }

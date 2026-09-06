@@ -195,6 +195,77 @@ function AccountRow({ account }: { account: AccountConfig }) {
   );
 }
 
+function WebSessionRow({ account }: { account: AccountConfig }) {
+  const { state, backend } = useApp();
+  const [busy, setBusy] = useState(false);
+  const signedIn = account.web_session_signed_in === true;
+  const backingUp = state.backupProgress[account.id]?.running === true;
+  const disabled = busy || backingUp;
+
+  async function run(action: Promise<unknown> | undefined): Promise<void> {
+    if (!action) return;
+    setBusy(true);
+    try {
+      await action;
+    } catch {
+      /* errors surface via the store / no-op */
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <div
+      style={{
+        display: 'flex',
+        alignItems: 'center',
+        gap: 12,
+        padding: '10px 0',
+        borderTop: '1px solid var(--line-2)',
+      }}
+    >
+      <img
+        src={account.avatar_url}
+        alt=""
+        style={{ width: 32, height: 32, borderRadius: '50%', flexShrink: 0 }}
+      />
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{ fontSize: 13, fontWeight: 500, color: 'var(--ink)' }}>
+          {account.journal_title}
+        </div>
+        <div
+          style={{
+            fontSize: 12,
+            color: signedIn ? 'var(--rag-green)' : 'var(--muted)',
+          }}
+        >
+          {signedIn ? 'Signed in' : 'Not signed in'}
+        </div>
+      </div>
+      <button
+        onClick={() => {
+          void run(signedIn ? backend.webLogout?.(account.id) : backend.webLogin?.(account.id));
+        }}
+        disabled={disabled}
+        style={{
+          height: 30,
+          padding: '0 12px',
+          borderRadius: 7,
+          border: '1px solid var(--line)',
+          background: 'white',
+          color: signedIn ? 'var(--ink-2)' : 'var(--green-800)',
+          fontSize: 13,
+          fontWeight: 500,
+          cursor: disabled ? 'default' : 'pointer',
+          opacity: disabled ? 0.5 : 1,
+        }}
+      >
+        {busy ? '…' : signedIn ? 'Sign out' : 'Sign in…'}
+      </button>
+    </div>
+  );
+}
+
 export function SettingsPanel() {
   const { state, dispatch, backend } = useApp();
   const showToast = useToast();
@@ -221,6 +292,9 @@ export function SettingsPanel() {
   const [showInfoOverlay, setShowInfoOverlay] = useState(store?.ui.showInfoOverlay ?? true);
   const [startWithWindows, setStartWithWindows] = useState(store?.app.startWithWindows ?? true);
   const [autoUpdateEnabled, setAutoUpdateEnabled] = useState(store?.app.autoUpdateEnabled ?? true);
+  const [enableWebScrape, setEnableWebScrape] = useState(
+    firstAcct?.enable_web_scrape ?? false,
+  );
 
   const [focusedField, setFocusedField] = useState<string | null>(null);
 
@@ -239,6 +313,7 @@ export function SettingsPanel() {
     setShowInfoOverlay(store.ui.showInfoOverlay);
     setStartWithWindows(store.app.startWithWindows);
     setAutoUpdateEnabled(store.app.autoUpdateEnabled);
+    setEnableWebScrape(a.enable_web_scrape ?? false);
   }, [store]);
 
   if (!store) return null;
@@ -558,6 +633,33 @@ export function SettingsPanel() {
               />
               <span style={{ fontSize: 13, color: 'var(--muted)' }}>entries</span>
             </div>
+          </SettingBlock>
+
+          <SettingBlock
+            label="Full-resolution & extra images"
+            hint="Shared across all journals"
+            description="Blipfoto's API doesn't give distributed apps original-size images, hi-res images, or an entry's extra images. Turn this on to fetch them by scraping the logged-in blipfoto.com website. Each journal needs its own website sign-in; nothing is uploaded and the sign-in is stored locally, encrypted."
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 4 }}>
+              <PillToggle
+                checked={enableWebScrape}
+                onChange={(v) => {
+                  setEnableWebScrape(v);
+                  save({ enableWebScrape: v });
+                }}
+              />
+              <span style={{ fontSize: 13, color: 'var(--ink-2)' }}>
+                {enableWebScrape ? 'On' : 'Off'}
+              </span>
+            </div>
+            {enableWebScrape &&
+              (store.accounts.length === 0 ? (
+                <div style={{ fontSize: 12, color: 'var(--muted)', padding: '8px 0' }}>
+                  Add an account first, then sign in to its website here.
+                </div>
+              ) : (
+                store.accounts.map((a) => <WebSessionRow key={a.id} account={a} />)
+              ))}
           </SettingBlock>
 
           <SettingBlock

@@ -38,6 +38,7 @@ describe('PortableSettingsManager', () => {
       api_delay_ms: 250,
       gap_check_days: 14,
       redo_count: 5,
+      enable_web_scrape: true,
       ui: { thumbnail_size_percent: 120, show_info_overlay: true },
     };
     await mgr.save(settings);
@@ -66,6 +67,22 @@ describe('PortableSettingsManager', () => {
 
   it('validate() throws on missing schema_version', () => {
     expect(() => PortableSettingsManager.validate({ accounts: [] })).toThrow(/schema_version/);
+  });
+
+  it('defaults() includes enable_web_scrape: false', () => {
+    expect(PortableSettingsManager.defaults().enable_web_scrape).toBe(false);
+  });
+
+  it('validate() normalises a v1 file with no enable_web_scrape to false', () => {
+    const raw = { ...PortableSettingsManager.defaults() } as Record<string, unknown>;
+    delete raw['enable_web_scrape'];
+    const validated = PortableSettingsManager.validate(raw);
+    expect(validated.enable_web_scrape).toBe(false);
+  });
+
+  it('validate() preserves enable_web_scrape: true', () => {
+    const raw = { ...PortableSettingsManager.defaults(), enable_web_scrape: true };
+    expect(PortableSettingsManager.validate(raw).enable_web_scrape).toBe(true);
   });
 
   it('validate() throws on newer schema_version (forward-incompatible)', () => {

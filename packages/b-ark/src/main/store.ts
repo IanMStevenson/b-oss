@@ -11,6 +11,8 @@ import type {
   UserDataStore,
 } from '@b-oss/b-ark-ui-electron';
 import { PortableSettingsManager } from './portable-settings.js';
+import { decryptSecret } from './secret-store.js';
+import { deserializeCookies, isSignedInFromCookies } from './web-session-pure.js';
 
 const DEFAULT_STATUS: AccountStatus = {
   last_backup_at: null,
@@ -28,6 +30,7 @@ const localDefaults: UserDataStore = {
   app: { startWithWindows: true, autoUpdateEnabled: true },
   tokens: {},
   status: {},
+  web_sessions: {},
 };
 
 export const store = new Store<UserDataStore>({ defaults: localDefaults, name: 'b-ark-config' });
@@ -162,6 +165,42 @@ export function deleteToken(username: string): void {
   store.set('tokens', all);
 }
 
+// --- blipfoto.com website session (keyed by account id) --------------------
+
+function webSessions(): Record<string, string> {
+  return store.get('web_sessions') ?? {};
+}
+
+export function getWebSessionBlob(accountId: string): string | null {
+  return webSessions()[accountId] ?? null;
+}
+
+export function setWebSessionBlob(accountId: string, ciphertextB64: string): void {
+  store.set('web_sessions', { ...webSessions(), [accountId]: ciphertextB64 });
+}
+
+export function deleteWebSessionBlob(accountId: string): void {
+  const all = { ...webSessions() };
+  delete all[accountId];
+  store.set('web_sessions', all);
+}
+
+/**
+ * Whether the stored website session for an account decrypts and still carries
+ * a live (non-expired) Blipfoto session cookie. Best-effort and side-effect
+ * free — any failure (missing blob, keychain unavailable, corrupt data) reads
+ * as "not signed in". Called synchronously while composing the store.
+ */
+export function deriveWebSessionSignedIn(accountId: string): boolean {
+  const blob = getWebSessionBlob(accountId);
+  if (!blob) return false;
+  try {
+    return isSignedInFromCookies(deserializeCookies(decryptSecret(blob)));
+  } catch {
+    return false;
+  }
+}
+
 // ---------------------------------------------------------------------------
 // Backward-compatible facade — composes the legacy AccountConfig + AppStore
 // shapes from the new split storage. Kept stable for Phase 1 so the renderer
@@ -190,6 +229,8 @@ function composeAccountConfig(p: PortableAccount): AccountConfig {
     rag_state: status.rag_state,
     error_message: status.error_message,
     account_added_at: status.account_added_at,
+    enable_web_scrape: settings.enable_web_scrape,
+    web_session_signed_in: deriveWebSessionSignedIn(p.id),
   };
 }
 
@@ -263,6 +304,7 @@ export async function deleteAccount(id: string): Promise<void> {
   };
   await savePortableSettings(nextSettings);
   deleteStatus(id);
+  deleteWebSessionBlob(id);
   if (target) {
     const usernameStillReferenced = nextSettings.accounts.some(
       (a) => a.username === target.username,

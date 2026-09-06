@@ -33,19 +33,26 @@ const FETCH_PAGE_SIZE = 100;
 const BLIPFOTO_SITE = 'https://www.blipfoto.com';
 const GALLERY_MARKER = 'blipfoto.data.gallery = ';
 
-interface GalleryImageUrls {
+export interface GalleryImageUrls {
   stdres?: string;
   hires?: string;
   original?: string;
 }
 
-interface GalleryItem {
+export interface GalleryItem {
   item_id_str: string;
   thumbnail_url?: string;
   image_urls?: GalleryImageUrls;
 }
 
-function extractGalleryItems(html: string): GalleryItem[] | null {
+/**
+ * Pull the `blipfoto.data.gallery = {…}` JSON blob out of a rendered Blipfoto
+ * entry page. Server-rendered today; a string scan (not a DOM parse) keeps this
+ * usable from any platform. Returns `gallery.items` or `null` when the marker is
+ * absent / the JSON is unbalanced or unparseable. Exported for direct unit
+ * testing — production callers go through `BackupEngine.fetchGalleryData`.
+ */
+export function extractGalleryItems(html: string): GalleryItem[] | null {
   const start = html.indexOf(GALLERY_MARKER);
   if (start === -1) return null;
   const jsonStart = start + GALLERY_MARKER.length;
