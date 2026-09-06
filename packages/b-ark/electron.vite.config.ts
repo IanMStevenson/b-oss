@@ -37,9 +37,27 @@ export default defineConfig(({ mode }) => {
     main: {
       envDir,
       define: versionDefine,
+      resolve: {
+        // Resolve to LIVE src, not the compiled dist/index.js `package.json`
+        // "main" points at - a `--workspace`-scoped build never recompiles
+        // backup-engine, so bundling dist can silently ship stale backup
+        // logic (see packages/b-ark-chrome/vite.config.ts for the sibling
+        // fix, #87/#88). Anchored regex matches only the bare specifier.
+        // Also requires excluding it from externalizeDeps below - alias
+        // alone does nothing, since main.build's default externalization
+        // (everything in package.json "dependencies") runs first and
+        // leaves `require("@b-oss/backup-engine")` for Node/electron to
+        // resolve at runtime via node_modules, past the alias entirely.
+        alias: [
+          {
+            find: /^@b-oss\/backup-engine$/,
+            replacement: resolve(__dirname, '../backup-engine/src/index.ts'),
+          },
+        ],
+      },
       build: {
         outDir: 'dist/main',
-        externalizeDeps: { exclude: ['electron-store'] },
+        externalizeDeps: { exclude: ['electron-store', '@b-oss/backup-engine'] },
         rollupOptions: {
           input: { index: resolve(__dirname, 'src/main/index.ts') },
         },
