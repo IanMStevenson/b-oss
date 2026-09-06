@@ -119,6 +119,7 @@ export function registerIpcHandlers(
     // account has a stored, still-valid blipfoto.com sign-in. Missing/expired
     // → back up API-only and flag amber afterwards (never block the run).
     const scrapeWanted = getPortableSettings().enable_web_scrape === true;
+    const hiresWanted = getPortableSettings().download_hires === true;
     let webSession: Session | undefined;
     if (scrapeWanted) {
       webSession = (await loadRunSession(id)) ?? undefined;
@@ -164,7 +165,7 @@ export function registerIpcHandlers(
             metadata_write_interval: 0,
             app_version: __APP_VERSION__,
             enable_web_scrape: signedIn,
-            download_hires: signedIn,
+            download_hires: signedIn && hiresWanted,
           },
           pio,
           client,
@@ -535,6 +536,7 @@ export function registerIpcHandlers(
         gap_check_days: partial.gap_check_days ?? current.gap_check_days,
         redo_count: partial.redo_count ?? current.redo_count,
         enable_web_scrape: partial.enableWebScrape ?? current.enable_web_scrape,
+        download_hires: partial.downloadHires ?? current.download_hires,
         ui: {
           thumbnail_size_percent: partial.thumbnailSizePercent ?? current.ui.thumbnail_size_percent,
           show_info_overlay: partial.showInfoOverlay ?? current.ui.show_info_overlay,

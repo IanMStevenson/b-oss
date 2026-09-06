@@ -295,6 +295,7 @@ export function SettingsPanel() {
   const [enableWebScrape, setEnableWebScrape] = useState(
     firstAcct?.enable_web_scrape ?? false,
   );
+  const [downloadHires, setDownloadHires] = useState(firstAcct?.download_hires ?? false);
 
   const [focusedField, setFocusedField] = useState<string | null>(null);
 
@@ -314,6 +315,7 @@ export function SettingsPanel() {
     setStartWithWindows(store.app.startWithWindows);
     setAutoUpdateEnabled(store.app.autoUpdateEnabled);
     setEnableWebScrape(a.enable_web_scrape ?? false);
+    setDownloadHires(a.download_hires ?? false);
   }, [store]);
 
   if (!store) return null;
@@ -653,6 +655,36 @@ export function SettingsPanel() {
                 {enableWebScrape ? 'On' : 'Off'}
               </span>
             </div>
+
+            <div
+              style={{
+                opacity: enableWebScrape ? 1 : 0.4,
+                pointerEvents: enableWebScrape ? 'auto' : 'none',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: 6,
+                marginBottom: 12,
+              }}
+            >
+              <span style={{ fontSize: 12, color: 'var(--muted)' }}>
+                Always download hires images too, even when the original is already
+                available (a redundant extra copy). A hires image is fetched
+                regardless of this setting whenever the original isn't available.
+              </span>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <PillToggle
+                  checked={downloadHires}
+                  onChange={(v) => {
+                    setDownloadHires(v);
+                    save({ downloadHires: v });
+                  }}
+                />
+                <span style={{ fontSize: 13, color: 'var(--ink-2)' }}>
+                  {downloadHires ? 'On' : 'Off'}
+                </span>
+              </div>
+            </div>
+
             {enableWebScrape &&
               (store.accounts.length === 0 ? (
                 <div style={{ fontSize: 12, color: 'var(--muted)', padding: '8px 0' }}>

@@ -35,6 +35,14 @@ export interface BArkSettings {
    * v1 shipped, so it is normalised to `false` when absent from an older file.
    */
   enable_web_scrape: boolean;
+  /**
+   * Also fetch hires images even when the original was already obtained
+   * (redundant extra copy). A hires image is always fetched as a fallback when
+   * the original isn't available, regardless of this setting — see b-oss#112.
+   * Meaningless while `enable_web_scrape` is off. Same normalisation note as
+   * `enable_web_scrape`.
+   */
+  download_hires: boolean;
   ui: { thumbnail_size_percent: number; show_info_overlay: boolean };
 }
 
@@ -99,6 +107,8 @@ export interface AccountConfig {
    * the renderer can show the website sign-in UI without a separate fetch.
    */
   enable_web_scrape?: boolean;
+  /** Mirror of the shared `download_hires` setting. */
+  download_hires?: boolean;
   /**
    * Whether this account currently has a usable (non-expired) blipfoto.com
    * website session stored. Derived, not persisted — recomputed whenever the
@@ -175,6 +185,7 @@ export interface SharedSettingsPartial {
   startWithWindows?: boolean;
   autoUpdateEnabled?: boolean;
   enableWebScrape?: boolean;
+  downloadHires?: boolean;
 }
 
 export type BootState =

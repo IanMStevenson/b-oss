@@ -230,6 +230,7 @@ function composeAccountConfig(p: PortableAccount): AccountConfig {
     error_message: status.error_message,
     account_added_at: status.account_added_at,
     enable_web_scrape: settings.enable_web_scrape,
+    download_hires: settings.download_hires,
     web_session_signed_in: deriveWebSessionSignedIn(p.id),
   };
 }

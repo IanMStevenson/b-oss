@@ -56,6 +56,7 @@ export class PortableSettingsManager {
       gap_check_days: 31,
       redo_count: 7,
       enable_web_scrape: false,
+      download_hires: false,
       ui: { thumbnail_size_percent: 100, show_info_overlay: true },
     };
   }
@@ -95,6 +96,9 @@ export class PortableSettingsManager {
     }
     if (typeof validated.enable_web_scrape !== 'boolean') {
       validated.enable_web_scrape = false;
+    }
+    if (typeof validated.download_hires !== 'boolean') {
+      validated.download_hires = false;
     }
     return validated;
   }

@@ -39,6 +39,7 @@ describe('PortableSettingsManager', () => {
       gap_check_days: 14,
       redo_count: 5,
       enable_web_scrape: true,
+      download_hires: true,
       ui: { thumbnail_size_percent: 120, show_info_overlay: true },
     };
     await mgr.save(settings);
@@ -83,6 +84,22 @@ describe('PortableSettingsManager', () => {
   it('validate() preserves enable_web_scrape: true', () => {
     const raw = { ...PortableSettingsManager.defaults(), enable_web_scrape: true };
     expect(PortableSettingsManager.validate(raw).enable_web_scrape).toBe(true);
+  });
+
+  it('defaults() includes download_hires: false', () => {
+    expect(PortableSettingsManager.defaults().download_hires).toBe(false);
+  });
+
+  it('validate() normalises a v1 file with no download_hires to false', () => {
+    const raw = { ...PortableSettingsManager.defaults() } as Record<string, unknown>;
+    delete raw['download_hires'];
+    const validated = PortableSettingsManager.validate(raw);
+    expect(validated.download_hires).toBe(false);
+  });
+
+  it('validate() preserves download_hires: true', () => {
+    const raw = { ...PortableSettingsManager.defaults(), download_hires: true };
+    expect(PortableSettingsManager.validate(raw).download_hires).toBe(true);
   });
 
   it('validate() throws on newer schema_version (forward-incompatible)', () => {

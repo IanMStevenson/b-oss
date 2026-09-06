@@ -1911,3 +1911,193 @@ describe('BackupEngine — hires fallback/additive logic (b-oss#112)', () => {
     expect(extra?.hires).toBe('entries/2024/2024-01-15-222-h.jpg');
   });
 });
+
+describe('BackupEngine — web-scrape extras', () => {
+  const GALLERY_MARKER = 'blipfoto.data.gallery = ';
+
+  function galleryPage(items: unknown[]): string {
+    return `<html><body><script>${GALLERY_MARKER}${JSON.stringify({ items })};</script></body></html>`;
+  }
+
+  function seedJournal(io: MockPlatformIO, extra?: Partial<JournalMetadata>) {
+    const journal: JournalMetadata = {
+      schema_version: 1,
+      username: 'gbradley',
+      journal_title: 't',
+      avatar_url: 'a',
+      entry_total: 1,
+      last_backup_at: '2024-01-01T00:00:00Z',
+      entries: [
+        {
+          entry_id: '100',
+          date: '2024-01-15',
+          title: 'one',
+          thumbnail_path: 'entries/2024/2024-01-15-t.jpg',
+          json_path: 'entries/2024/2024-01-15.json',
+        },
+      ],
+      ...extra,
+    };
+    io.files.set('/backups/gbradley/journal.json', JSON.stringify(journal));
+    io.files.set('/backups/gbradley/entries/2024/2024-01-15.jpg', '<placeholder>');
+    io.files.set(
+      '/backups/gbradley/entries/2024/2024-01-15.json',
+      JSON.stringify({ entry_id: '100', date: '2024-01-15', title: 'one', images: {} }),
+    );
+  }
+
+  function wireClient(client: BlipfotoClient) {
+    vi.spyOn(client, 'getUserProfile').mockResolvedValue(makeProfileResponse(1));
+    vi.spyOn(client, 'getJournalEntries').mockResolvedValue({
+      page: { index: 0, size: 100, more: 0 },
+      entries: [makeEntryStub('100', '2024-01-15')],
+    });
+    vi.spyOn(client, 'getEntry').mockResolvedValue(makeEntryResponse('100', '2024-01-15'));
+  }
+
+  const MAIN = {
+    item_id_str: '111',
+    thumbnail_url: 'https://cdn.example/t/111.jpg',
+    image_urls: { hires: 'https://cdn.example/h/111.jpg', original: '/img/o/111.jpg' },
+  };
+  const EXTRA = {
+    item_id_str: '222',
+    thumbnail_url: 'https://cdn.example/t/222.jpg',
+    image_urls: { stdres: 'https://cdn.example/s/222.jpg', original: 'https://cdn.example/o/222.jpg' },
+  };
+
+  it('downloads main original + extra images and records them in the entry JSON', async () => {
+    const io = new MockPlatformIO();
+    const client = makeClient();
+    seedJournal(io);
+    wireClient(client);
+    const fetchHtml = vi.spyOn(io, 'fetchHtml').mockResolvedValue(galleryPage([MAIN, EXTRA]));
+
+    // download_hires: true — main's hires is expected too (additive, b-oss#112), even
+    // though its original also succeeds.
+    await makeEngine(
+      makeConfig({ redo_count: 1, enable_web_scrape: true, download_hires: true }),
+      io,
+      client,
+      () => {},
+    ).run();
+
+    expect(fetchHtml).toHaveBeenCalledWith('https://www.blipfoto.com/entry/100');
+    const urls = io.downloads.map((d) => d.url);
+    const dests = io.downloads.map((d) => d.destPath);
+    // relative gallery original is resolved against the site origin
+    expect(io.downloads).toContainEqual({
+      url: 'https://www.blipfoto.com/img/o/111.jpg',
+      destPath: '/backups/gbradley/entries/2024/2024-01-15-o.jpg',
+    });
+    // download_hires is on, so hires is fetched additively alongside a successful original
+    expect(dests).toContain('/backups/gbradley/entries/2024/2024-01-15-h.jpg');
+    // extra 222: thumbnail, stdres and original
+    expect(dests).toContain('/backups/gbradley/entries/2024/2024-01-15-222-t.jpg');
+    expect(dests).toContain('/backups/gbradley/entries/2024/2024-01-15-222.jpg');
+    expect(urls).toContain('https://cdn.example/o/222.jpg');
+
+    const saved = JSON.parse(
+      io.files.get('/backups/gbradley/entries/2024/2024-01-15.json')!,
+    ) as BlipEntry;
+    expect(saved.images.original).toBe('entries/2024/2024-01-15-o.jpg');
+    expect(saved.images.hires).toBe('entries/2024/2024-01-15-h.jpg');
+    expect(saved.images.web_scraped).toBe(true);
+    expect(saved.images.extras?.[0]?.item_id).toBe('222');
+    expect(saved.images.extras?.[0]?.original).toBe('entries/2024/2024-01-15-222-o.jpg');
+  });
+
+  it('falls back to main hires when the original download fails', async () => {
+    const io = new MockPlatformIO();
+    const client = makeClient();
+    seedJournal(io);
+    wireClient(client);
+    vi.spyOn(io, 'fetchHtml').mockResolvedValue(galleryPage([MAIN]));
+    const realDownload = io.downloadFile.bind(io);
+    vi.spyOn(io, 'downloadFile').mockImplementation((url: string, dest: string) => {
+      if (url === 'https://www.blipfoto.com/img/o/111.jpg') {
+        return Promise.reject(new Error('403'));
+      }
+      return realDownload(url, dest);
+    });
+
+    // download_hires: false — the fallback fires regardless of the toggle (b-oss#112).
+    await makeEngine(
+      makeConfig({ redo_count: 1, enable_web_scrape: true, download_hires: false }),
+      io,
+      client,
+      () => {},
+    ).run();
+
+    const dests = io.downloads.map((d) => d.destPath);
+    expect(dests).toContain('/backups/gbradley/entries/2024/2024-01-15-h.jpg');
+    const saved = JSON.parse(
+      io.files.get('/backups/gbradley/entries/2024/2024-01-15.json')!,
+    ) as BlipEntry;
+    expect(saved.images.hires).toBe('entries/2024/2024-01-15-h.jpg');
+
+    // A failed download leaves a gap → the "repair complete" marker is dropped.
+    const journal = JSON.parse(io.files.get('/backups/gbradley/journal.json')!) as JournalMetadata;
+    expect(journal.image_repair_complete).toBeUndefined();
+  });
+
+  it('skips re-downloading gallery files already on disk, but still records/refreshes their paths', async () => {
+    const io = new MockPlatformIO();
+    const client = makeClient();
+    seedJournal(io);
+    wireClient(client);
+    vi.spyOn(io, 'fetchHtml').mockResolvedValue(galleryPage([MAIN, EXTRA]));
+    // main original + one extra original already on disk
+    io.files.set('/backups/gbradley/entries/2024/2024-01-15-o.jpg', '<already here>');
+    io.files.set('/backups/gbradley/entries/2024/2024-01-15-222-o.jpg', '<already here>');
+
+    // download_hires: true — main's original is already on disk (gotOriginal derived from
+    // the existence check, per b-oss#112), so hires is still fetched additively.
+    await makeEngine(
+      makeConfig({ redo_count: 1, enable_web_scrape: true, download_hires: true }),
+      io,
+      client,
+      () => {},
+    ).run();
+
+    const dests = io.downloads.map((d) => d.destPath);
+    expect(dests).not.toContain('/backups/gbradley/entries/2024/2024-01-15-o.jpg');
+    expect(dests).not.toContain('/backups/gbradley/entries/2024/2024-01-15-222-o.jpg');
+    expect(dests).toContain('/backups/gbradley/entries/2024/2024-01-15-h.jpg');
+    const saved = JSON.parse(
+      io.files.get('/backups/gbradley/entries/2024/2024-01-15.json')!,
+    ) as BlipEntry;
+    // the extras loop re-assigns the relative path for a file already on disk
+    expect(saved.images.extras?.[0]?.original).toBe('entries/2024/2024-01-15-222-o.jpg');
+    expect(saved.images.hires).toBe('entries/2024/2024-01-15-h.jpg');
+  });
+
+  it('runs a full repair pass when the scrape settings differ from the stored snapshot', async () => {
+    const io = new MockPlatformIO();
+    const client = makeClient();
+    seedJournal(io, {
+      image_repair_complete: { enable_web_scrape: false, download_hires: false },
+    });
+    wireClient(client);
+    vi.spyOn(io, 'fetchHtml').mockResolvedValue(galleryPage([MAIN]));
+    const events: BackupEvent[] = [];
+
+    await makeEngine(
+      makeConfig({ redo_count: 0, enable_web_scrape: true, download_hires: true }),
+      io,
+      client,
+      (e) => events.push(e),
+    ).run();
+
+    const repair = events.filter(
+      (e): e is Extract<BackupEvent, { type: 'progress' }> =>
+        e.type === 'progress' && e.phase === 'image_repair',
+    );
+    expect(repair.some((e) => e.total === 1)).toBe(true);
+    const journal = JSON.parse(io.files.get('/backups/gbradley/journal.json')!) as JournalMetadata;
+    expect(journal.image_repair_complete).toEqual({
+      enable_web_scrape: true,
+      download_hires: true,
+    });
+  });
+});
