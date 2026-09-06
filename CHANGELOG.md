@@ -5,6 +5,22 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Added
+
+- b-ark: back up original-size, hires, and extra images by signing in to the
+  blipfoto.com website per journal — feature parity with b-ark-chrome. New
+  "Full-resolution & extra images" setting, with a per-journal website
+  sign-in list and an independent "download hires" toggle.
+
+### Fixed
+
+- b-ark and b-ark-chrome: hires images are now downloaded consistently for
+  both the main entry image and its extras — as a fallback whenever the
+  original isn't available (regardless of the "download hires" setting),
+  and additionally whenever that setting is on. Previously extras and the
+  main image behaved differently, and the fallback never applied while the
+  setting was off.
+
 ## [1.0.3] - 2026-09-05
 
 ### Added
