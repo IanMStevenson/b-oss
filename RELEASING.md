@@ -106,6 +106,16 @@ npm run dist:win --workspace=packages/b-ark
 Remove-Item Env:RELEASE
 ```
 
+**On Linux** (no Windows machine handy, no Wine installed on the host):
+
+```bash
+./scripts/build-win-docker.sh --release
+```
+
+Runs electron-builder's official Wine-bundled image
+(`electronuserland/builder:wine`) via a disposable `docker run --rm` — same
+output path, nothing left behind on the host or in the image.
+
 Install `packages/b-ark/dist-electron/b-ark Setup <version>.exe`, launch it,
 **open About** (expect bare version, e.g. `0.1.0` — never `0.0.0-dev` and
 never `0.1.0.<commits>.<build>`), then **click Add account and confirm

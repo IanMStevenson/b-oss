@@ -94,6 +94,8 @@ npm run lint           # ESLint --max-warnings 0
 npm test               # Vitest across all packages
 npm run build          # Build all packages (also bumps the local build counter)
 npm run build:release  # Build with RELEASE=1 — version shown as bare 1.0.0
+./scripts/build-win-docker.sh [--release]  # Build b-ark's Windows .exe on Linux, no Wine on
+                                            # the host — see RELEASING.md §3
 ```
 
 ## Local build credentials (`.env.local`)
