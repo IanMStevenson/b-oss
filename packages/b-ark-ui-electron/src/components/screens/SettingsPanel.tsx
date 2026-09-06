@@ -392,8 +392,8 @@ export function SettingsPanel() {
           {/* Folder */}
           <SettingBlock
             label="Folder"
-            hint="Where backups and settings are stored"
-            description="b-ark-settings.json lives here so your setup follows the folder between machines. Moving the folder updates the pointer only — existing backup files are not moved. Shared across all journals — one folder for every account, each getting its own {folder}/{username} subfolder; you can't point a single account at a different folder."
+            hint="Shared across all journals"
+            description="Where backups and settings are stored. b-ark-settings.json lives here so your setup follows the folder between machines. Moving the folder updates the pointer only — existing backup files are not moved. One folder for every account, each getting its own {folder}/{username} subfolder; you can't point a single account at a different folder."
           >
             <div style={{ display: 'flex' }}>
               <input
@@ -560,7 +560,8 @@ export function SettingsPanel() {
 
           <SettingBlock
             label="Delay"
-            description="Pause between each entry fetch (useful to avoid bandwidth hogging during working hours). Default 0. Shared across all journals."
+            hint="Shared across all journals"
+            description="Pause between each entry fetch (useful to avoid bandwidth hogging during working hours). Default 0."
           >
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
               <input
@@ -585,8 +586,8 @@ export function SettingsPanel() {
 
           <SettingBlock
             label="Gap check"
-            hint="Days to look back"
-            description="On each run, look back this many days and fill in any missing entries. Shared across all journals."
+            hint="Shared across all journals"
+            description="On each run, look back this many days and fill in any missing entries."
           >
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
               <input
@@ -611,8 +612,8 @@ export function SettingsPanel() {
 
           <SettingBlock
             label="Redo"
-            hint="Most-recent entries to refresh"
-            description="Re-download this many of the latest entries each run, in case captions or comments have changed. Shared across all journals."
+            hint="Shared across all journals"
+            description="Re-download this many of the latest entries each run, in case captions or comments have changed."
           >
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
               <input
