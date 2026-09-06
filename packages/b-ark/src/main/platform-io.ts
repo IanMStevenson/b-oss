@@ -3,7 +3,30 @@
 
 import fs from 'node:fs/promises';
 import type { PlatformIO, LogEntry } from '@b-oss/backup-engine';
-import { net } from 'electron';
+import { net, type Session } from 'electron';
+import { classifyScrapeResponse } from './web-session-pure.js';
+
+/**
+ * Thrown by `fetchHtml` when the injected website session is no longer valid
+ * (redirect to sign-in, 401/403, or a sign-in-page body). The backup engine
+ * swallows it as an image gap; `doRunBackup` uses the `onWebSessionExpired`
+ * hook to surface it in the UI.
+ */
+export class WebSessionExpiredError extends Error {
+  constructor(message = 'blipfoto.com web session expired') {
+    super(message);
+    this.name = 'WebSessionExpiredError';
+  }
+}
+
+export interface WebScrapeHooks {
+  /** Authenticated blipfoto.com session; when absent, `fetchHtml` stays unsupported. */
+  webSession?: Session;
+  /** Called once when `fetchHtml` detects the session has expired mid-run. */
+  onWebSessionExpired?: () => void;
+  /** Optional heavier fallback (render in a hidden window) if a plain fetch is blocked. */
+  fetchHtmlFallback?: (url: string) => Promise<string>;
+}
 
 const TRANSIENT_CODES = new Set(['EPERM', 'EACCES', 'EBUSY']);
 const RETRY_DELAYS = [100, 200, 400, 800];
@@ -30,9 +53,11 @@ type LogHandler = (entry: LogEntry) => void;
 
 export class ElectronPlatformIO implements PlatformIO {
   private readonly logHandler: LogHandler;
+  private readonly web: WebScrapeHooks;
 
-  constructor(logHandler: LogHandler) {
+  constructor(logHandler: LogHandler, web: WebScrapeHooks = {}) {
     this.logHandler = logHandler;
+    this.web = web;
   }
 
   async readFile(p: string): Promise<Uint8Array> {
@@ -83,7 +108,12 @@ export class ElectronPlatformIO implements PlatformIO {
   }
 
   async downloadFile(url: string, destPath: string): Promise<void> {
-    const response = await net.fetch(url);
+    // Route through the authenticated website session when we have one, so
+    // login-gated original/hires URLs resolve; plain CDN URLs are unaffected by
+    // the extra cookies.
+    const response = this.web.webSession
+      ? await this.web.webSession.fetch(url)
+      : await net.fetch(url);
     if (!response.ok) {
       throw new Error(`Download failed ${response.status}: ${url}`);
     }
@@ -91,11 +121,31 @@ export class ElectronPlatformIO implements PlatformIO {
     await fs.writeFile(destPath, buffer);
   }
 
-  // Web scraping via the user's browser session is not supported in Electron —
-  // it would require a separate authenticated browser session. The enable_web_scrape
-  // flag is always false in the Electron config so this is never called.
-  fetchHtml(_url: string): Promise<string> {
-    return Promise.reject(new Error('fetchHtml is not supported in the Electron platform'));
+  // Only supported once a blipfoto.com website session has been injected (see
+  // WebScrapeHooks). Without one, the engine's enable_web_scrape flag is false
+  // and this is never called.
+  async fetchHtml(url: string): Promise<string> {
+    const sess = this.web.webSession;
+    if (!sess) {
+      throw new Error('fetchHtml is not supported without a blipfoto.com web session');
+    }
+    const response = await sess.fetch(url);
+    const body = await response.text();
+    if (classifyScrapeResponse({ status: response.status, finalUrl: response.url, body }) === 'expired') {
+      if (this.web.fetchHtmlFallback) {
+        try {
+          return await this.web.fetchHtmlFallback(url);
+        } catch {
+          /* fall through to the expiry signal below */
+        }
+      }
+      this.web.onWebSessionExpired?.();
+      throw new WebSessionExpiredError();
+    }
+    if (!response.ok) {
+      throw new Error(`fetchHtml failed ${response.status}: ${url}`);
+    }
+    return body;
   }
 
   log(entry: LogEntry): void {
