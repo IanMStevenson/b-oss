@@ -393,7 +393,7 @@ export function SettingsPanel() {
           <SettingBlock
             label="Folder"
             hint="Where backups and settings are stored"
-            description="b-ark-settings.json lives here so your setup follows the folder between machines. Moving the folder updates the pointer only — existing backup files are not moved."
+            description="b-ark-settings.json lives here so your setup follows the folder between machines. Moving the folder updates the pointer only — existing backup files are not moved. Shared across all journals — one folder for every account, each getting its own {folder}/{username} subfolder; you can't point a single account at a different folder."
           >
             <div style={{ display: 'flex' }}>
               <input
@@ -664,6 +664,7 @@ export function SettingsPanel() {
 
           <SettingBlock
             label="Show journal info overlay"
+            hint="Shared across all journals"
             description="Displays the date and title at the bottom of each thumbnail in the grid view."
           >
             <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
@@ -682,7 +683,8 @@ export function SettingsPanel() {
 
           <SettingBlock
             label="Start with Windows"
-            description="Open b-ark automatically on login. It stays in the system tray until you open it."
+            hint="This device only"
+            description="Open b-ark automatically on login. It stays in the system tray until you open it. Unlike the settings above, this doesn't travel with the backup folder to another machine."
           >
             <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
               <PillToggle
@@ -700,6 +702,7 @@ export function SettingsPanel() {
 
           <SettingBlock
             label="Check for updates automatically"
+            hint="This device only"
             description="At startup, b-ark checks GitHub for a newer release and offers to install it. Turn off if you'd rather update manually. Takes effect at next launch."
           >
             <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
