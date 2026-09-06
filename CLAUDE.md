@@ -81,6 +81,13 @@ and the repoint command for "make that worktree available via Mutagen."
 - **b-ark** (debugging): local relay `b-ark-relay` → `~/live/b-ark-repo`
   (the **whole monorepo**, not just `packages/b-ark` - `.vscode/launch.json`
   needs the full workspace root) → Windows `D:\Dev\debugging\b-ark-build`.
+  Because the sync source is the repo root, `b-ark-relay` must be recreated
+  with `--ignore-vcs --ignore=node_modules/` (Windows keeps its own
+  `node_modules`; the other two relays sync a subfolder so don't need this).
+  The launch config runs `electron.cmd .` against the synced
+  `packages/b-ark/dist/`, so `npm run build` on the VM in the feeding
+  worktree is part of the loop. Full details + gotchas:
+  `devutils/dev-vm-setup/mutagen-dev-loop-pattern.md`.
 - **b-ark-chrome** (Chrome "Load unpacked"): local relay
   `b-ark-chrome-relay` → `~/live/b-ark-chrome-dist` (built `dist/`, needs
   `npm run dev` running in whichever worktree feeds it) → Windows
