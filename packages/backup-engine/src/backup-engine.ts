@@ -1033,8 +1033,10 @@ export class BackupEngine {
       const isMain = i === 0;
 
       if (isMain) {
-        // For the main image: attempt original, then hires only if original absent/failed
-        // and download_hires is on.
+        // For the main image: always attempt original. Hires is downloaded when the
+        // original wasn't obtained (fallback — regardless of download_hires) OR when
+        // download_hires is on (additive — grab it even though original also
+        // succeeded). Same unified rule applies to extra images below.
         const originalRel = JournalIndex.entryOriginalPath(entry.date);
         const originalAbs = joinPath(journalFolder, originalRel);
         let gotOriginal = false;
@@ -1058,10 +1060,12 @@ export class BackupEngine {
           gotOriginal = true;
         }
 
-        if (!gotOriginal && this.config.download_hires && item.image_urls?.hires) {
+        if (item.image_urls?.hires && (!gotOriginal || this.config.download_hires)) {
           const hiresRel = JournalIndex.entryHiresPath(entry.date);
           const hiresAbs = joinPath(journalFolder, hiresRel);
-          if (!(await this.io.fileExists(hiresAbs))) {
+          if (await this.io.fileExists(hiresAbs)) {
+            entry.images.hires = hiresRel;
+          } else {
             try {
               await this.io.downloadFile(item.image_urls.hires, hiresAbs);
               entry.images.hires = hiresRel;
@@ -1082,7 +1086,9 @@ export class BackupEngine {
       const itemId = item.item_id_str;
       const extra: NonNullable<BlipEntry['images']['extras']>[number] = { item_id: itemId };
 
-      const downloads: Array<{
+      // Thumbnail + stdres are independent of the original/hires relationship below —
+      // always attempted whenever their own URL exists.
+      const otherDownloads: Array<{
         label: string;
         url: string;
         destAbs: string;
@@ -1090,7 +1096,7 @@ export class BackupEngine {
       }> = [];
 
       if (item.thumbnail_url) {
-        downloads.push({
+        otherDownloads.push({
           label: 'extra thumbnail',
           url: item.thumbnail_url,
           destAbs: joinPath(journalFolder, JournalIndex.extraThumbnailPath(entry.date, itemId)),
@@ -1100,7 +1106,7 @@ export class BackupEngine {
         });
       }
       if (item.image_urls?.stdres) {
-        downloads.push({
+        otherDownloads.push({
           label: 'extra stdres',
           url: item.image_urls.stdres,
           destAbs: joinPath(journalFolder, JournalIndex.extraImagePath(entry.date, itemId)),
@@ -1109,31 +1115,8 @@ export class BackupEngine {
           },
         });
       }
-      if (item.image_urls?.original) {
-        const url = item.image_urls.original.startsWith('http')
-          ? item.image_urls.original
-          : `${BLIPFOTO_SITE}${item.image_urls.original}`;
-        downloads.push({
-          label: 'extra original',
-          url,
-          destAbs: joinPath(journalFolder, JournalIndex.extraOriginalPath(entry.date, itemId)),
-          assign: (rel) => {
-            extra.original = rel;
-          },
-        });
-      }
-      if (this.config.download_hires && item.image_urls?.hires) {
-        downloads.push({
-          label: 'extra hires',
-          url: item.image_urls.hires,
-          destAbs: joinPath(journalFolder, JournalIndex.extraHiresPath(entry.date, itemId)),
-          assign: (rel) => {
-            extra.hires = rel;
-          },
-        });
-      }
 
-      for (const dl of downloads) {
+      for (const dl of otherDownloads) {
         if (await this.io.fileExists(dl.destAbs)) {
           // Derive relative path from absolute for the assign call
           const rel = dl.destAbs.slice(journalFolder.length).replace(/^\//, '');
@@ -1151,6 +1134,55 @@ export class BackupEngine {
             'warn',
             `Failed to download ${dl.label} for ${entry.date} item ${itemId}: ${message}`,
           );
+        }
+      }
+
+      // Original: attempted sequentially (not batched with the above) so hires below
+      // can be conditioned on whether it succeeded — mirrors the main image's
+      // gotOriginal pattern above.
+      const extraOriginalRel = JournalIndex.extraOriginalPath(entry.date, itemId);
+      const extraOriginalAbs = joinPath(journalFolder, extraOriginalRel);
+      let gotExtraOriginal = false;
+      if (item.image_urls?.original && !(await this.io.fileExists(extraOriginalAbs))) {
+        try {
+          const url = item.image_urls.original.startsWith('http')
+            ? item.image_urls.original
+            : `${BLIPFOTO_SITE}${item.image_urls.original}`;
+          await this.io.downloadFile(url, extraOriginalAbs);
+          extra.original = extraOriginalRel;
+          gotExtraOriginal = true;
+        } catch (err) {
+          this.hadImageGap = true;
+          const message = err instanceof Error ? err.message : String(err);
+          await this.appendLog(
+            'warn',
+            `Failed to download extra original for ${entry.date} item ${itemId}: ${message}`,
+          );
+        }
+      } else if (await this.io.fileExists(extraOriginalAbs)) {
+        extra.original = extraOriginalRel;
+        gotExtraOriginal = true;
+      }
+
+      // Hires: fallback when the original wasn't obtained, or always when
+      // download_hires is on — same unified rule as the main image.
+      if (item.image_urls?.hires && (!gotExtraOriginal || this.config.download_hires)) {
+        const extraHiresRel = JournalIndex.extraHiresPath(entry.date, itemId);
+        const extraHiresAbs = joinPath(journalFolder, extraHiresRel);
+        if (await this.io.fileExists(extraHiresAbs)) {
+          extra.hires = extraHiresRel;
+        } else {
+          try {
+            await this.io.downloadFile(item.image_urls.hires, extraHiresAbs);
+            extra.hires = extraHiresRel;
+          } catch (err) {
+            this.hadImageGap = true;
+            const message = err instanceof Error ? err.message : String(err);
+            await this.appendLog(
+              'warn',
+              `Failed to download extra hires for ${entry.date} item ${itemId}: ${message}`,
+            );
+          }
         }
       }
 

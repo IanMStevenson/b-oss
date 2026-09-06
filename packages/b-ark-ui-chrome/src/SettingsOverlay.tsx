@@ -563,7 +563,9 @@ export function SettingsOverlay({ backend, account, onClose }: SettingsOverlayPr
                 }}
               >
                 <span style={{ fontSize: 12, color: 'var(--muted)' }}>
-                  Also download hires images (redundant when original is available)
+                  Always download hires images too, even when the original is already
+                  available (a redundant extra copy). A hires image is fetched
+                  regardless of this setting whenever the original isn't available.
                 </span>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                   <PillToggle

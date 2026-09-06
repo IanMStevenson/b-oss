@@ -1755,3 +1755,159 @@ describe('cacheAvatarIfMissing', () => {
     expect(io.files.has(dest)).toBe(false);
   });
 });
+
+describe('BackupEngine — hires fallback/additive logic (b-oss#112)', () => {
+  const GALLERY_MARKER = 'blipfoto.data.gallery = ';
+
+  function galleryPage(items: unknown[]): string {
+    return `<html><body><script>${GALLERY_MARKER}${JSON.stringify({ items })};</script></body></html>`;
+  }
+
+  function seedJournal(io: MockPlatformIO) {
+    const journal: JournalMetadata = {
+      schema_version: 1,
+      username: 'gbradley',
+      journal_title: 't',
+      avatar_url: 'a',
+      entry_total: 1,
+      last_backup_at: '2024-01-01T00:00:00Z',
+      entries: [
+        {
+          entry_id: '100',
+          date: '2024-01-15',
+          title: 'one',
+          thumbnail_path: 'entries/2024/2024-01-15-t.jpg',
+          json_path: 'entries/2024/2024-01-15.json',
+        },
+      ],
+    };
+    io.files.set('/backups/gbradley/journal.json', JSON.stringify(journal));
+    io.files.set('/backups/gbradley/entries/2024/2024-01-15.jpg', '<placeholder>');
+    io.files.set(
+      '/backups/gbradley/entries/2024/2024-01-15.json',
+      JSON.stringify({ entry_id: '100', date: '2024-01-15', title: 'one', images: {} }),
+    );
+  }
+
+  function wireClient(client: BlipfotoClient) {
+    vi.spyOn(client, 'getUserProfile').mockResolvedValue(makeProfileResponse(1));
+    vi.spyOn(client, 'getJournalEntries').mockResolvedValue({
+      page: { index: 0, size: 100, more: 0 },
+      entries: [makeEntryStub('100', '2024-01-15')],
+    });
+    vi.spyOn(client, 'getEntry').mockResolvedValue(makeEntryResponse('100', '2024-01-15'));
+  }
+
+  const MAIN_ORIGINAL_URL = 'https://cdn.example/o/111.jpg';
+  const MAIN_HIRES_URL = 'https://cdn.example/h/111.jpg';
+  const EXTRA_ORIGINAL_URL = 'https://cdn.example/o/222.jpg';
+  const EXTRA_HIRES_URL = 'https://cdn.example/h/222.jpg';
+
+  const MAIN_ITEM = {
+    item_id_str: '111',
+    image_urls: { original: MAIN_ORIGINAL_URL, hires: MAIN_HIRES_URL },
+  };
+  const EXTRA_ITEM = {
+    item_id_str: '222',
+    image_urls: { original: EXTRA_ORIGINAL_URL, hires: EXTRA_HIRES_URL },
+  };
+
+  function failDownloadsFor(io: MockPlatformIO, ...urls: string[]) {
+    const real = io.downloadFile.bind(io);
+    vi.spyOn(io, 'downloadFile').mockImplementation((url: string, dest: string) => {
+      if (urls.includes(url)) return Promise.reject(new Error('download failed'));
+      return real(url, dest);
+    });
+  }
+
+  async function run(io: MockPlatformIO, downloadHires: boolean): Promise<BlipEntry> {
+    const client = makeClient();
+    seedJournal(io);
+    wireClient(client);
+    await makeEngine(
+      makeConfig({ redo_count: 1, enable_web_scrape: true, download_hires: downloadHires }),
+      io,
+      client,
+      () => {},
+    ).run();
+    return JSON.parse(io.files.get('/backups/gbradley/entries/2024/2024-01-15.json')!) as BlipEntry;
+  }
+
+  // --- Main image ---------------------------------------------------------
+
+  it('main, toggle off, original succeeds: no hires', async () => {
+    const io = new MockPlatformIO();
+    vi.spyOn(io, 'fetchHtml').mockResolvedValue(galleryPage([MAIN_ITEM]));
+    const entry = await run(io, false);
+    expect(entry.images.original).toBe('entries/2024/2024-01-15-o.jpg');
+    expect(entry.images.hires).toBeUndefined();
+    expect(io.downloads.some((d) => d.url === MAIN_HIRES_URL)).toBe(false);
+  });
+
+  it('main, toggle off, original fails: hires downloaded as a fallback', async () => {
+    const io = new MockPlatformIO();
+    vi.spyOn(io, 'fetchHtml').mockResolvedValue(galleryPage([MAIN_ITEM]));
+    failDownloadsFor(io, MAIN_ORIGINAL_URL);
+    const entry = await run(io, false);
+    expect(entry.images.original).toBeUndefined();
+    expect(entry.images.hires).toBe('entries/2024/2024-01-15-h.jpg');
+  });
+
+  it('main, toggle on, original succeeds: hires ALSO downloaded (additive)', async () => {
+    const io = new MockPlatformIO();
+    vi.spyOn(io, 'fetchHtml').mockResolvedValue(galleryPage([MAIN_ITEM]));
+    const entry = await run(io, true);
+    expect(entry.images.original).toBe('entries/2024/2024-01-15-o.jpg');
+    expect(entry.images.hires).toBe('entries/2024/2024-01-15-h.jpg');
+  });
+
+  it('main, toggle on, original fails: hires downloaded', async () => {
+    const io = new MockPlatformIO();
+    vi.spyOn(io, 'fetchHtml').mockResolvedValue(galleryPage([MAIN_ITEM]));
+    failDownloadsFor(io, MAIN_ORIGINAL_URL);
+    const entry = await run(io, true);
+    expect(entry.images.original).toBeUndefined();
+    expect(entry.images.hires).toBe('entries/2024/2024-01-15-h.jpg');
+  });
+
+  // --- Extra image (same 4 cases) -----------------------------------------
+
+  it('extra, toggle off, original succeeds: no hires', async () => {
+    const io = new MockPlatformIO();
+    vi.spyOn(io, 'fetchHtml').mockResolvedValue(galleryPage([MAIN_ITEM, EXTRA_ITEM]));
+    const entry = await run(io, false);
+    const extra = entry.images.extras?.[0];
+    expect(extra?.original).toBe('entries/2024/2024-01-15-222-o.jpg');
+    expect(extra?.hires).toBeUndefined();
+    expect(io.downloads.some((d) => d.url === EXTRA_HIRES_URL)).toBe(false);
+  });
+
+  it('extra, toggle off, original fails: hires downloaded as a fallback', async () => {
+    const io = new MockPlatformIO();
+    vi.spyOn(io, 'fetchHtml').mockResolvedValue(galleryPage([MAIN_ITEM, EXTRA_ITEM]));
+    failDownloadsFor(io, EXTRA_ORIGINAL_URL);
+    const entry = await run(io, false);
+    const extra = entry.images.extras?.[0];
+    expect(extra?.original).toBeUndefined();
+    expect(extra?.hires).toBe('entries/2024/2024-01-15-222-h.jpg');
+  });
+
+  it('extra, toggle on, original succeeds: hires ALSO downloaded (additive)', async () => {
+    const io = new MockPlatformIO();
+    vi.spyOn(io, 'fetchHtml').mockResolvedValue(galleryPage([MAIN_ITEM, EXTRA_ITEM]));
+    const entry = await run(io, true);
+    const extra = entry.images.extras?.[0];
+    expect(extra?.original).toBe('entries/2024/2024-01-15-222-o.jpg');
+    expect(extra?.hires).toBe('entries/2024/2024-01-15-222-h.jpg');
+  });
+
+  it('extra, toggle on, original fails: hires downloaded', async () => {
+    const io = new MockPlatformIO();
+    vi.spyOn(io, 'fetchHtml').mockResolvedValue(galleryPage([MAIN_ITEM, EXTRA_ITEM]));
+    failDownloadsFor(io, EXTRA_ORIGINAL_URL);
+    const entry = await run(io, true);
+    const extra = entry.images.extras?.[0];
+    expect(extra?.original).toBeUndefined();
+    expect(extra?.hires).toBe('entries/2024/2024-01-15-222-h.jpg');
+  });
+});
