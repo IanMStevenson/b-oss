@@ -242,6 +242,20 @@ is corrupted`** — electron-builder was asked to package b-ark but
   once anyone has downloaded — electron-updater compares version
   strings and "same version" reads as "no update needed", leaving the
   broken install stuck.
+- **Two draft releases appear for the same tag** — a `.exe` +
+  `latest.yml` draft and a separate `.exe.blockmap`-only draft.
+  Reproduced on both the 1.0.2 and 1.0.3 attempts; looks like an
+  electron-builder GitHub-provider race uploading multiple assets
+  right after tag creation, not anything in our config. Recovery:
+  download the blockmap from the orphan draft
+  (`gh api repos/<owner>/b-oss/releases/assets/<id> -H "Accept:
+  application/octet-stream" > blockmap`), upload it to the correct
+  draft (`gh api --method POST -H "Content-Type:
+  application/octet-stream"
+  "https://uploads.github.com/repos/<owner>/b-oss/releases/<id>/assets?name=<exe>.blockmap"
+  --input blockmap`), then delete the now-empty orphan draft. Always
+  check the release's asset count/list before trusting it — don't
+  assume the first draft you see is complete.
 
 ## When the release process itself changes
 
