@@ -7,42 +7,18 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
-- b-ark: back up original-size, hires, and extra images by signing in to the
-  blipfoto.com website per journal — feature parity with b-ark-chrome. New
-  "Full-resolution & extra images" setting, with a per-journal website
-  sign-in list and an independent "download hires" toggle.
-
-### Fixed
-
-- b-ark and b-ark-chrome: hires images are now downloaded consistently for
-  both the main entry image and its extras — as a fallback whenever the
-  original isn't available (regardless of the "download hires" setting),
-  and additionally whenever that setting is on. Previously extras and the
-  main image behaved differently, and the fallback never applied while the
-  setting was off.
-
-## [1.0.3] - 2026-09-05
-
-### Added
-
-- b-ark-chrome: first general-availability release on the Chrome Web Store — back up
-  your Blipfoto journal directly from the browser, no separate app required.
-- b-ark-chrome: back up Original and Extra images alongside the standard entry images,
-  with a lightbox viewer for browsing them.
+- b-ark-chrome: new browser extension for backing up your Blipfoto journal directly
+  from Chrome, no separate app required.
+- b-ark and b-ark-chrome: back up Original, hires, and Extra images alongside the
+  standard entry images — for b-ark via a per-journal sign-in to the blipfoto.com
+  website, for b-ark-chrome using your existing browser session. b-ark-chrome adds a
+  lightbox viewer for browsing Extra images.
 
 ### Changed
 
-- Faster backups.
-- b-ark-chrome: further backup speed-ups.
+- Faster backups on both platforms.
 - Backups now process newest posts first, running repair/redo passes last — so recent
   entries are available sooner during a backup.
-
-### Fixed
-
-- b-ark-chrome: thumbnails could fail to load or show stale images during an
-  in-progress backup.
-- b-ark-chrome: backup status chip could get stuck showing "in progress" after a
-  publish-triggered backup.
 
 ## [1.0.1] - 2026-06-14
 
