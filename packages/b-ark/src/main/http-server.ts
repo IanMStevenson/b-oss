@@ -22,6 +22,27 @@ const MIME: Record<string, string> = {
   '.woff2': 'font/woff2',
 };
 
+function resolveSpaPath(resolved: string, backupFolder: string): string {
+  let stat: fs.Stats | undefined;
+  try {
+    stat = fs.statSync(resolved);
+  } catch {
+    stat = undefined;
+  }
+
+  if (stat?.isDirectory()) {
+    return path.join(resolved, 'index.html');
+  }
+
+  // Client-routed SPA path (e.g. a b-view route) that doesn't map to a real
+  // file on disk — fall back to the bundle's index.html rather than 404ing.
+  if (!stat && !path.extname(resolved)) {
+    return path.join(backupFolder, 'index.html');
+  }
+
+  return resolved;
+}
+
 function serveFile(req: http.IncomingMessage, res: http.ServerResponse, filePath: string): void {
   let stat: fs.Stats;
   try {
@@ -94,7 +115,7 @@ export async function startServer(accountId: string, backupFolder: string): Prom
       return;
     }
 
-    serveFile(req, res, resolved);
+    serveFile(req, res, resolveSpaPath(resolved, backupFolder));
   });
 
   await new Promise<void>((resolve, reject) => {
