@@ -4,8 +4,8 @@
 
 Please **do not open a public GitHub issue** for security bugs.
 
-Preferred channel: open a [private security advisory](https://github.com/ianstevenson/b-oss/security/advisories/new)
-against the `ianstevenson/b-oss` repository. This routes the report straight to
+Preferred channel: open a [private security advisory](https://github.com/IanMStevenson/b-oss/security/advisories/new)
+against the `IanMStevenson/b-oss` repository. This routes the report straight to
 the maintainer and lets us collaborate on a fix before public disclosure.
 
 If a private advisory isn't possible, email **ian.stevenson@cyclops-online.co.uk**
@@ -22,7 +22,7 @@ In scope:
 - The b-ark Electron desktop application
 - The `backup-engine`, `b-api`, `b-ark-ui-components`, `b-ark-ui-electron`, and `b-view` packages
 - The release artefacts published on the
-  [b-oss GitHub releases page](https://github.com/ianstevenson/b-oss/releases)
+  [b-oss GitHub releases page](https://github.com/IanMStevenson/b-oss/releases)
 - The auto-update channel
 
 Out of scope (please report to the upstream owner):
@@ -44,7 +44,7 @@ them when deciding whether to install:
 - **Blipfoto.com** — b-ark calls `api.blipfoto.com` for journal data and
   downloads image URLs returned by that API.
 - **GitHub** — hosts the source repository and the auto-updater channel
-  (provider: `github`, owner: `ianstevenson`, repo: `b-oss`).
+  (provider: `github`, owner: `IanMStevenson`, repo: `b-oss`).
 
 Network egress is limited to Blipfoto, GitHub (for updates), and localhost
 (the bundled b-view static server). The app contains **no telemetry, no
@@ -60,23 +60,28 @@ Until Authenticode signing is in place (see "Roadmap" below), Windows users
 will see a SmartScreen warning when running the installer. To verify the
 installer is the one we published:
 
-- Each GitHub release includes a `latest.yml` file containing the SHA-512 of
-  the published installer.
+- GitHub computes a SHA-256 digest for every release asset automatically —
+  visible next to `b-ark-Setup-X.Y.Z.exe` on its release page, and pasted
+  into the release notes for each version.
 - Compute the hash of your downloaded `.exe` and compare:
 
   **Windows (PowerShell):**
 
   ```powershell
-  Get-FileHash -Algorithm SHA512 .\b-ark-Setup-X.Y.Z.exe
+  Get-FileHash -Algorithm SHA256 .\b-ark-Setup-X.Y.Z.exe
   ```
 
   **macOS / Linux:**
 
   ```bash
-  shasum -a 512 b-ark-Setup-X.Y.Z.exe
+  shasum -a 256 b-ark-Setup-X.Y.Z.exe
   ```
 
 If the hashes match, the installer is the one published on the release page.
+
+(`latest.yml` separately carries a SHA-512 of the installer, base64-encoded —
+that one is for electron-updater's own integrity check during auto-update,
+not intended for manual verification.)
 
 ## Hardening status
 
@@ -106,7 +111,7 @@ Implemented:
 - **Authenticode code signing.** Windows installers are currently unsigned;
   SmartScreen will warn users on first run. Code signing is deferred until
   there is sustained user demand or specific friction that makes the cost
-  worthwhile. Until then, verify the SHA-512 as described above.
+  worthwhile. Until then, verify the SHA-256 as described above.
 
 - **OAuth PKCE.** Blipfoto's authorisation server does not currently support
   PKCE. State-based CSRF protection per RFC 6749 §10.12 is in place. We will
