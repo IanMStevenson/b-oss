@@ -24,16 +24,11 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 
+- File renames during atomic writes could fail on some systems; the rename
+  step is now reliable.
 - b-ark: the "open in browser" web viewer no longer 404s on launch — its local
   server now falls back to `index.html` for the root URL and other
   client-routed paths, instead of only serving exact file matches.
-
-## [1.0.1] - 2026-06-14
-
-### Fixed
-
-- File renames during atomic writes could fail on some systems; the rename
-  step is now reliable
 
 ## [1.0.0] - 2026-06-11
 
