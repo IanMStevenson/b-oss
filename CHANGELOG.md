@@ -5,6 +5,12 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Fixed
+
+- b-ark: the "open in browser" web viewer no longer 404s on launch — its local
+  server now falls back to `index.html` for the root URL and other
+  client-routed paths, instead of only serving exact file matches.
+
 ## [1.0.4] - 2026-09-07
 
 ### Added
