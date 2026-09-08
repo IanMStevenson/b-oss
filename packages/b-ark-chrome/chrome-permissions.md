@@ -82,11 +82,15 @@ it cannot be narrowed further than the one host.
 
 ### `https://*.blipfoto.com/*`
 
-**What it's used for.** Three things: (1) the declared content scripts — the status chip
+**What it's used for.** Four things: (1) the declared content scripts — the status chip
 (`chip-entry.ts`) and the publish watcher (`publish-watch.ts`) — which run on Blipfoto
 pages; (2) the `webRequest` OAuth-redirect filter (`oauth.ts`); (3) cross-origin fetch
-of the user's own avatar/profile image (`BrowserBackend.ts`). The OAuth authorize page
-itself is on `www.blipfoto.com`.
+of the user's own avatar/profile image (`BrowserBackend.ts`); (4) **new in 1.0.5:**
+fetching an entry's own page HTML (`browser-platform-io.ts`'s `fetchHtml`, called from
+`backup-engine.ts`'s `fetchGalleryData`) to scrape gallery/Extra-image data that the
+Blipfoto REST API does not expose at all. This uses the browser's existing session
+cookies (`fetch(url, { credentials: 'include' })`) rather than any new mechanism. The
+OAuth authorize page itself is on `www.blipfoto.com`.
 **Why fewer isn't possible.** Blipfoto serves pages and assets across multiple
 subdomains, so the access must cover `*.blipfoto.com` rather than a single host. It is
 restricted to the one registrable domain the extension targets and grants no access to
@@ -140,6 +144,23 @@ permission is scoped to the single, specific regional endpoint identified by tha
 analysis; the extension makes no speculative requests to AWS infrastructure and only
 fetches URLs supplied directly by the Blipfoto API.
 
+### `https://*.s3.eu-west-1.amazonaws.com/*` — new in 1.0.5
+
+**What it's used for.** The same original-resolution image downloads as the exact-host
+permission above. Blipfoto's presigned S3 URLs use two different addressing styles
+depending on the bucket: **path-style** (`s3.eu-west-1.amazonaws.com/<bucket>/<key>`,
+covered by the exact-host permission) and **virtual-hosted/subdomain-style**
+(`<bucket>.s3.eu-west-1.amazonaws.com/<key>`). Both styles are returned by the Blipfoto
+API at runtime for different originals; this permission covers the subdomain form the
+existing exact-host entry doesn't reach.
+
+**Why fewer isn't possible.** Same reasoning as the exact-host entry above: the bucket
+name (and therefore the exact subdomain) is private server-side configuration, not
+knowable or embeddable by the client, and not guessable from any algorithm — only the
+live API response identifies it. The permission is scoped to the single AWS region
+Blipfoto's infrastructure operates in; the extension makes no speculative requests and
+only fetches URLs supplied directly by the Blipfoto API.
+
 ---
 
 ## Summary table (for the submission form)
@@ -149,6 +170,7 @@ fetches URLs supplied directly by the Blipfoto API.
 | `storage`                                  | Cross-context (worker/chip/page) shared state + encrypted token at rest, with `onChanged` events no other API provides.                                                                                                                                                                                                                                              |
 | `webRequest`                               | Non-blocking, `*.blipfoto.com`-scoped capture of the implicit-grant OAuth token from the custom-scheme redirect fragment — the sole, proven capture mechanism. `chrome.identity.launchWebAuthFlow` is architecturally incompatible: Blipfoto's server enforces non-HTTP schemes for distributed apps and cannot be changed (community-run, no engineering resource). |
 | `api.blipfoto.com/*`                       | The Blipfoto REST API — lists/downloads the user's journal.                                                                                                                                                                                                                                                                                                          |
-| `*.blipfoto.com/*`                         | Content-script chip + publish watcher, OAuth redirect filter, avatar fetch.                                                                                                                                                                                                                                                                                          |
+| `*.blipfoto.com/*`                         | Content-script chip + publish watcher, OAuth redirect filter, avatar fetch, and (new in 1.0.5) scraping an entry's own page for gallery/Extra-image data the API doesn't expose, using the existing session cookies. |
 | `*.cloudfront.net/*`                       | Downloads versioned entry images (thumbnail/lores/stdres/hires) served from Blipfoto's CloudFront CDN. Multiple distributions, one per image version; hostnames are AWS-generated, stored in private server-side config, and only known at runtime from API response URLs — cannot be hardcoded.                                                                     |
-| `### https://s3.eu-west-1.amazonaws.com/*` | Downloads original-resolution images served as time-limited S3 presigned URLs (not via CloudFront). Only fetches URLs supplied by the Blipfoto API.                                                                                                                                                                                                                  |
+| `s3.eu-west-1.amazonaws.com/*`             | Downloads original-resolution images served as time-limited, path-style S3 presigned URLs (not via CloudFront). Only fetches URLs supplied by the Blipfoto API.                                                                                                                                                                                                                  |
+| `*.s3.eu-west-1.amazonaws.com/*` (new in 1.0.5) | Same as above, but for originals served via the virtual-hosted/subdomain-style S3 URL form instead of path-style. Bucket name is private server-side config, only known at runtime.                                                                                                                                  |
