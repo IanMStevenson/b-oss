@@ -13,7 +13,7 @@ which builds the workspaces, packages the NSIS installer with
 [electron-builder](packages/b-ark/electron-builder.json), and uploads
 `b-ark Setup <version>.exe`, `b-ark Setup <version>.exe.blockmap`, and
 `latest.yml` to a draft release on GitHub. You then finalise that draft
-manually (notes, SHA-512, pre-release tick) and publish.
+manually (notes, SHA-256, latest-release tick) and publish.
 
 Once published, existing b-ark installs at older versions detect the
 new release on next launch via electron-updater (which reads
@@ -38,10 +38,10 @@ update.
    "no update available", so the broken install is stuck. Bump the
    patch instead. Re-publishing is only safe if you are absolutely
    certain no one (you included) has downloaded the release yet.
-4. **GitHub release finalisation is manual** every time: tick
-   "Set as a pre-release" (while we're pre-1.0), compute and paste the
-   SHA-512 of the .exe into the notes (per [SECURITY.md](SECURITY.md);
-   drops out once Authenticode signing lands), then click Publish.
+4. **GitHub release finalisation is manual** every time: ensure "Set as
+   the latest release" is ticked, paste GitHub's own SHA-256 digest for
+   the .exe into the notes (per [SECURITY.md](SECURITY.md); drops out
+   once Authenticode signing lands), then click Publish.
 5. **Smoke-test OAuth.** `MAIN_VITE_BLIPFOTO_CLIENT_ID` is inlined into
    the main-process bundle at build time. The only way to verify it
    actually made it is to install the shipped .exe on a clean machine
@@ -163,16 +163,17 @@ When the workflow finishes, a draft appears at
 https://github.com/IanMStevenson/b-oss/releases with three assets
 attached. Click _Edit_ and:
 
-1. Tick **Set as a pre-release** (while we're pre-1.0).
-2. Download `b-ark Setup <version>.exe` from the draft and compute its
-   SHA-512:
-
-   ```powershell
-   Get-FileHash -Algorithm SHA512 "$env:USERPROFILE\Downloads\b-ark Setup <version>.exe" | Format-List
-   ```
-
+1. Ensure **Set as the latest release** is ticked (we're past 1.0 now —
+   this replaces the old "Set as a pre-release" step from the pre-1.0
+   era).
+2. Copy the SHA-256 digest GitHub already computes for
+   `b-ark Setup <version>.exe` — visible next to the asset in the draft
+   editor, or via `gh api repos/IanMStevenson/b-oss/releases/<id> --jq
+   '.assets[] | select(.name | endswith(".exe")) | .digest'`. No manual
+   hashing needed; GitHub generates this itself for every uploaded
+   asset.
 3. Write release notes — paste the relevant section from
-   [CHANGELOG.md](CHANGELOG.md) as the body, then add the SHA-512 and
+   [CHANGELOG.md](CHANGELOG.md) as the body, then add the SHA-256 and
    limitations footer. Template:
 
    ```
@@ -182,7 +183,7 @@ attached. Click _Edit_ and:
 
    **Known limitations**: Windows x64 only; Mac build not yet shipped; unsigned installer.
 
-   **SHA-512** (`b-ark Setup <version>.exe`): <paste hash>
+   **SHA-256** (`b-ark Setup <version>.exe`): <paste digest, e.g. sha256:...>
 
    Please report issues at https://github.com/IanMStevenson/b-oss/issues.
    ```
