@@ -6,7 +6,7 @@
 // accepts it (getUserProfile, entries/journal, entries/favorites) — the API's own convention,
 // which is why SCR-17 (My Profile) and SCR-18 (User Profile) can share one screen component.
 
-import { getClient } from './client.js';
+import { getClient, withRateLimitFallback } from './client.js';
 import { stubToEntryIndex } from './viewModel.js';
 import { t } from '../strings/index.js';
 import type { Page } from './usePagedResource.js';
@@ -118,12 +118,14 @@ export async function fetchAwards(username?: string): Promise<BlipAward[]> {
 /** SCR-03's People tab. `users/search` returns the same `BlipUser` shape (`username`,
  * `avatar_url`, `icons`) as every other people list — confirmed against `fetchFollowers`/
  * `fetchFollowing` above, which is what lets SearchScreen reuse `UserRow` directly rather than a
- * second row component. */
+ * second row component. Public browsing like entries.ts's Recent/Popular/Tag/Search — falls back
+ * to the anonymous token if the active account's own is rate-limited. */
 export async function fetchSearchUsersPage(
   query: string,
   pageIndex: number,
 ): Promise<Page<BlipUser>> {
-  const client = await getClient();
-  const res = await client.searchUsers({ query, pageIndex, pageSize: PAGE_SIZE });
-  return { items: res.users, more: res.page.more === 1 };
+  return withRateLimitFallback(async (client) => {
+    const res = await client.searchUsers({ query, pageIndex, pageSize: PAGE_SIZE });
+    return { items: res.users, more: res.page.more === 1 };
+  });
 }

@@ -5,7 +5,7 @@
 // mapping the result through the live adapter (viewModel.ts). One function per SCR-02 tab plus
 // SCR-05's tag search and SCR-06's single-entry load.
 
-import { getClient } from './client.js';
+import { getClient, withRateLimitFallback } from './client.js';
 import { stubToEntryIndex, entryResponseToViewEntry } from './viewModel.js';
 import { t } from '../strings/index.js';
 import type { Page } from './usePagedResource.js';
@@ -15,16 +15,23 @@ import type { BlipEntryActions, BlipFriendship, BlipComment as ApiComment } from
 
 const PAGE_SIZE = 30;
 
+// Recent/Popular/Nearby/Tag/Search are pure public browsing — content is identical regardless of
+// who's asking (confirmed: no per-viewer field in EntryIndex/the list response shape), so a
+// rate-limited active-account token falls back to the anonymous app token instead of a hard
+// failure (client.ts's withRateLimitFallback doc comment has the full reasoning). Following and
+// Just-me are deliberately excluded below — both are genuinely account-specific.
 export async function fetchRecentPage(pageIndex: number): Promise<Page<EntryIndex>> {
-  const client = await getClient();
-  const res = await client.getRecentEntries({ pageIndex, pageSize: PAGE_SIZE });
-  return { items: res.entries.map(stubToEntryIndex), more: res.page.more === 1 };
+  return withRateLimitFallback(async (client) => {
+    const res = await client.getRecentEntries({ pageIndex, pageSize: PAGE_SIZE });
+    return { items: res.entries.map(stubToEntryIndex), more: res.page.more === 1 };
+  });
 }
 
 export async function fetchPopularPage(pageIndex: number): Promise<Page<EntryIndex>> {
-  const client = await getClient();
-  const res = await client.getPopularEntries({ pageIndex, pageSize: PAGE_SIZE });
-  return { items: res.entries.map(stubToEntryIndex), more: res.page.more === 1 };
+  return withRateLimitFallback(async (client) => {
+    const res = await client.getPopularEntries({ pageIndex, pageSize: PAGE_SIZE });
+    return { items: res.entries.map(stubToEntryIndex), more: res.page.more === 1 };
+  });
 }
 
 export async function fetchFollowingPage(pageIndex: number): Promise<Page<EntryIndex>> {
@@ -43,22 +50,24 @@ export async function fetchNearbyPage(
   pageIndex: number,
   coords: { lat: number; lon: number },
 ): Promise<Page<EntryIndex>> {
-  const client = await getClient();
-  const res = await client.searchEntries({
-    location_type: 'radial',
-    lat: coords.lat,
-    lon: coords.lon,
-    distance: 50,
-    pageIndex,
-    pageSize: PAGE_SIZE,
+  return withRateLimitFallback(async (client) => {
+    const res = await client.searchEntries({
+      location_type: 'radial',
+      lat: coords.lat,
+      lon: coords.lon,
+      distance: 50,
+      pageIndex,
+      pageSize: PAGE_SIZE,
+    });
+    return { items: res.entries.map(stubToEntryIndex), more: res.page.more === 1 };
   });
-  return { items: res.entries.map(stubToEntryIndex), more: res.page.more === 1 };
 }
 
 export async function fetchTagPage(tag: string, pageIndex: number): Promise<Page<EntryIndex>> {
-  const client = await getClient();
-  const res = await client.searchEntries({ query: tag, pageIndex, pageSize: PAGE_SIZE });
-  return { items: res.entries.map(stubToEntryIndex), more: res.page.more === 1 };
+  return withRateLimitFallback(async (client) => {
+    const res = await client.searchEntries({ query: tag, pageIndex, pageSize: PAGE_SIZE });
+    return { items: res.entries.map(stubToEntryIndex), more: res.page.more === 1 };
+  });
 }
 
 /** SCR-03's Entries tab. Same shape as every other feed; the caller (SearchScreen) is what keeps
@@ -67,9 +76,10 @@ export async function fetchSearchEntriesPage(
   query: string,
   pageIndex: number,
 ): Promise<Page<EntryIndex>> {
-  const client = await getClient();
-  const res = await client.searchEntries({ query, pageIndex, pageSize: PAGE_SIZE });
-  return { items: res.entries.map(stubToEntryIndex), more: res.page.more === 1 };
+  return withRateLimitFallback(async (client) => {
+    const res = await client.searchEntries({ query, pageIndex, pageSize: PAGE_SIZE });
+    return { items: res.entries.map(stubToEntryIndex), more: res.page.more === 1 };
+  });
 }
 
 export interface LoadedEntry {
@@ -102,7 +112,13 @@ export async function deleteEntry(entryId: string): Promise<void> {
  * useLiveEntry display it as-is, with no mapApiError step of their own) — so codes 104/202 get
  * their own copy-deck wording (error-codes.md's own TODO F/G note) by rewriting the error here,
  * at the one place SCR-06 fetches an entry, rather than teaching the generic four-state primitive
- * about per-screen copy keys. */
+ * about per-screen copy keys.
+ *
+ * Deliberately NOT wrapped in withRateLimitFallback, unlike this file's other browse/listing
+ * fetchers: this call requests returnFriendships/returnActions, which are genuinely per-viewer
+ * (whether you're following the author, whether you've starred/favourited this entry) — an
+ * anonymous fallback would show that state incorrectly (e.g. your own star looking un-starred)
+ * rather than just looking the same either way, the assumption the fallback otherwise relies on. */
 export async function fetchEntry(entryId: string): Promise<LoadedEntry> {
   const client = await getClient();
   try {
