@@ -2,7 +2,7 @@
 // Copyright (C) 2026 Ian Stevenson
 // @vitest-environment jsdom
 
-import { describe, it, expect, afterEach, beforeAll } from 'vitest';
+import { describe, it, expect, afterEach, beforeAll, vi } from 'vitest';
 import { render, screen, cleanup, fireEvent } from '@testing-library/react';
 import { ThumbnailGrid } from '../components/ThumbnailGrid.js';
 import gridStyles from '../components/ThumbnailGrid.module.css';
@@ -216,6 +216,35 @@ describe('ThumbnailGrid showZoomControls / showPagination', () => {
       <ThumbnailGrid entries={entries} selectedEntryId={null} onSelectEntry={() => {}} />,
     );
     expect(container.querySelector(`.${gridStyles.paginationRow}`)).not.toBeNull();
+  });
+});
+
+describe('ThumbnailGrid onNearEnd (b-oss#138)', () => {
+  // Fallback pageSize is 2x2 = 4 when unmeasured (see the ResizeObserver stub comment above).
+  it('fires when there is no more locally-loaded page ahead', () => {
+    const onNearEnd = vi.fn();
+    render(
+      <ThumbnailGrid
+        entries={makeEntries(3)}
+        selectedEntryId={null}
+        onSelectEntry={() => {}}
+        onNearEnd={onNearEnd}
+      />,
+    );
+    expect(onNearEnd).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not fire while more locally-loaded pages remain', () => {
+    const onNearEnd = vi.fn();
+    render(
+      <ThumbnailGrid
+        entries={makeEntries(10)}
+        selectedEntryId={null}
+        onSelectEntry={() => {}}
+        onNearEnd={onNearEnd}
+      />,
+    );
+    expect(onNearEnd).not.toHaveBeenCalled();
   });
 });
 

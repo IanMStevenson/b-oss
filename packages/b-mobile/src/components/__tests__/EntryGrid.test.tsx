@@ -83,3 +83,58 @@ describe('EntryGrid — Browsing prefs wiring', () => {
     expect(grid.style.padding).toBe('0px');
   });
 });
+
+describe('EntryGrid — prefetch only when actually near the end (b-oss#138)', () => {
+  // Fallback pageSize is 2x2=4 when unmeasured (jsdom's ResizeObserver stub never fires) — see
+  // the comment on the pagination test above.
+  it('does not prefetch while more locally-loaded pages remain, even though the server has more', () => {
+    const onLoadMore = vi.fn();
+    render(
+      <MemoryRouter>
+        <EntryGrid
+          entries={makeEntries(10)}
+          onSelectEntry={() => {}}
+          hasMore={true}
+          onLoadMore={onLoadMore}
+          onRefresh={() => {}}
+        />
+      </MemoryRouter>,
+    );
+    // 10 entries, pageSize 4: plenty of already-loaded pages ahead of the first — the old,
+    // buggy version called onLoadMore here regardless, since it only checked hasMore.
+    expect(onLoadMore).not.toHaveBeenCalled();
+  });
+
+  it('prefetches once reaching the last locally-loaded page, if the server has more', () => {
+    const onLoadMore = vi.fn();
+    render(
+      <MemoryRouter>
+        <EntryGrid
+          entries={makeEntries(3)}
+          onSelectEntry={() => {}}
+          hasMore={true}
+          onLoadMore={onLoadMore}
+          onRefresh={() => {}}
+        />
+      </MemoryRouter>,
+    );
+    // 3 entries, pageSize 4: nothing left to page into locally — this is the moment to fetch.
+    expect(onLoadMore).toHaveBeenCalled();
+  });
+
+  it('does not call onLoadMore at the last loaded page if the server has no more', () => {
+    const onLoadMore = vi.fn();
+    render(
+      <MemoryRouter>
+        <EntryGrid
+          entries={makeEntries(3)}
+          onSelectEntry={() => {}}
+          hasMore={false}
+          onLoadMore={onLoadMore}
+          onRefresh={() => {}}
+        />
+      </MemoryRouter>,
+    );
+    expect(onLoadMore).not.toHaveBeenCalled();
+  });
+});

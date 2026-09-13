@@ -22,6 +22,14 @@ const PAGINATION_H = 52;
 const BASE_TILE_PX = 156;
 const ZOOM_MIN_PERCENT = 30;
 const ZOOM_MAX_PERCENT = 200;
+// A flat zoom-percentage floor doesn't scale across device widths — on a wide/landscape screen it
+// let zoom-out show far more columns than fit comfortably (confirmed live on a real device,
+// b-oss#140). Cap zoom-out by minimum tile size as a fraction of the viewport instead, which
+// targets the thing that actually matters (image size) rather than a flat percentage, and scales
+// correctly across phone/tablet/foldable widths. Deliberately approximate (no padding/gap
+// correction) — landing on N or N-1 columns after rounding is fine, not worth exact precision.
+const MIN_COLUMNS_PORTRAIT = 8;
+const MIN_COLUMNS_LANDSCAPE = 6;
 
 type ThumbnailMargins = 'none' | 'narrow' | 'normal';
 
@@ -134,6 +142,12 @@ interface ThumbnailGridProps {
   /** 'normal' (default) is today's spacing. See the MARGIN_RENDER/column-math comment above for
    * what 'narrow'/'none' change. */
   margins?: ThumbnailMargins;
+  /** Fired when the user reaches the last *currently-loaded* display page (i.e. there's no more
+   * of `entries` left to page into locally) — for a host backed by server pagination to fetch
+   * more, exactly when it's actually needed. Omitted: paging simply stops at the last loaded
+   * page, as before. Not fired repeatedly for the same "no more loaded" state — only on the
+   * transition into it — so a host doesn't need its own de-duplication. */
+  onNearEnd?: () => void;
 }
 
 function ThumbnailItem({
@@ -256,6 +270,7 @@ export function ThumbnailGrid({
   showZoomControls = true,
   showPagination = true,
   margins = 'normal',
+  onNearEnd,
 }: ThumbnailGridProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const { width, height } = useContainerSize(containerRef);
@@ -280,16 +295,6 @@ export function ThumbnailGrid({
   // Derive cols/rows from available space; fall back to 2 until measured.
   const cols =
     width > 0 ? Math.max(2, Math.floor((width - calcHPad + calcGap) / (tileSize + calcGap))) : 2;
-  const rows =
-    height > 0
-      ? Math.max(
-          2,
-          Math.floor(
-            (height - controlsH - paginationH - calcVPad + calcGap) / (tileSize + calcGap),
-          ),
-        )
-      : 2;
-  const pageSize = cols * rows;
 
   // 'none' margins: cols * tileSize essentially never exactly equals the container's actual
   // width (tileSize only ever changes in whole zoom-percentage steps), which used to leave a
@@ -299,6 +304,22 @@ export function ThumbnailGrid({
   // same thing internally and this is purely a render-time rounding adjustment.
   const renderTileSize =
     margins === 'none' && width > 0 ? Math.floor(width / cols) : tileSize;
+
+  // rows must divide by whatever size tiles actually render at — using the smaller, pre-snap
+  // tileSize here (as this used to) undercounts each row's real height once 'none' margins snaps
+  // tiles bigger to fill the row, so more rows get crammed into a page than actually fit on
+  // screen (confirmed live on a real device, b-oss#139).
+  const rowTileSize = margins === 'none' ? renderTileSize : tileSize;
+  const rows =
+    height > 0
+      ? Math.max(
+          2,
+          Math.floor(
+            (height - controlsH - paginationH - calcVPad + calcGap) / (rowTileSize + calcGap),
+          ),
+        )
+      : 2;
+  const pageSize = cols * rows;
 
   const prevBtnRef = useRef<HTMLButtonElement>(null);
   const nextBtnRef = useRef<HTMLButtonElement>(null);
@@ -330,6 +351,17 @@ export function ThumbnailGrid({
   const hasPrev = safeTopLeft > 0;
   const hasNext = safeTopLeft + pageSize < entries.length;
 
+  // Fires exactly on the transition into "no more locally-loaded page ahead" — not on every
+  // render while that stays true — since this only depends on `hasNext` itself, not on
+  // `onNearEnd`'s identity (which a host may pass as a fresh closure every render). Deliberately
+  // not deduped further than that: a host's own onLoadMore-style handler already no-ops safely
+  // once there's genuinely nothing more on the server, so a harmless extra call here costs
+  // nothing (see b-mobile's EntryGrid.tsx for the host side of this).
+  useEffect(() => {
+    if (!hasNext) onNearEnd?.();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [hasNext]);
+
   const goToPrevPage = useCallback(
     () => setTopLeftIndex(Math.max(0, safeTopLeft - pageSize)),
     [safeTopLeft, pageSize],
@@ -343,10 +375,16 @@ export function ThumbnailGrid({
     onSwipeLeft: () => hasNext && goToNextPage(),
     onSwipeRight: () => hasPrev && goToPrevPage(),
   });
+
+  const isLandscape = width > 0 && height > 0 && width > height;
+  const minColumns = isLandscape ? MIN_COLUMNS_LANDSCAPE : MIN_COLUMNS_PORTRAIT;
+  const dynamicMinPercent =
+    width > 0 ? Math.round((width / minColumns / baseTileSize) * 100) : ZOOM_MIN_PERCENT;
+
   const pinch = usePinchZoom({
     sizePercent,
     onSizeChange,
-    min: ZOOM_MIN_PERCENT,
+    min: dynamicMinPercent,
     max: ZOOM_MAX_PERCENT,
   });
 
@@ -441,7 +479,7 @@ export function ThumbnailGrid({
             <div className={styles.zoomGroup}>
               <button
                 className={styles.iconBtn}
-                onClick={() => onSizeChange(Math.max(ZOOM_MIN_PERCENT, sizePercent - 10))}
+                onClick={() => onSizeChange(Math.max(dynamicMinPercent, sizePercent - 10))}
                 aria-label="Zoom out"
               >
                 <ZoomOut size={14} strokeWidth={1.6} />
