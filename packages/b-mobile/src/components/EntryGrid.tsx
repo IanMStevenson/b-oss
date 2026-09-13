@@ -19,7 +19,7 @@
 // which shows its own "you've hidden this member" state with Unhide, per rules.md's "opening a
 // hidden member's entry deliberately" rule.
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo } from 'react';
 import { IonRefresher, IonRefresherContent } from '@ionic/react';
 import type { RefresherEventDetail } from '@ionic/core';
 import { ThumbnailGrid } from '@b-oss/b-view';
@@ -57,7 +57,8 @@ export function EntryGrid({
 }: EntryGridProps) {
   const hiddenMembers = useHiddenMembers();
   const navigate = useAppNavigate();
-  const [sizePercent, setSizePercent] = useState(100);
+  const sizePercent = useDevicePrefsStore((s) => s.thumbnailZoomPercent);
+  const setSizePercent = useDevicePrefsStore((s) => s.setThumbnailZoomPercent);
   const showZoomBar = useDevicePrefsStore((s) => s.showZoomBar);
   const showPagination = useDevicePrefsStore((s) => s.showPagination);
   const thumbnailMargins = useDevicePrefsStore((s) => s.thumbnailMargins);

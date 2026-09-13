@@ -291,6 +291,15 @@ export function ThumbnailGrid({
       : 2;
   const pageSize = cols * rows;
 
+  // 'none' margins: cols * tileSize essentially never exactly equals the container's actual
+  // width (tileSize only ever changes in whole zoom-percentage steps), which used to leave a
+  // leftover strip as an unwanted edge margin even with padding/gap both 0 — the exact bug this
+  // mode exists to avoid. Snap the *rendered* tile size to fill the row exactly; sizePercent
+  // itself (what's persisted/shown in the zoom label) is untouched, so zoom still "means" the
+  // same thing internally and this is purely a render-time rounding adjustment.
+  const renderTileSize =
+    margins === 'none' && width > 0 ? Math.floor(width / cols) : tileSize;
+
   const prevBtnRef = useRef<HTMLButtonElement>(null);
   const nextBtnRef = useRef<HTMLButtonElement>(null);
 
@@ -500,7 +509,7 @@ export function ThumbnailGrid({
           <div
             className={styles.grid}
             style={{
-              gridTemplateColumns: `repeat(${cols}, ${tileSize}px)`,
+              gridTemplateColumns: `repeat(${cols}, ${renderTileSize}px)`,
               gap: `${renderGap}px`,
               padding: MARGIN_RENDER[margins].padding,
             }}
@@ -514,7 +523,7 @@ export function ThumbnailGrid({
                 baseUrl={baseUrl}
                 resolveAsset={resolveAsset}
                 invalidateAsset={invalidateAsset}
-                tileSize={tileSize}
+                tileSize={renderTileSize}
                 showInfoOverlay={showInfoOverlay}
                 assetRevision={assetRevision}
               />
