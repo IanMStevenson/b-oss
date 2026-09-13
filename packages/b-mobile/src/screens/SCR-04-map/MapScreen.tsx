@@ -155,6 +155,23 @@ export function MapScreen({ focusedEntryId }: MapScreenProps) {
     };
   }, [styleUrl, focusedEntryId]);
 
+  // MapLibre reads the container's size once, at construction — if IonContent/IonPage's own
+  // layout hasn't settled yet at that exact moment (a real, observed race, not hypothetical),
+  // containerRef.current can report 0 (or the wrong) size, and MapLibre silently falls back to
+  // its built-in 400x300 default canvas. Nothing about the container's later, correct layout
+  // ever tells the map to catch up on its own — same class of "container size settles after
+  // mount" gotcha ThumbnailGrid's own useContainerSize (ThumbnailGrid.tsx) already exists to
+  // solve, just needing map.resize() as the side effect here instead of stored state.
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+    const ro = new ResizeObserver(() => {
+      mapRef.current?.resize();
+    });
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+
   // Fetch entries for the debounced bounds and render their markers. Request-id-superseded like
   // every other resource hook (§7) — a pan mid-fetch discards the now-stale response instead of
   // aborting it, since CapacitorHttp can't abort natively.
