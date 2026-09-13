@@ -74,8 +74,12 @@ export function Pagination({
   // A real, explicit width (not min-width) sized to the widest page number this row will ever
   // need to show, so cells never resize as the current page — or the total, which can itself grow
   // in the background — changes digit count. `ch` is exactly "however wide one character of this
-  // font is", the right unit for "wide enough for N digits".
-  const cellWidth = `${Math.max(2, String(totalPages).length)}ch`;
+  // font is", the right unit for "wide enough for N digits" — but on its own that's exactly wide
+  // enough and no more, leaving the digits touching the cell's own edges with nothing else to
+  // separate one cell's number from its neighbour's (reported live as numbers looking crammed
+  // together). The flat 14px on top is breathing room around the digits, not part of the
+  // digit-count sizing itself.
+  const cellWidth = `calc(${Math.max(2, String(totalPages).length)}ch + 14px)`;
 
   const btnStyle: CSSProperties = {
     width: cellWidth,

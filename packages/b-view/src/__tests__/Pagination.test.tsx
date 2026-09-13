@@ -117,7 +117,7 @@ describe('Pagination — fixed cell count', () => {
       />,
     );
     const pageButton = screen.getByLabelText('Page 1');
-    expect(pageButton.style.width).toBe('3ch');
+    expect(pageButton.style.width).toBe('calc(3ch + 14px)');
     // The arrow buttons stay a plain fixed 28px regardless of digit count — only the numbered
     // cells need to widen for bigger totals.
     const prevButton = container.querySelector('[aria-label="Previous page"]') as HTMLElement;
