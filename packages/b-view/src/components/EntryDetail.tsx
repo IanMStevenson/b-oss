@@ -335,6 +335,11 @@ export function EntryDetail({
       {/* Photo */}
       <div className={styles.photoOuter}>
         <div className={styles.photoMiddle}>
+          {imagePath && !imageSrc && (
+            <div className={styles.photoPlaceholder}>
+              <Loader2 size={28} strokeWidth={1.6} className={styles.spinner} />
+            </div>
+          )}
           {imageSrc && (
             <div
               className={styles.photoInner}
