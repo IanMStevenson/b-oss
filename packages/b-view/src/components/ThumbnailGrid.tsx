@@ -156,6 +156,15 @@ interface ThumbnailGridProps {
    * the displayed total/last-page label — hasNext/hasPrev and what you can actually page into
    * still depend on what's genuinely loaded into `entries`, never on this number. */
   totalEntryCount?: number;
+  /** True once the host's own paged resource has confirmed there's genuinely nothing more to
+   * fetch (its own `hasMore` is false) — the authoritative signal that whatever's in `entries`
+   * right now *is* the real, complete total, overriding `totalEntryCount` if the two disagree.
+   * `totalEntryCount` is necessarily a guess in some cases (a fixed depth limit a host believes
+   * is accurate, but isn't guaranteed to be) — this is what lets a wrong guess correct itself
+   * once the real data proves it wrong, rather than the pagination row continuing to offer pages
+   * that don't exist. Omitted: `totalEntryCount` (if given) is trusted unconditionally, as
+   * before. */
+  allEntriesLoaded?: boolean;
 }
 
 function ThumbnailItem({
@@ -280,6 +289,7 @@ export function ThumbnailGrid({
   margins = 'normal',
   onNearEnd,
   totalEntryCount,
+  allEntriesLoaded,
 }: ThumbnailGridProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const { width, height } = useContainerSize(containerRef);
@@ -356,8 +366,14 @@ export function ThumbnailGrid({
     : Math.floor(safeTopLeft / pageSize) + 2;
   // A known real total (see the prop's own doc comment) drives the *displayed* total/last-page
   // label only — never allowed to be smaller than what's actually loaded, in case a host's known
-  // total is stale (e.g. new entries published since it was fetched).
-  const effectiveTotalEntries = Math.max(totalEntryCount ?? 0, entries.length);
+  // total is stale (e.g. new entries published since it was fetched). Once the host confirms
+  // there's genuinely nothing more to fetch (allEntriesLoaded), entries.length IS the real total
+  // by definition — this overrides a totalEntryCount that turns out to have been wrong (too
+  // high), rather than continuing to offer pages that don't exist (b-oss#146: a hardcoded guess
+  // like this can be wrong, and needs to fail gracefully when it is).
+  const effectiveTotalEntries = allEntriesLoaded
+    ? entries.length
+    : Math.max(totalEntryCount ?? 0, entries.length);
   const totalPages = isAligned
     ? Math.max(1, Math.ceil(effectiveTotalEntries / pageSize))
     : Math.max(2, Math.ceil(effectiveTotalEntries / pageSize) + 1);
@@ -556,6 +572,15 @@ export function ThumbnailGrid({
       >
         {search && isSearchActive && search.status === 'done' && search.results.length === 0 ? (
           <div className={styles.searchEmpty}>No entries match &ldquo;{search.query}&rdquo;</div>
+        ) : !isSearchActive && pageEntries.length === 0 ? (
+          // Reachable if a host's totalEntryCount guess was too high (b-oss#146) and the user
+          // paged/jumped to a page number that implied more content than genuinely exists —
+          // rather than silently rendering an unexplained blank grid. allEntriesLoaded
+          // distinguishes "there's truly nothing more" from "still catching up" (onNearEnd's own
+          // fetch hasn't landed yet) — the latter self-resolves once it does, without user action.
+          <div className={styles.searchEmpty}>
+            {allEntriesLoaded ? 'Nothing more to show here.' : 'Loading more…'}
+          </div>
         ) : (
           <div
             className={styles.grid}

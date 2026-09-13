@@ -120,6 +120,7 @@ export function EntryGrid({
             if (hasMore) onLoadMore();
           }}
           totalEntryCount={totalEntryCount}
+          allEntriesLoaded={!hasMore}
         />
       </div>
     </>

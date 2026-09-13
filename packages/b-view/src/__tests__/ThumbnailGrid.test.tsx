@@ -259,6 +259,53 @@ describe('ThumbnailGrid totalEntryCount (b-oss#144)', () => {
   });
 });
 
+describe('ThumbnailGrid allEntriesLoaded (b-oss#146)', () => {
+  // Fallback pageSize is 2x2 = 4 when unmeasured (see the ResizeObserver stub comment above).
+  it('once confirmed complete, corrects a totalEntryCount guess that was too high', () => {
+    render(
+      <ThumbnailGrid
+        entries={makeEntries(8)}
+        selectedEntryId={null}
+        onSelectEntry={() => {}}
+        totalEntryCount={40} // a wrong guess — genuinely only 8 entries exist
+        allEntriesLoaded
+      />,
+    );
+    // 8 loaded at pageSize 4 = 2 real pages, not the 10 the wrong guess implied.
+    expect(screen.getByLabelText('Page 2')).toBeDefined();
+    expect(screen.queryByLabelText('Page 10')).toBeNull();
+  });
+
+  it('trusts an unconfirmed totalEntryCount guess until allEntriesLoaded says otherwise', () => {
+    render(
+      <ThumbnailGrid
+        entries={makeEntries(8)}
+        selectedEntryId={null}
+        onSelectEntry={() => {}}
+        totalEntryCount={40}
+      />,
+    );
+    expect(screen.getByLabelText('Page 10')).toBeDefined();
+  });
+
+  it('shows a "nothing more" message, not a blank grid, when there is genuinely nothing to show', () => {
+    render(
+      <ThumbnailGrid
+        entries={[]}
+        selectedEntryId={null}
+        onSelectEntry={() => {}}
+        allEntriesLoaded
+      />,
+    );
+    expect(screen.getByText('Nothing more to show here.')).toBeDefined();
+  });
+
+  it('shows a "loading more" message instead, while still waiting for more to arrive', () => {
+    render(<ThumbnailGrid entries={[]} selectedEntryId={null} onSelectEntry={() => {}} />);
+    expect(screen.getByText('Loading more…')).toBeDefined();
+  });
+});
+
 describe('ThumbnailGrid onNearEnd (b-oss#138)', () => {
   // Fallback pageSize is 2x2 = 4 when unmeasured (see the ResizeObserver stub comment above).
   it('fires when there is no more locally-loaded page ahead', () => {

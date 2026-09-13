@@ -138,7 +138,10 @@ describe('BrowseScreen', () => {
       notificationStatus: null,
     });
     vi.mocked(fetchRecentPage).mockResolvedValue({ items: [], more: false });
-    vi.mocked(fetchJustMePage).mockResolvedValue({ items: [entry], more: false });
+    // more: true — genuinely still mid-load (real total 40, one page in), distinct from
+    // b-oss#146's "genuinely nothing more" case where more:false would correctly make
+    // allEntriesLoaded override this guess with what's actually loaded so far.
+    vi.mocked(fetchJustMePage).mockResolvedValue({ items: [entry], more: true });
     vi.mocked(fetchUserProfile).mockResolvedValue({
       user: { username: 'alice', avatar_url: '', icons: [] },
       // 40 total at the fallback unmeasured pageSize (4) is 10 pages — only reachable via
