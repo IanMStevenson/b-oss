@@ -57,6 +57,14 @@ export default defineConfig({
       },
     },
   },
+  // maplibre-gl spawns its own tile-parsing Web Worker internally (a `new URL(...,
+  // import.meta.url)` pattern Vite's plugin specially detects) — letting Vite's default
+  // dependency pre-bundling sweep it into `.vite/deps/` breaks that detection, so the worker
+  // script 404s/fails silently at runtime and every vector tile source hangs forever with no
+  // error (Map.loaded() stays false, zero tile requests ever fire — SCR-04's "no content" bug).
+  optimizeDeps: {
+    exclude: ['maplibre-gl'],
+  },
   plugins: [react()],
   build: {
     outDir: 'dist',

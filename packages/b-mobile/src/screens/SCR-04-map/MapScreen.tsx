@@ -19,6 +19,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { IonPage, IonHeader, IonButton, IonContent, IonSpinner, IonText } from '@ionic/react';
 import { Map as MapLibreMap, Marker, Popup } from 'maplibre-gl';
+import type { ErrorEvent as MapLibreErrorEvent } from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import { AppHeader } from '../../components/AppHeader.js';
 import { AccountIndicator } from '../../components/AccountIndicator.js';
@@ -68,6 +69,7 @@ export function MapScreen({ focusedEntryId }: MapScreenProps) {
   const [entriesStatus, setEntriesStatus] = useState<EntriesStatus>('loading');
   const [entriesError, setEntriesError] = useState<string | null>(null);
   const [locationMessage, setLocationMessage] = useState<string | null>(null);
+  const [mapError, setMapError] = useState<string | null>(null);
 
   // Memoized on focusedEntryId alone (everything else it reads comes from refs) so the
   // bounds-fetch effect below can safely list it as a dependency without refiring on every
@@ -144,6 +146,10 @@ export function MapScreen({ focusedEntryId }: MapScreenProps) {
       }
       map.on('load', handleMoveEnd);
       map.on('moveend', handleMoveEnd);
+      map.on('error', (e: MapLibreErrorEvent) => {
+        if (cancelled) return;
+        setMapError(e.error?.message ?? 'Could not load the map.');
+      });
     }
 
     void init();
@@ -240,6 +246,16 @@ export function MapScreen({ focusedEntryId }: MapScreenProps) {
         ) : (
           <div style={{ position: 'relative', height: '100%' }}>
             <div ref={containerRef} style={{ position: 'absolute', inset: 0 }} />
+            {mapError && (
+              <div
+                className="ion-padding"
+                style={{ position: 'absolute', top: 0, left: 0, right: 0, background: 'var(--bg)' }}
+              >
+                <IonText color="danger">
+                  <p>{mapError}</p>
+                </IonText>
+              </div>
+            )}
             {entriesStatus === 'loading' && (
               <div style={{ position: 'absolute', top: 8, left: 8 }}>
                 <IonSpinner />
