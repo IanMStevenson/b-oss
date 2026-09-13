@@ -28,8 +28,8 @@ const ZOOM_MAX_PERCENT = 200;
 // targets the thing that actually matters (image size) rather than a flat percentage, and scales
 // correctly across phone/tablet/foldable widths. Deliberately approximate (no padding/gap
 // correction) — landing on N or N-1 columns after rounding is fine, not worth exact precision.
-const MIN_COLUMNS_PORTRAIT = 8;
-const MIN_COLUMNS_LANDSCAPE = 6;
+const MIN_COLUMNS_PORTRAIT = 6;
+const MIN_COLUMNS_LANDSCAPE = 8;
 
 type ThumbnailMargins = 'none' | 'narrow' | 'normal';
 
