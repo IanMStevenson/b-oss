@@ -80,10 +80,6 @@ interface ReportRouteState {
   reportedComment?: { username: string; excerpt: string };
 }
 
-interface EditEntryRouteState {
-  mode?: 'details' | 'photo';
-}
-
 export function AppRoutes() {
   return (
     <Switch>
@@ -132,15 +128,7 @@ export function AppRoutes() {
       <WriteGuardRoute
         exact
         path="/entry/:entryId/edit"
-        render={({ match, location }) => {
-          const state = (location.state ?? {}) as EditEntryRouteState;
-          return (
-            <EditEntryScreen
-              entryId={match.params.entryId as string}
-              initialMode={state.mode ?? 'details'}
-            />
-          );
-        }}
+        render={({ match }) => <EditEntryScreen entryId={match.params.entryId as string} />}
       />
       <WriteGuardRoute
         exact

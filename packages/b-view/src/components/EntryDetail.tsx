@@ -89,6 +89,11 @@ interface EntryDetailProps {
   /** Called when a tag chip is tapped, with the raw tag text — for a host that has a tag-entries
    * screen/route to navigate to. Omitted: tags render as plain, non-interactive text, as before. */
   onTagClick?: (tag: string) => void;
+  /** Called instead of the default plain `<a target="_blank">` when the location pin (next to the
+   * reactions) is pressed — for a host with its own map screen/route to navigate to internally
+   * rather than opening an external maps site. Omitted: the default external link, as before —
+   * accepted as a known WebView-navigation gap on native (b-mobile's own host now supplies this). */
+  onLocationClick?: (location: { lat: number; lon: number }) => void;
 }
 
 function AsyncThumb({
@@ -190,6 +195,7 @@ export function EntryDetail({
   onLinkClick,
   onFullscreen,
   onTagClick,
+  onLocationClick,
 }: EntryDetailProps) {
   const [asyncImageSrc, setAsyncImageSrc] = useState<string | null>(null);
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
@@ -482,17 +488,26 @@ export function EntryDetail({
                     <Maximize2 size={14} strokeWidth={1.5} />
                   </button>
                 )}
-                {entry.location && (
-                  <a
-                    className={styles.reactionItem}
-                    href={`https://maps.google.com/maps?q=${entry.location.lat},${entry.location.lon}`}
-                    target="_blank"
-                    rel="noreferrer"
-                    aria-label="View on map"
-                  >
-                    <MapPin size={14} strokeWidth={1.5} />
-                  </a>
-                )}
+                {entry.location &&
+                  (onLocationClick ? (
+                    <button
+                      className={`${styles.reactionItem} ${styles.reactionButton}`}
+                      onClick={() => onLocationClick(entry.location!)}
+                      aria-label="View on map"
+                    >
+                      <MapPin size={14} strokeWidth={1.5} />
+                    </button>
+                  ) : (
+                    <a
+                      className={styles.reactionItem}
+                      href={`https://maps.google.com/maps?q=${entry.location.lat},${entry.location.lon}`}
+                      target="_blank"
+                      rel="noreferrer"
+                      aria-label="View on map"
+                    >
+                      <MapPin size={14} strokeWidth={1.5} />
+                    </a>
+                  ))}
               </div>
 
               {/* Extras thumbnail row */}

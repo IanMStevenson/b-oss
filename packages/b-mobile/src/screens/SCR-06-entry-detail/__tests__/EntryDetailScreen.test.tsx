@@ -204,34 +204,29 @@ describe('EntryDetailScreen', () => {
     expect(screen.queryByText('A day out')).toBeNull();
   });
 
-  describe('FLW-13 — owner-only edit/delete', () => {
+  describe('FLW-13 — owner-only Edit', () => {
     const ownEntry: LoadedEntry = {
       ...baseLoadedEntry,
       entry: { ...baseLoadedEntry.entry, username: 'me' },
     };
 
-    it('offers Edit details / Replace photo / Delete entry only for the viewer’s own, read-write entry', async () => {
+    it('offers Edit only for the viewer’s own, read-write entry', async () => {
       const { fetchEntry } = await import('../../../data/entries.js');
       vi.mocked(fetchEntry).mockResolvedValue(ownEntry);
       renderScreen();
       await screen.findByText('A day out');
-      await userEvent.click(screen.getByText('More', { selector: 'ion-button' }));
-      expect(screen.getByText('Edit details')).toBeDefined();
-      expect(screen.getByText('Replace photo')).toBeDefined();
-      expect(screen.getByText('Delete entry')).toBeDefined();
+      expect(screen.getByLabelText('Edit entry')).toBeDefined();
     });
 
-    it('does not offer edit/delete on another member’s entry', async () => {
+    it('does not offer Edit on another member’s entry', async () => {
       const { fetchEntry } = await import('../../../data/entries.js');
       vi.mocked(fetchEntry).mockResolvedValue(baseLoadedEntry); // username: 'alice'
       renderScreen();
       await screen.findByText('A day out');
-      await userEvent.click(screen.getByText('More', { selector: 'ion-button' }));
-      expect(screen.queryByText('Edit details')).toBeNull();
-      expect(screen.queryByText('Delete entry')).toBeNull();
+      expect(screen.queryByLabelText('Edit entry')).toBeNull();
     });
 
-    it('does not offer edit/delete for a read-only owner (ownership isn’t write access)', async () => {
+    it('does not offer Edit for a read-only owner (ownership isn’t write access)', async () => {
       useAccountsStore.setState({
         accounts: [{ ...readWriteAccount, appTokenScope: 'read' }],
         activeAccountId: 'a1',
@@ -241,53 +236,74 @@ describe('EntryDetailScreen', () => {
       vi.mocked(fetchEntry).mockResolvedValue(ownEntry);
       renderScreen();
       await screen.findByText('A day out');
-      await userEvent.click(screen.getByText('More', { selector: 'ion-button' }));
-      expect(screen.queryByText('Edit details')).toBeNull();
-      expect(screen.queryByText('Delete entry')).toBeNull();
+      expect(screen.queryByLabelText('Edit entry')).toBeNull();
     });
 
-    it('Edit details navigates to SCR-13 in details mode', async () => {
+    it('Edit navigates to SCR-13', async () => {
       const { fetchEntry } = await import('../../../data/entries.js');
       vi.mocked(fetchEntry).mockResolvedValue(ownEntry);
       renderScreen();
       await screen.findByText('A day out');
-      await userEvent.click(screen.getByText('More', { selector: 'ion-button' }));
-      await userEvent.click(screen.getByText('Edit details'));
-      expect(navPush).toHaveBeenCalledWith('/entry/1/edit', { mode: 'details' });
+      await userEvent.click(screen.getByLabelText('Edit entry'));
+      expect(navPush).toHaveBeenCalledWith('/entry/1/edit');
     });
+  });
 
-    it('Replace photo navigates to SCR-13 in photo mode', async () => {
+  describe('Report and Hide', () => {
+    it('Report is always offered, and navigates scoped to the entry’s author', async () => {
       const { fetchEntry } = await import('../../../data/entries.js');
-      vi.mocked(fetchEntry).mockResolvedValue(ownEntry);
+      vi.mocked(fetchEntry).mockResolvedValue(baseLoadedEntry);
       renderScreen();
       await screen.findByText('A day out');
-      await userEvent.click(screen.getByText('More', { selector: 'ion-button' }));
-      await userEvent.click(screen.getByText('Replace photo'));
-      expect(navPush).toHaveBeenCalledWith('/entry/1/edit', { mode: 'photo' });
+      await userEvent.click(screen.getByLabelText('Report'));
+      expect(navPush).toHaveBeenCalledWith('/entry/1/report', { targetUsername: 'alice' });
     });
 
-    it('Delete entry confirms, then deletes and returns to Browse', async () => {
-      const { fetchEntry, deleteEntry } = await import('../../../data/entries.js');
-      vi.mocked(fetchEntry).mockResolvedValue(ownEntry);
-      vi.mocked(deleteEntry).mockResolvedValue(undefined);
+    it('offers Hide for another member’s entry, not the viewer’s own', async () => {
+      const { fetchEntry } = await import('../../../data/entries.js');
+      vi.mocked(fetchEntry).mockResolvedValue(baseLoadedEntry); // username: 'alice'
       renderScreen();
       await screen.findByText('A day out');
-      await userEvent.click(screen.getByText('More', { selector: 'ion-button' }));
-      await userEvent.click(screen.getByText('Delete entry'));
+      expect(screen.getByLabelText('Hide alice')).toBeDefined();
 
-      expect(await screen.findByText('Delete this entry?')).toBeDefined();
-      // Several destructive IonAlerts coexist on this screen (Unfollow, Hide, delete-comment,
-      // delete-entry) and — per the IonAlert gotcha (RESUME.md) — all render their buttons into
-      // the DOM unconditionally regardless of `isOpen`, so a bare `.alert-button-role-destructive`
-      // query would match whichever renders first in source order, not necessarily this one.
-      // Scoped by the alert's own `header` attribute instead, which is unique per alert here.
+      const ownEntry: LoadedEntry = {
+        ...baseLoadedEntry,
+        entry: { ...baseLoadedEntry.entry, username: 'me' },
+      };
+      cleanup();
+      vi.mocked(fetchEntry).mockResolvedValue(ownEntry);
+      renderScreen();
+      await screen.findByText('A day out');
+      expect(screen.queryByLabelText('Hide me')).toBeNull();
+    });
+
+    it('Hide confirms, then hides the author locally', async () => {
+      const { fetchEntry } = await import('../../../data/entries.js');
+      vi.mocked(fetchEntry).mockResolvedValue(baseLoadedEntry);
+      renderScreen();
+      await screen.findByText('A day out');
+      await userEvent.click(screen.getByLabelText('Hide alice'));
+      expect(await screen.findByText('Hide alice?')).toBeDefined();
       const confirmButton = document.querySelector(
-        'ion-alert[header="Delete this entry?"] button.alert-button-role-destructive',
+        'ion-alert[header="Hide alice?"] button.alert-button-role-destructive',
       ) as HTMLElement;
       await userEvent.click(confirmButton);
+      expect(useHiddenMembersStore.getState().hiddenByAccount.a1).toContain('alice');
+    });
+  });
 
-      await waitFor(() => expect(deleteEntry).toHaveBeenCalledWith('1'));
-      expect(navReplace).toHaveBeenCalledWith('/browse');
+  describe('Map', () => {
+    it('the location pin navigates to SCR-04 instead of opening an external link', async () => {
+      const withLocation: LoadedEntry = {
+        ...baseLoadedEntry,
+        entry: { ...baseLoadedEntry.entry, location: { lat: 51.5, lon: -0.1 } },
+      };
+      const { fetchEntry } = await import('../../../data/entries.js');
+      vi.mocked(fetchEntry).mockResolvedValue(withLocation);
+      renderScreen();
+      await screen.findByText('A day out');
+      await userEvent.click(screen.getByLabelText('View on map'));
+      expect(navPush).toHaveBeenCalledWith('/map?entry=1');
     });
   });
 });

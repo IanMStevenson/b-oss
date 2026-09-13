@@ -5,52 +5,49 @@
 // description/comment rendering goes through BBCodeText rather than dangerouslySetInnerHTML,
 // closing the §14 conflict that used to rule it out here) with this screen's own reactions/
 // commentComposer/entryActions/renderCommentActions slots and a few small b-view callback props
-// (onLinkClick, onFullscreen, onTagClick) added alongside those slots for the same reason: EntryDetail
-// itself has no host-platform opinions, so anything that needs one is host-injected. b-view's own
-// fullscreen button opens an internal Lightbox overlay by default; onFullscreen redirects it to
-// SCR-07 instead, which stays a real, separately-routed screen (deep-link resilient, back-
-// navigable) — see SCR-06-entry-detail.md/SCR-07-full-screen-photo.md for the corrected trigger
-// description ("dedicated fullscreen button", not a photo tap).
+// (onLinkClick, onFullscreen, onTagClick, onLocationClick) added alongside those slots for the
+// same reason: EntryDetail itself has no host-platform opinions, so anything that needs one is
+// host-injected. b-view's own fullscreen button opens an internal Lightbox overlay by default;
+// onFullscreen redirects it to SCR-07 instead, which stays a real, separately-routed screen (deep-
+// link resilient, back-navigable) — see SCR-06-entry-detail.md/SCR-07-full-screen-photo.md for the
+// corrected trigger description ("dedicated fullscreen button", not a photo tap).
 //
-// Follow/Unfollow doesn't fit any of EntryDetail's slots (a backup viewer has no "follow a member"
-// concept) — rendered as this screen's own strip beneath EntryDetail instead, same gating as
-// before. Star/Favourite share EntryDetail's one `reactions` slot, which can't independently hide
+// Follow/Unfollow/Report/Hide don't fit any of EntryDetail's slots (a backup viewer has no
+// "follow/report/hide a member" concept) — rendered as this screen's own strip beneath EntryDetail
+// instead. Star/Favourite share EntryDetail's one `reactions` slot, which can't independently hide
 // just one of the two the way the old hand-built action row could — offered only when both
 // actions.star and actions.favorite agree (both permitted or the viewer is anonymous, matching
 // the old per-button "!activeAccount || actions?.x !== 0" rule combined across both flags); the
 // two are not known to diverge in practice, and splitting the slot for a case that may never occur
-// wasn't worth a further b-view change here. Known, accepted, not-fixed: EntryDetail's own inline
-// location pin is a plain `<a target="_blank">`, not routed through Capacitor's Browser plugin —
-// on native this tap likely no-ops rather than opening Maps, but the overflow menu's own "Map"
-// item (this app's real, working, internal SCR-04 map) is unaffected and remains the primary path.
+// wasn't worth a further b-view change here.
+//
+// No more "More" overflow menu (2026-09 feedback round: every item it held now has its own inline
+// home, so the menu itself goes away) — Edit is the one action left in EntryDetail's own
+// `entryActions` nav-header slot; Report/Hide moved to the below-EntryDetail strip alongside
+// Follow/Unfollow; Camera info was dropped entirely (redundant with the always-visible EXIF row);
+// Replace photo/Delete moved into SCR-13's own single edit screen, no longer separate overflow
+// items reached via router-state `mode`; Map's separate overflow item is gone too — the location
+// pin now navigates to SCR-04 directly via `onLocationClick`, fixing the WebView-external-link gap
+// the old plain `<a target="_blank">` had on native as a side effect of unifying to one affordance.
 //
 // Star/Favourite/Comment carry the account-confirm gate (rules.md, "confirm the account before
 // Star, Favourite, or a comment/reply"); Follow/Report/Hide don't — the setting's scope is
 // deliberately narrow. All four write actions hide entirely (not just disable) for a signed-in,
 // read-only account; an anonymous tap routes through FLW-01 first, then resumes.
 //
-// FLW-13 (Phase 7): Edit details / Replace photo / Delete, owner-only AND only read-write (a
-// read-only owner never sees these — ownership doesn't imply write access, per rules.md). Edit/
-// Replace-photo push to SCR-13 (which itself sits behind WriteGuardRoute as a second, redundant-
-// by-design gate — the same "never trust one call site" posture WriteGuardRoute exists for at
-// all); Delete never routes through SCR-13 at all (FLW-13's own diagram: confirm+delete happens
-// directly from this overflow menu), so it's implemented right here.
+// FLW-13 (Phase 7): Edit, owner-only AND only read-write (a read-only owner never sees this —
+// ownership doesn't imply write access, per rules.md). Pushes to SCR-13 (which itself sits behind
+// WriteGuardRoute as a second, redundant-by-design gate — the same "never trust one call site"
+// posture WriteGuardRoute exists for at all); SCR-13 now owns Replace photo and Delete entry
+// itself, both formerly implemented here.
 // 104 (protected)/202 (unavailable) get their own copy-deck messages via data/entries.ts's
 // fetchEntry — this screen's own entryState.message just renders whatever it threw, same as any
 // other error.
 
 import { useEffect, useMemo, useState } from 'react';
 import type { ReactNode } from 'react';
-import {
-  IonPage,
-  IonHeader,
-  IonContent,
-  IonSpinner,
-  IonText,
-  IonButton,
-  IonAlert,
-  IonActionSheet,
-} from '@ionic/react';
+import { IonPage, IonHeader, IonContent, IonSpinner, IonText, IonButton, IonAlert } from '@ionic/react';
+import { Pencil, Flag, UserX } from 'lucide-react';
 import { AppHeader } from '../../components/AppHeader.js';
 import { EntryDetail } from '@b-oss/b-view';
 import type { BlipComment, EntryState } from '@b-oss/b-view';
@@ -70,7 +67,6 @@ import {
   FavoriteQuotaError,
 } from '../../flows/reactionsFlow.js';
 import { deleteComment } from '../../flows/commentsFlow.js';
-import { deleteEntry } from '../../data/entries.js';
 import {
   useHiddenMembers,
   useHiddenMembersStore,
@@ -127,9 +123,6 @@ export function EntryDetailScreen({ entryId }: EntryDetailScreenProps) {
   const [confirmUnfollow, setConfirmUnfollow] = useState(false);
   const [confirmHide, setConfirmHide] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<ApiComment | null>(null);
-  const [overflowOpen, setOverflowOpen] = useState(false);
-  const [confirmDeleteEntry, setConfirmDeleteEntry] = useState(false);
-  const [deletingEntry, setDeletingEntry] = useState(false);
 
   const authorUsername = entryState.status === 'loaded' ? entryState.data.username : null;
   const isOwnEntry = authorUsername !== null && authorUsername === activeAccount?.username;
@@ -337,17 +330,8 @@ export function EntryDetailScreen({ entryId }: EntryDetailScreenProps) {
     useHiddenMembersStore.getState().hide(account.activeAccountId, authorUsername);
   }
 
-  async function handleConfirmedDeleteEntry(): Promise<void> {
-    setConfirmDeleteEntry(false);
-    setDeletingEntry(true);
-    try {
-      await deleteEntry(entryId);
-      navigate.replace('/browse');
-    } catch (err) {
-      const outcome = mapApiError(err);
-      setErrorMessage(describeError(outcome, 'Could not delete this entry.'));
-      setDeletingEntry(false);
-    }
+  function handleReportEntry(): void {
+    navigate.push(`/entry/${entryId}/report`, { targetUsername: authorUsername ?? undefined });
   }
 
   function handleUnhideAuthor(): void {
@@ -432,6 +416,7 @@ export function EntryDetailScreen({ entryId }: EntryDetailScreenProps) {
               onLinkClick={(href) => void openUrl(href)}
               onFullscreen={() => navigate.push(`/entry/${entryId}/photo`)}
               onTagClick={(tag) => navigate.push(`/tag/${encodeURIComponent(tag)}`)}
+              onLocationClick={() => navigate.push(`/map?entry=${entryId}`)}
               reactions={
                 showReactions
                   ? {
@@ -450,32 +435,69 @@ export function EntryDetailScreen({ entryId }: EntryDetailScreenProps) {
                 ) : undefined
               }
               entryActions={
-                <IonButton disabled={deletingEntry} onClick={() => setOverflowOpen(true)}>
-                  More
-                </IonButton>
+                isOwnEntry && canWrite ? (
+                  <button
+                    aria-label="Edit entry"
+                    onClick={() => navigate.push(`/entry/${entryId}/edit`)}
+                    style={{ background: 'none', border: 'none', padding: 8, cursor: 'pointer' }}
+                  >
+                    <Pencil size={16} strokeWidth={1.6} />
+                  </button>
+                ) : undefined
               }
               renderCommentActions={renderCommentActions}
             />
 
-            {!hideForReadOnly && !isOwnEntry && authorUsername && (
-              <div className="ion-padding" style={{ paddingTop: 0 }}>
-                {friendshipState === 1 && (
-                  <IonButton size="small" fill="outline" onClick={() => setConfirmUnfollow(true)}>
-                    Unfollow
-                  </IonButton>
-                )}
-                {friendshipState === 2 && (
-                  <IonButton size="small" fill="outline" disabled>
-                    Request sent
-                  </IonButton>
-                )}
-                {(friendshipState === 0 || friendshipState == null) && (
-                  <IonButton size="small" fill="outline" onClick={() => void handleFollow()}>
-                    Follow
-                  </IonButton>
-                )}
-              </div>
-            )}
+            <div
+              className="ion-padding"
+              style={{
+                paddingTop: 0,
+                display: 'flex',
+                alignItems: 'center',
+                gap: 8,
+                flexWrap: 'wrap',
+              }}
+            >
+              {!hideForReadOnly && !isOwnEntry && authorUsername && (
+                <>
+                  {friendshipState === 1 && (
+                    <IonButton
+                      size="small"
+                      fill="outline"
+                      onClick={() => setConfirmUnfollow(true)}
+                    >
+                      Unfollow
+                    </IonButton>
+                  )}
+                  {friendshipState === 2 && (
+                    <IonButton size="small" fill="outline" disabled>
+                      Request sent
+                    </IonButton>
+                  )}
+                  {(friendshipState === 0 || friendshipState == null) && (
+                    <IonButton size="small" fill="outline" onClick={() => void handleFollow()}>
+                      Follow
+                    </IonButton>
+                  )}
+                </>
+              )}
+              <button
+                aria-label="Report"
+                onClick={handleReportEntry}
+                style={{ background: 'none', border: 'none', padding: 8, cursor: 'pointer' }}
+              >
+                <Flag size={16} strokeWidth={1.6} />
+              </button>
+              {!isOwnEntry && authorUsername && (
+                <button
+                  aria-label={`Hide ${authorUsername}`}
+                  onClick={() => setConfirmHide(true)}
+                  style={{ background: 'none', border: 'none', padding: 8, cursor: 'pointer' }}
+                >
+                  <UserX size={16} strokeWidth={1.6} />
+                </button>
+              )}
+            </div>
           </>
         )}
       </IonContent>
@@ -521,63 +543,6 @@ export function EntryDetailScreen({ entryId }: EntryDetailScreenProps) {
         ]}
       />
 
-      <IonAlert
-        isOpen={confirmDeleteEntry}
-        header="Delete this entry?"
-        message="This can't be undone."
-        onDidDismiss={() => setConfirmDeleteEntry(false)}
-        buttons={[
-          { text: 'Cancel', role: 'cancel' },
-          { text: 'Delete', role: 'destructive', handler: () => void handleConfirmedDeleteEntry() },
-        ]}
-      />
-
-      <IonActionSheet
-        isOpen={overflowOpen}
-        onDidDismiss={() => setOverflowOpen(false)}
-        buttons={[
-          ...(isOwnEntry && canWrite
-            ? [
-                {
-                  text: 'Edit details',
-                  handler: () => navigate.push(`/entry/${entryId}/edit`, { mode: 'details' }),
-                },
-                {
-                  text: 'Replace photo',
-                  handler: () => navigate.push(`/entry/${entryId}/edit`, { mode: 'photo' }),
-                },
-                {
-                  text: 'Delete entry',
-                  role: 'destructive',
-                  handler: () => setConfirmDeleteEntry(true),
-                },
-              ]
-            : []),
-          ...(entryState.status === 'loaded' && entryState.data.exif
-            ? [{ text: 'Camera info', handler: () => navigate.push(`/entry/${entryId}/metadata`) }]
-            : []),
-          ...(entryState.status === 'loaded' && entryState.data.location
-            ? [{ text: 'Map', handler: () => navigate.push(`/map?entry=${entryId}`) }]
-            : []),
-          {
-            text: 'Report',
-            handler: () =>
-              navigate.push(`/entry/${entryId}/report`, {
-                targetUsername: authorUsername ?? undefined,
-              }),
-          },
-          ...(!isOwnEntry && authorUsername
-            ? [
-                {
-                  text: `Hide ${authorUsername}`,
-                  role: 'destructive',
-                  handler: () => setConfirmHide(true),
-                },
-              ]
-            : []),
-          { text: 'Cancel', role: 'cancel' },
-        ]}
-      />
     </IonPage>
   );
 }
