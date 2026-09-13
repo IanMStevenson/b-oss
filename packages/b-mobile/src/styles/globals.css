@@ -37,15 +37,21 @@ ion-segment-button::part(native) {
 
 /* Safe areas, part 2 of 2 (app-architecture.md §5 promises Ionic handles these once rather than
    per-screen — IonHeader/IonToolbar already reserve --ion-safe-area-top automatically, this
-   covers the two cases they don't):
+   covers the cases they don't):
    - Scrollable IonContent has no IonFooter below it anywhere in this app, so nothing else
      reserves --ion-safe-area-bottom — the last row of any list/grid (e.g. ThumbnailGrid's
      pagination row) would otherwise render behind the gesture nav bar.
+   - IonHeader/IonToolbar reserve top/bottom automatically but not left/right — irrelevant in
+     portrait, but in landscape the camera cutout/rounded corners/gesture area shift to the side
+     edges, and confirmed live on a real device: the thumbnail grid filled to the very edge of the
+     screen there, colliding with them (b-oss#141), even though the header above it looked fine.
    - IonMenu's content has no IonHeader above it (AppShell.tsx), so it gets none of the top
      safe-area padding a normal screen's toolbar provides — its first item would render behind
      the status bar. */
 ion-content {
   --padding-bottom: var(--ion-safe-area-bottom);
+  --padding-start: var(--ion-safe-area-left);
+  --padding-end: var(--ion-safe-area-right);
 }
 
 ion-menu ion-content {
