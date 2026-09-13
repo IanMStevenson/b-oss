@@ -105,6 +105,11 @@ vi.mock('maplibre-gl', () => ({
   Map: MockMap,
   Marker: MockMarker,
   Popup: MockPopup,
+  setWorkerUrl: vi.fn(),
+}));
+
+vi.mock('maplibre-gl/dist/maplibre-gl-worker.mjs?worker&url', () => ({
+  default: 'mock-worker-url',
 }));
 
 vi.mock('../../../platform/mapTiles.js', () => ({

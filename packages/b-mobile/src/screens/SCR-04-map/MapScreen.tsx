@@ -18,9 +18,24 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { IonPage, IonHeader, IonButton, IonContent, IonSpinner, IonText } from '@ionic/react';
-import { Map as MapLibreMap, Marker, Popup } from 'maplibre-gl';
+import { Map as MapLibreMap, Marker, Popup, setWorkerUrl } from 'maplibre-gl';
 import type { ErrorEvent as MapLibreErrorEvent } from 'maplibre-gl';
+import maplibreWorkerUrl from 'maplibre-gl/dist/maplibre-gl-worker.mjs?worker&url';
 import 'maplibre-gl/dist/maplibre-gl.css';
+
+// maplibre-gl builds its tile-parsing Web Worker's URL dynamically at runtime, which Vite's
+// production bundler (Rollup/Rolldown) can't statically detect the way it can a literal
+// `new Worker(new URL('./x.js', import.meta.url))` — confirmed live: the worker file was never
+// emitted into the production build at all, so requesting it 404s (silently, since SPA-fallback
+// serving returns index.html with a 200 instead of a real 404, making the failure invisible).
+// A plain `?url` import isn't enough either — confirmed live — since it copies the worker file
+// as-is, and the file's own internal `import ... from "./maplibre-gl-shared.mjs"` then 404s in
+// production once it's no longer sitting next to that file. `?worker&url` tells Vite to bundle
+// the target as a real worker entry point first (resolving its own imports into a self-contained
+// chunk) and hand back the URL of that bundled output; setWorkerUrl tells maplibre-gl to use it
+// instead of computing its own. Module-scoped, not per-render: this is global maplibre-gl
+// configuration, must run once before any Map is constructed.
+setWorkerUrl(maplibreWorkerUrl);
 import { AppHeader } from '../../components/AppHeader.js';
 import { AccountIndicator } from '../../components/AccountIndicator.js';
 import { getMapStyleUrl } from '../../platform/mapTiles.js';
