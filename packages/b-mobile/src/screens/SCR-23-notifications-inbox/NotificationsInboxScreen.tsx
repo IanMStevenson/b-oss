@@ -48,6 +48,7 @@ import {
 import { describeError, mapApiError } from '../../data/errors.js';
 import { useAppNavigate } from '../../app/routes/useAppNavigate.js';
 import { useHiddenMembers } from '../../state/hiddenMembersStore.js';
+import { useAccountsStore } from '../../state/accountsStore.js';
 import { useNotificationCountsStore } from '../../state/notificationCountsStore.js';
 import { openUrl } from '../../platform/browser.js';
 import { CachedImage } from '../../components/CachedImage.js';
@@ -59,6 +60,7 @@ export function NotificationsInboxScreen() {
   const navigate = useAppNavigate();
   const hiddenUsernames = useHiddenMembers();
   const clearNotifications = useNotificationCountsStore((s) => s.clearNotifications);
+  const activeAccountId = useAccountsStore((s) => s.activeAccountId);
 
   const [status, setStatus] = useState<Status>('loading');
   const [items, setItems] = useState<BlipNotification[]>([]);
@@ -84,7 +86,7 @@ export function NotificationsInboxScreen() {
       },
     );
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [activeAccountId]);
 
   useEffect(() => {
     load();
