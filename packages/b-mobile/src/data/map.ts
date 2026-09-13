@@ -22,6 +22,9 @@ export interface MapEntry {
   username: string;
   lat: number;
   lon: number;
+  /** Empty string means no thumbnail (BlipEntryStub.thumbnail_url is never optional/null) —
+   * callers treat that the same as absent. */
+  thumbnailUrl: string;
 }
 
 // One page's worth of markers per query, generous enough for a typical viewport without
@@ -50,6 +53,7 @@ export async function fetchEntriesInBounds(bounds: MapBounds): Promise<MapEntry[
         username: entry.username,
         lat: entry.location.lat,
         lon: entry.location.lon,
+        thumbnailUrl: entry.thumbnail_url,
       });
     }
     return markers;

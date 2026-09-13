@@ -37,7 +37,9 @@ const { MockMap, MockMarker, MockPopup, mapInstances, markerInstances } = vi.hoi
     popup: MockPopupImpl | null = null;
     toggled = 0;
     removed = false;
-    constructor() {
+    options: { color?: string; element?: HTMLElement };
+    constructor(options: { color?: string; element?: HTMLElement } = {}) {
+      this.options = options;
       markerInstances.push(this);
     }
     setLngLat(ll: [number, number]) {
@@ -140,6 +142,7 @@ const entryMarker: MapEntry = {
   username: 'alice',
   lat: 51.5,
   lon: -0.1,
+  thumbnailUrl: '',
 };
 
 beforeEach(() => {
@@ -195,6 +198,51 @@ describe('MapScreen', () => {
       }),
     );
     await waitFor(() => expect(markerInstances.length).toBe(1));
+  });
+
+  it('entry markers use b-oss green, not the default marker colour', async () => {
+    const { getMapStyleUrl } = await import('../../../platform/mapTiles.js');
+    const { fetchEntriesInBounds } = await import('../../../data/map.js');
+    vi.mocked(getMapStyleUrl).mockReturnValue('https://example.com/style.json');
+    vi.mocked(fetchEntriesInBounds).mockResolvedValue([entryMarker]);
+    renderScreen();
+
+    await waitFor(() => expect(mapInstances.length).toBe(1));
+    mapInstances[0].trigger('load');
+
+    await waitFor(() => expect(markerInstances.length).toBe(1));
+    expect(markerInstances[0].options.color).toBe('#1f4d3a');
+  });
+
+  it('an entry with a thumbnail shows an image in its popup', async () => {
+    const { getMapStyleUrl } = await import('../../../platform/mapTiles.js');
+    const { fetchEntriesInBounds } = await import('../../../data/map.js');
+    vi.mocked(getMapStyleUrl).mockReturnValue('https://example.com/style.json');
+    vi.mocked(fetchEntriesInBounds).mockResolvedValue([
+      { ...entryMarker, thumbnailUrl: 'https://example.com/thumb.jpg' },
+    ]);
+    renderScreen();
+
+    await waitFor(() => expect(mapInstances.length).toBe(1));
+    mapInstances[0].trigger('load');
+
+    await waitFor(() => expect(markerInstances.length).toBe(1));
+    const img = markerInstances[0].popup?.content?.querySelector('img');
+    expect(img).not.toBeNull();
+  });
+
+  it('an entry with no thumbnail shows no image in its popup', async () => {
+    const { getMapStyleUrl } = await import('../../../platform/mapTiles.js');
+    const { fetchEntriesInBounds } = await import('../../../data/map.js');
+    vi.mocked(getMapStyleUrl).mockReturnValue('https://example.com/style.json');
+    vi.mocked(fetchEntriesInBounds).mockResolvedValue([entryMarker]); // thumbnailUrl: ''
+    renderScreen();
+
+    await waitFor(() => expect(mapInstances.length).toBe(1));
+    mapInstances[0].trigger('load');
+
+    await waitFor(() => expect(markerInstances.length).toBe(1));
+    expect(markerInstances[0].popup?.content?.querySelector('img')).toBeNull();
   });
 
   it('shows no markers and no error for an empty region', async () => {
@@ -348,5 +396,26 @@ describe('MapScreen', () => {
     await waitFor(() =>
       expect(mapInstances[0].jumpToCalls).toContainEqual({ center: [20, 10], zoom: 13 }),
     );
+  });
+
+  it('"My location" shows a plain dot, not an entry-style pin', async () => {
+    const { getMapStyleUrl } = await import('../../../platform/mapTiles.js');
+    const { getCurrentPosition } = await import('../../../platform/geolocation.js');
+    const { fetchEntriesInBounds } = await import('../../../data/map.js');
+    vi.mocked(getMapStyleUrl).mockReturnValue('https://example.com/style.json');
+    vi.mocked(fetchEntriesInBounds).mockResolvedValue([]);
+    vi.mocked(getCurrentPosition).mockResolvedValue({ lat: 10, lon: 20 });
+    renderScreen();
+    await waitFor(() => expect(mapInstances.length).toBe(1));
+
+    const { default: userEvent } = await import('@testing-library/user-event');
+    await userEvent.click(screen.getByText('My location', { selector: 'ion-button' }));
+
+    await waitFor(() => {
+      const dotMarker = markerInstances.find((m) => m.options.element);
+      expect(dotMarker).toBeDefined();
+      expect(dotMarker?.options.color).toBeUndefined();
+      expect(dotMarker?.lngLat).toEqual([20, 10]);
+    });
   });
 });

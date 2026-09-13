@@ -15,6 +15,16 @@
 //
 // Entries by a hidden member get no marker at all (rules.md: "a placeholder pin would be
 // noise") — filtered out before markers are ever created, never rendered and then hidden.
+//
+// Entry markers use b-oss's own green (tokens.green800), not blipfoto.com's red — deliberate,
+// for consistency with the rest of this app's own branding rather than mirroring the website's
+// styling. Each popup shows the entry's thumbnail (resolved through the same resolveImage cache
+// every other image in this app goes through) above its title/username, matching what
+// blipfoto.com's own map view shows (confirmed live) — previously text-only.
+//
+// "My location" (handleMyLocation) renders as a plain coloured dot via a custom Marker element,
+// not the default teardrop pin shape used for entries — a pin reads as "there's a blip here",
+// which isn't true of the device's own position.
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { IonPage, IonHeader, IonButton, IonContent, IonSpinner, IonText } from '@ionic/react';
@@ -36,10 +46,12 @@ import 'maplibre-gl/dist/maplibre-gl.css';
 // instead of computing its own. Module-scoped, not per-render: this is global maplibre-gl
 // configuration, must run once before any Map is constructed.
 setWorkerUrl(maplibreWorkerUrl);
+import { tokens } from '@b-oss/b-visual';
 import { AppHeader } from '../../components/AppHeader.js';
 import { AccountIndicator } from '../../components/AccountIndicator.js';
 import { getMapStyleUrl } from '../../platform/mapTiles.js';
 import { getCurrentPosition } from '../../platform/geolocation.js';
+import { resolveImage } from '../../platform/imageCache.js';
 import { fetchEntriesInBounds } from '../../data/map.js';
 import type { MapBounds, MapEntry } from '../../data/map.js';
 import { fetchEntry } from '../../data/entries.js';
@@ -68,6 +80,7 @@ export function MapScreen({ focusedEntryId }: MapScreenProps) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<MapLibreMap | null>(null);
   const markersRef = useRef<globalThis.Map<string, Marker>>(new globalThis.Map<string, Marker>());
+  const myLocationMarkerRef = useRef<Marker | null>(null);
   const requestIdRef = useRef(0);
   const focusedPopupOpenedRef = useRef(false);
 
@@ -99,17 +112,38 @@ export function MapScreen({ focusedEntryId }: MapScreenProps) {
       for (const entry of entries) {
         if (hiddenMembersRef.current.includes(entry.username)) continue;
 
-        const content = document.createElement('div');
         const button = document.createElement('button');
         button.type = 'button';
-        button.textContent = `${entry.title || 'Untitled'} — ${entry.username}`;
+        button.style.cssText = 'display:flex;flex-direction:column;gap:4px;padding:0;';
         button.addEventListener('click', () =>
           navigateRef.current.push(`/entry/${entry.entry_id}`),
         );
+
+        let img: HTMLImageElement | null = null;
+        if (entry.thumbnailUrl) {
+          img = document.createElement('img');
+          img.alt = '';
+          img.style.cssText = 'width:100%;max-width:160px;border-radius:4px;display:block;';
+          button.appendChild(img);
+          void resolveImage(entry.thumbnailUrl).then((src) => {
+            // Guard against a stale async resolution setting src on an <img> whose marker was
+            // already torn down (e.g. the bounds changed again before this resolved).
+            if (markersRef.current.get(entry.entry_id) === marker) img!.src = src;
+          });
+        }
+
+        const label = document.createElement('span');
+        label.textContent = `${entry.title || 'Untitled'} — ${entry.username}`;
+        button.appendChild(label);
+
+        const content = document.createElement('div');
         content.appendChild(button);
 
         const popup = new Popup({ closeButton: false }).setDOMContent(content);
-        const marker = new Marker().setLngLat([entry.lon, entry.lat]).setPopup(popup).addTo(map);
+        const marker = new Marker({ color: tokens.green800 })
+          .setLngLat([entry.lon, entry.lat])
+          .setPopup(popup)
+          .addTo(map);
         markersRef.current.set(entry.entry_id, marker);
 
         if (focusedEntryId && entry.entry_id === focusedEntryId && !focusedPopupOpenedRef.current) {
@@ -146,6 +180,7 @@ export function MapScreen({ focusedEntryId }: MapScreenProps) {
               username: loaded.entry.username,
               lat: loaded.entry.location.lat,
               lon: loaded.entry.location.lon,
+              thumbnailUrl: loaded.entry.images.thumbnail ?? '',
             };
           }
         } catch {
@@ -255,6 +290,22 @@ export function MapScreen({ focusedEntryId }: MapScreenProps) {
         return;
       }
       mapRef.current?.jumpTo({ center: [coords.lon, coords.lat], zoom: FOCUSED_ZOOM });
+
+      // A plain dot, not an entry-style pin — a pin reads as "there's a blip here", which isn't
+      // true of the device's own position. Confirmed live: recentring alone gave no visual
+      // confirmation of where "my location" actually landed.
+      const map = mapRef.current;
+      if (map) {
+        myLocationMarkerRef.current?.remove();
+        const dot = document.createElement('div');
+        dot.setAttribute('aria-label', 'Your location');
+        dot.style.cssText =
+          'width:14px;height:14px;border-radius:50%;background:#4285f4;' +
+          'border:2px solid #fff;box-shadow:0 0 4px rgba(0,0,0,0.45);';
+        myLocationMarkerRef.current = new Marker({ element: dot })
+          .setLngLat([coords.lon, coords.lat])
+          .addTo(map);
+      }
     } catch {
       setLocationMessage('Location access was refused.');
     }
