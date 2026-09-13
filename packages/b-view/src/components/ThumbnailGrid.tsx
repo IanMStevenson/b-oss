@@ -148,6 +148,14 @@ interface ThumbnailGridProps {
    * page, as before. Not fired repeatedly for the same "no more loaded" state — only on the
    * transition into it — so a host doesn't need its own de-duplication. */
   onNearEnd?: () => void;
+  /** A real, known total entry count for the feed `entries` is a partial view into — for a host
+   * that can get one cheaply (a fixed depth limit it knows about a curated feed, a profile's own
+   * entry_total, etc). Omitted: totalPages falls back to entries.length, i.e. "how much has
+   * loaded so far" — correct once everything's loaded, but grows (and visibly changes the
+   * pagination row's last label) while background prefetching is still catching up. Only affects
+   * the displayed total/last-page label — hasNext/hasPrev and what you can actually page into
+   * still depend on what's genuinely loaded into `entries`, never on this number. */
+  totalEntryCount?: number;
 }
 
 function ThumbnailItem({
@@ -271,6 +279,7 @@ export function ThumbnailGrid({
   showPagination = true,
   margins = 'normal',
   onNearEnd,
+  totalEntryCount,
 }: ThumbnailGridProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const { width, height } = useContainerSize(containerRef);
@@ -345,9 +354,13 @@ export function ThumbnailGrid({
   const displayPage = isAligned
     ? safeTopLeft / pageSize + 1
     : Math.floor(safeTopLeft / pageSize) + 2;
+  // A known real total (see the prop's own doc comment) drives the *displayed* total/last-page
+  // label only — never allowed to be smaller than what's actually loaded, in case a host's known
+  // total is stale (e.g. new entries published since it was fetched).
+  const effectiveTotalEntries = Math.max(totalEntryCount ?? 0, entries.length);
   const totalPages = isAligned
-    ? Math.max(1, Math.ceil(entries.length / pageSize))
-    : Math.max(2, Math.ceil(entries.length / pageSize) + 1);
+    ? Math.max(1, Math.ceil(effectiveTotalEntries / pageSize))
+    : Math.max(2, Math.ceil(effectiveTotalEntries / pageSize) + 1);
   const hasPrev = safeTopLeft > 0;
   const hasNext = safeTopLeft + pageSize < entries.length;
 

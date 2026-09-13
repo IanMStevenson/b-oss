@@ -219,6 +219,46 @@ describe('ThumbnailGrid showZoomControls / showPagination', () => {
   });
 });
 
+describe('ThumbnailGrid totalEntryCount (b-oss#144)', () => {
+  // Fallback pageSize is 2x2 = 4 when unmeasured (see the ResizeObserver stub comment above).
+  it('uses totalEntryCount for the displayed total when it is bigger than what has loaded', () => {
+    render(
+      <ThumbnailGrid
+        entries={makeEntries(4)}
+        selectedEntryId={null}
+        onSelectEntry={() => {}}
+        totalEntryCount={40}
+      />,
+    );
+    // 40 entries at pageSize 4 = 10 pages; the fixed-cell Pagination row always includes the
+    // last page number, so it appearing confirms totalPages picked up totalEntryCount, not just
+    // entries.length (which alone would say 1 page and hide the row entirely).
+    expect(screen.getByLabelText('Page 10')).toBeDefined();
+  });
+
+  it('never lets a stale totalEntryCount undercount what has actually loaded', () => {
+    render(
+      <ThumbnailGrid
+        entries={makeEntries(20)}
+        selectedEntryId={null}
+        onSelectEntry={() => {}}
+        totalEntryCount={4}
+      />,
+    );
+    // 20 loaded at pageSize 4 = 5 pages, even though the (stale) known total says only 1 page's
+    // worth exists.
+    expect(screen.getByLabelText('Page 5')).toBeDefined();
+  });
+
+  it('falls back to entries.length when no totalEntryCount is given', () => {
+    render(
+      <ThumbnailGrid entries={makeEntries(8)} selectedEntryId={null} onSelectEntry={() => {}} />,
+    );
+    expect(screen.getByLabelText('Page 2')).toBeDefined();
+    expect(screen.queryByLabelText('Page 3')).toBeNull();
+  });
+});
+
 describe('ThumbnailGrid onNearEnd (b-oss#138)', () => {
   // Fallback pageSize is 2x2 = 4 when unmeasured (see the ResizeObserver stub comment above).
   it('fires when there is no more locally-loaded page ahead', () => {

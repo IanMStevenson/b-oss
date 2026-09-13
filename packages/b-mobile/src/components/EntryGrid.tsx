@@ -49,6 +49,10 @@ interface EntryGridProps {
   hasMore: boolean;
   onLoadMore: () => void;
   onRefresh: () => void;
+  /** A real, known total for this feed, when the caller has one cheaply (b-oss#144) — see
+   * ThumbnailGrid's own totalEntryCount doc comment for exactly what it does/doesn't affect.
+   * Omitted: the pagination row's total keeps reflecting "how much has loaded so far", as before. */
+  totalEntryCount?: number;
 }
 
 export function EntryGrid({
@@ -57,6 +61,7 @@ export function EntryGrid({
   hasMore,
   onLoadMore,
   onRefresh,
+  totalEntryCount,
 }: EntryGridProps) {
   const hiddenMembers = useHiddenMembers();
   const navigate = useAppNavigate();
@@ -114,6 +119,7 @@ export function EntryGrid({
           onNearEnd={() => {
             if (hasMore) onLoadMore();
           }}
+          totalEntryCount={totalEntryCount}
         />
       </div>
     </>

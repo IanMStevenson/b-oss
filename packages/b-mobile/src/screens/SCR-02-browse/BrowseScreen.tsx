@@ -29,6 +29,7 @@ import {
   fetchJustMePage,
   fetchNearbyPage,
 } from '../../data/entries.js';
+import { fetchUserProfile } from '../../data/users.js';
 import type { Page } from '../../data/usePagedResource.js';
 import { EntryGrid } from '../../components/EntryGrid.js';
 import { useActiveAccount } from '../../state/accountsStore.js';
@@ -37,6 +38,16 @@ import { getCurrentPosition } from '../../platform/geolocation.js';
 import type { EntryIndex } from '@b-oss/b-view';
 
 type Tab = 'recent' | 'following' | 'justme' | 'popular' | 'nearby';
+
+// Fixed depth limits Blipfoto itself enforces on these curated feeds — confirmed by the user
+// directly from blipfoto.com's own pagination (50/20 pages respectively, at the website's own
+// 6x3 = 18-entries-per-page grid) and independently corroborated live: requesting entries/recent
+// with an oversized page_size still only returns 200 entries with more:1, consistent with a real
+// total north of 200 rather than an app-side undercount (b-oss#144). Entry counts, not page
+// counts, are the portable fact — ThumbnailGrid derives its own totalPages from this at whatever
+// page size the current zoom/margins produce.
+const RECENT_TOTAL_ENTRIES = 50 * 18;
+const POPULAR_TOTAL_ENTRIES = 20 * 18;
 
 function NearbyTab() {
   const navigate = useAppNavigate();
@@ -80,9 +91,11 @@ function NearbyTab() {
 function ResourceGrid({
   resource,
   onSelectEntry,
+  totalEntryCount,
 }: {
   resource: ReturnType<typeof usePagedResource<EntryIndex>>;
   onSelectEntry: (entryId: string) => void;
+  totalEntryCount?: number;
 }) {
   if (resource.status === 'loading') {
     return (
@@ -115,14 +128,59 @@ function ResourceGrid({
       hasMore={resource.hasMore}
       onLoadMore={resource.loadMore}
       onRefresh={resource.refresh}
+      totalEntryCount={totalEntryCount}
     />
   );
 }
 
-function FeedTab({ fetchPage }: { fetchPage: (pageIndex: number) => Promise<Page<EntryIndex>> }) {
+function FeedTab({
+  fetchPage,
+  totalEntryCount,
+}: {
+  fetchPage: (pageIndex: number) => Promise<Page<EntryIndex>>;
+  totalEntryCount?: number;
+}) {
   const navigate = useAppNavigate();
   const resource = usePagedResource(fetchPage, []);
-  return <ResourceGrid resource={resource} onSelectEntry={(id) => navigate.push(`/entry/${id}`)} />;
+  return (
+    <ResourceGrid
+      resource={resource}
+      onSelectEntry={(id) => navigate.push(`/entry/${id}`)}
+      totalEntryCount={totalEntryCount}
+    />
+  );
+}
+
+// entry_total is a real, exact count (BlipUserDetails, already used by the Profile screen) —
+// fetched once per visit to this tab, not part of the paged feed's own response (b-oss#144).
+function JustMeTab() {
+  const navigate = useAppNavigate();
+  const resource = usePagedResource(fetchJustMePage, []);
+  const [totalEntryCount, setTotalEntryCount] = useState<number | undefined>(undefined);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetchUserProfile().then(
+      (profile) => {
+        if (!cancelled) setTotalEntryCount(profile.details?.entry_total);
+      },
+      () => {
+        // No fixed total to show is a display-only degradation (falls back to "how much has
+        // loaded so far", same as before this existed) — not worth its own error surface.
+      },
+    );
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  return (
+    <ResourceGrid
+      resource={resource}
+      onSelectEntry={(id) => navigate.push(`/entry/${id}`)}
+      totalEntryCount={totalEntryCount}
+    />
+  );
 }
 
 export function BrowseScreen() {
@@ -170,10 +228,14 @@ export function BrowseScreen() {
       <IonContent>
         {[...visited].map((t) => (
           <div key={t} hidden={t !== tab} style={{ height: '100%' }}>
-            {t === 'recent' && <FeedTab fetchPage={fetchRecentPage} />}
-            {t === 'popular' && <FeedTab fetchPage={fetchPopularPage} />}
+            {t === 'recent' && (
+              <FeedTab fetchPage={fetchRecentPage} totalEntryCount={RECENT_TOTAL_ENTRIES} />
+            )}
+            {t === 'popular' && (
+              <FeedTab fetchPage={fetchPopularPage} totalEntryCount={POPULAR_TOTAL_ENTRIES} />
+            )}
             {t === 'following' && <FeedTab fetchPage={fetchFollowingPage} />}
-            {t === 'justme' && <FeedTab fetchPage={fetchJustMePage} />}
+            {t === 'justme' && <JustMeTab />}
             {t === 'nearby' && <NearbyTab />}
           </div>
         ))}
