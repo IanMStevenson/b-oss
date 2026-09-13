@@ -2,7 +2,7 @@
 // Copyright (C) 2026 Ian Stevenson
 // @vitest-environment jsdom
 
-import { describe, it, expect, afterEach, beforeAll } from 'vitest';
+import { describe, it, expect, afterEach, beforeAll, vi } from 'vitest';
 import { render, screen, cleanup, fireEvent } from '@testing-library/react';
 import { ThumbnailGrid } from '../components/ThumbnailGrid.js';
 import gridStyles from '../components/ThumbnailGrid.module.css';
@@ -216,6 +216,122 @@ describe('ThumbnailGrid showZoomControls / showPagination', () => {
       <ThumbnailGrid entries={entries} selectedEntryId={null} onSelectEntry={() => {}} />,
     );
     expect(container.querySelector(`.${gridStyles.paginationRow}`)).not.toBeNull();
+  });
+});
+
+describe('ThumbnailGrid totalEntryCount (b-oss#144)', () => {
+  // Fallback pageSize is 2x2 = 4 when unmeasured (see the ResizeObserver stub comment above).
+  it('uses totalEntryCount for the displayed total when it is bigger than what has loaded', () => {
+    render(
+      <ThumbnailGrid
+        entries={makeEntries(4)}
+        selectedEntryId={null}
+        onSelectEntry={() => {}}
+        totalEntryCount={40}
+      />,
+    );
+    // 40 entries at pageSize 4 = 10 pages; the fixed-cell Pagination row always includes the
+    // last page number, so it appearing confirms totalPages picked up totalEntryCount, not just
+    // entries.length (which alone would say 1 page and hide the row entirely).
+    expect(screen.getByLabelText('Page 10')).toBeDefined();
+  });
+
+  it('never lets a stale totalEntryCount undercount what has actually loaded', () => {
+    render(
+      <ThumbnailGrid
+        entries={makeEntries(20)}
+        selectedEntryId={null}
+        onSelectEntry={() => {}}
+        totalEntryCount={4}
+      />,
+    );
+    // 20 loaded at pageSize 4 = 5 pages, even though the (stale) known total says only 1 page's
+    // worth exists.
+    expect(screen.getByLabelText('Page 5')).toBeDefined();
+  });
+
+  it('falls back to entries.length when no totalEntryCount is given', () => {
+    render(
+      <ThumbnailGrid entries={makeEntries(8)} selectedEntryId={null} onSelectEntry={() => {}} />,
+    );
+    expect(screen.getByLabelText('Page 2')).toBeDefined();
+    expect(screen.queryByLabelText('Page 3')).toBeNull();
+  });
+});
+
+describe('ThumbnailGrid allEntriesLoaded (b-oss#146)', () => {
+  // Fallback pageSize is 2x2 = 4 when unmeasured (see the ResizeObserver stub comment above).
+  it('once confirmed complete, corrects a totalEntryCount guess that was too high', () => {
+    render(
+      <ThumbnailGrid
+        entries={makeEntries(8)}
+        selectedEntryId={null}
+        onSelectEntry={() => {}}
+        totalEntryCount={40} // a wrong guess — genuinely only 8 entries exist
+        allEntriesLoaded
+      />,
+    );
+    // 8 loaded at pageSize 4 = 2 real pages, not the 10 the wrong guess implied.
+    expect(screen.getByLabelText('Page 2')).toBeDefined();
+    expect(screen.queryByLabelText('Page 10')).toBeNull();
+  });
+
+  it('trusts an unconfirmed totalEntryCount guess until allEntriesLoaded says otherwise', () => {
+    render(
+      <ThumbnailGrid
+        entries={makeEntries(8)}
+        selectedEntryId={null}
+        onSelectEntry={() => {}}
+        totalEntryCount={40}
+      />,
+    );
+    expect(screen.getByLabelText('Page 10')).toBeDefined();
+  });
+
+  it('shows a "nothing more" message, not a blank grid, when there is genuinely nothing to show', () => {
+    render(
+      <ThumbnailGrid
+        entries={[]}
+        selectedEntryId={null}
+        onSelectEntry={() => {}}
+        allEntriesLoaded
+      />,
+    );
+    expect(screen.getByText('Nothing more to show here.')).toBeDefined();
+  });
+
+  it('shows a "loading more" message instead, while still waiting for more to arrive', () => {
+    render(<ThumbnailGrid entries={[]} selectedEntryId={null} onSelectEntry={() => {}} />);
+    expect(screen.getByText('Loading more…')).toBeDefined();
+  });
+});
+
+describe('ThumbnailGrid onNearEnd (b-oss#138)', () => {
+  // Fallback pageSize is 2x2 = 4 when unmeasured (see the ResizeObserver stub comment above).
+  it('fires when there is no more locally-loaded page ahead', () => {
+    const onNearEnd = vi.fn();
+    render(
+      <ThumbnailGrid
+        entries={makeEntries(3)}
+        selectedEntryId={null}
+        onSelectEntry={() => {}}
+        onNearEnd={onNearEnd}
+      />,
+    );
+    expect(onNearEnd).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not fire while more locally-loaded pages remain', () => {
+    const onNearEnd = vi.fn();
+    render(
+      <ThumbnailGrid
+        entries={makeEntries(10)}
+        selectedEntryId={null}
+        onSelectEntry={() => {}}
+        onNearEnd={onNearEnd}
+      />,
+    );
+    expect(onNearEnd).not.toHaveBeenCalled();
   });
 });
 

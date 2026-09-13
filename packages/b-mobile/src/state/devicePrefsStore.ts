@@ -58,6 +58,11 @@ interface PersistedShape {
    * point zoom directly controls how many thumbnails fit per row (ThumbnailGrid.tsx's own header
    * comment on the margins prop has the full column-count reasoning). */
   thumbnailMargins: 'none' | 'narrow' | 'normal';
+  /** EntryGrid's own zoom control (ThumbnailGrid's sizePercent) — was local component state until
+   * this field existed, so Browse/Tag-entries/Search/Profile's own grid each had an independent
+   * zoom level that reset to 100 on every remount and never matched each other. One shared,
+   * persisted value across all of them, same as the other Browsing-section prefs above. */
+  thumbnailZoomPercent: number;
 }
 
 interface DevicePrefsState extends PersistedShape {
@@ -73,6 +78,7 @@ interface DevicePrefsState extends PersistedShape {
   setShowZoomBar: (value: boolean) => void;
   setShowPagination: (value: boolean) => void;
   setThumbnailMargins: (value: PersistedShape['thumbnailMargins']) => void;
+  setThumbnailZoomPercent: (value: number) => void;
 }
 
 const defaults: PersistedShape = {
@@ -85,6 +91,7 @@ const defaults: PersistedShape = {
   showZoomBar: true,
   showPagination: true,
   thumbnailMargins: 'normal',
+  thumbnailZoomPercent: 100,
 };
 
 function persist(state: PersistedShape): void {
@@ -203,6 +210,14 @@ export const useDevicePrefsStore = create<DevicePrefsState>((set) => ({
       return shape;
     });
   },
+
+  setThumbnailZoomPercent: (value) => {
+    set((prev) => {
+      const shape: PersistedShape = { ...toPersisted(prev), thumbnailZoomPercent: value };
+      persist(shape);
+      return shape;
+    });
+  },
 }));
 
 function toPersisted(state: PersistedShape): PersistedShape {
@@ -216,5 +231,6 @@ function toPersisted(state: PersistedShape): PersistedShape {
     showZoomBar: state.showZoomBar,
     showPagination: state.showPagination,
     thumbnailMargins: state.thumbnailMargins,
+    thumbnailZoomPercent: state.thumbnailZoomPercent,
   };
 }

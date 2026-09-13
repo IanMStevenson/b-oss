@@ -105,6 +105,20 @@
   max-width: 100%;
 }
 
+/* Shown while imageSrc hasn't resolved yet (nothing rendered here otherwise, which used to
+   collapse this container to zero height — the meta content below jumped up to fill the gap,
+   then jumped back down once the image finally loaded, worse on a slow connection). No API field
+   gives an image's real dimensions up front to reserve exact space, so this is a fixed-height
+   placeholder rather than an aspect-ratio match. */
+.photoPlaceholder {
+  width: 100%;
+  min-height: 240px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--ink-2);
+}
+
 .photo {
   display: block;
   width: auto;
@@ -163,7 +177,13 @@
   .metaColumns {
     grid-template-columns: 1fr;
   }
+  /* Reference layout (mobile site) puts views/reactions/EXIF directly under the photo, with
+     comments last — collapsing the grid to one column doesn't reorder its items on its own, so
+     .metaLeft (description/tags/comments) would otherwise still render first, above this. */
   .metaRight {
+    order: -1;
+  }
+  .metaLeft {
     border-top: 1px solid var(--line);
     padding-top: 16px;
   }

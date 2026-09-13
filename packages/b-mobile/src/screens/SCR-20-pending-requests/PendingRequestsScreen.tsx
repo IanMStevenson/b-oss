@@ -36,7 +36,11 @@ export function PendingRequestsScreen() {
   const navigate = useAppNavigate();
   const canWrite = useCanWrite();
   const { showUpgradePrompt } = useOverlay();
-  const resource = usePagedResource((pageIndex) => fetchPendingRequests(pageIndex), []);
+  const activeAccountId = useAccountsStore((s) => s.activeAccountId);
+  const resource = usePagedResource(
+    (pageIndex) => fetchPendingRequests(pageIndex),
+    [activeAccountId],
+  );
 
   const [refuseTarget, setRefuseTarget] = useState<BlipUser | null>(null);
   const [refusedOk, setRefusedOk] = useState<BlipUser | null>(null);

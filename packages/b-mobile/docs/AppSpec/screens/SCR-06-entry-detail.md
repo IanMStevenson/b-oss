@@ -18,12 +18,12 @@ moving to the previous/next entry within the same journal.
 
 ```
 +--------------------------------------+
-| <   Mon 14 Jun 2026    [⋮]    >  ←→  |  date header, prev/next, overflow menu
+| <   Mon 14 Jun 2026    [✎]    >  ←→  |  date header, prev/next, owner-only Edit
 |                                      |
 |        [        photo        ]       |  photo (tap = prev/next entry)
 |                                      |
 |  Title of the entry                  |
-|  👁 1,204   ★ 42   ♥ 7   [⛶]         |  views / stars / favourites / fullscreen
+|  👁 1,204   ★ 42   ♥ 7  [⛶] [📍]     |  views / stars / favourites / fullscreen / map
 |                                      |
 |  Rich description text rendered      |  BBCode -> formatted
 |  from BBCode, with links…            |
@@ -43,9 +43,13 @@ moving to the previous/next entry within the same journal.
 
 - **Date header** with previous/next affordance (swipe and arrows) to adjacent entries in the
   journal.
-- **Overflow menu** (`⋮`) — context actions, shown per the entry's action flags: Author profile,
-  Map (if geotagged), Report, **Hide this member** (`FLW-10`, unless it's the active account's own
-  entry), and owner-only Edit details / Replace photo / Delete; Metadata (if present); Share.
+- **No overflow menu** (2026-09 feedback round: removed in favour of one inline affordance per
+  action) — **Edit** (`✎`, owner + read-write only) sits in the nav header next to prev/next and
+  pushes to `SCR-13 Edit Entry`, which now owns Replace photo and Delete itself (previously
+  separate overflow items reached via router state). Below the action bar: **Report** (flag icon,
+  always available) and **Hide this member** (`FLW-10`, unless it's the active account's own
+  entry) sit alongside Follow/Unfollow. The location pin (next to the fullscreen button) pushes to
+  `SCR-04 Map` directly rather than opening an external maps link.
 - **Photo** — tapping the left/right half loads the previous/next entry (same as the header's
   arrows), matching the live Blipfoto site; it does not open the full-screen view.
 - **Fullscreen button** — a dedicated control next to the star/heart reaction counts, not a photo
@@ -119,7 +123,7 @@ moving to the previous/next entry within the same journal.
   message on error.
 - **Report comment** → `SCR-16`, scoped to that comment (the same `entry/report` call, with the
   comment identified in the note). Available on any comment by another member, on any entry.
-- **Hide this member** (from the overflow menu or a comment) → `FLW-10`; their content disappears
+- **Hide this member** (from the below-action-bar icon or a comment) → `FLW-10`; their content disappears
   from this screen immediately, including any comments they've left. The comment **count** is a
   server figure and does not change.
 - **Report** → `SCR-16`.

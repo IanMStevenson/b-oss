@@ -1,16 +1,20 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (C) 2026 Ian Stevenson
 
-// SCR-13 — Edit Entry (FLW-13). Two of its three modes live here — "Edit details" and "Replace
-// photo" (`initialMode`, from EntryDetailScreen's overflow menu via router state, extracted in
-// AppRoutes.tsx). "Delete entry" is a third, but per FLW-13's own diagram it never routes through
-// SCR-13 at all ("Delete --> Confirm --> Delete entry --> Close entry" branches directly off the
-// overflow menu) — implemented on EntryDetailScreen itself, not here.
+// SCR-13 — Edit Entry (FLW-13). One unified screen (2026-09 feedback round) — previously two
+// separate "modes" reached via two separate overflow-menu items ("Edit details"/"Replace photo",
+// `initialMode`/router state), which meant a single edit action didn't exist and Delete entry
+// lived entirely on EntryDetailScreen instead. Now: the details form, a Replace-photo section, and
+// Delete entry all live together on this one screen, reached via EntryDetailScreen's single Edit
+// affordance — matching FLW-13's actual intent ("edit an entry") rather than its old two-menu-item
+// implementation.
 //
 // Loads the entry once (there's no cheaper source — SCR-06 deliberately doesn't hand its own
 // loaded entry down, same deep-link-resilience reasoning as SCR-07/SCR-08/SCR-15/SCR-16) and
 // seeds composeDraftStore in 'edit' mode; reuses SCR-10's shared draft/SCR-11/SCR-12 machinery
 // rather than a parallel form. Save enqueues the same durable background upload as compose (§9).
+// Delete is immediate (no draft involved) — same confirm-then-delete-then-navigate-to-Browse
+// behaviour this screen inherited from EntryDetailScreen's old overflow menu.
 
 import { useEffect, useRef, useState } from 'react';
 import {
@@ -27,7 +31,7 @@ import { AppHeader } from '../../components/AppHeader.js';
 import { useAppNavigate } from '../../app/routes/useAppNavigate.js';
 import { useComposeDraftStore } from '../../state/composeDraftStore.js';
 import { useActiveAccount } from '../../state/accountsStore.js';
-import { fetchEntry } from '../../data/entries.js';
+import { fetchEntry, deleteEntry } from '../../data/entries.js';
 import { enqueueDraft } from '../../flows/composeFlow.js';
 import { describeError, mapApiError } from '../../data/errors.js';
 import { takePhoto, pickPhoto } from '../../platform/camera.js';
@@ -36,10 +40,9 @@ import type { PickedPhoto } from '../../platform/camera.js';
 
 interface EditEntryScreenProps {
   entryId: string;
-  initialMode: 'details' | 'photo';
 }
 
-export function EditEntryScreen({ entryId, initialMode }: EditEntryScreenProps) {
+export function EditEntryScreen({ entryId }: EditEntryScreenProps) {
   const navigate = useAppNavigate();
   const activeAccount = useActiveAccount();
   const draft = useComposeDraftStore((s) => s.draft);
@@ -53,6 +56,9 @@ export function EditEntryScreen({ entryId, initialMode }: EditEntryScreenProps) 
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [confirmDiscard, setConfirmDiscard] = useState(false);
+  const [confirmDeleteEntry, setConfirmDeleteEntry] = useState(false);
+  const [deletingEntry, setDeletingEntry] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
 
   const isCurrentDraft = draft?.mode === 'edit' && draft.entryId === entryId;
   // Whether this screen instance has already seeded (or found) its draft — checked once, at the
@@ -154,6 +160,20 @@ export function EditEntryScreen({ entryId, initialMode }: EditEntryScreenProps) 
     }
   }
 
+  async function handleConfirmedDeleteEntry(): Promise<void> {
+    setConfirmDeleteEntry(false);
+    setDeletingEntry(true);
+    try {
+      await deleteEntry(entryId);
+      clearDraft();
+      navigate.replace('/browse');
+    } catch (err) {
+      const outcome = mapApiError(err);
+      setDeleteError(describeError(outcome, 'Could not delete this entry.'));
+      setDeletingEntry(false);
+    }
+  }
+
   if (loading) {
     return (
       <IonPage>
@@ -180,11 +200,7 @@ export function EditEntryScreen({ entryId, initialMode }: EditEntryScreenProps) 
   return (
     <IonPage>
       <IonHeader>
-        <AppHeader
-          title={initialMode === 'photo' ? 'Replace photo' : 'Edit details'}
-          variant="back"
-          onBack={handleBack}
-        />
+        <AppHeader title="Edit entry" variant="back" onBack={handleBack} />
       </IonHeader>
       <IonContent className="ion-padding">
         {submitError && (
@@ -192,103 +208,114 @@ export function EditEntryScreen({ entryId, initialMode }: EditEntryScreenProps) 
             <p>{submitError}</p>
           </IonText>
         )}
-
-        {initialMode === 'photo' ? (
-          <>
-            {photoError && (
-              <IonText color="danger">
-                <p>{photoError}</p>
-              </IonText>
-            )}
-            {draft.photo ? (
-              <img
-                src={draft.photo.webPath}
-                alt="New photo"
-                style={{
-                  width: '100%',
-                  maxHeight: 240,
-                  objectFit: 'contain',
-                  background: 'var(--bg-alt)',
-                }}
-              />
-            ) : (
-              <IonText color="medium">
-                <p>Choose a new photo to replace this entry&rsquo;s current one.</p>
-              </IonText>
-            )}
-            <IonButton expand="block" onClick={() => void pickNewPhoto('camera')}>
-              Take a photo
-            </IonButton>
-            <IonButton expand="block" fill="outline" onClick={() => void pickNewPhoto('gallery')}>
-              Choose from device
-            </IonButton>
-          </>
-        ) : (
-          <>
-            <label>
-              Title
-              <input
-                type="text"
-                value={draft.title}
-                maxLength={50}
-                onChange={(e) => patchDraft({ title: e.target.value })}
-                style={{ width: '100%', font: 'inherit', padding: 8 }}
-              />
-            </label>
-
-            <label>
-              Tags (comma-separated)
-              <input
-                type="text"
-                value={draft.tags}
-                maxLength={255}
-                onChange={(e) => patchDraft({ tags: e.target.value })}
-                style={{ width: '100%', font: 'inherit', padding: 8 }}
-              />
-            </label>
-
-            <div>
-              <span>Description</span>
-              <p>{draft.description ? draft.description.slice(0, 80) : 'No description'}</p>
-              <IonButton
-                fill="outline"
-                size="small"
-                onClick={() => navigate.push('/compose/description')}
-              >
-                Edit description
-              </IonButton>
-            </div>
-
-            <div>
-              <IonCheckbox
-                checked={draft.location != null}
-                onIonChange={(e) => {
-                  if (e.detail.checked && !draft.location) {
-                    navigate.push('/compose/location');
-                  } else if (!e.detail.checked) {
-                    patchDraft({ location: null, displayLocation: false });
-                  }
-                }}
-              >
-                Location
-              </IonCheckbox>
-              {draft.location && (
-                <IonButton
-                  fill="clear"
-                  size="small"
-                  onClick={() => navigate.push('/compose/location')}
-                >
-                  Change
-                </IonButton>
-              )}
-            </div>
-          </>
+        {deleteError && (
+          <IonText color="danger">
+            <p>{deleteError}</p>
+          </IonText>
         )}
+
+        <label>
+          Title
+          <input
+            type="text"
+            value={draft.title}
+            maxLength={50}
+            onChange={(e) => patchDraft({ title: e.target.value })}
+            style={{ width: '100%', font: 'inherit', padding: 8 }}
+          />
+        </label>
+
+        <label>
+          Tags (comma-separated)
+          <input
+            type="text"
+            value={draft.tags}
+            maxLength={255}
+            onChange={(e) => patchDraft({ tags: e.target.value })}
+            style={{ width: '100%', font: 'inherit', padding: 8 }}
+          />
+        </label>
+
+        <div>
+          <span>Description</span>
+          <p>{draft.description ? draft.description.slice(0, 80) : 'No description'}</p>
+          <IonButton fill="outline" size="small" onClick={() => navigate.push('/compose/description')}>
+            Edit description
+          </IonButton>
+        </div>
+
+        <div>
+          <IonCheckbox
+            checked={draft.location != null}
+            onIonChange={(e) => {
+              if (e.detail.checked && !draft.location) {
+                navigate.push('/compose/location');
+              } else if (!e.detail.checked) {
+                patchDraft({ location: null, displayLocation: false });
+              }
+            }}
+          >
+            Location
+          </IonCheckbox>
+          {draft.location && (
+            <IonButton fill="clear" size="small" onClick={() => navigate.push('/compose/location')}>
+              Change
+            </IonButton>
+          )}
+        </div>
+
+        <div>
+          <span>Photo</span>
+          {photoError && (
+            <IonText color="danger">
+              <p>{photoError}</p>
+            </IonText>
+          )}
+          {draft.photo && (
+            <img
+              src={draft.photo.webPath}
+              alt="New photo"
+              style={{
+                width: '100%',
+                maxHeight: 240,
+                objectFit: 'contain',
+                background: 'var(--bg-alt)',
+              }}
+            />
+          )}
+          <IonButton fill="outline" size="small" onClick={() => void pickNewPhoto('camera')}>
+            Take a photo
+          </IonButton>
+          <IonButton fill="outline" size="small" onClick={() => void pickNewPhoto('gallery')}>
+            Choose from device
+          </IonButton>
+        </div>
 
         <IonButton expand="block" disabled={submitting} onClick={() => void handleSave()}>
           {submitting ? <IonSpinner name="dots" /> : 'Save'}
         </IonButton>
+
+        <IonButton
+          expand="block"
+          fill="outline"
+          color="danger"
+          disabled={deletingEntry}
+          onClick={() => setConfirmDeleteEntry(true)}
+        >
+          Delete entry
+        </IonButton>
       </IonContent>
+
+      <IonAlert
+        isOpen={confirmDeleteEntry}
+        header="Delete this entry?"
+        message="This can't be undone."
+        onDidDismiss={() => setConfirmDeleteEntry(false)}
+        buttons={[
+          { text: 'Cancel', role: 'cancel' },
+          { text: 'Delete', role: 'destructive', handler: () => void handleConfirmedDeleteEntry() },
+        ]}
+      />
 
       <IonAlert
         isOpen={confirmDiscard}

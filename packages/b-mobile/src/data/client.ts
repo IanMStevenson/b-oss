@@ -8,7 +8,7 @@
 // auth.md's anonymous rule, and never a credential-less request. Injects platform/http.ts and
 // platform/upload.ts so nothing above this module knows about Capacitor.
 
-import { BlipfotoClient } from '@b-oss/b-api';
+import { BlipfotoClient, BlipfotoError } from '@b-oss/b-api';
 import { isNativePlatform } from '../platform/appState.js';
 import { platformFetch } from '../platform/http.js';
 import { getMultipartImpl } from '../platform/upload.js';
@@ -51,6 +51,31 @@ export async function getClient(purpose: TokenPurpose = 'app'): Promise<Blipfoto
   if (!token) return anonymousClient();
 
   return new BlipfotoClient(token, resolveBaseUrl(), platformFetch, getMultipartImpl());
+}
+
+/** For calls whose content doesn't depend on who's asking — Browse (Recent/Popular/Nearby, not
+ * Following/Just-me, which are genuinely account-specific), Tag entries, Search, entry viewing,
+ * and Map. Rate limits are tracked per access token (api-general.md: "your app and each user of
+ * your app has a separate limit"), so the app-level anonymous token has its own separate 15-
+ * minute allowance from the active account's own token — if the account's token is rate-limited,
+ * retrying once against the anonymous client can still succeed instead of surfacing a hard
+ * failure for what would otherwise look the same either way.
+ *
+ * Never use this for identity-bound calls (Me/Following/Just-me/Followers/Requests/Refused/
+ * Awards/Notifications/Settings, or any write) — anonymous doesn't make sense for "my" data, and
+ * those should keep surfacing a clean rate-limit error rather than silently switching identity. */
+export async function withRateLimitFallback<T>(
+  fn: (client: BlipfotoClient) => Promise<T>,
+): Promise<T> {
+  const client = await getClient();
+  try {
+    return await fn(client);
+  } catch (err) {
+    if (err instanceof BlipfotoError && err.isRateLimited) {
+      return fn(anonymousClient());
+    }
+    throw err;
+  }
 }
 
 /** A client bearing an explicit token — for verifying a just-obtained OAuth token (before it's

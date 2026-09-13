@@ -63,12 +63,19 @@ type Tab = 'about' | 'entries' | 'faves';
 
 function GridTab({
   fetchPage,
+  refetchKey,
   onSelectEntry,
 }: {
   fetchPage: (pageIndex: number) => Promise<Page<EntryIndex>>;
+  /** fetchPage is a fresh closure every render, so its own identity can't drive
+   * usePagedResource's refetch — pass whatever value actually determines what it fetches
+   * (effectiveUsername here) so switching accounts on /me, or navigating between two different
+   * users' profiles, both correctly refetch instead of leaving the previous account's/user's
+   * entries on screen. */
+  refetchKey: string | undefined;
   onSelectEntry: (id: string) => void;
 }) {
-  const resource = usePagedResource(fetchPage, []);
+  const resource = usePagedResource(fetchPage, [refetchKey]);
   if (resource.status === 'loading') {
     return (
       <div className="ion-padding" style={{ display: 'flex', justifyContent: 'center' }}>
@@ -336,13 +343,19 @@ export function ProfileScreen({ username }: ProfileScreenProps) {
                       <div key={t} hidden={t !== tab}>
                         {t === 'entries' && (
                           <GridTab
-                            fetchPage={(pageIndex) => fetchJournalEntriesFor(username, pageIndex)}
+                            fetchPage={(pageIndex) =>
+                              fetchJournalEntriesFor(effectiveUsername, pageIndex)
+                            }
+                            refetchKey={effectiveUsername}
                             onSelectEntry={(id) => navigate.push(`/entry/${id}`)}
                           />
                         )}
                         {t === 'faves' && (
                           <GridTab
-                            fetchPage={(pageIndex) => fetchFavoriteEntriesFor(username, pageIndex)}
+                            fetchPage={(pageIndex) =>
+                              fetchFavoriteEntriesFor(effectiveUsername, pageIndex)
+                            }
+                            refetchKey={effectiveUsername}
                             onSelectEntry={(id) => navigate.push(`/entry/${id}`)}
                           />
                         )}

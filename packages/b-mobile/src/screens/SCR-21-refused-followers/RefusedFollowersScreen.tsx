@@ -28,7 +28,7 @@ import { restoreAccess } from '../../flows/connectionsFlow.js';
 import { describeError, mapApiError } from '../../data/errors.js';
 import { useAppNavigate } from '../../app/routes/useAppNavigate.js';
 import { useOverlay } from '../../app/OverlayProvider.js';
-import { useCanWrite } from '../../state/accountsStore.js';
+import { useAccountsStore, useCanWrite } from '../../state/accountsStore.js';
 import { useIsHidden } from '../../state/hiddenMembersStore.js';
 import { UserRow } from '../../components/UserRow.js';
 import type { BlipUser } from '@b-oss/b-api';
@@ -61,7 +61,8 @@ export function RefusedFollowersScreen() {
   const navigate = useAppNavigate();
   const canWrite = useCanWrite();
   const { showUpgradePrompt } = useOverlay();
-  const resource = usePagedResource((pageIndex) => fetchBlockedUsers(pageIndex), []);
+  const activeAccountId = useAccountsStore((s) => s.activeAccountId);
+  const resource = usePagedResource((pageIndex) => fetchBlockedUsers(pageIndex), [activeAccountId]);
 
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [toastMessage, setToastMessage] = useState<string | null>(null);

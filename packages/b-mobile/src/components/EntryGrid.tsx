@@ -4,13 +4,16 @@
 // A grid of entry thumbnails, backed by b-view's ThumbnailGrid (rules.md, Lists, feeds & paging —
 // real pagination, no fixed page cap: every server page fetched via usePagedResource accumulates
 // into one array, then ThumbnailGrid windows it client-side into pages sized to fit the screen,
-// the same way b-view-backup's local journal browser does). ThumbnailGrid has no hook of its own
-// for "the user is nearing the end of what's currently loaded" — it only ever sees a fixed array —
-// so this wrapper keeps calling the host's onLoadMore in the background whenever hasMore is true,
-// re-triggering as each page lands, until the host reports nothing more to fetch. By the time a
-// user pages far enough to need it, the next server page has usually already arrived.
+// the same way b-view-backup's local journal browser does). ThumbnailGrid's onNearEnd fires
+// exactly when the user reaches the last currently-loaded display page — that's the one moment
+// this calls the host's onLoadMore, staying one server page ahead of wherever the user actually
+// is. (An earlier version of this called onLoadMore on every entries.length change instead,
+// which chains: each successful fetch immediately triggered another until hasMore went false —
+// on a large journal that's hundreds of sequential API calls fired back-to-back just from
+// opening the screen, found live exhausting a real rate-limit allowance during testing,
+// regardless of how few tiles were actually on screen. b-oss#138.)
 // usePagedResource's own loadMore() already no-ops while a fetch is in flight or hasMore is
-// false, so calling it opportunistically here is safe, not just convenient.
+// false, so calling it from onNearEnd even when there's genuinely nothing more costs nothing.
 //
 // A hidden member's entries render as b-view's own "couldn't load" placeholder tile — no
 // thumbnail, no title (rules.md, Hiding: what suppression means) — via a resolveAsset that
@@ -19,7 +22,7 @@
 // which shows its own "you've hidden this member" state with Unhide, per rules.md's "opening a
 // hidden member's entry deliberately" rule.
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useMemo } from 'react';
 import { IonRefresher, IonRefresherContent } from '@ionic/react';
 import type { RefresherEventDetail } from '@ionic/core';
 import { ThumbnailGrid } from '@b-oss/b-view';
@@ -46,6 +49,10 @@ interface EntryGridProps {
   hasMore: boolean;
   onLoadMore: () => void;
   onRefresh: () => void;
+  /** A real, known total for this feed, when the caller has one cheaply (b-oss#144) — see
+   * ThumbnailGrid's own totalEntryCount doc comment for exactly what it does/doesn't affect.
+   * Omitted: the pagination row's total keeps reflecting "how much has loaded so far", as before. */
+  totalEntryCount?: number;
 }
 
 export function EntryGrid({
@@ -54,10 +61,12 @@ export function EntryGrid({
   hasMore,
   onLoadMore,
   onRefresh,
+  totalEntryCount,
 }: EntryGridProps) {
   const hiddenMembers = useHiddenMembers();
   const navigate = useAppNavigate();
-  const [sizePercent, setSizePercent] = useState(100);
+  const sizePercent = useDevicePrefsStore((s) => s.thumbnailZoomPercent);
+  const setSizePercent = useDevicePrefsStore((s) => s.setThumbnailZoomPercent);
   const showZoomBar = useDevicePrefsStore((s) => s.showZoomBar);
   const showPagination = useDevicePrefsStore((s) => s.showPagination);
   const thumbnailMargins = useDevicePrefsStore((s) => s.thumbnailMargins);
@@ -77,14 +86,6 @@ export function EntryGrid({
       path === HIDDEN_THUMBNAIL ? Promise.reject(new Error('hidden member')) : resolveImage(path),
     [],
   );
-
-  useEffect(() => {
-    if (hasMore) onLoadMore();
-    // Re-run whenever a new page lands (entries.length grows) or hasMore first becomes true —
-    // deliberately not depending on onLoadMore's own identity, which usePagedResource recreates
-    // every render.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [hasMore, entries.length]);
 
   function handleRefresh(event: CustomEvent<RefresherEventDetail>): void {
     onRefresh();
@@ -115,6 +116,11 @@ export function EntryGrid({
           showZoomControls={showZoomBar}
           showPagination={showPagination}
           margins={thumbnailMargins}
+          onNearEnd={() => {
+            if (hasMore) onLoadMore();
+          }}
+          totalEntryCount={totalEntryCount}
+          allEntriesLoaded={!hasMore}
         />
       </div>
     </>

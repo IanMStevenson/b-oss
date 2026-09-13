@@ -21,6 +21,10 @@ vi.mock('../../../platform/geolocation.js', () => ({
   getCurrentPosition: vi.fn(),
 }));
 
+vi.mock('../../../data/users.js', () => ({
+  fetchUserProfile: vi.fn(),
+}));
+
 vi.mock('../../../state/accountsStore.js', () => ({
   useActiveAccount: vi.fn(),
   // AccountIndicator's own selector — fixed at "fewer than two accounts" (its own no-op case)
@@ -118,6 +122,41 @@ describe('BrowseScreen', () => {
     segment.dispatchEvent(new CustomEvent('ionChange', { detail: { value: 'following' } }));
 
     expect(await screen.findByLabelText('2026-01-01')).toBeDefined();
+  });
+
+  it('Me tab uses the profile\'s real entry_total for pagination, not just what has loaded (b-oss#144)', async () => {
+    const { fetchRecentPage, fetchJustMePage } = await import('../../../data/entries.js');
+    const { fetchUserProfile } = await import('../../../data/users.js');
+    const { useActiveAccount } = await import('../../../state/accountsStore.js');
+    vi.mocked(useActiveAccount).mockReturnValue({
+      id: 'a1',
+      username: 'alice',
+      avatarUrl: null,
+      appTokenScope: 'read',
+      hasServiceToken: false,
+      notificationRegistrationId: null,
+      notificationStatus: null,
+    });
+    vi.mocked(fetchRecentPage).mockResolvedValue({ items: [], more: false });
+    // more: true — genuinely still mid-load (real total 40, one page in), distinct from
+    // b-oss#146's "genuinely nothing more" case where more:false would correctly make
+    // allEntriesLoaded override this guess with what's actually loaded so far.
+    vi.mocked(fetchJustMePage).mockResolvedValue({ items: [entry], more: true });
+    vi.mocked(fetchUserProfile).mockResolvedValue({
+      user: { username: 'alice', avatar_url: '', icons: [] },
+      // 40 total at the fallback unmeasured pageSize (4) is 10 pages — only reachable via
+      // entry_total, since fetchJustMePage above only ever returns a single loaded item.
+      details: { entry_total: 40 } as never,
+      visible: true,
+      friendship: null,
+      latestEntry: null,
+    });
+    renderScreen();
+
+    const segment = document.querySelector('ion-segment')!;
+    segment.dispatchEvent(new CustomEvent('ionChange', { detail: { value: 'justme' } }));
+
+    expect(await screen.findByLabelText('Page 10')).toBeDefined();
   });
 
   // Phase 6 made platform/geolocation.ts real: getCurrentPosition() can now resolve `null`

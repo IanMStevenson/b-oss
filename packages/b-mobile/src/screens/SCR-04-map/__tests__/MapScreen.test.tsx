@@ -37,7 +37,9 @@ const { MockMap, MockMarker, MockPopup, mapInstances, markerInstances } = vi.hoi
     popup: MockPopupImpl | null = null;
     toggled = 0;
     removed = false;
-    constructor() {
+    options: { color?: string; element?: HTMLElement };
+    constructor(options: { color?: string; element?: HTMLElement } = {}) {
+      this.options = options;
       markerInstances.push(this);
     }
     setLngLat(ll: [number, number]) {
@@ -105,6 +107,11 @@ vi.mock('maplibre-gl', () => ({
   Map: MockMap,
   Marker: MockMarker,
   Popup: MockPopup,
+  setWorkerUrl: vi.fn(),
+}));
+
+vi.mock('maplibre-gl/dist/maplibre-gl-worker.mjs?worker&url', () => ({
+  default: 'mock-worker-url',
 }));
 
 vi.mock('../../../platform/mapTiles.js', () => ({
@@ -135,6 +142,7 @@ const entryMarker: MapEntry = {
   username: 'alice',
   lat: 51.5,
   lon: -0.1,
+  thumbnailUrl: '',
 };
 
 beforeEach(() => {
@@ -190,6 +198,51 @@ describe('MapScreen', () => {
       }),
     );
     await waitFor(() => expect(markerInstances.length).toBe(1));
+  });
+
+  it('entry markers use b-oss green, not the default marker colour', async () => {
+    const { getMapStyleUrl } = await import('../../../platform/mapTiles.js');
+    const { fetchEntriesInBounds } = await import('../../../data/map.js');
+    vi.mocked(getMapStyleUrl).mockReturnValue('https://example.com/style.json');
+    vi.mocked(fetchEntriesInBounds).mockResolvedValue([entryMarker]);
+    renderScreen();
+
+    await waitFor(() => expect(mapInstances.length).toBe(1));
+    mapInstances[0].trigger('load');
+
+    await waitFor(() => expect(markerInstances.length).toBe(1));
+    expect(markerInstances[0].options.color).toBe('#1f4d3a');
+  });
+
+  it('an entry with a thumbnail shows an image in its popup', async () => {
+    const { getMapStyleUrl } = await import('../../../platform/mapTiles.js');
+    const { fetchEntriesInBounds } = await import('../../../data/map.js');
+    vi.mocked(getMapStyleUrl).mockReturnValue('https://example.com/style.json');
+    vi.mocked(fetchEntriesInBounds).mockResolvedValue([
+      { ...entryMarker, thumbnailUrl: 'https://example.com/thumb.jpg' },
+    ]);
+    renderScreen();
+
+    await waitFor(() => expect(mapInstances.length).toBe(1));
+    mapInstances[0].trigger('load');
+
+    await waitFor(() => expect(markerInstances.length).toBe(1));
+    const img = markerInstances[0].popup?.content?.querySelector('img');
+    expect(img).not.toBeNull();
+  });
+
+  it('an entry with no thumbnail shows no image in its popup', async () => {
+    const { getMapStyleUrl } = await import('../../../platform/mapTiles.js');
+    const { fetchEntriesInBounds } = await import('../../../data/map.js');
+    vi.mocked(getMapStyleUrl).mockReturnValue('https://example.com/style.json');
+    vi.mocked(fetchEntriesInBounds).mockResolvedValue([entryMarker]); // thumbnailUrl: ''
+    renderScreen();
+
+    await waitFor(() => expect(mapInstances.length).toBe(1));
+    mapInstances[0].trigger('load');
+
+    await waitFor(() => expect(markerInstances.length).toBe(1));
+    expect(markerInstances[0].popup?.content?.querySelector('img')).toBeNull();
   });
 
   it('shows no markers and no error for an empty region', async () => {
@@ -284,6 +337,49 @@ describe('MapScreen', () => {
     expect(mapInstances[0].options.zoom).toBe(13);
   });
 
+  it('focused mode shows only the entry you came from, not every nearby entry (b-oss#142)', async () => {
+    const { getMapStyleUrl } = await import('../../../platform/mapTiles.js');
+    const { fetchEntry } = await import('../../../data/entries.js');
+    const { fetchEntriesInBounds } = await import('../../../data/map.js');
+    vi.mocked(getMapStyleUrl).mockReturnValue('https://example.com/style.json');
+    vi.mocked(fetchEntry).mockResolvedValue({
+      entry: {
+        entry_id: 'e1',
+        date: '2026-01-01',
+        title: 'Sunrise',
+        username: 'alice',
+        journal_title: '',
+        description: '',
+        description_html: '',
+        tags: [],
+        location: { lat: 51.5, lon: -0.1 },
+        views_total: 0,
+        stars_total: 0,
+        favorites_total: 0,
+        comments: [],
+        exif: null,
+        images: {},
+      },
+      prevEntryId: null,
+      nextEntryId: null,
+      actions: null,
+      starred: false,
+      favorited: false,
+      friendship: null,
+      comments: [],
+    });
+    renderScreen('e1');
+
+    await waitFor(() => expect(markerInstances.length).toBe(1));
+    expect(markerInstances[0].lngLat).toEqual([-0.1, 51.5]);
+    expect(markerInstances[0].toggled).toBe(1);
+    // Panning/moving the map would normally trigger a bounds fetch (see the 'moveend' handler in
+    // general Map-tab mode) — focused mode never registers that handler at all, so triggering it
+    // here (if it existed) would be a no-op regardless; the real assertion is that the fetch never
+    // happens in the first place.
+    expect(fetchEntriesInBounds).not.toHaveBeenCalled();
+  });
+
   it('recentres on the device location when My location is tapped', async () => {
     const { getMapStyleUrl } = await import('../../../platform/mapTiles.js');
     const { getCurrentPosition } = await import('../../../platform/geolocation.js');
@@ -300,5 +396,26 @@ describe('MapScreen', () => {
     await waitFor(() =>
       expect(mapInstances[0].jumpToCalls).toContainEqual({ center: [20, 10], zoom: 13 }),
     );
+  });
+
+  it('"My location" shows a plain dot, not an entry-style pin', async () => {
+    const { getMapStyleUrl } = await import('../../../platform/mapTiles.js');
+    const { getCurrentPosition } = await import('../../../platform/geolocation.js');
+    const { fetchEntriesInBounds } = await import('../../../data/map.js');
+    vi.mocked(getMapStyleUrl).mockReturnValue('https://example.com/style.json');
+    vi.mocked(fetchEntriesInBounds).mockResolvedValue([]);
+    vi.mocked(getCurrentPosition).mockResolvedValue({ lat: 10, lon: 20 });
+    renderScreen();
+    await waitFor(() => expect(mapInstances.length).toBe(1));
+
+    const { default: userEvent } = await import('@testing-library/user-event');
+    await userEvent.click(screen.getByText('My location', { selector: 'ion-button' }));
+
+    await waitFor(() => {
+      const dotMarker = markerInstances.find((m) => m.options.element);
+      expect(dotMarker).toBeDefined();
+      expect(dotMarker?.options.color).toBeUndefined();
+      expect(dotMarker?.lngLat).toEqual([20, 10]);
+    });
   });
 });

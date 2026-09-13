@@ -16,23 +16,46 @@ interface PaginationProps {
   nextRef?: RefObject<HTMLButtonElement | null>;
 }
 
-function buildPageItems(current: number, total: number): Array<number | '...'> {
-  if (total <= 7) {
+// Always exactly `cellCount` numbered cells (when there are that many pages to show), so the
+// prev/next arrows sit at a fixed screen position regardless of which page is current — the
+// previous version's arrows visibly shifted as the number of rendered items changed page to page
+// (fewer near the edges, more in the middle, "..." sometimes present/absent), making "click next
+// twice" unreliable since the button moved out from under a second click. Confirmed live on a
+// real device and reported as a real usability problem, not just a cosmetic one.
+//
+// Always includes page 1 and the last page, plus immediate neighbours of `current`, then fills
+// any remaining slots by repeatedly splitting the single largest gap between what's already
+// chosen — the same "first/last always, neighbours always, split the gap" shape the user pointed
+// at from blipfoto.com's own pagination, but generalised (iterative gap-splitting rather than a
+// fixed left/right split) and sized down for a phone-width cell row rather than matching its
+// exact 9-cell count. A "gap-split" cell is a real, clickable page number (not a dead ellipsis) —
+// same as the reference.
+function buildFixedPageItems(current: number, total: number, cellCount = 7): number[] {
+  if (total <= cellCount) {
     return Array.from({ length: total }, (_, i) => i + 1);
   }
 
-  const items: Array<number | '...'> = [];
-  const delta = 2;
-  const left = Math.max(2, current - delta);
-  const right = Math.min(total - 1, current + delta);
+  const chosen = new Set<number>([1, total]);
+  for (let i = current - 1; i <= current + 1; i++) {
+    if (i > 1 && i < total) chosen.add(i);
+  }
 
-  items.push(1);
-  if (left > 2) items.push('...');
-  for (let i = left; i <= right; i++) items.push(i);
-  if (right < total - 1) items.push('...');
-  items.push(total);
+  while (chosen.size < cellCount) {
+    const sorted = [...chosen].sort((a, b) => a - b);
+    let bestIndex = -1;
+    let bestGap = 1; // a gap of 1 (consecutive numbers) has nothing to split
+    for (let i = 0; i < sorted.length - 1; i++) {
+      const gap = sorted[i + 1] - sorted[i];
+      if (gap > bestGap) {
+        bestGap = gap;
+        bestIndex = i;
+      }
+    }
+    if (bestIndex === -1) break; // no gap left worth splitting — fewer than cellCount is correct
+    chosen.add(Math.round((sorted[bestIndex] + sorted[bestIndex + 1]) / 2));
+  }
 
-  return items;
+  return [...chosen].sort((a, b) => a - b);
 }
 
 export function Pagination({
@@ -46,10 +69,20 @@ export function Pagination({
   prevRef,
   nextRef,
 }: PaginationProps) {
-  const items = buildPageItems(currentPage, totalPages);
+  const items = buildFixedPageItems(currentPage, totalPages);
+
+  // A real, explicit width (not min-width) sized to the widest page number this row will ever
+  // need to show, so cells never resize as the current page — or the total, which can itself grow
+  // in the background — changes digit count. `ch` is exactly "however wide one character of this
+  // font is", the right unit for "wide enough for N digits" — but on its own that's exactly wide
+  // enough and no more, leaving the digits touching the cell's own edges with nothing else to
+  // separate one cell's number from its neighbour's (reported live as numbers looking crammed
+  // together). The flat 14px on top is breathing room around the digits, not part of the
+  // digit-count sizing itself.
+  const cellWidth = `calc(${Math.max(2, String(totalPages).length)}ch + 14px)`;
 
   const btnStyle: CSSProperties = {
-    minWidth: '28px',
+    width: cellWidth,
     height: '28px',
     display: 'inline-flex',
     alignItems: 'center',
@@ -71,7 +104,7 @@ export function Pagination({
     <div style={{ display: 'flex', alignItems: 'center', gap: '2px' }}>
       <button
         ref={prevRef}
-        style={btnStyle}
+        style={{ ...btnStyle, width: '28px' }}
         disabled={!hasPrev}
         onClick={onPrev}
         aria-label="Previous page"
@@ -79,27 +112,21 @@ export function Pagination({
         <ChevronLeft size={14} strokeWidth={1.6} />
       </button>
 
-      {items.map((item, idx) =>
-        item === '...' ? (
-          <span key={`ellipsis-${idx}`} style={{ ...btnStyle, color: 'var(--muted)' }}>
-            …
-          </span>
-        ) : (
-          <button
-            key={item}
-            style={item === currentPage ? activeStyle : btnStyle}
-            onClick={() => onPage(item)}
-            aria-label={`Page ${item}`}
-            aria-current={item === currentPage ? 'page' : undefined}
-          >
-            {item}
-          </button>
-        ),
-      )}
+      {items.map((item) => (
+        <button
+          key={item}
+          style={item === currentPage ? activeStyle : btnStyle}
+          onClick={() => onPage(item)}
+          aria-label={`Page ${item}`}
+          aria-current={item === currentPage ? 'page' : undefined}
+        >
+          {item}
+        </button>
+      ))}
 
       <button
         ref={nextRef}
-        style={btnStyle}
+        style={{ ...btnStyle, width: '28px' }}
         disabled={!hasNext}
         onClick={onNext}
         aria-label="Next page"

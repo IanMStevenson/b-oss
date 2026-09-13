@@ -84,7 +84,7 @@ export function CommentsInboxScreen() {
       },
     );
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [activeAccountId]);
 
   useEffect(() => {
     load();

@@ -22,6 +22,14 @@ const PAGINATION_H = 52;
 const BASE_TILE_PX = 156;
 const ZOOM_MIN_PERCENT = 30;
 const ZOOM_MAX_PERCENT = 200;
+// A flat zoom-percentage floor doesn't scale across device widths — on a wide/landscape screen it
+// let zoom-out show far more columns than fit comfortably (confirmed live on a real device,
+// b-oss#140). Cap zoom-out by minimum tile size as a fraction of the viewport instead, which
+// targets the thing that actually matters (image size) rather than a flat percentage, and scales
+// correctly across phone/tablet/foldable widths. Deliberately approximate (no padding/gap
+// correction) — landing on N or N-1 columns after rounding is fine, not worth exact precision.
+const MIN_COLUMNS_PORTRAIT = 6;
+const MIN_COLUMNS_LANDSCAPE = 8;
 
 type ThumbnailMargins = 'none' | 'narrow' | 'normal';
 
@@ -134,6 +142,29 @@ interface ThumbnailGridProps {
   /** 'normal' (default) is today's spacing. See the MARGIN_RENDER/column-math comment above for
    * what 'narrow'/'none' change. */
   margins?: ThumbnailMargins;
+  /** Fired when the user reaches the last *currently-loaded* display page (i.e. there's no more
+   * of `entries` left to page into locally) — for a host backed by server pagination to fetch
+   * more, exactly when it's actually needed. Omitted: paging simply stops at the last loaded
+   * page, as before. Not fired repeatedly for the same "no more loaded" state — only on the
+   * transition into it — so a host doesn't need its own de-duplication. */
+  onNearEnd?: () => void;
+  /** A real, known total entry count for the feed `entries` is a partial view into — for a host
+   * that can get one cheaply (a fixed depth limit it knows about a curated feed, a profile's own
+   * entry_total, etc). Omitted: totalPages falls back to entries.length, i.e. "how much has
+   * loaded so far" — correct once everything's loaded, but grows (and visibly changes the
+   * pagination row's last label) while background prefetching is still catching up. Only affects
+   * the displayed total/last-page label — hasNext/hasPrev and what you can actually page into
+   * still depend on what's genuinely loaded into `entries`, never on this number. */
+  totalEntryCount?: number;
+  /** True once the host's own paged resource has confirmed there's genuinely nothing more to
+   * fetch (its own `hasMore` is false) — the authoritative signal that whatever's in `entries`
+   * right now *is* the real, complete total, overriding `totalEntryCount` if the two disagree.
+   * `totalEntryCount` is necessarily a guess in some cases (a fixed depth limit a host believes
+   * is accurate, but isn't guaranteed to be) — this is what lets a wrong guess correct itself
+   * once the real data proves it wrong, rather than the pagination row continuing to offer pages
+   * that don't exist. Omitted: `totalEntryCount` (if given) is trusted unconditionally, as
+   * before. */
+  allEntriesLoaded?: boolean;
 }
 
 function ThumbnailItem({
@@ -256,6 +287,9 @@ export function ThumbnailGrid({
   showZoomControls = true,
   showPagination = true,
   margins = 'normal',
+  onNearEnd,
+  totalEntryCount,
+  allEntriesLoaded,
 }: ThumbnailGridProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const { width, height } = useContainerSize(containerRef);
@@ -280,12 +314,27 @@ export function ThumbnailGrid({
   // Derive cols/rows from available space; fall back to 2 until measured.
   const cols =
     width > 0 ? Math.max(2, Math.floor((width - calcHPad + calcGap) / (tileSize + calcGap))) : 2;
+
+  // 'none' margins: cols * tileSize essentially never exactly equals the container's actual
+  // width (tileSize only ever changes in whole zoom-percentage steps), which used to leave a
+  // leftover strip as an unwanted edge margin even with padding/gap both 0 — the exact bug this
+  // mode exists to avoid. Snap the *rendered* tile size to fill the row exactly; sizePercent
+  // itself (what's persisted/shown in the zoom label) is untouched, so zoom still "means" the
+  // same thing internally and this is purely a render-time rounding adjustment.
+  const renderTileSize =
+    margins === 'none' && width > 0 ? Math.floor(width / cols) : tileSize;
+
+  // rows must divide by whatever size tiles actually render at — using the smaller, pre-snap
+  // tileSize here (as this used to) undercounts each row's real height once 'none' margins snaps
+  // tiles bigger to fill the row, so more rows get crammed into a page than actually fit on
+  // screen (confirmed live on a real device, b-oss#139).
+  const rowTileSize = margins === 'none' ? renderTileSize : tileSize;
   const rows =
     height > 0
       ? Math.max(
           2,
           Math.floor(
-            (height - controlsH - paginationH - calcVPad + calcGap) / (tileSize + calcGap),
+            (height - controlsH - paginationH - calcVPad + calcGap) / (rowTileSize + calcGap),
           ),
         )
       : 2;
@@ -315,11 +364,32 @@ export function ThumbnailGrid({
   const displayPage = isAligned
     ? safeTopLeft / pageSize + 1
     : Math.floor(safeTopLeft / pageSize) + 2;
+  // A known real total (see the prop's own doc comment) drives the *displayed* total/last-page
+  // label only — never allowed to be smaller than what's actually loaded, in case a host's known
+  // total is stale (e.g. new entries published since it was fetched). Once the host confirms
+  // there's genuinely nothing more to fetch (allEntriesLoaded), entries.length IS the real total
+  // by definition — this overrides a totalEntryCount that turns out to have been wrong (too
+  // high), rather than continuing to offer pages that don't exist (b-oss#146: a hardcoded guess
+  // like this can be wrong, and needs to fail gracefully when it is).
+  const effectiveTotalEntries = allEntriesLoaded
+    ? entries.length
+    : Math.max(totalEntryCount ?? 0, entries.length);
   const totalPages = isAligned
-    ? Math.max(1, Math.ceil(entries.length / pageSize))
-    : Math.max(2, Math.ceil(entries.length / pageSize) + 1);
+    ? Math.max(1, Math.ceil(effectiveTotalEntries / pageSize))
+    : Math.max(2, Math.ceil(effectiveTotalEntries / pageSize) + 1);
   const hasPrev = safeTopLeft > 0;
   const hasNext = safeTopLeft + pageSize < entries.length;
+
+  // Fires exactly on the transition into "no more locally-loaded page ahead" — not on every
+  // render while that stays true — since this only depends on `hasNext` itself, not on
+  // `onNearEnd`'s identity (which a host may pass as a fresh closure every render). Deliberately
+  // not deduped further than that: a host's own onLoadMore-style handler already no-ops safely
+  // once there's genuinely nothing more on the server, so a harmless extra call here costs
+  // nothing (see b-mobile's EntryGrid.tsx for the host side of this).
+  useEffect(() => {
+    if (!hasNext) onNearEnd?.();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [hasNext]);
 
   const goToPrevPage = useCallback(
     () => setTopLeftIndex(Math.max(0, safeTopLeft - pageSize)),
@@ -334,10 +404,16 @@ export function ThumbnailGrid({
     onSwipeLeft: () => hasNext && goToNextPage(),
     onSwipeRight: () => hasPrev && goToPrevPage(),
   });
+
+  const isLandscape = width > 0 && height > 0 && width > height;
+  const minColumns = isLandscape ? MIN_COLUMNS_LANDSCAPE : MIN_COLUMNS_PORTRAIT;
+  const dynamicMinPercent =
+    width > 0 ? Math.round((width / minColumns / baseTileSize) * 100) : ZOOM_MIN_PERCENT;
+
   const pinch = usePinchZoom({
     sizePercent,
     onSizeChange,
-    min: ZOOM_MIN_PERCENT,
+    min: dynamicMinPercent,
     max: ZOOM_MAX_PERCENT,
   });
 
@@ -432,7 +508,7 @@ export function ThumbnailGrid({
             <div className={styles.zoomGroup}>
               <button
                 className={styles.iconBtn}
-                onClick={() => onSizeChange(Math.max(ZOOM_MIN_PERCENT, sizePercent - 10))}
+                onClick={() => onSizeChange(Math.max(dynamicMinPercent, sizePercent - 10))}
                 aria-label="Zoom out"
               >
                 <ZoomOut size={14} strokeWidth={1.6} />
@@ -496,11 +572,20 @@ export function ThumbnailGrid({
       >
         {search && isSearchActive && search.status === 'done' && search.results.length === 0 ? (
           <div className={styles.searchEmpty}>No entries match &ldquo;{search.query}&rdquo;</div>
+        ) : !isSearchActive && pageEntries.length === 0 ? (
+          // Reachable if a host's totalEntryCount guess was too high (b-oss#146) and the user
+          // paged/jumped to a page number that implied more content than genuinely exists —
+          // rather than silently rendering an unexplained blank grid. allEntriesLoaded
+          // distinguishes "there's truly nothing more" from "still catching up" (onNearEnd's own
+          // fetch hasn't landed yet) — the latter self-resolves once it does, without user action.
+          <div className={styles.searchEmpty}>
+            {allEntriesLoaded ? 'Nothing more to show here.' : 'Loading more…'}
+          </div>
         ) : (
           <div
             className={styles.grid}
             style={{
-              gridTemplateColumns: `repeat(${cols}, ${tileSize}px)`,
+              gridTemplateColumns: `repeat(${cols}, ${renderTileSize}px)`,
               gap: `${renderGap}px`,
               padding: MARGIN_RENDER[margins].padding,
             }}
@@ -514,7 +599,7 @@ export function ThumbnailGrid({
                 baseUrl={baseUrl}
                 resolveAsset={resolveAsset}
                 invalidateAsset={invalidateAsset}
-                tileSize={tileSize}
+                tileSize={renderTileSize}
                 showInfoOverlay={showInfoOverlay}
                 assetRevision={assetRevision}
               />

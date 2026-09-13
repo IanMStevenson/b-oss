@@ -11,8 +11,11 @@ import { EditEntryScreen } from '../EditEntryScreen.js';
 import { useAccountsStore } from '../../../state/accountsStore.js';
 import { useComposeDraftStore } from '../../../state/composeDraftStore.js';
 
-const { fetchEntry } = vi.hoisted(() => ({ fetchEntry: vi.fn() }));
-vi.mock('../../../data/entries.js', () => ({ fetchEntry }));
+const { fetchEntry, deleteEntry } = vi.hoisted(() => ({
+  fetchEntry: vi.fn(),
+  deleteEntry: vi.fn(),
+}));
+vi.mock('../../../data/entries.js', () => ({ fetchEntry, deleteEntry }));
 
 const { enqueueDraft } = vi.hoisted(() => ({ enqueueDraft: vi.fn() }));
 vi.mock('../../../flows/composeFlow.js', () => ({ enqueueDraft }));
@@ -76,31 +79,31 @@ afterEach(() => {
   vi.resetAllMocks();
 });
 
-function renderScreen(mode: 'details' | 'photo' = 'details') {
+function renderScreen() {
   return render(
     <MemoryRouter>
-      <EditEntryScreen entryId="e1" initialMode={mode} />
+      <EditEntryScreen entryId="e1" />
     </MemoryRouter>,
   );
 }
 
 describe('EditEntryScreen', () => {
   it('loads the entry and pre-fills the details form', async () => {
-    renderScreen('details');
+    renderScreen();
     expect(await screen.findByDisplayValue('Sunrise')).toBeDefined();
     expect(screen.getByDisplayValue('dawn')).toBeDefined();
   });
 
   it('shows an error and no form when the entry fails to load', async () => {
     fetchEntry.mockRejectedValue(new BlipfotoError(404, 'Not found'));
-    renderScreen('details');
+    renderScreen();
     expect(await screen.findByText('Not found')).toBeDefined();
     expect(screen.queryByText('Save')).toBeNull();
   });
 
   it('Save enqueues the edit and returns to SCR-06', async () => {
     enqueueDraft.mockResolvedValue('q1');
-    renderScreen('details');
+    renderScreen();
     await screen.findByDisplayValue('Sunrise');
 
     await userEvent.click(screen.getByText('Save'));
@@ -108,7 +111,7 @@ describe('EditEntryScreen', () => {
     expect(useComposeDraftStore.getState().draft).toBeNull();
   });
 
-  it('replace-photo mode offers capture/pick and previews the chosen photo', async () => {
+  it('the details form and the Replace photo section are both shown together', async () => {
     takePhoto.mockResolvedValue({
       uri: 'file:///new.jpg',
       webPath: 'blob:new',
@@ -117,14 +120,32 @@ describe('EditEntryScreen', () => {
       height: 600,
       createdAt: null,
     });
-    renderScreen('photo');
-    await waitFor(() => expect(useComposeDraftStore.getState().draft).not.toBeNull());
+    renderScreen();
+    await screen.findByDisplayValue('Sunrise');
 
     await userEvent.click(screen.getByText('Take a photo'));
     await waitFor(() =>
       expect(useComposeDraftStore.getState().draft?.photo?.webPath).toBe('blob:new'),
     );
     expect(await screen.findByAltText('New photo')).toBeDefined();
+    // Details form is still there, not swapped out for the photo section.
+    expect(screen.getByDisplayValue('Sunrise')).toBeDefined();
+  });
+
+  it('Delete entry confirms, then deletes and returns to Browse', async () => {
+    deleteEntry.mockResolvedValue(undefined);
+    renderScreen();
+    await screen.findByDisplayValue('Sunrise');
+
+    await userEvent.click(screen.getByText('Delete entry'));
+    expect(await screen.findByText('Delete this entry?')).toBeDefined();
+    const confirmButton = document.querySelector(
+      'ion-alert[header="Delete this entry?"] button.alert-button-role-destructive',
+    ) as HTMLElement;
+    await userEvent.click(confirmButton);
+
+    await waitFor(() => expect(deleteEntry).toHaveBeenCalledWith('e1'));
+    expect(replace).toHaveBeenCalledWith('/browse');
   });
 
   it('reuses the current draft instead of refetching if one is already open for this entry', async () => {
@@ -144,7 +165,7 @@ describe('EditEntryScreen', () => {
         dirty: true,
       },
     });
-    renderScreen('details');
+    renderScreen();
     expect(await screen.findByDisplayValue('Already editing')).toBeDefined();
     expect(fetchEntry).not.toHaveBeenCalled();
   });
