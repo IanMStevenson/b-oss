@@ -289,6 +289,49 @@ describe('MapScreen', () => {
     expect(mapInstances[0].options.zoom).toBe(13);
   });
 
+  it('focused mode shows only the entry you came from, not every nearby entry (b-oss#142)', async () => {
+    const { getMapStyleUrl } = await import('../../../platform/mapTiles.js');
+    const { fetchEntry } = await import('../../../data/entries.js');
+    const { fetchEntriesInBounds } = await import('../../../data/map.js');
+    vi.mocked(getMapStyleUrl).mockReturnValue('https://example.com/style.json');
+    vi.mocked(fetchEntry).mockResolvedValue({
+      entry: {
+        entry_id: 'e1',
+        date: '2026-01-01',
+        title: 'Sunrise',
+        username: 'alice',
+        journal_title: '',
+        description: '',
+        description_html: '',
+        tags: [],
+        location: { lat: 51.5, lon: -0.1 },
+        views_total: 0,
+        stars_total: 0,
+        favorites_total: 0,
+        comments: [],
+        exif: null,
+        images: {},
+      },
+      prevEntryId: null,
+      nextEntryId: null,
+      actions: null,
+      starred: false,
+      favorited: false,
+      friendship: null,
+      comments: [],
+    });
+    renderScreen('e1');
+
+    await waitFor(() => expect(markerInstances.length).toBe(1));
+    expect(markerInstances[0].lngLat).toEqual([-0.1, 51.5]);
+    expect(markerInstances[0].toggled).toBe(1);
+    // Panning/moving the map would normally trigger a bounds fetch (see the 'moveend' handler in
+    // general Map-tab mode) — focused mode never registers that handler at all, so triggering it
+    // here (if it existed) would be a no-op regardless; the real assertion is that the fetch never
+    // happens in the first place.
+    expect(fetchEntriesInBounds).not.toHaveBeenCalled();
+  });
+
   it('recentres on the device location when My location is tapped', async () => {
     const { getMapStyleUrl } = await import('../../../platform/mapTiles.js');
     const { getCurrentPosition } = await import('../../../platform/geolocation.js');

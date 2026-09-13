@@ -133,12 +133,20 @@ export function MapScreen({ focusedEntryId }: MapScreenProps) {
     async function init(): Promise<void> {
       let center = DEFAULT_CENTER;
       let zoom = DEFAULT_ZOOM;
+      let focusedEntry: MapEntry | null = null;
       if (focusedEntryId) {
         try {
           const loaded = await fetchEntry(focusedEntryId);
           if (loaded.entry.location) {
             center = [loaded.entry.location.lon, loaded.entry.location.lat];
             zoom = FOCUSED_ZOOM;
+            focusedEntry = {
+              entry_id: focusedEntryId,
+              title: loaded.entry.title,
+              username: loaded.entry.username,
+              lat: loaded.entry.location.lat,
+              lon: loaded.entry.location.lon,
+            };
           }
         } catch {
           // Fall back to the default region — a genuine fetch failure for this entry already
@@ -149,6 +157,24 @@ export function MapScreen({ focusedEntryId }: MapScreenProps) {
 
       map = new MapLibreMap({ container: containerRef.current, style: url, center, zoom });
       mapRef.current = map;
+
+      // Focused mode (reached from a specific entry): show only that one pin, not a general
+      // area browse — confirmed live, the bounds query below plotting every nearby entry
+      // alongside it was unwanted (b-oss#142). General Map-tab browsing (no focusedEntryId)
+      // keeps the bounds-query behaviour below unchanged.
+      if (focusedEntryId) {
+        if (focusedEntry) {
+          renderMarkers([focusedEntry]);
+          setEntriesStatus('loaded');
+        } else {
+          setEntriesStatus('empty');
+        }
+        map.on('error', (e: MapLibreErrorEvent) => {
+          if (cancelled) return;
+          setMapError(e.error?.message ?? 'Could not load the map.');
+        });
+        return;
+      }
 
       function handleMoveEnd(): void {
         const b = map!.getBounds();
@@ -174,7 +200,7 @@ export function MapScreen({ focusedEntryId }: MapScreenProps) {
       map?.remove();
       if (mapRef.current === map) mapRef.current = null;
     };
-  }, [styleUrl, focusedEntryId]);
+  }, [styleUrl, focusedEntryId, renderMarkers]);
 
   // MapLibre reads the container's size once, at construction — if IonContent/IonPage's own
   // layout hasn't settled yet at that exact moment (a real, observed race, not hypothetical),
