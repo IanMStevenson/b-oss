@@ -163,7 +163,13 @@
   .metaColumns {
     grid-template-columns: 1fr;
   }
+  /* Reference layout (mobile site) puts views/reactions/EXIF directly under the photo, with
+     comments last — collapsing the grid to one column doesn't reorder its items on its own, so
+     .metaLeft (description/tags/comments) would otherwise still render first, above this. */
   .metaRight {
+    order: -1;
+  }
+  .metaLeft {
     border-top: 1px solid var(--line);
     padding-top: 16px;
   }
