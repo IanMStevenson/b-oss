@@ -24,13 +24,13 @@ beforeAll(() => {
 
 afterEach(cleanup);
 
-function makeEntries(count: number): EntryIndex[] {
+function makeEntries(count: number, startAt = 1): EntryIndex[] {
   return Array.from({ length: count }, (_, i) => ({
-    entry_id: String(i + 1),
-    date: `2026-01-${String(i + 1).padStart(2, '0')}`,
-    title: `Entry ${i + 1}`,
-    thumbnail_path: `thumb-${i + 1}.jpg`,
-    json_path: `entry-${i + 1}.json`,
+    entry_id: String(startAt + i),
+    date: `2026-01-${String(startAt + i).padStart(2, '0')}`,
+    title: `Entry ${startAt + i}`,
+    thumbnail_path: `thumb-${startAt + i}.jpg`,
+    json_path: `entry-${startAt + i}.json`,
   }));
 }
 
@@ -300,9 +300,9 @@ describe('ThumbnailGrid allEntriesLoaded (b-oss#146)', () => {
     expect(screen.getByText('Nothing more to show here.')).toBeDefined();
   });
 
-  it('shows a "loading more" message instead, while still waiting for more to arrive', () => {
+  it('shows a "loading" message instead, while still waiting for more to arrive', () => {
     render(<ThumbnailGrid entries={[]} selectedEntryId={null} onSelectEntry={() => {}} />);
-    expect(screen.getByText('Loading more…')).toBeDefined();
+    expect(screen.getByText('Loading…')).toBeDefined();
   });
 });
 
@@ -332,6 +332,106 @@ describe('ThumbnailGrid onNearEnd (b-oss#138)', () => {
       />,
     );
     expect(onNearEnd).not.toHaveBeenCalled();
+  });
+});
+
+describe('ThumbnailGrid onSeek / entriesOffset / onLoadBefore (b-oss#153)', () => {
+  // Fallback pageSize is 2x2 = 4 when unmeasured (see the ResizeObserver stub comment above).
+  it('clicking an already-loaded distant page just repositions locally, without seeking', () => {
+    const onSeek = vi.fn();
+    render(
+      <ThumbnailGrid
+        entries={makeEntries(20)} // 5 loaded pages at pageSize 4
+        selectedEntryId={null}
+        onSelectEntry={() => {}}
+        onSeek={onSeek}
+      />,
+    );
+    fireEvent.click(screen.getByLabelText('Page 4')); // target index 12 — well within the 20 loaded
+    expect(onSeek).not.toHaveBeenCalled();
+    expect(screen.getByLabelText('2026-01-13')).toBeDefined(); // page 4 starts at entry 13
+  });
+
+  it('clicking a page beyond the loaded window calls onSeek with the absolute target, and shows a loading state until it arrives', () => {
+    const onSeek = vi.fn();
+    render(
+      <ThumbnailGrid
+        entries={makeEntries(4)} // only 1 page loaded
+        selectedEntryId={null}
+        onSelectEntry={() => {}}
+        totalEntryCount={40} // pretends 10 pages exist, so "Page 10" is offered at all
+        onSeek={onSeek}
+      />,
+    );
+    fireEvent.click(screen.getByLabelText('Page 10')); // target index (10-1)*4 = 36, nowhere near loaded
+    expect(onSeek).toHaveBeenCalledWith(36);
+    // Not "Nothing more to show here." — that's reserved for allEntriesLoaded confirming this
+    // page genuinely doesn't exist, which isn't the case here; this is just still in flight.
+    expect(screen.getByText('Loading…')).toBeDefined();
+  });
+
+  it('once the host delivers the seeked window via entriesOffset, the target page renders for real', () => {
+    const onSeek = vi.fn();
+    const { rerender } = render(
+      <ThumbnailGrid
+        entries={makeEntries(4)}
+        selectedEntryId={null}
+        onSelectEntry={() => {}}
+        totalEntryCount={40}
+        onSeek={onSeek}
+      />,
+    );
+    fireEvent.click(screen.getByLabelText('Page 10'));
+
+    // The host's usePagedResource-style seekTo resolves: re-anchors the window at entry 37
+    // (absolute index 36), delivering exactly the page the click targeted.
+    rerender(
+      <ThumbnailGrid
+        entries={makeEntries(4, 37)}
+        entriesOffset={36}
+        selectedEntryId={null}
+        onSelectEntry={() => {}}
+        totalEntryCount={40}
+        onSeek={onSeek}
+      />,
+    );
+    expect(screen.getByLabelText('2026-01-37')).toBeDefined();
+    expect(screen.getByLabelText('Page 10').getAttribute('aria-current')).toBe('page');
+  });
+
+  it('paging backward past the start of a seeked window calls onLoadBefore', () => {
+    const onLoadBefore = vi.fn();
+    render(
+      <ThumbnailGrid
+        entries={makeEntries(4, 37)} // window starts at absolute 36, same as the previous test
+        entriesOffset={36}
+        selectedEntryId={null}
+        onSelectEntry={() => {}}
+        totalEntryCount={40}
+        onLoadBefore={onLoadBefore}
+      />,
+    );
+    // topLeftIndex defaults to 0 on mount, which is already before entriesOffset(36) — this is
+    // exactly the "not yet caught up" state a real host reaches via the same onSeek round-trip
+    // the previous test exercised; from ThumbnailGrid's own perspective it's indistinguishable
+    // from "the user paged backward past the window start", so the same onLoadBefore fires.
+    expect(onLoadBefore).toHaveBeenCalledTimes(1);
+  });
+
+  it('"First page" seeks directly to absolute 0 rather than incrementally loading backward', () => {
+    const onSeek = vi.fn();
+    render(
+      <ThumbnailGrid
+        entries={makeEntries(4, 37)}
+        entriesOffset={36}
+        selectedEntryId={null}
+        onSelectEntry={() => {}}
+        onSizeChange={() => {}}
+        onSeek={onSeek}
+      />,
+    );
+    fireEvent.click(screen.getByLabelText('First page'));
+    expect(onSeek).toHaveBeenCalledWith(0);
   });
 });
 

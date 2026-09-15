@@ -165,6 +165,22 @@ interface ThumbnailGridProps {
    * that don't exist. Omitted: `totalEntryCount` (if given) is trusted unconditionally, as
    * before. */
   allEntriesLoaded?: boolean;
+  /** Absolute index of `entries[0]` in the full feed — 0 (the default) for a host that only ever
+   * appends sequentially from the start. Non-zero after a host re-anchors its loaded window
+   * somewhere else in response to `onSeek` (b-oss#153) — lets page-number math and hasPrev/hasNext
+   * stay correct for a window that doesn't start at the beginning of the feed. */
+  entriesOffset?: number;
+  /** Fired when the user clicks a page number outside the currently loaded window — e.g. a
+   * distant page in the fixed-cell pagination row (#143) that's nowhere near what's been fetched
+   * so far. Carries the absolute entry index the host should fetch directly (a single seek, not a
+   * walk through every intervening page — see usePagedResource's own seekTo doc comment for why
+   * that matters). Omitted: clicking such a page silently clamps to whatever's loaded, which is
+   * the exact bug #153 exists to fix — always wire this up alongside `entriesOffset`. */
+  onSeek?: (targetIndex: number) => void;
+  /** Fired when the user pages backward past the start of the currently loaded window (only
+   * possible once `entriesOffset` is non-zero, i.e. after a seek) — for a host to fetch the one
+   * API page immediately before its window and prepend it. */
+  onLoadBefore?: () => void;
 }
 
 function ThumbnailItem({
@@ -290,6 +306,9 @@ export function ThumbnailGrid({
   onNearEnd,
   totalEntryCount,
   allEntriesLoaded,
+  entriesOffset = 0,
+  onSeek,
+  onLoadBefore,
 }: ThumbnailGridProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const { width, height } = useContainerSize(containerRef);
@@ -351,34 +370,45 @@ export function ThumbnailGrid({
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
   }, []);
-  const safeTopLeft = Math.max(
-    0,
-    Math.min(topLeftIndex, entries.length > 0 ? entries.length - 1 : 0),
-  );
-  const pageStart = safeTopLeft;
+  // topLeftIndex is always an ABSOLUTE entry index (position in the full feed), not an index into
+  // `entries` — the two only coincide while entriesOffset is 0, i.e. a host that's never seeked.
+  // localTopLeft converts to the array-relative index actually needed for slicing; it can be
+  // negative (target is before the loaded window — needs onLoadBefore) or beyond entries.length
+  // (target hasn't arrived yet — needs onSeek or onNearEnd) whenever entries doesn't cover it yet.
+  const boundedTopLeft = Math.max(0, topLeftIndex);
+  const localTopLeft = boundedTopLeft - entriesOffset;
+  const inWindow = localTopLeft >= 0 && localTopLeft < entries.length;
   const pageEntries = isSearchActive
     ? displayEntries
-    : entries.slice(pageStart, pageStart + pageSize);
+    : inWindow
+      ? entries.slice(localTopLeft, localTopLeft + pageSize)
+      : [];
 
-  const isAligned = safeTopLeft % pageSize === 0;
+  const isAligned = boundedTopLeft % pageSize === 0;
   const displayPage = isAligned
-    ? safeTopLeft / pageSize + 1
-    : Math.floor(safeTopLeft / pageSize) + 2;
+    ? boundedTopLeft / pageSize + 1
+    : Math.floor(boundedTopLeft / pageSize) + 2;
   // A known real total (see the prop's own doc comment) drives the *displayed* total/last-page
   // label only — never allowed to be smaller than what's actually loaded, in case a host's known
   // total is stale (e.g. new entries published since it was fetched). Once the host confirms
-  // there's genuinely nothing more to fetch (allEntriesLoaded), entries.length IS the real total
-  // by definition — this overrides a totalEntryCount that turns out to have been wrong (too
-  // high), rather than continuing to offer pages that don't exist (b-oss#146: a hardcoded guess
-  // like this can be wrong, and needs to fail gracefully when it is).
+  // there's genuinely nothing more to fetch (allEntriesLoaded), entriesOffset + entries.length IS
+  // the real total by definition — this overrides a totalEntryCount that turns out to have been
+  // wrong (too high), rather than continuing to offer pages that don't exist (b-oss#146: a
+  // hardcoded guess like this can be wrong, and needs to fail gracefully when it is).
+  const knownLoadedThrough = entriesOffset + entries.length;
   const effectiveTotalEntries = allEntriesLoaded
-    ? entries.length
-    : Math.max(totalEntryCount ?? 0, entries.length);
+    ? knownLoadedThrough
+    : Math.max(totalEntryCount ?? 0, knownLoadedThrough);
   const totalPages = isAligned
     ? Math.max(1, Math.ceil(effectiveTotalEntries / pageSize))
     : Math.max(2, Math.ceil(effectiveTotalEntries / pageSize) + 1);
-  const hasPrev = safeTopLeft > 0;
-  const hasNext = safeTopLeft + pageSize < entries.length;
+  // hasPrev only checks "not already at the very start" — paging backward past what's loaded is
+  // exactly what onLoadBefore is for, so it stays enabled even when that's a fetch, not just a
+  // local reposition. hasNext deliberately stays tied to what's actually loaded (unchanged from
+  // before entriesOffset existed): forward growth is onNearEnd's job, one page at a time.
+  const hasPrev = boundedTopLeft > 0;
+  const hasNext = localTopLeft + pageSize < entries.length;
+  const needsBefore = localTopLeft < 0;
 
   // Fires exactly on the transition into "no more locally-loaded page ahead" — not on every
   // render while that stays true — since this only depends on `hasNext` itself, not on
@@ -391,13 +421,21 @@ export function ThumbnailGrid({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [hasNext]);
 
+  // Symmetric with the onNearEnd effect above, for the backward direction — only reachable once
+  // entriesOffset is non-zero (a seek re-anchored the window somewhere mid-feed) and the user has
+  // paged back past its start (b-oss#153).
+  useEffect(() => {
+    if (needsBefore) onLoadBefore?.();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [needsBefore]);
+
   const goToPrevPage = useCallback(
-    () => setTopLeftIndex(Math.max(0, safeTopLeft - pageSize)),
-    [safeTopLeft, pageSize],
+    () => setTopLeftIndex(Math.max(0, boundedTopLeft - pageSize)),
+    [boundedTopLeft, pageSize],
   );
   const goToNextPage = useCallback(
-    () => setTopLeftIndex(safeTopLeft + pageSize),
-    [safeTopLeft, pageSize],
+    () => setTopLeftIndex(boundedTopLeft + pageSize),
+    [boundedTopLeft, pageSize],
   );
 
   const swipe = useSwipeNav({
@@ -417,23 +455,26 @@ export function ThumbnailGrid({
     max: ZOOM_MAX_PERCENT,
   });
 
-  // Track the top-left entry date for the internal calendar and external callback.
+  // Track the top-left entry date for the internal calendar and external callback. A negative or
+  // out-of-range localTopLeft (window doesn't cover it yet — mid-seek/mid-loadBefore) reads as
+  // undefined here, same as any other out-of-bounds array access, so this just reports null.
   useEffect(() => {
     if (isSearchActive) return;
-    const date = entries[pageStart]?.date ?? null;
+    const date = entries[localTopLeft]?.date ?? null;
     setTopLeftDate(date);
     onTopLeftEntryDate?.(date);
-  }, [isSearchActive, pageStart, entries, onTopLeftEntryDate]);
+  }, [isSearchActive, localTopLeft, entries, onTopLeftEntryDate]);
 
-  // Jump to the entry at topLeftIndex when jumpToEntryId changes.
+  // Jump to the entry at topLeftIndex when jumpToEntryId changes. findIndex gives a local index
+  // into `entries`; topLeftIndex is absolute, so entriesOffset has to be added back on.
   const lastJumpRef = useRef<string | null>(null);
   useEffect(() => {
     if (!jumpToEntryId || jumpToEntryId === lastJumpRef.current) return;
     const idx = entries.findIndex((e) => e.entry_id === jumpToEntryId);
     if (idx < 0) return;
     lastJumpRef.current = jumpToEntryId;
-    setTopLeftIndex(idx);
-  }, [jumpToEntryId, entries]);
+    setTopLeftIndex(entriesOffset + idx);
+  }, [jumpToEntryId, entries, entriesOffset]);
 
   // If 2×2 minimum doesn't fit, let the container scroll rather than clip.
   const minTileSpan = 2 * (tileSize + calcGap) - calcGap;
@@ -482,7 +523,12 @@ export function ThumbnailGrid({
             <>
               <button
                 className={styles.iconBtn}
-                onClick={() => setTopLeftIndex(0)}
+                onClick={() => {
+                  // Absolute 0 may not be within the current window post-seek — same "jump
+                  // directly, don't walk backward one page at a time" reasoning as onPage below.
+                  if (entriesOffset > 0) onSeek?.(0);
+                  setTopLeftIndex(0);
+                }}
                 aria-label="First page"
               >
                 <Home size={14} strokeWidth={1.6} />
@@ -498,7 +544,7 @@ export function ThumbnailGrid({
                   currentDate={topLeftDate}
                   onNavigate={(entryId) => {
                     const idx = entries.findIndex((e) => e.entry_id === entryId);
-                    if (idx >= 0) setTopLeftIndex(idx);
+                    if (idx >= 0) setTopLeftIndex(entriesOffset + idx);
                   }}
                 />
               )}
@@ -573,13 +619,14 @@ export function ThumbnailGrid({
         {search && isSearchActive && search.status === 'done' && search.results.length === 0 ? (
           <div className={styles.searchEmpty}>No entries match &ldquo;{search.query}&rdquo;</div>
         ) : !isSearchActive && pageEntries.length === 0 ? (
-          // Reachable if a host's totalEntryCount guess was too high (b-oss#146) and the user
-          // paged/jumped to a page number that implied more content than genuinely exists —
-          // rather than silently rendering an unexplained blank grid. allEntriesLoaded
-          // distinguishes "there's truly nothing more" from "still catching up" (onNearEnd's own
-          // fetch hasn't landed yet) — the latter self-resolves once it does, without user action.
+          // Reachable two ways: a host's totalEntryCount guess was too high (b-oss#146) and the
+          // user paged/jumped to a page that implied more content than genuinely exists; or the
+          // target page is real but its data hasn't arrived yet — either still catching up from
+          // onNearEnd, or a fetch just kicked off from onSeek/onLoadBefore (b-oss#153) — rather
+          // than silently rendering an unexplained blank grid either way. allEntriesLoaded is the
+          // only one of these that's permanent; the other two self-resolve once their fetch lands.
           <div className={styles.searchEmpty}>
-            {allEntriesLoaded ? 'Nothing more to show here.' : 'Loading more…'}
+            {allEntriesLoaded ? 'Nothing more to show here.' : 'Loading…'}
           </div>
         ) : (
           <div
@@ -613,7 +660,18 @@ export function ThumbnailGrid({
           <Pagination
             currentPage={displayPage}
             totalPages={totalPages}
-            onPage={(n) => setTopLeftIndex(Math.max(0, safeTopLeft + (n - displayPage) * pageSize))}
+            onPage={(n) => {
+              // Computed directly from the page number and this grid's own pageSize, not as a
+              // delta off the current position — page boundaries are absolute, so this is the
+              // one place that needs to notice a target the loaded window doesn't cover yet and
+              // ask the host to seek there directly (b-oss#153), rather than just repositioning
+              // locally onto whatever's loaded and silently rendering the wrong page.
+              const target = Math.max(0, (n - 1) * pageSize);
+              if (target - entriesOffset < 0 || target - entriesOffset >= entries.length) {
+                onSeek?.(target);
+              }
+              setTopLeftIndex(target);
+            }}
             hasPrev={hasPrev}
             hasNext={hasNext}
             onPrev={goToPrevPage}

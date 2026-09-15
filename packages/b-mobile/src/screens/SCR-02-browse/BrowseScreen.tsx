@@ -28,6 +28,7 @@ import {
   fetchFollowingPage,
   fetchJustMePage,
   fetchNearbyPage,
+  PAGE_SIZE,
 } from '../../data/entries.js';
 import { fetchUserProfile } from '../../data/users.js';
 import type { Page } from '../../data/usePagedResource.js';
@@ -71,6 +72,7 @@ function NearbyTab() {
         ? fetchNearbyPage(pageIndex, coords)
         : Promise.resolve<Page<EntryIndex>>({ items: [], more: false }),
     [coords],
+    PAGE_SIZE,
   );
 
   if (!coords) {
@@ -129,6 +131,9 @@ function ResourceGrid({
       onLoadMore={resource.loadMore}
       onRefresh={resource.refresh}
       totalEntryCount={totalEntryCount}
+      entriesOffset={resource.windowStart}
+      onSeek={resource.seekTo}
+      onLoadBefore={resource.loadBefore}
     />
   );
 }
@@ -141,7 +146,7 @@ function FeedTab({
   totalEntryCount?: number;
 }) {
   const navigate = useAppNavigate();
-  const resource = usePagedResource(fetchPage, []);
+  const resource = usePagedResource(fetchPage, [], PAGE_SIZE);
   return (
     <ResourceGrid
       resource={resource}
@@ -155,7 +160,7 @@ function FeedTab({
 // fetched once per visit to this tab, not part of the paged feed's own response (b-oss#144).
 function JustMeTab() {
   const navigate = useAppNavigate();
-  const resource = usePagedResource(fetchJustMePage, []);
+  const resource = usePagedResource(fetchJustMePage, [], PAGE_SIZE);
   const [totalEntryCount, setTotalEntryCount] = useState<number | undefined>(undefined);
 
   useEffect(() => {

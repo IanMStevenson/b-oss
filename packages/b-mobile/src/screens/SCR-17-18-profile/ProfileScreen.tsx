@@ -38,6 +38,7 @@ import {
   fetchUserProfile,
   fetchJournalEntriesFor,
   fetchFavoriteEntriesFor,
+  PAGE_SIZE,
 } from '../../data/users.js';
 import { followUser, unfollowUser } from '../../flows/reactionsFlow.js';
 import { signInGated } from '../../flows/accountsFlow.js';
@@ -75,7 +76,7 @@ function GridTab({
   refetchKey: string | undefined;
   onSelectEntry: (id: string) => void;
 }) {
-  const resource = usePagedResource(fetchPage, [refetchKey]);
+  const resource = usePagedResource(fetchPage, [refetchKey], PAGE_SIZE);
   if (resource.status === 'loading') {
     return (
       <div className="ion-padding" style={{ display: 'flex', justifyContent: 'center' }}>
@@ -107,6 +108,9 @@ function GridTab({
       hasMore={resource.hasMore}
       onLoadMore={resource.loadMore}
       onRefresh={resource.refresh}
+      entriesOffset={resource.windowStart}
+      onSeek={resource.seekTo}
+      onLoadBefore={resource.loadBefore}
     />
   );
 }

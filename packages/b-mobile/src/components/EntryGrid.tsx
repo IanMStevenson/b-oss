@@ -53,6 +53,19 @@ interface EntryGridProps {
    * ThumbnailGrid's own totalEntryCount doc comment for exactly what it does/doesn't affect.
    * Omitted: the pagination row's total keeps reflecting "how much has loaded so far", as before. */
   totalEntryCount?: number;
+  /** Absolute index of `entries[0]` in the full feed — forwarded to ThumbnailGrid unchanged. See
+   * usePagedResource's own `windowStart` doc comment (b-oss#153). Omitted: 0, i.e. today's
+   * behaviour for a caller that never seeks. */
+  entriesOffset?: number;
+  /** Jumps the underlying paged resource directly to the page containing an absolute entry index
+   * — wire this to `resource.seekTo` alongside `entriesOffset={resource.windowStart}` so a
+   * distant pagination click (e.g. the real last page of a large journal) is a single direct
+   * fetch instead of clamping to whatever's already loaded (b-oss#153). Omitted: distant clicks
+   * silently clamp, same as before this existed. */
+  onSeek?: (targetIndex: number) => void;
+  /** Fetches the one page immediately before the current window and prepends it — wire to
+   * `resource.loadBefore`, alongside the two props above. */
+  onLoadBefore?: () => void;
 }
 
 export function EntryGrid({
@@ -62,6 +75,9 @@ export function EntryGrid({
   onLoadMore,
   onRefresh,
   totalEntryCount,
+  entriesOffset,
+  onSeek,
+  onLoadBefore,
 }: EntryGridProps) {
   const hiddenMembers = useHiddenMembers();
   const navigate = useAppNavigate();
@@ -121,6 +137,9 @@ export function EntryGrid({
           }}
           totalEntryCount={totalEntryCount}
           allEntriesLoaded={!hasMore}
+          entriesOffset={entriesOffset}
+          onSeek={onSeek}
+          onLoadBefore={onLoadBefore}
         />
       </div>
     </>

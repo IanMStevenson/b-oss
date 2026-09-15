@@ -15,6 +15,7 @@ vi.mock('../../../data/entries.js', () => ({
   fetchFollowingPage: vi.fn(),
   fetchJustMePage: vi.fn(),
   fetchNearbyPage: vi.fn(),
+  PAGE_SIZE: 30,
 }));
 
 vi.mock('../../../platform/geolocation.js', () => ({
