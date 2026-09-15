@@ -16,6 +16,7 @@ vi.mock('../../../data/users.js', () => ({
   fetchUserProfile: vi.fn(),
   fetchJournalEntriesFor: vi.fn().mockResolvedValue({ items: [], more: false }),
   fetchFavoriteEntriesFor: vi.fn().mockResolvedValue({ items: [], more: false }),
+  PAGE_SIZE: 30,
 }));
 
 const { followUser, unfollowUser } = vi.hoisted(() => ({

@@ -20,7 +20,8 @@ import type {
   BlipAward,
 } from '@b-oss/b-api';
 
-const PAGE_SIZE = 30;
+// Exported for the same reason as entries.ts's own PAGE_SIZE — see that file's comment.
+export const PAGE_SIZE = 30;
 
 export interface UserProfile {
   user: BlipUser;

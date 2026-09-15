@@ -13,7 +13,10 @@ import type { EntryIndex, BlipEntry } from '@b-oss/b-view';
 import { BlipfotoError } from '@b-oss/b-api';
 import type { BlipEntryActions, BlipFriendship, BlipComment as ApiComment } from '@b-oss/b-api';
 
-const PAGE_SIZE = 30;
+// Exported so callers of usePagedResource can pass it through as that hook's own `pageSize`
+// argument — needed for seekTo()/loadBefore() (b-oss#153) to convert an absolute entry offset
+// into the right API pageIndex. Every fetcher in this file uses the same fixed size.
+export const PAGE_SIZE = 30;
 
 // Recent/Popular/Nearby/Tag/Search are pure public browsing — content is identical regardless of
 // who's asking (confirmed: no per-viewer field in EntryIndex/the list response shape), so a

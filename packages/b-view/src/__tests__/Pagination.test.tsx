@@ -24,7 +24,7 @@ function pageLabels(): string[] {
 function noop() {}
 
 describe('Pagination — fixed cell count', () => {
-  it('shows every page, unpadded, when there are fewer than the fixed cell count', () => {
+  it('shows every real page when there are fewer than the fixed cell count', () => {
     render(
       <Pagination
         currentPage={2}
@@ -37,6 +37,25 @@ describe('Pagination — fixed cell count', () => {
       />,
     );
     expect(pageLabels()).toEqual(['1', '2', '3', '4']);
+  });
+
+  it('pads with blank filler slots so the row is the same width even with few real pages (b-oss#152)', () => {
+    const { container } = render(
+      <Pagination
+        currentPage={1}
+        totalPages={1}
+        onPage={noop}
+        hasPrev={false}
+        hasNext={false}
+        onPrev={noop}
+        onNext={noop}
+      />,
+    );
+    // 1 real page + 6 blank fillers = 7 slots total, same row width as the many-pages case —
+    // this is what keeps the arrows from creeping inward on a feed like Following that starts
+    // small, the same "arrows must not move" problem #143 fixed for the current-page axis.
+    expect(pageLabels()).toEqual(['1']);
+    expect(container.querySelectorAll('span[aria-hidden="true"]')).toHaveLength(6);
   });
 
   it('always renders exactly 7 numbered cells once there are more pages than that', () => {
