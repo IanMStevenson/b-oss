@@ -28,15 +28,15 @@
     "react-dom": "^19.0.0"
   },
   "devDependencies": {
-    "@types/node": "^26.4.1",
-    "@typescript-eslint/eslint-plugin": "^8.69.0",
+    "@types/node": "^26.5.1",
+    "@typescript-eslint/eslint-plugin": "^8.70.0",
     "@typescript-eslint/parser": "^8.59.0",
     "@vitejs/plugin-react": "^5.0.0",
     "@vitest/coverage-v8": "^5.0.0",
     "eslint": "^10.10.0",
     "eslint-plugin-react-hooks": "^7.1.0",
     "husky": "^9.0.0",
-    "lint-staged": "^17.5.0",
+    "lint-staged": "^17.5.1",
     "playwright-core": "^1.63.0",
     "prettier": "^3.9.6",
     "typescript": "^6.0.3",
