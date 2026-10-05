@@ -13,4 +13,11 @@ describe('AppShell', () => {
     render(<AppShell />);
     expect(await screen.findAllByText(/Browse/)).not.toHaveLength(0);
   });
+
+  it('does not open the nav menu on an edge swipe — only from the header button (b-oss#166)', async () => {
+    render(<AppShell />);
+    await screen.findAllByText(/Browse/);
+    const menu = document.querySelector('ion-menu') as unknown as { swipeGesture: boolean };
+    expect(menu.swipeGesture).toBe(false);
+  });
 });

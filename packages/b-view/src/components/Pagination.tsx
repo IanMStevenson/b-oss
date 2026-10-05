@@ -106,6 +106,13 @@ export function Pagination({
     color: 'var(--ink-2)',
   };
 
+  // Greyed-out prev/next arrow — a far lighter grey than the enabled ink colour so it reads as
+  // "can't press this" at a glance (the browser's own disabled default was barely distinguishable).
+  const disabledStyle: CSSProperties = {
+    color: 'var(--ink-disabled, #d0d3d8)',
+    cursor: 'default',
+  };
+
   const activeStyle: CSSProperties = {
     ...btnStyle,
     background: 'var(--green-800)',
@@ -117,7 +124,7 @@ export function Pagination({
     <div style={{ display: 'flex', alignItems: 'center', gap: '2px' }}>
       <button
         ref={prevRef}
-        style={{ ...btnStyle, width: '28px' }}
+        style={{ ...btnStyle, width: '28px', ...(hasPrev ? {} : disabledStyle) }}
         disabled={!hasPrev}
         onClick={onPrev}
         aria-label="Previous page"
@@ -143,7 +150,7 @@ export function Pagination({
 
       <button
         ref={nextRef}
-        style={{ ...btnStyle, width: '28px' }}
+        style={{ ...btnStyle, width: '28px', ...(hasNext ? {} : disabledStyle) }}
         disabled={!hasNext}
         onClick={onNext}
         aria-label="Next page"

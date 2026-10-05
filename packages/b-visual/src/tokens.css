@@ -17,6 +17,9 @@
   --ink-2: #2a2a2a;
   --muted: #6b7280;
   --muted-2: #9ca3af;
+  /* Foreground for disabled controls (e.g. a greyed-out prev/next arrow) — deliberately far lighter
+     than --muted-2 so "can't press this" reads at a glance next to an enabled ink-coloured arrow. */
+  --ink-disabled: #d0d3d8;
   --line: #e5e7eb;
   --line-2: #eeeeee;
   --bg: #ffffff;

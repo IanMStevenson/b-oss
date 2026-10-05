@@ -47,8 +47,10 @@ function NavMenu() {
   const canWrite = useCanWrite();
   const notificationsCount = useNotificationCountsStore((s) => s.notifications);
   const commentsCount = useNotificationCountsStore((s) => s.comments);
+  // swipeGesture off: a swipe from the left screen edge was opening this menu by accident (and
+  // competing with the in-page swipe navigation). The menu opens from the header button only.
   return (
-    <IonMenu contentId={MAIN_CONTENT_ID}>
+    <IonMenu contentId={MAIN_CONTENT_ID} swipeGesture={false}>
       <IonContent>
         <IonList>
           {canWrite && (

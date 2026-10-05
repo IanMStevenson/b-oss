@@ -22,6 +22,8 @@ blipfoto.com itself carries in its nav bar.
 - **`--muted` / `--muted-2`** — tertiary text and meta information (counts' labels, placeholder
   text, timestamps-equivalent captions). `--muted-2` is the quieter of the two — used for
   placeholder/icon colour where `--muted` would be too present.
+- **`--ink-disabled`** — foreground for a disabled control (a greyed-out prev/next arrow). Far lighter
+  than `--muted-2` on purpose, so "can't press this" reads at a glance beside an enabled arrow.
 - **`--line` / `--line-2`** — borders and dividers. `--line` for a border that should read as a
   real separator (section rules, input borders); `--line-2` for a subtler hairline (a controls-bar
   bottom border, a hover-state fill).
