@@ -18,6 +18,8 @@
 
   --ion-color-danger: var(--color-danger);
 
+  --ion-font-family: var(--font-sans);
+
   --ion-background-color: var(--bg);
   --ion-background-color-rgb: 255, 255, 255;
   --ion-text-color: var(--ink);
