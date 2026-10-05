@@ -393,6 +393,57 @@ describe('EntryDetail', () => {
     });
   });
 
+  describe('main photo that will not draw (b-oss#185)', () => {
+    const props = {
+      prevEntryId: null,
+      nextEntryId: null,
+      onNavigate: () => {},
+    };
+
+    it('drops the cached copy and refetches once, then leaves it alone', async () => {
+      const resolveAsset = vi.fn((path: string) => Promise.resolve(`resolved://${path}`));
+      const invalidateAsset = vi.fn().mockResolvedValue(undefined);
+      const entry = makeEntry({ images: { image: 'photo.jpg' } });
+      const { container } = render(
+        <EntryDetail
+          {...props}
+          entryState={loadedState(entry)}
+          resolveAsset={resolveAsset}
+          invalidateAsset={invalidateAsset}
+        />,
+      );
+      const img = () => container.querySelector(`.${styles.photoInner} img`) as HTMLElement;
+      await waitFor(() => expect(img()).not.toBeNull());
+      const before = resolveAsset.mock.calls.length; // (the lightbox preloader resolves it too)
+
+      fireEvent.error(img());
+      await waitFor(() => expect(invalidateAsset).toHaveBeenCalledWith('photo.jpg'));
+      await waitFor(() => expect(resolveAsset.mock.calls.length).toBeGreaterThan(before));
+      await waitFor(() => expect(img()).not.toBeNull());
+      const afterRetry = resolveAsset.mock.calls.length;
+
+      fireEvent.error(img()); // fails again: no further automatic attempts
+      await new Promise((r) => setTimeout(r, 0));
+      expect(resolveAsset.mock.calls.length).toBe(afterRetry);
+      expect(invalidateAsset).toHaveBeenCalledTimes(1);
+    });
+
+    it('does nothing for a host with no async resolver', () => {
+      const invalidateAsset = vi.fn();
+      const entry = makeEntry({ images: { image: 'photo.jpg' } });
+      const { container } = render(
+        <EntryDetail
+          {...props}
+          entryState={loadedState(entry)}
+          baseUrl="/b"
+          invalidateAsset={invalidateAsset}
+        />,
+      );
+      fireEvent.error(container.querySelector(`.${styles.photoInner} img`)!);
+      expect(invalidateAsset).not.toHaveBeenCalled();
+    });
+  });
+
   describe('swipe between entries', () => {
     function swipe(el: Element, dx: number, dy = 0) {
       fireEvent.touchStart(el, { touches: [{ clientX: 200, clientY: 300 }] });

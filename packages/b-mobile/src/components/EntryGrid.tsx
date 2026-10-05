@@ -27,7 +27,7 @@ import { IonRefresher, IonRefresherContent } from '@ionic/react';
 import type { RefresherEventDetail } from '@ionic/core';
 import { ThumbnailGrid } from '@b-oss/b-view';
 import type { EntryIndex } from '@b-oss/b-view';
-import { resolveImage } from '../platform/imageCache.js';
+import { resolveImage, invalidateImage } from '../platform/imageCache.js';
 import { useHiddenMembers } from '../state/hiddenMembersStore.js';
 import { useAppNavigate } from '../app/routes/useAppNavigate.js';
 import { useDevicePrefsStore } from '../state/devicePrefsStore.js';
@@ -120,6 +120,12 @@ export function EntryGrid({
     [],
   );
 
+  // A thumbnail that fails to draw evicts its cached copy (then retries once) — see ThumbnailGrid.
+  const invalidateAsset = useCallback(
+    (path: string) => (path === HIDDEN_THUMBNAIL ? undefined : invalidateImage(path)),
+    [],
+  );
+
   function handleRefresh(event: CustomEvent<RefresherEventDetail>): void {
     onRefresh();
     event.detail.complete();
@@ -145,6 +151,7 @@ export function EntryGrid({
           onSizeChange={setSizePercent}
           baseTileSize={MOBILE_BASE_TILE_PX}
           resolveAsset={resolveAsset}
+          invalidateAsset={invalidateAsset}
           onSearchClick={() => navigate.push('/search')}
           showZoomControls={showZoomBar}
           showPagination={showPagination}

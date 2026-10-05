@@ -114,7 +114,7 @@ interface ThumbnailGridProps {
   onShowInfoOverlayChange?: (v: boolean) => void;
   baseUrl?: string;
   resolveAsset?: ResolveAsset;
-  invalidateAsset?: (path: string) => void;
+  invalidateAsset?: (path: string) => void | Promise<void>;
   jumpToEntryId?: string | null;
   onTopLeftEntryDate?: (date: string | null) => void;
   search?: ThumbnailGridSearch;
@@ -207,7 +207,7 @@ function ThumbnailItem({
   onSelect: () => void;
   baseUrl?: string;
   resolveAsset?: ResolveAsset;
-  invalidateAsset?: (path: string) => void;
+  invalidateAsset?: (path: string) => void | Promise<void>;
   tileSize: number;
   showInfoOverlay: boolean;
   assetRevision?: number;
@@ -223,6 +223,10 @@ function ThumbnailItem({
   // trigger a retry for items that previously failed, avoiding flicker on
   // successfully-loaded thumbnails during active backup polling.
   const loadedRef = useRef(false);
+  // A thumbnail the WebView couldn't draw gets exactly one automatic retry (after the host drops
+  // its cached copy) before settling on the placeholder — a corrupt cached file would otherwise
+  // stay a placeholder until something happened to bump assetRevision (b-oss#185).
+  const retriedRef = useRef(false);
 
   const load = useCallback(() => {
     if (!resolveAsset) return;
@@ -274,8 +278,13 @@ function ThumbnailItem({
           alt={entry.title}
           loading="lazy"
           onError={() => {
-            invalidateAsset?.(entry.thumbnail_path);
             loadedRef.current = false;
+            if (resolveAsset && !retriedRef.current) {
+              retriedRef.current = true;
+              void Promise.resolve(invalidateAsset?.(entry.thumbnail_path)).then(() => load());
+              return;
+            }
+            void invalidateAsset?.(entry.thumbnail_path);
             setImgError(true);
           }}
           className={styles.thumbImg}
@@ -356,8 +365,7 @@ export function ThumbnailGrid({
   // mode exists to avoid. Snap the *rendered* tile size to fill the row exactly; sizePercent
   // itself (what's persisted/shown in the zoom label) is untouched, so zoom still "means" the
   // same thing internally and this is purely a render-time rounding adjustment.
-  const renderTileSize =
-    margins === 'none' && width > 0 ? Math.floor(width / cols) : tileSize;
+  const renderTileSize = margins === 'none' && width > 0 ? Math.floor(width / cols) : tileSize;
 
   // rows must divide by whatever size tiles actually render at — using the smaller, pre-snap
   // tileSize here (as this used to) undercounts each row's real height once 'none' margins snaps

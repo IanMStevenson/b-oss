@@ -3,7 +3,7 @@
 // @vitest-environment jsdom
 
 import { describe, it, expect, afterEach, beforeAll, vi } from 'vitest';
-import { render, screen, cleanup, fireEvent } from '@testing-library/react';
+import { render, screen, cleanup, fireEvent, waitFor } from '@testing-library/react';
 import { ThumbnailGrid } from '../components/ThumbnailGrid.js';
 import gridStyles from '../components/ThumbnailGrid.module.css';
 import type { EntryIndex } from '../types.js';
@@ -480,6 +480,55 @@ describe('ThumbnailGrid onSeek / entriesOffset / onLoadBefore (b-oss#153)', () =
     );
     fireEvent.click(screen.getByLabelText('First page'));
     expect(onSeek).toHaveBeenCalledWith(0);
+  });
+});
+
+describe('ThumbnailGrid failed thumbnails (b-oss#185)', () => {
+  function setup() {
+    const resolveAsset = vi.fn((path: string) => Promise.resolve(`resolved://${path}`));
+    const invalidateAsset = vi.fn().mockResolvedValue(undefined);
+    render(
+      <ThumbnailGrid
+        entries={makeEntries(1)}
+        selectedEntryId={null}
+        onSelectEntry={() => {}}
+        resolveAsset={resolveAsset}
+        invalidateAsset={invalidateAsset}
+      />,
+    );
+    return { resolveAsset, invalidateAsset };
+  }
+
+  it('drops the cached copy and retries once when a thumbnail will not draw', async () => {
+    const { resolveAsset, invalidateAsset } = setup();
+    const img = await screen.findByAltText('Entry 1');
+    const before = resolveAsset.mock.calls.length; // (the first load resolves more than once)
+
+    fireEvent.error(img); // a corrupt cached file the browser can't draw
+    await waitFor(() => expect(invalidateAsset).toHaveBeenCalledWith('thumb-1.jpg'));
+    await waitFor(() => expect(resolveAsset.mock.calls.length).toBeGreaterThan(before)); // refetched
+    expect(await screen.findByAltText('Entry 1')).toBeDefined(); // an image again, not a placeholder
+  });
+
+  it('settles on the placeholder if the retry fails too, and does not loop', async () => {
+    const { resolveAsset, invalidateAsset } = setup();
+    fireEvent.error(await screen.findByAltText('Entry 1'));
+    await waitFor(() => expect(invalidateAsset).toHaveBeenCalledTimes(1));
+    const retried = await screen.findByAltText('Entry 1');
+    const afterRetry = resolveAsset.mock.calls.length;
+
+    fireEvent.error(retried); // the retry fails as well
+    await waitFor(() => expect(screen.queryByAltText('Entry 1')).toBeNull()); // placeholder
+    await new Promise((r) => setTimeout(r, 0));
+    expect(resolveAsset.mock.calls.length).toBe(afterRetry); // no third attempt
+  });
+
+  it('a host with no async resolver (the viewer) goes straight to the placeholder', () => {
+    render(
+      <ThumbnailGrid entries={makeEntries(1)} selectedEntryId={null} onSelectEntry={() => {}} />,
+    );
+    fireEvent.error(screen.getByAltText('Entry 1'));
+    expect(screen.queryByAltText('Entry 1')).toBeNull();
   });
 });
 
