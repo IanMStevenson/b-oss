@@ -355,7 +355,7 @@ Routes are lowercase and hyphenated. Parameters are always the **string** form o
 | `/entry/:entryId/photo`                   | `SCR-07` | Full-screen viewer                                                                 |
 | `/entry/:entryId/metadata`                | `SCR-08` |                                                                                    |
 | `/entry/:entryId/edit`                    | `SCR-13` | Write-gated                                                                        |
-| `/entry/:entryId/comment`                 | `SCR-15` | `?replyTo=<commentId>`; write-gated                                                |
+| ~~`/entry/:entryId/comment`~~                 | ~~`SCR-15`~~ | Removed (b-oss#172): comments are composed inline on the entry page |
 | `/entry/:entryId/report`                  | `SCR-16` | Write-gated                                                                        |
 | `/compose`                                | `SCR-09` | Write-gated                                                                        |
 | `/compose/details`                        | `SCR-10` | Holds the in-progress draft                                                        |
@@ -1315,3 +1315,44 @@ was.
   realise.
 - [`AppSpec/01-information-architecture.md`](../AppSpec/01-information-architecture.md) — the screen
   and flow inventory §5's route table maps.
+
+## Navigation model and screen-state resume (b-oss#182, #183, #190)
+
+The route table is one `<Switch>` inside a single `IonRouterOutlet` child, so Ionic sees one view
+item and **unmounts a screen when you navigate away** — there is no view stack. Decision (b-oss#183
+deferred): keep that, and make Back feel right by remembering state instead.
+
+- **Back = history.** `IonBackButton` pops to where you came from; `backHref` is only the fallback
+  when there is no history (deep link, notification tap). Sign In (SCR-01) shows Back instead of the
+  menu button when an account already exists (it was drilled into from Accounts, b-oss#195).
+- **Entry pages never stack.** Swiping between entries uses `replace`, so Back returns to where the
+  journal was entered.
+- **Settings chains.** Accounts, Hidden members and each section go Back to Settings; Settings goes
+  back to wherever it was opened from — plain history does this.
+- **Resume cache** (`data/resumeCache.ts`): in-memory, 10-minute TTL, cleared per test. Keys are
+  per-account where the data is.
+
+| Screen | Remembered on return | Mechanism |
+|---|---|---|
+| Browse | tab, page, grid position | `usePagedResource` resumeKey + `ThumbnailGrid` top-left index |
+| Tag entries, Profile | tab, visited tabs, grid pages | same |
+| Search | scope, mode, query, results, scroll | `search:${scope}:ui` + per-tab keys, `useScrollResume` |
+| Map | camera centre + zoom | `map:view` |
+| Followers / Following | loaded window + page | `people:${acct}:${mode}:${username}` |
+| Entry | scroll position | `useScrollResume('entry:<id>')` |
+| Comments / Notifications inboxes, Pending / Refused, Awards, Settings, Accounts, Hidden members, Help | nothing — **refetch** (freshness beats position; opening the inboxes marks items read) | — |
+| Compose / Edit / Description / Location | own unsaved-changes guards | unchanged |
+
+## Image cache (b-oss#185, #186)
+
+`platform/imageCache.ts`: one download per URL (concurrent callers share the promise); bytes go to a
+temp file, are integrity-checked (`imageIntegrity.ts`: JPEG SOI…EOI, PNG IEND, GIF trailer, WebP
+RIFF length), then renamed into place. One retry, then an uncached fallback so the picture still
+shows. Failures log `[imgcache]` warnings (grep logcat). `invalidateImage` drops a bad entry.
+
+## Blipfoto API facts learned on-device
+
+- `journal/month` accepts `username`; the response is nested `{ month: { days } }` (b-oss#169).
+- `entries/journal` clamps `page_index` to 200; journal pages are 100 entries (b-oss#153).
+  `usePagedResource` detects the clamp (`wasClamped`).
+- `actions.comment === 0` means comments are off for that journal.

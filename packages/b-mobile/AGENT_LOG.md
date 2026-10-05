@@ -2147,3 +2147,23 @@ investigated further as part of this backfill, flagged here for whoever next tou
 
 **Next:** Phase 13 (deploy/test `b-push`) is still next and still blocked on the same Cloudflare/
 Firebase credentials. `RESUME.md`'s Status/Last-completed-step updated accordingly.
+
+## Post-12.7 device-trial round — 2026-09 to 2026-10 (logged 2026-10-05)
+
+Issue-driven work against a real device; see RESUME.md's "Post-12.7 device-trial round" for the
+summary and `docs/ImplementationSpec/app-architecture.md` for the design record. Key decisions:
+
+- **Back state:** keep `IonRouterOutlet`'s single view item (no stack, #183 deferred) and add an
+  in-memory resume cache with a 10-minute TTL (#182/#190). Inboxes deliberately refetch.
+- **SCR-15 retired** by the inline composer (#172); toolbar is B/I/U/S/Link, Enter confirms a link
+  rather than submitting; comment actions are icon pills (Reply/Edit/Delete/Report, Report hidden on
+  own comments).
+- **Image cache:** corrupt/partial downloads caused "green jaggies"; fixed with verify-then-rename.
+  Root cause of any remaining glitches is unconfirmed — if logcat shows no `[imgcache]` warning when
+  one recurs, it is rendering-side.
+- **Flaky inbox test (#193):** Ionic's animated overlays intermittently drop clicks in jsdom under
+  load; waiting/retrying cannot fix that. Overlays are stubbed at the `@ionic/react` boundary.
+- **Photo size (#194):** `photoFit` pref, default full width (Blipfoto's behaviour).
+- **Unverified on device:** maplibre 6.12.0 Map screen, scroll-restore, comment toolbar/actions
+  (#189/#197) — adb was disconnected when these landed.
+
