@@ -10,6 +10,8 @@ import {
   Heart,
   MapPin,
   Maximize2,
+  Pencil,
+  Trash2,
   Camera,
   Timer,
   Aperture,
@@ -46,6 +48,10 @@ interface EntryDetailProps {
   commentComposer?: ReactNode;
   /** Rendered beside the nav strip — the host supplies edit/delete triggers for entries it owns. */
   entryActions?: ReactNode;
+  /** Edit / delete for an entry the host's user owns, as Blipfoto's owner pill (✏ | 🗑). A segment
+   * renders only when its handler is given, so a host that can't (or mustn't) delete simply omits
+   * `onDelete`. Omitted entirely: no pill. */
+  ownerActions?: { onEdit?: () => void; onDelete?: () => void };
   /** Rendered at the left of the top bar, opposite the nav strip — a host's own page identity
    * (b-mobile puts the author block here; the viewer has none). Stacks above the strip when the
    * container is narrow. */
@@ -155,6 +161,7 @@ export function EntryDetail({
   reactions,
   commentComposer,
   entryActions,
+  ownerActions,
   header,
   loadCalendarMonth,
   loadHistory,
@@ -330,15 +337,14 @@ export function EntryDetail({
         </div>
       </div>
 
-      {/* Below-image content */}
+      {/* Below-image content. Three grid areas — main (title + description), side (stats, tags,
+          EXIF, actions) and comments — so the order is Blipfoto's when narrow (main, side,
+          comments) and two columns when wide (main + comments left, side right). */}
       <div className={styles.metaScroll}>
         <div className={styles.metaInner}>
-          {/* Title repeated below image */}
-          {entry.title && <h2 className={styles.entryTitle}>{entry.title}</h2>}
-
-          <div className={styles.metaColumns}>
-            {/* Left column: description, tags, comments */}
-            <div className={styles.metaLeft}>
+          <div className={styles.metaGrid}>
+            <div className={styles.metaMain}>
+              {entry.title && <h2 className={styles.entryTitle}>{entry.title}</h2>}
               {entry.description && (
                 <BBCodeText
                   source={entry.description}
@@ -346,6 +352,61 @@ export function EntryDetail({
                   onLinkClick={onLinkClick}
                 />
               )}
+            </div>
+
+            <div className={styles.metaSide}>
+              {/* Views + the stars / hearts / fullscreen pill */}
+              <div className={styles.statsRow}>
+                {entry.views_total > 0 && (
+                  <div className={styles.viewsBlock}>
+                    <span className={styles.viewCount}>{entry.views_total.toLocaleString()}</span>
+                    <span className={styles.viewLabel}>views</span>
+                  </div>
+                )}
+                <div className={styles.pill}>
+                  {reactions ? (
+                    <button
+                      className={`${styles.pillSeg} ${styles.pillBtn}`}
+                      onClick={reactions.onToggleStar}
+                      aria-pressed={reactions.starred}
+                      aria-label={reactions.starred ? 'Remove star' : 'Star this entry'}
+                    >
+                      <Star size={14} strokeWidth={1.5} fill="currentColor" />
+                      {entry.stars_total}
+                    </button>
+                  ) : (
+                    <span className={styles.pillSeg}>
+                      <Star size={14} strokeWidth={1.5} fill="currentColor" />
+                      {entry.stars_total}
+                    </span>
+                  )}
+                  {reactions ? (
+                    <button
+                      className={`${styles.pillSeg} ${styles.pillBtn}`}
+                      onClick={reactions.onToggleFavorite}
+                      aria-pressed={reactions.favorited}
+                      aria-label={reactions.favorited ? 'Remove favourite' : 'Favourite this entry'}
+                    >
+                      <Heart size={14} strokeWidth={1.5} fill="currentColor" />
+                      {entry.favorites_total}
+                    </button>
+                  ) : (
+                    <span className={styles.pillSeg}>
+                      <Heart size={14} strokeWidth={1.5} fill="currentColor" />
+                      {entry.favorites_total}
+                    </span>
+                  )}
+                  {imagePath && (
+                    <button
+                      className={`${styles.pillSeg} ${styles.pillBtn}`}
+                      onClick={() => (onFullscreen ? onFullscreen() : setLightboxIndex(0))}
+                      aria-label="View photo full-screen"
+                    >
+                      <Maximize2 size={14} strokeWidth={1.5} />
+                    </button>
+                  )}
+                </div>
+              </div>
 
               {entry.tags.length > 0 && (
                 <div className={styles.tags}>
@@ -356,7 +417,7 @@ export function EntryDetail({
                         className={styles.tag}
                         onClick={() => onTagClick(tag)}
                         aria-label={`Entries tagged ${tag}`}
-                        style={{ border: 'none', font: 'inherit', cursor: 'pointer' }}
+                        style={{ font: 'inherit', cursor: 'pointer' }}
                       >
                         {tag}
                       </button>
@@ -368,109 +429,6 @@ export function EntryDetail({
                   )}
                 </div>
               )}
-
-              {(entry.comments.length > 0 || commentComposer) && (
-                <div className={styles.commentsSection}>
-                  {entry.comments.length > 0 && (
-                    <>
-                      <h3 className={styles.commentsHeader}>Comments ({entry.comments.length})</h3>
-                      {entry.comments.map((c) => (
-                        <CommentThread
-                          key={c.comment_id}
-                          comment={c}
-                          renderCommentActions={renderCommentActions}
-                          onLinkClick={onLinkClick}
-                        />
-                      ))}
-                    </>
-                  )}
-                  {commentComposer}
-                </div>
-              )}
-            </div>
-
-            {/* Right column: views, stars, hearts, location, EXIF */}
-            <div className={styles.metaRight}>
-              {/* Views */}
-              {entry.views_total > 0 && (
-                <div className={styles.viewsBlock}>
-                  <span className={styles.viewCount}>{entry.views_total.toLocaleString()}</span>
-                  <span className={styles.viewLabel}>views</span>
-                </div>
-              )}
-
-              {/* Stars + hearts */}
-              <div className={styles.reactionsRow}>
-                {reactions ? (
-                  <button
-                    className={`${styles.reactionItem} ${styles.reactionButton}`}
-                    onClick={reactions.onToggleStar}
-                    aria-pressed={reactions.starred}
-                    aria-label={reactions.starred ? 'Remove star' : 'Star this entry'}
-                  >
-                    <Star
-                      size={14}
-                      strokeWidth={1.5}
-                      fill={reactions.starred ? 'currentColor' : 'none'}
-                    />
-                    {entry.stars_total}
-                  </button>
-                ) : (
-                  <span className={styles.reactionItem}>
-                    <Star size={14} strokeWidth={1.5} />
-                    {entry.stars_total}
-                  </span>
-                )}
-                {reactions ? (
-                  <button
-                    className={`${styles.reactionItem} ${styles.reactionButton}`}
-                    onClick={reactions.onToggleFavorite}
-                    aria-pressed={reactions.favorited}
-                    aria-label={reactions.favorited ? 'Remove favourite' : 'Favourite this entry'}
-                  >
-                    <Heart
-                      size={14}
-                      strokeWidth={1.5}
-                      fill={reactions.favorited ? 'currentColor' : 'none'}
-                    />
-                    {entry.favorites_total}
-                  </button>
-                ) : (
-                  <span className={styles.reactionItem}>
-                    <Heart size={14} strokeWidth={1.5} />
-                    {entry.favorites_total}
-                  </span>
-                )}
-                {imagePath && (
-                  <button
-                    className={`${styles.reactionItem} ${styles.reactionButton}`}
-                    onClick={() => (onFullscreen ? onFullscreen() : setLightboxIndex(0))}
-                    aria-label="View photo full-screen"
-                  >
-                    <Maximize2 size={14} strokeWidth={1.5} />
-                  </button>
-                )}
-                {entry.location &&
-                  (onLocationClick ? (
-                    <button
-                      className={`${styles.reactionItem} ${styles.reactionButton}`}
-                      onClick={() => onLocationClick(entry.location!)}
-                      aria-label="View on map"
-                    >
-                      <MapPin size={14} strokeWidth={1.5} />
-                    </button>
-                  ) : (
-                    <a
-                      className={styles.reactionItem}
-                      href={`https://maps.google.com/maps?q=${entry.location.lat},${entry.location.lon}`}
-                      target="_blank"
-                      rel="noreferrer"
-                      aria-label="View on map"
-                    >
-                      <MapPin size={14} strokeWidth={1.5} />
-                    </a>
-                  ))}
-              </div>
 
               {/* Extras thumbnail row */}
               {extras.length > 0 && (
@@ -511,7 +469,78 @@ export function EntryDetail({
 
               {/* EXIF */}
               {entry.exif && <ExifRows exif={entry.exif} />}
+
+              {/* Right-aligned pills: where it was taken, and the owner's edit / delete */}
+              {(entry.location || ownerActions?.onEdit || ownerActions?.onDelete) && (
+                <div className={styles.actionsRow}>
+                  {entry.location &&
+                    (onLocationClick ? (
+                      <div className={styles.pill}>
+                        <button
+                          className={`${styles.pillSeg} ${styles.pillBtn}`}
+                          onClick={() => onLocationClick(entry.location!)}
+                          aria-label="View on map"
+                        >
+                          <MapPin size={14} strokeWidth={1.5} />
+                        </button>
+                      </div>
+                    ) : (
+                      <div className={styles.pill}>
+                        <a
+                          className={`${styles.pillSeg} ${styles.pillBtn}`}
+                          href={`https://maps.google.com/maps?q=${entry.location.lat},${entry.location.lon}`}
+                          target="_blank"
+                          rel="noreferrer"
+                          aria-label="View on map"
+                        >
+                          <MapPin size={14} strokeWidth={1.5} />
+                        </a>
+                      </div>
+                    ))}
+                  {(ownerActions?.onEdit || ownerActions?.onDelete) && (
+                    <div className={styles.pill}>
+                      {ownerActions.onEdit && (
+                        <button
+                          className={`${styles.pillSeg} ${styles.pillBtn}`}
+                          onClick={ownerActions.onEdit}
+                          aria-label="Edit entry"
+                        >
+                          <Pencil size={14} strokeWidth={1.5} />
+                        </button>
+                      )}
+                      {ownerActions.onDelete && (
+                        <button
+                          className={`${styles.pillSeg} ${styles.pillBtn}`}
+                          onClick={ownerActions.onDelete}
+                          aria-label="Delete entry"
+                        >
+                          <Trash2 size={14} strokeWidth={1.5} />
+                        </button>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
+
+            {(entry.comments.length > 0 || commentComposer) && (
+              <div className={`${styles.metaComments} ${styles.commentsSection}`}>
+                {entry.comments.length > 0 && (
+                  <>
+                    <h3 className={styles.commentsHeader}>Comments ({entry.comments.length})</h3>
+                    {entry.comments.map((c) => (
+                      <CommentThread
+                        key={c.comment_id}
+                        comment={c}
+                        renderCommentActions={renderCommentActions}
+                        onLinkClick={onLinkClick}
+                      />
+                    ))}
+                  </>
+                )}
+                {commentComposer}
+              </div>
+            )}
           </div>
         </div>
       </div>

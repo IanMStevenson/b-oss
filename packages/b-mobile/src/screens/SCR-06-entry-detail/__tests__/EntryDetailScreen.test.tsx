@@ -3,7 +3,7 @@
 // @vitest-environment jsdom
 
 import { describe, it, expect, afterEach, beforeEach, vi } from 'vitest';
-import { render, screen, cleanup, waitFor } from '@testing-library/react';
+import { render, screen, cleanup, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
 import { EntryDetailScreen } from '../EntryDetailScreen.js';
@@ -249,8 +249,77 @@ describe('EntryDetailScreen', () => {
     });
   });
 
+  describe('Delete (owner pill)', () => {
+    const ownEntry: LoadedEntry = {
+      ...baseLoadedEntry,
+      entry: { ...baseLoadedEntry.entry, username: 'me' },
+    };
+
+    // Every IonAlert on this screen renders its buttons in jsdom, so "Cancel"/"Delete" are
+    // ambiguous screen-wide — scope to the delete-entry alert by its header.
+    async function deleteAlert(): Promise<HTMLElement> {
+      const header = await screen.findByText('Delete this entry?');
+      return header.closest('ion-alert') as HTMLElement;
+    }
+
+    async function openOwnEntry() {
+      const { fetchEntry } = await import('../../../data/entries.js');
+      vi.mocked(fetchEntry).mockResolvedValue(ownEntry);
+      renderScreen();
+      await screen.findByText('A day out');
+    }
+
+    it('is offered only on the viewer’s own entry', async () => {
+      const { fetchEntry } = await import('../../../data/entries.js');
+      vi.mocked(fetchEntry).mockResolvedValue(baseLoadedEntry);
+      renderScreen();
+      await screen.findByText('A day out');
+      expect(screen.queryByLabelText('Delete entry')).toBeNull();
+    });
+
+    it('asks before deleting, and Cancel leaves the entry alone', async () => {
+      const { deleteEntry } = await import('../../../data/entries.js');
+      await openOwnEntry();
+      await userEvent.click(screen.getByLabelText('Delete entry'));
+      await userEvent.click(within(await deleteAlert()).getByText('Cancel'));
+      expect(deleteEntry).not.toHaveBeenCalled();
+      expect(navReplace).not.toHaveBeenCalledWith('/browse');
+    });
+
+    it('deletes after confirmation and returns to Browse', async () => {
+      const { deleteEntry } = await import('../../../data/entries.js');
+      vi.mocked(deleteEntry).mockResolvedValue(undefined);
+      await openOwnEntry();
+      await userEvent.click(screen.getByLabelText('Delete entry'));
+      await userEvent.click(within(await deleteAlert()).getByText('Delete'));
+      await waitFor(() => expect(deleteEntry).toHaveBeenCalledWith('1'));
+      await waitFor(() => expect(navReplace).toHaveBeenCalledWith('/browse'));
+    });
+
+    it('stays on the entry and says so when the delete fails', async () => {
+      const { deleteEntry } = await import('../../../data/entries.js');
+      vi.mocked(deleteEntry).mockRejectedValue(new Error('network'));
+      await openOwnEntry();
+      await userEvent.click(screen.getByLabelText('Delete entry'));
+      await userEvent.click(within(await deleteAlert()).getByText('Delete'));
+      await waitFor(() => expect(screen.getByText('Something went wrong')).toBeDefined());
+      expect(navReplace).not.toHaveBeenCalledWith('/browse');
+    });
+  });
+
   describe('Report and Hide', () => {
-    it('Report is always offered, and navigates scoped to the entry’s author', async () => {
+    it('does not offer Report on the viewer’s own entry (you cannot report yourself)', async () => {
+      const { fetchEntry } = await import('../../../data/entries.js');
+      vi.mocked(fetchEntry).mockResolvedValue({
+        ...baseLoadedEntry,
+        entry: { ...baseLoadedEntry.entry, username: 'me' },
+      });
+      renderScreen();
+      await screen.findByText('A day out');
+      expect(screen.queryByLabelText('Report')).toBeNull();
+    });
+
+    it('Report is offered on another member’s entry, and navigates scoped to its author', async () => {
       const { fetchEntry } = await import('../../../data/entries.js');
       vi.mocked(fetchEntry).mockResolvedValue(baseLoadedEntry);
       renderScreen();

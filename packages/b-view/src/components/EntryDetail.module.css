@@ -162,82 +162,176 @@
 }
 
 .metaInner {
+  /* border-box so the gutter is *inside* the column, lining the text up with the photo frame. */
+  box-sizing: border-box;
+  width: 100%;
   max-width: calc(var(--entry-column) + 2 * var(--entry-gutter));
   margin: 0 auto;
   padding: 20px var(--entry-gutter) 32px;
 }
 
-/* Title below image */
-.entryTitle {
-  font-size: 20px;
-  font-weight: 700;
-  color: var(--ink);
-  margin: 0 0 16px;
-}
-
-/* Two-column layout */
-.metaColumns {
+/* Below-image content: three grid areas so the order is Blipfoto's when narrow (title and
+   description, then stats / tags / EXIF / actions, then comments) and two columns when wide
+   (main + comments left, the side column right). Responds to the width this component is given. */
+.metaGrid {
   display: grid;
-  grid-template-columns: 1fr minmax(200px, 260px);
-  gap: 32px;
+  grid-template-columns: 1fr;
+  grid-template-areas: 'main' 'side' 'comments';
+  gap: 20px 32px;
   align-items: start;
 }
 
-@media (max-width: 600px) {
-  .metaColumns {
-    grid-template-columns: 1fr;
-  }
-  /* Reference layout (mobile site) puts views/reactions/EXIF directly under the photo, with
-     comments last — collapsing the grid to one column doesn't reorder its items on its own, so
-     .metaLeft (description/tags/comments) would otherwise still render first, above this. */
-  .metaRight {
-    order: -1;
-  }
-  .metaLeft {
-    border-top: 1px solid var(--line);
-    padding-top: 16px;
-  }
-}
-
-/* Left column */
-.metaLeft {
+.metaMain {
+  grid-area: main;
   min-width: 0;
 }
 
-.description {
-  font-size: 14px;
-  line-height: 1.6;
-  color: var(--ink-2);
-  margin-bottom: 16px;
+.metaSide {
+  grid-area: side;
+  min-width: 0;
 }
 
+.metaComments {
+  grid-area: comments;
+  min-width: 0;
+}
+
+@container entry (min-width: 700px) {
+  .metaGrid {
+    grid-template-columns: 1fr minmax(220px, 280px);
+    grid-template-areas: 'main side' 'comments side';
+    grid-template-rows: auto 1fr;
+  }
+}
+
+/* Title and description: Roboto Regular title, Light description (the Blipfoto reading style). */
+.entryTitle {
+  font-size: var(--text-xl, 22px);
+  font-weight: var(--font-weight-regular, 400);
+  line-height: var(--leading-tight, 1.25);
+  color: var(--ink);
+  margin: 0 0 14px;
+}
+
+.description {
+  font-size: var(--text-lg, 17px);
+  font-weight: var(--font-weight-light, 300);
+  line-height: var(--leading-relaxed, 1.55);
+  color: var(--ink-2);
+}
+
+@container entry (min-width: 700px) {
+  .description {
+    font-size: var(--text-md, 15px);
+  }
+}
+
+/* Stats: views stacked on the left, the segmented pill on the right. */
+.statsRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding-bottom: 14px;
+  border-bottom: 1px solid var(--line);
+}
+
+.viewsBlock {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.05;
+}
+
+.viewCount {
+  font-size: var(--text-xl, 22px);
+  font-weight: var(--font-weight-medium, 500);
+  color: var(--ink);
+}
+
+.viewLabel {
+  font-size: var(--text-sm, 13px);
+  color: var(--ink-2);
+}
+
+/* The segmented pill — rounded ends, a light border, dividers between segments. Used for
+   stars/hearts/fullscreen, the location pin, and the owner's edit/delete. */
+.pill {
+  display: inline-flex;
+  align-items: stretch;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  overflow: hidden;
+  background: var(--bg);
+}
+
+.pillSeg {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 8px 13px;
+  font: inherit;
+  font-size: var(--text-sm, 13px);
+  color: var(--ink-2);
+  background: none;
+  border: 0;
+  text-decoration: none;
+}
+
+.pillSeg + .pillSeg {
+  border-left: 1px solid var(--line);
+}
+
+.pillBtn {
+  cursor: pointer;
+}
+
+.pillBtn:hover {
+  background: var(--line-2);
+}
+
+.pillBtn[aria-pressed='true'] {
+  color: var(--green-700);
+}
+
+/* Tags as chips (Blipfoto's chips are blue; ours keep the brand green). */
 .tags {
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
-  margin-bottom: 20px;
+  padding: 14px 0;
+  border-bottom: 1px solid var(--line);
 }
 
 .tag {
   background: var(--green-100);
   color: var(--green-800);
-  border-radius: 14px;
-  padding: 4px 10px;
-  font-size: 12px;
+  border: 1px solid var(--green-700);
+  border-radius: 3px;
+  padding: 3px 8px;
+  font-size: var(--text-xs, 12px);
+}
+
+/* Right-aligned pills row: location, then the owner's edit/delete. */
+.actionsRow {
+  display: flex;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding-top: 14px;
 }
 
 /* Comments */
 .commentsSection {
-  margin-top: 8px;
-  border-top: 1px solid var(--line);
-  padding-top: 16px;
+  border-top: 0;
 }
 
 .commentsHeader {
-  font-size: 13px;
-  font-weight: 600;
+  font-size: var(--text-md, 15px);
+  font-weight: var(--font-weight-medium, 500);
   color: var(--muted);
   margin: 0 0 12px;
+  padding-bottom: 6px;
+  border-bottom: 1px dashed var(--line);
 }
 
 .comment {
@@ -273,61 +367,6 @@
   margin-left: 16px;
   padding-left: 12px;
   border-left: 2px solid var(--line);
-}
-
-/* Right column */
-.metaRight {
-  min-width: 0;
-}
-
-.viewsBlock {
-  margin-bottom: 8px;
-}
-
-.viewCount {
-  font-size: 22px;
-  font-weight: 600;
-  color: var(--ink);
-  margin-right: 4px;
-}
-
-.viewLabel {
-  font-size: 13px;
-  color: var(--muted);
-}
-
-.reactionsRow {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  margin-bottom: 16px;
-  padding-bottom: 12px;
-  border-bottom: 1px solid var(--line);
-}
-
-.reactionItem {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  font-size: 13px;
-  color: var(--ink-2);
-  text-decoration: none;
-}
-
-.reactionItem:hover {
-  color: var(--green-700);
-}
-
-.reactionButton {
-  background: none;
-  border: none;
-  padding: 0;
-  cursor: pointer;
-  font: inherit;
-}
-
-.reactionButton[aria-pressed='true'] {
-  color: var(--green-700);
 }
 
 /* Extras thumbnail row */
