@@ -55,10 +55,10 @@ import {
   IonButton,
   IonAlert,
 } from '@ionic/react';
-import { Flag, UserX } from 'lucide-react';
+import { Flag, UserX, CornerUpLeft, Pencil, Trash2 } from 'lucide-react';
 import { AppHeader } from '../../components/AppHeader.js';
-import { EntryDetail, CommentComposer } from '@b-oss/b-view';
-import type { BlipComment, EntryState } from '@b-oss/b-view';
+import { EntryDetail, CommentComposer, ActionPill } from '@b-oss/b-view';
+import type { BlipComment, EntryState, ActionPillItem } from '@b-oss/b-view';
 import { useLiveEntry } from '../../data/useLiveEntry.js';
 import { deleteEntry } from '../../data/entries.js';
 import { fetchAuthorAvatar } from '../../data/users.js';
@@ -400,43 +400,44 @@ export function EntryDetailScreen({ entryId, initialReplyToCommentId }: EntryDet
   function renderCommentActions(comment: BlipComment): ReactNode {
     const apiComment = commentActionsMap.get(comment.comment_id);
     if (!apiComment) return null;
-    return (
-      <>
-        {apiComment.actions.reply === 1 && (
-          <IonButton
-            size="small"
-            fill="clear"
-            onClick={() => composers.openReply(comment.comment_id, apiComment.comment_id_str)}
-          >
-            Reply
-          </IonButton>
-        )}
-        {apiComment.actions.edit === 1 && (
-          <IonButton
-            size="small"
-            fill="clear"
-            onClick={() =>
-              composers.openEdit(comment.comment_id, apiComment.comment_id_str, apiComment.content)
-            }
-          >
-            Edit
-          </IonButton>
-        )}
-        {apiComment.actions.delete === 1 && (
-          <IonButton
-            size="small"
-            fill="clear"
-            color="danger"
-            onClick={() => setDeleteTarget(apiComment)}
-          >
-            Delete
-          </IonButton>
-        )}
-        <IonButton size="small" fill="clear" onClick={() => handleReportComment(apiComment)}>
-          Report
-        </IonButton>
-      </>
-    );
+    // Icon buttons in one small pill (Blipfoto's idiom) rather than a row of text buttons. You
+    // can't report your own comment, so Report only shows on other people's.
+    const items: ActionPillItem[] = [];
+    if (apiComment.actions.reply === 1) {
+      items.push({
+        key: 'reply',
+        label: 'Reply',
+        icon: <CornerUpLeft size={15} strokeWidth={1.6} />,
+        onClick: () => composers.openReply(comment.comment_id, apiComment.comment_id_str),
+      });
+    }
+    if (apiComment.actions.edit === 1) {
+      items.push({
+        key: 'edit',
+        label: 'Edit comment',
+        icon: <Pencil size={15} strokeWidth={1.6} />,
+        onClick: () =>
+          composers.openEdit(comment.comment_id, apiComment.comment_id_str, apiComment.content),
+      });
+    }
+    if (apiComment.actions.delete === 1) {
+      items.push({
+        key: 'delete',
+        label: 'Delete comment',
+        icon: <Trash2 size={15} strokeWidth={1.6} />,
+        tone: 'danger',
+        onClick: () => setDeleteTarget(apiComment),
+      });
+    }
+    if (apiComment.commenter.username !== activeAccount?.username) {
+      items.push({
+        key: 'report',
+        label: 'Report comment',
+        icon: <Flag size={15} strokeWidth={1.6} />,
+        onClick: () => handleReportComment(apiComment),
+      });
+    }
+    return <ActionPill items={items} />;
   }
 
   const showReactions =
@@ -537,6 +538,7 @@ export function EntryDetailScreen({ entryId, initialReplyToCommentId }: EntryDet
                     onSubmit={() => void composers.submitMain()}
                     posting={composers.mainPosting}
                     error={composers.mainError}
+                    formatting
                   />
                 ) : undefined
               }
@@ -561,6 +563,7 @@ export function EntryDetailScreen({ entryId, initialReplyToCommentId }: EntryDet
                     error={composers.targetError}
                     submitLabel="Save"
                     ariaLabel="Edit your comment"
+                    formatting
                     onCancel={composers.closeTarget}
                     autoFocus
                   />
@@ -577,6 +580,7 @@ export function EntryDetailScreen({ entryId, initialReplyToCommentId }: EntryDet
                     error={composers.targetError}
                     submitLabel="Reply"
                     ariaLabel={`Reply to ${comment.commenter_username}`}
+                    formatting
                     onCancel={composers.closeTarget}
                     autoFocus
                   />
