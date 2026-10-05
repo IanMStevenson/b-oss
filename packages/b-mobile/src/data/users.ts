@@ -22,7 +22,8 @@ import type {
   BlipAward,
 } from '@b-oss/b-api';
 
-// Exported for the same reason as entries.ts's own PAGE_SIZE — see that file's comment.
+// Page size for the *people* lists (followers, following, requests, blocked, user search). Entry
+// feeds use entries.ts's PAGE_SIZE (100) — see that file's comment.
 export const PAGE_SIZE = 30;
 export { JOURNAL_PAGE_SIZE };
 
@@ -103,7 +104,7 @@ export async function fetchFavoriteEntriesFor(
   pageIndex: number,
 ): Promise<Page<EntryIndex>> {
   const client = await getClient();
-  const res = await client.getFavoriteEntries({ username, pageIndex, pageSize: PAGE_SIZE });
+  const res = await client.getFavoriteEntries({ username, pageIndex, pageSize: JOURNAL_PAGE_SIZE });
   return { items: res.entries.map(stubToEntryIndex), ...pageMeta(res.page) };
 }
 

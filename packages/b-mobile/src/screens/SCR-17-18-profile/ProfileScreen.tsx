@@ -372,6 +372,7 @@ export function ProfileScreen({ username }: ProfileScreenProps) {
                 {tab === 'faves' && (
                   <GridTab
                     fetchPage={(pageIndex) => fetchFavoriteEntriesFor(effectiveUsername, pageIndex)}
+                    pageSize={JOURNAL_PAGE_SIZE}
                     resumeKey={`${resumeScope}:faves`}
                     refetchKey={effectiveUsername}
                     onSelectEntry={(id) => navigate.push(`/entry/${id}`)}

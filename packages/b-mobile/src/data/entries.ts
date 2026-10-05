@@ -16,16 +16,18 @@ import type { BlipEntryActions, BlipFriendship, BlipComment as ApiComment } from
 
 // Exported so callers of usePagedResource can pass it through as that hook's own `pageSize`
 // argument — needed for seekTo()/loadBefore() (b-oss#153) to convert an absolute entry offset
-// into the right API pageIndex. Every fetcher in this file uses the same fixed size.
-export const PAGE_SIZE = 30;
+// into the right API pageIndex. Every entry-feed fetcher in this file uses the same fixed size.
+//
+// 100, for every entry feed: the server clamps `page_index` to 200 (observed on-device
+// 2026-10-05: index 228 at size 30 returned `page.index: 200`, so a 6,867-entry journal was only
+// reachable to ~6,000), and a bigger page raises the reachable depth in proportion (200 x 100 =
+// 20,000). The on-device probe (b-oss#196) confirmed every feed — journal, recent, popular,
+// following, favourites, tag/text search, nearby — honours size 100 and clamps at 200, so none
+// silently caps the size. People lists (users.ts) are a different endpoint family and keep 30.
+export const PAGE_SIZE = 100;
 
-// The journal endpoints (`entries/journal`) clamp `page_index` server-side — observed on-device
-// 2026-10-05: requesting index 228 at size 30 returned `page.index: 200` (the same data as 200),
-// so a 6,867-entry journal was only reachable to entry ~6,000 and every deeper page silently
-// showed April 2010 again. A larger page size raises the reachable depth proportionally (b-ark's
-// backup engine pages this same endpoint at 100). Used for the journal feeds only — the other
-// feeds are shallow or bounded (see BrowseScreen's *_TOTAL_ENTRIES) and keep the small page.
-export const JOURNAL_PAGE_SIZE = 100;
+/** Kept as a name of its own because the journal/favourites callers read better with it. */
+export const JOURNAL_PAGE_SIZE = PAGE_SIZE;
 
 // Recent/Popular/Nearby/Tag/Search are pure public browsing — content is identical regardless of
 // who's asking (confirmed: no per-viewer field in EntryIndex/the list response shape), so a
