@@ -11,6 +11,7 @@ import { render, screen, cleanup } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { AccountSwitcherOverlay } from '../AccountSwitcherOverlay.js';
 import { useAccountsStore } from '../../state/accountsStore.js';
+import { useDevicePrefsStore } from '../../state/devicePrefsStore.js';
 import type { StoredAccount } from '../../state/accountsStore.js';
 
 const { MockNeedsReauthError, switchAccount } = vi.hoisted(() => {
@@ -56,7 +57,29 @@ function renderOverlay(onDismiss = vi.fn()) {
 }
 
 describe('AccountSwitcherOverlay', () => {
-  it('lists every stored account with its mode, badging the active one', () => {
+  it('shows the user icon rather than an initial when an account has no picture', () => {
+    useAccountsStore.setState({
+      accounts: [account({ avatarUrl: null })],
+      activeAccountId: 'a1',
+    });
+    renderOverlay();
+    expect(screen.queryByText('A')).toBeNull();
+    expect(document.querySelector('svg.lucide-user')).not.toBeNull();
+  });
+
+  it('shows the icon instead of the picture when the device setting asks for icons', () => {
+    useDevicePrefsStore.setState({ accountAvatarStyle: 'icon' });
+    useAccountsStore.setState({
+      accounts: [account({ avatarUrl: 'https://example.com/a.jpg' })],
+      activeAccountId: 'a1',
+    });
+    renderOverlay();
+    expect(document.querySelector('svg.lucide-user')).not.toBeNull();
+    expect(document.querySelector('img')).toBeNull();
+    useDevicePrefsStore.setState({ accountAvatarStyle: 'picture' });
+  });
+
+  it('lists every stored account with its mode, marking only the active one with a tick', () => {
     useAccountsStore.setState({
       accounts: [account(), account({ id: 'a2', username: 'bob', appTokenScope: 'read' })],
       activeAccountId: 'a1',
@@ -64,7 +87,9 @@ describe('AccountSwitcherOverlay', () => {
     renderOverlay();
     expect(screen.getByText('alice')).toBeDefined();
     expect(screen.getByText('bob')).toBeDefined();
-    expect(screen.getByText('active')).toBeDefined();
+    const radios = screen.getAllByRole('menuitemradio');
+    expect(radios.map((r) => r.getAttribute('aria-checked'))).toEqual(['true', 'false']);
+    expect(screen.getAllByLabelText('Active account')).toHaveLength(1);
     expect(screen.getByText('Read-only')).toBeDefined();
   });
 

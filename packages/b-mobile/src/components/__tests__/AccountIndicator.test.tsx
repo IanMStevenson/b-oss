@@ -65,13 +65,14 @@ describe('AccountIndicator', () => {
     expect(screen.getByLabelText('Switch account (currently alice)')).toBeDefined();
   });
 
-  it('falls back to an initial when the active account has no avatar', () => {
+  it('falls back to the user icon when the active account has no avatar', () => {
     useAccountsStore.setState({
       accounts: [account({ avatarUrl: null }), account({ id: 'a2', username: 'bob' })],
       activeAccountId: 'a1',
     });
     renderIndicator();
-    expect(screen.getByText('A')).toBeDefined();
+    expect(screen.queryByText('A')).toBeNull();
+    expect(document.querySelector('svg.lucide-user')).not.toBeNull();
   });
 
   it('tapping it opens the account switcher overlay', async () => {
