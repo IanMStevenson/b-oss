@@ -8,12 +8,13 @@ import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
 import { EntryDetailScreen } from '../EntryDetailScreen.js';
 import { OverlayProvider, OverlayHost } from '../../../app/OverlayProvider.js';
-import { BlipfotoError } from '@b-oss/b-api';
+import { BlipfotoError, NetworkError } from '@b-oss/b-api';
 import { useAccountsStore } from '../../../state/accountsStore.js';
 import { useHiddenMembersStore } from '../../../state/hiddenMembersStore.js';
 import { useDevicePrefsStore } from '../../../state/devicePrefsStore.js';
 import type { LoadedEntry } from '../../../data/entries.js';
 import type { StoredAccount } from '../../../state/accountsStore.js';
+import { clearAllDrafts } from '../../../data/commentDrafts.js';
 
 const { fetchAuthorAvatar } = vi.hoisted(() => ({ fetchAuthorAvatar: vi.fn() }));
 vi.mock('../../../data/users.js', () => ({ fetchAuthorAvatar }));
@@ -50,6 +51,8 @@ vi.mock('../../../flows/reactionsFlow.js', async () => {
 
 vi.mock('../../../flows/commentsFlow.js', () => ({
   deleteComment: vi.fn(),
+  postComment: vi.fn(),
+  editComment: vi.fn(),
 }));
 
 const navPush = vi.fn();
@@ -107,6 +110,7 @@ beforeEach(() => {
 
 beforeEach(() => {
   fetchAuthorAvatar.mockResolvedValue(null);
+  clearAllDrafts();
 });
 
 afterEach(() => {
@@ -114,12 +118,12 @@ afterEach(() => {
   vi.resetAllMocks();
 });
 
-function renderScreen() {
+function renderScreen(props: { initialReplyToCommentId?: string } = {}) {
   return render(
     <MemoryRouter>
       <OverlayProvider>
         <OverlayHost />
-        <EntryDetailScreen entryId="1" />
+        <EntryDetailScreen entryId="1" {...props} />
       </OverlayProvider>
     </MemoryRouter>,
   );
@@ -417,6 +421,250 @@ describe('EntryDetailScreen', () => {
         await screen.findByText('A day out');
         expect(fetchAuthorAvatar).not.toHaveBeenCalled();
       });
+    });
+  });
+
+  describe('Inline comments (b-oss#172)', () => {
+    type Actions = { reply: 0 | 1; edit: 0 | 1; delete: 0 | 1 };
+    // A loaded entry carrying one comment by bob, in both shapes the screen reads: the b-view
+    // comment EntryDetail renders, and the raw API comment that holds the per-viewer actions.
+    function withComment(actions: Actions, extra: Partial<LoadedEntry> = {}): LoadedEntry {
+      return {
+        ...baseLoadedEntry,
+        entry: {
+          ...baseLoadedEntry.entry,
+          comments: [
+            {
+              comment_id: 'c1',
+              parent_id: null,
+              commenter_username: 'bob',
+              content: 'First!',
+              content_html: '<p>First!</p>',
+              replies: [],
+            },
+          ],
+        },
+        comments: [
+          {
+            comment_id_str: 'c1',
+            parent_id_str: null,
+            commenter: { username: 'bob', avatar_url: '', icons: [] },
+            content: 'First!',
+            content_html: '<p>First!</p>',
+            replies: [],
+            actions: { ...actions, report: 1 },
+          } as never,
+        ],
+        ...extra,
+      };
+    }
+    const noActions: Actions = { reply: 0, edit: 0, delete: 0 };
+
+    async function load(entry: LoadedEntry = baseLoadedEntry) {
+      const { fetchEntry } = await import('../../../data/entries.js');
+      vi.mocked(fetchEntry).mockResolvedValue(entry);
+      return fetchEntry;
+    }
+    async function flows() {
+      return await import('../../../flows/commentsFlow.js');
+    }
+    const box = (name = 'Your comment') => screen.getByLabelText<HTMLTextAreaElement>(name);
+
+    it('has the composer inline at the bottom — no separate screen, no navigation', async () => {
+      await load();
+      renderScreen();
+      await screen.findByText('A day out');
+      expect(screen.getByText('Comments (0)')).toBeDefined();
+      expect(box()).toBeDefined();
+      expect(screen.getByText('Add comment').hasAttribute('disabled')).toBe(true);
+      expect(navPush).not.toHaveBeenCalled();
+    });
+
+    it('posts a new comment, clears the box, and refreshes in place without a spinner', async () => {
+      const { postComment } = await flows();
+      vi.mocked(postComment).mockResolvedValue({} as never);
+      const fetchEntry = await load();
+      renderScreen();
+      await screen.findByText('A day out');
+
+      // Make the post-success refresh slow, to prove the page stays up while it runs.
+      let finishRefresh: (e: LoadedEntry) => void = () => {};
+      vi.mocked(fetchEntry).mockReturnValueOnce(new Promise((r) => (finishRefresh = r)));
+
+      await userEvent.type(box(), 'Lovely');
+      await userEvent.click(screen.getByText('Add comment'));
+      await waitFor(() =>
+        expect(postComment).toHaveBeenCalledWith({ entryId: '1', content: 'Lovely' }),
+      );
+      await waitFor(() => expect(box().value).toBe(''));
+
+      // Refresh in flight: the entry is still on screen and no spinner replaced the page.
+      expect(screen.getByText('A day out')).toBeDefined();
+      expect(document.querySelector('ion-spinner')).toBeNull();
+
+      finishRefresh(
+        withComment(noActions, {
+          entry: {
+            ...baseLoadedEntry.entry,
+            comments: [
+              {
+                comment_id: 'new',
+                parent_id: null,
+                commenter_username: 'me',
+                content: 'Lovely',
+                content_html: '<p>Lovely</p>',
+                replies: [],
+              },
+            ],
+          },
+        }),
+      );
+      expect(await screen.findByText('Lovely', { selector: 'p, div, span' })).toBeDefined();
+    });
+
+    it('keeps the text and says so inline when posting fails, and a retry can succeed', async () => {
+      const { postComment } = await flows();
+      vi.mocked(postComment)
+        .mockRejectedValueOnce(new NetworkError('offline'))
+        .mockResolvedValue({} as never);
+      await load();
+      renderScreen();
+      await screen.findByText('A day out');
+
+      await userEvent.type(box(), 'Lovely');
+      await userEvent.click(screen.getByText('Add comment'));
+      expect((await screen.findByRole('alert')).textContent).toMatch(/Your text is still here/);
+      expect(box().value).toBe('Lovely');
+
+      await userEvent.click(screen.getByText('Add comment'));
+      await waitFor(() => expect(postComment).toHaveBeenCalledTimes(2));
+      await waitFor(() => expect(box().value).toBe(''));
+    });
+
+    it('remembers unsent text across leaving and returning (no discard prompt needed)', async () => {
+      await load();
+      const first = renderScreen();
+      await screen.findByText('A day out');
+      await userEvent.type(box(), 'half a thought');
+      first.unmount();
+
+      renderScreen();
+      await screen.findByText('A day out');
+      expect(box().value).toBe('half a thought');
+    });
+
+    it('does not offer a composer to a read-only account, or where comments are switched off', async () => {
+      useAccountsStore.setState({
+        accounts: [{ ...readWriteAccount, appTokenScope: 'read' }],
+        activeAccountId: 'a1',
+        hydrated: true,
+      });
+      await load();
+      const first = renderScreen();
+      await screen.findByText('A day out');
+      expect(screen.queryByLabelText('Your comment')).toBeNull();
+      first.unmount();
+
+      useAccountsStore.setState({
+        accounts: [readWriteAccount],
+        activeAccountId: 'a1',
+        hydrated: true,
+      });
+      await load({
+        ...baseLoadedEntry,
+        actions: { star: 1, favorite: 1, comment: 0, edit: 0, delete: 0 },
+      });
+      renderScreen();
+      await screen.findByText('A day out');
+      expect(screen.queryByLabelText('Your comment')).toBeNull();
+    });
+
+    it('asks a signed-out user to sign in when they try to post, and posts nothing if they decline', async () => {
+      const { postComment } = await flows();
+      useAccountsStore.setState({ accounts: [], activeAccountId: null, hydrated: true });
+      signInGated.mockRejectedValue(new Error('cancelled'));
+      await load();
+      renderScreen();
+      await screen.findByText('A day out');
+      await userEvent.type(box(), 'Lovely');
+      await userEvent.click(screen.getByText('Add comment'));
+      await waitFor(() => expect(signInGated).toHaveBeenCalled());
+      expect(postComment).not.toHaveBeenCalled();
+      expect(box().value).toBe('Lovely'); // nothing lost
+    });
+
+    it('Reply opens a composer beneath that comment, posts with its parent, then closes', async () => {
+      const { postComment } = await flows();
+      vi.mocked(postComment).mockResolvedValue({} as never);
+      await load(withComment({ reply: 1, edit: 0, delete: 0 }));
+      renderScreen();
+      await screen.findByText('First!');
+
+      await userEvent.click(screen.getByText('Reply'));
+      const reply = box('Reply to bob');
+      expect(document.activeElement).toBe(reply); // focused, ready to type
+      await userEvent.type(reply, 'Thanks!');
+      await userEvent.click(screen.getByText('Reply', { selector: 'button[type="submit"]' }));
+
+      await waitFor(() =>
+        expect(postComment).toHaveBeenCalledWith({
+          entryId: '1',
+          content: 'Thanks!',
+          parentId: 'c1',
+        }),
+      );
+      await waitFor(() => expect(screen.queryByLabelText('Reply to bob')).toBeNull());
+    });
+
+    it('Edit swaps the comment for an editor holding its text, and Save updates it', async () => {
+      const { editComment } = await flows();
+      vi.mocked(editComment).mockResolvedValue({} as never);
+      await load(withComment({ reply: 0, edit: 1, delete: 0 }));
+      renderScreen();
+      await screen.findByText('First!');
+
+      await userEvent.click(screen.getByText('Edit'));
+      const editor = box('Edit your comment');
+      expect(editor.value).toBe('First!');
+      expect(screen.queryByText('First!', { selector: 'p, div' })).toBeNull(); // replaced by the editor
+
+      await userEvent.clear(editor);
+      await userEvent.type(editor, 'First, edited');
+      await userEvent.click(screen.getByText('Save'));
+      await waitFor(() =>
+        expect(editComment).toHaveBeenCalledWith({ commentId: 'c1', content: 'First, edited' }),
+      );
+    });
+
+    it('Cancel closes a reply but keeps what was typed for next time', async () => {
+      await load(withComment({ reply: 1, edit: 0, delete: 0 }));
+      renderScreen();
+      await screen.findByText('First!');
+
+      await userEvent.click(screen.getByText('Reply'));
+      await userEvent.type(box('Reply to bob'), 'draft reply');
+      // Every IonAlert on this screen renders its own Cancel in jsdom, so scope to the composer.
+      await userEvent.click(
+        within(box('Reply to bob').closest('form') as HTMLElement).getByText('Cancel'),
+      );
+      expect(screen.queryByLabelText('Reply to bob')).toBeNull();
+
+      await userEvent.click(screen.getByText('Reply'));
+      expect(box('Reply to bob').value).toBe('draft reply');
+    });
+
+    it('opens the reply composer on arrival when sent here from the comments inbox', async () => {
+      await load(withComment({ reply: 1, edit: 0, delete: 0 }));
+      renderScreen({ initialReplyToCommentId: 'c1' });
+      await screen.findByText('First!');
+      expect(await screen.findByLabelText('Reply to bob')).toBeDefined();
+    });
+
+    it('ignores an inbox hand-off for a comment you cannot reply to', async () => {
+      await load(withComment(noActions));
+      renderScreen({ initialReplyToCommentId: 'c1' });
+      await screen.findByText('First!');
+      expect(screen.queryByLabelText('Reply to bob')).toBeNull();
     });
   });
 

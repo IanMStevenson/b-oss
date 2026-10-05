@@ -69,6 +69,12 @@ interface EntryDetailProps {
   photoFit?: 'full-width' | 'capped';
   /** Per-comment slot (e.g. reply/delete) — the host decides ownership, this component doesn't. */
   renderCommentActions?: (comment: BlipComment) => ReactNode;
+  /** Per-comment: return a node to show an inline editor *in place of* that comment (its body and
+   * actions are hidden while it's shown); return null for the normal comment. */
+  renderCommentEditor?: (comment: BlipComment) => ReactNode;
+  /** Per-comment: a node rendered beneath the comment and its actions, above its replies — an
+   * inline reply composer. Null for none. */
+  renderCommentReply?: (comment: BlipComment) => ReactNode;
   /** Forwarded to every internal BBCodeText (description + every comment/reply). Omitted: links
    * open via BBCodeText's own default (a new browser tab) — fine for Electron/Chrome, but a host
    * whose links must never navigate its own WebView away (e.g. a Capacitor system-browser open)
@@ -116,23 +122,35 @@ function ExifRows({ exif }: { exif: NonNullable<BlipEntry['exif']> }) {
 function CommentThread({
   comment,
   renderCommentActions,
+  renderCommentEditor,
+  renderCommentReply,
   onLinkClick,
 }: {
   comment: BlipComment;
   renderCommentActions?: (comment: BlipComment) => ReactNode;
+  renderCommentEditor?: (comment: BlipComment) => ReactNode;
+  renderCommentReply?: (comment: BlipComment) => ReactNode;
   onLinkClick?: (href: string) => void;
 }) {
+  // An editor, when the host has one open for this comment, takes the place of the comment itself.
+  const editor = renderCommentEditor?.(comment) ?? null;
+  const reply = renderCommentReply?.(comment) ?? null;
   return (
     <div className={styles.comment}>
       <span className={styles.commentAuthor}>{comment.commenter_username}</span>
-      <BBCodeText
-        source={comment.content}
-        className={styles.commentBody}
-        onLinkClick={onLinkClick}
-      />
-      {renderCommentActions && (
-        <div className={styles.commentActions}>{renderCommentActions(comment)}</div>
+      {editor ?? (
+        <>
+          <BBCodeText
+            source={comment.content}
+            className={styles.commentBody}
+            onLinkClick={onLinkClick}
+          />
+          {renderCommentActions && (
+            <div className={styles.commentActions}>{renderCommentActions(comment)}</div>
+          )}
+        </>
       )}
+      {reply}
       {comment.replies && comment.replies.length > 0 && (
         <div className={styles.replies}>
           {comment.replies.map((reply) => (
@@ -140,6 +158,8 @@ function CommentThread({
               key={reply.comment_id}
               comment={reply}
               renderCommentActions={renderCommentActions}
+              renderCommentEditor={renderCommentEditor}
+              renderCommentReply={renderCommentReply}
               onLinkClick={onLinkClick}
             />
           ))}
@@ -167,6 +187,8 @@ export function EntryDetail({
   loadHistory,
   photoFit = 'full-width',
   renderCommentActions,
+  renderCommentEditor,
+  renderCommentReply,
   onLinkClick,
   onFullscreen,
   onTagClick,
@@ -525,19 +547,17 @@ export function EntryDetail({
 
             {(entry.comments.length > 0 || commentComposer) && (
               <div className={`${styles.metaComments} ${styles.commentsSection}`}>
-                {entry.comments.length > 0 && (
-                  <>
-                    <h3 className={styles.commentsHeader}>Comments ({entry.comments.length})</h3>
-                    {entry.comments.map((c) => (
-                      <CommentThread
-                        key={c.comment_id}
-                        comment={c}
-                        renderCommentActions={renderCommentActions}
-                        onLinkClick={onLinkClick}
-                      />
-                    ))}
-                  </>
-                )}
+                <h3 className={styles.commentsHeader}>Comments ({entry.comments.length})</h3>
+                {entry.comments.map((c) => (
+                  <CommentThread
+                    key={c.comment_id}
+                    comment={c}
+                    renderCommentActions={renderCommentActions}
+                    renderCommentEditor={renderCommentEditor}
+                    renderCommentReply={renderCommentReply}
+                    onLinkClick={onLinkClick}
+                  />
+                ))}
                 {commentComposer}
               </div>
             )}

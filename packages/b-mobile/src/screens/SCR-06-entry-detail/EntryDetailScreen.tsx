@@ -44,7 +44,7 @@
 // fetchEntry — this screen's own entryState.message just renders whatever it threw, same as any
 // other error.
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
 import {
   IonPage,
@@ -57,11 +57,12 @@ import {
 } from '@ionic/react';
 import { Flag, UserX } from 'lucide-react';
 import { AppHeader } from '../../components/AppHeader.js';
-import { EntryDetail } from '@b-oss/b-view';
+import { EntryDetail, CommentComposer } from '@b-oss/b-view';
 import type { BlipComment, EntryState } from '@b-oss/b-view';
 import { useLiveEntry } from '../../data/useLiveEntry.js';
 import { deleteEntry } from '../../data/entries.js';
 import { fetchAuthorAvatar } from '../../data/users.js';
+import { useCommentComposers } from './useCommentComposers.js';
 import { EntryAuthorBlock, type FollowControl } from '../../components/EntryAuthorBlock.js';
 import { fetchCalendarMonth, fetchHistoryItems } from '../../data/journalDays.js';
 import { openUrl } from '../../platform/browser.js';
@@ -89,6 +90,9 @@ import type { BlipComment as ApiComment } from '@b-oss/b-api';
 
 interface EntryDetailScreenProps {
   entryId: string;
+  /** Open the reply composer on this comment (its API id) as soon as the entry loads — for a
+   * reply started from the comments inbox, which lands here instead of on a separate screen. */
+  initialReplyToCommentId?: string;
 }
 
 /** Drops a comment (and its whole reply subtree) from what EntryDetail renders once its author
@@ -111,7 +115,7 @@ function flattenComments(comments: ApiComment[], map: Map<string, ApiComment>): 
   }
 }
 
-export function EntryDetailScreen({ entryId }: EntryDetailScreenProps) {
+export function EntryDetailScreen({ entryId, initialReplyToCommentId }: EntryDetailScreenProps) {
   const navigate = useAppNavigate();
   const { showUpgradePrompt } = useOverlay();
   const activeAccount = useActiveAccount();
@@ -128,6 +132,7 @@ export function EntryDetailScreen({ entryId }: EntryDetailScreenProps) {
     friendship,
     comments,
     reload,
+    refresh,
   } = useLiveEntry(entryId);
 
   const [reaction, setReaction] = useState<ReactionOverlay | null>(null);
@@ -171,6 +176,25 @@ export function EntryDetailScreen({ entryId }: EntryDetailScreenProps) {
     flattenComments(comments, map);
     return map;
   }, [comments]);
+
+  const composers = useCommentComposers({
+    entryId,
+    // FLW-06/07: sign in / confirm the account / require read-write, at the moment of posting.
+    gate: () => gateReaction(true),
+    // The new comment appears via a silent refresh — `reload` would blink the page to a spinner.
+    onPosted: refresh,
+  });
+
+  // A reply started from the comments inbox opens its composer once, when the entry has loaded.
+  const startedInitialReply = useRef(false);
+  useEffect(() => {
+    if (!initialReplyToCommentId || startedInitialReply.current) return;
+    const target = commentActionsMap.get(initialReplyToCommentId);
+    if (!target || target.actions.reply !== 1) return;
+    startedInitialReply.current = true;
+    composers.openReply(target.comment_id_str, target.comment_id_str);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialReplyToCommentId, commentActionsMap]);
 
   // EntryDetail renders stars_total/favorites_total straight from entryState.data itself — it
   // has no separate hook for an optimistic count the way the reactions slot does for the starred/
@@ -321,23 +345,6 @@ export function EntryDetailScreen({ entryId }: EntryDetailScreenProps) {
     }
   }
 
-  async function handleComment(): Promise<void> {
-    if (!(await gateReaction(true))) return;
-    navigate.push(`/entry/${entryId}/comment`);
-  }
-
-  async function handleReply(comment: ApiComment): Promise<void> {
-    if (!(await gateReaction(true))) return;
-    navigate.push(`/entry/${entryId}/comment`, { replyToCommentId: comment.comment_id_str });
-  }
-
-  function handleEdit(comment: ApiComment): void {
-    navigate.push(`/entry/${entryId}/comment`, {
-      editCommentId: comment.comment_id_str,
-      editInitialContent: comment.content,
-    });
-  }
-
   function handleReportComment(comment: ApiComment): void {
     navigate.push(`/entry/${entryId}/report`, {
       targetUsername: comment.commenter.username,
@@ -394,12 +401,22 @@ export function EntryDetailScreen({ entryId }: EntryDetailScreenProps) {
     return (
       <>
         {apiComment.actions.reply === 1 && (
-          <IonButton size="small" fill="clear" onClick={() => void handleReply(apiComment)}>
+          <IonButton
+            size="small"
+            fill="clear"
+            onClick={() => composers.openReply(comment.comment_id, apiComment.comment_id_str)}
+          >
             Reply
           </IonButton>
         )}
         {apiComment.actions.edit === 1 && (
-          <IonButton size="small" fill="clear" onClick={() => handleEdit(apiComment)}>
+          <IonButton
+            size="small"
+            fill="clear"
+            onClick={() =>
+              composers.openEdit(comment.comment_id, apiComment.comment_id_str, apiComment.content)
+            }
+          >
             Edit
           </IonButton>
         )}
@@ -499,10 +516,46 @@ export function EntryDetailScreen({ entryId }: EntryDetailScreenProps) {
               }
               commentComposer={
                 showComment ? (
-                  <IonButton fill="outline" onClick={() => void handleComment()}>
-                    Add a comment
-                  </IonButton>
+                  <CommentComposer
+                    value={composers.mainValue}
+                    onChange={composers.setMainValue}
+                    onSubmit={() => void composers.submitMain()}
+                    posting={composers.mainPosting}
+                    error={composers.mainError}
+                  />
                 ) : undefined
+              }
+              renderCommentEditor={(comment) =>
+                composers.target?.kind === 'edit' &&
+                composers.target.viewId === comment.comment_id ? (
+                  <CommentComposer
+                    value={composers.targetValue}
+                    onChange={composers.setTargetValue}
+                    onSubmit={() => void composers.submitTarget()}
+                    posting={composers.targetPosting}
+                    error={composers.targetError}
+                    submitLabel="Save"
+                    ariaLabel="Edit your comment"
+                    onCancel={composers.closeTarget}
+                    autoFocus
+                  />
+                ) : null
+              }
+              renderCommentReply={(comment) =>
+                composers.target?.kind === 'reply' &&
+                composers.target.viewId === comment.comment_id ? (
+                  <CommentComposer
+                    value={composers.targetValue}
+                    onChange={composers.setTargetValue}
+                    onSubmit={() => void composers.submitTarget()}
+                    posting={composers.targetPosting}
+                    error={composers.targetError}
+                    submitLabel="Reply"
+                    ariaLabel={`Reply to ${comment.commenter_username}`}
+                    onCancel={composers.closeTarget}
+                    autoFocus
+                  />
+                ) : null
               }
               header={
                 authorUsername ? (

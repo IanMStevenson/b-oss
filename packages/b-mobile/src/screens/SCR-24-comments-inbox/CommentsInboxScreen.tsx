@@ -124,7 +124,9 @@ export function CommentsInboxScreen() {
 
   function handleReply(comment: BlipComment): void {
     if (!comment.entry_id_str) return;
-    navigate.push(`/entry/${encodeURIComponent(comment.entry_id_str)}/comment`, {
+    // The reply composer is inline on the entry page (b-oss#172) — land there with it open on this
+    // comment rather than on a separate compose screen.
+    navigate.push(`/entry/${encodeURIComponent(comment.entry_id_str)}`, {
       replyToCommentId: comment.comment_id_str,
     });
   }

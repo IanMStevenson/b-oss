@@ -1,9 +1,10 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (C) 2026 Ian Stevenson
 
-// FLW-07 — post/edit/delete a comment or reply. Pure API wrappers; SCR-15 owns the compose UI and
-// discard-guard, SCR-06 owns the inline delete affordance and the "reload to show it" step on
-// success (rules.md: no client-side comment cache to patch optimistically into).
+// FLW-07 — post/edit/delete a comment or reply. Pure API wrappers; the inline composers on SCR-06
+// (useCommentComposers) own the compose UI and drafts, and SCR-06 owns the inline delete affordance
+// and the "refresh to show it" step on success (rules.md: no client-side comment cache to patch
+// optimistically into). The old separate SCR-15 compose screen was retired by b-oss#172.
 
 import { getClient } from '../data/client.js';
 import type { CommentResponse } from '@b-oss/b-api';

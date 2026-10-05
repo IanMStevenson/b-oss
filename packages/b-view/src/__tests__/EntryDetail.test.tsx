@@ -241,6 +241,76 @@ describe('EntryDetail', () => {
     });
   });
 
+  describe('comment slots (b-oss#172)', () => {
+    const withComments = () =>
+      makeEntry({
+        comments: [
+          {
+            comment_id: 'c1',
+            parent_id: null,
+            commenter_username: 'alice',
+            content: 'First!',
+            content_html: '<p>First!</p>',
+            replies: [
+              {
+                comment_id: 'c2',
+                parent_id: 'c1',
+                commenter_username: 'bob',
+                content: 'A reply',
+                content_html: '<p>A reply</p>',
+                replies: [],
+              },
+            ],
+          },
+        ],
+      });
+    const base = { prevEntryId: null, nextEntryId: null, onNavigate: () => {} };
+
+    it('shows "Comments (0)" with the composer even when there are no comments yet', () => {
+      render(
+        <EntryDetail
+          {...base}
+          entryState={loadedState(makeEntry({ comments: [] }))}
+          commentComposer={<div>composer</div>}
+        />,
+      );
+      expect(screen.getByText('Comments (0)')).toBeDefined();
+      expect(screen.getByText('composer')).toBeDefined();
+    });
+
+    it('renders an editor in place of a comment (body and actions hidden), top-level or reply', () => {
+      render(
+        <EntryDetail
+          {...base}
+          entryState={loadedState(withComments())}
+          renderCommentActions={() => <span>actions</span>}
+          renderCommentEditor={(c) => (c.comment_id === 'c2' ? <div>editing bob</div> : null)}
+        />,
+      );
+      expect(screen.getByText('editing bob')).toBeDefined();
+      expect(screen.queryByText('A reply')).toBeNull(); // replaced by the editor
+      expect(screen.getByText('First!')).toBeDefined(); // the other comment is untouched
+      expect(screen.getAllByText('actions')).toHaveLength(1); // alice's only; bob's are hidden
+    });
+
+    it('renders a reply composer beneath its comment, above that comment’s own replies', () => {
+      const { container } = render(
+        <EntryDetail
+          {...base}
+          entryState={loadedState(withComments())}
+          renderCommentReply={(c) => (c.comment_id === 'c1' ? <div>reply box</div> : null)}
+        />,
+      );
+      const position = (el: Element) => Array.from(container.querySelectorAll('*')).indexOf(el);
+      expect(position(screen.getByText('First!'))).toBeLessThan(
+        position(screen.getByText('reply box')),
+      );
+      expect(position(screen.getByText('reply box'))).toBeLessThan(
+        position(screen.getByText('A reply')),
+      );
+    });
+  });
+
   describe('swipe between entries', () => {
     function swipe(el: Element, dx: number, dy = 0) {
       fireEvent.touchStart(el, { touches: [{ clientX: 200, clientY: 300 }] });
