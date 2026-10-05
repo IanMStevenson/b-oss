@@ -8,6 +8,21 @@
   flex: 1;
   min-height: 0;
   overflow-y: auto;
+  /* The layout responds to the width this component is given, not the window's — the viewer and
+     the app embed it in very different spaces (and the viewer's own panes can resize). */
+  container-type: inline-size;
+  container-name: entry;
+  /* One column for everything on the page (top bar, photo, text), so it all lines up. */
+  --entry-column: 960px;
+  --entry-gutter: 16px;
+}
+
+.column {
+  width: 100%;
+  max-width: calc(var(--entry-column) + 2 * var(--entry-gutter));
+  margin: 0 auto;
+  padding: 0 var(--entry-gutter);
+  box-sizing: border-box;
 }
 
 .centred {
@@ -32,25 +47,29 @@
   gap: 8px;
 }
 
-/* Navigation header */
-.navHeader {
+/* Top bar: the host's identity block opposite the nav strip. On a wide container they share a
+   row (identity left, strip right); on a narrow one the strip drops beneath, left-aligned. */
+.topBar {
   display: flex;
   align-items: center;
-  padding: 6px 16px;
-  border-bottom: 1px solid var(--line);
-  min-height: 44px;
+  justify-content: space-between;
+  gap: 12px 16px;
+  padding-top: 16px;
+  padding-bottom: 16px;
+}
+
+.topLeft {
+  display: flex;
+  align-items: center;
   gap: 8px;
+  min-width: 0;
 }
 
-.navLeft {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-}
-
-.navRight {
-  display: flex;
-  align-items: center;
+@container entry (max-width: 640px) {
+  .topBar {
+    flex-direction: column;
+    align-items: flex-start;
+  }
 }
 
 .navBtn {
@@ -72,37 +91,17 @@
   cursor: default;
 }
 
-.navTitle {
-  flex: 1;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  overflow: hidden;
-}
-
-.navHeading {
-  font-size: 15px;
-  font-weight: 600;
-  color: var(--ink-2);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-/* Photo — grey bar constrained to metaInner width */
+/* Photo: blipfoto.com's "mat" — a thin light border with a few px of white padding on the white
+   page, across the full column. */
 .photoOuter {
   width: 100%;
 }
 
-.photoMiddle {
+.photoFrame {
   position: relative;
-  max-width: 900px;
-  margin: 0 auto;
-  padding: 0 24px;
-  display: flex;
-  justify-content: center;
-  background: var(--photo-bg);
+  padding: 5px;
+  border: 1px solid var(--line);
+  background: var(--bg);
 }
 
 .photoInner {
@@ -126,10 +125,16 @@
 
 .photo {
   display: block;
-  width: auto;
+  width: 100%;
   height: auto;
+}
+
+/* photoFit="capped": the whole picture fits on screen without scrolling, at the cost of width. */
+.photoCapped {
+  width: auto;
   max-width: 100%;
-  max-height: 80vh;
+  max-height: 85vh;
+  margin: 0 auto;
   object-fit: contain;
 }
 
@@ -157,9 +162,9 @@
 }
 
 .metaInner {
-  max-width: 900px;
+  max-width: calc(var(--entry-column) + 2 * var(--entry-gutter));
   margin: 0 auto;
-  padding: 20px 24px 32px;
+  padding: 20px var(--entry-gutter) 32px;
 }
 
 /* Title below image */

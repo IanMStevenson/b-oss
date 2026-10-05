@@ -46,12 +46,21 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import type { ReactNode } from 'react';
-import { IonPage, IonHeader, IonContent, IonSpinner, IonText, IonButton, IonAlert } from '@ionic/react';
+import {
+  IonPage,
+  IonHeader,
+  IonContent,
+  IonSpinner,
+  IonText,
+  IonButton,
+  IonAlert,
+} from '@ionic/react';
 import { Pencil, Flag, UserX } from 'lucide-react';
 import { AppHeader } from '../../components/AppHeader.js';
 import { EntryDetail } from '@b-oss/b-view';
 import type { BlipComment, EntryState } from '@b-oss/b-view';
 import { useLiveEntry } from '../../data/useLiveEntry.js';
+import { fetchHistoryItems, fetchOwnEntryIdForDate } from '../../data/journalDays.js';
 import { openUrl } from '../../platform/browser.js';
 import { resolveImage } from '../../platform/imageCache.js';
 import { useAppNavigate } from '../../app/routes/useAppNavigate.js';
@@ -127,6 +136,16 @@ export function EntryDetailScreen({ entryId }: EntryDetailScreenProps) {
   const authorUsername = entryState.status === 'loaded' ? entryState.data.username : null;
   const isOwnEntry = authorUsername !== null && authorUsername === activeAccount?.username;
   const authorHidden = useIsHidden(authorUsername);
+
+  async function handlePickDate(date: string): Promise<void> {
+    try {
+      const id = await fetchOwnEntryIdForDate(date);
+      if (id) navigate.replace(`/entry/${id}`);
+      else setErrorMessage(`You have no entry on ${date}.`);
+    } catch (err) {
+      setErrorMessage(describeError(mapApiError(err), 'Could not look up that date.'));
+    }
+  }
 
   const commentActionsMap = useMemo(() => {
     const map = new Map<string, ApiComment>();
@@ -412,6 +431,14 @@ export function EntryDetailScreen({ entryId }: EntryDetailScreenProps) {
               prevEntryId={prevEntryId}
               nextEntryId={nextEntryId}
               onNavigate={(id) => navigate.replace(`/entry/${id}`)}
+              // journal/day only answers for the signed-in user's own journal, so the calendar and
+              // history are offered on their own entries only (b-oss#169).
+              onPickDate={isOwnEntry ? (date) => void handlePickDate(date) : undefined}
+              loadHistory={
+                isOwnEntry && entryState.status === 'loaded'
+                  ? () => fetchHistoryItems(entryState.data.date)
+                  : undefined
+              }
               resolveAsset={resolveImage}
               onLinkClick={(href) => void openUrl(href)}
               onFullscreen={() => navigate.push(`/entry/${entryId}/photo`)}
@@ -461,11 +488,7 @@ export function EntryDetailScreen({ entryId }: EntryDetailScreenProps) {
               {!hideForReadOnly && !isOwnEntry && authorUsername && (
                 <>
                   {friendshipState === 1 && (
-                    <IonButton
-                      size="small"
-                      fill="outline"
-                      onClick={() => setConfirmUnfollow(true)}
-                    >
+                    <IonButton size="small" fill="outline" onClick={() => setConfirmUnfollow(true)}>
                       Unfollow
                     </IonButton>
                   )}
@@ -542,7 +565,6 @@ export function EntryDetailScreen({ entryId }: EntryDetailScreenProps) {
           { text: 'Delete', role: 'destructive', handler: () => void handleConfirmedDelete() },
         ]}
       />
-
     </IonPage>
   );
 }
