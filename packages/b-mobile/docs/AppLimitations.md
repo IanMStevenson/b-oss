@@ -11,7 +11,7 @@ here), a deliberate deferral (can), or just not built.
 | Shows a commenter's country flag and donor badge beside their name | Shows only the camera and staff badges | **API.** A comment's `commenter` has only `username`, `avatar_url`, `icons` (camera/staff). Flag would need a per-commenter `user` lookup (country code); donor status may not be exposed at all. | [#208](https://github.com/IanMStevenson/b-oss/issues/208) |
 | Comment box renders toolbar formatting WYSIWYG (stores BBCode) | Plain text box; toolbar inserts visible BBCode tags | **Deferred** (not a priority; liveable). Needs a rich editor that round-trips BBCode. | [#206](https://github.com/IanMStevenson/b-oss/issues/206) |
 | Download an entry's photo | Not offered | **Deferred.** | [#175](https://github.com/IanMStevenson/b-oss/issues/175) |
-| Browse any feed to any depth | Every entry feed stops at `page_index` 200 (20,000 entries at 100/page); Recent and Popular end sooner (their real depth is unmeasured) | **API.** The server clamps the index; confirmed on every feed by the on-device probe. | [#196](https://github.com/IanMStevenson/b-oss/issues/196) |
+| Browse any feed to any depth | Every entry feed stops at `page_index` 200 (20,000 entries at 100/page); Recent ends at 900 entries and Popular at ~327 (measured 2026-10-05; Popular varies) | **API.** The server clamps the index; confirmed on every feed by the on-device probe. | [#196](https://github.com/IanMStevenson/b-oss/issues/196) |
 | — | Photo downscaling before upload isn't implemented; entries always upload full size | **Not built.** The "upload full size" setting is disabled until it is. | `SCR-25` Misc |
 
 ## Matches the site (not a limitation, recorded so it isn't re-investigated)
