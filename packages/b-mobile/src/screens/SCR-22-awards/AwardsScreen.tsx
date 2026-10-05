@@ -28,6 +28,7 @@ import { fetchAwards } from '../../data/users.js';
 import { useActiveAccount } from '../../state/accountsStore.js';
 import { CachedImage } from '../../components/CachedImage.js';
 import type { BlipAward } from '@b-oss/b-api';
+import { AccountIndicator } from '../../components/AccountIndicator.js';
 
 const AWARD_SLUGS: Record<string, string> = {
   '1': 'basics',
@@ -77,6 +78,7 @@ export function AwardsScreen({ username }: AwardsScreenProps) {
           title="Awards"
           variant="back"
           backHref={username ? `/user/${encodeURIComponent(username)}` : '/me'}
+          end={<AccountIndicator />}
         />
       </IonHeader>
       <IonContent className="ion-padding">

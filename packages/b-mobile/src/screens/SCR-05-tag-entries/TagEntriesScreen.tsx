@@ -10,6 +10,7 @@ import { fetchTagPage, PAGE_SIZE } from '../../data/entries.js';
 import { EntryGrid } from '../../components/EntryGrid.js';
 import { useAppNavigate } from '../../app/routes/useAppNavigate.js';
 import { useActiveAccount } from '../../state/accountsStore.js';
+import { AccountIndicator } from '../../components/AccountIndicator.js';
 
 interface TagEntriesScreenProps {
   tag: string;
@@ -30,7 +31,7 @@ export function TagEntriesScreen({ tag }: TagEntriesScreenProps) {
   return (
     <IonPage>
       <IonHeader>
-        <AppHeader title={`#${tag}`} variant="back" backHref="/browse" />
+        <AppHeader title={`#${tag}`} variant="back" backHref="/browse" end={<AccountIndicator />} />
       </IonHeader>
       <IonContent>
         {resource.status === 'loading' && (

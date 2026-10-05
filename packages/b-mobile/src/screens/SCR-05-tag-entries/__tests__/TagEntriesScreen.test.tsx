@@ -5,6 +5,7 @@
 import { describe, it, expect, afterEach, vi } from 'vitest';
 import { render, screen, cleanup } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
+import { OverlayProvider } from '../../../app/OverlayProvider.js';
 import { TagEntriesScreen } from '../TagEntriesScreen.js';
 import type { EntryIndex } from '@b-oss/b-view';
 
@@ -29,7 +30,9 @@ afterEach(() => {
 function renderScreen() {
   return render(
     <MemoryRouter>
-      <TagEntriesScreen tag="sunrise" />
+      <OverlayProvider>
+        <TagEntriesScreen tag="sunrise" />
+      </OverlayProvider>
     </MemoryRouter>,
   );
 }
