@@ -67,8 +67,10 @@ export function AccountSwitcherOverlay({ onDismiss }: { onDismiss: () => void })
         aria-label="Switch account"
         style={{
           position: 'fixed',
-          top: 52,
-          right: 8,
+          // Just under the header — which itself sits below the status bar, so the inset has to be
+          // added or this overlaps the header's bottom edge (b-oss#165 safe-area audit).
+          top: 'calc(52px + var(--ion-safe-area-top, 0px))',
+          right: 'calc(8px + var(--ion-safe-area-right, 0px))',
           zIndex: 1000,
           minWidth: 240,
           maxWidth: '85vw',

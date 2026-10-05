@@ -16,7 +16,7 @@
 // Gated on devicePrefsStore's own `hydrated` flag so a returning user's persisted `true` isn't
 // raced by a not-yet-loaded default `false`.
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
   IonPage,
   IonHeader,
@@ -26,6 +26,7 @@ import {
   IonItem,
   IonLabel,
   IonToggle,
+  IonAlert,
   IonButton,
   IonSpinner,
   IonText,
@@ -34,6 +35,7 @@ import { AppHeader } from '../../components/AppHeader.js';
 import { signInDeliberate, OAuthCancelledError } from '../../flows/accountsFlow.js';
 import type { SignInModeChoice } from '../../flows/accountsFlow.js';
 import { openUrl } from '../../platform/browser.js';
+import { isPushAvailable } from '../../platform/push.js';
 import { isNativePlatform } from '../../platform/appState.js';
 import { useAppNavigate } from '../../app/routes/useAppNavigate.js';
 import { useOverlay } from '../../app/OverlayProvider.js';
@@ -51,7 +53,17 @@ export function SignInScreen() {
   const setSeenFirstRunExplainer = useDevicePrefsStore((s) => s.setSeenFirstRunExplainer);
   const [scope, setScope] = useState<SignInModeChoice['scope']>('read,write');
   const [notifications, setNotifications] = useState(false);
-  const [useEmbedded, setUseEmbedded] = useState(false);
+  // Default off: sign in inside the app's own screen (always asks for a password, so it works for
+  // adding a second account). On = the phone's browser, a shortcut when already signed in to
+  // Blipfoto there. Inverted from the old "Force new sign-in" toggle (b-oss#165).
+  const [useBrowser, setUseBrowser] = useState(false);
+  // A build without Firebase credentials can never deliver notifications — offering the toggle
+  // would just silently do nothing (and used to crash). Optimistically true until the native check
+  // answers, so it doesn't flicker disabled on every visit.
+  const [pushAvailable, setPushAvailable] = useState(true);
+  // Resolver for the "one more sign-in" interstitial below; non-null while it's showing.
+  const serviceRoundAnswer = useRef<((proceed: boolean) => void) | null>(null);
+  const [explainServiceRound, setExplainServiceRound] = useState(false);
   const [status, setStatus] = useState<Status>('idle');
   const [error, setError] = useState<string | null>(null);
 
@@ -63,11 +75,35 @@ export function SignInScreen() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [hydrated, seenFirstRunExplainer]);
 
+  useEffect(() => {
+    if (!isNativePlatform()) return;
+    void isPushAvailable().then(setPushAvailable);
+  }, []);
+
+  function answerServiceRound(proceed: boolean): void {
+    serviceRoundAnswer.current?.(proceed);
+    serviceRoundAnswer.current = null;
+    setExplainServiceRound(false);
+  }
+
+  // Read-write + notifications needs a second, read-only Blipfoto approval for the notification
+  // service. Without this the user is simply dropped into a second sign-in with no explanation,
+  // which looks like the first one failed (b-oss#165).
+  function beforeServiceRound(): Promise<boolean> {
+    return new Promise((resolve) => {
+      serviceRoundAnswer.current = resolve;
+      setExplainServiceRound(true);
+    });
+  }
+
   async function handleContinue() {
     setError(null);
     setStatus('authenticating');
     try {
-      await signInDeliberate({ scope, notifications, useEmbedded });
+      await signInDeliberate(
+        { scope, notifications: notifications && pushAvailable, useEmbedded: isNativePlatform() && !useBrowser },
+        { beforeServiceRound },
+      );
       navigate.replace('/accounts');
     } catch (err) {
       if (err instanceof OAuthCancelledError) {
@@ -109,32 +145,38 @@ export function SignInScreen() {
         </IonRadioGroup>
 
         <IonItem>
+          <IonLabel className="ion-text-wrap">
+            <h2>Get notifications</h2>
+            {!pushAvailable && <p>Notifications aren&rsquo;t available in this build.</p>}
+          </IonLabel>
           <IonToggle
-            checked={notifications}
+            slot="end"
+            aria-label="Get notifications"
+            checked={notifications && pushAvailable}
+            disabled={!pushAvailable}
             onIonChange={(e) => setNotifications(e.detail.checked)}
-          >
-            Get notifications
-          </IonToggle>
+          />
         </IonItem>
 
         {isNativePlatform() && (
-          <>
-            <IonItem>
-              <IonToggle
-                checked={useEmbedded}
-                onIonChange={(e) => setUseEmbedded(e.detail.checked)}
-              >
-                Force new sign-in
-              </IonToggle>
-            </IonItem>
-            <IonText color="medium">
-              <p>
-                Signs in through a screen inside this app instead of your phone&rsquo;s browser, so
-                it always asks for a password — handy for adding a second account when your browser
-                is already signed in to the first.
+          // The explanation lives inside the same item as the toggle it describes, indented under
+          // the title, so it reads as that setting's description rather than a stray paragraph.
+          <IonItem>
+            <IonLabel className="ion-text-wrap">
+              <h2>Use browser to sign in</h2>
+              <p style={{ paddingLeft: 16 }}>
+                If you&rsquo;re already signed in to Blipfoto in your phone&rsquo;s browser, this is
+                a shortcut. Leave it off to sign in inside this app, which always asks for your
+                password &mdash; handy when adding a second account.
               </p>
-            </IonText>
-          </>
+            </IonLabel>
+            <IonToggle
+              slot="end"
+              aria-label="Use browser to sign in"
+              checked={useBrowser}
+              onIonChange={(e) => setUseBrowser(e.detail.checked)}
+            />
+          </IonItem>
         )}
 
         {status === 'error' && error && (
@@ -151,6 +193,18 @@ export function SignInScreen() {
           New to Blipfoto? Create account
         </IonButton>
       </IonContent>
+
+      <IonAlert
+        isOpen={explainServiceRound}
+        header="One more sign-in"
+        message="Notifications need a separate read-only approval from Blipfoto, so you'll be asked to sign in once more. Your account stays read-write."
+        backdropDismiss={false}
+        onDidDismiss={() => answerServiceRound(false)}
+        buttons={[
+          { text: 'Skip notifications', role: 'cancel', handler: () => answerServiceRound(false) },
+          { text: 'Sign in again', handler: () => answerServiceRound(true) },
+        ]}
+      />
     </IonPage>
   );
 }

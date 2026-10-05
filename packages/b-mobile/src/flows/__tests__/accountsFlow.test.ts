@@ -130,6 +130,42 @@ describe('signInDeliberate (FLW-20)', () => {
     expect(await getToken('carol', 'service')).toBe('tok-r-service');
   });
 
+  it('beforeServiceRound: false skips the second round — signed in read-write without notifications', async () => {
+    runOAuthRound.mockResolvedValueOnce({
+      accessToken: 'tok-rw',
+      grantedScope: 'read,write',
+      username: 'erin',
+    });
+    const beforeServiceRound = vi.fn().mockResolvedValue(false);
+    await signInDeliberate(
+      { scope: 'read,write', notifications: true },
+      { beforeServiceRound },
+    );
+    expect(beforeServiceRound).toHaveBeenCalledTimes(1);
+    expect(runOAuthRound).toHaveBeenCalledTimes(1);
+    expect(await getToken('erin', 'app')).toBe('tok-rw');
+    expect(await getToken('erin', 'service')).toBeNull();
+  });
+
+  it('beforeServiceRound: true proceeds with the second round as before', async () => {
+    runOAuthRound
+      .mockResolvedValueOnce({ accessToken: 'tok-rw', grantedScope: 'read,write', username: 'fay' })
+      .mockResolvedValueOnce({ accessToken: 'tok-svc', grantedScope: 'read', username: 'fay' });
+    await signInDeliberate(
+      { scope: 'read,write', notifications: true },
+      { beforeServiceRound: () => Promise.resolve(true) },
+    );
+    expect(runOAuthRound).toHaveBeenCalledTimes(2);
+    expect(await getToken('fay', 'service')).toBe('tok-svc');
+  });
+
+  it('beforeServiceRound is not consulted for read-only (no second round exists to explain)', async () => {
+    runOAuthRound.mockResolvedValueOnce({ accessToken: 'tok-r', grantedScope: 'read', username: 'gus' });
+    const beforeServiceRound = vi.fn().mockResolvedValue(true);
+    await signInDeliberate({ scope: 'read', notifications: true }, { beforeServiceRound });
+    expect(beforeServiceRound).not.toHaveBeenCalled();
+  });
+
   it('useEmbedded: true runs every round (including the notifications one) through the embedded browser', async () => {
     runOAuthRound
       .mockResolvedValueOnce({

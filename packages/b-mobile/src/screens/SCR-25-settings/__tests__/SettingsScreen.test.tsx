@@ -183,6 +183,13 @@ describe('SettingsScreen section routing', () => {
     expect(screen.getByText('Show zoom bar')).toBeDefined();
   });
 
+  it('the hub has a back button, not just the nav menu, so there is a way out of Settings (b-oss#165)', async () => {
+    renderHub();
+    await waitFor(() => expect(fetchUserSettings).toHaveBeenCalled());
+    expect(document.querySelector('ion-back-button')).not.toBeNull();
+    expect(document.querySelector('ion-menu-button')).toBeNull();
+  });
+
   it('falls back to the hub for an unrecognised section', async () => {
     render(
       <MemoryRouter>

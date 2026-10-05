@@ -102,7 +102,12 @@ function SettingsHub() {
   return (
     <IonPage>
       <IonHeader>
-        <AppHeader title="Settings" end={<AccountIndicator />} />
+        <AppHeader
+          title="Settings"
+          variant="back"
+          backHref="/browse"
+          end={<AccountIndicator />}
+        />
       </IonHeader>
       <IonContent>
         {/* Blipfoto account settings: server-backed (user/settings), follows whichever account
