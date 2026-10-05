@@ -42,15 +42,13 @@ import type { EntryIndex } from '@b-oss/b-view';
 
 type Tab = 'recent' | 'following' | 'justme' | 'popular' | 'nearby';
 
-// Fixed depth limits Blipfoto itself enforces on these curated feeds — confirmed by the user
-// directly from blipfoto.com's own pagination (50/20 pages respectively, at the website's own
-// 6x3 = 18-entries-per-page grid) and independently corroborated live: requesting entries/recent
-// with an oversized page_size still only returns 200 entries with more:1, consistent with a real
-// total north of 200 rather than an app-side undercount (b-oss#144). Entry counts, not page
-// counts, are the portable fact — ThumbnailGrid derives its own totalPages from this at whatever
-// page size the current zoom/margins produce.
+// Recent is a fixed 900 entries: the on-device depth probe (b-oss#196) found its last page holds
+// the 900th entry whether paged at 100 or 30 (the website's own 50 pages x 18). Popular is *not*
+// fixed — the same probe measured 327 entries, below the website's nominal 20 x 18 = 360 — so it
+// has no hard-coded total and the pager grows as pages load, like Following. Entry counts, not
+// page counts, are the portable fact: ThumbnailGrid derives its own totalPages from this at
+// whatever page size the current zoom/margins produce.
 const RECENT_TOTAL_ENTRIES = 50 * 18;
-const POPULAR_TOTAL_ENTRIES = 20 * 18;
 
 function NearbyTab() {
   const navigate = useAppNavigate();
@@ -272,11 +270,7 @@ export function BrowseScreen() {
             />
           )}
           {tab === 'popular' && (
-            <FeedTab
-              fetchPage={fetchPopularPage}
-              totalEntryCount={POPULAR_TOTAL_ENTRIES}
-              resumeKey={feedKey('popular')}
-            />
+            <FeedTab fetchPage={fetchPopularPage} resumeKey={feedKey('popular')} />
           )}
           {tab === 'following' && (
             <FeedTab fetchPage={fetchFollowingPage} resumeKey={feedKey('following')} />
