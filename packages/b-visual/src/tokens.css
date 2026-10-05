@@ -7,6 +7,8 @@
  * see docs/style-guide.md.
  */
 
+@import './fonts.css';
+
 :root {
   --green-900: #143729;
   --green-800: #1f4d3a;
@@ -26,4 +28,22 @@
   --bg-alt: #fafafa;
   --photo-bg: #f0f0f0;
   --color-danger: #d04545;
+
+  /* Typography. Roboto first (self-hosted, see fonts.css), then the previous system stack so
+     text never renders unstyled while a font file loads or for scripts Roboto doesn't cover. */
+  --font-sans: 'Roboto', 'Helvetica Neue', Helvetica, Arial, sans-serif;
+  --font-weight-light: 300;
+  --font-weight-regular: 400;
+  --font-weight-medium: 500;
+  /* A scale, not roles — which step a given text uses is decided where it's used (see the
+     Typography section of docs/style-guide.md). */
+  --text-xs: 12px;
+  --text-sm: 13px;
+  --text-md: 15px;
+  --text-lg: 17px;
+  --text-xl: 22px;
+  --text-2xl: 26px;
+  --leading-tight: 1.25;
+  --leading-normal: 1.45;
+  --leading-relaxed: 1.55;
 }

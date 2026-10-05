@@ -23,6 +23,19 @@ export const tokens = {
   bgAlt: '#fafafa',
   photoBg: '#f0f0f0',
   colorDanger: '#d04545',
+  fontSans: "'Roboto', 'Helvetica Neue', Helvetica, Arial, sans-serif",
+  fontWeightLight: '300',
+  fontWeightRegular: '400',
+  fontWeightMedium: '500',
+  textXs: '12px',
+  textSm: '13px',
+  textMd: '15px',
+  textLg: '17px',
+  textXl: '22px',
+  text2xl: '26px',
+  leadingTight: '1.25',
+  leadingNormal: '1.45',
+  leadingRelaxed: '1.55',
 } as const;
 
 export type TokenName = keyof typeof tokens;
