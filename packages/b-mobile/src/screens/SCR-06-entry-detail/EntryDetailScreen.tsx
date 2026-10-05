@@ -55,11 +55,12 @@ import {
   IonButton,
   IonAlert,
 } from '@ionic/react';
-import { Pencil, Flag, UserX } from 'lucide-react';
+import { Flag, UserX } from 'lucide-react';
 import { AppHeader } from '../../components/AppHeader.js';
 import { EntryDetail } from '@b-oss/b-view';
 import type { BlipComment, EntryState } from '@b-oss/b-view';
 import { useLiveEntry } from '../../data/useLiveEntry.js';
+import { deleteEntry } from '../../data/entries.js';
 import { fetchCalendarMonth, fetchHistoryItems } from '../../data/journalDays.js';
 import { openUrl } from '../../platform/browser.js';
 import { resolveImage } from '../../platform/imageCache.js';
@@ -130,6 +131,7 @@ export function EntryDetailScreen({ entryId }: EntryDetailScreenProps) {
   const [reaction, setReaction] = useState<ReactionOverlay | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [confirmUnfollow, setConfirmUnfollow] = useState(false);
+  const [confirmDeleteEntry, setConfirmDeleteEntry] = useState(false);
   const [confirmHide, setConfirmHide] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<ApiComment | null>(null);
 
@@ -319,6 +321,16 @@ export function EntryDetailScreen({ entryId }: EntryDetailScreenProps) {
     });
   }
 
+  async function handleConfirmedDeleteEntry(): Promise<void> {
+    setConfirmDeleteEntry(false);
+    try {
+      await deleteEntry(entryId);
+      navigate.replace('/browse');
+    } catch (err) {
+      setErrorMessage(describeError(mapApiError(err), 'Could not delete this entry.'));
+    }
+  }
+
   async function handleConfirmedDelete(): Promise<void> {
     if (!deleteTarget) return;
     const target = deleteTarget;
@@ -455,16 +467,13 @@ export function EntryDetailScreen({ entryId }: EntryDetailScreenProps) {
                   </IonButton>
                 ) : undefined
               }
-              entryActions={
-                isOwnEntry && canWrite ? (
-                  <button
-                    aria-label="Edit entry"
-                    onClick={() => navigate.push(`/entry/${entryId}/edit`)}
-                    style={{ background: 'none', border: 'none', padding: 8, cursor: 'pointer' }}
-                  >
-                    <Pencil size={16} strokeWidth={1.6} />
-                  </button>
-                ) : undefined
+              ownerActions={
+                isOwnEntry && canWrite
+                  ? {
+                      onEdit: () => navigate.push(`/entry/${entryId}/edit`),
+                      onDelete: () => setConfirmDeleteEntry(true),
+                    }
+                  : undefined
               }
               renderCommentActions={renderCommentActions}
             />
@@ -520,6 +529,17 @@ export function EntryDetailScreen({ entryId }: EntryDetailScreenProps) {
       </IonContent>
 
       {accountConfirmDialog}
+
+      <IonAlert
+        isOpen={confirmDeleteEntry}
+        header="Delete this entry?"
+        message="This can't be undone."
+        onDidDismiss={() => setConfirmDeleteEntry(false)}
+        buttons={[
+          { text: 'Cancel', role: 'cancel' },
+          { text: 'Delete', role: 'destructive', handler: () => void handleConfirmedDeleteEntry() },
+        ]}
+      />
 
       <IonAlert
         isOpen={!!errorMessage}

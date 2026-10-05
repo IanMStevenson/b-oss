@@ -150,6 +150,97 @@ describe('EntryDetail', () => {
     });
   });
 
+  describe('content block (b-oss#171)', () => {
+    const base = {
+      prevEntryId: null,
+      nextEntryId: null,
+      onNavigate: () => {},
+    };
+
+    it('shows the owner pill (edit | delete) only for the segments the host allows', () => {
+      const onEdit = vi.fn();
+      const onDelete = vi.fn();
+      const { rerender } = render(
+        <EntryDetail
+          {...base}
+          entryState={loadedState(makeEntry())}
+          ownerActions={{ onEdit, onDelete }}
+        />,
+      );
+      fireEvent.click(screen.getByLabelText('Edit entry'));
+      fireEvent.click(screen.getByLabelText('Delete entry'));
+      expect(onEdit).toHaveBeenCalledTimes(1);
+      expect(onDelete).toHaveBeenCalledTimes(1);
+
+      rerender(
+        <EntryDetail {...base} entryState={loadedState(makeEntry())} ownerActions={{ onEdit }} />,
+      );
+      expect(screen.getByLabelText('Edit entry')).toBeDefined();
+      expect(screen.queryByLabelText('Delete entry')).toBeNull();
+
+      rerender(<EntryDetail {...base} entryState={loadedState(makeEntry())} />);
+      expect(screen.queryByLabelText('Edit entry')).toBeNull();
+    });
+
+    it('keeps the stars/hearts pill when there are no views to show', () => {
+      render(
+        <EntryDetail
+          {...base}
+          entryState={loadedState(makeEntry({ views_total: 0, stars_total: 7 }))}
+        />,
+      );
+      expect(screen.queryByText('views')).toBeNull();
+      expect(screen.getByText('7')).toBeDefined();
+      expect(screen.getByLabelText('View photo full-screen')).toBeDefined();
+    });
+
+    it('uses Blipfoto order: description, then stats, with comments last', () => {
+      const { container } = render(
+        <EntryDetail
+          {...base}
+          entryState={loadedState(makeEntry({ views_total: 61, tags: ['saw'] }))}
+          commentComposer={<div>composer</div>}
+        />,
+      );
+      const position = (el: Element) => Array.from(container.querySelectorAll('*')).indexOf(el);
+      const title = screen.getByText('A day at the harbour');
+      const views = screen.getByText('views');
+      const tag = screen.getByText('saw');
+      const comments = screen.getByText(/Comments \(/);
+      expect(position(title)).toBeLessThan(position(views));
+      expect(position(views)).toBeLessThan(position(tag));
+      expect(position(tag)).toBeLessThan(position(comments));
+    });
+
+    it('offers the location as a pill: a host handler, else an external maps link', () => {
+      const onLocationClick = vi.fn();
+      const entry = makeEntry({ location: { lat: 55.9, lon: -3.2 } });
+      const { rerender } = render(
+        <EntryDetail {...base} entryState={loadedState(entry)} onLocationClick={onLocationClick} />,
+      );
+      fireEvent.click(screen.getByLabelText('View on map'));
+      expect(onLocationClick).toHaveBeenCalledWith({ lat: 55.9, lon: -3.2 });
+
+      rerender(<EntryDetail {...base} entryState={loadedState(entry)} />);
+      expect(screen.getByLabelText('View on map').getAttribute('href')).toContain(
+        'maps.google.com/maps?q=55.9,-3.2',
+      );
+    });
+
+    it('renders tags as chips, tappable only when the host handles them', () => {
+      const onTagClick = vi.fn();
+      const entry = makeEntry({ tags: ['saw', 'macro'] });
+      const { rerender } = render(
+        <EntryDetail {...base} entryState={loadedState(entry)} onTagClick={onTagClick} />,
+      );
+      fireEvent.click(screen.getByLabelText('Entries tagged macro'));
+      expect(onTagClick).toHaveBeenCalledWith('macro');
+      rerender(<EntryDetail {...base} entryState={loadedState(entry)} />);
+      expect(screen.queryByLabelText('Entries tagged macro')).toBeNull();
+      expect(screen.getByText('macro')).toBeDefined();
+    });
+  });
+
   describe('swipe between entries', () => {
     function swipe(el: Element, dx: number, dy = 0) {
       fireEvent.touchStart(el, { touches: [{ clientX: 200, clientY: 300 }] });
