@@ -58,6 +58,16 @@ export async function fetchNewBlippersPage(pageIndex: number): Promise<Page<Entr
   });
 }
 
+/** Milestones — entries marking members' milestones (`entries/milestones`, an undocumented
+ * endpoint found by probing — b-api's getMilestoneEntries). Public browsing, so the same
+ * rate-limit fallback; no fixed depth is known, so no total is assumed. */
+export async function fetchMilestonesPage(pageIndex: number): Promise<Page<EntryIndex>> {
+  return withRateLimitFallback(async (client) => {
+    const res = await client.getMilestoneEntries({ pageIndex, pageSize: PAGE_SIZE });
+    return { items: res.entries.map(stubToEntryIndex), ...pageMeta(res.page) };
+  });
+}
+
 export async function fetchFollowingPage(pageIndex: number): Promise<Page<EntryIndex>> {
   const client = await getClient();
   const res = await client.getFollowingEntries({ pageIndex, pageSize: PAGE_SIZE });

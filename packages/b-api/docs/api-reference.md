@@ -406,6 +406,21 @@ Return a page of entries by new users.
 
 ---
 
+### GET entries/milestones
+
+**Not in the published docs.** Found by probing from b-mobile (b-oss#216): it returns the entries
+behind the website's Browse → Milestones page — same `page` + `entries` response as `entries/new`,
+same `page_index` / `page_size` parameters, and its first entry matches
+`blipfoto.com/browse/milestones`. Works with an app token. Treat as unofficial; it could change.
+
+**Authorization:** User / App
+
+**Parameters:** `page_index`, `page_size` (both optional)
+
+**Response:** `page` (Page), `entries` (Array(Entry))
+
+---
+
 ### GET entries/search
 
 Perform an entry search and return relevant results.

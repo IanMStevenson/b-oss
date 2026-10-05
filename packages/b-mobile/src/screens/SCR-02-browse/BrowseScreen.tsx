@@ -27,6 +27,7 @@ import {
   fetchRecentPage,
   fetchPopularPage,
   fetchNewBlippersPage,
+  fetchMilestonesPage,
   fetchFollowingPage,
   fetchJustMePage,
   fetchNearbyPage,
@@ -42,7 +43,7 @@ import { useAppNavigate } from '../../app/routes/useAppNavigate.js';
 import { getCurrentPosition } from '../../platform/geolocation.js';
 import type { EntryIndex } from '@b-oss/b-view';
 
-type Tab = 'recent' | 'following' | 'justme' | 'popular' | 'new' | 'nearby';
+type Tab = 'recent' | 'following' | 'justme' | 'popular' | 'milestones' | 'new' | 'nearby';
 
 // Recent is a fixed 900 entries: the on-device depth probe (b-oss#196) found its last page holds
 // the 900th entry whether paged at 100 or 30 (the website's own 50 pages x 18). Popular is *not*
@@ -260,6 +261,9 @@ export function BrowseScreen() {
               <IonSegmentButton value="popular">
                 <IonLabel>Popular</IonLabel>
               </IonSegmentButton>
+              <IonSegmentButton value="milestones">
+                <IonLabel>Milestones</IonLabel>
+              </IonSegmentButton>
               <IonSegmentButton value="new">
                 <IonLabel>New Blippers</IonLabel>
               </IonSegmentButton>
@@ -288,6 +292,9 @@ export function BrowseScreen() {
             <FeedTab fetchPage={fetchFollowingPage} resumeKey={feedKey('following')} />
           )}
           {tab === 'justme' && <JustMeTab resumeKey={feedKey('justme')} />}
+          {tab === 'milestones' && (
+            <FeedTab fetchPage={fetchMilestonesPage} resumeKey={feedKey('milestones')} />
+          )}
           {tab === 'new' && <FeedTab fetchPage={fetchNewBlippersPage} resumeKey={feedKey('new')} />}
           {tab === 'nearby' && <NearbyTab />}
         </div>

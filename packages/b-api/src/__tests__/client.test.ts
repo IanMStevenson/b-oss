@@ -337,6 +337,23 @@ describe('getNewEntries', () => {
   });
 });
 
+describe('getMilestoneEntries (undocumented endpoint)', () => {
+  it('calls entries/milestones with paging and returns page + entries', async () => {
+    server.use(
+      http.get(`${BASE}entries/milestones.json`, ({ request }) => {
+        const url = new URL(request.url);
+        expect(url.searchParams.get('page_index')).toBe('2');
+        expect(url.searchParams.get('page_size')).toBe('100');
+        return HttpResponse.json(envelope({ page: mockPage, entries: [mockEntryStub] }), {
+          headers: rateLimitHeaders(),
+        });
+      }),
+    );
+    const result = await makeAppClient().getMilestoneEntries({ pageIndex: 2, pageSize: 100 });
+    expect(result.entries).toHaveLength(1);
+  });
+});
+
 describe('searchEntries (User auth only)', () => {
   it('sends text query and sort', async () => {
     server.use(
@@ -792,9 +809,12 @@ describe('getJournalMonth (User auth only)', () => {
         const url = new URL(request.url);
         expect(url.searchParams.get('username')).toBe('gbradley');
         expect(url.searchParams.get('week_start')).toBe('7');
-        return HttpResponse.json(envelope({ month: { month: 1, year: 2024, week_start: 7, days: [] } }), {
-          headers: rateLimitHeaders(),
-        });
+        return HttpResponse.json(
+          envelope({ month: { month: 1, year: 2024, week_start: 7, days: [] } }),
+          {
+            headers: rateLimitHeaders(),
+          },
+        );
       }),
     );
     await makeUserClient().getJournalMonth('2024-01-01', {
