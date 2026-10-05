@@ -3,7 +3,7 @@
 // @vitest-environment jsdom
 
 import { describe, it, expect, afterEach, beforeEach, vi } from 'vitest';
-import { render, screen, cleanup, waitFor } from '@testing-library/react';
+import { render, screen, cleanup, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { Router } from 'react-router-dom';
 import { createMemoryHistory } from 'history';
@@ -23,6 +23,57 @@ vi.mock('../../../data/notifications.js', async () => {
 
 const { deleteComment } = vi.hoisted(() => ({ deleteComment: vi.fn() }));
 vi.mock('../../../flows/commentsFlow.js', () => ({ deleteComment }));
+
+// Ionic's IonActionSheet / IonAlert run animated present/dismiss lifecycles. In jsdom, under CPU
+// load, that lifecycle intermittently drops a click so the button's handler is never called (b-oss#193:
+// reproduced 3 in 8 parallel runs; repeating the click, waiting longer, or swapping userEvent for
+// fireEvent did not help — there is nothing to wait for). That is Ionic's own behaviour, not ours,
+// so these tests use plain synchronous stand-ins and exercise what this screen is responsible for:
+// which buttons it offers and what each one does. Same "mock at the boundary" approach as every
+// platform/** consumer test.
+vi.mock('@ionic/react', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@ionic/react')>();
+  type StubButton = string | { text: string; role?: string; handler?: () => void };
+  interface StubOverlayProps {
+    isOpen: boolean;
+    header?: string;
+    message?: string;
+    buttons?: StubButton[];
+    onDidDismiss?: () => void;
+  }
+  function stubOverlay(kind: string) {
+    return function StubOverlay({
+      isOpen,
+      header,
+      message,
+      buttons = [],
+      onDidDismiss,
+    }: StubOverlayProps) {
+      if (!isOpen) return null;
+      return (
+        <div role="dialog" aria-label={header ?? kind}>
+          {message && <p>{message}</p>}
+          {buttons.map((b) => {
+            const button = typeof b === 'string' ? { text: b } : b;
+            return (
+              <button
+                key={button.text}
+                data-role={button.role}
+                onClick={() => {
+                  button.handler?.();
+                  onDidDismiss?.();
+                }}
+              >
+                {button.text}
+              </button>
+            );
+          })}
+        </div>
+      );
+    };
+  }
+  return { ...actual, IonActionSheet: stubOverlay('Actions'), IonAlert: stubOverlay('Alert') };
+});
 
 vi.mock('../../../platform/prefs.js', () => ({
   getPref: vi.fn().mockResolvedValue(null),
@@ -119,10 +170,8 @@ describe('CommentsInboxScreen', () => {
     expect(screen.getByLabelText('More actions')).toBeDefined();
 
     await userEvent.click(screen.getByLabelText('More actions'));
-    expect(
-      await screen.findByText('Delete', { selector: '.action-sheet-button-inner' }),
-    ).toBeDefined();
-    expect(screen.getByText('Report', { selector: '.action-sheet-button-inner' })).toBeDefined();
+    expect(await screen.findByText('Delete')).toBeDefined();
+    expect(screen.getByText('Report')).toBeDefined();
     expect(screen.getByText('Hide this member')).toBeDefined();
   });
 
@@ -131,8 +180,8 @@ describe('CommentsInboxScreen', () => {
     renderScreen();
     await screen.findByText('lovely light!');
     await userEvent.click(screen.getByLabelText('More actions'));
-    await screen.findByText('Report', { selector: '.action-sheet-button-inner' });
-    expect(screen.queryByText('Delete', { selector: '.action-sheet-button-inner' })).toBeNull();
+    await screen.findByText('Report');
+    expect(screen.queryByText('Delete')).toBeNull();
   });
 
   it('comments from a hidden member are excluded entirely, not just marked', async () => {
@@ -158,9 +207,7 @@ describe('CommentsInboxScreen', () => {
     renderScreen();
     await screen.findByText('lovely light!');
     await userEvent.click(screen.getByLabelText('More actions'));
-    await userEvent.click(
-      await screen.findByText('Hide this member', { selector: '.action-sheet-button-inner' }),
-    );
+    await userEvent.click(await screen.findByText('Hide this member'));
     expect(screen.queryByText('lovely light!')).toBeNull();
   });
 
@@ -187,21 +234,11 @@ describe('CommentsInboxScreen', () => {
     expect(history.location.state).toMatchObject({ replyToCommentId: '1' });
   });
 
-  // Retried, not just given a longer waitFor: in this jsdom setup, IonActionSheet's own
-  // animated-dismiss-then-fire-handler lifecycle occasionally never delivers the click to a
-  // button's `handler` at all when many other overlay-driving tests have run earlier in the same
-  // file — confirmed environment timing, not an app bug: the same buttons-array/closure pattern
-  // is what "deletes a comment" below relies on and that one is stable, and a real-browser replay
-  // of this exact flow (More actions -> Report) navigates every time. Neither a longer waitFor
-  // timeout nor swapping userEvent for fireEvent changed the failure rate — the handler dispatch
-  // itself doesn't happen in the failing runs, so no amount of waiting after the click helps.
-  it('Report opens the report screen scoped to that comment', { retry: 3 }, async () => {
+  it('Report opens the report screen scoped to that comment', async () => {
     fetchRecentComments.mockResolvedValue([comment()]);
     const history = renderScreen();
     await userEvent.click(await screen.findByLabelText('More actions'));
-    await userEvent.click(
-      await screen.findByText('Report', { selector: '.action-sheet-button-inner' }),
-    );
+    await userEvent.click(await screen.findByText('Report'));
     expect(history.location.pathname).toBe('/entry/100/report');
     expect(history.location.state).toMatchObject({
       targetUsername: 'alice',
@@ -214,16 +251,9 @@ describe('CommentsInboxScreen', () => {
     deleteComment.mockResolvedValue(undefined);
     renderScreen();
     await userEvent.click(await screen.findByLabelText('More actions'));
-    await userEvent.click(
-      await screen.findByText('Delete', { selector: '.action-sheet-button-inner' }),
-    );
-    await waitFor(() =>
-      expect(document.querySelector('button.alert-button-role-destructive')).not.toBeNull(),
-    );
-    const confirmButton = document.querySelector<HTMLButtonElement>(
-      'button.alert-button-role-destructive',
-    )!;
-    await userEvent.click(confirmButton);
+    await userEvent.click(await screen.findByText('Delete')); // the action sheet's Delete…
+    const confirm = await screen.findByRole('dialog', { name: /Delete .*comment/ });
+    await userEvent.click(within(confirm).getByText('Delete')); // …then the confirmation's
     await waitFor(() => expect(deleteComment).toHaveBeenCalledWith('1'));
     expect(screen.queryByText('lovely light!')).toBeNull();
   });
