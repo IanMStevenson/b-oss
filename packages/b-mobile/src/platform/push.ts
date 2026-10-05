@@ -13,7 +13,7 @@
 // Web has no push transport wired into this build (no FCM web SDK) — every export is a no-op off
 // native, the same stance platform/localNotifications.ts already takes.
 
-import { Capacitor } from '@capacitor/core';
+import { Capacitor, registerPlugin } from '@capacitor/core';
 import { PushNotifications } from '@capacitor/push-notifications';
 import type { ActionPerformed, PushNotificationSchema } from '@capacitor/push-notifications';
 
@@ -43,6 +43,24 @@ function parsePayload(data: unknown): PushPayload | null {
   return null;
 }
 
+interface PushAvailabilityPlugin {
+  isAvailable(): Promise<{ available: boolean }>;
+}
+
+const PushAvailability = registerPlugin<PushAvailabilityPlugin>('PushAvailability');
+
+/** Whether this build carries Firebase credentials (see PushAvailabilityPlugin.java). Without
+ * them `PushNotifications.register()` kills the app process natively — uncatchable from JS — so
+ * every push entry point must check this first. `false` off native too: nothing to register. */
+export async function isPushAvailable(): Promise<boolean> {
+  if (!Capacitor.isNativePlatform()) return false;
+  try {
+    return (await PushAvailability.isAvailable()).available;
+  } catch {
+    return false;
+  }
+}
+
 export async function checkPushPermission(): Promise<PushPermissionState> {
   if (!Capacitor.isNativePlatform()) return 'denied';
   const status = await PushNotifications.checkPermissions();
@@ -66,8 +84,8 @@ export function pushPlatform(): 'android' | 'ios' | null {
  * registration fails (`registrationError`) — treated the same as a permission refusal by callers
  * (rules.md: no separate "blocked" state). Must only be called once permission is confirmed
  * granted (rules.md: never authorize something already known to be undeliverable). */
-export function registerPush(): Promise<string | null> {
-  if (!Capacitor.isNativePlatform()) return Promise.resolve(null);
+export async function registerPush(): Promise<string | null> {
+  if (!(await isPushAvailable())) return null;
   return new Promise((resolve) => {
     let settled = false;
     let regHandle: { remove: () => void } | undefined;

@@ -8,6 +8,7 @@
 // the app's own tokens) even though the two are invoked from the same call sites.
 
 import {
+  isPushAvailable,
   checkPushPermission,
   requestPushPermission,
   registerPush,
@@ -29,6 +30,9 @@ import { handleForcedLogout } from './accountsFlow.js';
  * distinct "blocked" state — the caller just doesn't proceed to registration, same as turning the
  * feature off (rules.md's no-remembered-blocked-state rule). */
 export async function ensurePushPermission(): Promise<boolean> {
+  // A build without Firebase credentials can never deliver, so don't even prompt for permission
+  // (same "never authorize something already known to be undeliverable" rule as above).
+  if (!(await isPushAvailable())) return false;
   const current = await checkPushPermission();
   if (current === 'granted') return true;
   if (current === 'denied') return false;
