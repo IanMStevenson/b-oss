@@ -13,6 +13,7 @@ import { MemoryRouter } from 'react-router-dom';
 import { SignInScreen } from '../SignInScreen.js';
 import { OverlayProvider, OverlayHost } from '../../../app/OverlayProvider.js';
 import { useDevicePrefsStore } from '../../../state/devicePrefsStore.js';
+import * as accountsStore from '../../../state/accountsStore.js';
 
 const { MockOAuthCancelledError, signInDeliberate } = vi.hoisted(() => {
   class MockOAuthCancelledError extends Error {
@@ -78,6 +79,17 @@ function renderScreen() {
 }
 
 describe('SignInScreen', () => {
+  it('shows the menu button when signed out, and Back when an account exists (drilled in)', () => {
+    const spy = vi.spyOn(accountsStore, 'useActiveAccount').mockReturnValue(null);
+    renderScreen();
+    expect(screen.queryByLabelText('Back')).toBeNull();
+    cleanup();
+    spy.mockReturnValue({ username: 'ian' } as never);
+    renderScreen();
+    expect(document.querySelector('ion-back-button')).not.toBeNull();
+    spy.mockRestore();
+  });
+
   it('idle: renders the mode choice defaulted to read-write, notifications off', () => {
     renderScreen();
     expect(screen.getByText('Continue').hasAttribute('disabled')).toBe(false);
