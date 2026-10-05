@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (C) 2026 Ian Stevenson
 
-// SCR-03 — Search (FLW-04). Two in-screen tabs, same "stay mounted once visited" pattern
-// BrowseScreen uses for its five feeds (rules.md: "switching back to a tab loaded earlier in the
-// same visit doesn't force a re-query" applies to SCR-03 too). Entries reuses EntryGrid/
+// SCR-03 — Search (FLW-04). Two in-screen tabs; only the active one is mounted, and choosing a tab
+// starts it fresh at page 1 (device feedback 2026-10-05, same rule as Browse and Profile — this
+// supersedes rules.md's earlier "switching back to a tab loaded earlier doesn't re-query"). Entries reuses EntryGrid/
 // usePagedResource exactly like every other feed; People is new territory but `users/search`
 // returns the same BlipUser shape the paged-people-list screens already use, so it reuses UserRow
 // directly (checked in data/users.ts's fetchSearchUsersPage doc comment).
@@ -41,7 +41,7 @@ import type { RefresherEventDetail } from '@ionic/core';
 import { AppHeader } from '../../components/AppHeader.js';
 import { AccountIndicator } from '../../components/AccountIndicator.js';
 import { usePagedResource } from '../../data/usePagedResource.js';
-import { resumeGet, resumeSet } from '../../data/resumeCache.js';
+import { resumeClear, resumeGet, resumeSet } from '../../data/resumeCache.js';
 import { useActiveAccount } from '../../state/accountsStore.js';
 import { useDebouncedValue } from '../../data/useDebounce.js';
 import { fetchSearchEntriesPage, PAGE_SIZE } from '../../data/entries.js';
@@ -213,7 +213,6 @@ function PeopleTab({
 
 interface SearchUi {
   tab: Tab;
-  visited: Tab[];
   input: string;
   submitted: string | null;
 }
@@ -228,9 +227,6 @@ export function SearchScreen() {
   // own resume keys) the results and page (b-oss#190).
   const [saved] = useState(() => resumeGet<SearchUi>(uiKey));
   const [tab, setTab] = useState<Tab>(saved?.tab ?? 'entries');
-  const [visited, setVisited] = useState<Set<Tab>>(
-    new Set<Tab>([saved?.tab ?? 'entries', ...(saved?.visited ?? [])]),
-  );
   const [inputValue, setInputValue] = useState(saved?.input ?? '');
   // Set on Enter/submit to bypass the debounce; cleared on the next keystroke so typing resumes
   // the normal debounced path. `term` prefers this over the debounced value whenever it's set.
@@ -239,13 +235,8 @@ export function SearchScreen() {
   const term = submittedValue ?? debouncedValue;
 
   useEffect(() => {
-    resumeSet<SearchUi>(uiKey, {
-      tab,
-      visited: [...visited],
-      input: inputValue,
-      submitted: submittedValue,
-    });
-  }, [uiKey, tab, visited, inputValue, submittedValue]);
+    resumeSet<SearchUi>(uiKey, { tab, input: inputValue, submitted: submittedValue });
+  }, [uiKey, tab, inputValue, submittedValue]);
 
   function handleInputChange(value: string): void {
     setInputValue(value);
@@ -263,9 +254,12 @@ export function SearchScreen() {
     setSubmittedValue(null);
   }
 
+  // Choosing a tab starts it at page 1: only the active tab is mounted and its remembered results
+  // page is dropped here. Back from an entry doesn't pass through this (b-oss#204).
   function handleTabChange(next: Tab): void {
+    if (next === tab) return;
+    resumeClear(`search:${scope}:${next}:`);
     setTab(next);
-    setVisited((prev) => (prev.has(next) ? prev : new Set(prev).add(next)));
   }
 
   return (
@@ -305,26 +299,24 @@ export function SearchScreen() {
         </IonToolbar>
       </IonHeader>
       <IonContent>
-        {[...visited].map((t) => (
-          <div key={t} hidden={t !== tab} style={{ height: '100%' }}>
-            {t === 'entries' && (
-              <EntriesTab
-                term={term}
-                scope={scope}
-                active={tab === 'entries'}
-                onSelectEntry={(id) => navigate.push(`/entry/${id}`)}
-              />
-            )}
-            {t === 'people' && (
-              <PeopleTab
-                term={term}
-                scope={scope}
-                active={tab === 'people'}
-                onSelectUser={(username) => navigate.push(`/user/${encodeURIComponent(username)}`)}
-              />
-            )}
-          </div>
-        ))}
+        <div key={`${scope}:${tab}`} style={{ height: '100%' }}>
+          {tab === 'entries' && (
+            <EntriesTab
+              term={term}
+              scope={scope}
+              active
+              onSelectEntry={(id) => navigate.push(`/entry/${id}`)}
+            />
+          )}
+          {tab === 'people' && (
+            <PeopleTab
+              term={term}
+              scope={scope}
+              active
+              onSelectUser={(username) => navigate.push(`/user/${encodeURIComponent(username)}`)}
+            />
+          )}
+        </div>
       </IonContent>
     </IonPage>
   );

@@ -67,9 +67,10 @@ Tab set depends on sign-in state, and **changes live** when the user signs in/ou
 
 ## Actions & rules
 - **Tap thumbnail** → `SCR-06 Entry Detail` for that entry.
-- **Switch tab** → show that tab's already-loaded results if fetched earlier this session, else
-  lazy-load the first page (in-session state, not the caching rule in [rules.md](../rules.md) —
-  a freshly (re-)entered tab always fetches fresh).
+- **Switch tab** → the chosen tab always starts fresh at its first page (device feedback
+  2026-10-05; applies to Browse, Search and Profile). Only the active tab is mounted. Coming *Back*
+  from an entry is different: it restores the tab and the page you left (see the navigation-model
+  section of app-architecture.md).
 - **Pull-to-refresh** → reload page one of the active tab.
 - **Scroll to end** → load the next page; stop when the API reports no more.
 - **Sign in / out** → swap the tab set and reload the first tab (`FLW-01` / `FLW-02`).

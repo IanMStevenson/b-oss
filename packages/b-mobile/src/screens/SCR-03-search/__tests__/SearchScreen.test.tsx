@@ -192,7 +192,7 @@ describe('SearchScreen', () => {
     expect(screen.getByText('(Hidden)')).toBeDefined();
   });
 
-  it('does not refetch a tab already searched for the same term when switching back to it', async () => {
+  it('choosing a tab starts it again from its first page rather than remembering where you were (b-oss#204)', async () => {
     const { fetchSearchEntriesPage } = await import('../../../data/entries.js');
     const { fetchSearchUsersPage } = await import('../../../data/users.js');
     vi.mocked(fetchSearchEntriesPage).mockResolvedValue({ items: [entry], more: false });
@@ -202,12 +202,18 @@ describe('SearchScreen', () => {
     await screen.findByLabelText('2026-01-01');
     expect(fetchSearchEntriesPage).toHaveBeenCalledTimes(1);
 
-    const segment = document.querySelector('ion-segment')!;
-    segment.dispatchEvent(new CustomEvent('ionChange', { detail: { value: 'people' } }));
-    segment.dispatchEvent(new CustomEvent('ionChange', { detail: { value: 'entries' } }));
+    const pick = (value: string) =>
+      document
+        .querySelector('ion-segment')!
+        .dispatchEvent(new CustomEvent('ionChange', { detail: { value } }));
+    pick('people');
+    await waitFor(() => expect(fetchSearchUsersPage).toHaveBeenCalledTimes(1));
+    pick('entries');
 
-    await new Promise((r) => setTimeout(r, 500));
-    expect(fetchSearchEntriesPage).toHaveBeenCalledTimes(1);
+    await waitFor(() => expect(fetchSearchEntriesPage).toHaveBeenCalledTimes(2));
+    expect(vi.mocked(fetchSearchEntriesPage).mock.calls[1]?.[1]).toBe(
+      vi.mocked(fetchSearchEntriesPage).mock.calls[0]?.[1],
+    ); // the same first page as the original search
   });
 
   describe('keeps your place when you open a result and come Back (b-oss#190)', () => {

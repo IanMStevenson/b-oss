@@ -331,11 +331,11 @@ quick actions, and the five feeds are a **tab strip inside the Browse screen**, 
 - **A single `IonRouterOutlet`** holds the page stack. There are no router-level tabs, so no
   `IonTabs`.
 - **`SCR-02`'s five feeds are in-screen state**, held by the Browse screen: a header
-  `IonSegment` plus a CSS scroll-snap pager for swiping (no extra dependency). Each feed keeps its
-  loaded pages and scroll position while the screen is mounted, which is exactly `rules.md`'s
-  "switching back to a tab loaded earlier in the same visit doesn't force a re-query" — and, being
-  component state, it is correctly _gone_ when the screen is freshly entered. `SCR-03` Search works
-  the same way for its two tabs.
+  `IonSegment`. Only the active tab is mounted, keyed by account + tab, and **choosing a tab
+  starts it at page 1** (this supersedes `rules.md`'s earlier "switching back to a tab loaded
+  earlier in the same visit doesn't force a re-query", by device feedback 2026-10-05); switching
+  account rebuilds the feed. Coming Back from an entry restores the tab and page via the resume
+  cache (see "Navigation model" below). `SCR-03` Search and `SCR-17/18` Profile work the same way.
 - **A persistent `AppHeader` component** renders the title bar, the menu button, the quick actions,
   and the `(av)` account indicator (shown only with two or more stored accounts, per `rules.md`).
   Every `IonPage` renders it rather than each screen rebuilding a header.
