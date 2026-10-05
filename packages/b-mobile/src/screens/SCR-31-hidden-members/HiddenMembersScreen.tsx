@@ -25,7 +25,7 @@ export function HiddenMembersScreen() {
   return (
     <IonPage>
       <IonHeader>
-        <AppHeader title="Hidden members" variant="back" backHref="/browse" />
+        <AppHeader title="Hidden members" variant="back" backHref="/settings" />
       </IonHeader>
       <IonContent className="ion-padding">
         <p>

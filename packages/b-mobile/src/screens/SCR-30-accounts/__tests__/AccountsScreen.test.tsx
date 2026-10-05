@@ -71,6 +71,12 @@ function renderScreen() {
 }
 
 describe('AccountsScreen', () => {
+  it('has a back button (reached from Settings), not the nav menu button (b-oss#165)', () => {
+    renderScreen();
+    expect(document.querySelector('ion-back-button')).not.toBeNull();
+    expect(document.querySelector('ion-menu-button')).toBeNull();
+  });
+
   it('empty: shows only "+ Add account" with no accounts configured', () => {
     useAccountsStore.setState({ accounts: [], activeAccountId: null });
     renderScreen();
