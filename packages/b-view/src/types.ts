@@ -12,6 +12,10 @@ export interface BlipComment {
   comment_id: string;
   parent_id: string | null;
   commenter_username: string;
+  /** The commenter's avatar (URL or backup-relative path). Absent for a host that has none — the
+   * backup viewer — which then renders comments without an avatar column; present-but-empty means
+   * "has no avatar", shown as a neutral placeholder so the column still lines up. */
+  commenter_avatar?: string;
   content: string;
   content_html: string;
   replies: BlipComment[];

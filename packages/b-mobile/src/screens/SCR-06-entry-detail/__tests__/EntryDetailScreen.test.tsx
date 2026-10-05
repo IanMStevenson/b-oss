@@ -593,6 +593,25 @@ describe('EntryDetailScreen', () => {
       expect(box().value).toBe('Lovely'); // nothing lost
     });
 
+    it('says so when comments are switched off, instead of silently hiding the box', async () => {
+      await load({
+        ...baseLoadedEntry,
+        actions: { star: 1, favorite: 1, comment: 0, edit: 0, delete: 0 },
+      });
+      renderScreen();
+      await screen.findByText('A day out');
+      expect(screen.getByText('Comments are turned off for this journal.')).toBeDefined();
+      expect(screen.queryByLabelText('Your comment')).toBeNull();
+    });
+
+    it('opens a commenter’s profile from their name (yours goes to /me)', async () => {
+      await load(withComment(noActions));
+      renderScreen();
+      await screen.findByText('First!');
+      await userEvent.click(screen.getByText('bob'));
+      expect(navPush).toHaveBeenLastCalledWith('/user/bob');
+    });
+
     it('Reply opens a composer beneath that comment, posts with its parent, then closes', async () => {
       const { postComment } = await flows();
       vi.mocked(postComment).mockResolvedValue({} as never);

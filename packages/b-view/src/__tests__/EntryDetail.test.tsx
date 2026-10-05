@@ -311,6 +311,88 @@ describe('EntryDetail', () => {
     });
   });
 
+  describe('comment rendering (Blipfoto style)', () => {
+    const base = { prevEntryId: null, nextEntryId: null, onNavigate: () => {} };
+    const comment = (over: Record<string, unknown> = {}) => ({
+      comment_id: 'c1',
+      parent_id: null,
+      commenter_username: 'alice',
+      content: 'First!',
+      content_html: '',
+      replies: [],
+      ...over,
+    });
+    const entryWith = (comments: ReturnType<typeof comment>[]) =>
+      loadedState(makeEntry({ comments }));
+
+    it('puts the composer above the list of comments', () => {
+      const { container } = render(
+        <EntryDetail
+          {...base}
+          entryState={entryWith([comment()])}
+          commentComposer={<div>composer</div>}
+        />,
+      );
+      const position = (el: Element) => Array.from(container.querySelectorAll('*')).indexOf(el);
+      expect(position(screen.getByText('Comments (1)'))).toBeLessThan(
+        position(screen.getByText('composer')),
+      );
+      expect(position(screen.getByText('composer'))).toBeLessThan(
+        position(screen.getByText('First!')),
+      );
+    });
+
+    it('shows an avatar column only when the host supplies avatars', () => {
+      const { container, rerender } = render(
+        <EntryDetail {...base} entryState={entryWith([comment()])} />,
+      );
+      expect(container.querySelector('img[src*="alice.jpg"]')).toBeNull();
+      expect(container.querySelector(`.${styles.commentAvatar}`)).toBeNull(); // viewer: no column
+
+      rerender(
+        <EntryDetail
+          {...base}
+          entryState={entryWith([comment({ commenter_avatar: 'https://cdn.example/alice.jpg' })])}
+        />,
+      );
+      expect(container.querySelector('img[src="https://cdn.example/alice.jpg"]')).not.toBeNull();
+
+      rerender(
+        <EntryDetail {...base} entryState={entryWith([comment({ commenter_avatar: '' })])} />,
+      );
+      expect(container.querySelector(`.${styles.commentAvatar}`)).not.toBeNull(); // placeholder keeps the column
+      expect(container.querySelector(`.${styles.commentAvatar} img`)).toBeNull();
+    });
+
+    it('makes the commenter a link only when the host handles it', () => {
+      const onUserClick = vi.fn();
+      const { rerender } = render(
+        <EntryDetail {...base} entryState={entryWith([comment()])} onUserClick={onUserClick} />,
+      );
+      fireEvent.click(screen.getByText('alice'));
+      expect(onUserClick).toHaveBeenCalledWith('alice');
+
+      rerender(<EntryDetail {...base} entryState={entryWith([comment()])} />);
+      expect(screen.getByText('alice').tagName).toBe('SPAN');
+    });
+
+    it('renders host badges beside the name, on replies too', () => {
+      render(
+        <EntryDetail
+          {...base}
+          entryState={entryWith([
+            comment({
+              replies: [comment({ comment_id: 'c2', commenter_username: 'bob', content: 'Re' })],
+            }),
+          ])}
+          renderCommenterBadges={(c) => <span>badge-{c.commenter_username}</span>}
+        />,
+      );
+      expect(screen.getByText('badge-alice')).toBeDefined();
+      expect(screen.getByText('badge-bob')).toBeDefined();
+    });
+  });
+
   describe('swipe between entries', () => {
     function swipe(el: Element, dx: number, dy = 0) {
       fireEvent.touchStart(el, { touches: [{ clientX: 200, clientY: 300 }] });

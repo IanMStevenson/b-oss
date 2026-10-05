@@ -59,8 +59,10 @@
 }
 
 .submit:disabled {
-  border-color: var(--ink-disabled, #d0d3d8);
-  color: var(--ink-disabled, #d0d3d8);
+  /* Still plainly a button — the near-invisible --ink-disabled made an empty box look broken
+     ("comments have been disabled") — just visibly not active yet. */
+  border-color: var(--muted-2);
+  color: var(--muted);
   cursor: default;
 }
 

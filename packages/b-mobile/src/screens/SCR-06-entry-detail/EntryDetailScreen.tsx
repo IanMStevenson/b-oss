@@ -64,6 +64,8 @@ import { deleteEntry } from '../../data/entries.js';
 import { fetchAuthorAvatar } from '../../data/users.js';
 import { useCommentComposers } from './useCommentComposers.js';
 import { EntryAuthorBlock, type FollowControl } from '../../components/EntryAuthorBlock.js';
+import { UserBadges } from '../../components/UserBadges.js';
+import { t } from '../../strings/index.js';
 import { fetchCalendarMonth, fetchHistoryItems } from '../../data/journalDays.js';
 import { openUrl } from '../../platform/browser.js';
 import { resolveImage } from '../../platform/imageCache.js';
@@ -440,6 +442,9 @@ export function EntryDetailScreen({ entryId, initialReplyToCommentId }: EntryDet
   const showReactions =
     !hideForReadOnly && (!activeAccount || (actions?.star !== 0 && actions?.favorite !== 0));
   const showComment = !hideForReadOnly && (!activeAccount || actions?.comment !== 0);
+  // Comments switched off on this journal (actions.comment === 0): say so rather than leaving the
+  // user to wonder where the comment box went (SCR-06.comments_disabled, per the spec).
+  const commentsOff = !hideForReadOnly && !!activeAccount && actions?.comment === 0;
   // Straight from the loaded friendship until you act (an effect seeds `reaction` a render later,
   // which flashed "follow" for someone you already follow).
   const friendshipState = reaction?.friendshipState ?? friendship?.state ?? null;
@@ -515,7 +520,17 @@ export function EntryDetailScreen({ entryId, initialReplyToCommentId }: EntryDet
                   : undefined
               }
               commentComposer={
-                showComment ? (
+                commentsOff ? (
+                  <p
+                    style={{
+                      margin: '8px 0',
+                      color: 'var(--muted)',
+                      fontSize: 'var(--text-sm, 13px)',
+                    }}
+                  >
+                    {t('SCR-06.comments_disabled')}
+                  </p>
+                ) : showComment ? (
                   <CommentComposer
                     value={composers.mainValue}
                     onChange={composers.setMainValue}
@@ -525,6 +540,16 @@ export function EntryDetailScreen({ entryId, initialReplyToCommentId }: EntryDet
                   />
                 ) : undefined
               }
+              onUserClick={(username) =>
+                navigate.push(
+                  username === activeAccount?.username
+                    ? '/me'
+                    : `/user/${encodeURIComponent(username)}`,
+                )
+              }
+              renderCommenterBadges={(comment) => (
+                <UserBadges icons={commentActionsMap.get(comment.comment_id)?.commenter.icons} />
+              )}
               renderCommentEditor={(comment) =>
                 composers.target?.kind === 'edit' &&
                 composers.target.viewId === comment.comment_id ? (
