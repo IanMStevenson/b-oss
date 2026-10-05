@@ -418,6 +418,54 @@ describe('ThumbnailGrid onSeek / entriesOffset / onLoadBefore (b-oss#153)', () =
     expect(onLoadBefore).toHaveBeenCalledTimes(1);
   });
 
+  it('re-fires onNearEnd when a seek lands so the target page is only partly loaded', () => {
+    // Regression (b-oss#153 follow-up): the API window a seek fetches is a different size from the
+    // grid's page, so the target page can straddle the end of it. hasNext was already false before
+    // and after the seek, so the old transition-only trigger never asked for the missing tail —
+    // the user saw an incomplete page until they stepped away and back.
+    const onNearEnd = vi.fn();
+    const { rerender } = render(
+      <ThumbnailGrid
+        entries={makeEntries(4)}
+        selectedEntryId={null}
+        onSelectEntry={() => {}}
+        totalEntryCount={40}
+        onSeek={() => {}}
+        onNearEnd={onNearEnd}
+      />,
+    );
+    fireEvent.click(screen.getByLabelText('Page 10')); // target absolute 36
+    const callsBeforeSeekLands = onNearEnd.mock.calls.length;
+
+    // The seek lands on an API window that starts at 34: page 10 (36..39) has only 36, 37 so far.
+    rerender(
+      <ThumbnailGrid
+        entries={makeEntries(4, 35)}
+        entriesOffset={34}
+        selectedEntryId={null}
+        onSelectEntry={() => {}}
+        totalEntryCount={40}
+        onSeek={() => {}}
+        onNearEnd={onNearEnd}
+      />,
+    );
+    expect(onNearEnd.mock.calls.length).toBeGreaterThan(callsBeforeSeekLands);
+  });
+
+  it('passes the absolute target to onLoadBefore so a host can seek when a prepend cannot reach it', () => {
+    const onLoadBefore = vi.fn();
+    render(
+      <ThumbnailGrid
+        entries={makeEntries(4, 37)}
+        entriesOffset={36}
+        selectedEntryId={null}
+        onSelectEntry={() => {}}
+        onLoadBefore={onLoadBefore}
+      />,
+    );
+    expect(onLoadBefore).toHaveBeenCalledWith(0);
+  });
+
   it('"First page" seeks directly to absolute 0 rather than incrementally loading backward', () => {
     const onSeek = vi.fn();
     render(

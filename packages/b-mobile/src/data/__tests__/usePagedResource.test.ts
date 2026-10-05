@@ -135,3 +135,82 @@ describe('usePagedResource — loadBefore (b-oss#153)', () => {
     expect(fetchPage).toHaveBeenCalledTimes(1); // only the initial refresh() call — no extra fetch
   });
 });
+
+describe('usePagedResource — device-test follow-ups (b-oss#153)', () => {
+  const pagesOf = (pageIndex: number) =>
+    Promise.resolve(page(pageIndex * PAGE_SIZE, PAGE_SIZE, true));
+
+  it('loadBefore with a target further back than one page seeks there instead of prepending', async () => {
+    // Regression: a window re-anchored far from the start, then paged back to page 1, called
+    // loadBefore() — which fetches only the one page before the window and so could never reach
+    // the start. The grid sat on "Loading…" until the user tapped another page and back.
+    const fetchPage = vi.fn(pagesOf);
+    const { result } = renderHook(() => usePagedResource(fetchPage, [], PAGE_SIZE));
+    await waitFor(() => expect(result.current.status).toBe('loaded'));
+    act(() => result.current.seekTo(300 * PAGE_SIZE)); // far away
+    await waitFor(() => expect(result.current.seeking).toBe(false));
+    fetchPage.mockClear();
+
+    act(() => result.current.loadBefore(0));
+    await waitFor(() => expect(result.current.seeking).toBe(false));
+
+    expect(fetchPage).toHaveBeenCalledTimes(1);
+    expect(fetchPage).toHaveBeenCalledWith(0);
+    expect(result.current.windowStart).toBe(0);
+    expect(result.current.hasBefore).toBe(false);
+  });
+
+  it('loadBefore with a target inside the immediately-previous page still just prepends', async () => {
+    const fetchPage = vi.fn(pagesOf);
+    const { result } = renderHook(() => usePagedResource(fetchPage, [], PAGE_SIZE));
+    await waitFor(() => expect(result.current.status).toBe('loaded'));
+    act(() => result.current.seekTo(10 * PAGE_SIZE));
+    await waitFor(() => expect(result.current.seeking).toBe(false));
+
+    act(() => result.current.loadBefore(10 * PAGE_SIZE - 5));
+    await waitFor(() => expect(result.current.loadingBefore).toBe(false));
+
+    expect(result.current.windowStart).toBe(9 * PAGE_SIZE);
+    expect(result.current.items).toHaveLength(PAGE_SIZE * 2);
+  });
+
+  it('a second seekTo while one is in flight wins instead of being dropped', async () => {
+    let resolveFirst: (p: Page<number>) => void = () => {};
+    const fetchPage = vi.fn((pageIndex: number) => {
+      if (pageIndex === 5) return new Promise<Page<number>>((r) => (resolveFirst = r));
+      return pagesOf(pageIndex);
+    });
+    const { result } = renderHook(() => usePagedResource(fetchPage, [], PAGE_SIZE));
+    await waitFor(() => expect(result.current.status).toBe('loaded'));
+
+    act(() => result.current.seekTo(5 * PAGE_SIZE)); // stays pending
+    act(() => result.current.seekTo(0)); // user taps page 1 meanwhile
+    await waitFor(() => expect(result.current.seeking).toBe(false));
+    act(() => resolveFirst(page(5 * PAGE_SIZE, PAGE_SIZE, true))); // stale one lands late
+    await new Promise((r) => setTimeout(r, 0));
+
+    expect(fetchPage).toHaveBeenCalledWith(0);
+    expect(result.current.windowStart).toBe(0);
+    expect(result.current.items[0]).toBe(0);
+  });
+
+  it('loadMore is a no-op while a seek is in flight (would append the old window onto the new one)', async () => {
+    let resolveSeek: (p: Page<number>) => void = () => {};
+    const fetchPage = vi.fn((pageIndex: number) => {
+      if (pageIndex === 9) return new Promise<Page<number>>((r) => (resolveSeek = r));
+      return pagesOf(pageIndex);
+    });
+    const { result } = renderHook(() => usePagedResource(fetchPage, [], PAGE_SIZE));
+    await waitFor(() => expect(result.current.status).toBe('loaded'));
+    fetchPage.mockClear();
+
+    act(() => {
+      result.current.seekTo(9 * PAGE_SIZE);
+      result.current.loadMore();
+    });
+
+    expect(fetchPage).toHaveBeenCalledTimes(1); // the seek only — no loadMore fetch
+    expect(fetchPage).toHaveBeenCalledWith(9);
+    act(() => resolveSeek(page(9 * PAGE_SIZE, PAGE_SIZE, true)));
+  });
+});

@@ -65,7 +65,7 @@ interface EntryGridProps {
   onSeek?: (targetIndex: number) => void;
   /** Fetches the one page immediately before the current window and prepends it — wire to
    * `resource.loadBefore`, alongside the two props above. */
-  onLoadBefore?: () => void;
+  onLoadBefore?: (targetIndex: number) => void;
 }
 
 export function EntryGrid({

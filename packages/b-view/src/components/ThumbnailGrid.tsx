@@ -179,8 +179,10 @@ interface ThumbnailGridProps {
   onSeek?: (targetIndex: number) => void;
   /** Fired when the user pages backward past the start of the currently loaded window (only
    * possible once `entriesOffset` is non-zero, i.e. after a seek) — for a host to fetch the one
-   * API page immediately before its window and prepend it. */
-  onLoadBefore?: () => void;
+   * API page immediately before its window and prepend it. Carries the absolute entry index the
+   * grid now needs, so a host can re-anchor with a seek when that's further back than a single
+   * prepend could reach (otherwise the grid would sit on "Loading…" forever). */
+  onLoadBefore?: (targetIndex: number) => void;
 }
 
 function ThumbnailItem({
@@ -410,24 +412,26 @@ export function ThumbnailGrid({
   const hasNext = localTopLeft + pageSize < entries.length;
   const needsBefore = localTopLeft < 0;
 
-  // Fires exactly on the transition into "no more locally-loaded page ahead" — not on every
-  // render while that stays true — since this only depends on `hasNext` itself, not on
-  // `onNearEnd`'s identity (which a host may pass as a fresh closure every render). Deliberately
-  // not deduped further than that: a host's own onLoadMore-style handler already no-ops safely
-  // once there's genuinely nothing more on the server, so a harmless extra call here costs
-  // nothing (see b-mobile's EntryGrid.tsx for the host side of this).
+  // Fires whenever there's no locally-loaded page ahead AND the loaded data changes (length or
+  // anchor) — not just on the transition into "no more ahead". The transition-only version missed
+  // a seek landing mid-window: hasNext was already false before the seek and stayed false after,
+  // so the tail of a page straddling the window's end was never fetched (b-oss#153 follow-up: an
+  // incomplete page until you stepped back and forward). It still doesn't depend on `onNearEnd`'s
+  // identity (a host may pass a fresh closure every render). A host's own onLoadMore-style handler
+  // no-ops safely once there's genuinely nothing more on the server or while a fetch is in flight
+  // (see b-mobile's EntryGrid.tsx / usePagedResource), so a harmless extra call costs nothing.
   useEffect(() => {
     if (!hasNext) onNearEnd?.();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [hasNext]);
+  }, [hasNext, entries.length, entriesOffset]);
 
   // Symmetric with the onNearEnd effect above, for the backward direction — only reachable once
   // entriesOffset is non-zero (a seek re-anchored the window somewhere mid-feed) and the user has
   // paged back past its start (b-oss#153).
   useEffect(() => {
-    if (needsBefore) onLoadBefore?.();
+    if (needsBefore) onLoadBefore?.(boundedTopLeft);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [needsBefore]);
+  }, [needsBefore, entriesOffset]);
 
   const goToPrevPage = useCallback(
     () => setTopLeftIndex(Math.max(0, boundedTopLeft - pageSize)),

@@ -38,8 +38,11 @@ export interface PagedResourceState<T> {
    * needs a real fetch (`loadBefore()`) rather than local windowing. */
   hasBefore: boolean;
   loadingBefore: boolean;
-  /** Fetches the single API page immediately before the current window and prepends it. */
-  loadBefore: () => void;
+  /** Fetches the single API page immediately before the current window and prepends it. When a
+   * `targetOffset` is given that lies further back than that one page, a prepend could never
+   * reach it (the grid would sit on "Loading…" forever), so this re-anchors with a `seekTo` there
+   * instead. */
+  loadBefore: (targetOffset?: number) => void;
   /** True while a `seekTo()` fetch is in flight. */
   seeking: boolean;
   /** Jumps directly to the page containing absolute entry index `targetOffset`, discarding the
@@ -66,6 +69,9 @@ export function usePagedResource<T>(
   const [seeking, setSeeking] = useState(false);
 
   const requestIdRef = useRef(0);
+  // Mirrors `seeking` for the guards below: they're called from effects in the same commit that
+  // kicked the seek off, where the `seeking` state value in their closure can still be stale.
+  const seekingRef = useRef(false);
   const pageIndexRef = useRef(0);
   const windowStartRef = useRef(0);
   const fetchPageRef = useRef(fetchPage);
@@ -78,6 +84,8 @@ export function usePagedResource<T>(
 
   function refresh(): void {
     const id = ++requestIdRef.current;
+    seekingRef.current = false;
+    setSeeking(false);
     pageIndexRef.current = 0;
     windowStartRef.current = 0;
     setWindowStart(0);
@@ -100,7 +108,9 @@ export function usePagedResource<T>(
   }
 
   function loadMore(): void {
-    if (loadingMore || !hasMore || status !== 'loaded') return;
+    // Never while a seek is in flight: this would append a page of the *old* window onto
+    // whichever window the seek is about to install.
+    if (loadingMore || seekingRef.current || !hasMore || status !== 'loaded') return;
     const id = requestIdRef.current;
     const nextIndex = pageIndexRef.current + 1;
     setLoadingMore(true);
@@ -121,8 +131,12 @@ export function usePagedResource<T>(
     );
   }
 
-  function loadBefore(): void {
-    if (loadingBefore || !hasBefore || status !== 'loaded') return;
+  function loadBefore(targetOffset?: number): void {
+    if (loadingBefore || seekingRef.current || !hasBefore || status !== 'loaded') return;
+    if (targetOffset !== undefined && targetOffset < windowStartRef.current - pageSize) {
+      seekTo(targetOffset);
+      return;
+    }
     const id = requestIdRef.current;
     const prevIndex = windowStartRef.current / pageSize - 1;
     setLoadingBefore(true);
@@ -142,10 +156,14 @@ export function usePagedResource<T>(
     );
   }
 
+  // Deliberately not guarded on an in-flight seek: a second tap must win (the request id below
+  // supersedes the stale one), not be silently dropped — dropping left the grid pointed at a page
+  // whose data was never going to arrive ("Loading…" until you tapped elsewhere and back).
   function seekTo(targetOffset: number): void {
-    if (seeking || status !== 'loaded') return;
+    if (status !== 'loaded') return;
     const id = ++requestIdRef.current;
     const targetPageIndex = Math.max(0, Math.floor(targetOffset / pageSize));
+    seekingRef.current = true;
     setSeeking(true);
     fetchPageRef.current(targetPageIndex).then(
       (page) => {
@@ -156,10 +174,12 @@ export function usePagedResource<T>(
         setHasBefore(targetPageIndex > 0);
         setItems(page.items);
         setHasMore(page.more);
+        seekingRef.current = false;
         setSeeking(false);
       },
       () => {
         if (id !== requestIdRef.current) return;
+        seekingRef.current = false;
         setSeeking(false);
       },
     );
