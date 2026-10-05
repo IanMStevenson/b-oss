@@ -11,6 +11,8 @@ interface ImportMetaEnv {
   readonly VITE_MAP_TILES_KEY?: string;
   /** Dev-only: see app-architecture.md §18/§19. Never set in a production build. */
   readonly VITE_DEV_TOKEN?: string;
+  /** '1' enables the one-shot b-oss#196 feed probe (diagnostics/feedProbe.ts). Never set in a release. */
+  readonly VITE_FEED_PROBE?: string;
 }
 
 declare const __APP_VERSION__: string;
