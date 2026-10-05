@@ -44,7 +44,7 @@ import { usePagedResource } from '../../data/usePagedResource.js';
 import { resumeGet, resumeSet } from '../../data/resumeCache.js';
 import { useActiveAccount } from '../../state/accountsStore.js';
 import { useDebouncedValue } from '../../data/useDebounce.js';
-import { fetchSearchEntriesPage } from '../../data/entries.js';
+import { fetchSearchEntriesPage, PAGE_SIZE } from '../../data/entries.js';
 import { fetchSearchUsersPage } from '../../data/users.js';
 import { EntryGrid } from '../../components/EntryGrid.js';
 import { UserRow } from '../../components/UserRow.js';
@@ -92,7 +92,7 @@ function EntriesTab({
         ? fetchSearchEntriesPage(trimmed, pageIndex)
         : Promise.resolve({ items: [], more: false }),
     [trimmed],
-    30,
+    PAGE_SIZE,
     resumeKey,
   );
 

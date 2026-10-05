@@ -15,6 +15,7 @@ import type { BlipUser } from '@b-oss/b-api';
 
 vi.mock('../../../data/entries.js', () => ({
   fetchSearchEntriesPage: vi.fn(),
+  PAGE_SIZE: 100,
 }));
 
 vi.mock('../../../data/users.js', () => ({
