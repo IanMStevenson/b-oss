@@ -1,6 +1,14 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (C) 2026 Ian Stevenson
 
+import { beforeEach } from 'vitest';
+import { resumeClear } from './data/resumeCache.js';
+
+// The resume cache (b-oss#182) is module-level on purpose — it has to outlive a screen's unmount —
+// so without this, whatever one test left remembered (a visited tab, a loaded feed) would leak
+// into the next test's "fresh" mount.
+beforeEach(() => resumeClear());
+
 // jsdom has no scroll implementation (https://github.com/jsdom/jsdom/issues/1695); Ionic
 // components that scroll their active item into view (ion-segment, ion-content) throw without
 // this. Only runs under jsdom — pure-logic test files using the default node environment never

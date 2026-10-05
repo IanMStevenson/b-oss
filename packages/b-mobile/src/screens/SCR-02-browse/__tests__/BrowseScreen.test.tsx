@@ -3,7 +3,7 @@
 // @vitest-environment jsdom
 
 import { describe, it, expect, afterEach, vi } from 'vitest';
-import { render, screen, cleanup } from '@testing-library/react';
+import { render, screen, cleanup, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { BrowseScreen } from '../BrowseScreen.js';
 import { OverlayProvider, OverlayHost } from '../../../app/OverlayProvider.js';
@@ -126,7 +126,7 @@ describe('BrowseScreen', () => {
     expect(await screen.findByLabelText('2026-01-01')).toBeDefined();
   });
 
-  it('Me tab uses the profile\'s real entry_total for pagination, not just what has loaded (b-oss#144)', async () => {
+  it("Me tab uses the profile's real entry_total for pagination, not just what has loaded (b-oss#144)", async () => {
     const { fetchRecentPage, fetchJustMePage } = await import('../../../data/entries.js');
     const { fetchUserProfile } = await import('../../../data/users.js');
     const { useActiveAccount } = await import('../../../state/accountsStore.js');
@@ -181,5 +181,85 @@ describe('BrowseScreen', () => {
     expect(
       await screen.findByText('This tab needs location access to show entries near you.'),
     ).toBeDefined();
+  });
+
+  describe('keeps your place when you leave for an entry and come Back (b-oss#182)', () => {
+    const account = (id: string) => ({
+      id,
+      username: id,
+      avatarUrl: null,
+      appTokenScope: 'read' as const,
+      hasServiceToken: false,
+      notificationRegistrationId: null,
+      notificationStatus: null,
+    });
+
+    function pickTab(value: string) {
+      const segment = document.querySelector('ion-segment')!;
+      segment.dispatchEvent(new CustomEvent('ionChange', { detail: { value } }));
+    }
+
+    it('returns to the tab you were on, not Recent, with its entries and no refetch', async () => {
+      const { fetchRecentPage, fetchFollowingPage } = await import('../../../data/entries.js');
+      const { useActiveAccount } = await import('../../../state/accountsStore.js');
+      vi.mocked(useActiveAccount).mockReturnValue(account('a1'));
+      const recentEntry = { ...entry, entry_id: '9', date: '2026-02-02', title: 'Recent one' };
+      vi.mocked(fetchRecentPage).mockResolvedValue({ items: [recentEntry], more: false });
+      vi.mocked(fetchFollowingPage).mockResolvedValue({ items: [entry], more: false });
+
+      const first = renderScreen();
+      await screen.findByLabelText('2026-02-02');
+      pickTab('following');
+      expect(await screen.findByLabelText('2026-01-01')).toBeDefined();
+      first.unmount(); // opening an entry unmounts Browse
+
+      vi.mocked(fetchRecentPage).mockClear();
+      vi.mocked(fetchFollowingPage).mockClear();
+      renderScreen(); // Back
+      expect(document.querySelector('ion-segment')!.getAttribute('value')).toBe('following');
+      expect(await screen.findByLabelText('2026-01-01')).toBeDefined();
+      await new Promise((r) => setTimeout(r, 0));
+      expect(fetchFollowingPage).not.toHaveBeenCalled();
+      expect(fetchRecentPage).not.toHaveBeenCalled();
+    });
+
+    it('does not carry one account’s tab or feeds over to another', async () => {
+      const { fetchRecentPage, fetchFollowingPage } = await import('../../../data/entries.js');
+      const { useActiveAccount } = await import('../../../state/accountsStore.js');
+      vi.mocked(useActiveAccount).mockReturnValue(account('a1'));
+      vi.mocked(fetchRecentPage).mockResolvedValue({ items: [], more: false });
+      vi.mocked(fetchFollowingPage).mockResolvedValue({ items: [entry], more: false });
+      const first = renderScreen();
+      await screen.findByText('Nothing here yet.');
+      pickTab('following');
+      await screen.findByLabelText('2026-01-01');
+      first.unmount();
+
+      vi.mocked(useActiveAccount).mockReturnValue(account('a2'));
+      renderScreen();
+      await waitFor(() =>
+        expect(document.querySelector('ion-segment')!.getAttribute('value')).toBe('recent'),
+      );
+    });
+
+    it('falls back to Recent if the remembered tab needs an account you no longer have', async () => {
+      const { fetchRecentPage, fetchFollowingPage } = await import('../../../data/entries.js');
+      const { useActiveAccount } = await import('../../../state/accountsStore.js');
+      vi.mocked(useActiveAccount).mockReturnValue(account('a1'));
+      vi.mocked(fetchRecentPage).mockResolvedValue({ items: [], more: false });
+      vi.mocked(fetchFollowingPage).mockResolvedValue({ items: [entry], more: false });
+      const first = renderScreen();
+      await screen.findByText('Nothing here yet.');
+      pickTab('following');
+      await screen.findByLabelText('2026-01-01');
+      first.unmount();
+
+      vi.mocked(useActiveAccount).mockReturnValue(null); // signed out
+      renderScreen();
+      await waitFor(() =>
+        expect(document.querySelector('ion-segment')!.getAttribute('value')).toBe('recent'),
+      );
+      expect(screen.queryByText('Following')).toBeNull();
+    });
   });
 });

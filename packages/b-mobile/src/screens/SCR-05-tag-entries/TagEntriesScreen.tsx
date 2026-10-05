@@ -9,6 +9,7 @@ import { usePagedResource } from '../../data/usePagedResource.js';
 import { fetchTagPage, PAGE_SIZE } from '../../data/entries.js';
 import { EntryGrid } from '../../components/EntryGrid.js';
 import { useAppNavigate } from '../../app/routes/useAppNavigate.js';
+import { useActiveAccount } from '../../state/accountsStore.js';
 
 interface TagEntriesScreenProps {
   tag: string;
@@ -16,7 +17,15 @@ interface TagEntriesScreenProps {
 
 export function TagEntriesScreen({ tag }: TagEntriesScreenProps) {
   const navigate = useAppNavigate();
-  const resource = usePagedResource((pageIndex) => fetchTagPage(tag, pageIndex), [tag], PAGE_SIZE);
+  const activeAccount = useActiveAccount();
+  // Back from an entry rebuilds this screen — remember the page you were on (b-oss#182).
+  const resumeKey = `tag:${activeAccount?.id ?? 'anon'}:${tag}`;
+  const resource = usePagedResource(
+    (pageIndex) => fetchTagPage(tag, pageIndex),
+    [tag],
+    PAGE_SIZE,
+    resumeKey,
+  );
 
   return (
     <IonPage>
@@ -52,6 +61,7 @@ export function TagEntriesScreen({ tag }: TagEntriesScreenProps) {
             entriesOffset={resource.windowStart}
             onSeek={resource.seekTo}
             onLoadBefore={resource.loadBefore}
+            resumeKey={resumeKey}
           />
         )}
       </IonContent>

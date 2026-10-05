@@ -177,6 +177,12 @@ interface ThumbnailGridProps {
    * that matters). Omitted: clicking such a page silently clamps to whatever's loaded, which is
    * the exact bug #153 exists to fix — always wire this up alongside `entriesOffset`. */
   onSeek?: (targetIndex: number) => void;
+  /** Where the grid starts (an absolute entry index) instead of 0 — for a host that remembers the
+   * page you were on and restores it after rebuilding the screen (b-oss#182). Read once, on mount. */
+  initialTopLeftIndex?: number;
+  /** Told whenever the grid's position changes (absolute entry index of the top-left tile), so a
+   * host can remember it for `initialTopLeftIndex`. */
+  onTopLeftIndexChange?: (index: number) => void;
   /** Fired when the user pages backward past the start of the currently loaded window (only
    * possible once `entriesOffset` is non-zero, i.e. after a seek) — for a host to fetch the one
    * API page immediately before its window and prepend it. Carries the absolute entry index the
@@ -310,12 +316,20 @@ export function ThumbnailGrid({
   allEntriesLoaded,
   entriesOffset = 0,
   onSeek,
+  initialTopLeftIndex,
+  onTopLeftIndexChange,
   onLoadBefore,
 }: ThumbnailGridProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const { width, height } = useContainerSize(containerRef);
-  const [topLeftIndex, setTopLeftIndex] = useState(0);
+  const [topLeftIndex, setTopLeftIndex] = useState(initialTopLeftIndex ?? 0);
   const [topLeftDate, setTopLeftDate] = useState<string | null>(null);
+
+  useEffect(() => {
+    onTopLeftIndexChange?.(topLeftIndex);
+    // The callback is a host closure, not state — only a real position change should report.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [topLeftIndex]);
 
   const isSearchActive = search != null && search.query.trim() !== '';
   const displayEntries = search && isSearchActive ? search.results : entries;

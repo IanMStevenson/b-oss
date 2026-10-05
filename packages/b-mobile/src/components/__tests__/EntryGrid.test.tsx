@@ -3,7 +3,7 @@
 // @vitest-environment jsdom
 
 import { describe, it, expect, afterEach, beforeEach, vi } from 'vitest';
-import { render, screen, cleanup } from '@testing-library/react';
+import { render, screen, cleanup, fireEvent } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { EntryGrid } from '../EntryGrid.js';
 import { useDevicePrefsStore } from '../../state/devicePrefsStore.js';
@@ -136,5 +136,55 @@ describe('EntryGrid — prefetch only when actually near the end (b-oss#138)', (
       </MemoryRouter>,
     );
     expect(onLoadMore).not.toHaveBeenCalled();
+  });
+});
+
+describe('EntryGrid — resuming the page you were on (b-oss#182)', () => {
+  function mount(resumeKey?: string, entries: EntryIndex[] = makeEntries(20), entriesOffset = 0) {
+    return render(
+      <MemoryRouter>
+        <EntryGrid
+          entries={entries}
+          onSelectEntry={() => {}}
+          hasMore={false}
+          onLoadMore={() => {}}
+          onRefresh={() => {}}
+          entriesOffset={entriesOffset}
+          resumeKey={resumeKey}
+        />
+      </MemoryRouter>,
+    );
+  }
+
+  it('comes back on the page it was left on', () => {
+    const first = mount('feed');
+    fireEvent.click(screen.getByLabelText('Page 3'));
+    expect(screen.getByLabelText('2026-01-09')).toBeDefined();
+    first.unmount(); // opening an entry
+
+    mount('feed'); // Back
+    expect(screen.getByLabelText('2026-01-09')).toBeDefined();
+    expect(screen.getByLabelText('Page 3').getAttribute('aria-current')).toBe('page');
+  });
+
+  it('starts at the first page without a key, or with a key that has no memory', () => {
+    const first = mount('feed');
+    fireEvent.click(screen.getByLabelText('Page 3'));
+    first.unmount();
+
+    const noKey = mount(undefined);
+    expect(screen.getByLabelText('2026-01-01')).toBeDefined();
+    noKey.unmount();
+    mount('another-feed');
+    expect(screen.getByLabelText('2026-01-01')).toBeDefined();
+  });
+
+  it('ignores a remembered page that lies outside the entries now loaded', () => {
+    const first = mount('feed');
+    fireEvent.click(screen.getByLabelText('Page 5'));
+    first.unmount();
+
+    mount('feed', makeEntries(8)); // far fewer entries loaded now: page 5 doesn't exist here
+    expect(screen.getByLabelText('2026-01-01')).toBeDefined();
   });
 });
