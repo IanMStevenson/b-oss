@@ -98,7 +98,18 @@ export interface SignInModeChoice {
  * authorize something already known to be undeliverable) — a refusal skips the whole
  * notifications branch, including the second interactive OAuth round for read-write, rather than
  * asking the user through a sign-in step for a feature that can't be delivered. */
-export async function signInDeliberate(choice: SignInModeChoice): Promise<string> {
+export interface SignInHooks {
+  /** Called right before the second (read-only, notification-service) OAuth round that Read-write
+   * + notifications needs. Resolve `false` to skip it — signed in read-write, no notifications —
+   * so the screen can explain why the user is about to be asked to sign in again, instead of the
+   * second round appearing out of nowhere and looking like a failure. Omitted: proceeds. */
+  beforeServiceRound?: () => Promise<boolean>;
+}
+
+export async function signInDeliberate(
+  choice: SignInModeChoice,
+  hooks: SignInHooks = {},
+): Promise<string> {
   const embedded = { useEmbedded: choice.useEmbedded };
   const result = await runOAuthRound(choice.scope, embedded);
   const account = await storeAppToken(result);
@@ -112,7 +123,7 @@ export async function signInDeliberate(choice: SignInModeChoice): Promise<string
         await setToken(account.id, 'service', result.accessToken);
         useAccountsStore.getState().updateAccount(account.id, { hasServiceToken: true });
       }
-    } else {
+    } else if (!hooks.beforeServiceRound || (await hooks.beforeServiceRound())) {
       try {
         const serviceResult = await runOAuthRound('read', embedded);
         const registered = await registerAccountForPush(account.id, serviceResult.accessToken);

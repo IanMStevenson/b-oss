@@ -38,6 +38,8 @@ import {
   fetchUserProfile,
   fetchJournalEntriesFor,
   fetchFavoriteEntriesFor,
+  PAGE_SIZE,
+  JOURNAL_PAGE_SIZE,
 } from '../../data/users.js';
 import { followUser, unfollowUser } from '../../flows/reactionsFlow.js';
 import { signInGated } from '../../flows/accountsFlow.js';
@@ -65,6 +67,7 @@ function GridTab({
   fetchPage,
   refetchKey,
   onSelectEntry,
+  pageSize = PAGE_SIZE,
 }: {
   fetchPage: (pageIndex: number) => Promise<Page<EntryIndex>>;
   /** fetchPage is a fresh closure every render, so its own identity can't drive
@@ -74,8 +77,11 @@ function GridTab({
    * entries on screen. */
   refetchKey: string | undefined;
   onSelectEntry: (id: string) => void;
+  /** Must match the page size `fetchPage` actually requests — seekTo() converts entry offsets to
+   * API page indexes with it. */
+  pageSize?: number;
 }) {
-  const resource = usePagedResource(fetchPage, [refetchKey]);
+  const resource = usePagedResource(fetchPage, [refetchKey], pageSize);
   if (resource.status === 'loading') {
     return (
       <div className="ion-padding" style={{ display: 'flex', justifyContent: 'center' }}>
@@ -107,6 +113,9 @@ function GridTab({
       hasMore={resource.hasMore}
       onLoadMore={resource.loadMore}
       onRefresh={resource.refresh}
+      entriesOffset={resource.windowStart}
+      onSeek={resource.seekTo}
+      onLoadBefore={resource.loadBefore}
     />
   );
 }
@@ -346,6 +355,7 @@ export function ProfileScreen({ username }: ProfileScreenProps) {
                             fetchPage={(pageIndex) =>
                               fetchJournalEntriesFor(effectiveUsername, pageIndex)
                             }
+                            pageSize={JOURNAL_PAGE_SIZE}
                             refetchKey={effectiveUsername}
                             onSelectEntry={(id) => navigate.push(`/entry/${id}`)}
                           />

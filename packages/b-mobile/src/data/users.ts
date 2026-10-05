@@ -8,7 +8,9 @@
 
 import { getClient, withRateLimitFallback } from './client.js';
 import { stubToEntryIndex } from './viewModel.js';
+import { JOURNAL_PAGE_SIZE } from './entries.js';
 import { t } from '../strings/index.js';
+import { pageMeta } from './usePagedResource.js';
 import type { Page } from './usePagedResource.js';
 import type { EntryIndex } from '@b-oss/b-view';
 import { BlipfotoError } from '@b-oss/b-api';
@@ -20,7 +22,9 @@ import type {
   BlipAward,
 } from '@b-oss/b-api';
 
-const PAGE_SIZE = 30;
+// Exported for the same reason as entries.ts's own PAGE_SIZE — see that file's comment.
+export const PAGE_SIZE = 30;
+export { JOURNAL_PAGE_SIZE };
 
 export interface UserProfile {
   user: BlipUser;
@@ -66,8 +70,8 @@ export async function fetchJournalEntriesFor(
   pageIndex: number,
 ): Promise<Page<EntryIndex>> {
   const client = await getClient();
-  const res = await client.getJournalEntries({ username, pageIndex, pageSize: PAGE_SIZE });
-  return { items: res.entries.map(stubToEntryIndex), more: res.page.more === 1 };
+  const res = await client.getJournalEntries({ username, pageIndex, pageSize: JOURNAL_PAGE_SIZE });
+  return { items: res.entries.map(stubToEntryIndex), ...pageMeta(res.page) };
 }
 
 export async function fetchFavoriteEntriesFor(
@@ -76,7 +80,7 @@ export async function fetchFavoriteEntriesFor(
 ): Promise<Page<EntryIndex>> {
   const client = await getClient();
   const res = await client.getFavoriteEntries({ username, pageIndex, pageSize: PAGE_SIZE });
-  return { items: res.entries.map(stubToEntryIndex), more: res.page.more === 1 };
+  return { items: res.entries.map(stubToEntryIndex), ...pageMeta(res.page) };
 }
 
 export async function fetchFollowers(
@@ -85,7 +89,7 @@ export async function fetchFollowers(
 ): Promise<Page<BlipUser>> {
   const client = await getClient();
   const res = await client.getFollowers({ username, pageIndex, pageSize: PAGE_SIZE });
-  return { items: res.users, more: res.page.more === 1 };
+  return { items: res.users, ...pageMeta(res.page) };
 }
 
 export async function fetchFollowing(
@@ -94,19 +98,19 @@ export async function fetchFollowing(
 ): Promise<Page<BlipUser>> {
   const client = await getClient();
   const res = await client.getFollowing({ username, pageIndex, pageSize: PAGE_SIZE });
-  return { items: res.users, more: res.page.more === 1 };
+  return { items: res.users, ...pageMeta(res.page) };
 }
 
 export async function fetchPendingRequests(pageIndex: number): Promise<Page<BlipUser>> {
   const client = await getClient();
   const res = await client.getPendingRequests({ pageIndex, pageSize: PAGE_SIZE });
-  return { items: res.users, more: res.page.more === 1 };
+  return { items: res.users, ...pageMeta(res.page) };
 }
 
 export async function fetchBlockedUsers(pageIndex: number): Promise<Page<BlipUser>> {
   const client = await getClient();
   const res = await client.getBlockedUsers({ pageIndex, pageSize: PAGE_SIZE });
-  return { items: res.users, more: res.page.more === 1 };
+  return { items: res.users, ...pageMeta(res.page) };
 }
 
 export async function fetchAwards(username?: string): Promise<BlipAward[]> {
@@ -126,6 +130,6 @@ export async function fetchSearchUsersPage(
 ): Promise<Page<BlipUser>> {
   return withRateLimitFallback(async (client) => {
     const res = await client.searchUsers({ query, pageIndex, pageSize: PAGE_SIZE });
-    return { items: res.users, more: res.page.more === 1 };
+    return { items: res.users, ...pageMeta(res.page) };
   });
 }

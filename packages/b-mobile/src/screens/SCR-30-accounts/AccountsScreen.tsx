@@ -186,7 +186,7 @@ export function AccountsScreen() {
   return (
     <IonPage>
       <IonHeader>
-        <AppHeader title="Accounts" />
+        <AppHeader title="Accounts" variant="back" backHref="/settings" />
       </IonHeader>
       <IonContent>
         <IonList>

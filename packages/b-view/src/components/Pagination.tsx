@@ -30,32 +30,45 @@ interface PaginationProps {
 // fixed left/right split) and sized down for a phone-width cell row rather than matching its
 // exact 9-cell count. A "gap-split" cell is a real, clickable page number (not a dead ellipsis) —
 // same as the reference.
-function buildFixedPageItems(current: number, total: number, cellCount = 7): number[] {
-  if (total <= cellCount) {
-    return Array.from({ length: total }, (_, i) => i + 1);
-  }
+//
+// Always returns exactly `cellCount` slots, padding with `null` (a blank, non-interactive filler)
+// when there are fewer than `cellCount` real pages — e.g. a feed like Following that starts at 1
+// loaded page and grows. Without this, the row itself was narrower whenever total < cellCount, so
+// the arrows sat closer together than usual — the exact "arrows move" problem the fixed-cell
+// design exists to prevent, just triggered by total shrinking below cellCount rather than by which
+// page is current. Reported live as most visible on Following, which spends a lot of time in this
+// low-total range. A blank slot is fine to show — it's the row's *width* that must stay constant,
+// not every slot being a real page.
+function buildFixedPageItems(current: number, total: number, cellCount = 7): (number | null)[] {
+  const real =
+    total <= cellCount
+      ? Array.from({ length: total }, (_, i) => i + 1)
+      : (() => {
+          const chosen = new Set<number>([1, total]);
+          for (let i = current - 1; i <= current + 1; i++) {
+            if (i > 1 && i < total) chosen.add(i);
+          }
 
-  const chosen = new Set<number>([1, total]);
-  for (let i = current - 1; i <= current + 1; i++) {
-    if (i > 1 && i < total) chosen.add(i);
-  }
+          while (chosen.size < cellCount) {
+            const sorted = [...chosen].sort((a, b) => a - b);
+            let bestIndex = -1;
+            let bestGap = 1; // a gap of 1 (consecutive numbers) has nothing to split
+            for (let i = 0; i < sorted.length - 1; i++) {
+              const gap = sorted[i + 1] - sorted[i];
+              if (gap > bestGap) {
+                bestGap = gap;
+                bestIndex = i;
+              }
+            }
+            if (bestIndex === -1) break; // no gap left worth splitting — fewer than cellCount is correct
+            chosen.add(Math.round((sorted[bestIndex] + sorted[bestIndex + 1]) / 2));
+          }
 
-  while (chosen.size < cellCount) {
-    const sorted = [...chosen].sort((a, b) => a - b);
-    let bestIndex = -1;
-    let bestGap = 1; // a gap of 1 (consecutive numbers) has nothing to split
-    for (let i = 0; i < sorted.length - 1; i++) {
-      const gap = sorted[i + 1] - sorted[i];
-      if (gap > bestGap) {
-        bestGap = gap;
-        bestIndex = i;
-      }
-    }
-    if (bestIndex === -1) break; // no gap left worth splitting — fewer than cellCount is correct
-    chosen.add(Math.round((sorted[bestIndex] + sorted[bestIndex + 1]) / 2));
-  }
+          return [...chosen].sort((a, b) => a - b);
+        })();
 
-  return [...chosen].sort((a, b) => a - b);
+  const padding: null[] = Array.from({ length: Math.max(0, cellCount - real.length) }, () => null);
+  return [...real, ...padding];
 }
 
 export function Pagination({
@@ -112,17 +125,21 @@ export function Pagination({
         <ChevronLeft size={14} strokeWidth={1.6} />
       </button>
 
-      {items.map((item) => (
-        <button
-          key={item}
-          style={item === currentPage ? activeStyle : btnStyle}
-          onClick={() => onPage(item)}
-          aria-label={`Page ${item}`}
-          aria-current={item === currentPage ? 'page' : undefined}
-        >
-          {item}
-        </button>
-      ))}
+      {items.map((item, i) =>
+        item === null ? (
+          <span key={`blank-${i}`} aria-hidden="true" style={btnStyle} />
+        ) : (
+          <button
+            key={item}
+            style={item === currentPage ? activeStyle : btnStyle}
+            onClick={() => onPage(item)}
+            aria-label={`Page ${item}`}
+            aria-current={item === currentPage ? 'page' : undefined}
+          >
+            {item}
+          </button>
+        ),
+      )}
 
       <button
         ref={nextRef}

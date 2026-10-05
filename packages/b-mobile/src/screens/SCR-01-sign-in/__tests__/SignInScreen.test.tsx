@@ -24,11 +24,17 @@ const { MockOAuthCancelledError, signInDeliberate } = vi.hoisted(() => {
   return {
     MockOAuthCancelledError,
     signInDeliberate:
-      vi.fn<(choice: { scope: string; notifications: boolean }) => Promise<string>>(),
+      vi.fn<
+        (
+          choice: { scope: string; notifications: boolean },
+          hooks?: { beforeServiceRound?: () => Promise<boolean> },
+        ) => Promise<string>
+      >(),
   };
 });
 vi.mock('../../../flows/accountsFlow.js', () => ({
-  signInDeliberate: (choice: unknown) => signInDeliberate(choice as never),
+  signInDeliberate: (choice: unknown, hooks: unknown) =>
+    signInDeliberate(choice as never, hooks as never),
   OAuthCancelledError: MockOAuthCancelledError,
 }));
 
@@ -41,6 +47,12 @@ vi.mock('../../../platform/browser.js', () => ({ openUrl: (url: string) => openU
 let isNative = false;
 vi.mock('../../../platform/appState.js', () => ({ isNativePlatform: () => isNative }));
 
+// Defaults true: a Firebase-configured build, so the notifications toggle is usable.
+let pushAvailable = true;
+vi.mock('../../../platform/push.js', () => ({
+  isPushAvailable: () => Promise.resolve(pushAvailable),
+}));
+
 const replace = vi.fn();
 vi.mock('../../../app/routes/useAppNavigate.js', () => ({
   useAppNavigate: () => ({ push: vi.fn(), replace, goBack: vi.fn() }),
@@ -51,6 +63,7 @@ afterEach(() => {
   vi.resetAllMocks();
   useDevicePrefsStore.setState({ hydrated: false, seenFirstRunExplainer: false });
   isNative = false;
+  pushAvailable = true;
 });
 
 function renderScreen() {
@@ -95,40 +108,107 @@ describe('SignInScreen', () => {
     renderScreen();
 
     await userEvent.click(screen.getByLabelText('Read-only'));
-    await userEvent.click(screen.getByText('Get notifications'));
+    screen
+      .getByLabelText('Get notifications')
+      .dispatchEvent(new CustomEvent('ionChange', { bubbles: true, detail: { checked: true } }));
     await userEvent.click(screen.getByText('Continue'));
 
     await waitFor(() =>
-      expect(signInDeliberate).toHaveBeenCalledWith({
-        scope: 'read',
-        notifications: true,
-        useEmbedded: false,
-      }),
+      expect(signInDeliberate).toHaveBeenCalledWith(
+        {
+          scope: 'read',
+          notifications: true,
+          useEmbedded: false, // off-native there is no embedded browser to use
+        },
+        expect.anything(), // the beforeServiceRound hook
+      ),
     );
     expect(replace).toHaveBeenCalledWith('/accounts');
   });
 
-  it('hides "Force new sign-in" off-native (web)', () => {
+  it('hides "Use browser to sign in" off-native (web)', () => {
     renderScreen();
-    expect(screen.queryByText('Force new sign-in')).toBeNull();
+    expect(screen.queryByText('Use browser to sign in')).toBeNull();
   });
 
-  it('shows and wires "Force new sign-in" on native', async () => {
+  it('on native, signs in inside the app by default; "Use browser to sign in" is off', async () => {
     isNative = true;
     signInDeliberate.mockResolvedValue('acct1');
     renderScreen();
 
-    const toggle = screen.getByText('Force new sign-in').closest('ion-toggle')!;
+    const toggle = screen.getByLabelText('Use browser to sign in');
     expect(toggle.getAttribute('checked')).not.toBe('true');
-    toggle.dispatchEvent(
-      new CustomEvent('ionChange', { bubbles: true, detail: { checked: true } }),
-    );
-
     await userEvent.click(screen.getByText('Continue'));
 
     await waitFor(() =>
-      expect(signInDeliberate).toHaveBeenCalledWith(expect.objectContaining({ useEmbedded: true })),
+      expect(signInDeliberate).toHaveBeenCalledWith(
+        expect.objectContaining({ useEmbedded: true }),
+        expect.anything(),
+      ),
     );
+  });
+
+  it('turning "Use browser to sign in" on uses the system browser (useEmbedded false)', async () => {
+    isNative = true;
+    signInDeliberate.mockResolvedValue('acct1');
+    renderScreen();
+
+    screen
+      .getByLabelText('Use browser to sign in')
+      .dispatchEvent(new CustomEvent('ionChange', { bubbles: true, detail: { checked: true } }));
+    await userEvent.click(screen.getByText('Continue'));
+
+    await waitFor(() =>
+      expect(signInDeliberate).toHaveBeenCalledWith(
+        expect.objectContaining({ useEmbedded: false }),
+        expect.anything(),
+      ),
+    );
+  });
+
+  it('keeps the explanation inside the same item as the toggle it describes', () => {
+    isNative = true;
+    renderScreen();
+    const item = screen.getByLabelText('Use browser to sign in').closest('ion-item')!;
+    expect(item.textContent).toContain('already signed in to Blipfoto');
+  });
+
+  it('on native without Firebase credentials, disables notifications and never requests them', async () => {
+    isNative = true;
+    pushAvailable = false;
+    signInDeliberate.mockResolvedValue('acct1');
+    renderScreen();
+
+    await waitFor(() =>
+      expect(screen.getByText('Notifications aren’t available in this build.')).toBeDefined(),
+    );
+    expect(
+      (screen.getByLabelText('Get notifications') as unknown as { disabled: boolean }).disabled,
+    ).toBe(true);
+    await userEvent.click(screen.getByText('Continue'));
+
+    await waitFor(() =>
+      expect(signInDeliberate).toHaveBeenCalledWith(
+        expect.objectContaining({ notifications: false }),
+        expect.anything(),
+      ),
+    );
+  });
+
+  it('explains the second sign-in before it happens, and Continue proceeds', async () => {
+    signInDeliberate.mockImplementation(async (_choice, hooks) => {
+      const proceed = await hooks!.beforeServiceRound!();
+      return proceed ? 'acct-with-notifications' : 'acct-without';
+    });
+    renderScreen();
+    await userEvent.click(screen.getByText('Continue'));
+
+    await waitFor(() => expect(screen.getByText('One more sign-in')).toBeDefined());
+    // Still waiting on the user — the sign-in hasn't finished, nothing navigated.
+    expect(replace).not.toHaveBeenCalled();
+    await userEvent.click(screen.getByText('Sign in again'));
+
+    await waitFor(() => expect(replace).toHaveBeenCalledWith('/accounts'));
   });
 
   it('error: a real sign-in failure shows the message and stays on the form', async () => {

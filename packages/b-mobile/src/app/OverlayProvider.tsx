@@ -78,7 +78,14 @@ function FirstRunExplainer({ onDismiss }: { onDismiss: () => void }) {
         background: 'var(--bg, #fff)',
         borderTop: '1px solid var(--line, #e5e7eb)',
         borderRadius: '16px 16px 0 0',
-        padding: 16,
+        // Fixed to the viewport, so nothing reserves the system bars for it: pad past the gesture/
+        // nav bar at the bottom (the "Got it" button was hardly tappable under it — b-oss#165) and
+        // the side insets in landscape. Tall content (large font scale) scrolls rather than
+        // growing past the top.
+        padding:
+          '16px calc(16px + var(--ion-safe-area-right, 0px)) calc(16px + var(--ion-safe-area-bottom, 0px)) calc(16px + var(--ion-safe-area-left, 0px))',
+        maxHeight: '80vh',
+        overflowY: 'auto',
         boxShadow: '0 -2px 12px rgba(0,0,0,0.15)',
       }}
     >

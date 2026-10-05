@@ -14,11 +14,13 @@ vi.mock('../../platform/prefs.js', () => ({
   deletePref: vi.fn().mockResolvedValue(undefined),
 }));
 
+const isPushAvailable = vi.fn<(...args: unknown[]) => Promise<boolean>>();
 const checkPushPermission = vi.fn<(...args: unknown[]) => Promise<string>>();
 const requestPushPermission = vi.fn<(...args: unknown[]) => Promise<string>>();
 const registerPush = vi.fn<(...args: unknown[]) => Promise<string | null>>();
 const pushPlatform = vi.fn<(...args: unknown[]) => string | null>();
 vi.mock('../../platform/push.js', () => ({
+  isPushAvailable: (...args: unknown[]) => isPushAvailable(...args),
   checkPushPermission: (...args: unknown[]) => checkPushPermission(...args),
   requestPushPermission: (...args: unknown[]) => requestPushPermission(...args),
   registerPush: (...args: unknown[]) => registerPush(...args),
@@ -91,6 +93,7 @@ function setAccounts(accounts: StoredAccount[], activeAccountId: string | null =
 beforeEach(() => {
   secretStore.clear();
   vi.clearAllMocks();
+  isPushAvailable.mockResolvedValue(true);
   setAccounts([]);
 });
 
@@ -122,6 +125,18 @@ describe('ensurePushPermission', () => {
 });
 
 describe('registerAccountForPush', () => {
+  it('does nothing — no prompt, no registration — on a build without Firebase credentials', async () => {
+    // Regression: PushNotifications.register() throws natively (uncatchable from JS) and kills
+    // the app when Firebase was never initialised — it crashed on first sign-in.
+    isPushAvailable.mockResolvedValue(false);
+    checkPushPermission.mockResolvedValue('granted');
+    expect(await registerAccountForPush('alice', 'read-token')).toBe(false);
+    expect(checkPushPermission).not.toHaveBeenCalled();
+    expect(requestPushPermission).not.toHaveBeenCalled();
+    expect(registerPush).not.toHaveBeenCalled();
+    expect(createRegistration).not.toHaveBeenCalled();
+  });
+
   it('returns false without calling the service when permission is refused', async () => {
     checkPushPermission.mockResolvedValue('denied');
     expect(await registerAccountForPush('alice', 'read-token')).toBe(false);

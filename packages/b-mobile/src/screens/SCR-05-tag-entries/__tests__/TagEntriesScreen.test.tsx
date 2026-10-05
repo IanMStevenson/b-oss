@@ -10,6 +10,7 @@ import type { EntryIndex } from '@b-oss/b-view';
 
 vi.mock('../../../data/entries.js', () => ({
   fetchTagPage: vi.fn(),
+  PAGE_SIZE: 30,
 }));
 
 const entry: EntryIndex = {

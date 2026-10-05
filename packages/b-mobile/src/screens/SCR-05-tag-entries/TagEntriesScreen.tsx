@@ -6,7 +6,7 @@
 import { IonPage, IonHeader, IonContent, IonSpinner, IonText, IonButton } from '@ionic/react';
 import { AppHeader } from '../../components/AppHeader.js';
 import { usePagedResource } from '../../data/usePagedResource.js';
-import { fetchTagPage } from '../../data/entries.js';
+import { fetchTagPage, PAGE_SIZE } from '../../data/entries.js';
 import { EntryGrid } from '../../components/EntryGrid.js';
 import { useAppNavigate } from '../../app/routes/useAppNavigate.js';
 
@@ -16,7 +16,7 @@ interface TagEntriesScreenProps {
 
 export function TagEntriesScreen({ tag }: TagEntriesScreenProps) {
   const navigate = useAppNavigate();
-  const resource = usePagedResource((pageIndex) => fetchTagPage(tag, pageIndex), [tag]);
+  const resource = usePagedResource((pageIndex) => fetchTagPage(tag, pageIndex), [tag], PAGE_SIZE);
 
   return (
     <IonPage>
@@ -49,6 +49,9 @@ export function TagEntriesScreen({ tag }: TagEntriesScreenProps) {
             hasMore={resource.hasMore}
             onLoadMore={resource.loadMore}
             onRefresh={resource.refresh}
+            entriesOffset={resource.windowStart}
+            onSeek={resource.seekTo}
+            onLoadBefore={resource.loadBefore}
           />
         )}
       </IonContent>

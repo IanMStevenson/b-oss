@@ -15,11 +15,14 @@ public class MainActivity extends BridgeActivity {
     // plugin" for toggling the BlipfotoWebLinkAlias activity-alias, §20's font-scale reader,
     // FLW-12's share-to-Blipfoto entry point (ACTION_SEND isn't a URL @capacitor/app can see), and
     // FLW-20's "force new sign-in" embedded-WebView OAuth round (@capacitor/browser's Custom Tabs
-    // has no isolated/incognito mode, so a genuinely fresh login needs an Activity this app owns).
+    // has no isolated/incognito mode, so a genuinely fresh login needs an Activity this app owns),
+    // and a Firebase-configured check so a build without google-services.json can't crash on push
+    // registration (PushAvailabilityPlugin).
     registerPlugin(BlipfotoLinksPlugin.class);
     registerPlugin(AccessibilityPlugin.class);
     registerPlugin(ShareIntentPlugin.class);
     registerPlugin(EmbeddedAuthPlugin.class);
+    registerPlugin(PushAvailabilityPlugin.class);
     super.onCreate(savedInstanceState);
     createNotificationChannels();
   }
