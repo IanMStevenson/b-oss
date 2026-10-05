@@ -22,6 +22,7 @@ import { OverlayProvider, OverlayHost } from './OverlayProvider.js';
 import { AppRoutes } from './routes/AppRoutes.js';
 import { useAccountsStore, useActiveAccount, useCanWrite } from '../state/accountsStore.js';
 import { markAuthReady } from '../state/authReady.js';
+import { maybeRunFeedProbe } from '../diagnostics/feedProbe.js';
 import { useHiddenMembersStore } from '../state/hiddenMembersStore.js';
 import { useDevicePrefsStore } from '../state/devicePrefsStore.js';
 import { useNotificationCountsStore } from '../state/notificationCountsStore.js';
@@ -262,6 +263,8 @@ export function AppShell() {
     } else {
       void accountsHydrated.finally(markAuthReady);
     }
+    // b-oss#196 diagnostic — inert unless built with VITE_FEED_PROBE=1.
+    void maybeRunFeedProbe();
     void useHiddenMembersStore.getState().hydrate();
     void useDevicePrefsStore.getState().hydrate();
     // The upload queue (§9) has non-React consumers by design — started once here rather than
