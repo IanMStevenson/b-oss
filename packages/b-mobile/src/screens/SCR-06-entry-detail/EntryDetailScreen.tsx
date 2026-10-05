@@ -63,6 +63,7 @@ import { useLiveEntry } from '../../data/useLiveEntry.js';
 import { deleteEntry } from '../../data/entries.js';
 import { fetchAuthorAvatar } from '../../data/users.js';
 import { useCommentComposers } from './useCommentComposers.js';
+import { useScrollResume } from '../../data/useScrollResume.js';
 import { EntryAuthorBlock, type FollowControl } from '../../components/EntryAuthorBlock.js';
 import { UserBadges } from '../../components/UserBadges.js';
 import { t } from '../../strings/index.js';
@@ -136,6 +137,10 @@ export function EntryDetailScreen({ entryId, initialReplyToCommentId }: EntryDet
     reload,
     refresh,
   } = useLiveEntry(entryId);
+
+  // Coming Back to an entry (say from the author's profile) lands where you were scrolled to, not
+  // at the top (b-oss#190). Only once the entry has loaded and given the page its height.
+  const scroll = useScrollResume(`entry:${entryId}`, entryState.status === 'loaded');
 
   const [reaction, setReaction] = useState<ReactionOverlay | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -463,7 +468,7 @@ export function EntryDetailScreen({ entryId, initialReplyToCommentId }: EntryDet
       <IonHeader>
         <AppHeader title="Entry" variant="back" backHref="/browse" />
       </IonHeader>
-      <IonContent>
+      <IonContent {...scroll}>
         {entryState.status === 'loading' && (
           <div style={{ display: 'flex', justifyContent: 'center', padding: 32 }}>
             <IonSpinner />

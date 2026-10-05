@@ -83,6 +83,15 @@ const { MockMap, MockMarker, MockPopup, mapInstances, markerInstances } = vi.hoi
     getBounds() {
       return { getSouth: () => -1, getNorth: () => 1, getWest: () => -1, getEast: () => 1 };
     }
+    /** What a pan/zoom would have moved the map to; defaults to where it was constructed. */
+    view: { center: [number, number]; zoom: number } | null = null;
+    getCenter() {
+      const [lng, lat] = (this.view ?? this.options).center;
+      return { lng, lat };
+    }
+    getZoom() {
+      return (this.view ?? this.options).zoom;
+    }
     jumpTo(opts: { center: [number, number]; zoom: number }) {
       this.jumpToCalls.push(opts);
     }
@@ -177,6 +186,69 @@ describe('MapScreen', () => {
     renderScreen();
     expect(screen.getByText('The map isn’t available right now.')).toBeDefined();
     expect(mapInstances.length).toBe(0);
+  });
+
+  it('remembers where you panned to, and reopens there after Back from an entry (b-oss#190)', async () => {
+    const { getMapStyleUrl } = await import('../../../platform/mapTiles.js');
+    const { fetchEntriesInBounds } = await import('../../../data/map.js');
+    vi.mocked(getMapStyleUrl).mockReturnValue('https://example.com/style.json');
+    vi.mocked(fetchEntriesInBounds).mockResolvedValue([]);
+    const first = renderScreen();
+    await waitFor(() => expect(mapInstances.length).toBe(1));
+    expect(mapInstances[0].options.zoom).toBe(1.5); // the world view the first time
+
+    mapInstances[0].view = { center: [-3.2, 55.9], zoom: 11 }; // the user pans and zooms in
+    mapInstances[0].trigger('moveend');
+    first.unmount(); // opening an entry from a pin unmounts the map screen
+
+    renderScreen(); // Back
+    await waitFor(() => expect(mapInstances.length).toBe(2));
+    expect(mapInstances[1].options.center).toEqual([-3.2, 55.9]);
+    expect(mapInstances[1].options.zoom).toBe(11);
+  });
+
+  it('focused mode ignores the remembered view and centres on its own entry', async () => {
+    const { getMapStyleUrl } = await import('../../../platform/mapTiles.js');
+    const { fetchEntriesInBounds } = await import('../../../data/map.js');
+    const { fetchEntry } = await import('../../../data/entries.js');
+    vi.mocked(getMapStyleUrl).mockReturnValue('https://example.com/style.json');
+    vi.mocked(fetchEntriesInBounds).mockResolvedValue([]);
+    const first = renderScreen();
+    await waitFor(() => expect(mapInstances.length).toBe(1));
+    mapInstances[0].view = { center: [10, 10], zoom: 6 };
+    mapInstances[0].trigger('moveend');
+    first.unmount();
+
+    vi.mocked(fetchEntry).mockResolvedValue({
+      entry: {
+        entry_id: 'e1',
+        date: '2026-01-01',
+        title: 'Sunrise',
+        username: 'alice',
+        journal_title: '',
+        description: '',
+        description_html: '',
+        tags: [],
+        location: { lat: 51.5, lon: -0.1 },
+        views_total: 0,
+        stars_total: 0,
+        favorites_total: 0,
+        comments: [],
+        exif: null,
+        images: {},
+      },
+      prevEntryId: null,
+      nextEntryId: null,
+      actions: null,
+      starred: false,
+      favorited: false,
+      friendship: null,
+      comments: [],
+    });
+    renderScreen('e1');
+    await waitFor(() => expect(mapInstances.length).toBe(2));
+    expect(mapInstances[1].options.center).toEqual([-0.1, 51.5]);
+    expect(mapInstances[1].options.zoom).toBe(13);
   });
 
   it('fetches and renders markers for the visible region once the map settles', async () => {
