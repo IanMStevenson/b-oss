@@ -1,0 +1,131 @@
+/* SPDX-License-Identifier: GPL-3.0-or-later */
+/* Copyright (C) 2026 Ian Stevenson */
+
+.calendar {
+  width: 308px;
+  max-width: 100%;
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 10px;
+}
+
+.step {
+  flex: 0 0 34px;
+  height: 34px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  border: 1.5px solid var(--ink-2);
+  color: var(--ink-2);
+  cursor: pointer;
+}
+
+.step:disabled {
+  border-color: var(--ink-disabled, #d0d3d8);
+  color: var(--ink-disabled, #d0d3d8);
+  cursor: default;
+}
+
+.select {
+  flex: 1;
+  min-width: 0;
+  height: 34px;
+  padding: 0 6px;
+  font: inherit;
+  font-size: var(--text-md, 15px);
+  color: var(--ink);
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+}
+
+.weekdays {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 3px;
+  margin-bottom: 3px;
+  text-align: center;
+  font-size: var(--text-xs, 12px);
+  color: var(--muted);
+}
+
+.grid {
+  position: relative;
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 3px;
+}
+
+.pad {
+  aspect-ratio: 1;
+  background: transparent;
+}
+
+.day {
+  aspect-ratio: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: var(--text-md, 15px);
+  user-select: none;
+}
+
+/* A day with an entry: tappable and clearly "live". */
+.hasEntry {
+  border: 0;
+  background: var(--green-100);
+  color: var(--green-800);
+  font-weight: var(--font-weight-medium, 500);
+  cursor: pointer;
+}
+
+.hasEntry:hover {
+  background: var(--green-700);
+  color: #fff;
+}
+
+/* Everything else (no entry, or in the future): flat, grey, inert. */
+.noEntry {
+  background: #ececec;
+  color: #b9bdc3;
+}
+
+.selected {
+  background: var(--green-800);
+  color: #fff;
+}
+
+.overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  background: rgba(255, 255, 255, 0.75);
+  font-size: var(--text-sm, 13px);
+  color: var(--ink-2);
+}
+
+.retry {
+  padding: 4px 12px;
+  border: 1px solid var(--ink-2);
+  border-radius: 999px;
+  cursor: pointer;
+}
+
+.spinner {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}

@@ -88,6 +88,68 @@ describe('EntryDetail', () => {
     expect(container.querySelector('[role="dialog"]')).toBeNull();
   });
 
+  describe('top bar and photo frame (b-oss#169/#170)', () => {
+    it('shows the date tile and nav strip, not the old chevron row with a long-date heading', () => {
+      render(
+        <EntryDetail
+          entryState={loadedState(makeEntry({ date: '2026-01-15' }))}
+          prevEntryId="0"
+          nextEntryId="2"
+          onNavigate={() => {}}
+        />,
+      );
+      expect(screen.getByText('15th')).toBeDefined();
+      expect(screen.getByText('Jan, 26')).toBeDefined();
+      expect(screen.getByLabelText('Older entry')).toBeDefined();
+      expect(screen.queryByText(/15th January 2026/)).toBeNull();
+    });
+
+    it('renders the host header slot opposite the strip', () => {
+      render(
+        <EntryDetail
+          entryState={loadedState(makeEntry())}
+          prevEntryId={null}
+          nextEntryId={null}
+          onNavigate={() => {}}
+          header={<div>author block</div>}
+        />,
+      );
+      expect(screen.getByText('author block')).toBeDefined();
+    });
+
+    it('offers the popup calendar from the entries it was given (the viewer)', () => {
+      render(
+        <EntryDetail
+          entryState={loadedState(makeEntry())}
+          prevEntryId={null}
+          nextEntryId={null}
+          onNavigate={() => {}}
+          entries={[
+            { entry_id: '1', date: '2026-01-15', title: 't', thumbnail_path: 'p', json_path: 'j' },
+          ]}
+        />,
+      );
+      expect(screen.getByLabelText('Jump to date')).toBeDefined();
+    });
+
+    it('is full-width by default and caps the height only when asked', () => {
+      const props = {
+        entryState: loadedState(makeEntry()),
+        prevEntryId: null,
+        nextEntryId: null,
+        onNavigate: () => {},
+        baseUrl: '/b',
+      };
+      const { container, rerender } = render(<EntryDetail {...props} />);
+      const img = () => container.querySelector(`.${styles.photoInner} img`);
+      return waitFor(() => expect(img()).not.toBeNull()).then(() => {
+        expect(img()!.className).not.toContain(styles.photoCapped);
+        rerender(<EntryDetail {...props} photoFit="capped" />);
+        expect(img()!.className).toContain(styles.photoCapped);
+      });
+    });
+  });
+
   describe('swipe between entries', () => {
     function swipe(el: Element, dx: number, dy = 0) {
       fireEvent.touchStart(el, { touches: [{ clientX: 200, clientY: 300 }] });

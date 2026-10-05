@@ -3,8 +3,6 @@
 
 import { useEffect, useState, useCallback, type ReactNode } from 'react';
 import {
-  ChevronLeft,
-  ChevronRight,
   ArrowLeft,
   Loader2,
   AlertCircle,
@@ -19,37 +17,12 @@ import {
   SunMedium,
 } from 'lucide-react';
 import type { BlipEntry, BlipComment, EntryIndex, EntryState } from '../types.js';
-import { DatePicker } from './DatePicker.js';
+import { EntryNavStrip, type HistoryItem } from './EntryNavStrip.js';
+import { AsyncThumb, type ResolveAsset } from './AsyncThumb.js';
 import { Lightbox } from './Lightbox.js';
 import { BBCodeText } from './BBCodeText.js';
 import { useSwipeNav } from '../useSwipeNav.js';
 import styles from './EntryDetail.module.css';
-
-type ResolveAsset = (path: string) => Promise<string> | string;
-
-function ordinalSuffix(day: number): string {
-  const mod100 = day % 100;
-  if (mod100 >= 11 && mod100 <= 13) return 'th';
-  switch (day % 10) {
-    case 1:
-      return 'st';
-    case 2:
-      return 'nd';
-    case 3:
-      return 'rd';
-    default:
-      return 'th';
-  }
-}
-
-function formatLongDate(isoDate: string): string {
-  // Parse as local time (not UTC) so the calendar date doesn't shift in negative-offset locales.
-  const d = new Date(isoDate + 'T00:00:00');
-  if (Number.isNaN(d.getTime())) return isoDate;
-  const day = d.getDate();
-  const month = d.toLocaleDateString('en-GB', { month: 'long' });
-  return `${day}${ordinalSuffix(day)} ${month} ${d.getFullYear()}`;
-}
 
 interface EntryDetailReactions {
   starred: boolean;
@@ -71,8 +44,23 @@ interface EntryDetailProps {
   reactions?: EntryDetailReactions;
   /** Rendered immediately after the comment list — the host owns the whole compose UI/behaviour. */
   commentComposer?: ReactNode;
-  /** Rendered in the nav header — the host supplies edit/delete triggers for entries it owns. */
+  /** Rendered beside the nav strip — the host supplies edit/delete triggers for entries it owns. */
   entryActions?: ReactNode;
+  /** Rendered at the left of the top bar, opposite the nav strip — a host's own page identity
+   * (b-mobile puts the author block here; the viewer has none). Stacks above the strip when the
+   * container is narrow. */
+  header?: ReactNode;
+  /** Which days of a month have an entry (day-of-month → entry id) — opens a month-grid calendar
+   * where only those days are tappable, for a host with no local entry list (b-mobile). Ignored
+   * when `entries` is given (the popup calendar is used instead). */
+  loadCalendarMonth?: (year: number, month: number) => Promise<Record<number, string>>;
+  /** Loads the "1 year ago / 1 year ahead" entries for the history pop-down; omit to hide it. */
+  loadHistory?: () => Promise<HistoryItem[]>;
+  /** How the photo sizes against the screen. `full-width` (default) is blipfoto.com's own
+   * behaviour: always the column width, however tall — a portrait photo runs past the bottom of
+   * the screen and you scroll. `capped` limits the height so the whole picture fits without
+   * scrolling, at the cost of a narrower photo. */
+  photoFit?: 'full-width' | 'capped';
   /** Per-comment slot (e.g. reply/delete) — the host decides ownership, this component doesn't. */
   renderCommentActions?: (comment: BlipComment) => ReactNode;
   /** Forwarded to every internal BBCodeText (description + every comment/reply). Omitted: links
@@ -94,30 +82,6 @@ interface EntryDetailProps {
    * rather than opening an external maps site. Omitted: the default external link, as before —
    * accepted as a known WebView-navigation gap on native (b-mobile's own host now supplies this). */
   onLocationClick?: (location: { lat: number; lon: number }) => void;
-}
-
-function AsyncThumb({
-  path,
-  syncSrc,
-  resolveAsset,
-}: {
-  path: string;
-  syncSrc: string | undefined;
-  resolveAsset: ResolveAsset | undefined;
-}) {
-  const [src, setSrc] = useState<string | null>(syncSrc ?? null);
-  useEffect(() => {
-    if (!resolveAsset) return;
-    let cancelled = false;
-    void Promise.resolve(resolveAsset(path)).then((url) => {
-      if (!cancelled) setSrc(url);
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, [path, resolveAsset]);
-  if (!src) return null;
-  return <img src={src} alt="" className={styles.extraThumbImg} />;
 }
 
 function ExifRows({ exif }: { exif: NonNullable<BlipEntry['exif']> }) {
@@ -191,6 +155,10 @@ export function EntryDetail({
   reactions,
   commentComposer,
   entryActions,
+  header,
+  loadCalendarMonth,
+  loadHistory,
+  photoFit = 'full-width',
   renderCommentActions,
   onLinkClick,
   onFullscreen,
@@ -305,71 +273,60 @@ export function EntryDetail({
       onTouchStart={pageSwipe.onTouchStart}
       onTouchEnd={pageSwipe.onTouchEnd}
     >
-      {/* Navigation header */}
-      <div className={styles.navHeader}>
-        <div className={styles.navLeft}>
+      {/* Top bar: the host's identity block (if any) opposite the nav strip */}
+      <div className={`${styles.column} ${styles.topBar}`}>
+        <div className={styles.topLeft}>
           {onClose && (
             <button className={styles.navBtn} onClick={onClose} aria-label="Back to grid">
               <ArrowLeft size={16} strokeWidth={1.6} />
               <span style={{ fontSize: '12px' }}>Back</span>
             </button>
           )}
-          <button
-            className={styles.navBtn}
-            onClick={() => prevEntryId && onNavigate(prevEntryId)}
-            disabled={!prevEntryId}
-            aria-label="Older entry"
-          >
-            <ChevronLeft size={18} strokeWidth={1.6} />
-          </button>
-        </div>
-
-        <div className={styles.navTitle}>
-          {entries && entries.length > 0 && (
-            <DatePicker entries={entries} currentDate={entry.date} onNavigate={onNavigate} />
-          )}
-          <span className={styles.navHeading}>
-            {formatLongDate(entry.date)}
-            {entry.title && ` : ${entry.title}`}
-          </span>
-        </div>
-
-        <div className={styles.navRight}>
+          {header}
           {entryActions}
-          <button
-            className={styles.navBtn}
-            onClick={() => nextEntryId && onNavigate(nextEntryId)}
-            disabled={!nextEntryId}
-            aria-label="Newer entry"
-          >
-            <ChevronRight size={18} strokeWidth={1.6} />
-          </button>
         </div>
+        <EntryNavStrip
+          date={entry.date}
+          prevEntryId={prevEntryId}
+          nextEntryId={nextEntryId}
+          onNavigate={onNavigate}
+          entries={entries}
+          loadCalendarMonth={loadCalendarMonth}
+          loadHistory={loadHistory}
+          resolveAsset={resolveAsset}
+          baseUrl={baseUrl}
+        />
       </div>
 
       {/* Photo */}
       <div className={styles.photoOuter}>
-        <div className={styles.photoMiddle}>
-          {imagePath && !imageSrc && (
-            <div className={styles.photoPlaceholder}>
-              <Loader2 size={28} strokeWidth={1.6} className={styles.spinner} />
-            </div>
-          )}
-          {imageSrc && (
-            <div className={styles.photoInner}>
-              <img src={imageSrc} alt={entry.title} className={styles.photo} />
-              <div
-                className={`${styles.photoHalf} ${styles.photoHalfLeft}`}
-                onClick={() => prevEntryId && onNavigate(prevEntryId)}
-                aria-hidden="true"
-              />
-              <div
-                className={`${styles.photoHalf} ${styles.photoHalfRight}`}
-                onClick={() => nextEntryId && onNavigate(nextEntryId)}
-                aria-hidden="true"
-              />
-            </div>
-          )}
+        <div className={styles.column}>
+          <div className={styles.photoFrame}>
+            {imagePath && !imageSrc && (
+              <div className={styles.photoPlaceholder}>
+                <Loader2 size={28} strokeWidth={1.6} className={styles.spinner} />
+              </div>
+            )}
+            {imageSrc && (
+              <div className={styles.photoInner}>
+                <img
+                  src={imageSrc}
+                  alt={entry.title}
+                  className={`${styles.photo} ${photoFit === 'capped' ? styles.photoCapped : ''}`}
+                />
+                <div
+                  className={`${styles.photoHalf} ${styles.photoHalfLeft}`}
+                  onClick={() => prevEntryId && onNavigate(prevEntryId)}
+                  aria-hidden="true"
+                />
+                <div
+                  className={`${styles.photoHalf} ${styles.photoHalfRight}`}
+                  onClick={() => nextEntryId && onNavigate(nextEntryId)}
+                  aria-hidden="true"
+                />
+              </div>
+            )}
+          </div>
         </div>
       </div>
 
@@ -541,6 +498,7 @@ export function EntryDetail({
                           path={thumbPath}
                           syncSrc={thumbSrc}
                           resolveAsset={resolveAsset}
+                          className={styles.extraThumbImg}
                         />
                         {isLast && overflow > 0 && (
                           <div className={styles.extraOverflow}>+{overflow}</div>

@@ -46,12 +46,21 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import type { ReactNode } from 'react';
-import { IonPage, IonHeader, IonContent, IonSpinner, IonText, IonButton, IonAlert } from '@ionic/react';
+import {
+  IonPage,
+  IonHeader,
+  IonContent,
+  IonSpinner,
+  IonText,
+  IonButton,
+  IonAlert,
+} from '@ionic/react';
 import { Pencil, Flag, UserX } from 'lucide-react';
 import { AppHeader } from '../../components/AppHeader.js';
 import { EntryDetail } from '@b-oss/b-view';
 import type { BlipComment, EntryState } from '@b-oss/b-view';
 import { useLiveEntry } from '../../data/useLiveEntry.js';
+import { fetchCalendarMonth, fetchHistoryItems } from '../../data/journalDays.js';
 import { openUrl } from '../../platform/browser.js';
 import { resolveImage } from '../../platform/imageCache.js';
 import { useAppNavigate } from '../../app/routes/useAppNavigate.js';
@@ -412,6 +421,18 @@ export function EntryDetailScreen({ entryId }: EntryDetailScreenProps) {
               prevEntryId={prevEntryId}
               nextEntryId={nextEntryId}
               onNavigate={(id) => navigate.replace(`/entry/${id}`)}
+              // Calendar and history are navigation, so they're offered on every user's entries —
+              // but they need the signed-in API (journal/month is user-auth only).
+              loadCalendarMonth={
+                activeAccount && authorUsername
+                  ? (year, month) => fetchCalendarMonth(authorUsername, year, month)
+                  : undefined
+              }
+              loadHistory={
+                activeAccount && authorUsername && entryState.status === 'loaded'
+                  ? () => fetchHistoryItems(authorUsername, entryState.data.date)
+                  : undefined
+              }
               resolveAsset={resolveImage}
               onLinkClick={(href) => void openUrl(href)}
               onFullscreen={() => navigate.push(`/entry/${entryId}/photo`)}
@@ -461,11 +482,7 @@ export function EntryDetailScreen({ entryId }: EntryDetailScreenProps) {
               {!hideForReadOnly && !isOwnEntry && authorUsername && (
                 <>
                   {friendshipState === 1 && (
-                    <IonButton
-                      size="small"
-                      fill="outline"
-                      onClick={() => setConfirmUnfollow(true)}
-                    >
+                    <IonButton size="small" fill="outline" onClick={() => setConfirmUnfollow(true)}>
                       Unfollow
                     </IonButton>
                   )}
@@ -542,7 +559,6 @@ export function EntryDetailScreen({ entryId }: EntryDetailScreenProps) {
           { text: 'Delete', role: 'destructive', handler: () => void handleConfirmedDelete() },
         ]}
       />
-
     </IonPage>
   );
 }

@@ -26,9 +26,19 @@ interface DatePickerProps {
   entries: EntryIndex[];
   currentDate: string | null;
   onNavigate: (entryId: string) => void;
+  /** Restyle the trigger button (the entry nav strip's square tile) instead of the default small
+   * icon button. The `aria-expanded` state is still on the element for the host's CSS. */
+  buttonClassName?: string;
+  iconSize?: number;
 }
 
-export function DatePicker({ entries, currentDate, onNavigate }: DatePickerProps) {
+export function DatePicker({
+  entries,
+  currentDate,
+  onNavigate,
+  buttonClassName,
+  iconSize = 14,
+}: DatePickerProps) {
   const anchorRef = useRef<HTMLButtonElement>(null);
   const popupRef = useRef<HTMLDivElement>(null);
   const [open, setOpen] = useState(false);
@@ -201,12 +211,12 @@ export function DatePicker({ entries, currentDate, onNavigate }: DatePickerProps
     <>
       <button
         ref={anchorRef}
-        className={styles.calBtn}
+        className={buttonClassName ?? styles.calBtn}
         onClick={handleOpen}
         aria-label="Jump to date"
         aria-expanded={open}
       >
-        <CalendarDays size={14} strokeWidth={1.6} />
+        <CalendarDays size={iconSize} strokeWidth={1.6} />
       </button>
       {popup !== null && createPortal(popup, document.body)}
     </>
