@@ -507,13 +507,16 @@ export function EntryDetailScreen({ entryId }: EntryDetailScreenProps) {
                   )}
                 </>
               )}
-              <button
-                aria-label="Report"
-                onClick={handleReportEntry}
-                style={{ background: 'none', border: 'none', padding: 8, cursor: 'pointer' }}
-              >
-                <Flag size={16} strokeWidth={1.6} />
-              </button>
+              {/* You can't report your own entry, so the flag only shows on other people's. */}
+              {!isOwnEntry && (
+                <button
+                  aria-label="Report"
+                  onClick={handleReportEntry}
+                  style={{ background: 'none', border: 'none', padding: 8, cursor: 'pointer' }}
+                >
+                  <Flag size={16} strokeWidth={1.6} />
+                </button>
+              )}
               {!isOwnEntry && authorUsername && (
                 <button
                   aria-label={`Hide ${authorUsername}`}

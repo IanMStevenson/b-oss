@@ -308,7 +308,18 @@ describe('EntryDetailScreen', () => {
   });
 
   describe('Report and Hide', () => {
-    it('Report is always offered, and navigates scoped to the entry’s author', async () => {
+    it('does not offer Report on the viewer’s own entry (you cannot report yourself)', async () => {
+      const { fetchEntry } = await import('../../../data/entries.js');
+      vi.mocked(fetchEntry).mockResolvedValue({
+        ...baseLoadedEntry,
+        entry: { ...baseLoadedEntry.entry, username: 'me' },
+      });
+      renderScreen();
+      await screen.findByText('A day out');
+      expect(screen.queryByLabelText('Report')).toBeNull();
+    });
+
+    it('Report is offered on another member’s entry, and navigates scoped to its author', async () => {
       const { fetchEntry } = await import('../../../data/entries.js');
       vi.mocked(fetchEntry).mockResolvedValue(baseLoadedEntry);
       renderScreen();
