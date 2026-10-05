@@ -612,6 +612,35 @@ describe('EntryDetailScreen', () => {
       expect(navPush).toHaveBeenLastCalledWith('/user/bob');
     });
 
+    it('offers a comment’s actions as icon buttons in one pill, not a row of text buttons', async () => {
+      await load(withComment({ reply: 1, edit: 1, delete: 1 }));
+      renderScreen();
+      await screen.findByText('First!');
+      for (const name of ['Reply', 'Edit comment', 'Delete comment', 'Report comment']) {
+        expect(screen.getByLabelText(name).textContent).toBe(''); // icon only
+      }
+    });
+
+    it('only offers Report on other people’s comments, never your own', async () => {
+      const own = withComment({ reply: 1, edit: 1, delete: 1 });
+      own.entry.comments[0].commenter_username = 'me';
+      (own.comments[0] as unknown as { commenter: { username: string } }).commenter.username = 'me';
+      await load(own);
+      renderScreen();
+      await screen.findByText('First!');
+      expect(screen.getByLabelText('Edit comment')).toBeDefined();
+      expect(screen.queryByLabelText('Report comment')).toBeNull();
+    });
+
+    it('has the formatting toolbar in the composers (new comment, reply and edit)', async () => {
+      await load(withComment({ reply: 1, edit: 1, delete: 0 }));
+      renderScreen();
+      await screen.findByText('First!');
+      expect(screen.getAllByLabelText('Bold')).toHaveLength(1); // the new-comment box
+      await userEvent.click(screen.getByLabelText('Reply'));
+      expect(screen.getAllByLabelText('Bold')).toHaveLength(2); // + the reply box
+    });
+
     it('Reply opens a composer beneath that comment, posts with its parent, then closes', async () => {
       const { postComment } = await flows();
       vi.mocked(postComment).mockResolvedValue({} as never);
@@ -619,7 +648,7 @@ describe('EntryDetailScreen', () => {
       renderScreen();
       await screen.findByText('First!');
 
-      await userEvent.click(screen.getByText('Reply'));
+      await userEvent.click(screen.getByLabelText('Reply'));
       const reply = box('Reply to bob');
       expect(document.activeElement).toBe(reply); // focused, ready to type
       await userEvent.type(reply, 'Thanks!');
@@ -642,7 +671,7 @@ describe('EntryDetailScreen', () => {
       renderScreen();
       await screen.findByText('First!');
 
-      await userEvent.click(screen.getByText('Edit'));
+      await userEvent.click(screen.getByLabelText('Edit comment'));
       const editor = box('Edit your comment');
       expect(editor.value).toBe('First!');
       expect(screen.queryByText('First!', { selector: 'p, div' })).toBeNull(); // replaced by the editor
@@ -660,7 +689,7 @@ describe('EntryDetailScreen', () => {
       renderScreen();
       await screen.findByText('First!');
 
-      await userEvent.click(screen.getByText('Reply'));
+      await userEvent.click(screen.getByLabelText('Reply'));
       await userEvent.type(box('Reply to bob'), 'draft reply');
       // Every IonAlert on this screen renders its own Cancel in jsdom, so scope to the composer.
       await userEvent.click(
@@ -668,7 +697,7 @@ describe('EntryDetailScreen', () => {
       );
       expect(screen.queryByLabelText('Reply to bob')).toBeNull();
 
-      await userEvent.click(screen.getByText('Reply'));
+      await userEvent.click(screen.getByLabelText('Reply'));
       expect(box('Reply to bob').value).toBe('draft reply');
     });
 

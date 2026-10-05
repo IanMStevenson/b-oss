@@ -401,19 +401,20 @@
   color: var(--ink-2);
 }
 
-/* One comment: an optional square avatar, then the name + badges, the body and its actions. Each
+/* One comment: an optional square avatar beside a column holding the name row (name + badges on
+   the left, the action pill on the right), the body, then any reply composer and replies. Each
    comment is separated from the last by a dashed rule, as on blipfoto.com. */
 .comment {
   display: flex;
-  gap: 14px;
-  padding: 14px 0;
+  gap: 12px;
+  padding: 16px 0;
   border-top: 1px dashed var(--line);
 }
 
 .commentAvatar {
-  flex: 0 0 50px;
-  width: 50px;
-  height: 50px;
+  flex: 0 0 44px;
+  width: 44px;
+  height: 44px;
   background: var(--photo-bg);
   overflow: hidden;
 }
@@ -433,14 +434,26 @@
 .commentHead {
   display: flex;
   align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-height: 30px;
+  margin-bottom: 4px;
+}
+
+.commentWho {
+  display: flex;
+  align-items: center;
   gap: 6px;
-  margin-bottom: 2px;
+  min-width: 0;
 }
 
 .commentAuthor {
   font-size: var(--text-md, 15px);
   font-weight: var(--font-weight-medium, 500);
   color: var(--ink);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 /* A linked name takes the interactive green (Blipfoto's are blue). */
@@ -457,27 +470,42 @@
 
 .commentBody {
   font-size: var(--text-md, 15px);
-  line-height: var(--leading-normal, 1.45);
+  line-height: var(--leading-relaxed, 1.55);
   color: var(--ink-2);
+  overflow-wrap: anywhere;
 }
 
 .commentBody p {
   margin: 0;
 }
 
-.commentActions {
-  margin-top: 4px;
-  display: flex;
-  gap: 8px;
+.commentBody p + p {
+  margin-top: 8px;
 }
 
-/* Replies sit inside their parent's column, so they're indented past its avatar. */
+.commentActions {
+  flex-shrink: 0;
+}
+
+/* Replies nest inside their parent's column, so they're already indented past its avatar; a smaller
+   avatar and a quieter rule keep a thread from feeling crowded. */
 .replies {
-  margin-top: 6px;
+  margin-top: 12px;
   padding-left: 12px;
   border-left: 2px solid var(--line);
 }
 
-.replies .comment:first-child {
+.replies .comment {
+  padding: 12px 0 0;
   border-top: 0;
+}
+
+.replies .comment + .comment {
+  margin-top: 4px;
+}
+
+.replies .commentAvatar {
+  flex-basis: 34px;
+  width: 34px;
+  height: 34px;
 }

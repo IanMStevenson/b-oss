@@ -184,30 +184,32 @@ function CommentThread({
       )}
       <div className={styles.commentMain}>
         <div className={styles.commentHead}>
-          {onUserClick ? (
-            <button
-              type="button"
-              className={`${styles.commentAuthor} ${styles.commentAuthorLink}`}
-              onClick={() => onUserClick(comment.commenter_username)}
-            >
-              {comment.commenter_username}
-            </button>
-          ) : (
-            <span className={styles.commentAuthor}>{comment.commenter_username}</span>
+          <div className={styles.commentWho}>
+            {onUserClick ? (
+              <button
+                type="button"
+                className={`${styles.commentAuthor} ${styles.commentAuthorLink}`}
+                onClick={() => onUserClick(comment.commenter_username)}
+              >
+                {comment.commenter_username}
+              </button>
+            ) : (
+              <span className={styles.commentAuthor}>{comment.commenter_username}</span>
+            )}
+            {renderCommenterBadges?.(comment)}
+          </div>
+          {/* The actions sit in the name row (right-aligned), not stacked under the text — and not
+              at all while an editor has replaced the comment. */}
+          {!editor && renderCommentActions && (
+            <div className={styles.commentActions}>{renderCommentActions(comment)}</div>
           )}
-          {renderCommenterBadges?.(comment)}
         </div>
         {editor ?? (
-          <>
-            <BBCodeText
-              source={comment.content}
-              className={styles.commentBody}
-              onLinkClick={onLinkClick}
-            />
-            {renderCommentActions && (
-              <div className={styles.commentActions}>{renderCommentActions(comment)}</div>
-            )}
-          </>
+          <BBCodeText
+            source={comment.content}
+            className={styles.commentBody}
+            onLinkClick={onLinkClick}
+          />
         )}
         {reply}
         {comment.replies && comment.replies.length > 0 && (

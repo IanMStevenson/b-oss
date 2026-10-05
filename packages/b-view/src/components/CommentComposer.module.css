@@ -3,6 +3,8 @@
 
 .composer {
   margin-top: 8px;
+  /* Air between the pill and whatever follows (the first comment's dashed rule). */
+  margin-bottom: 14px;
 }
 
 .box {
@@ -79,4 +81,102 @@
 .cancel:disabled {
   cursor: default;
   color: var(--ink-disabled, #d0d3d8);
+}
+
+/* Formatting toolbar: faded B / I / U / S / link in the box's bottom-left, as on blipfoto.com. */
+.footer {
+  padding: 2px 6px 6px;
+}
+
+.toolbar {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.fmtBtn {
+  min-width: 32px;
+  height: 32px;
+  padding: 0 6px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  border-radius: 4px;
+  background: none;
+  font: inherit;
+  font-size: var(--text-md, 15px);
+  color: var(--muted-2);
+  cursor: pointer;
+}
+
+.fmtBtn:hover:not(:disabled),
+.fmtBtn[aria-expanded='true'] {
+  color: var(--ink);
+  background: var(--line-2);
+}
+
+.fmtBtn:disabled {
+  cursor: default;
+  opacity: 0.5;
+}
+
+.fmtBold {
+  font-weight: 700;
+  font-family: Georgia, serif;
+}
+
+.fmtItalic {
+  font-style: italic;
+  font-family: Georgia, serif;
+}
+
+.fmtUnderline {
+  text-decoration: underline;
+  font-family: Georgia, serif;
+}
+
+.fmtStrike {
+  text-decoration: line-through;
+  font-family: Georgia, serif;
+}
+
+.linkRow {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 0 8px;
+  border-bottom: 1px dashed var(--line);
+  margin-bottom: 4px;
+}
+
+.linkInput {
+  flex: 1;
+  min-width: 0;
+  height: 34px;
+  padding: 0 8px;
+  font: inherit;
+  font-size: var(--text-md, 15px);
+  border: 1px solid var(--line);
+  border-radius: 4px;
+}
+
+.linkAdd,
+.linkCancel {
+  height: 34px;
+  padding: 0 10px;
+  border: 0;
+  background: none;
+  font: inherit;
+  font-size: var(--text-sm, 13px);
+  cursor: pointer;
+}
+
+.linkAdd {
+  font-weight: var(--font-weight-medium, 500);
+  color: var(--green-700);
+}
+
+.linkCancel {
+  color: var(--muted);
 }

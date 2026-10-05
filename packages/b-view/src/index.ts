@@ -2,6 +2,8 @@
 // Copyright (C) 2026 Ian Stevenson
 
 export { ThumbnailGrid } from './components/ThumbnailGrid.js';
+export { ActionPill } from './components/ActionPill.js';
+export type { ActionPillItem } from './components/ActionPill.js';
 export { CommentComposer } from './components/CommentComposer.js';
 export type { CommentComposerProps } from './components/CommentComposer.js';
 export { EntryCalendar } from './components/EntryCalendar.js';
