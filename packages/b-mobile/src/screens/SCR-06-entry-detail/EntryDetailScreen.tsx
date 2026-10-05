@@ -68,7 +68,7 @@ import { UserBadges } from '../../components/UserBadges.js';
 import { t } from '../../strings/index.js';
 import { fetchCalendarMonth, fetchHistoryItems } from '../../data/journalDays.js';
 import { openUrl } from '../../platform/browser.js';
-import { resolveImage } from '../../platform/imageCache.js';
+import { resolveImage, invalidateImage } from '../../platform/imageCache.js';
 import { useAppNavigate } from '../../app/routes/useAppNavigate.js';
 import { useOverlay } from '../../app/OverlayProvider.js';
 import { useAccountsStore, useActiveAccount, useCanWrite } from '../../state/accountsStore.js';
@@ -505,6 +505,7 @@ export function EntryDetailScreen({ entryId, initialReplyToCommentId }: EntryDet
                   : undefined
               }
               resolveAsset={resolveImage}
+              invalidateAsset={invalidateImage}
               onLinkClick={(href) => void openUrl(href)}
               onFullscreen={() => navigate.push(`/entry/${entryId}/photo`)}
               onTagClick={(tag) => navigate.push(`/tag/${encodeURIComponent(tag)}`)}

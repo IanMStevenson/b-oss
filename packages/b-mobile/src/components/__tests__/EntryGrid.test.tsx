@@ -3,7 +3,7 @@
 // @vitest-environment jsdom
 
 import { describe, it, expect, afterEach, beforeEach, vi } from 'vitest';
-import { render, screen, cleanup, fireEvent } from '@testing-library/react';
+import { render, screen, cleanup, fireEvent, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { EntryGrid } from '../EntryGrid.js';
 import { useDevicePrefsStore } from '../../state/devicePrefsStore.js';
@@ -14,6 +14,12 @@ vi.mock('../../platform/prefs.js', () => ({
   setPref: vi.fn().mockResolvedValue(undefined),
   deletePref: vi.fn().mockResolvedValue(undefined),
 }));
+
+const { resolveImage, invalidateImage } = vi.hoisted(() => ({
+  resolveImage: vi.fn(),
+  invalidateImage: vi.fn(),
+}));
+vi.mock('../../platform/imageCache.js', () => ({ resolveImage, invalidateImage }));
 
 vi.mock('../../state/hiddenMembersStore.js', () => ({
   useHiddenMembers: () => [],
@@ -186,5 +192,19 @@ describe('EntryGrid — resuming the page you were on (b-oss#182)', () => {
 
     mount('feed', makeEntries(8)); // far fewer entries loaded now: page 5 doesn't exist here
     expect(screen.getByLabelText('2026-01-01')).toBeDefined();
+  });
+});
+
+describe('EntryGrid — failed thumbnails (b-oss#185)', () => {
+  it('evicts a thumbnail’s cached copy when it will not draw, and refetches it', async () => {
+    resolveImage.mockImplementation((path: string) => Promise.resolve(`cached://${path}`));
+    invalidateImage.mockResolvedValue(undefined);
+    renderGrid(makeEntries(1));
+
+    const img = await screen.findByAltText('Entry 1');
+    const before = resolveImage.mock.calls.length;
+    fireEvent.error(img);
+    await waitFor(() => expect(invalidateImage).toHaveBeenCalledWith('thumb-1.jpg'));
+    await waitFor(() => expect(resolveImage.mock.calls.length).toBeGreaterThan(before));
   });
 });

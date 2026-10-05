@@ -41,6 +41,9 @@ interface EntryDetailProps {
   onClose?: () => void;
   baseUrl?: string;
   resolveAsset?: ResolveAsset;
+  /** Drops the host's cached copy of an image the browser failed to draw, so the one automatic
+   * retry fetches it afresh (b-oss#185). Omitted: the retry just re-resolves. */
+  invalidateAsset?: (path: string) => void | Promise<void>;
   entries?: EntryIndex[];
   /** Undefined: stars/hearts render as today's static counts. Provided: they become tappable. */
   reactions?: EntryDetailReactions;
@@ -227,6 +230,7 @@ export function EntryDetail({
   onClose,
   baseUrl,
   resolveAsset,
+  invalidateAsset,
   entries,
   reactions,
   commentComposer,
@@ -247,6 +251,8 @@ export function EntryDetail({
   onLocationClick,
 }: EntryDetailProps) {
   const [asyncImageSrc, setAsyncImageSrc] = useState<string | null>(null);
+  // 0 = first load; 1 = the single automatic retry after the photo failed to draw.
+  const [photoAttempt, setPhotoAttempt] = useState(0);
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
   // Resolved URLs for all lightbox images: [main, ...extras stdres]
   const [lightboxUrls, setLightboxUrls] = useState<string[]>([]);
@@ -309,13 +315,19 @@ export function EntryDetail({
       return;
     }
     let cancelled = false;
+    if (photoAttempt > 0) setAsyncImageSrc(null); // show the loading state while it refetches
     void Promise.resolve(resolveAsset(imagePath)).then((url) => {
       if (!cancelled) setAsyncImageSrc(url);
     });
     return () => {
       cancelled = true;
     };
-  }, [resolveAsset, imagePath]);
+  }, [resolveAsset, imagePath, photoAttempt]);
+
+  // A different photo starts with its retry available again.
+  useEffect(() => {
+    setPhotoAttempt(0);
+  }, [imagePath]);
 
   // Reset lightbox when navigating to a new entry
   useEffect(() => {
@@ -394,6 +406,14 @@ export function EntryDetail({
                   src={imageSrc}
                   alt={entry.title}
                   className={`${styles.photo} ${photoFit === 'capped' ? styles.photoCapped : ''}`}
+                  onError={() => {
+                    // The browser couldn't draw it (e.g. a corrupt cached copy): drop that copy
+                    // and try once more from scratch, rather than leaving a broken photo up.
+                    if (!resolveAsset || !imagePath || photoAttempt > 0) return;
+                    void Promise.resolve(invalidateAsset?.(imagePath)).then(() =>
+                      setPhotoAttempt(1),
+                    );
+                  }}
                 />
                 <div
                   className={`${styles.photoHalf} ${styles.photoHalfLeft}`}

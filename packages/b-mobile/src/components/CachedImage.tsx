@@ -13,7 +13,7 @@
 import { useEffect, useState } from 'react';
 import type { CSSProperties } from 'react';
 import { Image } from 'lucide-react';
-import { resolveImage } from '../platform/imageCache.js';
+import { resolveImage, invalidateImage } from '../platform/imageCache.js';
 
 interface CachedImageProps {
   src: string;
@@ -26,6 +26,8 @@ interface CachedImageProps {
 export function CachedImage({ src, alt, className, style, loading = 'lazy' }: CachedImageProps) {
   const [resolvedSrc, setResolvedSrc] = useState<string | null>(null);
   const [failed, setFailed] = useState(false);
+  // 0 = first load; 1 = the single automatic retry after a failed draw (b-oss#185).
+  const [attempt, setAttempt] = useState(0);
 
   useEffect(() => {
     let cancelled = false;
@@ -42,6 +44,11 @@ export function CachedImage({ src, alt, className, style, loading = 'lazy' }: Ca
     return () => {
       cancelled = true;
     };
+  }, [src, attempt]);
+
+  // A different image starts with its retry available again.
+  useEffect(() => {
+    setAttempt(0);
   }, [src]);
 
   if (failed) {
@@ -73,7 +80,12 @@ export function CachedImage({ src, alt, className, style, loading = 'lazy' }: Ca
       className={className}
       style={style}
       loading={loading}
-      onError={() => setFailed(true)}
+      onError={() => {
+        // Couldn't draw it — most likely a corrupt cached copy. Drop that copy and refetch once
+        // before giving up on the placeholder.
+        if (attempt === 0) void invalidateImage(src).then(() => setAttempt(1));
+        else setFailed(true);
+      }}
     />
   );
 }
