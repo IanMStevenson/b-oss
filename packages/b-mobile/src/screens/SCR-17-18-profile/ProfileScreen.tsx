@@ -48,7 +48,7 @@ import { useAppNavigate } from '../../app/routes/useAppNavigate.js';
 import { useOverlay } from '../../app/OverlayProvider.js';
 import { AccountIndicator } from '../../components/AccountIndicator.js';
 import { useAccountsStore, useActiveAccount } from '../../state/accountsStore.js';
-import { resumeGet, resumeSet } from '../../data/resumeCache.js';
+import { resumeClear, resumeGet, resumeSet } from '../../data/resumeCache.js';
 import { useHiddenMembersStore, useIsHidden } from '../../state/hiddenMembersStore.js';
 import { CachedImage } from '../../components/CachedImage.js';
 import { UserBadges } from '../../components/UserBadges.js';
@@ -142,15 +142,9 @@ export function ProfileScreen({ username }: ProfileScreenProps) {
   // Back from an entry rebuilds this screen (data/resumeCache.ts), so remember which tab you were
   // on and each grid's page — scoped to the account and the profile being shown (b-oss#182).
   const resumeScope = `profile:${activeAccount?.id ?? 'anon'}:${effectiveUsername ?? ''}`;
-  const [initialUi] = useState<{ tab: Tab; visited: Tab[] }>(
-    () =>
-      resumeGet<{ tab: Tab; visited: Tab[] }>(`${resumeScope}:ui`) ?? {
-        tab: 'about',
-        visited: ['about'],
-      },
+  const [tab, setTab] = useState<Tab>(
+    () => resumeGet<{ tab: Tab }>(`${resumeScope}:ui`)?.tab ?? 'about',
   );
-  const [tab, setTab] = useState<Tab>(initialUi.tab);
-  const [visited, setVisited] = useState<Set<Tab>>(new Set(initialUi.visited));
   const [friendshipState, setFriendshipState] = useState<0 | 1 | 2 | 3 | null>(null);
   const [confirmUnfollow, setConfirmUnfollow] = useState(false);
   const [confirmHide, setConfirmHide] = useState(false);
@@ -160,11 +154,13 @@ export function ProfileScreen({ username }: ProfileScreenProps) {
   const friendship =
     state.status === 'loaded' ? (friendshipState ?? state.data.friendship?.state ?? 0) : 0;
 
+  // Choosing a tab starts its grid at page 1: only the active tab is mounted and its remembered
+  // page is dropped here. Back from an entry doesn't pass through this (b-oss#204).
   function handleTabChange(next: Tab): void {
-    const updated = visited.has(next) ? visited : new Set(visited).add(next);
+    if (next === tab) return;
+    resumeClear(`${resumeScope}:${next}`);
     setTab(next);
-    setVisited(updated);
-    resumeSet(`${resumeScope}:ui`, { tab: next, visited: [...updated] });
+    resumeSet(`${resumeScope}:ui`, { tab: next });
   }
 
   async function handleFollow(): Promise<void> {
@@ -364,33 +360,22 @@ export function ProfileScreen({ username }: ProfileScreenProps) {
                     )}
                   </div>
                 )}
-                {[...visited].map(
-                  (t) =>
-                    t !== 'about' && (
-                      <div key={t} hidden={t !== tab}>
-                        {t === 'entries' && (
-                          <GridTab
-                            fetchPage={(pageIndex) =>
-                              fetchJournalEntriesFor(effectiveUsername, pageIndex)
-                            }
-                            pageSize={JOURNAL_PAGE_SIZE}
-                            resumeKey={`${resumeScope}:entries`}
-                            refetchKey={effectiveUsername}
-                            onSelectEntry={(id) => navigate.push(`/entry/${id}`)}
-                          />
-                        )}
-                        {t === 'faves' && (
-                          <GridTab
-                            fetchPage={(pageIndex) =>
-                              fetchFavoriteEntriesFor(effectiveUsername, pageIndex)
-                            }
-                            resumeKey={`${resumeScope}:faves`}
-                            refetchKey={effectiveUsername}
-                            onSelectEntry={(id) => navigate.push(`/entry/${id}`)}
-                          />
-                        )}
-                      </div>
-                    ),
+                {tab === 'entries' && (
+                  <GridTab
+                    fetchPage={(pageIndex) => fetchJournalEntriesFor(effectiveUsername, pageIndex)}
+                    pageSize={JOURNAL_PAGE_SIZE}
+                    resumeKey={`${resumeScope}:entries`}
+                    refetchKey={effectiveUsername}
+                    onSelectEntry={(id) => navigate.push(`/entry/${id}`)}
+                  />
+                )}
+                {tab === 'faves' && (
+                  <GridTab
+                    fetchPage={(pageIndex) => fetchFavoriteEntriesFor(effectiveUsername, pageIndex)}
+                    resumeKey={`${resumeScope}:faves`}
+                    refetchKey={effectiveUsername}
+                    onSelectEntry={(id) => navigate.push(`/entry/${id}`)}
+                  />
                 )}
               </>
             )}
