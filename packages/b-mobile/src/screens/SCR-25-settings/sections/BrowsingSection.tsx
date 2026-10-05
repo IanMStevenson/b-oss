@@ -17,6 +17,8 @@ export function BrowsingSection() {
   const setShowPagination = useDevicePrefsStore((s) => s.setShowPagination);
   const thumbnailMargins = useDevicePrefsStore((s) => s.thumbnailMargins);
   const setThumbnailMargins = useDevicePrefsStore((s) => s.setThumbnailMargins);
+  const photoFit = useDevicePrefsStore((s) => s.photoFit);
+  const setPhotoFit = useDevicePrefsStore((s) => s.setPhotoFit);
 
   return (
     <div className="ion-padding">
@@ -65,6 +67,30 @@ export function BrowsingSection() {
             Narrow keeps the same number of columns as Normal but shrinks the margins and gaps
             between thumbnails. None removes margins entirely — at that point, zoom controls how
             many thumbnails fit in each row.
+          </p>
+        </IonText>
+      </div>
+
+      <div style={{ marginTop: 24 }}>
+        <IonText>
+          <p style={{ marginBottom: 8 }}>Photo size</p>
+        </IonText>
+        <IonSegment
+          aria-label="Photo size"
+          value={photoFit}
+          onIonChange={(e) => setPhotoFit(e.detail.value as 'full-width' | 'capped')}
+        >
+          <IonSegmentButton value="full-width">
+            <IonLabel>Full width</IonLabel>
+          </IonSegmentButton>
+          <IonSegmentButton value="capped">
+            <IonLabel>Fit to screen</IonLabel>
+          </IonSegmentButton>
+        </IonSegment>
+        <IonText color="medium">
+          <p>
+            Full width always fills the screen width, so a tall photo runs past the screen and you
+            scroll. Fit to screen shows the whole photo at once, at the cost of width.
           </p>
         </IonText>
       </div>

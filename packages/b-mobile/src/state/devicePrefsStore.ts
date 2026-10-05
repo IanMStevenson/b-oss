@@ -63,6 +63,9 @@ interface PersistedShape {
    * zoom level that reset to 100 on every remount and never matched each other. One shared,
    * persisted value across all of them, same as the other Browsing-section prefs above. */
   thumbnailZoomPercent: number;
+  /** Entry page photo: 'full-width' (default, Blipfoto's behaviour — fills the column however tall,
+   * so a portrait scrolls) or 'capped' (height-limited so the whole picture fits on screen). */
+  photoFit: 'full-width' | 'capped';
 }
 
 interface DevicePrefsState extends PersistedShape {
@@ -79,6 +82,7 @@ interface DevicePrefsState extends PersistedShape {
   setShowPagination: (value: boolean) => void;
   setThumbnailMargins: (value: PersistedShape['thumbnailMargins']) => void;
   setThumbnailZoomPercent: (value: number) => void;
+  setPhotoFit: (value: PersistedShape['photoFit']) => void;
 }
 
 const defaults: PersistedShape = {
@@ -92,6 +96,7 @@ const defaults: PersistedShape = {
   showPagination: true,
   thumbnailMargins: 'normal',
   thumbnailZoomPercent: 100,
+  photoFit: 'full-width',
 };
 
 function persist(state: PersistedShape): void {
@@ -218,6 +223,14 @@ export const useDevicePrefsStore = create<DevicePrefsState>((set) => ({
       return shape;
     });
   },
+
+  setPhotoFit: (value) => {
+    set((prev) => {
+      const shape: PersistedShape = { ...toPersisted(prev), photoFit: value };
+      persist(shape);
+      return shape;
+    });
+  },
 }));
 
 function toPersisted(state: PersistedShape): PersistedShape {
@@ -232,5 +245,6 @@ function toPersisted(state: PersistedShape): PersistedShape {
     showPagination: state.showPagination,
     thumbnailMargins: state.thumbnailMargins,
     thumbnailZoomPercent: state.thumbnailZoomPercent,
+    photoFit: state.photoFit,
   };
 }
