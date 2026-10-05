@@ -18,6 +18,7 @@ beforeEach(() => {
     showZoomBar: true,
     showPagination: true,
     thumbnailMargins: 'normal',
+    photoFit: 'full-width',
   });
 });
 
@@ -63,5 +64,15 @@ describe('BrowsingSection', () => {
       new CustomEvent('ionChange', { bubbles: true, detail: { value: 'narrow' } }),
     );
     expect(useDevicePrefsStore.getState().thumbnailMargins).toBe('narrow');
+  });
+
+  it('photo size defaults to full width and persists Fit to screen', () => {
+    render(<BrowsingSection />);
+    const segment = document.querySelector('ion-segment[aria-label="Photo size"]')!;
+    expect(segment.getAttribute('value')).toBe('full-width');
+    segment.dispatchEvent(
+      new CustomEvent('ionChange', { bubbles: true, detail: { value: 'capped' } }),
+    );
+    expect(useDevicePrefsStore.getState().photoFit).toBe('capped');
   });
 });

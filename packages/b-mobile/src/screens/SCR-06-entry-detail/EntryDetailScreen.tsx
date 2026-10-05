@@ -89,6 +89,7 @@ import {
 } from '../../state/hiddenMembersStore.js';
 import { describeError, mapApiError } from '../../data/errors.js';
 import type { BlipComment as ApiComment } from '@b-oss/b-api';
+import { useDevicePrefsStore } from '../../state/devicePrefsStore.js';
 
 interface EntryDetailScreenProps {
   entryId: string;
@@ -118,6 +119,7 @@ function flattenComments(comments: ApiComment[], map: Map<string, ApiComment>): 
 }
 
 export function EntryDetailScreen({ entryId, initialReplyToCommentId }: EntryDetailScreenProps) {
+  const photoFit = useDevicePrefsStore((s) => s.photoFit);
   const navigate = useAppNavigate();
   const { showUpgradePrompt } = useOverlay();
   const activeAccount = useActiveAccount();
@@ -488,6 +490,7 @@ export function EntryDetailScreen({ entryId, initialReplyToCommentId }: EntryDet
         {entryState.status === 'loaded' && !authorHidden && (
           <>
             <EntryDetail
+              photoFit={photoFit}
               entryState={displayEntryState}
               prevEntryId={prevEntryId}
               nextEntryId={nextEntryId}
