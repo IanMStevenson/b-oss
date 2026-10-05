@@ -22,7 +22,7 @@
 // which shows its own "you've hidden this member" state with Unhide, per rules.md's "opening a
 // hidden member's entry deliberately" rule.
 
-import { useCallback, useMemo } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { IonRefresher, IonRefresherContent } from '@ionic/react';
 import type { RefresherEventDetail } from '@ionic/core';
 import { ThumbnailGrid } from '@b-oss/b-view';
@@ -31,6 +31,7 @@ import { resolveImage } from '../platform/imageCache.js';
 import { useHiddenMembers } from '../state/hiddenMembersStore.js';
 import { useAppNavigate } from '../app/routes/useAppNavigate.js';
 import { useDevicePrefsStore } from '../state/devicePrefsStore.js';
+import { resumeGet, resumeSet } from '../data/resumeCache.js';
 
 const HIDDEN_THUMBNAIL = '__hidden__';
 
@@ -66,6 +67,10 @@ interface EntryGridProps {
   /** Fetches the one page immediately before the current window and prepends it — wire to
    * `resource.loadBefore`, alongside the two props above. */
   onLoadBefore?: (targetIndex: number) => void;
+  /** Remember which page of the feed the grid is on under this key, and start there when the screen
+   * is rebuilt (Back from an entry — b-oss#182). Pair with the same key on `usePagedResource` so
+   * the data window being restored is the one the page belongs to. Omitted: always starts at 0. */
+  resumeKey?: string;
 }
 
 export function EntryGrid({
@@ -78,6 +83,7 @@ export function EntryGrid({
   entriesOffset,
   onSeek,
   onLoadBefore,
+  resumeKey,
 }: EntryGridProps) {
   const hiddenMembers = useHiddenMembers();
   const navigate = useAppNavigate();
@@ -86,6 +92,17 @@ export function EntryGrid({
   const showZoomBar = useDevicePrefsStore((s) => s.showZoomBar);
   const showPagination = useDevicePrefsStore((s) => s.showPagination);
   const thumbnailMargins = useDevicePrefsStore((s) => s.thumbnailMargins);
+
+  // The remembered page only makes sense inside the window of entries we're showing — a mismatch
+  // (the data expired but this didn't, say) would sit on "Loading…" — so otherwise start at 0.
+  const topKey = resumeKey ? `${resumeKey}:top` : undefined;
+  const [restoredTop] = useState(() => {
+    const saved = topKey ? resumeGet<number>(topKey) : undefined;
+    const offset = entriesOffset ?? 0;
+    return saved !== undefined && saved >= offset && saved < offset + entries.length
+      ? saved
+      : undefined;
+  });
 
   const displayEntries = useMemo(
     () =>
@@ -140,6 +157,8 @@ export function EntryGrid({
           entriesOffset={entriesOffset}
           onSeek={onSeek}
           onLoadBefore={onLoadBefore}
+          initialTopLeftIndex={restoredTop}
+          onTopLeftIndexChange={topKey ? (index) => resumeSet(topKey, index) : undefined}
         />
       </div>
     </>

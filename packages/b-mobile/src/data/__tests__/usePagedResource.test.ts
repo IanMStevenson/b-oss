@@ -40,7 +40,9 @@ describe('usePagedResource — seekTo (b-oss#153)', () => {
   });
 
   it('discards the previous window rather than trying to backfill the gap', async () => {
-    const fetchPage = vi.fn((pageIndex: number) => Promise.resolve(page(pageIndex * PAGE_SIZE, PAGE_SIZE, true)));
+    const fetchPage = vi.fn((pageIndex: number) =>
+      Promise.resolve(page(pageIndex * PAGE_SIZE, PAGE_SIZE, true)),
+    );
     const { result } = renderHook(() => usePagedResource(fetchPage, [], PAGE_SIZE));
     await waitFor(() => expect(result.current.status).toBe('loaded'));
     expect(result.current.items).toHaveLength(PAGE_SIZE);
@@ -54,7 +56,9 @@ describe('usePagedResource — seekTo (b-oss#153)', () => {
   });
 
   it('hasBefore is false when the seek lands on the very first page', async () => {
-    const fetchPage = vi.fn((pageIndex: number) => Promise.resolve(page(pageIndex * PAGE_SIZE, PAGE_SIZE, true)));
+    const fetchPage = vi.fn((pageIndex: number) =>
+      Promise.resolve(page(pageIndex * PAGE_SIZE, PAGE_SIZE, true)),
+    );
     const { result } = renderHook(() => usePagedResource(fetchPage, [], PAGE_SIZE));
     await waitFor(() => expect(result.current.status).toBe('loaded'));
 
@@ -66,7 +70,9 @@ describe('usePagedResource — seekTo (b-oss#153)', () => {
   });
 
   it('loadMore after a seek continues forward from the new anchor, not from page 0', async () => {
-    const fetchPage = vi.fn((pageIndex: number) => Promise.resolve(page(pageIndex * PAGE_SIZE, PAGE_SIZE, true)));
+    const fetchPage = vi.fn((pageIndex: number) =>
+      Promise.resolve(page(pageIndex * PAGE_SIZE, PAGE_SIZE, true)),
+    );
     const { result } = renderHook(() => usePagedResource(fetchPage, [], PAGE_SIZE));
     await waitFor(() => expect(result.current.status).toBe('loaded'));
 
@@ -107,7 +113,9 @@ describe('usePagedResource — seekTo (b-oss#153)', () => {
 
 describe('usePagedResource — loadBefore (b-oss#153)', () => {
   it('fetches the one page immediately before the current window and prepends it', async () => {
-    const fetchPage = vi.fn((pageIndex: number) => Promise.resolve(page(pageIndex * PAGE_SIZE, PAGE_SIZE, true)));
+    const fetchPage = vi.fn((pageIndex: number) =>
+      Promise.resolve(page(pageIndex * PAGE_SIZE, PAGE_SIZE, true)),
+    );
     const { result } = renderHook(() => usePagedResource(fetchPage, [], PAGE_SIZE));
     await waitFor(() => expect(result.current.status).toBe('loaded'));
 
@@ -125,7 +133,9 @@ describe('usePagedResource — loadBefore (b-oss#153)', () => {
   });
 
   it('is a no-op once the window reaches the start of the feed', async () => {
-    const fetchPage = vi.fn((pageIndex: number) => Promise.resolve(page(pageIndex * PAGE_SIZE, PAGE_SIZE, true)));
+    const fetchPage = vi.fn((pageIndex: number) =>
+      Promise.resolve(page(pageIndex * PAGE_SIZE, PAGE_SIZE, true)),
+    );
     const { result } = renderHook(() => usePagedResource(fetchPage, [], PAGE_SIZE));
     await waitFor(() => expect(result.current.status).toBe('loaded'));
     expect(result.current.hasBefore).toBe(false);
@@ -264,5 +274,98 @@ describe('usePagedResource — server clamps page_index (depth limit)', () => {
     await waitFor(() => expect(result.current.seeking).toBe(false));
     expect(result.current.windowStart).toBe(10 * PAGE_SIZE);
     expect(result.current.hasMore).toBe(true);
+  });
+});
+
+describe('usePagedResource — resuming (b-oss#182)', () => {
+  const pagesOf = (pageIndex: number) =>
+    Promise.resolve(page(pageIndex * PAGE_SIZE, PAGE_SIZE, true));
+
+  it('shows a remembered feed straight away on a rebuilt screen, without fetching it again', async () => {
+    const first = vi.fn(pagesOf);
+    const mount1 = renderHook(() => usePagedResource(first, [], PAGE_SIZE, 'feed:a'));
+    await waitFor(() => expect(mount1.result.current.status).toBe('loaded'));
+    mount1.unmount(); // the screen goes away (opening an entry)
+
+    const second = vi.fn(pagesOf);
+    const mount2 = renderHook(() => usePagedResource(second, [], PAGE_SIZE, 'feed:a'));
+    expect(mount2.result.current.status).toBe('loaded'); // immediately — no spinner
+    expect(mount2.result.current.items).toHaveLength(PAGE_SIZE);
+    await new Promise((r) => setTimeout(r, 0));
+    expect(second).not.toHaveBeenCalled();
+  });
+
+  it('remembers more than the first page: loaded-more items and where loadMore continues from', async () => {
+    const mount1 = renderHook(() => usePagedResource(pagesOf, [], PAGE_SIZE, 'feed:b'));
+    await waitFor(() => expect(mount1.result.current.status).toBe('loaded'));
+    act(() => mount1.result.current.loadMore());
+    await waitFor(() => expect(mount1.result.current.items).toHaveLength(2 * PAGE_SIZE));
+    mount1.unmount();
+
+    const fetchNext = vi.fn(pagesOf);
+    const mount2 = renderHook(() => usePagedResource(fetchNext, [], PAGE_SIZE, 'feed:b'));
+    expect(mount2.result.current.items).toHaveLength(2 * PAGE_SIZE);
+    act(() => mount2.result.current.loadMore());
+    await waitFor(() => expect(mount2.result.current.items).toHaveLength(3 * PAGE_SIZE));
+    expect(fetchNext).toHaveBeenCalledTimes(1);
+    expect(fetchNext).toHaveBeenCalledWith(2); // continued from page 2, not restarted at 1
+  });
+
+  it('remembers a seeked window and its anchor, so paging back still works', async () => {
+    const mount1 = renderHook(() => usePagedResource(pagesOf, [], PAGE_SIZE, 'feed:c'));
+    await waitFor(() => expect(mount1.result.current.status).toBe('loaded'));
+    act(() => mount1.result.current.seekTo(300));
+    await waitFor(() => expect(mount1.result.current.seeking).toBe(false));
+    mount1.unmount();
+
+    const fetchPrev = vi.fn(pagesOf);
+    const mount2 = renderHook(() => usePagedResource(fetchPrev, [], PAGE_SIZE, 'feed:c'));
+    expect(mount2.result.current.windowStart).toBe(10 * PAGE_SIZE);
+    expect(mount2.result.current.hasBefore).toBe(true);
+    act(() => mount2.result.current.loadBefore());
+    await waitFor(() => expect(mount2.result.current.loadingBefore).toBe(false));
+    expect(fetchPrev).toHaveBeenCalledWith(9);
+  });
+
+  it('refetches once the remembered copy has expired', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(new Date('2026-10-05T12:00:00Z'));
+    const mount1 = renderHook(() => usePagedResource(pagesOf, [], PAGE_SIZE, 'feed:d'));
+    await waitFor(() => expect(mount1.result.current.status).toBe('loaded'));
+    mount1.unmount();
+
+    vi.setSystemTime(new Date('2026-10-05T12:30:00Z'));
+    const fetchAgain = vi.fn(pagesOf);
+    const mount2 = renderHook(() => usePagedResource(fetchAgain, [], PAGE_SIZE, 'feed:d'));
+    expect(mount2.result.current.status).toBe('loading');
+    await waitFor(() => expect(mount2.result.current.status).toBe('loaded'));
+    expect(fetchAgain).toHaveBeenCalledTimes(1);
+    vi.useRealTimers();
+  });
+
+  it('does not share between keys, and a resumed feed still refetches when its deps change', async () => {
+    const mount1 = renderHook(() => usePagedResource(pagesOf, [], PAGE_SIZE, 'feed:e'));
+    await waitFor(() => expect(mount1.result.current.status).toBe('loaded'));
+    mount1.unmount();
+
+    const other = renderHook(() => usePagedResource(pagesOf, [], PAGE_SIZE, 'feed:other'));
+    expect(other.result.current.status).toBe('loading'); // a different key knows nothing
+
+    let dep = 1;
+    const fetchDep = vi.fn(pagesOf);
+    const resumed = renderHook(() => usePagedResource(fetchDep, [dep], PAGE_SIZE, 'feed:e'));
+    expect(resumed.result.current.status).toBe('loaded');
+    expect(fetchDep).not.toHaveBeenCalled();
+    dep = 2;
+    resumed.rerender();
+    await waitFor(() => expect(fetchDep).toHaveBeenCalledTimes(1)); // the dep change refetches
+  });
+
+  it('without a key it never resumes (the default, as before)', async () => {
+    const mount1 = renderHook(() => usePagedResource(pagesOf, [], PAGE_SIZE));
+    await waitFor(() => expect(mount1.result.current.status).toBe('loaded'));
+    mount1.unmount();
+    const mount2 = renderHook(() => usePagedResource(pagesOf, [], PAGE_SIZE));
+    expect(mount2.result.current.status).toBe('loading');
   });
 });

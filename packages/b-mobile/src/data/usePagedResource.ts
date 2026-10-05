@@ -15,6 +15,7 @@
 // `windowStart` tracks where that re-anchored window now begins, since it's no longer always 0.
 
 import { useEffect, useRef, useState } from 'react';
+import { resumeGet, resumeSet } from './resumeCache.js';
 
 export interface Page<T> {
   items: T[];
@@ -29,10 +30,11 @@ export interface Page<T> {
 }
 
 /** Spreads the paging fields every fetcher needs from a b-api `BlipPage`. */
-export function pageMeta(page: { more: 0 | 1; index: number; size: number }): Pick<
-  Page<never>,
-  'more' | 'index' | 'size'
-> {
+export function pageMeta(page: {
+  more: 0 | 1;
+  index: number;
+  size: number;
+}): Pick<Page<never>, 'more' | 'index' | 'size'> {
   return { more: page.more === 1, index: page.index, size: page.size };
 }
 
@@ -70,6 +72,15 @@ export interface PagedResourceState<T> {
   seekTo: (targetOffset: number) => void;
 }
 
+/** What's remembered about a feed so it can be shown again, unfetched, after its screen was
+ * unmounted and rebuilt (see data/resumeCache.ts). */
+interface ResumeSnapshot<T> {
+  items: T[];
+  hasMore: boolean;
+  windowStart: number;
+  pageIndex: number;
+}
+
 export function usePagedResource<T>(
   fetchPage: (pageIndex: number) => Promise<Page<T>>,
   deps: unknown[],
@@ -77,14 +88,22 @@ export function usePagedResource<T>(
    * into the server pageIndex that contains it. Irrelevant (and safe to leave at the default) for
    * a caller that never uses seekTo()/loadBefore(). */
   pageSize = 30,
+  /** Opt in to resuming: the loaded window is remembered under this key and, if still fresh when
+   * the screen is rebuilt (e.g. Back from an entry), shown straight away with no refetch. Must
+   * identify everything the data depends on (feed, account…) — the cache can't tell otherwise. */
+  resumeKey?: string,
 ): PagedResourceState<T> {
-  const [status, setStatus] = useState<PagedStatus>('loading');
-  const [items, setItems] = useState<T[]>([]);
+  // Read once, on the first render only: later renders must not re-seed state from the cache.
+  const [snapshot] = useState(() =>
+    resumeKey ? resumeGet<ResumeSnapshot<T>>(resumeKey) : undefined,
+  );
+  const [status, setStatus] = useState<PagedStatus>(snapshot ? 'loaded' : 'loading');
+  const [items, setItems] = useState<T[]>(snapshot?.items ?? []);
   const [errorMessage, setErrorMessage] = useState<string | undefined>(undefined);
-  const [hasMore, setHasMore] = useState(false);
+  const [hasMore, setHasMore] = useState(snapshot?.hasMore ?? false);
   const [loadingMore, setLoadingMore] = useState(false);
-  const [windowStart, setWindowStart] = useState(0);
-  const [hasBefore, setHasBefore] = useState(false);
+  const [windowStart, setWindowStart] = useState(snapshot?.windowStart ?? 0);
+  const [hasBefore, setHasBefore] = useState((snapshot?.windowStart ?? 0) > 0);
   const [loadingBefore, setLoadingBefore] = useState(false);
   const [seeking, setSeeking] = useState(false);
 
@@ -92,15 +111,33 @@ export function usePagedResource<T>(
   // Mirrors `seeking` for the guards below: they're called from effects in the same commit that
   // kicked the seek off, where the `seeking` state value in their closure can still be stale.
   const seekingRef = useRef(false);
-  const pageIndexRef = useRef(0);
-  const windowStartRef = useRef(0);
+  const pageIndexRef = useRef(snapshot?.pageIndex ?? 0);
+  const windowStartRef = useRef(snapshot?.windowStart ?? 0);
+  const skipInitialRefresh = useRef(snapshot !== undefined);
   const fetchPageRef = useRef(fetchPage);
   fetchPageRef.current = fetchPage;
 
   useEffect(() => {
+    // Resumed from a snapshot: it *is* the first load, so don't fetch it again (later dep
+    // changes — a different tag, account… — still refetch as usual).
+    if (skipInitialRefresh.current) {
+      skipInitialRefresh.current = false;
+      return;
+    }
     refresh();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, deps);
+
+  useEffect(() => {
+    if (resumeKey && status === 'loaded') {
+      resumeSet<ResumeSnapshot<T>>(resumeKey, {
+        items,
+        hasMore,
+        windowStart,
+        pageIndex: pageIndexRef.current,
+      });
+    }
+  }, [resumeKey, status, items, hasMore, windowStart]);
 
   function refresh(): void {
     const id = ++requestIdRef.current;

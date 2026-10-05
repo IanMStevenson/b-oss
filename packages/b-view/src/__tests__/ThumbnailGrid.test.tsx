@@ -483,6 +483,47 @@ describe('ThumbnailGrid onSeek / entriesOffset / onLoadBefore (b-oss#153)', () =
   });
 });
 
+describe('ThumbnailGrid position memory (b-oss#182)', () => {
+  // Fallback pageSize is 2x2 = 4 when unmeasured (see the ResizeObserver stub comment above).
+  it('starts on the page it is told to, instead of the first', () => {
+    render(
+      <ThumbnailGrid
+        entries={makeEntries(20)}
+        selectedEntryId={null}
+        onSelectEntry={() => {}}
+        initialTopLeftIndex={8}
+      />,
+    );
+    expect(screen.getByLabelText('2026-01-09')).toBeDefined(); // page 3 starts at entry 9
+    expect(screen.queryByLabelText('2026-01-01')).toBeNull();
+    expect(screen.getByLabelText('Page 3').getAttribute('aria-current')).toBe('page');
+  });
+
+  it('reports its position — on mount, and as the user changes page', () => {
+    const onTopLeftIndexChange = vi.fn();
+    render(
+      <ThumbnailGrid
+        entries={makeEntries(20)}
+        selectedEntryId={null}
+        onSelectEntry={() => {}}
+        onTopLeftIndexChange={onTopLeftIndexChange}
+      />,
+    );
+    expect(onTopLeftIndexChange).toHaveBeenLastCalledWith(0);
+    fireEvent.click(screen.getByLabelText('Page 4'));
+    expect(onTopLeftIndexChange).toHaveBeenLastCalledWith(12);
+    fireEvent.click(screen.getByLabelText('Next page'));
+    expect(onTopLeftIndexChange).toHaveBeenLastCalledWith(16);
+  });
+
+  it('is unchanged without either prop', () => {
+    render(
+      <ThumbnailGrid entries={makeEntries(20)} selectedEntryId={null} onSelectEntry={() => {}} />,
+    );
+    expect(screen.getByLabelText('2026-01-01')).toBeDefined();
+  });
+});
+
 describe('ThumbnailGrid margins', () => {
   it('normal (default) margins render the CSS module padding with a 20%-of-tile gap', () => {
     const entries = makeEntries(4);

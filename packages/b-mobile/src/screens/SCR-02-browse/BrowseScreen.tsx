@@ -7,6 +7,7 @@
 // back to a tab loaded earlier in the same visit doesn't force a re-query").
 
 import { useEffect, useState } from 'react';
+import { resumeGet, resumeSet } from '../../data/resumeCache.js';
 import {
   IonPage,
   IonHeader,
@@ -95,10 +96,13 @@ function ResourceGrid({
   resource,
   onSelectEntry,
   totalEntryCount,
+  resumeKey,
 }: {
   resource: ReturnType<typeof usePagedResource<EntryIndex>>;
   onSelectEntry: (entryId: string) => void;
   totalEntryCount?: number;
+  /** Remembers the grid's page so Back from an entry lands on it (b-oss#182). */
+  resumeKey?: string;
 }) {
   if (resource.status === 'loading') {
     return (
@@ -135,6 +139,7 @@ function ResourceGrid({
       entriesOffset={resource.windowStart}
       onSeek={resource.seekTo}
       onLoadBefore={resource.loadBefore}
+      resumeKey={resumeKey}
     />
   );
 }
@@ -142,26 +147,29 @@ function ResourceGrid({
 function FeedTab({
   fetchPage,
   totalEntryCount,
+  resumeKey,
 }: {
   fetchPage: (pageIndex: number) => Promise<Page<EntryIndex>>;
   totalEntryCount?: number;
+  resumeKey: string;
 }) {
   const navigate = useAppNavigate();
-  const resource = usePagedResource(fetchPage, [], PAGE_SIZE);
+  const resource = usePagedResource(fetchPage, [], PAGE_SIZE, resumeKey);
   return (
     <ResourceGrid
       resource={resource}
       onSelectEntry={(id) => navigate.push(`/entry/${id}`)}
       totalEntryCount={totalEntryCount}
+      resumeKey={resumeKey}
     />
   );
 }
 
 // entry_total is a real, exact count (BlipUserDetails, already used by the Profile screen) —
 // fetched once per visit to this tab, not part of the paged feed's own response (b-oss#144).
-function JustMeTab() {
+function JustMeTab({ resumeKey }: { resumeKey: string }) {
   const navigate = useAppNavigate();
-  const resource = usePagedResource(fetchJustMePage, [], JOURNAL_PAGE_SIZE);
+  const resource = usePagedResource(fetchJustMePage, [], JOURNAL_PAGE_SIZE, resumeKey);
   const [totalEntryCount, setTotalEntryCount] = useState<number | undefined>(undefined);
 
   useEffect(() => {
@@ -185,18 +193,43 @@ function JustMeTab() {
       resource={resource}
       onSelectEntry={(id) => navigate.push(`/entry/${id}`)}
       totalEntryCount={totalEntryCount}
+      resumeKey={resumeKey}
     />
   );
 }
 
+interface BrowseUiState {
+  tab: Tab;
+  visited: Tab[];
+}
+
 export function BrowseScreen() {
-  const [tab, setTab] = useState<Tab>('recent');
-  const [visited, setVisited] = useState<Set<Tab>>(new Set(['recent']));
   const activeAccount = useActiveAccount();
+  // Everything remembered about this screen is scoped to the account: Following / Me are
+  // per-account feeds, and a different account must never inherit another's.
+  const scope = activeAccount?.id ?? 'anon';
+  const uiKey = `browse:${scope}:ui`;
+  const feedKey = (t: Tab) => `browse:${scope}:feed:${t}`;
+
+  // Back from an entry rebuilds this screen (see data/resumeCache.ts) — restore the tab you were
+  // on, and the tabs you'd already opened, instead of resetting to Recent (b-oss#182).
+  const [initialUi] = useState<BrowseUiState>(() => {
+    const saved = resumeGet<BrowseUiState>(uiKey);
+    const available = (t: Tab) => activeAccount !== null || (t !== 'following' && t !== 'justme');
+    const tab = saved && available(saved.tab) ? saved.tab : 'recent';
+    return {
+      tab,
+      visited: [...new Set<Tab>(['recent', tab, ...(saved?.visited ?? [])])].filter(available),
+    };
+  });
+  const [tab, setTab] = useState<Tab>(initialUi.tab);
+  const [visited, setVisited] = useState<Set<Tab>>(new Set(initialUi.visited));
 
   function handleTabChange(next: Tab): void {
+    const updated = visited.has(next) ? visited : new Set(visited).add(next);
     setTab(next);
-    setVisited((prev) => (prev.has(next) ? prev : new Set(prev).add(next)));
+    setVisited(updated);
+    resumeSet<BrowseUiState>(uiKey, { tab: next, visited: [...updated] });
   }
 
   return (
@@ -235,13 +268,23 @@ export function BrowseScreen() {
         {[...visited].map((t) => (
           <div key={t} hidden={t !== tab} style={{ height: '100%' }}>
             {t === 'recent' && (
-              <FeedTab fetchPage={fetchRecentPage} totalEntryCount={RECENT_TOTAL_ENTRIES} />
+              <FeedTab
+                fetchPage={fetchRecentPage}
+                totalEntryCount={RECENT_TOTAL_ENTRIES}
+                resumeKey={feedKey('recent')}
+              />
             )}
             {t === 'popular' && (
-              <FeedTab fetchPage={fetchPopularPage} totalEntryCount={POPULAR_TOTAL_ENTRIES} />
+              <FeedTab
+                fetchPage={fetchPopularPage}
+                totalEntryCount={POPULAR_TOTAL_ENTRIES}
+                resumeKey={feedKey('popular')}
+              />
             )}
-            {t === 'following' && <FeedTab fetchPage={fetchFollowingPage} />}
-            {t === 'justme' && <JustMeTab />}
+            {t === 'following' && (
+              <FeedTab fetchPage={fetchFollowingPage} resumeKey={feedKey('following')} />
+            )}
+            {t === 'justme' && <JustMeTab resumeKey={feedKey('justme')} />}
             {t === 'nearby' && <NearbyTab />}
           </div>
         ))}
