@@ -5,7 +5,7 @@
 // unlike Reminders) and persist immediately — no Save/Cancel. `confirmAccountBeforeReaction`
 // gates flows/useAccountConfirmGate.tsx (built in Phase 4); this is the first UI to flip it.
 
-import { IonCheckbox, IonText } from '@ionic/react';
+import { IonCheckbox, IonSegment, IonSegmentButton, IonLabel, IonText } from '@ionic/react';
 import { useDevicePrefsStore } from '../../../state/devicePrefsStore.js';
 import { useAccountsStore } from '../../../state/accountsStore.js';
 
@@ -16,6 +16,8 @@ export function MiscSection() {
   const setConfirmAccountBeforeReaction = useDevicePrefsStore(
     (s) => s.setConfirmAccountBeforeReaction,
   );
+  const accountAvatarStyle = useDevicePrefsStore((s) => s.accountAvatarStyle);
+  const setAccountAvatarStyle = useDevicePrefsStore((s) => s.setAccountAvatarStyle);
   const accountCount = useAccountsStore((s) => s.accounts.length);
 
   return (
@@ -48,6 +50,26 @@ export function MiscSection() {
               instead of silently using whichever is active.
             </p>
           </IonText>
+          <div style={{ marginTop: 24 }}>
+            <IonText>
+              <p style={{ marginBottom: 8 }}>Account picture</p>
+            </IonText>
+            <IonSegment
+              aria-label="Account picture"
+              value={accountAvatarStyle}
+              onIonChange={(e) => setAccountAvatarStyle(e.detail.value as 'picture' | 'icon')}
+            >
+              <IonSegmentButton value="picture">
+                <IonLabel>Profile picture</IonLabel>
+              </IonSegmentButton>
+              <IonSegmentButton value="icon">
+                <IonLabel>Icon</IonLabel>
+              </IonSegmentButton>
+            </IonSegment>
+            <IonText color="medium">
+              <p>How each account is shown in the account switcher and header.</p>
+            </IonText>
+          </div>
         </>
       )}
     </div>

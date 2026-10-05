@@ -84,4 +84,20 @@ describe('MiscSection', () => {
     );
     expect(useDevicePrefsStore.getState().confirmAccountBeforeReaction).toBe(true);
   });
+
+  it('offers the account-picture choice only with two or more accounts, and persists it', () => {
+    const { unmount } = render(<MiscSection />);
+    expect(document.querySelector('ion-segment[aria-label="Account picture"]')).toBeNull();
+    unmount();
+
+    useAccountsStore.setState({ accounts: [acct('a1', 'alice'), acct('a2', 'bob')] });
+    render(<MiscSection />);
+    const segment = document.querySelector('ion-segment[aria-label="Account picture"]')!;
+    expect(segment.getAttribute('value')).toBe('picture');
+    segment.dispatchEvent(
+      new CustomEvent('ionChange', { bubbles: true, detail: { value: 'icon' } }),
+    );
+    expect(useDevicePrefsStore.getState().accountAvatarStyle).toBe('icon');
+    useDevicePrefsStore.setState({ accountAvatarStyle: 'picture' });
+  });
 });

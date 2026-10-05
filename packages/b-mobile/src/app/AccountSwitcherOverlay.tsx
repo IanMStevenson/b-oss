@@ -19,8 +19,9 @@
 // by closing the popover and sending the user to SCR-30, which already has the real
 // re-authorize-or-cancel prompt — not duplicated here for a lightweight overlay.
 
-import { IonButton, IonBadge } from '@ionic/react';
-import { CachedImage } from '../components/CachedImage.js';
+import { IonButton } from '@ionic/react';
+import { Check } from 'lucide-react';
+import { AccountAvatar } from '../components/AccountAvatar.js';
 import { useAccountsStore } from '../state/accountsStore.js';
 import type { StoredAccount } from '../state/accountsStore.js';
 import { switchAccount, NeedsReauthError } from '../flows/accountsFlow.js';
@@ -81,56 +82,48 @@ export function AccountSwitcherOverlay({ onDismiss }: { onDismiss: () => void })
           padding: 8,
         }}
       >
-        {accounts.map((account) => (
-          <button
-            key={account.id}
-            role="menuitem"
-            onClick={() => handleTap(account)}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: 8,
-              width: '100%',
-              background: 'none',
-              border: 'none',
-              padding: '8px 4px',
-              font: 'inherit',
-              textAlign: 'left',
-              cursor: 'pointer',
-            }}
-          >
-            {account.avatarUrl ? (
-              <CachedImage
-                src={account.avatarUrl}
-                alt=""
-                style={{ width: 28, height: 28, borderRadius: '50%', flexShrink: 0 }}
-              />
-            ) : (
-              <span
-                aria-hidden="true"
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  width: 28,
-                  height: 28,
-                  borderRadius: '50%',
-                  background: 'var(--green-800, #1f4d3a)',
-                  color: '#fff',
-                  fontSize: '0.75rem',
-                  flexShrink: 0,
-                }}
-              >
-                {account.username.slice(0, 1).toUpperCase()}
+        {accounts.map((account) => {
+          const active = account.id === activeAccountId;
+          return (
+            <button
+              key={account.id}
+              role="menuitemradio"
+              aria-checked={active}
+              onClick={() => handleTap(account)}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 12,
+                width: '100%',
+                // The active account is a whole-row pale-green highlight plus a tick at the end
+                // (single-select), not a badge.
+                background: active ? 'var(--green-100, #eef2ee)' : 'none',
+                border: 'none',
+                borderRadius: 8,
+                padding: '8px 10px',
+                font: 'inherit',
+                textAlign: 'left',
+                cursor: 'pointer',
+              }}
+            >
+              <AccountAvatar avatarUrl={account.avatarUrl} size={32} />
+              <span style={{ flex: 1, minWidth: 0 }}>
+                <span style={{ display: 'block' }}>{account.username}</span>
+                <span style={{ display: 'block', fontSize: '0.8rem', color: 'var(--muted)' }}>
+                  {modeLabel(account)}
+                </span>
               </span>
-            )}
-            <span style={{ flex: 1 }}>
-              {account.username}
-              {account.id === activeAccountId && <IonBadge color="success"> active</IonBadge>}
-            </span>
-            <span style={{ fontSize: '0.8rem', color: 'var(--muted)' }}>{modeLabel(account)}</span>
-          </button>
-        ))}
+              {active && (
+                <Check
+                  size={18}
+                  strokeWidth={2}
+                  aria-label="Active account"
+                  style={{ color: 'var(--green-800, #1f4d3a)', flexShrink: 0 }}
+                />
+              )}
+            </button>
+          );
+        })}
         <IonButton expand="block" fill="clear" onClick={openManageAccounts}>
           Manage accounts
         </IonButton>

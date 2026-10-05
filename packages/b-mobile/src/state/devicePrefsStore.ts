@@ -66,6 +66,9 @@ interface PersistedShape {
   /** Entry page photo: 'full-width' (default, Blipfoto's behaviour — fills the column however tall,
    * so a portrait scrolls) or 'capped' (height-limited so the whole picture fits on screen). */
   photoFit: 'full-width' | 'capped';
+  /** What represents an account in the header indicator and account switcher: its Blipfoto
+   * profile picture (default; falls back to the icon when it has none) or the generic user icon. */
+  accountAvatarStyle: 'picture' | 'icon';
 }
 
 interface DevicePrefsState extends PersistedShape {
@@ -83,6 +86,7 @@ interface DevicePrefsState extends PersistedShape {
   setThumbnailMargins: (value: PersistedShape['thumbnailMargins']) => void;
   setThumbnailZoomPercent: (value: number) => void;
   setPhotoFit: (value: PersistedShape['photoFit']) => void;
+  setAccountAvatarStyle: (value: PersistedShape['accountAvatarStyle']) => void;
 }
 
 const defaults: PersistedShape = {
@@ -97,6 +101,7 @@ const defaults: PersistedShape = {
   thumbnailMargins: 'normal',
   thumbnailZoomPercent: 100,
   photoFit: 'full-width',
+  accountAvatarStyle: 'picture',
 };
 
 function persist(state: PersistedShape): void {
@@ -231,6 +236,14 @@ export const useDevicePrefsStore = create<DevicePrefsState>((set) => ({
       return shape;
     });
   },
+
+  setAccountAvatarStyle: (value) => {
+    set((prev) => {
+      const shape: PersistedShape = { ...toPersisted(prev), accountAvatarStyle: value };
+      persist(shape);
+      return shape;
+    });
+  },
 }));
 
 function toPersisted(state: PersistedShape): PersistedShape {
@@ -246,5 +259,6 @@ function toPersisted(state: PersistedShape): PersistedShape {
     thumbnailMargins: state.thumbnailMargins,
     thumbnailZoomPercent: state.thumbnailZoomPercent,
     photoFit: state.photoFit,
+    accountAvatarStyle: state.accountAvatarStyle,
   };
 }
