@@ -62,7 +62,9 @@
   display: flex;
   align-items: center;
   gap: 8px;
+  /* Never wider than the bar, so a host's long title can truncate instead of overflowing. */
   min-width: 0;
+  max-width: 100%;
 }
 
 @container entry (max-width: 640px) {
