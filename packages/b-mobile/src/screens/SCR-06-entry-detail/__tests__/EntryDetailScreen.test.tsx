@@ -15,6 +15,9 @@ import { useDevicePrefsStore } from '../../../state/devicePrefsStore.js';
 import type { LoadedEntry } from '../../../data/entries.js';
 import type { StoredAccount } from '../../../state/accountsStore.js';
 
+const { fetchAuthorAvatar } = vi.hoisted(() => ({ fetchAuthorAvatar: vi.fn() }));
+vi.mock('../../../data/users.js', () => ({ fetchAuthorAvatar }));
+
 vi.mock('../../../data/entries.js', () => ({
   fetchEntry: vi.fn(),
   deleteEntry: vi.fn(),
@@ -100,6 +103,10 @@ beforeEach(() => {
   });
   useHiddenMembersStore.setState({ hiddenByAccount: {}, hydrated: true });
   useDevicePrefsStore.setState({ confirmAccountBeforeReaction: false, hydrated: true });
+});
+
+beforeEach(() => {
+  fetchAuthorAvatar.mockResolvedValue(null);
 });
 
 afterEach(() => {
@@ -304,6 +311,112 @@ describe('EntryDetailScreen', () => {
       await userEvent.click(within(await deleteAlert()).getByText('Delete'));
       await waitFor(() => expect(screen.getByText('Something went wrong')).toBeDefined());
       expect(navReplace).not.toHaveBeenCalledWith('/browse');
+    });
+  });
+
+  describe('Author block (b-oss#174)', () => {
+    async function openOthersEntry(friendship: LoadedEntry['friendship'] = null) {
+      const { fetchEntry } = await import('../../../data/entries.js');
+      vi.mocked(fetchEntry).mockResolvedValue({ ...baseLoadedEntry, friendship });
+      renderScreen();
+      await screen.findByText('A day out');
+    }
+    const friendship = (state: 0 | 1 | 2 | 3): LoadedEntry['friendship'] =>
+      ({
+        source: 'me',
+        target: 'alice',
+        state,
+        actions: {},
+      }) as unknown as LoadedEntry['friendship'];
+
+    it('shows the journal title and "By <user>", and looks up the author’s avatar', async () => {
+      await openOthersEntry();
+      expect(screen.getByText("Alice's journal")).toBeDefined();
+      expect(screen.getByText('By alice')).toBeDefined();
+      expect(fetchAuthorAvatar).toHaveBeenCalledWith('alice');
+    });
+
+    it('opens the author’s profile from the avatar or the name', async () => {
+      await openOthersEntry();
+      await userEvent.click(screen.getByLabelText('alice’s profile'));
+      expect(navPush).toHaveBeenLastCalledWith('/user/alice');
+      await userEvent.click(screen.getByText("Alice's journal"));
+      expect(navPush).toHaveBeenCalledTimes(2);
+    });
+
+    it('offers a follow icon when you do not follow them, and following updates it in place', async () => {
+      const { followUser } = await import('../../../flows/reactionsFlow.js');
+      vi.mocked(followUser).mockResolvedValue({ state: 1 } as never);
+      await openOthersEntry(friendship(0));
+      await userEvent.click(screen.getByLabelText('Follow alice'));
+      await waitFor(() => expect(followUser).toHaveBeenCalledWith('alice'));
+      await waitFor(() =>
+        expect(screen.getByLabelText('Following alice — unfollow')).toBeDefined(),
+      );
+    });
+
+    it('shows following as an icon that asks before unfollowing', async () => {
+      const { unfollowUser } = await import('../../../flows/reactionsFlow.js');
+      await openOthersEntry(friendship(1));
+      expect(screen.queryByLabelText('Follow alice')).toBeNull();
+      await userEvent.click(screen.getByLabelText('Following alice — unfollow'));
+      const header = await screen.findByText('Unfollow?');
+      expect(unfollowUser).not.toHaveBeenCalled(); // confirmation first
+      await userEvent.click(
+        within(header.closest('ion-alert') as HTMLElement).getByText('Unfollow'),
+      );
+      await waitFor(() => expect(unfollowUser).toHaveBeenCalledWith('alice'));
+    });
+
+    it('shows a pending request as a non-interactive icon', async () => {
+      await openOthersEntry(friendship(2));
+      const pending = screen.getByLabelText('Follow request sent');
+      expect(pending.tagName).not.toBe('BUTTON');
+      expect(screen.queryByLabelText('Follow alice')).toBeNull();
+    });
+
+    it('offers no follow control to a read-only account', async () => {
+      useAccountsStore.setState({
+        accounts: [{ ...readWriteAccount, appTokenScope: 'read' }],
+        activeAccountId: 'a1',
+        hydrated: true,
+      });
+      await openOthersEntry();
+      expect(screen.getByText('By alice')).toBeDefined();
+      expect(screen.queryByLabelText('Follow alice')).toBeNull();
+    });
+
+    describe('on your own entry', () => {
+      const ownEntry: LoadedEntry = {
+        ...baseLoadedEntry,
+        entry: { ...baseLoadedEntry.entry, username: 'me', journal_title: 'My journal' },
+      };
+
+      it('has nothing to follow, report or hide, and goes to your own profile', async () => {
+        const { fetchEntry } = await import('../../../data/entries.js');
+        vi.mocked(fetchEntry).mockResolvedValue(ownEntry);
+        renderScreen();
+        await screen.findByText('A day out');
+        expect(screen.getByText('By me')).toBeDefined();
+        expect(screen.queryByLabelText('Follow me')).toBeNull();
+        expect(screen.queryByLabelText('Report')).toBeNull();
+        expect(screen.queryByLabelText('Hide me')).toBeNull();
+        await userEvent.click(screen.getByLabelText('me’s profile'));
+        expect(navPush).toHaveBeenLastCalledWith('/me');
+      });
+
+      it('uses your account’s avatar instead of fetching one', async () => {
+        useAccountsStore.setState({
+          accounts: [{ ...readWriteAccount, avatarUrl: 'https://cdn.example/me.jpg' }],
+          activeAccountId: 'a1',
+          hydrated: true,
+        });
+        const { fetchEntry } = await import('../../../data/entries.js');
+        vi.mocked(fetchEntry).mockResolvedValue(ownEntry);
+        renderScreen();
+        await screen.findByText('A day out');
+        expect(fetchAuthorAvatar).not.toHaveBeenCalled();
+      });
     });
   });
 

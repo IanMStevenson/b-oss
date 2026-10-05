@@ -41,6 +41,30 @@ export interface UserProfile {
  * SCR-18 ("no such user"), rather than 101 falling through to a generic error — same rewrite-at-
  * the-fetcher approach as entries.ts's fetchEntry, so useResource's generic error state shows the
  * right text with no per-screen mapApiError step of its own. */
+// One avatar lookup per author per session — swiping through a journal's entries would otherwise
+// refetch the same author's profile on every entry. The promise is cached (so concurrent callers
+// share one request); a failed lookup is evicted so the next entry retries.
+const avatarCache = new Map<string, Promise<string | null>>();
+
+/** The author's avatar URL for the entry page's author block, or `null` if they have none. A
+ * deliberately minimal profile call (no details/entries/friendship) — the entry response itself
+ * doesn't carry an avatar. */
+export function fetchAuthorAvatar(username: string): Promise<string | null> {
+  const cached = avatarCache.get(username);
+  if (cached) return cached;
+  const request = getClient()
+    .then((client) => client.getUserProfile({ username }))
+    .then((res) => res.user.avatar_url || null);
+  avatarCache.set(username, request);
+  request.catch(() => avatarCache.delete(username));
+  return request;
+}
+
+/** Test seam: forget cached avatars. */
+export function clearAuthorAvatarCache(): void {
+  avatarCache.clear();
+}
+
 export async function fetchUserProfile(username?: string): Promise<UserProfile> {
   const client = await getClient();
   try {

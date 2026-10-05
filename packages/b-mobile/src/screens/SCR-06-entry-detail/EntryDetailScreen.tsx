@@ -61,6 +61,8 @@ import { EntryDetail } from '@b-oss/b-view';
 import type { BlipComment, EntryState } from '@b-oss/b-view';
 import { useLiveEntry } from '../../data/useLiveEntry.js';
 import { deleteEntry } from '../../data/entries.js';
+import { fetchAuthorAvatar } from '../../data/users.js';
+import { EntryAuthorBlock, type FollowControl } from '../../components/EntryAuthorBlock.js';
 import { fetchCalendarMonth, fetchHistoryItems } from '../../data/journalDays.js';
 import { openUrl } from '../../platform/browser.js';
 import { resolveImage } from '../../platform/imageCache.js';
@@ -138,6 +140,31 @@ export function EntryDetailScreen({ entryId }: EntryDetailScreenProps) {
   const authorUsername = entryState.status === 'loaded' ? entryState.data.username : null;
   const isOwnEntry = authorUsername !== null && authorUsername === activeAccount?.username;
   const authorHidden = useIsHidden(authorUsername);
+
+  // The entry response carries no avatar: your own is already on the account; anyone else's is one
+  // light, session-cached profile call (shared across that author's entries).
+  const [authorAvatar, setAuthorAvatar] = useState<string | null>(null);
+  const ownAvatar = activeAccount?.avatarUrl ?? null;
+  useEffect(() => {
+    setAuthorAvatar(null);
+    if (!authorUsername) return;
+    if (isOwnEntry && ownAvatar) {
+      setAuthorAvatar(ownAvatar);
+      return;
+    }
+    let cancelled = false;
+    fetchAuthorAvatar(authorUsername).then(
+      (url) => {
+        if (!cancelled) setAuthorAvatar(url);
+      },
+      () => {
+        // No avatar is a cosmetic degradation (the block shows an initial) — not worth an error.
+      },
+    );
+    return () => {
+      cancelled = true;
+    };
+  }, [authorUsername, isOwnEntry, ownAvatar]);
 
   const commentActionsMap = useMemo(() => {
     const map = new Map<string, ApiComment>();
@@ -396,7 +423,17 @@ export function EntryDetailScreen({ entryId }: EntryDetailScreenProps) {
   const showReactions =
     !hideForReadOnly && (!activeAccount || (actions?.star !== 0 && actions?.favorite !== 0));
   const showComment = !hideForReadOnly && (!activeAccount || actions?.comment !== 0);
-  const friendshipState = reaction?.friendshipState ?? null;
+  // Straight from the loaded friendship until you act (an effect seeds `reaction` a render later,
+  // which flashed "follow" for someone you already follow).
+  const friendshipState = reaction?.friendshipState ?? friendship?.state ?? null;
+  const followControl: FollowControl =
+    !hideForReadOnly && !isOwnEntry && authorUsername
+      ? friendshipState === 1
+        ? 'following'
+        : friendshipState === 2
+          ? 'requested'
+          : 'follow'
+      : null;
 
   return (
     <IonPage>
@@ -467,6 +504,25 @@ export function EntryDetailScreen({ entryId }: EntryDetailScreenProps) {
                   </IonButton>
                 ) : undefined
               }
+              header={
+                authorUsername ? (
+                  <EntryAuthorBlock
+                    username={authorUsername}
+                    journalTitle={
+                      entryState.status === 'loaded' ? entryState.data.journal_title : ''
+                    }
+                    avatarUrl={authorAvatar}
+                    follow={followControl}
+                    onFollow={() => void handleFollow()}
+                    onUnfollow={() => setConfirmUnfollow(true)}
+                    onOpenProfile={() =>
+                      navigate.push(
+                        isOwnEntry ? '/me' : `/user/${encodeURIComponent(authorUsername)}`,
+                      )
+                    }
+                  />
+                ) : undefined
+              }
               ownerActions={
                 isOwnEntry && canWrite
                   ? {
@@ -478,37 +534,19 @@ export function EntryDetailScreen({ entryId }: EntryDetailScreenProps) {
               renderCommentActions={renderCommentActions}
             />
 
-            <div
-              className="ion-padding"
-              style={{
-                paddingTop: 0,
-                display: 'flex',
-                alignItems: 'center',
-                gap: 8,
-                flexWrap: 'wrap',
-              }}
-            >
-              {!hideForReadOnly && !isOwnEntry && authorUsername && (
-                <>
-                  {friendshipState === 1 && (
-                    <IonButton size="small" fill="outline" onClick={() => setConfirmUnfollow(true)}>
-                      Unfollow
-                    </IonButton>
-                  )}
-                  {friendshipState === 2 && (
-                    <IonButton size="small" fill="outline" disabled>
-                      Request sent
-                    </IonButton>
-                  )}
-                  {(friendshipState === 0 || friendshipState == null) && (
-                    <IonButton size="small" fill="outline" onClick={() => void handleFollow()}>
-                      Follow
-                    </IonButton>
-                  )}
-                </>
-              )}
-              {/* You can't report your own entry, so the flag only shows on other people's. */}
-              {!isOwnEntry && (
+            {/* Report/Hide only exist for other people's entries (follow now lives in the author
+                block above), so on your own there is nothing to render here. */}
+            {!isOwnEntry && (
+              <div
+                className="ion-padding"
+                style={{
+                  paddingTop: 0,
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 8,
+                  flexWrap: 'wrap',
+                }}
+              >
                 <button
                   aria-label="Report"
                   onClick={handleReportEntry}
@@ -516,17 +554,17 @@ export function EntryDetailScreen({ entryId }: EntryDetailScreenProps) {
                 >
                   <Flag size={16} strokeWidth={1.6} />
                 </button>
-              )}
-              {!isOwnEntry && authorUsername && (
-                <button
-                  aria-label={`Hide ${authorUsername}`}
-                  onClick={() => setConfirmHide(true)}
-                  style={{ background: 'none', border: 'none', padding: 8, cursor: 'pointer' }}
-                >
-                  <UserX size={16} strokeWidth={1.6} />
-                </button>
-              )}
-            </div>
+                {authorUsername && (
+                  <button
+                    aria-label={`Hide ${authorUsername}`}
+                    onClick={() => setConfirmHide(true)}
+                    style={{ background: 'none', border: 'none', padding: 8, cursor: 'pointer' }}
+                  >
+                    <UserX size={16} strokeWidth={1.6} />
+                  </button>
+                )}
+              </div>
+            )}
           </>
         )}
       </IonContent>
