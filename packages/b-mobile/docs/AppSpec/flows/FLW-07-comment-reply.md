@@ -1,5 +1,10 @@
 # FLW-07 — Comment / reply   [Must]
 
+> **RETIRED (b-oss#172).** The separate New-comment screen no longer exists. Commenting, replying and
+> editing happen in an inline composer on the entry page (SCR-06) and in the comments inbox, with a
+> BBCode toolbar (B/I/U/S/Link). Read `SCR-15` below as that composer's behaviour,
+> not a routed screen; there is no `/entry/:id/comment` route.
+
 **Trigger:** Tap Comment on `SCR-06`, Reply on a comment (`SCR-06`/`SCR-24`).
 **Screens:** `SCR-06`/`SCR-24` → `SCR-15 New Comment` → back.
 

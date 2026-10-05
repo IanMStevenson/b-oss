@@ -105,7 +105,7 @@ Notes:
 | SCR-12 | Location Picker | [Should] | Place/clear a geotag on a map for compose/edit. |
 | SCR-13 | Edit Entry | [Must] | Family: edit details, replace photo; delete entry. |
 | SCR-14 | Upload Progress | [Should] | Status of the durable upload queue (could be folded into notifications + in-feed state). |
-| SCR-15 | New Comment / Reply | [Must] | Compose a comment or threaded reply. |
+| SCR-15 | ~~New Comment / Reply~~ | retired | Replaced by the inline composer on SCR-06 (b-oss#172). |
 | SCR-16 | Report Entry | [Must] | Report an entry (reason checkboxes + optional note). |
 | SCR-17 | My Profile | [Must] | Own profile: About, Entries, Favourites, Followers, Following, Awards. |
 | SCR-18 | User Profile | [Must] | Another member's profile + follow/unfollow. |
@@ -135,7 +135,7 @@ Notes:
 | FLW-04 | Search entries & people | [Must] | SCR-03 → SCR-06 / SCR-18 |
 | FLW-05 | View an entry | [Must] | SCR-06 (+ prev/next, branches) |
 | FLW-06 | Star / favourite | [Must] | within SCR-06 |
-| FLW-07 | Comment / reply | [Must] | SCR-06 → SCR-15 → SCR-06 |
+| FLW-07 | Comment / reply | [Must] | SCR-06 inline composer (SCR-15 retired, b-oss#172) |
 | FLW-08 | Follow / unfollow | [Must] | SCR-06 / SCR-18 |
 | FLW-09 | Approve / refuse follow requests | [Must] | SCR-20 → SCR-21 (refusing removes their access) |
 | FLW-10 | Hide / unhide a member | [Must] | SCR-18 / SCR-06 / SCR-24 → SCR-31 |

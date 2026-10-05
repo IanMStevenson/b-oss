@@ -4,6 +4,27 @@ Rewritten at the end of every phase / major milestone. Read this first, then the
 of `AGENT_LOG.md`, then `PLAN.md`, before doing anything else — especially if this session started
 with "resume".
 
+## Post-12.7 device-trial round (2026-09 → 2026-10) — read this before the older Status text
+
+Work since 12.7 happened on `b-mobile-initial` against a real phone, tracked as GitHub issues rather
+than phases. Highlights (design record in `docs/ImplementationSpec/app-architecture.md`, "Navigation
+model…" and "Image cache"):
+
+- **Entry-page redesign** (epic b-oss#167): tokens, nav strip, photo frame, content/author blocks,
+  inline comments with BBCode toolbar and icon-pill actions. **SCR-15 (New comment screen) is
+  retired** (#172). Download (#175) deferred.
+- **Back-navigation**: no view stack; an in-memory resume cache restores Browse/Tag/Profile/Search/
+  Map/Followers/Entry state (#182, #190). Sign In has Back when drilled into (#195).
+- **Image cache hardening** (#185/#186): dedupe, verify-then-rename, retry, fallback, `[imgcache]` logs.
+- **API fixes**: `journal/month` shape + `username` (#169), page-index clamp (#153).
+- **Settings → Browsing → Photo size** (#194).
+- **CI/dependency hygiene**: CI runs on `b-mobile-initial` (#188); Dependabot targets it (#198).
+- **Test flakes**: Ionic overlays are mocked at the boundary in jsdom (#193) — never drive
+  `IonActionSheet`/`IonAlert` for real in tests.
+- Gradle on the egress-controlled VM: see root `CLAUDE.md`.
+
+Open: notification creation/push deployment (Phase 13, credentials), #196 research, #173 awaiting merge.
+
 ## Status
 
 **Phases 0–12 are all complete, plus the off-sequence Phase 12.6 b-view-reuse adoption and Phase

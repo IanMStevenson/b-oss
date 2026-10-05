@@ -1,5 +1,10 @@
 # SCR-15 — New / Edit Comment or Reply   [Must]
 
+> **RETIRED (b-oss#172).** The separate New-comment screen no longer exists. Commenting, replying and
+> editing happen in an inline composer on the entry page (SCR-06) and in the comments inbox, with a
+> BBCode toolbar (B/I/U/S/Link). Every reference to SCR-15 below describes that composer's behaviour,
+> not a routed screen; there is no `/entry/:id/comment` route.
+
 **Purpose:** Compose a comment on an entry, reply to an existing comment, or **edit one's own**
 comment or reply.
 
