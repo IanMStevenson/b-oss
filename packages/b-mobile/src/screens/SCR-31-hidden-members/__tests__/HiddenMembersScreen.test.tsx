@@ -6,6 +6,7 @@ import { describe, it, expect, afterEach, beforeEach, vi } from 'vitest';
 import { render, screen, cleanup } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
+import { OverlayProvider } from '../../../app/OverlayProvider.js';
 import { HiddenMembersScreen } from '../HiddenMembersScreen.js';
 import { useAccountsStore } from '../../../state/accountsStore.js';
 import { useHiddenMembersStore } from '../../../state/hiddenMembersStore.js';
@@ -43,7 +44,9 @@ afterEach(() => {
 function renderScreen() {
   return render(
     <MemoryRouter>
-      <HiddenMembersScreen />
+      <OverlayProvider>
+        <HiddenMembersScreen />
+      </OverlayProvider>
     </MemoryRouter>,
   );
 }
@@ -78,7 +81,9 @@ describe('HiddenMembersScreen', () => {
     useAccountsStore.setState({ activeAccountId: 'a2' });
     rerender(
       <MemoryRouter>
-        <HiddenMembersScreen />
+        <OverlayProvider>
+          <HiddenMembersScreen />
+        </OverlayProvider>
       </MemoryRouter>,
     );
     expect(screen.getByText('dave')).toBeDefined();

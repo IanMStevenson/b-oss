@@ -5,6 +5,7 @@
 import { describe, it, expect, afterEach, vi } from 'vitest';
 import { render, screen, cleanup } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
+import { OverlayProvider } from '../../../app/OverlayProvider.js';
 import { AwardsScreen } from '../AwardsScreen.js';
 
 vi.mock('../../../data/users.js', () => ({
@@ -19,7 +20,9 @@ afterEach(() => {
 function renderScreen() {
   return render(
     <MemoryRouter>
-      <AwardsScreen username="alice" />
+      <OverlayProvider>
+        <AwardsScreen username="alice" />
+      </OverlayProvider>
     </MemoryRouter>,
   );
 }

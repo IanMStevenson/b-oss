@@ -11,6 +11,7 @@ import { fetchEntry } from './entries.js';
 import type { LoadedEntry } from './entries.js';
 import type { EntryState } from '@b-oss/b-view';
 import type { BlipEntryActions, BlipFriendship, BlipComment as ApiComment } from '@b-oss/b-api';
+import { useAccountsStore } from '../state/accountsStore.js';
 
 export interface LiveEntryResult {
   entryState: EntryState;
@@ -39,7 +40,13 @@ const emptyResult: Omit<LiveEntryResult, 'entryState' | 'reload' | 'refresh'> = 
 };
 
 export function useLiveEntry(entryId: string): LiveEntryResult {
-  const { state, reload, refresh } = useResource<LoadedEntry>(() => fetchEntry(entryId), [entryId]);
+  // The response carries per-viewer state (star/favourite, which comments you can edit or delete,
+  // friendship), so switching account from the header reloads it for the new account (b-oss#219).
+  const activeAccountId = useAccountsStore((s) => s.activeAccountId);
+  const { state, reload, refresh } = useResource<LoadedEntry>(
+    () => fetchEntry(entryId),
+    [entryId, activeAccountId],
+  );
 
   switch (state.status) {
     case 'loading':

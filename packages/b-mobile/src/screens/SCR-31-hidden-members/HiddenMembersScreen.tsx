@@ -11,6 +11,7 @@ import { AppHeader } from '../../components/AppHeader.js';
 import { useAppNavigate } from '../../app/routes/useAppNavigate.js';
 import { useAccountsStore } from '../../state/accountsStore.js';
 import { useHiddenMembersStore, useHiddenMembers } from '../../state/hiddenMembersStore.js';
+import { AccountIndicator } from '../../components/AccountIndicator.js';
 
 export function HiddenMembersScreen() {
   const navigate = useAppNavigate();
@@ -25,7 +26,12 @@ export function HiddenMembersScreen() {
   return (
     <IonPage>
       <IonHeader>
-        <AppHeader title="Hidden members" variant="back" backHref="/settings" />
+        <AppHeader
+          title="Hidden members"
+          variant="back"
+          backHref="/settings"
+          end={<AccountIndicator />}
+        />
       </IonHeader>
       <IonContent className="ion-padding">
         <p>
