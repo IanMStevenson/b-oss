@@ -28,6 +28,7 @@ import { useDevicePrefsStore } from '../state/devicePrefsStore.js';
 import { useNotificationCountsStore } from '../state/notificationCountsStore.js';
 import { startUploadQueueRunner } from '../flows/uploadQueueRunner.js';
 import { onReminderTapped } from '../platform/localNotifications.js';
+import { refreshAccountAvatars } from '../flows/avatarFlow.js';
 import { switchAccount, handleForcedLogout, devSignInWithToken } from '../flows/accountsFlow.js';
 import { onPushReceived, onPushTapped, onPushTokenChanged } from '../platform/push.js';
 import { runLaunchBackstopCheck, handleDeviceTokenRotated } from '../flows/pushFlow.js';
@@ -274,6 +275,8 @@ export function AppShell() {
     // FLW-16 step 8 — the launch-time backstop, run once accounts are known (it reads
     // accountsStore directly, not via a React selector, so it just needs hydrate() to resolve).
     void accountsHydrated.then(() => runLaunchBackstopCheck());
+    // Fill in / refresh every account's profile picture (the switcher and header show it).
+    void accountsHydrated.then(() => refreshAccountAvatars());
     // rules.md: "returning from system settings is not assumed to have succeeded" — re-run the
     // same backstop check on every resume, not only at launch, since the OS permission (or the
     // service's registration health) may have changed while the app was backgrounded.

@@ -21,6 +21,7 @@ import { useAccountsStore } from '../state/accountsStore.js';
 import type { StoredAccount } from '../state/accountsStore.js';
 import { useUploadQueueStore } from '../state/uploadQueueStore.js';
 import { deleteQueuedFile } from '../platform/upload.js';
+import { refreshAccountAvatar } from './avatarFlow.js';
 import { runOAuthRound, OAuthCancelledError } from './oauthRound.js';
 import type { OAuthResult } from './oauthRound.js';
 import { cancelReminderForAccount } from './reminderFlow.js';
@@ -53,6 +54,7 @@ async function storeAppToken(result: OAuthResult): Promise<StoredAccount> {
     notificationStatus: existing?.notificationStatus ?? null,
   };
   useAccountsStore.getState().upsertAccount(account);
+  void refreshAccountAvatar(account.id); // so the switcher shows their picture straight away
   return account;
 }
 
