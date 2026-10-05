@@ -19,6 +19,26 @@ import { useEffect, useRef, useState } from 'react';
 export interface Page<T> {
   items: T[];
   more: boolean;
+  /** The page index and size the *server* says it returned (`BlipPage.index`/`size`). Optional so
+   * non-Blipfoto/test pages needn't supply them, but every real fetcher does, via `pageMeta()`:
+   * the server silently clamps `page_index` to a per-endpoint maximum (journal: 200 — requesting
+   * 228 returned page 200, so a 6,867-entry journal at size 30 showed April 2010 for every deeper
+   * page), and without this we'd label that data with the page we *asked* for. */
+  index?: number;
+  size?: number;
+}
+
+/** Spreads the paging fields every fetcher needs from a b-api `BlipPage`. */
+export function pageMeta(page: { more: 0 | 1; index: number; size: number }): Pick<
+  Page<never>,
+  'more' | 'index' | 'size'
+> {
+  return { more: page.more === 1, index: page.index, size: page.size };
+}
+
+/** True when the server returned a different page than requested — it clamped the index. */
+function wasClamped(page: Page<unknown>, requestedIndex: number): boolean {
+  return page.index !== undefined && page.index !== requestedIndex;
 }
 
 export type PagedStatus = 'loading' | 'loaded' | 'empty' | 'error';
@@ -117,6 +137,13 @@ export function usePagedResource<T>(
     fetchPageRef.current(nextIndex).then(
       (page) => {
         if (id !== requestIdRef.current) return;
+        if (wasClamped(page, nextIndex)) {
+          // The server won't go deeper: what came back is a repeat of the last reachable page.
+          // Appending it would duplicate entries; instead treat this as the end of the feed.
+          setHasMore(false);
+          setLoadingMore(false);
+          return;
+        }
         pageIndexRef.current = nextIndex;
         setItems((prev) => [...prev, ...page.items]);
         setHasMore(page.more);
@@ -168,12 +195,18 @@ export function usePagedResource<T>(
     fetchPageRef.current(targetPageIndex).then(
       (page) => {
         if (id !== requestIdRef.current) return;
-        pageIndexRef.current = targetPageIndex;
-        windowStartRef.current = targetPageIndex * pageSize;
+        // Anchor on the page the server *actually* returned, not the one asked for. When it
+        // clamped (target is past its maximum page index) that's the deepest reachable page, and
+        // nothing lies beyond it — so hasMore is false and the host's "all loaded" total becomes
+        // the true reachable depth instead of an entry count the feed can't deliver.
+        const clamped = wasClamped(page, targetPageIndex);
+        const servedIndex = clamped ? (page.index as number) : targetPageIndex;
+        pageIndexRef.current = servedIndex;
+        windowStartRef.current = servedIndex * pageSize;
         setWindowStart(windowStartRef.current);
-        setHasBefore(targetPageIndex > 0);
+        setHasBefore(servedIndex > 0);
         setItems(page.items);
-        setHasMore(page.more);
+        setHasMore(clamped ? false : page.more);
         seekingRef.current = false;
         setSeeking(false);
       },

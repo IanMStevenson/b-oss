@@ -8,6 +8,7 @@
 import { getClient, withRateLimitFallback } from './client.js';
 import { stubToEntryIndex, entryResponseToViewEntry } from './viewModel.js';
 import { t } from '../strings/index.js';
+import { pageMeta } from './usePagedResource.js';
 import type { Page } from './usePagedResource.js';
 import type { EntryIndex, BlipEntry } from '@b-oss/b-view';
 import { BlipfotoError } from '@b-oss/b-api';
@@ -18,6 +19,14 @@ import type { BlipEntryActions, BlipFriendship, BlipComment as ApiComment } from
 // into the right API pageIndex. Every fetcher in this file uses the same fixed size.
 export const PAGE_SIZE = 30;
 
+// The journal endpoints (`entries/journal`) clamp `page_index` server-side — observed on-device
+// 2026-10-05: requesting index 228 at size 30 returned `page.index: 200` (the same data as 200),
+// so a 6,867-entry journal was only reachable to entry ~6,000 and every deeper page silently
+// showed April 2010 again. A larger page size raises the reachable depth proportionally (b-ark's
+// backup engine pages this same endpoint at 100). Used for the journal feeds only — the other
+// feeds are shallow or bounded (see BrowseScreen's *_TOTAL_ENTRIES) and keep the small page.
+export const JOURNAL_PAGE_SIZE = 100;
+
 // Recent/Popular/Nearby/Tag/Search are pure public browsing — content is identical regardless of
 // who's asking (confirmed: no per-viewer field in EntryIndex/the list response shape), so a
 // rate-limited active-account token falls back to the anonymous app token instead of a hard
@@ -26,27 +35,27 @@ export const PAGE_SIZE = 30;
 export async function fetchRecentPage(pageIndex: number): Promise<Page<EntryIndex>> {
   return withRateLimitFallback(async (client) => {
     const res = await client.getRecentEntries({ pageIndex, pageSize: PAGE_SIZE });
-    return { items: res.entries.map(stubToEntryIndex), more: res.page.more === 1 };
+    return { items: res.entries.map(stubToEntryIndex), ...pageMeta(res.page) };
   });
 }
 
 export async function fetchPopularPage(pageIndex: number): Promise<Page<EntryIndex>> {
   return withRateLimitFallback(async (client) => {
     const res = await client.getPopularEntries({ pageIndex, pageSize: PAGE_SIZE });
-    return { items: res.entries.map(stubToEntryIndex), more: res.page.more === 1 };
+    return { items: res.entries.map(stubToEntryIndex), ...pageMeta(res.page) };
   });
 }
 
 export async function fetchFollowingPage(pageIndex: number): Promise<Page<EntryIndex>> {
   const client = await getClient();
   const res = await client.getFollowingEntries({ pageIndex, pageSize: PAGE_SIZE });
-  return { items: res.entries.map(stubToEntryIndex), more: res.page.more === 1 };
+  return { items: res.entries.map(stubToEntryIndex), ...pageMeta(res.page) };
 }
 
 export async function fetchJustMePage(pageIndex: number): Promise<Page<EntryIndex>> {
   const client = await getClient();
-  const res = await client.getJournalEntries({ pageIndex, pageSize: PAGE_SIZE });
-  return { items: res.entries.map(stubToEntryIndex), more: res.page.more === 1 };
+  const res = await client.getJournalEntries({ pageIndex, pageSize: JOURNAL_PAGE_SIZE });
+  return { items: res.entries.map(stubToEntryIndex), ...pageMeta(res.page) };
 }
 
 export async function fetchNearbyPage(
@@ -62,14 +71,14 @@ export async function fetchNearbyPage(
       pageIndex,
       pageSize: PAGE_SIZE,
     });
-    return { items: res.entries.map(stubToEntryIndex), more: res.page.more === 1 };
+    return { items: res.entries.map(stubToEntryIndex), ...pageMeta(res.page) };
   });
 }
 
 export async function fetchTagPage(tag: string, pageIndex: number): Promise<Page<EntryIndex>> {
   return withRateLimitFallback(async (client) => {
     const res = await client.searchEntries({ query: tag, pageIndex, pageSize: PAGE_SIZE });
-    return { items: res.entries.map(stubToEntryIndex), more: res.page.more === 1 };
+    return { items: res.entries.map(stubToEntryIndex), ...pageMeta(res.page) };
   });
 }
 
@@ -81,7 +90,7 @@ export async function fetchSearchEntriesPage(
 ): Promise<Page<EntryIndex>> {
   return withRateLimitFallback(async (client) => {
     const res = await client.searchEntries({ query, pageIndex, pageSize: PAGE_SIZE });
-    return { items: res.entries.map(stubToEntryIndex), more: res.page.more === 1 };
+    return { items: res.entries.map(stubToEntryIndex), ...pageMeta(res.page) };
   });
 }
 

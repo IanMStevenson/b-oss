@@ -214,3 +214,55 @@ describe('usePagedResource — device-test follow-ups (b-oss#153)', () => {
     act(() => resolveSeek(page(9 * PAGE_SIZE, PAGE_SIZE, true)));
   });
 });
+
+describe('usePagedResource — server clamps page_index (depth limit)', () => {
+  // The real server clamps page_index to a per-endpoint maximum (journal: 200) and returns that
+  // last reachable page labelled with its *own* index — observed on-device: asking for 228
+  // returned page.index 200.
+  const MAX_INDEX = 200;
+  const clampingFetch = vi.fn((pageIndex: number): Promise<Page<number>> => {
+    const served = Math.min(pageIndex, MAX_INDEX);
+    return Promise.resolve({ ...page(served * PAGE_SIZE, PAGE_SIZE, true), index: served });
+  });
+
+  it('a seek past the limit anchors on the page actually served and reports no more', async () => {
+    clampingFetch.mockClear();
+    const { result } = renderHook(() => usePagedResource(clampingFetch, [], PAGE_SIZE));
+    await waitFor(() => expect(result.current.status).toBe('loaded'));
+
+    act(() => result.current.seekTo(228 * PAGE_SIZE));
+    await waitFor(() => expect(result.current.seeking).toBe(false));
+
+    expect(clampingFetch).toHaveBeenLastCalledWith(228);
+    // Anchored at 200, not the requested 228 — so the data isn't mislabelled as page 228.
+    expect(result.current.windowStart).toBe(MAX_INDEX * PAGE_SIZE);
+    expect(result.current.items[0]).toBe(MAX_INDEX * PAGE_SIZE);
+    expect(result.current.hasMore).toBe(false);
+    expect(result.current.hasBefore).toBe(true);
+  });
+
+  it('loadMore walking into the limit stops instead of appending a repeat of the last page', async () => {
+    const { result } = renderHook(() => usePagedResource(clampingFetch, [], PAGE_SIZE));
+    await waitFor(() => expect(result.current.status).toBe('loaded'));
+    act(() => result.current.seekTo(MAX_INDEX * PAGE_SIZE)); // exactly the last reachable page
+    await waitFor(() => expect(result.current.seeking).toBe(false));
+    expect(result.current.hasMore).toBe(true); // not clamped: it IS page 200, server says more
+    const before = result.current.items.length;
+
+    act(() => result.current.loadMore()); // asks for 201 → server repeats 200
+    await waitFor(() => expect(result.current.loadingMore).toBe(false));
+
+    expect(result.current.items).toHaveLength(before); // nothing duplicated
+    expect(result.current.hasMore).toBe(false);
+  });
+
+  it('pages without served-index info (or a matching one) behave exactly as before', async () => {
+    const plain = vi.fn((i: number) => Promise.resolve(page(i * PAGE_SIZE, PAGE_SIZE, true)));
+    const { result } = renderHook(() => usePagedResource(plain, [], PAGE_SIZE));
+    await waitFor(() => expect(result.current.status).toBe('loaded'));
+    act(() => result.current.seekTo(10 * PAGE_SIZE));
+    await waitFor(() => expect(result.current.seeking).toBe(false));
+    expect(result.current.windowStart).toBe(10 * PAGE_SIZE);
+    expect(result.current.hasMore).toBe(true);
+  });
+});

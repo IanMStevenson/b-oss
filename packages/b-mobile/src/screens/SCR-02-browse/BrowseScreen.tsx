@@ -29,6 +29,7 @@ import {
   fetchJustMePage,
   fetchNearbyPage,
   PAGE_SIZE,
+  JOURNAL_PAGE_SIZE,
 } from '../../data/entries.js';
 import { fetchUserProfile } from '../../data/users.js';
 import type { Page } from '../../data/usePagedResource.js';
@@ -160,7 +161,7 @@ function FeedTab({
 // fetched once per visit to this tab, not part of the paged feed's own response (b-oss#144).
 function JustMeTab() {
   const navigate = useAppNavigate();
-  const resource = usePagedResource(fetchJustMePage, [], PAGE_SIZE);
+  const resource = usePagedResource(fetchJustMePage, [], JOURNAL_PAGE_SIZE);
   const [totalEntryCount, setTotalEntryCount] = useState<number | undefined>(undefined);
 
   useEffect(() => {
