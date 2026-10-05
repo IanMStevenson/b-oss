@@ -88,6 +88,72 @@ describe('EntryDetail', () => {
     expect(container.querySelector('[role="dialog"]')).toBeNull();
   });
 
+  describe('swipe between entries', () => {
+    function swipe(el: Element, dx: number, dy = 0) {
+      fireEvent.touchStart(el, { touches: [{ clientX: 200, clientY: 300 }] });
+      fireEvent.touchEnd(el, { changedTouches: [{ clientX: 200 + dx, clientY: 300 + dy }] });
+    }
+    function renderWithNav(
+      onNavigate = vi.fn(),
+      next: string | null = '2',
+      prev: string | null = '0',
+    ) {
+      const utils = render(
+        <EntryDetail
+          entryState={loadedState(makeEntry())}
+          prevEntryId={prev}
+          nextEntryId={next}
+          onNavigate={onNavigate}
+          commentComposer={<textarea aria-label="new comment" />}
+        />,
+      );
+      return { ...utils, onNavigate };
+    }
+
+    it('follows the arrows: swipe right goes ▶ (newer), swipe left goes ◀ (older)', () => {
+      const { container, onNavigate } = renderWithNav();
+      const photo = container.querySelector(`.${styles.photoInner}`)!;
+      swipe(photo, 120);
+      expect(onNavigate).toHaveBeenLastCalledWith('2');
+      swipe(photo, -120);
+      expect(onNavigate).toHaveBeenLastCalledWith('0');
+    });
+
+    it('works anywhere on the page, not just the photo (e.g. over the description)', () => {
+      const { onNavigate } = renderWithNav();
+      swipe(screen.getByText(/Second paragraph/), 120);
+      expect(onNavigate).toHaveBeenCalledWith('2');
+    });
+
+    it('does nothing at either end of the journal', () => {
+      const { onNavigate } = renderWithNav(vi.fn(), null, null);
+      swipe(screen.getByText(/Second paragraph/), 120);
+      swipe(screen.getByText(/Second paragraph/), -120);
+      expect(onNavigate).not.toHaveBeenCalled();
+    });
+
+    it('ignores a mostly-vertical drag (scrolling) and a short one', () => {
+      const { onNavigate } = renderWithNav();
+      swipe(screen.getByText(/Second paragraph/), 60, 200);
+      swipe(screen.getByText(/Second paragraph/), 20);
+      expect(onNavigate).not.toHaveBeenCalled();
+    });
+
+    it('ignores a touch that starts in the comment box (text editing, not paging)', () => {
+      const { onNavigate } = renderWithNav();
+      swipe(screen.getByLabelText('new comment'), 120);
+      expect(onNavigate).not.toHaveBeenCalled();
+    });
+
+    it('does not also navigate the entry underneath while the lightbox is open', async () => {
+      const { container, onNavigate } = renderWithNav();
+      fireEvent.click(screen.getByLabelText('View photo full-screen'));
+      await waitFor(() => expect(container.querySelector('[role="dialog"]')).not.toBeNull());
+      swipe(container.querySelector('[role="dialog"]')!, 120);
+      expect(onNavigate).not.toHaveBeenCalled();
+    });
+  });
+
   it('the fullscreen button (not a photo tap) opens the lightbox for the main photo', async () => {
     const { container } = render(
       <EntryDetail

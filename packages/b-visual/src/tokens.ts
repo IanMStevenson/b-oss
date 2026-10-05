@@ -16,6 +16,7 @@ export const tokens = {
   ink2: '#2a2a2a',
   muted: '#6b7280',
   muted2: '#9ca3af',
+  inkDisabled: '#d0d3d8',
   line: '#e5e7eb',
   line2: '#eeeeee',
   bg: '#ffffff',

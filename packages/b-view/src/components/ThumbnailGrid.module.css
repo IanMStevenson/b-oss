@@ -26,8 +26,13 @@
   color: var(--ink-2);
 }
 
-.iconBtn:hover {
+.iconBtn:hover:not(:disabled) {
   background: var(--line-2);
+}
+
+.iconBtn:disabled {
+  color: var(--ink-disabled, #d0d3d8);
+  cursor: default;
 }
 
 .zoomGroup {

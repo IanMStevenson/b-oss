@@ -202,9 +202,14 @@ export function EntryDetail({
   // Resolved URLs for all lightbox images: [main, ...extras stdres]
   const [lightboxUrls, setLightboxUrls] = useState<string[]>([]);
 
-  const photoSwipe = useSwipeNav({
-    onSwipeLeft: () => nextEntryId && onNavigate(nextEntryId),
-    onSwipeRight: () => prevEntryId && onNavigate(prevEntryId),
+  // Swipe follows the ◀ ▶ arrows in the nav header: the finger moves the way the arrow points
+  // (swipe right = ▶ newer, swipe left = ◀ older) — the reverse of page-turn convention, which
+  // read as backwards next to the arrows. Attached to the whole page (below), not just the photo,
+  // and inert while the lightbox is open (it renders inside this wrapper, so its own swipes would
+  // otherwise bubble up here and navigate the entry underneath it as well).
+  const pageSwipe = useSwipeNav({
+    onSwipeRight: () => lightboxIndex === null && nextEntryId && onNavigate(nextEntryId),
+    onSwipeLeft: () => lightboxIndex === null && prevEntryId && onNavigate(prevEntryId),
   });
 
   const imagePath =
@@ -295,7 +300,11 @@ export function EntryDetail({
   const { data: entry } = entryState;
 
   return (
-    <div className={styles.wrapper}>
+    <div
+      className={styles.wrapper}
+      onTouchStart={pageSwipe.onTouchStart}
+      onTouchEnd={pageSwipe.onTouchEnd}
+    >
       {/* Navigation header */}
       <div className={styles.navHeader}>
         <div className={styles.navLeft}>
@@ -347,11 +356,7 @@ export function EntryDetail({
             </div>
           )}
           {imageSrc && (
-            <div
-              className={styles.photoInner}
-              onTouchStart={photoSwipe.onTouchStart}
-              onTouchEnd={photoSwipe.onTouchEnd}
-            >
+            <div className={styles.photoInner}>
               <img src={imageSrc} alt={entry.title} className={styles.photo} />
               <div
                 className={`${styles.photoHalf} ${styles.photoHalfLeft}`}

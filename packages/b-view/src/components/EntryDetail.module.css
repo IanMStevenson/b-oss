@@ -67,6 +67,11 @@
   background: var(--line-2);
 }
 
+.navBtn:disabled {
+  color: var(--ink-disabled, #d0d3d8);
+  cursor: default;
+}
+
 .navTitle {
   flex: 1;
   display: flex;
