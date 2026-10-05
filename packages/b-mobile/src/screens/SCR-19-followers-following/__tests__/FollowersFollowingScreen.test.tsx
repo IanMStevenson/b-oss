@@ -138,4 +138,39 @@ describe('FollowersFollowingScreen', () => {
     expect(await screen.findByText('alice')).toBeDefined();
     expect(screen.getByText('(Hidden)')).toBeDefined();
   });
+
+  describe('keeps your place when you open someone and come Back (b-oss#190)', () => {
+    const person = (name: string) => ({ username: name, avatar_url: '', icons: [] });
+
+    it('shows the list you had, with no refetch', async () => {
+      const { fetchFollowing } = await import('../../../data/users.js');
+      vi.mocked(fetchFollowing).mockResolvedValue({
+        items: [person('alice'), person('bob')],
+        more: false,
+      });
+      const first = renderScreen('me', 'following');
+      expect(await screen.findByText('alice')).toBeDefined();
+      first.unmount();
+
+      vi.mocked(fetchFollowing).mockClear();
+      renderScreen('me', 'following'); // Back from alice's profile
+      expect(screen.getByText('alice')).toBeDefined(); // already there — no spinner
+      expect(screen.getByText('bob')).toBeDefined();
+      await new Promise((r) => setTimeout(r, 0));
+      expect(fetchFollowing).not.toHaveBeenCalled();
+    });
+
+    it('keeps followers and following separate', async () => {
+      const { fetchFollowers, fetchFollowing } = await import('../../../data/users.js');
+      vi.mocked(fetchFollowers).mockResolvedValue({ items: [person('carol')], more: false });
+      vi.mocked(fetchFollowing).mockResolvedValue({ items: [person('dave')], more: false });
+      const first = renderScreen('me', 'followers');
+      expect(await screen.findByText('carol')).toBeDefined();
+      first.unmount();
+
+      renderScreen('me', 'following');
+      expect(await screen.findByText('dave')).toBeDefined();
+      expect(screen.queryByText('carol')).toBeNull();
+    });
+  });
 });

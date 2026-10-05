@@ -41,6 +41,8 @@ import type { RefresherEventDetail } from '@ionic/core';
 import { AppHeader } from '../../components/AppHeader.js';
 import { AccountIndicator } from '../../components/AccountIndicator.js';
 import { usePagedResource } from '../../data/usePagedResource.js';
+import { resumeGet, resumeSet } from '../../data/resumeCache.js';
+import { useActiveAccount } from '../../state/accountsStore.js';
 import { useDebouncedValue } from '../../data/useDebounce.js';
 import { fetchSearchEntriesPage } from '../../data/entries.js';
 import { fetchSearchUsersPage } from '../../data/users.js';
@@ -65,24 +67,33 @@ function IdlePrompt() {
 function EntriesTab({
   term,
   active,
+  scope,
   onSelectEntry,
 }: {
   term: string;
   active: boolean;
+  /** The signed-in account (or 'anon'), so results and pages remembered for Back are never shared
+   * between accounts. */
+  scope: string;
   onSelectEntry: (entryId: string) => void;
 }) {
-  const [committedTerm, setCommittedTerm] = useState(term);
+  // A tab that isn't showing doesn't search until it is (a restored hidden tab included).
+  const [committedTerm, setCommittedTerm] = useState(active ? term : '');
   useEffect(() => {
     if (active) setCommittedTerm(term);
   }, [active, term]);
   const trimmed = committedTerm.trim();
 
+  // Back from an entry returns to this search's results on the page you were on (b-oss#190).
+  const resumeKey = `search:${scope}:entries:${trimmed}`;
   const resource = usePagedResource<EntryIndex>(
     (pageIndex) =>
       trimmed
         ? fetchSearchEntriesPage(trimmed, pageIndex)
         : Promise.resolve({ items: [], more: false }),
     [trimmed],
+    30,
+    resumeKey,
   );
 
   if (!trimmed) return <IdlePrompt />;
@@ -112,6 +123,7 @@ function EntriesTab({
   }
   return (
     <EntryGrid
+      resumeKey={resumeKey}
       entries={resource.items}
       onSelectEntry={onSelectEntry}
       hasMore={resource.hasMore}
@@ -124,13 +136,16 @@ function EntriesTab({
 function PeopleTab({
   term,
   active,
+  scope,
   onSelectUser,
 }: {
   term: string;
   active: boolean;
+  scope: string;
   onSelectUser: (username: string) => void;
 }) {
-  const [committedTerm, setCommittedTerm] = useState(term);
+  // A tab that isn't showing doesn't search until it is (a restored hidden tab included).
+  const [committedTerm, setCommittedTerm] = useState(active ? term : '');
   useEffect(() => {
     if (active) setCommittedTerm(term);
   }, [active, term]);
@@ -142,6 +157,8 @@ function PeopleTab({
         ? fetchSearchUsersPage(trimmed, pageIndex)
         : Promise.resolve({ items: [], more: false }),
     [trimmed],
+    30,
+    `search:${scope}:people:${trimmed}`,
   );
 
   function handleRefresh(event: CustomEvent<RefresherEventDetail>): void {
@@ -194,16 +211,41 @@ function PeopleTab({
   );
 }
 
+interface SearchUi {
+  tab: Tab;
+  visited: Tab[];
+  input: string;
+  submitted: string | null;
+}
+
 export function SearchScreen() {
   const navigate = useAppNavigate();
-  const [tab, setTab] = useState<Tab>('entries');
-  const [visited, setVisited] = useState<Set<Tab>>(new Set(['entries']));
-  const [inputValue, setInputValue] = useState('');
+  const activeAccount = useActiveAccount();
+  const scope = activeAccount?.id ?? 'anon';
+  const uiKey = `search:${scope}:ui`;
+  // Opening a result unmounts this screen (data/resumeCache.ts), so Back would otherwise return to
+  // an empty search box on the Entries tab. Restore what was typed, the tab, and (via the tabs'
+  // own resume keys) the results and page (b-oss#190).
+  const [saved] = useState(() => resumeGet<SearchUi>(uiKey));
+  const [tab, setTab] = useState<Tab>(saved?.tab ?? 'entries');
+  const [visited, setVisited] = useState<Set<Tab>>(
+    new Set<Tab>([saved?.tab ?? 'entries', ...(saved?.visited ?? [])]),
+  );
+  const [inputValue, setInputValue] = useState(saved?.input ?? '');
   // Set on Enter/submit to bypass the debounce; cleared on the next keystroke so typing resumes
   // the normal debounced path. `term` prefers this over the debounced value whenever it's set.
-  const [submittedValue, setSubmittedValue] = useState<string | null>(null);
+  const [submittedValue, setSubmittedValue] = useState<string | null>(saved?.submitted ?? null);
   const debouncedValue = useDebouncedValue(inputValue, DEBOUNCE_MS);
   const term = submittedValue ?? debouncedValue;
+
+  useEffect(() => {
+    resumeSet<SearchUi>(uiKey, {
+      tab,
+      visited: [...visited],
+      input: inputValue,
+      submitted: submittedValue,
+    });
+  }, [uiKey, tab, visited, inputValue, submittedValue]);
 
   function handleInputChange(value: string): void {
     setInputValue(value);
@@ -268,6 +310,7 @@ export function SearchScreen() {
             {t === 'entries' && (
               <EntriesTab
                 term={term}
+                scope={scope}
                 active={tab === 'entries'}
                 onSelectEntry={(id) => navigate.push(`/entry/${id}`)}
               />
@@ -275,6 +318,7 @@ export function SearchScreen() {
             {t === 'people' && (
               <PeopleTab
                 term={term}
+                scope={scope}
                 active={tab === 'people'}
                 onSelectUser={(username) => navigate.push(`/user/${encodeURIComponent(username)}`)}
               />

@@ -208,4 +208,68 @@ describe('SearchScreen', () => {
     await new Promise((r) => setTimeout(r, 500));
     expect(fetchSearchEntriesPage).toHaveBeenCalledTimes(1);
   });
+
+  describe('keeps your place when you open a result and come Back (b-oss#190)', () => {
+    it('restores the query, the tab and the results — without searching again', async () => {
+      const { fetchSearchEntriesPage } = await import('../../../data/entries.js');
+      vi.mocked(fetchSearchEntriesPage).mockResolvedValue({ items: [entry], more: false });
+      const first = renderScreen();
+      const input = getInput();
+      fireEvent.change(input, { target: { value: 'sun' } });
+      fireEvent.submit(input.closest('form')!);
+      expect(await screen.findByLabelText('2026-01-01')).toBeDefined();
+      first.unmount(); // opening a result unmounts the search screen
+
+      vi.mocked(fetchSearchEntriesPage).mockClear();
+      renderScreen(); // Back
+      expect(screen.getByPlaceholderText<HTMLInputElement>('Search…').value).toBe('sun');
+      expect(await screen.findByLabelText('2026-01-01')).toBeDefined(); // results are there straight away
+      await new Promise((r) => setTimeout(r, 0));
+      expect(fetchSearchEntriesPage).not.toHaveBeenCalled();
+    });
+
+    it('returns to the People tab if that is where you were', async () => {
+      const { fetchSearchUsersPage } = await import('../../../data/users.js');
+      vi.mocked(fetchSearchUsersPage).mockResolvedValue({ items: [user], more: false });
+      const first = renderScreen();
+      fireEvent.change(getInput(), { target: { value: 'ali' } });
+      document
+        .querySelector('ion-segment')!
+        .dispatchEvent(new CustomEvent('ionChange', { detail: { value: 'people' } }));
+      expect(await screen.findByText('alice', undefined, { timeout: 2000 })).toBeDefined();
+      first.unmount();
+
+      renderScreen();
+      expect(document.querySelector('ion-segment')!.getAttribute('value')).toBe('people');
+      expect(await screen.findByText('alice')).toBeDefined();
+    });
+
+    it('does not carry one account’s search over to another', async () => {
+      const { fetchSearchEntriesPage } = await import('../../../data/entries.js');
+      vi.mocked(fetchSearchEntriesPage).mockResolvedValue({ items: [], more: false });
+      const first = renderScreen();
+      const input = getInput();
+      fireEvent.change(input, { target: { value: 'private' } });
+      fireEvent.submit(input.closest('form')!);
+      first.unmount();
+
+      useAccountsStore.setState({
+        accounts: [
+          {
+            id: 'other',
+            username: 'other',
+            avatarUrl: null,
+            appTokenScope: 'read',
+            hasServiceToken: false,
+            notificationRegistrationId: null,
+            notificationStatus: null,
+          },
+        ],
+        activeAccountId: 'other',
+        hydrated: true,
+      });
+      renderScreen();
+      expect(screen.getByPlaceholderText<HTMLInputElement>('Search…').value).toBe('');
+    });
+  });
 });

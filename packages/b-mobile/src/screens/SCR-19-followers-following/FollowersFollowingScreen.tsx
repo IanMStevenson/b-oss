@@ -24,6 +24,7 @@ import type { RefresherEventDetail } from '@ionic/core';
 import { X } from 'lucide-react';
 import { AppHeader } from '../../components/AppHeader.js';
 import { usePagedResource } from '../../data/usePagedResource.js';
+import { useScrollResume } from '../../data/useScrollResume.js';
 import { fetchFollowers, fetchFollowing } from '../../data/users.js';
 import { removeFollower } from '../../flows/connectionsFlow.js';
 import { describeError, mapApiError } from '../../data/errors.js';
@@ -45,13 +46,19 @@ export function FollowersFollowingScreen({ username, mode }: FollowersFollowingS
   const canWrite = useCanWrite();
   const isOwnFollowers = mode === 'followers' && activeAccount?.username === username;
 
+  // Opening someone from the list and coming Back keeps what was loaded and where you'd scrolled
+  // to, instead of restarting at the top of page 1 (b-oss#190). Scoped to the signed-in account.
+  const resumeKey = `people:${activeAccount?.id ?? 'anon'}:${mode}:${username}`;
   const resource = usePagedResource(
     (pageIndex) =>
       mode === 'followers'
         ? fetchFollowers(username, pageIndex)
         : fetchFollowing(username, pageIndex),
     [username, mode],
+    30,
+    resumeKey,
   );
+  const scroll = useScrollResume(resumeKey, resource.status === 'loaded');
 
   const [removeTarget, setRemoveTarget] = useState<BlipUser | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -96,7 +103,7 @@ export function FollowersFollowingScreen({ username, mode }: FollowersFollowingS
           backHref={`/user/${encodeURIComponent(username)}`}
         />
       </IonHeader>
-      <IonContent>
+      <IonContent {...scroll}>
         {resource.status === 'loading' && (
           <div className="ion-padding" style={{ display: 'flex', justifyContent: 'center' }}>
             <IonSpinner />

@@ -56,6 +56,7 @@ import { fetchEntriesInBounds } from '../../data/map.js';
 import type { MapBounds, MapEntry } from '../../data/map.js';
 import { fetchEntry } from '../../data/entries.js';
 import { useDebouncedValue } from '../../data/useDebounce.js';
+import { resumeGet, resumeSet } from '../../data/resumeCache.js';
 import { useHiddenMembers } from '../../state/hiddenMembersStore.js';
 import { useAppNavigate } from '../../app/routes/useAppNavigate.js';
 
@@ -69,6 +70,14 @@ const DEBOUNCE_MS = 450;
 const DEFAULT_CENTER: [number, number] = [0, 20];
 const DEFAULT_ZOOM = 1.5;
 const FOCUSED_ZOOM = 13;
+/** Where the free-browsing map was last panned/zoomed to, so Back from an entry you opened off a
+ * pin returns to the same view instead of the whole world (b-oss#190). Not used in focused mode,
+ * which always centres on its own entry. */
+const MAP_VIEW_KEY = 'map:view';
+interface MapView {
+  center: [number, number];
+  zoom: number;
+}
 
 type EntriesStatus = 'loading' | 'loaded' | 'empty' | 'error';
 
@@ -168,6 +177,13 @@ export function MapScreen({ focusedEntryId }: MapScreenProps) {
       let center = DEFAULT_CENTER;
       let zoom = DEFAULT_ZOOM;
       let focusedEntry: MapEntry | null = null;
+      if (!focusedEntryId) {
+        const savedView = resumeGet<MapView>(MAP_VIEW_KEY);
+        if (savedView) {
+          center = savedView.center;
+          zoom = savedView.zoom;
+        }
+      }
       if (focusedEntryId) {
         try {
           const loaded = await fetchEntry(focusedEntryId);
@@ -212,6 +228,8 @@ export function MapScreen({ focusedEntryId }: MapScreenProps) {
       }
 
       function handleMoveEnd(): void {
+        const c = map!.getCenter();
+        resumeSet<MapView>(MAP_VIEW_KEY, { center: [c.lng, c.lat], zoom: map!.getZoom() });
         const b = map!.getBounds();
         setBounds({
           minLat: b.getSouth(),
