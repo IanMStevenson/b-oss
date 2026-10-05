@@ -48,6 +48,16 @@ export async function fetchPopularPage(pageIndex: number): Promise<Page<EntryInd
   });
 }
 
+/** New Blippers — entries by new members (`entries/new`), like Recent/Popular public browsing and
+ * so eligible for the same rate-limit fallback. No fixed depth is known, so no total is assumed:
+ * the pager grows as pages load. */
+export async function fetchNewBlippersPage(pageIndex: number): Promise<Page<EntryIndex>> {
+  return withRateLimitFallback(async (client) => {
+    const res = await client.getNewEntries({ pageIndex, pageSize: PAGE_SIZE });
+    return { items: res.entries.map(stubToEntryIndex), ...pageMeta(res.page) };
+  });
+}
+
 export async function fetchFollowingPage(pageIndex: number): Promise<Page<EntryIndex>> {
   const client = await getClient();
   const res = await client.getFollowingEntries({ pageIndex, pageSize: PAGE_SIZE });

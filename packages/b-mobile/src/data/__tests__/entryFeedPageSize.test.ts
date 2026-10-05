@@ -9,6 +9,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import {
   fetchRecentPage,
   fetchPopularPage,
+  fetchNewBlippersPage,
   fetchFollowingPage,
   fetchJustMePage,
   fetchNearbyPage,
@@ -22,6 +23,7 @@ const response = { page: { index: 0, size: 100, more: 0 }, entries: [] };
 const methods = [
   'getRecentEntries',
   'getPopularEntries',
+  'getNewEntries',
   'getFollowingEntries',
   'getJournalEntries',
   'getFavoriteEntries',
@@ -49,6 +51,7 @@ describe('entry feed page size', () => {
   it.each([
     ['recent', () => fetchRecentPage(3), 'getRecentEntries'],
     ['popular', () => fetchPopularPage(3), 'getPopularEntries'],
+    ['new blippers', () => fetchNewBlippersPage(3), 'getNewEntries'],
     ['following', () => fetchFollowingPage(3), 'getFollowingEntries'],
     ['just me', () => fetchJustMePage(3), 'getJournalEntries'],
     ['nearby', () => fetchNearbyPage(3, { lat: 1, lon: 2 }), 'searchEntries'],

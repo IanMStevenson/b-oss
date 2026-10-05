@@ -180,7 +180,7 @@ describe('SettingsScreen section routing', () => {
         </OverlayProvider>
       </MemoryRouter>,
     );
-    expect(screen.getByText('Show zoom bar')).toBeDefined();
+    expect(screen.getByText('Show zoom/navigation bar')).toBeDefined();
   });
 
   it('the hub has a back button, not just the nav menu, so there is a way out of Settings (b-oss#165)', async () => {

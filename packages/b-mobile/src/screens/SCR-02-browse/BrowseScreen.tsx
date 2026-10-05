@@ -26,6 +26,7 @@ import { usePagedResource } from '../../data/usePagedResource.js';
 import {
   fetchRecentPage,
   fetchPopularPage,
+  fetchNewBlippersPage,
   fetchFollowingPage,
   fetchJustMePage,
   fetchNearbyPage,
@@ -34,13 +35,14 @@ import {
 } from '../../data/entries.js';
 import { fetchUserProfile } from '../../data/users.js';
 import type { Page } from '../../data/usePagedResource.js';
+import { ScrollEdgeHint } from '../../components/ScrollEdgeHint.js';
 import { EntryGrid } from '../../components/EntryGrid.js';
 import { useActiveAccount } from '../../state/accountsStore.js';
 import { useAppNavigate } from '../../app/routes/useAppNavigate.js';
 import { getCurrentPosition } from '../../platform/geolocation.js';
 import type { EntryIndex } from '@b-oss/b-view';
 
-type Tab = 'recent' | 'following' | 'justme' | 'popular' | 'nearby';
+type Tab = 'recent' | 'following' | 'justme' | 'popular' | 'new' | 'nearby';
 
 // Recent is a fixed 900 entries: the on-device depth probe (b-oss#196) found its last page holds
 // the 900th entry whether paged at 100 or 30 (the website's own 50 pages x 18). Popular is *not*
@@ -95,12 +97,15 @@ function ResourceGrid({
   onSelectEntry,
   totalEntryCount,
   resumeKey,
+  showCalendar,
 }: {
   resource: ReturnType<typeof usePagedResource<EntryIndex>>;
   onSelectEntry: (entryId: string) => void;
   totalEntryCount?: number;
   /** Remembers the grid's page so Back from an entry lands on it (b-oss#182). */
   resumeKey?: string;
+  /** Journal views only (the Me tab) — see EntryGrid's showCalendar. */
+  showCalendar?: boolean;
 }) {
   if (resource.status === 'loading') {
     return (
@@ -138,6 +143,7 @@ function ResourceGrid({
       onSeek={resource.seekTo}
       onLoadBefore={resource.loadBefore}
       resumeKey={resumeKey}
+      showCalendar={showCalendar}
     />
   );
 }
@@ -192,6 +198,7 @@ function JustMeTab({ resumeKey }: { resumeKey: string }) {
       onSelectEntry={(id) => navigate.push(`/entry/${id}`)}
       totalEntryCount={totalEntryCount}
       resumeKey={resumeKey}
+      showCalendar
     />
   );
 }
@@ -231,31 +238,36 @@ export function BrowseScreen() {
       <IonHeader>
         <AppHeader title="Browse" end={<AccountIndicator />} />
         <IonToolbar>
-          <IonSegment
-            value={tab}
-            scrollable
-            onIonChange={(e) => handleTabChange(e.detail.value as Tab)}
-          >
-            <IonSegmentButton value="recent">
-              <IonLabel>Recent</IonLabel>
-            </IonSegmentButton>
-            {activeAccount && (
-              <IonSegmentButton value="following">
-                <IonLabel>Following</IonLabel>
+          <ScrollEdgeHint>
+            <IonSegment
+              value={tab}
+              scrollable
+              onIonChange={(e) => handleTabChange(e.detail.value as Tab)}
+            >
+              <IonSegmentButton value="recent">
+                <IonLabel>Recent</IonLabel>
               </IonSegmentButton>
-            )}
-            {activeAccount && (
-              <IonSegmentButton value="justme">
-                <IonLabel>Me</IonLabel>
+              {activeAccount && (
+                <IonSegmentButton value="following">
+                  <IonLabel>Following</IonLabel>
+                </IonSegmentButton>
+              )}
+              {activeAccount && (
+                <IonSegmentButton value="justme">
+                  <IonLabel>Me</IonLabel>
+                </IonSegmentButton>
+              )}
+              <IonSegmentButton value="popular">
+                <IonLabel>Popular</IonLabel>
               </IonSegmentButton>
-            )}
-            <IonSegmentButton value="popular">
-              <IonLabel>Popular</IonLabel>
-            </IonSegmentButton>
-            <IonSegmentButton value="nearby">
-              <IonLabel>Nearby</IonLabel>
-            </IonSegmentButton>
-          </IonSegment>
+              <IonSegmentButton value="new">
+                <IonLabel>New Blippers</IonLabel>
+              </IonSegmentButton>
+              <IonSegmentButton value="nearby">
+                <IonLabel>Nearby</IonLabel>
+              </IonSegmentButton>
+            </IonSegment>
+          </ScrollEdgeHint>
         </IonToolbar>
       </IonHeader>
       <IonContent>
@@ -276,6 +288,7 @@ export function BrowseScreen() {
             <FeedTab fetchPage={fetchFollowingPage} resumeKey={feedKey('following')} />
           )}
           {tab === 'justme' && <JustMeTab resumeKey={feedKey('justme')} />}
+          {tab === 'new' && <FeedTab fetchPage={fetchNewBlippersPage} resumeKey={feedKey('new')} />}
           {tab === 'nearby' && <NearbyTab />}
         </div>
       </IonContent>

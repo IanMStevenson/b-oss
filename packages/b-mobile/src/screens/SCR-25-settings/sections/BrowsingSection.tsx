@@ -23,12 +23,12 @@ export function BrowsingSection() {
   return (
     <div className="ion-padding">
       <IonCheckbox checked={showZoomBar} onIonChange={(e) => setShowZoomBar(e.detail.checked)}>
-        Show zoom bar
+        Show zoom/navigation bar
       </IonCheckbox>
       <IonText color="medium">
         <p>
-          Pinch to zoom always works on the thumbnail grid — this just shows or hides the on-screen
-          zoom buttons.
+          The row above the thumbnails with Home, search, calendar and the zoom buttons. Turn it off
+          to give that line back to the grid — pinch to zoom and swipe to change page still work.
         </p>
       </IonText>
 
