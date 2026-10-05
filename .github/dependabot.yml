@@ -8,6 +8,21 @@ updates:
     groups:
       minor-and-patch:
         update-types: ["minor", "patch"]
+  # The Android app (packages/b-mobile) lives on the long-lived b-mobile-initial integration branch,
+  # which Dependabot never looks at by default — it only scans the default branch, so everything
+  # unique to b-mobile (e.g. maplibre-gl) went unmonitored. A second npm entry with target-branch
+  # makes it check that branch's manifests and raise its PRs against it. (Dependabot reads this
+  # file from the default branch only, so it must be changed here, on main.) Security *alerts* still
+  # follow the default branch only; `npm audit` on b-mobile-initial remains the check for those.
+  - package-ecosystem: "npm"
+    directory: "/"
+    target-branch: "b-mobile-initial"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 5
+    groups:
+      minor-and-patch:
+        update-types: ["minor", "patch"]
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
