@@ -136,6 +136,14 @@ interface ThumbnailGridProps {
    * zoom affordance. Home/search/DatePicker in the same controls bar are unaffected — this only
    * gates the zoom button cluster. Defaults true (today's behaviour). */
   showZoomControls?: boolean;
+  /** Hides the whole controls bar (Home / search / calendar / zoom / info toggle) and gives its
+   * height back to the grid. Pinch-to-zoom still works if `onSizeChange` is given. Defaults true
+   * (today's behaviour), so desktop and extension hosts are unaffected. */
+  showControls?: boolean;
+  /** Whether the calendar (DatePicker) appears in the controls bar. It jumps within the loaded
+   * entries by date, which only makes sense for a chronological journal — a host showing a mixed
+   * feed (recent, popular, search results…) turns it off. Defaults true. */
+  showCalendar?: boolean;
   /** Hides the pagination row entirely, regardless of page count. Defaults true (today's
    * behaviour) — b-view-backup's desktop consumer is unaffected either way. */
   showPagination?: boolean;
@@ -318,6 +326,8 @@ export function ThumbnailGrid({
   onSearchClick,
   baseTileSize = BASE_TILE_PX,
   showZoomControls = true,
+  showControls = true,
+  showCalendar = true,
   showPagination = true,
   margins = 'normal',
   onNearEnd,
@@ -346,7 +356,8 @@ export function ThumbnailGrid({
   const tileSize = Math.round(baseTileSize * (sizePercent / 100));
   const normalGap = Math.round(tileSize * 0.2);
   const renderGap = MARGIN_RENDER[margins].gapPx ?? normalGap;
-  const controlsH = onSizeChange || search || onSearchClick ? CONTROLS_H : 0;
+  const hasControls = showControls && Boolean(onSizeChange || search || onSearchClick);
+  const controlsH = hasControls ? CONTROLS_H : 0;
   const paginationH = showPagination ? PAGINATION_H : 0;
 
   // cols/rows/pageSize: 'normal' and 'narrow' share this exact formula (H_PAD/V_PAD, normalGap) —
@@ -515,7 +526,7 @@ export function ThumbnailGrid({
 
   return (
     <div ref={containerRef} className={styles.container} style={{ overflow }}>
-      {(onSizeChange || search || onSearchClick) && (
+      {hasControls && (
         <div className={styles.controls}>
           <div style={{ flex: 1 }} />
           {search && (
@@ -564,7 +575,7 @@ export function ThumbnailGrid({
                   <Search size={14} strokeWidth={1.6} />
                 </button>
               )}
-              {entries.length > 0 && (
+              {showCalendar && entries.length > 0 && (
                 <DatePicker
                   entries={entries}
                   currentDate={topLeftDate}

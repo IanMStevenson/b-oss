@@ -12,6 +12,8 @@ import type { EntryIndex } from '@b-oss/b-view';
 vi.mock('../../../data/entries.js', () => ({
   fetchRecentPage: vi.fn(),
   fetchPopularPage: vi.fn(),
+  fetchNewBlippersPage: vi.fn(),
+  fetchMilestonesPage: vi.fn(),
   fetchFollowingPage: vi.fn(),
   fetchJustMePage: vi.fn(),
   fetchNearbyPage: vi.fn(),
@@ -303,6 +305,73 @@ describe('BrowseScreen', () => {
         </MemoryRouter>,
       );
       await waitFor(() => expect(fetchFollowingPage).toHaveBeenCalledTimes(2));
+    });
+  });
+
+  describe('tabs and the navigation bar (b-oss#216, #217)', () => {
+    function pickTab(value: string) {
+      document
+        .querySelector('ion-segment')!
+        .dispatchEvent(new CustomEvent('ionChange', { detail: { value } }));
+    }
+    const signedIn = {
+      id: 'a1',
+      username: 'a1',
+      avatarUrl: null,
+      appTokenScope: 'read' as const,
+      hasServiceToken: false,
+      notificationRegistrationId: null,
+      notificationStatus: null,
+    };
+
+    it('has a New Blippers tab that loads entries/new', async () => {
+      const { fetchRecentPage, fetchNewBlippersPage } = await import('../../../data/entries.js');
+      const { useActiveAccount } = await import('../../../state/accountsStore.js');
+      vi.mocked(useActiveAccount).mockReturnValue(null);
+      vi.mocked(fetchRecentPage).mockResolvedValue({ items: [], more: false });
+      vi.mocked(fetchNewBlippersPage).mockResolvedValue({ items: [entry], more: false });
+      renderScreen();
+      await screen.findByText('Nothing here yet.');
+      expect(screen.getByText('New Blippers')).toBeDefined();
+      pickTab('new');
+      expect(await screen.findByLabelText('2026-01-01')).toBeDefined();
+      expect(fetchNewBlippersPage).toHaveBeenCalled();
+    });
+
+    it('has a Milestones tab that loads entries/milestones', async () => {
+      const { fetchRecentPage, fetchMilestonesPage } = await import('../../../data/entries.js');
+      const { useActiveAccount } = await import('../../../state/accountsStore.js');
+      vi.mocked(useActiveAccount).mockReturnValue(null);
+      vi.mocked(fetchRecentPage).mockResolvedValue({ items: [], more: false });
+      vi.mocked(fetchMilestonesPage).mockResolvedValue({ items: [entry], more: false });
+      renderScreen();
+      await screen.findByText('Nothing here yet.');
+      expect(screen.getByText('Milestones')).toBeDefined();
+      pickTab('milestones');
+      expect(await screen.findByLabelText('2026-01-01')).toBeDefined();
+    });
+
+    it('shows the calendar on the Me tab only — not Recent, Popular or New Blippers', async () => {
+      const { fetchRecentPage, fetchJustMePage, fetchNewBlippersPage, fetchPopularPage } =
+        await import('../../../data/entries.js');
+      const { fetchUserProfile } = await import('../../../data/users.js');
+      const { useActiveAccount } = await import('../../../state/accountsStore.js');
+      vi.mocked(useActiveAccount).mockReturnValue(signedIn);
+      for (const f of [fetchRecentPage, fetchJustMePage, fetchNewBlippersPage, fetchPopularPage]) {
+        vi.mocked(f).mockResolvedValue({ items: [entry], more: false });
+      }
+      vi.mocked(fetchUserProfile).mockResolvedValue({ details: { entry_total: 1 } } as never);
+      renderScreen();
+      await screen.findByLabelText('2026-01-01');
+      expect(screen.queryByLabelText('Jump to date')).toBeNull();
+
+      for (const tab of ['popular', 'new']) {
+        pickTab(tab);
+        await screen.findByLabelText('2026-01-01');
+        expect(screen.queryByLabelText('Jump to date')).toBeNull();
+      }
+      pickTab('justme');
+      expect(await screen.findByLabelText('Jump to date')).toBeDefined();
     });
   });
 });

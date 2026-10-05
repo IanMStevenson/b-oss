@@ -277,6 +277,19 @@ export class BlipfotoClient {
     });
   }
 
+  /** Entries marking members' milestones (the website's Browse → Milestones). **Not in the
+   * published API docs** — found by probing (b-oss#216): the response is a normal EntriesResponse
+   * and its first entry matches blipfoto.com/browse/milestones. Treat as unofficial. */
+  async getMilestoneEntries(options?: {
+    pageIndex?: number;
+    pageSize?: number;
+  }): Promise<EntriesResponse> {
+    return this.request<EntriesResponse>('entries/milestones', {
+      page_index: options?.pageIndex,
+      page_size: options?.pageSize,
+    });
+  }
+
   /** User auth only */
   async searchEntries(options: SearchEntriesOptions): Promise<EntriesResponse> {
     const params: Record<string, string | number | undefined> = {

@@ -30,7 +30,7 @@ afterEach(() => {
 describe('BrowsingSection', () => {
   it('shows both toggles on, and Normal selected, by default', () => {
     render(<BrowsingSection />);
-    const zoomToggle = screen.getByText('Show zoom bar').closest('ion-checkbox')!;
+    const zoomToggle = screen.getByText('Show zoom/navigation bar').closest('ion-checkbox')!;
     const paginationToggle = screen.getByText('Show pagination').closest('ion-checkbox')!;
     expect(zoomToggle.getAttribute('checked')).not.toBe('false');
     expect(paginationToggle.getAttribute('checked')).not.toBe('false');
@@ -41,7 +41,7 @@ describe('BrowsingSection', () => {
 
   it('toggling the zoom bar checkbox persists immediately', () => {
     render(<BrowsingSection />);
-    const toggle = screen.getByText('Show zoom bar').closest('ion-checkbox')!;
+    const toggle = screen.getByText('Show zoom/navigation bar').closest('ion-checkbox')!;
     toggle.dispatchEvent(
       new CustomEvent('ionChange', { bubbles: true, detail: { checked: false } }),
     );

@@ -70,6 +70,7 @@ function GridTab({
   onSelectEntry,
   pageSize = PAGE_SIZE,
   resumeKey,
+  showCalendar,
 }: {
   fetchPage: (pageIndex: number) => Promise<Page<EntryIndex>>;
   /** fetchPage is a fresh closure every render, so its own identity can't drive
@@ -85,6 +86,8 @@ function GridTab({
   /** Remembers this tab's loaded window and grid page, so Back from an entry lands where you were
    * (b-oss#182). Must identify the account and the profile being shown. */
   resumeKey?: string;
+  /** The calendar is for a journal (the Entries tab), not Favourites (b-oss#217). */
+  showCalendar?: boolean;
 }) {
   const resource = usePagedResource(fetchPage, [refetchKey], pageSize, resumeKey);
   if (resource.status === 'loading') {
@@ -122,6 +125,7 @@ function GridTab({
       onSeek={resource.seekTo}
       onLoadBefore={resource.loadBefore}
       resumeKey={resumeKey}
+      showCalendar={showCalendar}
     />
   );
 }
@@ -365,6 +369,7 @@ export function ProfileScreen({ username }: ProfileScreenProps) {
                     fetchPage={(pageIndex) => fetchJournalEntriesFor(effectiveUsername, pageIndex)}
                     pageSize={JOURNAL_PAGE_SIZE}
                     resumeKey={`${resumeScope}:entries`}
+                    showCalendar
                     refetchKey={effectiveUsername}
                     onSelectEntry={(id) => navigate.push(`/entry/${id}`)}
                   />

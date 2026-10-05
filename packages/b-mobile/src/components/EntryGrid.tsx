@@ -71,6 +71,10 @@ interface EntryGridProps {
    * is rebuilt (Back from an entry — b-oss#182). Pair with the same key on `usePagedResource` so
    * the data window being restored is the one the page belongs to. Omitted: always starts at 0. */
   resumeKey?: string;
+  /** Show the calendar (jump-to-date) in the controls bar. Only meaningful for a chronological
+   * journal — the Me tab and a user's Entries tab — so it's off unless the caller opts in
+   * (b-oss#217). */
+  showCalendar?: boolean;
 }
 
 export function EntryGrid({
@@ -84,6 +88,7 @@ export function EntryGrid({
   onSeek,
   onLoadBefore,
   resumeKey,
+  showCalendar = false,
 }: EntryGridProps) {
   const hiddenMembers = useHiddenMembers();
   const navigate = useAppNavigate();
@@ -153,7 +158,10 @@ export function EntryGrid({
           resolveAsset={resolveAsset}
           invalidateAsset={invalidateAsset}
           onSearchClick={() => navigate.push('/search')}
-          showZoomControls={showZoomBar}
+          // The one "zoom/navigation bar" setting hides the whole controls row (Home, search,
+          // calendar, zoom, info) and gives its line back to the grid (b-oss#217).
+          showControls={showZoomBar}
+          showCalendar={showCalendar}
           showPagination={showPagination}
           margins={thumbnailMargins}
           onNearEnd={() => {

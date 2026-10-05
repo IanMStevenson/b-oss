@@ -197,6 +197,41 @@ describe('ThumbnailGrid showZoomControls / showPagination', () => {
     expect(screen.getByLabelText('First page')).toBeDefined();
   });
 
+  it('shows the calendar by default, and hides it when showCalendar is false (only the calendar)', () => {
+    const entries = makeEntries(4);
+    const props = {
+      entries,
+      selectedEntryId: null,
+      onSelectEntry: () => {},
+      onSizeChange: () => {},
+    };
+    const { rerender } = render(<ThumbnailGrid {...props} />);
+    expect(screen.getByLabelText('Jump to date')).toBeDefined();
+    rerender(<ThumbnailGrid {...props} showCalendar={false} />);
+    expect(screen.queryByLabelText('Jump to date')).toBeNull();
+    expect(screen.getByLabelText('First page')).toBeDefined();
+    expect(screen.getByLabelText('Zoom in')).toBeDefined();
+  });
+
+  it('hides the whole controls bar when showControls is false, but pinch zoom still works', () => {
+    const entries = makeEntries(4);
+    const onSizeChange = vi.fn();
+    const { container } = render(
+      <ThumbnailGrid
+        entries={entries}
+        selectedEntryId={null}
+        onSelectEntry={() => {}}
+        onSizeChange={onSizeChange}
+        showControls={false}
+      />,
+    );
+    expect(screen.queryByLabelText('First page')).toBeNull();
+    expect(screen.queryByLabelText('Zoom in')).toBeNull();
+    expect(screen.queryByLabelText('Jump to date')).toBeNull();
+    expect(container.querySelector(`.${gridStyles.controls}`)).toBeNull();
+    expect(screen.getByLabelText('2026-01-01')).toBeDefined(); // the grid itself is unaffected
+  });
+
   it('hides the pagination row when showPagination is false, even with multiple pages', () => {
     const entries = makeEntries(10); // fallback pageSize is 4 → multiple pages
     const { container } = render(
