@@ -40,6 +40,7 @@ import { isNativePlatform } from '../../platform/appState.js';
 import { useAppNavigate } from '../../app/routes/useAppNavigate.js';
 import { useOverlay } from '../../app/OverlayProvider.js';
 import { useDevicePrefsStore } from '../../state/devicePrefsStore.js';
+import { useActiveAccount } from '../../state/accountsStore.js';
 
 const SIGNUP_URL = 'https://www.blipfoto.com/account/signup';
 
@@ -47,6 +48,10 @@ type Status = 'idle' | 'authenticating' | 'error';
 
 export function SignInScreen() {
   const navigate = useAppNavigate();
+  // With an account already signed in this screen was reached by drilling in (Accounts → Add
+  // account), so it gets Back like every other drilled-into screen. The signed-out landing page has
+  // nothing to go back to and keeps the menu button (b-oss#195).
+  const drilledIn = useActiveAccount() !== null;
   const { showFirstRunExplainer } = useOverlay();
   const hydrated = useDevicePrefsStore((s) => s.hydrated);
   const seenFirstRunExplainer = useDevicePrefsStore((s) => s.seenFirstRunExplainer);
@@ -101,7 +106,11 @@ export function SignInScreen() {
     setStatus('authenticating');
     try {
       await signInDeliberate(
-        { scope, notifications: notifications && pushAvailable, useEmbedded: isNativePlatform() && !useBrowser },
+        {
+          scope,
+          notifications: notifications && pushAvailable,
+          useEmbedded: isNativePlatform() && !useBrowser,
+        },
         { beforeServiceRound },
       );
       navigate.replace('/accounts');
@@ -120,7 +129,7 @@ export function SignInScreen() {
   return (
     <IonPage>
       <IonHeader>
-        <AppHeader title="Sign In" />
+        <AppHeader title="Sign In" variant={drilledIn ? 'back' : 'menu'} backHref="/accounts" />
       </IonHeader>
       <IonContent className="ion-padding">
         <p>How do you want to sign in?</p>
