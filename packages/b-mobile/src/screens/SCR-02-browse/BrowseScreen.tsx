@@ -7,7 +7,7 @@
 // back to a tab loaded earlier in the same visit doesn't force a re-query").
 
 import { useEffect, useState } from 'react';
-import { resumeGet, resumeSet } from '../../data/resumeCache.js';
+import { resumeClear, resumeGet, resumeSet } from '../../data/resumeCache.js';
 import {
   IonPage,
   IonHeader,
@@ -200,7 +200,6 @@ function JustMeTab({ resumeKey }: { resumeKey: string }) {
 
 interface BrowseUiState {
   tab: Tab;
-  visited: Tab[];
 }
 
 export function BrowseScreen() {
@@ -212,24 +211,21 @@ export function BrowseScreen() {
   const feedKey = (t: Tab) => `browse:${scope}:feed:${t}`;
 
   // Back from an entry rebuilds this screen (see data/resumeCache.ts) — restore the tab you were
-  // on, and the tabs you'd already opened, instead of resetting to Recent (b-oss#182).
-  const [initialUi] = useState<BrowseUiState>(() => {
+  // on, instead of resetting to Recent (b-oss#182).
+  const [tab, setTab] = useState<Tab>(() => {
     const saved = resumeGet<BrowseUiState>(uiKey);
     const available = (t: Tab) => activeAccount !== null || (t !== 'following' && t !== 'justme');
-    const tab = saved && available(saved.tab) ? saved.tab : 'recent';
-    return {
-      tab,
-      visited: [...new Set<Tab>(['recent', tab, ...(saved?.visited ?? [])])].filter(available),
-    };
+    return saved && available(saved.tab) ? saved.tab : 'recent';
   });
-  const [tab, setTab] = useState<Tab>(initialUi.tab);
-  const [visited, setVisited] = useState<Set<Tab>>(new Set(initialUi.visited));
 
+  // Choosing a tab always starts it at page 1: only the active tab is mounted, and its remembered
+  // page is dropped here. Coming Back from an entry doesn't pass through this, so that still lands
+  // on the page you left (b-oss#204).
   function handleTabChange(next: Tab): void {
-    const updated = visited.has(next) ? visited : new Set(visited).add(next);
+    if (next === tab) return;
+    resumeClear(feedKey(next));
     setTab(next);
-    setVisited(updated);
-    resumeSet<BrowseUiState>(uiKey, { tab: next, visited: [...updated] });
+    resumeSet<BrowseUiState>(uiKey, { tab: next });
   }
 
   return (
@@ -265,29 +261,29 @@ export function BrowseScreen() {
         </IonToolbar>
       </IonHeader>
       <IonContent>
-        {[...visited].map((t) => (
-          <div key={t} hidden={t !== tab} style={{ height: '100%' }}>
-            {t === 'recent' && (
-              <FeedTab
-                fetchPage={fetchRecentPage}
-                totalEntryCount={RECENT_TOTAL_ENTRIES}
-                resumeKey={feedKey('recent')}
-              />
-            )}
-            {t === 'popular' && (
-              <FeedTab
-                fetchPage={fetchPopularPage}
-                totalEntryCount={POPULAR_TOTAL_ENTRIES}
-                resumeKey={feedKey('popular')}
-              />
-            )}
-            {t === 'following' && (
-              <FeedTab fetchPage={fetchFollowingPage} resumeKey={feedKey('following')} />
-            )}
-            {t === 'justme' && <JustMeTab resumeKey={feedKey('justme')} />}
-            {t === 'nearby' && <NearbyTab />}
-          </div>
-        ))}
+        {/* Keyed by account as well as tab, so switching account rebuilds the feed — Following and
+            Me are per-account and must not keep showing the previous account's entries. */}
+        <div key={`${scope}:${tab}`} style={{ height: '100%' }}>
+          {tab === 'recent' && (
+            <FeedTab
+              fetchPage={fetchRecentPage}
+              totalEntryCount={RECENT_TOTAL_ENTRIES}
+              resumeKey={feedKey('recent')}
+            />
+          )}
+          {tab === 'popular' && (
+            <FeedTab
+              fetchPage={fetchPopularPage}
+              totalEntryCount={POPULAR_TOTAL_ENTRIES}
+              resumeKey={feedKey('popular')}
+            />
+          )}
+          {tab === 'following' && (
+            <FeedTab fetchPage={fetchFollowingPage} resumeKey={feedKey('following')} />
+          )}
+          {tab === 'justme' && <JustMeTab resumeKey={feedKey('justme')} />}
+          {tab === 'nearby' && <NearbyTab />}
+        </div>
       </IonContent>
     </IonPage>
   );

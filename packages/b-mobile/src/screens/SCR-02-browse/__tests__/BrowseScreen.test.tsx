@@ -261,5 +261,48 @@ describe('BrowseScreen', () => {
       );
       expect(screen.queryByText('Following')).toBeNull();
     });
+
+    it('choosing a tab starts it at page 1 again rather than remembering where you were (b-oss#204)', async () => {
+      const { fetchRecentPage, fetchFollowingPage } = await import('../../../data/entries.js');
+      const { useActiveAccount } = await import('../../../state/accountsStore.js');
+      vi.mocked(useActiveAccount).mockReturnValue(account('a1'));
+      vi.mocked(fetchRecentPage).mockResolvedValue({ items: [entry], more: false });
+      vi.mocked(fetchFollowingPage).mockResolvedValue({ items: [entry], more: false });
+      renderScreen();
+      await screen.findByLabelText('2026-01-01');
+      expect(fetchRecentPage).toHaveBeenCalledTimes(1);
+
+      pickTab('following');
+      await waitFor(() => expect(fetchFollowingPage).toHaveBeenCalledTimes(1));
+      pickTab('recent');
+      await waitFor(() => expect(fetchRecentPage).toHaveBeenCalledTimes(2));
+      expect(vi.mocked(fetchRecentPage).mock.calls[1]?.[0]).toBe(
+        vi.mocked(fetchRecentPage).mock.calls[0]?.[0],
+      ); // the same first page as on open
+    });
+
+    it('switching account while on a per-account tab reloads it for the new account (b-oss#204)', async () => {
+      const { fetchRecentPage, fetchFollowingPage } = await import('../../../data/entries.js');
+      const { useActiveAccount } = await import('../../../state/accountsStore.js');
+      vi.mocked(useActiveAccount).mockReturnValue(account('a1'));
+      vi.mocked(fetchRecentPage).mockResolvedValue({ items: [], more: false });
+      vi.mocked(fetchFollowingPage).mockResolvedValue({ items: [entry], more: false });
+      const view = renderScreen();
+      await screen.findByText('Nothing here yet.');
+      pickTab('following');
+      await screen.findByLabelText('2026-01-01');
+      expect(fetchFollowingPage).toHaveBeenCalledTimes(1);
+
+      vi.mocked(useActiveAccount).mockReturnValue(account('a2'));
+      view.rerender(
+        <MemoryRouter>
+          <OverlayProvider>
+            <OverlayHost />
+            <BrowseScreen />
+          </OverlayProvider>
+        </MemoryRouter>,
+      );
+      await waitFor(() => expect(fetchFollowingPage).toHaveBeenCalledTimes(2));
+    });
   });
 });
