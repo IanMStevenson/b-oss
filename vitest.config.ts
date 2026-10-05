@@ -9,6 +9,12 @@ export default defineConfig({
   },
   test: {
     passWithNoTests: true,
+    // CI runs on windows-latest, where importing Ionic + jsdom per file is slow and a loaded runner
+    // starves tests: the 5s default timed out the heavier b-mobile screen tests intermittently
+    // (b-oss#221). Generous limits only change when a *hung* test is reported; passing tests aren't
+    // slower. Testing Library's own async-util timeout is raised to match in test-setup.ts.
+    testTimeout: 20_000,
+    hookTimeout: 30_000,
     exclude: ['**/node_modules/**', '**/dist/**'],
     // jsdom has no scroll implementation; Ionic components (b-mobile only, so far) that scroll
     // their active item into view throw without this. Guarded so it's a no-op for every other
