@@ -125,6 +125,20 @@ after exactly this happened on a fresh Mutagen-fed build. Copy or symlink
 `.env.local` from the main checkout into any new worktree before relying on
 OAuth-related functionality there.
 
+## Building Gradle/Android on the egress-controlled dev VM
+
+Outbound traffic goes through a squid proxy (`localhost:3128`) with a per-domain rate limit
+(20 new connections/min). Two gotchas for `./gradlew` (b-mobile):
+
+- The JVM ignores `HTTP(S)_PROXY` env vars. Put `systemProp.http(s).proxyHost/proxyPort`
+  in `~/.gradle/gradle.properties`, and pass `JAVA_TOOL_OPTIONS="-Dhttps.proxyHost=localhost
+  -Dhttps.proxyPort=3128"` for the first run so the wrapper can download Gradle itself.
+- A `403 Forbidden` from `dl.google.com` is the rate limiter (`TCP_DENIED/403` in
+  `/var/log/squid/access.log`), not a blocked host. Gradle caches what it fetched, so retry
+  with `--max-workers=2` (a pause between attempts helps).
+- `npm ci` fails in Electron's postinstall (binary download blocked); use `--ignore-scripts`
+  for Android-only work.
+
 ## Versioning
 
 Display version format: `{pkg.major}.{pkg.minor}.{pkg.patch}[.{commits}.{build}]`.
