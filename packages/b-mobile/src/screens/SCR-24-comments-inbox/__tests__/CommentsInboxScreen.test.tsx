@@ -179,11 +179,11 @@ describe('CommentsInboxScreen', () => {
     expect(history.location.pathname).toBe('/user/alice');
   });
 
-  it('Reply opens the composer pre-targeted to that comment', async () => {
+  it('Reply lands on the entry with the reply composer targeted at that comment', async () => {
     fetchRecentComments.mockResolvedValue([comment()]);
     const history = renderScreen();
     await userEvent.click(await screen.findByLabelText('Reply'));
-    expect(history.location.pathname).toBe('/entry/100/comment');
+    expect(history.location.pathname).toBe('/entry/100'); // the composer is inline now (b-oss#172)
     expect(history.location.state).toMatchObject({ replyToCommentId: '1' });
   });
 

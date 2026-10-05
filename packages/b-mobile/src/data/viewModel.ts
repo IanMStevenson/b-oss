@@ -30,6 +30,7 @@ function toViewComment(comment: ApiComment): BlipComment {
     comment_id: comment.comment_id_str,
     parent_id: comment.parent_id_str,
     commenter_username: comment.commenter.username,
+    commenter_avatar: comment.commenter.avatar_url ?? '',
     content: comment.content,
     content_html: comment.content_html,
     replies: (comment.replies ?? []).map(toViewComment),

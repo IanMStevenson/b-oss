@@ -21,6 +21,12 @@ export interface UseResourceResult<T> {
    * the same function; this is the one a caller reaches for after a mutation succeeds (e.g. SCR-06
    * reloading to show a newly-posted comment, FLW-07) rather than only on failure. */
   reload: () => void;
+  /** Refetch *without* leaving the loaded state: whatever is on screen stays put (no spinner, no
+   * unmounted page, no lost scroll position) and is swapped for the fresh data when it arrives.
+   * For a mutation made in place — posting a comment inline — where `reload`'s flash to a spinner
+   * would blink the whole screen. A failed refresh keeps showing the old data; the caller already
+   * knows its own mutation succeeded. */
+  refresh: () => void;
 }
 
 export function useResource<T>(
@@ -57,5 +63,18 @@ export function useResource<T>(
     );
   }
 
-  return { state, reload: load };
+  function refresh(): void {
+    const id = ++requestIdRef.current;
+    fetcherRef.current().then(
+      (data) => {
+        if (id !== requestIdRef.current) return;
+        setState(isEmpty?.(data) ? { status: 'empty' } : { status: 'loaded', data });
+      },
+      () => {
+        // Keep what's on screen — see `refresh`'s doc comment.
+      },
+    );
+  }
+
+  return { state, reload: load, refresh };
 }

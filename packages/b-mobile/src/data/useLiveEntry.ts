@@ -24,9 +24,11 @@ export interface LiveEntryResult {
   /** Refetch the entry — used both for the error state's retry and, on the loaded state, to
    * refresh after a mutation (post/edit/delete comment, hide/unhide, FLW-07). */
   reload: () => void;
+  /** `reload` without the spinner: refreshes comments etc. in place after an inline mutation. */
+  refresh: () => void;
 }
 
-const emptyResult: Omit<LiveEntryResult, 'entryState' | 'reload'> = {
+const emptyResult: Omit<LiveEntryResult, 'entryState' | 'reload' | 'refresh'> = {
   prevEntryId: null,
   nextEntryId: null,
   actions: null,
@@ -37,18 +39,24 @@ const emptyResult: Omit<LiveEntryResult, 'entryState' | 'reload'> = {
 };
 
 export function useLiveEntry(entryId: string): LiveEntryResult {
-  const { state, reload } = useResource<LoadedEntry>(() => fetchEntry(entryId), [entryId]);
+  const { state, reload, refresh } = useResource<LoadedEntry>(() => fetchEntry(entryId), [entryId]);
 
   switch (state.status) {
     case 'loading':
-      return { entryState: { status: 'loading' }, ...emptyResult, reload };
+      return { entryState: { status: 'loading' }, ...emptyResult, reload, refresh };
     case 'error':
-      return { entryState: { status: 'error', message: state.message }, ...emptyResult, reload };
+      return {
+        entryState: { status: 'error', message: state.message },
+        ...emptyResult,
+        reload,
+        refresh,
+      };
     case 'empty':
       return {
         entryState: { status: 'error', message: 'Entry not found.' },
         ...emptyResult,
         reload,
+        refresh,
       };
     case 'loaded':
       return {
@@ -61,6 +69,7 @@ export function useLiveEntry(entryId: string): LiveEntryResult {
         friendship: state.data.friendship,
         comments: state.data.comments,
         reload,
+        refresh,
       };
   }
 }

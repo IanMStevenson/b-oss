@@ -1,0 +1,82 @@
+/* SPDX-License-Identifier: GPL-3.0-or-later */
+/* Copyright (C) 2026 Ian Stevenson */
+
+.composer {
+  margin-top: 8px;
+}
+
+.box {
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  background: var(--bg);
+}
+
+.box:focus-within {
+  border-color: var(--green-700);
+}
+
+.textarea {
+  display: block;
+  width: 100%;
+  box-sizing: border-box;
+  min-height: 120px;
+  padding: 10px;
+  border: 0;
+  outline: none;
+  resize: vertical;
+  background: transparent;
+  font: inherit;
+  font-size: var(--text-md, 15px);
+  line-height: var(--leading-normal, 1.45);
+  color: var(--ink);
+}
+
+.error {
+  margin: 8px 0 0;
+  font-size: var(--text-sm, 13px);
+  color: var(--color-danger);
+}
+
+.actions {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+/* Blipfoto's outlined, fully-rounded "Add comment" pill. */
+.submit {
+  padding: 8px 18px;
+  border: 1.5px solid var(--ink);
+  border-radius: 999px;
+  background: var(--bg);
+  font: inherit;
+  font-size: var(--text-md, 15px);
+  font-weight: var(--font-weight-medium, 500);
+  color: var(--ink);
+  cursor: pointer;
+}
+
+.submit:disabled {
+  /* Still plainly a button — the near-invisible --ink-disabled made an empty box look broken
+     ("comments have been disabled") — just visibly not active yet. */
+  border-color: var(--muted-2);
+  color: var(--muted);
+  cursor: default;
+}
+
+.cancel {
+  padding: 8px 12px;
+  border: 0;
+  background: none;
+  font: inherit;
+  font-size: var(--text-md, 15px);
+  color: var(--muted);
+  cursor: pointer;
+}
+
+.cancel:disabled {
+  cursor: default;
+  color: var(--ink-disabled, #d0d3d8);
+}

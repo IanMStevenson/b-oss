@@ -23,7 +23,6 @@ import { NewEntryScreen } from '../../screens/SCR-09-new-entry/NewEntryScreen.js
 import { DescriptionEditorScreen } from '../../screens/SCR-11-description-editor/DescriptionEditorScreen.js';
 import { EditEntryScreen } from '../../screens/SCR-13-edit-entry/EditEntryScreen.js';
 import { UploadProgressScreen } from '../../screens/SCR-14-upload-progress/UploadProgressScreen.js';
-import { NewCommentScreen } from '../../screens/SCR-15-new-comment/NewCommentScreen.js';
 import { ReportEntryScreen } from '../../screens/SCR-16-report-entry/ReportEntryScreen.js';
 import { HiddenMembersScreen } from '../../screens/SCR-31-hidden-members/HiddenMembersScreen.js';
 import { ProfileScreen } from '../../screens/SCR-17-18-profile/ProfileScreen.js';
@@ -69,10 +68,10 @@ function LazyScreenFallback() {
   );
 }
 
-interface CommentRouteState {
+// Router state the entry page accepts: a reply started elsewhere (the comments inbox) opens the
+// reply composer on that comment as soon as the entry loads.
+interface EntryRouteState {
   replyToCommentId?: string;
-  editCommentId?: string;
-  editInitialContent?: string;
 }
 
 interface ReportRouteState {
@@ -107,8 +106,16 @@ export function AppRoutes() {
       <Route
         exact
         path="/entry/:entryId"
-        render={({ match }: RouteComponentProps<{ entryId: string }>) => (
-          <EntryDetailScreen entryId={match.params.entryId} />
+        render={({ match, location }: RouteComponentProps<{ entryId: string }>) => (
+          // keyed by entry so swiping to another entry starts it with fresh composer state (any
+          // unsent text is kept by data/commentDrafts.ts, not by this instance).
+          <EntryDetailScreen
+            key={match.params.entryId}
+            entryId={match.params.entryId}
+            initialReplyToCommentId={
+              (location.state as EntryRouteState | undefined)?.replyToCommentId
+            }
+          />
         )}
       />
       <Route
@@ -129,21 +136,6 @@ export function AppRoutes() {
         exact
         path="/entry/:entryId/edit"
         render={({ match }) => <EditEntryScreen entryId={match.params.entryId as string} />}
-      />
-      <WriteGuardRoute
-        exact
-        path="/entry/:entryId/comment"
-        render={({ match, location }) => {
-          const state = (location.state ?? {}) as CommentRouteState;
-          return (
-            <NewCommentScreen
-              entryId={match.params.entryId as string}
-              replyToCommentId={state.replyToCommentId}
-              editCommentId={state.editCommentId}
-              editInitialContent={state.editInitialContent}
-            />
-          );
-        }}
       />
       <WriteGuardRoute
         exact
