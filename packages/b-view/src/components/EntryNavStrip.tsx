@@ -7,15 +7,15 @@
 //
 // Nothing here knows how to *find* entries: the host supplies the lookups it can actually do.
 // The viewer has the whole journal locally (`entries` → the existing popup calendar); the app can
-// only ask the API about the signed-in user's own journal (journal/day is user-auth only and takes
-// no username), so it supplies `onPickDate` / `loadHistory` for own entries and omits them
-// otherwise — a button with nothing behind it is simply not rendered.
+// asks the API month by month, so it supplies `loadCalendarMonth` / `loadHistory` — and a button
+// the host can't back with data is simply not rendered.
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { CalendarDays, History as HistoryIcon, Loader2 } from 'lucide-react';
 import type { EntryIndex } from '../types.js';
 import { formatStripDate } from '../entryDates.js';
 import { DatePicker } from './DatePicker.js';
+import { EntryCalendar } from './EntryCalendar.js';
 import { AsyncThumb, type ResolveAsset } from './AsyncThumb.js';
 import styles from './EntryNavStrip.module.css';
 
@@ -37,9 +37,12 @@ export interface EntryNavStripProps {
   onNavigate: (entryId: string) => void;
   /** Every entry the host has locally: enables the popup calendar (the viewer). */
   entries?: EntryIndex[];
-  /** Chosen `YYYY-MM-DD` from the platform's native date picker (the app). Ignored when
-   * `entries` is given. */
-  onPickDate?: (date: string) => void;
+  /** Which days of a month (1–12) have an entry: day-of-month → entry id (the app). Opens a
+   * month-grid calendar where only days with an entry are tappable. Ignored when `entries` is
+   * given (the viewer keeps its own popup calendar). */
+  loadCalendarMonth?: (year: number, month: number) => Promise<Record<number, string>>;
+  /** The calendar's year dropdown starts here (default 2004, when Blipfoto launched). */
+  calendarMinYear?: number;
   /** Called each time the history pop-down opens (not on render — it may cost an API call per
    * entry). Resolve to the entries to offer; an empty array shows "nothing either side". Omit to
    * hide the history button. */
@@ -56,39 +59,6 @@ function Triangle({ direction }: { direction: 'left' | 'right' }) {
   );
 }
 
-function NativeDateButton({ onPick }: { onPick: (date: string) => void }) {
-  const inputRef = useRef<HTMLInputElement>(null);
-  return (
-    <>
-      <button
-        type="button"
-        className={styles.stripBtn}
-        aria-label="Jump to date"
-        onClick={() => {
-          const input = inputRef.current;
-          if (!input) return;
-          // showPicker() needs a user gesture (this is one); older WebViews fall back to click().
-          if (typeof input.showPicker === 'function') input.showPicker();
-          else input.click();
-        }}
-      >
-        <CalendarDays size={22} strokeWidth={1.6} />
-      </button>
-      {/* Rendered (so showPicker works) but invisible and out of the way. */}
-      <input
-        ref={inputRef}
-        type="date"
-        tabIndex={-1}
-        aria-hidden="true"
-        className={styles.nativeDate}
-        onChange={(e) => {
-          if (e.target.value) onPick(e.target.value);
-        }}
-      />
-    </>
-  );
-}
-
 type HistoryStatus = 'closed' | 'loading' | 'ready' | 'error';
 
 export function EntryNavStrip({
@@ -97,13 +67,16 @@ export function EntryNavStrip({
   nextEntryId,
   onNavigate,
   entries,
-  onPickDate,
+  loadCalendarMonth,
+  calendarMinYear = 2004,
   loadHistory,
   resolveAsset,
   baseUrl,
 }: EntryNavStripProps) {
   const tile = formatStripDate(date);
   const wrapperRef = useRef<HTMLDivElement>(null);
+  // At most one panel open at a time.
+  const [calendarOpen, setCalendarOpen] = useState(false);
   const [historyStatus, setHistoryStatus] = useState<HistoryStatus>('closed');
   const [historyItems, setHistoryItems] = useState<HistoryItem[]>([]);
   // Guards a slow response from a previous open landing after the user has closed/moved on.
@@ -114,18 +87,25 @@ export function EntryNavStrip({
     setHistoryStatus('closed');
   }, []);
 
-  // A different entry is a different history — never show the previous one's pop-down.
-  useEffect(() => {
+  const closePanels = useCallback(() => {
     closeHistory();
-  }, [date, closeHistory]);
+    setCalendarOpen(false);
+  }, [closeHistory]);
 
+  // A different entry is a different history and a different month — never show the previous
+  // entry's pop-down.
   useEffect(() => {
-    if (historyStatus === 'closed') return;
+    closePanels();
+  }, [date, closePanels]);
+
+  const panelOpen = calendarOpen || historyStatus !== 'closed';
+  useEffect(() => {
+    if (!panelOpen) return;
     const onPointerDown = (e: PointerEvent) => {
-      if (!wrapperRef.current?.contains(e.target as Node)) closeHistory();
+      if (!wrapperRef.current?.contains(e.target as Node)) closePanels();
     };
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') closeHistory();
+      if (e.key === 'Escape') closePanels();
     };
     document.addEventListener('pointerdown', onPointerDown);
     document.addEventListener('keydown', onKey);
@@ -133,7 +113,16 @@ export function EntryNavStrip({
       document.removeEventListener('pointerdown', onPointerDown);
       document.removeEventListener('keydown', onKey);
     };
-  }, [historyStatus, closeHistory]);
+  }, [panelOpen, closePanels]);
+
+  function toggleCalendar() {
+    if (calendarOpen) {
+      setCalendarOpen(false);
+      return;
+    }
+    closeHistory();
+    setCalendarOpen(true);
+  }
 
   function toggleHistory() {
     if (!loadHistory) return;
@@ -141,6 +130,7 @@ export function EntryNavStrip({
       closeHistory();
       return;
     }
+    setCalendarOpen(false);
     const id = ++historyRequest.current;
     setHistoryStatus('loading');
     loadHistory().then(
@@ -165,8 +155,16 @@ export function EntryNavStrip({
         buttonClassName={styles.stripBtn}
         iconSize={22}
       />
-    ) : onPickDate ? (
-      <NativeDateButton onPick={onPickDate} />
+    ) : loadCalendarMonth ? (
+      <button
+        type="button"
+        className={styles.stripBtn}
+        onClick={toggleCalendar}
+        aria-label="Jump to date"
+        aria-expanded={calendarOpen}
+      >
+        <CalendarDays size={22} strokeWidth={1.6} />
+      </button>
     ) : null;
 
   return (
@@ -215,8 +213,27 @@ export function EntryNavStrip({
         <Triangle direction="right" />
       </button>
 
+      {calendarOpen && loadCalendarMonth && (
+        <div className={styles.pop} role="dialog" aria-label="Calendar">
+          <EntryCalendar
+            date={date}
+            loadMonth={loadCalendarMonth}
+            onSelect={(entryId) => {
+              setCalendarOpen(false);
+              onNavigate(entryId);
+            }}
+            minYear={calendarMinYear}
+            maxYear={new Date().getFullYear()}
+          />
+        </div>
+      )}
+
       {historyStatus !== 'closed' && (
-        <div className={styles.historyPop} role="dialog" aria-label="This day in other years">
+        <div
+          className={`${styles.pop} ${styles.historyPop}`}
+          role="dialog"
+          aria-label="This day in other years"
+        >
           {historyStatus === 'loading' && (
             <div className={styles.historyMsg}>
               <Loader2 size={18} strokeWidth={1.6} className={styles.spinner} />

@@ -50,9 +50,10 @@ interface EntryDetailProps {
    * (b-mobile puts the author block here; the viewer has none). Stacks above the strip when the
    * container is narrow. */
   header?: ReactNode;
-  /** Chosen `YYYY-MM-DD` from the platform date picker, for a host with no local entry list
-   * (b-mobile). Ignored when `entries` is given (the popup calendar is used instead). */
-  onPickDate?: (date: string) => void;
+  /** Which days of a month have an entry (day-of-month → entry id) — opens a month-grid calendar
+   * where only those days are tappable, for a host with no local entry list (b-mobile). Ignored
+   * when `entries` is given (the popup calendar is used instead). */
+  loadCalendarMonth?: (year: number, month: number) => Promise<Record<number, string>>;
   /** Loads the "1 year ago / 1 year ahead" entries for the history pop-down; omit to hide it. */
   loadHistory?: () => Promise<HistoryItem[]>;
   /** How the photo sizes against the screen. `full-width` (default) is blipfoto.com's own
@@ -155,7 +156,7 @@ export function EntryDetail({
   commentComposer,
   entryActions,
   header,
-  onPickDate,
+  loadCalendarMonth,
   loadHistory,
   photoFit = 'full-width',
   renderCommentActions,
@@ -290,7 +291,7 @@ export function EntryDetail({
           nextEntryId={nextEntryId}
           onNavigate={onNavigate}
           entries={entries}
-          onPickDate={onPickDate}
+          loadCalendarMonth={loadCalendarMonth}
           loadHistory={loadHistory}
           resolveAsset={resolveAsset}
           baseUrl={baseUrl}

@@ -64,7 +64,7 @@ export async function fetchMonthEligibility(date: string): Promise<Record<string
   const client = await getClient();
   const res = await client.getJournalMonth(date);
   const map: Record<string, DayEligibility> = {};
-  for (const day of res.days) {
+  for (const day of res.month.days) {
     if (!day) continue;
     const key = `${day.year}-${String(day.month).padStart(2, '0')}-${String(day.day).padStart(2, '0')}`;
     map[key] = toDayEligibility(day);

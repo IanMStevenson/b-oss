@@ -251,11 +251,17 @@ export interface JournalDayResponse {
   day: BlipDay;
 }
 
+/** The grid is nested under `month` — `{ month: { month, year, week_start, days } }` — confirmed
+ * against the live API (2026-10-05); it was previously typed flat, which made every caller read
+ * `days` off the wrong object. `days` has `null` padding for the cells before the 1st
+ * (per `week_start`), then one `BlipDay` per day. */
 export interface JournalMonthResponse {
-  month: number;
-  year: number;
-  week_start: number;
-  days: Array<BlipDay | null>;
+  month: {
+    month: number;
+    year: number;
+    week_start: number;
+    days: Array<BlipDay | null>;
+  };
 }
 
 export interface UserSettingsResponse {

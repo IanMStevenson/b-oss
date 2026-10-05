@@ -40,6 +40,7 @@
   justify-content: center;
   background: var(--line, #e5e7eb);
   color: var(--ink-2);
+  border: 0;
   cursor: pointer;
 }
 
@@ -54,27 +55,24 @@
   cursor: default;
 }
 
-.nativeDate {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  opacity: 0;
-  pointer-events: none;
-}
-
-.historyPop {
+/* Shared by the calendar and history pop-downs, anchored under the strip. */
+.pop {
   position: absolute;
   top: calc(100% + 6px);
   left: 0;
   z-index: 9000;
-  display: flex;
-  gap: 10px;
   padding: 10px;
   max-width: calc(100vw - 32px);
+  box-sizing: border-box;
   background: var(--bg);
   border: 1px solid var(--line);
   border-radius: 10px;
   box-shadow: 0 6px 24px rgba(0, 0, 0, 0.14);
+}
+
+.historyPop {
+  display: flex;
+  gap: 10px;
 }
 
 .historyMsg {

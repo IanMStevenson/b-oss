@@ -774,15 +774,16 @@ describe('getJournalMonth (User auth only)', () => {
         const url = new URL(request.url);
         expect(url.searchParams.get('date')).toBe('2024-01-01');
         return HttpResponse.json(
-          envelope({ month: 1, year: 2024, week_start: 1, days: [mockDay, null] }),
+          envelope({ month: { month: 1, year: 2024, week_start: 1, days: [mockDay, null] } }),
           { headers: rateLimitHeaders() },
         );
       }),
     );
     const result = await makeUserClient().getJournalMonth('2024-01-01');
-    expect(result.month).toBe(1);
-    expect(result.days[0]).not.toBeNull();
-    expect(result.days[1]).toBeNull();
+    // The grid is nested under `month` in the real response (confirmed live, 2026-10-05).
+    expect(result.month.month).toBe(1);
+    expect(result.month.days[0]).not.toBeNull();
+    expect(result.month.days[1]).toBeNull();
   });
 
   it('sends optional username and week_start', async () => {
@@ -791,7 +792,7 @@ describe('getJournalMonth (User auth only)', () => {
         const url = new URL(request.url);
         expect(url.searchParams.get('username')).toBe('gbradley');
         expect(url.searchParams.get('week_start')).toBe('7');
-        return HttpResponse.json(envelope({ month: 1, year: 2024, week_start: 7, days: [] }), {
+        return HttpResponse.json(envelope({ month: { month: 1, year: 2024, week_start: 7, days: [] } }), {
           headers: rateLimitHeaders(),
         });
       }),

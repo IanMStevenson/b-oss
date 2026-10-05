@@ -85,13 +85,52 @@ describe('EntryNavStrip — calendar button', () => {
     expect(screen.getByLabelText('Jump to date')).toBeDefined();
   });
 
-  it('uses the native date picker otherwise, reporting the chosen date (the app)', () => {
-    const onPickDate = vi.fn();
-    const { container } = render(<EntryNavStrip {...baseProps} onPickDate={onPickDate} />);
-    expect(screen.getByLabelText('Jump to date')).toBeDefined();
-    const input = container.querySelector('input[type="date"]')!;
-    fireEvent.change(input, { target: { value: '2025-06-15' } });
-    expect(onPickDate).toHaveBeenCalledWith('2025-06-15');
+  it('uses the month calendar otherwise (the app): only a day with an entry navigates, and it closes', async () => {
+    const onNavigate = vi.fn();
+    const loadCalendarMonth = vi.fn().mockResolvedValue({ 1: 'e1' });
+    render(
+      <EntryNavStrip
+        {...baseProps}
+        onNavigate={onNavigate}
+        loadCalendarMonth={loadCalendarMonth}
+      />,
+    );
+    expect(loadCalendarMonth).not.toHaveBeenCalled(); // lazy: nothing until opened
+
+    fireEvent.click(screen.getByLabelText('Jump to date'));
+    await waitFor(() => expect(screen.getByLabelText('1 October 2026').tagName).toBe('BUTTON'));
+    expect(loadCalendarMonth).toHaveBeenCalledWith(2026, 10);
+
+    fireEvent.click(screen.getByLabelText('3 October 2026, no entry'));
+    expect(onNavigate).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByLabelText('1 October 2026'));
+    expect(onNavigate).toHaveBeenCalledWith('e1');
+    expect(screen.queryByRole('dialog')).toBeNull();
+  });
+
+  it('only one pop-down is open at a time: opening history closes the calendar', async () => {
+    render(
+      <EntryNavStrip
+        {...baseProps}
+        loadCalendarMonth={() => Promise.resolve({})}
+        loadHistory={() => Promise.resolve([])}
+      />,
+    );
+    fireEvent.click(screen.getByLabelText('Jump to date'));
+    await waitFor(() => expect(screen.getByRole('dialog', { name: 'Calendar' })).toBeDefined());
+    fireEvent.click(screen.getByLabelText('This day in other years'));
+    await waitFor(() =>
+      expect(screen.getByRole('dialog', { name: 'This day in other years' })).toBeDefined(),
+    );
+    expect(screen.queryByRole('dialog', { name: 'Calendar' })).toBeNull();
+  });
+
+  it('closes the calendar on Escape', async () => {
+    render(<EntryNavStrip {...baseProps} loadCalendarMonth={() => Promise.resolve({})} />);
+    fireEvent.click(screen.getByLabelText('Jump to date'));
+    await waitFor(() => expect(screen.getByRole('dialog')).toBeDefined());
+    fireEvent.keyDown(document, { key: 'Escape' });
+    expect(screen.queryByRole('dialog')).toBeNull();
   });
 });
 
