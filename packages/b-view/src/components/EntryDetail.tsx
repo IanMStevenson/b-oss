@@ -12,6 +12,7 @@ import {
   Maximize2,
   Pencil,
   Trash2,
+  Download,
   Camera,
   Timer,
   Aperture,
@@ -53,8 +54,9 @@ interface EntryDetailProps {
   entryActions?: ReactNode;
   /** Edit / delete for an entry the host's user owns, as Blipfoto's owner pill (✏ | 🗑). A segment
    * renders only when its handler is given, so a host that can't (or mustn't) delete simply omits
-   * `onDelete`. Omitted entirely: no pill. */
-  ownerActions?: { onEdit?: () => void; onDelete?: () => void };
+   * `onDelete`. Omitted entirely: no pill. `onDownload` is the same idea for saving the photo — the
+   * host decides who may have it (b-mobile: only the author, never anyone else's entry). */
+  ownerActions?: { onEdit?: () => void; onDelete?: () => void; onDownload?: () => void };
   /** Rendered at the left of the top bar, opposite the nav strip — a host's own page identity
    * (b-mobile puts the author block here; the viewer has none). Stacks above the strip when the
    * container is narrow. */
@@ -567,7 +569,10 @@ export function EntryDetail({
               {entry.exif && <ExifRows exif={entry.exif} />}
 
               {/* Right-aligned pills: where it was taken, and the owner's edit / delete */}
-              {(entry.location || ownerActions?.onEdit || ownerActions?.onDelete) && (
+              {(entry.location ||
+                ownerActions?.onEdit ||
+                ownerActions?.onDelete ||
+                ownerActions?.onDownload) && (
                 <div className={styles.actionsRow}>
                   {entry.location &&
                     (onLocationClick ? (
@@ -593,7 +598,7 @@ export function EntryDetail({
                         </a>
                       </div>
                     ))}
-                  {(ownerActions?.onEdit || ownerActions?.onDelete) && (
+                  {(ownerActions?.onEdit || ownerActions?.onDelete || ownerActions?.onDownload) && (
                     <div className={styles.pill}>
                       {ownerActions.onEdit && (
                         <button
@@ -602,6 +607,15 @@ export function EntryDetail({
                           aria-label="Edit entry"
                         >
                           <Pencil size={14} strokeWidth={1.5} />
+                        </button>
+                      )}
+                      {ownerActions.onDownload && (
+                        <button
+                          className={`${styles.pillSeg} ${styles.pillBtn}`}
+                          onClick={ownerActions.onDownload}
+                          aria-label="Download photo"
+                        >
+                          <Download size={14} strokeWidth={1.5} />
                         </button>
                       )}
                       {ownerActions.onDelete && (

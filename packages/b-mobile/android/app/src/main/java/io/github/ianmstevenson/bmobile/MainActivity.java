@@ -23,6 +23,7 @@ public class MainActivity extends BridgeActivity {
     registerPlugin(ShareIntentPlugin.class);
     registerPlugin(EmbeddedAuthPlugin.class);
     registerPlugin(PushAvailabilityPlugin.class);
+    registerPlugin(MediaSavePlugin.class); // saves an entry photo into the gallery (Download)
     super.onCreate(savedInstanceState);
     createNotificationChannels();
   }
