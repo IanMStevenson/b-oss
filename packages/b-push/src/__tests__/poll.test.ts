@@ -186,4 +186,33 @@ describe('runActivityPoll', () => {
     expect(summary.errors).toBe(1);
     expect(summary.polled).toBe(1);
   });
+
+  it('treats code 52 as a dead read token: marks the row and sends the reauth push (b-oss#238)', async () => {
+    await seedRow();
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      new Response(
+        JSON.stringify({ data: null, error: { code: 52, message: 'The client is invalid.' } }),
+        { status: 200 },
+      ),
+    );
+    const summary = await runActivityPoll(db, env, () => 5_000_000);
+    expect(summary).toMatchObject({ reauthRequired: 1, errors: 0 });
+    expect((await getRegistrationById(db, 'reg-1'))?.status).toBe('read-token-invalid');
+    expect(sendFcmMessage).toHaveBeenCalledWith(
+      env,
+      'device-1',
+      expect.objectContaining({ kind: 'reauth-required' }),
+    );
+  });
+
+  it('logs a failed registration by id, never with its read token (b-oss#238)', async () => {
+    await seedRow();
+    vi.spyOn(globalThis, 'fetch').mockRejectedValue(new Error('network down'));
+    const logged = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    const summary = await runActivityPoll(db, env, () => 5_000_000);
+    expect(summary.errors).toBe(1);
+    const lines = logged.mock.calls.map((args) => args.join(' '));
+    expect(lines.some((l) => l.includes('reg-1'))).toBe(true);
+    expect(lines.join('\n')).not.toContain('a-real-read-token');
+  });
 });

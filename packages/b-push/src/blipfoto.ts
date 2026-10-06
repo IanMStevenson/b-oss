@@ -23,6 +23,16 @@ export class ReadTokenInvalidError extends Error {
   }
 }
 
+/** Whether Blipfoto has rejected the read token itself. b-api's `isTokenInvalid` covers 50/51;
+ * b-push also treats 52 ("The client is invalid.") as a rejected token. Blipfoto returns 52 for a
+ * bearer it doesn't recognise at all, because a bearer can be either a user token or a client id.
+ * b-push only ever sends user read tokens, never a client id, so here a 52 can only mean the read
+ * token isn't recognised (b-oss#238). b-api itself is left alone: in the app, 52 means a build
+ * misconfiguration, not a dead per-account token. */
+function isReadTokenRejected(err: unknown): boolean {
+  return err instanceof BlipfotoError && (err.isTokenInvalid || err.code === 52);
+}
+
 export interface UnreadTotals {
   comments: number;
   notifications: number;
@@ -41,7 +51,7 @@ export async function fetchUnreadTotals(readToken: string): Promise<UnreadTotals
     });
     return { comments: result.comments ?? 0, notifications: result.notifications ?? 0 };
   } catch (err) {
-    if (err instanceof BlipfotoError && err.isTokenInvalid) {
+    if (isReadTokenRejected(err)) {
       throw new ReadTokenInvalidError();
     }
     throw err;
@@ -67,7 +77,7 @@ export async function fetchPushConfigured(readToken: string): Promise<boolean> {
     const settings = await client.getNotificationSettings();
     return settings.push?.configured === 1;
   } catch (err) {
-    if (err instanceof BlipfotoError && err.isTokenInvalid) {
+    if (isReadTokenRejected(err)) {
       throw new ReadTokenInvalidError();
     }
     throw err;

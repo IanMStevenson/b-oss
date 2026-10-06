@@ -10,6 +10,7 @@ import type { DbLike } from './db.js';
 import { listActiveRegistrations, updateCachedPrefs } from './db.js';
 import { decryptReadToken, importEncryptionKey } from './crypto.js';
 import { fetchPushConfigured, ReadTokenInvalidError } from './blipfoto.js';
+import { describeError } from './log.js';
 import type { Env, RegistrationRow } from './types.js';
 
 export interface PrefsRefreshSummary {
@@ -65,7 +66,8 @@ export async function runPrefsRefresh(
       const outcome = await refreshOne(db, encryptionKey, reg, nowMs);
       if (outcome === 'reauth') summary.skippedReadTokenInvalid++;
       else summary.refreshed++;
-    } catch {
+    } catch (err) {
+      console.error(`[b-push] prefs refresh failed for ${reg.id}: ${describeError(err)}`);
       summary.errors++;
     }
   }

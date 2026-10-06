@@ -18,6 +18,7 @@ import {
 } from './routes/registrations.js';
 import { runActivityPoll } from './poll.js';
 import { runPrefsRefresh } from './prefsRefresh.js';
+import { describeError } from './log.js';
 
 function json(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), {
@@ -84,6 +85,9 @@ async function handleRequest(request: Request, env: Env): Promise<Response> {
     if (err instanceof HttpError) {
       return json({ error: err.message }, err.status);
     }
+    console.error(
+      `[b-push] ${request.method} ${new URL(request.url).pathname}: ${describeError(err)}`,
+    );
     return json({ error: 'Internal error' }, 500);
   }
 }
@@ -102,9 +106,11 @@ function db(env: Env) {
  * damaging job rather than silently doing nothing. */
 async function handleScheduled(event: ScheduledEvent, env: Env): Promise<void> {
   if (event.cron === '0 * * * *') {
-    await runPrefsRefresh(db(env), env);
+    const summary = await runPrefsRefresh(db(env), env);
+    console.log(`[b-push] prefs refresh ${JSON.stringify(summary)}`);
   } else {
-    await runActivityPoll(db(env), env);
+    const summary = await runActivityPoll(db(env), env);
+    console.log(`[b-push] activity poll ${JSON.stringify(summary)}`);
   }
 }
 

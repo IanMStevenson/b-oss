@@ -140,6 +140,29 @@ describe('createRegistration', () => {
   });
 });
 
+describe('createRegistration with a junk read token (b-oss#238)', () => {
+  it('rejects with 400, not an internal error, and stores nothing', async () => {
+    // The live API's answer to an unrecognised bearer: HTTP 200 with code 52.
+    vi.spyOn(globalThis, 'fetch').mockImplementation(() =>
+      Promise.resolve(
+        new Response(
+          JSON.stringify({ data: null, error: { code: 52, message: 'The client is invalid.' } }),
+          { status: 200 },
+        ),
+      ),
+    );
+    const attempt = createRegistration(db, env, 'Bearer shared-build-time-secret', {
+      blipfotoUserId: 'gbradley',
+      readToken: 'junk-not-a-token',
+      deviceToken: 'device-1',
+      platform: 'android',
+    });
+    await expect(attempt).rejects.toMatchObject({ status: 400 });
+    const { results } = await db.prepare('SELECT id FROM registrations').all();
+    expect(results).toHaveLength(0);
+  });
+});
+
 async function seedRegistration(): Promise<{ id: string; secret: string }> {
   mockUnreadTotalsAndPrefs(0, 0, true);
   const result = await createRegistration(db, env, 'Bearer shared-build-time-secret', {
