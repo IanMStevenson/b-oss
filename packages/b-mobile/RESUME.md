@@ -157,9 +157,9 @@ with Firebase project `b-oss-mobile`. How to deploy, read logs, roll back and ro
 
 Done: Firebase and Cloudflare setup, smoke tests, Workers Logs, a push-enabled debug build
 installed, and a first registration (`cyclopstest`). The first real run found three service bugs,
-now fixed and merged: #238 (a junk token gave 500, and the service logged nothing), #242 (the push
-settings were never requested, which would have suppressed every push), and the code-52 handling
-(#246).
+now fixed and merged: #238 (a junk token gave 500, and the service logged nothing) and #242 (the
+push settings were never requested, which would have suppressed every push). The code-52 handling
+was then narrowed so only registration treats 52 as a bad token (#246, open).
 
 **The delivery tests (plan Stage 5) haven't run yet.** The first registration's read token turned
 out to belong to `cyclops`: the second sign-in ran in the system browser, which was signed in as
