@@ -231,7 +231,8 @@ describe('SignInScreen', () => {
 
     expect(await screen.findByText('Blipfoto is unreachable')).toBeDefined();
     expect(replace).not.toHaveBeenCalled();
-    expect(screen.getByText('Continue').hasAttribute('disabled')).toBe(false);
+    // The web component reflects `disabled` to the DOM a tick after React's state changes.
+    await waitFor(() => expect(screen.getByText('Continue').hasAttribute('disabled')).toBe(false));
   });
 
   it('a cancelled OAuth round returns to idle rather than showing an error', async () => {

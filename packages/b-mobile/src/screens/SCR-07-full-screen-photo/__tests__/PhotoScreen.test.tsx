@@ -3,7 +3,7 @@
 // @vitest-environment jsdom
 
 import { describe, it, expect, afterEach, vi } from 'vitest';
-import { render, screen, cleanup } from '@testing-library/react';
+import { render, screen, cleanup, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { PhotoScreen } from '../PhotoScreen.js';
 import type { BlipEntry } from '@b-oss/b-view';
@@ -109,7 +109,11 @@ describe('PhotoScreen', () => {
     expect(retryButton).toBeDefined();
 
     retryButton.click();
-    const retriedImg = await screen.findByRole('dialog').then(() => container.querySelector('img'));
-    expect(retriedImg?.getAttribute('src')).toBe('https://example.com/photo.jpg');
+    // The dialog is already on screen, so wait for the retried image itself, not the dialog.
+    await waitFor(() =>
+      expect(container.querySelector('img')?.getAttribute('src')).toBe(
+        'https://example.com/photo.jpg',
+      ),
+    );
   });
 });

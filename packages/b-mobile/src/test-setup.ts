@@ -2,6 +2,7 @@
 // Copyright (C) 2026 Ian Stevenson
 
 import { beforeEach } from 'vitest';
+import { configure } from '@testing-library/react';
 import { resumeClear } from './data/resumeCache.js';
 
 // The resume cache (b-oss#182) is module-level on purpose — it has to outlive a screen's unmount —
@@ -30,3 +31,9 @@ if (typeof ResizeObserver === 'undefined') {
   (globalThis as unknown as { ResizeObserver: typeof ResizeObserverStub }).ResizeObserver =
     ResizeObserverStub;
 }
+
+// findBy*/waitFor give up after 1s by default — too tight for a loaded (or Windows) CI runner
+// rendering Ionic screens, where it produced "Unable to find…" failures that pass on a quiet
+// machine (b-oss#221). A larger ceiling doesn't slow tests that succeed: they resolve as soon as
+// the condition holds. Only meaningful under jsdom.
+if (typeof document !== 'undefined') configure({ asyncUtilTimeout: 5000 });

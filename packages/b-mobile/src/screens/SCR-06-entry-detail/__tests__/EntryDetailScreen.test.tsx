@@ -337,7 +337,7 @@ describe('EntryDetailScreen', () => {
       await openOthersEntry();
       expect(screen.getByText("Alice's journal")).toBeDefined();
       expect(screen.getByText('By alice')).toBeDefined();
-      expect(fetchAuthorAvatar).toHaveBeenCalledWith('alice');
+      await waitFor(() => expect(fetchAuthorAvatar).toHaveBeenCalledWith('alice')); // from an effect
     });
 
     it('opens the author’s profile from the avatar or the name', async () => {
