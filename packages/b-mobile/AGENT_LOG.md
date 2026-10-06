@@ -2167,3 +2167,38 @@ summary and `docs/ImplementationSpec/app-architecture.md` for the design record.
 - **Unverified on device:** maplibre 6.12.0 Map screen, scroll-restore, comment toolbar/actions
   (#189/#197) — adb was disconnected when these landed.
 
+## Post-12.7 device-trial round, continued — 2026-10-05 to 2026-10-06
+
+Continuation of the entry above; everything issue-driven and merged into `b-mobile-initial`.
+
+- **Page size and depth (#196):** a one-shot diagnostic (`diagnostics/feedProbe.ts`, inert unless
+  built with `VITE_FEED_PROBE=1`) showed every entry feed honours `page_size=100` and clamps
+  `page_index` at 200. Every entry feed now asks for 100. A bisect found Recent ends at exactly 900
+  entries (the hard-coded 50×18 was right) and Popular at 327 (not the nominal 360), so Popular has
+  no fixed total and its pager grows as pages load. Search's hard-coded `30` had been a latent
+  mismatch.
+- **Comments:** the `edit` action is server-controlled and only a very recent comment of your own
+  gets `edit=1` — this matches blipfoto.com, not an app bug (#207). A comment's `commenter` carries
+  only `icons` (camera/staff), so the site's flag and donor badges can't be shown without extra
+  per-user lookups (#208). WYSIWYG comment editing parked (#206).
+- **Tabs (#204, #214):** previously every visited Browse/Search/Profile tab stayed mounted, so each
+  kept its page and Me/Following kept the previous account's entries after a switch. Now only the
+  active tab is mounted, keyed by account + tab, and choosing a tab drops its remembered page.
+- **Navigation bar (#217):** `ThumbnailGrid` gained `showControls` and `showCalendar`; the
+  Browsing setting hides the whole bar; the calendar is for journals only.
+- **Browse tabs (#216):** New Blippers (`entries/new`) and Milestones. `entries/milestones` is not
+  in the published API docs; it was found by probing candidate endpoint names on the device, and its
+  first entry matched blipfoto.com/browse/milestones. Added to b-api as `getMilestoneEntries`.
+- **Account switcher (#209, #212, #219):** pale-green active row + tick, user icon instead of an
+  initial, Account-picture setting. Profile pictures were never populated at sign-in (only Settings →
+  Profile set them) — fixed by `flows/avatarFlow.ts`. The indicator is now on the entry page and the
+  list screens; entry and followers reload on account switch.
+- **CI flakes (#221):** three real races in tests plus timeouts too tight for `windows-latest`;
+  fixed by `waitFor` and raised limits. Reproduced by running N copies of the whole suite at once:
+  8/8 failing before, 0/8 after.
+- **Probing lesson:** a device that is locked or backgrounded blocks the app's network access
+  ("Network request failed"), so diagnostics must run with the phone awake and the app in the
+  foreground. Unlock the phone before concluding an endpoint failed.
+- **Housekeeping:** merged feature branches and worktrees were deleted; `b-mobile-initial` stays
+  unmerged long term, `main` carries only the Dependabot/CI config.
+
