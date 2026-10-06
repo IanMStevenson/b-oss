@@ -2,10 +2,10 @@
 // Copyright (C) 2026 Ian Stevenson
 
 // The thin wrapper screens use instead of react-router's own hooks (§5's hard rule: react-router
-// may be imported only in src/app/routes/). This is what keeps the eventual Ionic 9 / React
-// Router 6 migration to one directory instead of 28 screens.
+// may be imported only in src/app/routes/). This is what kept the Ionic 9 / React Router 6
+// migration to one directory instead of 28 screens.
 
-import { useHistory } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 
 export interface AppNavigate {
   /** `state` is for screen-to-screen handoff with no deep-link use case (e.g. which comment
@@ -17,10 +17,10 @@ export interface AppNavigate {
 }
 
 export function useAppNavigate(): AppNavigate {
-  const history = useHistory();
+  const navigate = useNavigate();
   return {
-    push: (path, state) => history.push(path, state),
-    replace: (path, state) => history.replace(path, state),
-    goBack: () => history.goBack(),
+    push: (path, state) => navigate(path, { state }),
+    replace: (path, state) => navigate(path, { state, replace: true }),
+    goBack: () => navigate(-1),
   };
 }

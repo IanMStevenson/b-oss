@@ -28,7 +28,9 @@ afterEach(() => {
 function renderGuard() {
   return render(
     <MemoryRouter>
-      <WriteGuardRoute exact path="/" render={() => <div>write screen</div>} />
+      <WriteGuardRoute>
+        <div>write screen</div>
+      </WriteGuardRoute>
     </MemoryRouter>,
   );
 }

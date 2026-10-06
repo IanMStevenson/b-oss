@@ -4,7 +4,7 @@
 // The app shell (§5): IonMenu for primary navigation, a single IonRouterOutlet for the page
 // stack — no router-level tabs, since SCR-02's five feeds are in-screen state, not routes.
 
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import {
   IonApp,
   IonMenu,
@@ -17,9 +17,11 @@ import {
   IonMenuToggle,
 } from '@ionic/react';
 import { IonReactRouter } from '@ionic/react-router';
-import { useHistory } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
+import type { NavigateFunction } from 'react-router-dom';
+import type { RefObject } from 'react';
 import { OverlayProvider, OverlayHost } from './OverlayProvider.js';
-import { AppRoutes } from './routes/AppRoutes.js';
+import { renderAppRoutes } from './routes/AppRoutes.js';
 import { useAccountsStore, useActiveAccount, useCanWrite } from '../state/accountsStore.js';
 import { markAuthReady } from '../state/authReady.js';
 import { maybeRunFeedProbe } from '../diagnostics/feedProbe.js';
@@ -39,6 +41,17 @@ import { resolveDeepLink, routeDeepLink } from '../flows/deepLinkResolver.js';
 import { checkForSharedImage, onShareReceived } from '../platform/shareIntent.js';
 
 const MAIN_CONTENT_ID = 'main-content';
+
+// React Router 6's useNavigate() returns a new function whenever the location changes. The
+// listeners below subscribe once (and DeepLinkListener also consumes the launch URL / shared
+// image on mount), so they hold the latest navigate in a ref instead of depending on it —
+// otherwise every navigation would tear down and re-run those effects.
+function useLatestNavigate(): RefObject<NavigateFunction> {
+  const navigate = useNavigate();
+  const ref = useRef(navigate);
+  ref.current = navigate;
+  return ref;
+}
 
 // Primary nav per 01-information-architecture.md's navigation map. Every target route already
 // exists in AppRoutes (several still as ScreenPlaceholder pending their own phase), so the full
@@ -133,10 +146,10 @@ function NavMenu() {
   );
 }
 
-// FLW-16 — receiving/tapping a push. Mounted inside IonReactRouter (needs useHistory() for tap
+// FLW-16 — receiving/tapping a push. Mounted inside IonReactRouter (needs useNavigate() for tap
 // routing), same shape as ReminderTapListener below.
 function PushListener() {
-  const history = useHistory();
+  const navigate = useLatestNavigate();
   useEffect(() => {
     const offReceived = onPushReceived((payload) => {
       if (payload.kind === 'reauth-required') {
@@ -159,10 +172,10 @@ function PushListener() {
         // above, or already applied by a prior launch's backstop check) — idempotent either way,
         // since it only clears state that may already be cleared.
         handleForcedLogout(payload.accountId, 'service');
-        history.push('/accounts');
+        navigate.current('/accounts');
         return;
       }
-      history.push(payload.stream === 'comments' ? '/comments' : '/notifications');
+      navigate.current(payload.stream === 'comments' ? '/comments' : '/notifications');
     });
     const offTokenChanged = onPushTokenChanged((token) => {
       void handleDeviceTokenRotated(token);
@@ -172,39 +185,39 @@ function PushListener() {
       offTapped();
       offTokenChanged();
     };
-  }, [history]);
+  }, [navigate]);
   return null;
 }
 
 // app-architecture.md §16 — the one place all three inbound paths (cold start's launch URL/share
 // intent, warm start's appUrlOpen/share signal) reach their resolvers, so cold and warm start
-// can't diverge. Needs Router context for `history.push`, same shape as PushListener/
+// can't diverge. Needs Router context for `navigate`, same shape as PushListener/
 // ReminderTapListener. The share-intent path only navigates to `/compose` here — the actual
 // photo was already consumed into platform/shareIntent.ts's cache by the time this runs (FLW-12
 // goes through `/compose`'s own WriteGuardRoute gate before NewEntryScreen ever mounts to pick
 // it up; see that module's header comment for why the consumption has to happen here, not there).
 function DeepLinkListener() {
-  const history = useHistory();
+  const navigate = useLatestNavigate();
   useEffect(() => {
     void getLaunchUrl().then((url) => {
-      if (url) routeDeepLink(resolveDeepLink(url), (path) => history.push(path));
+      if (url) routeDeepLink(resolveDeepLink(url), (path) => navigate.current(path));
     });
     void checkForSharedImage().then((found) => {
-      if (found) history.push('/compose');
+      if (found) navigate.current('/compose');
     });
     const offUrlOpen = onAppUrlOpen((url) => {
-      routeDeepLink(resolveDeepLink(url), (path) => history.push(path));
+      routeDeepLink(resolveDeepLink(url), (path) => navigate.current(path));
     });
     const offShareReceived = onShareReceived(() => {
       void checkForSharedImage().then((found) => {
-        if (found) history.push('/compose');
+        if (found) navigate.current('/compose');
       });
     });
     return () => {
       offUrlOpen();
       offShareReceived();
     };
-  }, [history]);
+  }, [navigate]);
   return null;
 }
 
@@ -212,7 +225,7 @@ function DeepLinkListener() {
 // navigation, so it's mounted inside IonReactRouter rather than alongside the top-level hydrate
 // effect above (which has none).
 function ReminderTapListener() {
-  const history = useHistory();
+  const navigate = useLatestNavigate();
   useEffect(
     () =>
       onReminderTapped((accountId) => {
@@ -225,9 +238,9 @@ function ReminderTapListener() {
             // compose so the tap isn't a dead end, against whichever account ends up active.
           }
         }
-        history.push('/compose');
+        navigate.current('/compose');
       }),
-    [history],
+    [navigate],
   );
   return null;
 }
@@ -305,9 +318,7 @@ export function AppShell() {
           <PushListener />
           <DeepLinkListener />
           <OverlayHost />
-          <IonRouterOutlet id={MAIN_CONTENT_ID}>
-            <AppRoutes />
-          </IonRouterOutlet>
+          <IonRouterOutlet id={MAIN_CONTENT_ID}>{renderAppRoutes()}</IonRouterOutlet>
         </IonReactRouter>
       </OverlayProvider>
     </IonApp>

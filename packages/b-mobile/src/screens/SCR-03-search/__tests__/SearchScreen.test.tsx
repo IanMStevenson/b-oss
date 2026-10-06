@@ -4,8 +4,7 @@
 
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { render, screen, cleanup, fireEvent, waitFor } from '@testing-library/react';
-import { Router } from 'react-router-dom';
-import { createMemoryHistory } from 'history';
+import { createTrackedRouter } from '../../../app/routes/test-router.js';
 import { SearchScreen } from '../SearchScreen.js';
 import { OverlayProvider, OverlayHost } from '../../../app/OverlayProvider.js';
 import { useHiddenMembersStore } from '../../../state/hiddenMembersStore.js';
@@ -49,14 +48,16 @@ afterEach(() => {
 });
 
 function renderScreen() {
-  const history = createMemoryHistory();
+  const { tracked: history, wrap } = createTrackedRouter();
   const utils = render(
-    <Router history={history}>
-      <OverlayProvider>
-        <OverlayHost />
-        <SearchScreen />
-      </OverlayProvider>
-    </Router>,
+    wrap(
+      <>
+        <OverlayProvider>
+          <OverlayHost />
+          <SearchScreen />
+        </OverlayProvider>
+      </>,
+    ),
   );
   return { history, ...utils };
 }
@@ -247,7 +248,7 @@ describe('SearchScreen', () => {
       first.unmount();
 
       renderScreen();
-      expect(document.querySelector('ion-segment')!.getAttribute('value')).toBe('people');
+      expect(document.querySelector('ion-segment')!.value).toBe('people');
       expect(await screen.findByText('alice')).toBeDefined();
     });
 

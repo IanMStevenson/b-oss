@@ -15,6 +15,7 @@
 // needs one), so its onImageError callback drives this screen's own retry state instead.
 
 import { useEffect, useState } from 'react';
+import type { CSSProperties } from 'react';
 import { IonPage, IonContent, IonSpinner, IonText, IonButton } from '@ionic/react';
 import { Lightbox } from '@b-oss/b-view';
 import { useLiveEntry } from '../../data/useLiveEntry.js';
@@ -42,7 +43,7 @@ export function PhotoScreen({ entryId }: PhotoScreenProps) {
 
   return (
     <IonPage>
-      <IonContent fullscreen style={{ '--background': '#000' }}>
+      <IonContent fullscreen style={{ '--background': '#000' } as CSSProperties}>
         {entryState.status === 'loading' && (
           <div
             style={{

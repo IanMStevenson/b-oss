@@ -36,7 +36,7 @@ describe('BrowsingSection', () => {
     expect(paginationToggle.getAttribute('checked')).not.toBe('false');
     // IonLabel doesn't reliably render its children in this jsdom setup (SettingsScreen.tsx's own
     // header comment documents the same gotcha) — assert via the segment's own value instead.
-    expect(document.querySelector('ion-segment')!.getAttribute('value')).toBe('normal');
+    expect(document.querySelector('ion-segment')!.value).toBe('normal');
   });
 
   it('toggling the zoom bar checkbox persists immediately', () => {
@@ -68,8 +68,10 @@ describe('BrowsingSection', () => {
 
   it('photo size defaults to full width and persists Fit to screen', () => {
     render(<BrowsingSection />);
-    const segment = document.querySelector('ion-segment[aria-label="Photo size"]')!;
-    expect(segment.getAttribute('value')).toBe('full-width');
+    const segment = document.querySelector<HTMLElement & { value: string }>(
+      'ion-segment[aria-label="Photo size"]',
+    )!;
+    expect(segment.value).toBe('full-width');
     segment.dispatchEvent(
       new CustomEvent('ionChange', { bubbles: true, detail: { value: 'capped' } }),
     );

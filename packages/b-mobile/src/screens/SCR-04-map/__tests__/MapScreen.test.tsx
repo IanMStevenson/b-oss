@@ -12,8 +12,7 @@
 
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { render, screen, cleanup, waitFor } from '@testing-library/react';
-import { Router } from 'react-router-dom';
-import { createMemoryHistory } from 'history';
+import { createTrackedRouter } from '../../../app/routes/test-router.js';
 import { MapScreen } from '../MapScreen.js';
 import { OverlayProvider, OverlayHost } from '../../../app/OverlayProvider.js';
 import { useHiddenMembersStore } from '../../../state/hiddenMembersStore.js';
@@ -167,14 +166,16 @@ afterEach(() => {
 });
 
 function renderScreen(focusedEntryId?: string) {
-  const history = createMemoryHistory();
+  const { tracked: history, wrap } = createTrackedRouter();
   const utils = render(
-    <Router history={history}>
-      <OverlayProvider>
-        <OverlayHost />
-        <MapScreen focusedEntryId={focusedEntryId} />
-      </OverlayProvider>
-    </Router>,
+    wrap(
+      <>
+        <OverlayProvider>
+          <OverlayHost />
+          <MapScreen focusedEntryId={focusedEntryId} />
+        </OverlayProvider>
+      </>,
+    ),
   );
   return { history, ...utils };
 }

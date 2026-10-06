@@ -5,8 +5,7 @@
 import { describe, it, expect, afterEach, beforeEach, vi } from 'vitest';
 import { render, screen, cleanup, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { Router } from 'react-router-dom';
-import { createMemoryHistory } from 'history';
+import { createTrackedRouter } from '../../../app/routes/test-router.js';
 import { CommentsInboxScreen } from '../CommentsInboxScreen.js';
 import { OverlayProvider, OverlayHost } from '../../../app/OverlayProvider.js';
 import { useAccountsStore } from '../../../state/accountsStore.js';
@@ -125,14 +124,16 @@ afterEach(() => {
 });
 
 function renderScreen() {
-  const history = createMemoryHistory();
+  const { tracked: history, wrap } = createTrackedRouter();
   render(
-    <Router history={history}>
-      <OverlayProvider>
-        <OverlayHost />
-        <CommentsInboxScreen />
-      </OverlayProvider>
-    </Router>,
+    wrap(
+      <>
+        <OverlayProvider>
+          <OverlayHost />
+          <CommentsInboxScreen />
+        </OverlayProvider>
+      </>,
+    ),
   );
   return history;
 }
