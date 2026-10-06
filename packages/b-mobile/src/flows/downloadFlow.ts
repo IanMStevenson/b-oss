@@ -7,8 +7,7 @@
 // entries, but the rule is enforced here too so no future caller can bypass it.
 
 import type { BlipEntry } from '@b-oss/b-view';
-import { resolveImage } from '../platform/imageCache.js';
-import { saveImageToGallery } from '../platform/mediaSave.js';
+import { saveRemoteImageToGallery } from '../platform/mediaSave.js';
 
 export class NotYourEntryError extends Error {
   constructor() {
@@ -38,6 +37,5 @@ export async function downloadOwnEntryImage(
   if (!activeUsername || entry.username !== activeUsername) throw new NotYourEntryError();
   const url = entry.images.image;
   if (!url) throw new NoImageError();
-  const source = await resolveImage(url);
-  return saveImageToGallery(source, downloadFileName(entry));
+  return saveRemoteImageToGallery(url, downloadFileName(entry));
 }

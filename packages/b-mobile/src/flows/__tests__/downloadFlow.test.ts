@@ -12,11 +12,9 @@ import {
   NoImageError,
 } from '../downloadFlow.js';
 
-const resolveImage = vi.fn<(url: string) => Promise<string>>();
-vi.mock('../../platform/imageCache.js', () => ({ resolveImage: (u: string) => resolveImage(u) }));
-const saveImageToGallery = vi.fn<(source: string, name: string) => Promise<string | null>>();
+const saveRemoteImageToGallery = vi.fn<(url: string, name: string) => Promise<string | null>>();
 vi.mock('../../platform/mediaSave.js', () => ({
-  saveImageToGallery: (s: string, n: string) => saveImageToGallery(s, n),
+  saveRemoteImageToGallery: (u: string, n: string) => saveRemoteImageToGallery(u, n),
 }));
 
 const entry = {
@@ -28,16 +26,14 @@ const entry = {
 
 beforeEach(() => {
   vi.resetAllMocks();
-  resolveImage.mockResolvedValue('file:///cache/abc');
-  saveImageToGallery.mockResolvedValue('Pictures/b-mobile/x.jpg');
+  saveRemoteImageToGallery.mockResolvedValue('Pictures/b-mobile/x.jpg');
 });
 
 describe('downloadOwnEntryImage', () => {
   it('saves your own entry’s main image, named from user, date and entry id', async () => {
     const where = await downloadOwnEntryImage(entry, 'cyclops');
-    expect(resolveImage).toHaveBeenCalledWith('https://cdn.example/photo.jpg');
-    expect(saveImageToGallery).toHaveBeenCalledWith(
-      'file:///cache/abc',
+    expect(saveRemoteImageToGallery).toHaveBeenCalledWith(
+      'https://cdn.example/photo.jpg',
       'blipfoto-cyclops-2026-10-05-123',
     );
     expect(where).toBe('Pictures/b-mobile/x.jpg');
@@ -48,14 +44,13 @@ describe('downloadOwnEntryImage', () => {
     await expect(downloadOwnEntryImage(entry, 'cyclopstest')).rejects.toBeInstanceOf(
       NotYourEntryError,
     );
-    expect(resolveImage).not.toHaveBeenCalled();
-    expect(saveImageToGallery).not.toHaveBeenCalled();
+    expect(saveRemoteImageToGallery).not.toHaveBeenCalled();
   });
 
   it('REFUSES when nobody is signed in', async () => {
     await expect(downloadOwnEntryImage(entry, null)).rejects.toBeInstanceOf(NotYourEntryError);
     await expect(downloadOwnEntryImage(entry, undefined)).rejects.toBeInstanceOf(NotYourEntryError);
-    expect(saveImageToGallery).not.toHaveBeenCalled();
+    expect(saveRemoteImageToGallery).not.toHaveBeenCalled();
   });
 
   it('compares usernames exactly (no case-folding or prefix matches)', async () => {
