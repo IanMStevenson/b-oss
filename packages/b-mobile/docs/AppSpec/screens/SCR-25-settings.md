@@ -30,24 +30,23 @@ local preferences. Every setting lives on this one screen rather than in separat
 - **Accounts** row opens `SCR-30`: list of signed-in accounts, sign-in mode, switch/add/remove.
   See [api-appendix/auth.md](../api-appendix/auth.md).
 
-Notifications sub-screen:
+Notifications sub-screen (redesigned in [b-oss#244](https://github.com/IanMStevenson/b-oss/issues/244) — no master switch, no Push group):
 ```
 +--------------------------------------+
 | <  Notifications                     |
-|  Push notifications          [ On ]  |   master switch — FLW-22
+|  NOTIFICATIONS FROM THIS APP         |   per active account, b-push
+|  Pushes to this phone for alice...   |
+|  Push for new comments         [on]  |
+|  Push for new notifications    [on]  |
+|   Your Blipfoto feed has stars...    |   hint: only when some feed_* off
+|  Check for new activity every  [5]min|   floor 5 minutes
 |                                      |
-|  Feed                                |
-|   Friends activity              [ ]  |
-|   Favourite received            [ ]  |
-|   ...                                |
-|                                      |
-|  Push                                |   hidden entirely when switch is Off
-|   Comment received              [ ]  |
-|   Friends activity              [ ]  |
-|   ...                                |
-|                                      |
-|  Advanced                       v    |   collapsed by default
-|   Check for new activity every: 5m   |   slider/stepper, floor 5 minutes
+|  BLIPFOTO FEED SETTINGS              |   Blipfoto, Save/Cancel
+|  What appears in your activity on... |
+|  Activity from people you follow [on]|
+|  Favourites                    [on]  |
+|  Stars                         [on]  |
+|  ...                                 |
 +--------------------------------------+
 ```
 
@@ -60,7 +59,7 @@ Notifications sub-screen:
 | **Profile › Username** | Username | Server (`user/settings`) |
 | **Profile › Biography** | Biography (BBCode via `SCR-11`) | Server (`user/settings`) |
 | **Profile › Picture** | Avatar: take / choose / delete | Server (`user/settings`, avatar) |
-| **Notifications** | Master switch; Feed toggles + Push toggles (per event); Advanced: polling interval | Master switch/interval — notification service; toggles — server (`user/settings/notifications`) |
+| **Notifications** | *Notifications from this app*: Push for new comments, Push for new notifications, check interval; *Blipfoto feed settings*: the six `feed_*` toggles | Push toggles/interval — notification service, per account per device (local copy on the account record); feed toggles — server (`user/settings/notifications`) |
 | **Reminders** | Daily reminder on/off + time | Local, **per account**; read-write accounts only (drives `FLW-18`) |
 | **Misc** | Upload full-size toggle; **confirm account before Star/Favourite/comment** toggle (default **off**; shown only with 2+ accounts stored) | Local, **per device** — these describe how this installation behaves, not an account |
 
@@ -80,18 +79,32 @@ Notifications sub-screen:
   three actions ask which stored account to act as, before the read-write check, rather than
   silently using whichever account happens to be active — see [rules.md](../rules.md)
   (Multi-account clarity), `FLW-06`, `FLW-07`.
-- **Notifications**: an active **master switch** shows and controls the account's current
-  notifications on/off state — tapping it runs the same on/off logic as `SCR-30`'s Notifications
-  row, via `FLW-22`, including any confirmation or re-authorization that requires. Unlike the rest
-  of this section, **the master switch is available regardless of sign-in mode** — it's a token
-  action, not a content write, so a read-only account can still use it (see Actions & rules,
-  below). The **push toggle group is only rendered when the switch is on** — not shown-disabled,
-  not present at all — since there's nothing to push through when it's off. The **feed toggle
-  group is unaffected** by the switch; it governs the in-app/web activity feed, independent of the
-  notification service. An **Advanced** disclosure, collapsed by default, holds the polling
-  interval control — a floor of 5 minutes is enforced by the service regardless of what this
-  control allows the user to select. See
-  [`../../ImplementationSpec/notification-service.md`](../../ImplementationSpec/notification-service.md).
+- **Notifications** ([b-oss#244](https://github.com/IanMStevenson/b-oss/issues/244)) acts on
+  the **active account** and has two clearly separate parts:
+  - **Notifications from this app** — two toggles, **Push for new comments** and **Push for new
+    notifications**, both on by default. There is **no master switch**: notifications are "on" when
+    at least one toggle is on. Turning the first one on from off runs the enable path (`FLW-22`:
+    permission, the read-only authorization for a read-write account, registration) with just that
+    stream. Changing a toggle while the other stays on updates the registration (`PATCH`). Turning
+    the **last** one off deregisters; on a read-write account it first confirms (*"Turn off
+    notifications?" — "Turning this off stops all notifications for {username}. To turn them back
+    on later you'll need to sign in to Blipfoto again."* [Turn off] [Keep on]), because the
+    separate notification token is revoked. A read-only account reuses its app token, so it gets no
+    warning. These are token actions, not content writes, so they work in either sign-in mode and
+    apply immediately (no Save). When the service has reported the token dead, a note says
+    notifications for that account need a sign-in, and turning a toggle on signs in again.
+  - **Feed hint** — Blipfoto never creates (or counts) a notification whose `feed_*` type is off,
+    so the app can't push about it. While *Push for new notifications* is on and some saved feed
+    types are off, a quiet note under it names them (*"Your Blipfoto feed has stars and follower
+    milestones turned off, so you won't be notified about those."*); with all six off it says the
+    app will never have any notifications to tell you about. It reflects the **saved** feed
+    settings, not unsaved edits. Comments are never gated by the feed, so there's no hint for them.
+  - **Check interval** — floor of 5 minutes, also enforced by the service.
+  - **Blipfoto feed settings** — the six `feed_*` toggles, Save/Cancel, captioned *"What appears in
+    your activity on blipfoto.com and in every app. A type turned off here is never created, so
+    this app can't notify you about it either."* Blipfoto's own **Push** settings are not shown and
+    never written by this app; the service no longer reads them.
+  See [`../../ImplementationSpec/notification-service.md`](../../ImplementationSpec/notification-service.md).
 
 ## States
 - **Loading** — fetching current values for a server-backed section.
@@ -122,19 +135,21 @@ Notifications sub-screen:
   publish reminder has nothing to lead to. This is a hide, not a view-only: unlike the server-backed
   sections, there is no value worth showing. See `FLW-18`.
 - **Read-only accounts** see every server-backed section (General, Journal, Profile, and the
-  Notifications feed/push **toggle groups**) as **view-only** — no Save affordance — since all of
+  Notifications **feed toggles**) as **view-only** — no Save affordance — since all of
   them write to the account; see [rules.md](../rules.md). Reminders/Misc (local-only), Accounts,
-  **Hidden members** (device-local, not a server write), and the Notifications **master switch**
-  (a token action, not a content write — read-only + notifications is a valid sign-in mode) remain
+  **Hidden members** (device-local, not a server write), and the Notifications **push toggles**
+  (token actions, not content writes — read-only + notifications is a valid sign-in mode) remain
   fully usable regardless of mode. Refused followers involves server writes and follows the same
   view-only rule.
 
 ## API touchpoints
 See [endpoints.md](../api-appendix/endpoints.md).
 - `user/settings` (GET/PUT) — general, journal, username, biography, avatar (upload/delete).
-- `user/settings/notifications` (GET/PUT) — feed + push preferences.
-- Master switch and Advanced polling interval call the **notification service**, not Blipfoto —
-  `FLW-22` (on/off) and `PATCH /v1/registrations/:id` (interval) in
+- `user/settings/notifications` (GET/PUT) — **feed** preferences only; `push_*` keys are never
+  read or written.
+- The push toggles and the check interval call the **notification service**, not Blipfoto —
+  `FLW-22` (first on / last off) and `PATCH /v1/registrations/:id` (`pushComments`,
+  `pushNotifications`, interval) in
   [`../../ImplementationSpec/notification-service.md`](../../ImplementationSpec/notification-service.md).
 - `config/countries`, `config/locales` (GET) — options for the country and locale pickers; safe to
   fetch once and cache.
@@ -147,12 +162,13 @@ See [endpoints.md](../api-appendix/endpoints.md).
 - [ ] The Hidden members row is present regardless of privacy setting, and the two rows carry
       subtitles distinguishing who each one affects.
 - [ ] Given the avatar section, the user can take/choose (with crop) or delete the avatar.
-- [ ] Given Notifications, feed and push toggles save; the push toggle group isn't rendered at all
-      when the master switch is off.
-- [ ] The master switch reflects and controls the account's actual notifications on/off state via
-      `FLW-22`, and remains usable on a read-only account.
-- [ ] The Advanced polling-interval control is collapsed by default and never allows a value below
-      the service's 5-minute floor.
+- [ ] Given Notifications, the two push toggles show the active account's streams; first-on
+      enables, a change while the other is on PATCHes, last-off deregisters (with the sign-in
+      warning on a read-write account only); they remain usable on a read-only account.
+- [ ] Feed toggles save only `feed_*` keys; there is no Push group.
+- [ ] The feed hint lists saved feed types that are off (or says none can arrive when all six are
+      off), only while Push for new notifications is on.
+- [ ] The check-interval control never allows a value below the service's 5-minute floor.
 - [ ] Given Reminders/Misc, changes persist locally with no network call; saving Reminders
       (re)schedules the daily reminder.
 - [ ] Reminders are per account and switching accounts shows that account's setting; Misc settings
@@ -164,5 +180,5 @@ See [endpoints.md](../api-appendix/endpoints.md).
       and when on, Star/Favourite/comment show the account-confirm dialog before acting.
 - [ ] There is no Sharing section and no membership-purchase option.
 - [ ] Given a read-only account, every server-backed section shows current values with no Save
-      affordance, except the Notifications master switch; Accounts, Reminders, Misc, and the
-      master switch remain fully usable.
+      affordance, except the Notifications push toggles; Accounts, Reminders, Misc, and the
+      push toggles remain fully usable.

@@ -20,7 +20,8 @@ import {
   deleteRegistrationSecret,
 } from '../platform/secureStorage.js';
 import * as pushService from '../data/pushService.js';
-import { useAccountsStore } from '../state/accountsStore.js';
+import { useAccountsStore, ALL_PUSH_STREAMS } from '../state/accountsStore.js';
+import type { PushStreams } from '../state/accountsStore.js';
 import { handleForcedLogout } from './accountsFlow.js';
 
 /** Checked/requested *before* any read-token authorization round for notifications (rules.md:
@@ -40,14 +41,20 @@ export async function ensurePushPermission(): Promise<boolean> {
   return requested === 'granted';
 }
 
-/** FLW-20/FLW-22 — registers `accountId` with b-push using the given Blipfoto read token.
- * Returns `true` on success. A `false` return (permission refused, OS registration failed, or the
- * service call itself failed) means the caller should *not* mark the account as having
- * notifications on — same principle as the OS-permission-denied path treating "on" as never
- * having happened, not as a remembered failure. */
+/** FLW-20/FLW-22 — registers `accountId` with b-push using the given Blipfoto read token, with
+ * the chosen push streams (b-oss#244; both on unless the caller says otherwise — e.g. Settings
+ * turning on just one of the two from off). Returns `true` on success. A `false` return
+ * (permission refused, OS registration failed, or the service call itself failed) means the
+ * caller should *not* mark the account as having notifications on — same principle as the
+ * OS-permission-denied path treating "on" as never having happened, not as a remembered failure.
+ *
+ * If the account still has an older registration (the "Sign in again" recovery after the
+ * service reported its read token dead — FLW-02 keeps the registration id and secret), that row
+ * is deleted best-effort once the new one exists, so it isn't left orphaned on the service. */
 export async function registerAccountForPush(
   accountId: string,
   readToken: string,
+  streams: PushStreams = ALL_PUSH_STREAMS,
 ): Promise<boolean> {
   const granted = await ensurePushPermission();
   if (!granted) return false;
@@ -56,18 +63,29 @@ export async function registerAccountForPush(
   const platform = pushPlatform();
   if (!deviceToken || !platform) return false;
 
+  const previous = useAccountsStore.getState().accounts.find((a) => a.id === accountId);
+  const staleRegistrationId = previous?.notificationRegistrationId ?? null;
+  const staleSecret = staleRegistrationId ? await getRegistrationSecret(accountId) : null;
+
   try {
     const result = await pushService.createRegistration({
       blipfotoUserId: accountId,
       readToken,
       deviceToken,
       platform,
+      pushComments: streams.comments,
+      pushNotifications: streams.notifications,
     });
     await setRegistrationSecret(accountId, result.registrationSecret);
     useAccountsStore.getState().updateAccount(accountId, {
       notificationRegistrationId: result.registrationId,
       notificationStatus: 'active',
+      pushComments: streams.comments,
+      pushNotifications: streams.notifications,
     });
+    if (staleRegistrationId && staleSecret && staleRegistrationId !== result.registrationId) {
+      await pushService.deleteRegistration(staleRegistrationId, staleSecret).catch(() => {});
+    }
     return true;
   } catch {
     return false;
@@ -75,7 +93,7 @@ export async function registerAccountForPush(
 }
 
 /** FLW-22/FLW-02 — the one deregistration call, used identically whether the user turned the
- * master switch off, removed the account, or the OS reports permission denied (notification-
+ * last push stream off, removed the account, or the OS reports permission denied (notification-
  * service.md's `DELETE`: "the app treats them as the same event, not three different ones").
  * Best-effort against the service (the row is stale either way once the local secret is gone);
  * always clears local state regardless of whether the network call succeeds. */
@@ -95,21 +113,34 @@ export async function deregisterAccountFromPush(accountId: string): Promise<void
   useAccountsStore.getState().updateAccount(accountId, {
     notificationRegistrationId: null,
     notificationStatus: null,
+    pushComments: undefined,
+    pushNotifications: undefined,
   });
 }
 
-/** FLW-17 — after a successful Notifications-section save. Best-effort by design (notification-
- * service.md: "If the ping itself fails, no retry — it degrades to the hourly path, never worse
- * than not having pinged at all"). */
-export async function pingRefreshPreferences(accountId: string): Promise<void> {
+/** SCR-25 — change which streams a live registration pushes (b-oss#244), while at least one
+ * stays on (turning the last one off is a deregistration, not a PATCH — see changeAccountMode).
+ * The local copy is updated only after the service accepts the change, so the toggles never show
+ * something the service isn't doing. Throws on failure: the user just moved a visible control. */
+export async function updatePushStreams(accountId: string, streams: PushStreams): Promise<void> {
   const account = useAccountsStore.getState().accounts.find((a) => a.id === accountId);
-  if (!account?.notificationRegistrationId) return;
-  const secret = await getRegistrationSecret(accountId);
-  if (!secret) return;
-  await pushService.refreshPreferences(account.notificationRegistrationId, secret).catch(() => {});
+  const secret = account?.notificationRegistrationId
+    ? await getRegistrationSecret(accountId)
+    : null;
+  if (!account?.notificationRegistrationId || !secret) {
+    throw new Error('This account has no active notification registration.');
+  }
+  await pushService.patchRegistration(account.notificationRegistrationId, secret, {
+    pushComments: streams.comments,
+    pushNotifications: streams.notifications,
+  });
+  useAccountsStore.getState().updateAccount(accountId, {
+    pushComments: streams.comments,
+    pushNotifications: streams.notifications,
+  });
 }
 
-/** `SCR-25`'s Advanced polling-interval control. Throws on failure (unlike the other best-effort
+/** `SCR-25`'s check-interval control. Throws on failure (unlike the other best-effort
  * calls above) — this one has a visible UI control the user just interacted with, so a failure
  * should be shown, not silently swallowed. */
 export async function updatePollingInterval(accountId: string, minutes: number): Promise<void> {

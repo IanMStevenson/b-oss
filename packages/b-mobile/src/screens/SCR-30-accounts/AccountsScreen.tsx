@@ -6,6 +6,12 @@
 // clarity) that mirrors "switch" from anywhere in the nav chrome is built separately
 // (app/AccountSwitcherOverlay.tsx, Phase 12.2) — this is the full management screen; `modeLabel`
 // is exported so that popover doesn't duplicate the mode-label logic.
+//
+// Notifications (b-oss#244): no on/off button here any more — each row shows a text status (on /
+// off / needs sign-in) that switches to that account and opens Settings → Notifications, where
+// the per-stream toggles live. An account whose notification read token died (the
+// reauth-required push routes here) also gets **Sign in again**, which re-runs the enable path
+// (changeAccountMode) with the streams it had, replacing the dead registration.
 
 import { useState } from 'react';
 import {
@@ -20,17 +26,41 @@ import {
   IonButton,
   IonButtons,
   IonAlert,
+  IonSpinner,
+  IonText,
 } from '@ionic/react';
 import { AppHeader } from '../../components/AppHeader.js';
-import { useAccountsStore } from '../../state/accountsStore.js';
-import type { StoredAccount } from '../../state/accountsStore.js';
+import { useAccountsStore, notificationStateOf } from '../../state/accountsStore.js';
+import type { StoredAccount, NotificationState } from '../../state/accountsStore.js';
 import {
   switchAccount,
   removeAccount,
   changeAccountMode,
   NeedsReauthError,
+  OAuthCancelledError,
 } from '../../flows/accountsFlow.js';
 import { useAppNavigate } from '../../app/routes/useAppNavigate.js';
+import { t } from '../../strings/index.js';
+
+const STATUS_TEXT: Record<NotificationState, () => string> = {
+  on: () => t('SCR-30.notifications.on'),
+  off: () => t('SCR-30.notifications.off'),
+  'needs-sign-in': () => t('SCR-30.notifications.needs_sign_in'),
+};
+
+export function notificationStatusText(account: StoredAccount): string {
+  return STATUS_TEXT[notificationStateOf(account)]();
+}
+
+const linkStyle = {
+  background: 'none',
+  border: 'none',
+  padding: 0,
+  font: 'inherit',
+  fontSize: 14,
+  color: 'var(--green-700)',
+  textAlign: 'start' as const,
+};
 
 export function modeLabel(account: StoredAccount): string {
   if (account.appTokenScope === null) return 'Needs re-auth';
@@ -72,7 +102,7 @@ function AccountDetail({ account, onClose }: { account: StoredAccount; onClose: 
       </IonItem>
       <IonItem>
         <span>Notifications</span>
-        <IonNote slot="end">{account.hasServiceToken ? 'On' : 'Off'}</IonNote>
+        <IonNote slot="end">{notificationStatusText(account)}</IonNote>
       </IonItem>
 
       <IonItem>
@@ -93,16 +123,6 @@ function AccountDetail({ account, onClose }: { account: StoredAccount; onClose: 
         onClick={() => void handleModeChange('read', account.hasServiceToken)}
       >
         Read-only
-      </IonButton>
-      <IonButton
-        expand="block"
-        fill="outline"
-        disabled={busy}
-        onClick={() =>
-          void handleModeChange(account.appTokenScope ?? 'read,write', !account.hasServiceToken)
-        }
-      >
-        {account.hasServiceToken ? 'Turn notifications off' : 'Turn notifications on'}
       </IonButton>
 
       {activeAccountId !== account.id && (
@@ -147,7 +167,46 @@ export function AccountsScreen() {
   const [detailId, setDetailId] = useState<string | null>(null);
   const [reauthPrompt, setReauthPrompt] = useState<string | null>(null);
 
+  const [signingInId, setSigningInId] = useState<string | null>(null);
+  const [signInError, setSignInError] = useState<string | null>(null);
+
   const detailAccount = accounts.find((a) => a.id === detailId) ?? null;
+
+  /** Tapping a row's notification status: make that account active, then open its settings. */
+  function openNotificationSettings(account: StoredAccount) {
+    if (account.id !== activeAccountId) {
+      try {
+        switchAccount(account.id);
+      } catch (err) {
+        if (err instanceof NeedsReauthError) {
+          setReauthPrompt(account.id);
+          return;
+        }
+        throw err;
+      }
+    }
+    navigate.push('/settings/notifications');
+  }
+
+  /** FLW-02 recovery for a dead notification read token — the same enable path Settings uses,
+   * with the account's stored streams (changeAccountMode's default). */
+  async function handleSignInAgain(account: StoredAccount) {
+    if (signingInId) return;
+    setSigningInId(account.id);
+    setSignInError(null);
+    try {
+      await changeAccountMode(account.id, {
+        scope: account.appTokenScope ?? 'read,write',
+        notifications: true,
+      });
+    } catch (err) {
+      if (!(err instanceof OAuthCancelledError)) {
+        setSignInError(err instanceof Error ? err.message : 'Sign-in failed. Please try again.');
+      }
+    } finally {
+      setSigningInId(null);
+    }
+  }
 
   function handleRowTap(account: StoredAccount) {
     if (account.id === activeAccountId) {
@@ -194,7 +253,37 @@ export function AccountsScreen() {
             const isActive = account.id === activeAccountId;
             return (
               <IonItem key={account.id} button onClick={() => handleRowTap(account)}>
-                <span style={isActive ? { fontWeight: 600 } : undefined}>{account.username}</span>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 4, padding: '8px 0' }}>
+                  <span style={isActive ? { fontWeight: 600 } : undefined}>{account.username}</span>
+                  <button
+                    type="button"
+                    style={linkStyle}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      openNotificationSettings(account);
+                    }}
+                  >
+                    {notificationStatusText(account)}
+                  </button>
+                  {notificationStateOf(account) === 'needs-sign-in' &&
+                    account.appTokenScope !== null && (
+                      <IonButton
+                        size="small"
+                        fill="outline"
+                        disabled={signingInId !== null}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          void handleSignInAgain(account);
+                        }}
+                      >
+                        {signingInId === account.id ? (
+                          <IonSpinner name="dots" />
+                        ) : (
+                          t('SCR-30.button.sign_in_again')
+                        )}
+                      </IonButton>
+                    )}
+                </div>
                 <IonNote slot="end" style={isActive ? { color: 'var(--green-800)' } : undefined}>
                   {isActive ? `Active · ${modeLabel(account)}` : modeLabel(account)}
                 </IonNote>
@@ -208,6 +297,14 @@ export function AccountsScreen() {
             </IonNote>
           </IonItem>
         </IonList>
+
+        {signInError && (
+          <div className="ion-padding">
+            <IonText color="danger">
+              <p>{signInError}</p>
+            </IonText>
+          </div>
+        )}
 
         <IonAlert
           isOpen={reauthPrompt !== null}

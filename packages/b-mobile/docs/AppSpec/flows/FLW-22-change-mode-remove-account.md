@@ -1,9 +1,9 @@
 # FLW-22 — Change account mode / remove account   [Must]
 
-**Trigger:** "Mode" or "Notifications" row, or "Remove account", from an account's detail view in
-`SCR-30`; **or** the notifications master switch on `SCR-25` (on/off only — mode/removal stay
-`SCR-30`-only); **or** the app treating OS-permission-denied as an off decision (`FLW-20`,
-`FLW-16`).
+**Trigger:** "Mode" or "Remove account" from an account's detail view in `SCR-30`, or its
+**Sign in again** action for a dead notification token; **or** the push toggles on `SCR-25`
+(first on / last off — mode/removal stay `SCR-30`-only); **or** the app treating
+OS-permission-denied as an off decision (`FLW-20`, `FLW-16`).
 **Screens:** `SCR-30` (account detail) → possibly an `SCR-01`-style authorization round → back to
 `SCR-30`.
 
@@ -53,12 +53,18 @@ flowchart TD
    `DELETE`, not just letting the revoked token fail on the service's next poll); turning them back
    on **re-registers** with the newly-authorized read token — see
    [`../../ImplementationSpec/notification-service.md`](../../ImplementationSpec/notification-service.md).
-3. **The `SCR-25` master switch runs this exact same on/off logic**, not a lighter variant of it —
-   tapping it off asks for the same confirmation as `SCR-30`'s Notifications row before revoking;
-   tapping it on runs the same OAuth-plus-OS-permission sequence as `FLW-20`. It's a second entry
-   point into steps 1–2, not a separate mechanism.
+3. **Notifications on/off lives on `SCR-25`'s two push toggles**
+   ([b-oss#244](https://github.com/IanMStevenson/b-oss/issues/244)); `SCR-30` no longer has an
+   on/off button, only a status that opens those settings. Turning the **first** toggle on from
+   off runs steps 1–2's on-path, registering with just that stream. Changing a toggle while the
+   other stays on is a `PATCH` to the registration — no token change. Turning the **last** one off
+   runs the off-path (revoke the separate read token in read-write, deregister). On a **read-write**
+   account it first confirms — *"Turning this off stops all notifications for {username}. To turn
+   them back on later you'll need to sign in to Blipfoto again."* [Turn off] [Keep on] — since
+   turning back on needs a new sign-in. A **read-only** account's notifications reuse its app
+   token, so it turns off with no warning.
 4. **OS-permission-denied is not a distinct remembered state.** Whether notifications end up off
-   because the user tapped the switch, or because the OS permission was refused or found missing on
+   because the user turned the last toggle off, or because the OS permission was refused or found missing on
    a launch check (`FLW-16`, `FLW-20`), the app runs the identical off-path above — same revoke,
    same deregister. Nothing about "the user's real preference was on" is kept; re-enabling always
    starts over as a fresh on-decision.
@@ -80,10 +86,11 @@ flowchart TD
       silently upgrades scope or silently retains a token the new mode doesn't need.
 - [ ] Turning notifications off deregisters the account from the notification service; turning
       them back on re-registers with the newly-authorized read token.
-- [ ] The `SCR-25` master switch produces identical behaviour to the `SCR-30` Notifications row —
-      same confirmation, same revoke/re-auth sequence.
+- [ ] The `SCR-25` push toggles: first-on runs the on-path with that stream, a change while the
+      other is on is a `PATCH`, last-off runs the off-path — confirming first only on a
+      read-write account.
 - [ ] OS-permission-denied (refused, or found missing on a launch check) is handled as an ordinary
-      off-decision, indistinguishable from the user tapping the switch, with no memory of a prior
+      off-decision, indistinguishable from the user turning notifications off, with no memory of a prior
       "on" preference.
 - [ ] The user sees, and confirms, any token revocation before it happens.
 - [ ] A cancelled/failed authorization during a mode change leaves the account on its prior mode.

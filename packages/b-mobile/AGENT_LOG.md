@@ -2202,3 +2202,31 @@ Continuation of the entry above; everything issue-driven and merged into `b-mobi
 - **Housekeeping:** merged feature branches and worktrees were deleted; `b-mobile-initial` stays
   unmerged long term, `main` carries only the Dependabot/CI config.
 
+
+## Notification settings redesign, app half — 2026-10-06 (b-oss#244)
+
+Design agreed on #244 (service half is a separate PR: `feat/b-push-stream-toggles`).
+
+- **No master switch.** Settings → Notifications has *Notifications from this app* (Push for new
+  comments, Push for new notifications, check interval) and *Blipfoto feed settings* (the six
+  `feed_*` toggles, Save/Cancel). First toggle on from off = `changeAccountMode` enable path with
+  just that stream; a change while the other is on = `PATCH` (`pushFlow.updatePushStreams`); last
+  off = deregister, with a confirm only on read-write accounts (turning back on needs a sign-in).
+- **Blipfoto's Push group is gone**: the app fetches `returnFeed` only, `saveNotificationSettings`
+  drops any `push_*`/`email_*` key, and `pingRefreshPreferences`/`refreshPreferences` are deleted
+  (the endpoint 404s on the new service).
+- **Feed hint**: Blipfoto's source confirmed `feed_*` gates notification *creation* (comments are
+  never gated), so a note under *Push for new notifications* names saved feed types that are off,
+  or says nothing can arrive when all six are off. Computed from the **saved** settings.
+- **accountsStore schema**: `pushComments?`/`pushNotifications?` added as *optional* — accounts
+  persisted before #244 have neither, and `pushStreamsOf()` treats missing as on (the service
+  default). Kept through a forced logout so *Sign in again* restores them; cleared on deregister.
+  `notificationStateOf()` derives on / off / needs-sign-in.
+- **SCR-30**: the on/off button is gone; each row has a status link (switches account, opens
+  Settings → Notifications). There was no explicit *Sign in again* before (recovery was the old
+  "Turn notifications on" button), so one was added for needs-sign-in accounts; it re-runs the
+  enable path, and `registerAccountForPush` now deletes the stale registration once the new one
+  exists instead of orphaning it.
+- Feed toggles are view-only on a read-only account (SCR-25 spec; wasn't enforced before).
+- Copy is in the deck (TextStrings.csv → deck.ts); the old `FLW22.notifications_off.*` rows were
+  rewritten for the new warning.

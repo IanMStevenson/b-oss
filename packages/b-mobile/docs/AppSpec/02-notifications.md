@@ -68,7 +68,8 @@ model.
 Kept here as a record of what was open and where each landed, rather than as a live list —
 nothing below is still pending.
 
-1. **The service contract** — register, update, refresh-preferences, deregister, all specified in
+1. **The service contract** — register, update, deregister (refresh-preferences removed in
+   b-oss#244), all specified in
    [`../ImplementationSpec/notification-service.md`](../ImplementationSpec/notification-service.md).
 2. **What a push can carry** — **revised 2026-08-03.** This was resolved as "type + target +
    causing member", on the assumption that the service could poll for that detail. It cannot: every
@@ -77,21 +78,28 @@ nothing below is still pending.
    therefore reports only which unread total rose and by how much**, and tapping it opens that
    inbox. See [api-appendix/data-model.md](api-appendix/data-model.md) (Notification),
    [api-appendix/endpoints.md](api-appendix/endpoints.md) and `FLW-16`.
-3. **Who owns preferences** — the service reads Blipfoto's preferences itself (app-triggered
-   immediate refresh on an in-app change; hourly batch refresh otherwise, up to ~59 minutes stale
-   for a change made elsewhere). The app never pushes preference values to the service.
+3. **Who owns preferences** — **revised 2026-10-06
+   ([b-oss#244](https://github.com/IanMStevenson/b-oss/issues/244)).** The service no longer reads
+   Blipfoto's push settings. It holds two flags per registration, `pushComments` and
+   `pushNotifications` (both default on), sent by the app at registration and changed by `PATCH`;
+   the app keeps a local copy for display. Blipfoto's `feed_*` settings still matter indirectly: a
+   feed type that's off is never created or counted, so it can't trigger a push, and `SCR-25`
+   says so. Comments are never gated by the feed.
 4. **Stale-token visibility** — the service's `reauth-required` push, plus an app-launch backstop
    check, both feed `FLW-02`'s existing scoped re-auth handling; surfaced on `SCR-30` with a
    reason label. Never narrows write access (`rules.md`).
-5. **`SCR-25`'s notifications display** — an active master switch; the push toggle group only
-   renders when it's on.
+5. **`SCR-25`'s notifications display** — **revised in b-oss#244:** no master switch and no
+   Blipfoto Push group. Two per-account toggles (*Push for new comments*, *Push for new
+   notifications*); "on" means at least one is on, and turning the last one off deregisters
+   (warning first on a read-write account, where turning back on needs a sign-in). The Blipfoto
+   feed settings are a separate section. `SCR-30` shows a status per account instead of a button.
 6. **The OS notification permission** — settled *before* the read-token authorization when enabling
    notifications (`FLW-20`); refused, or found missing on a later launch check, is treated
-   identically to the user turning the master switch off (`FLW-22`) — no separate "blocked" state,
+   identically to the user turning notifications off (`FLW-22`) — no separate "blocked" state,
    nothing remembered. Where the platform will no longer prompt, the app offers system settings
    instead of requesting into silence (`rules.md`).
-7. **Polling interval** — user-facing, an "Advanced" control on `SCR-25`, floor of 5 minutes
-   enforced server-side.
+7. **Polling interval** — user-facing, a control on `SCR-25` (no longer behind an "Advanced"
+   disclosure since b-oss#244), floor of 5 minutes enforced server-side.
 
 **Affected items:** `SCR-23`, `SCR-25` (Notifications), `SCR-30`, `FLW-02`, `FLW-15`, `FLW-16`,
 `FLW-17`, `FLW-20`, `FLW-22`, and [api-appendix/auth.md](api-appendix/auth.md).

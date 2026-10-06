@@ -28,9 +28,12 @@ flowchart TD
 ## Steps, branches & rules
 1. Whenever an account **enables notifications** (`FLW-20`, or turning them on later via `FLW-22`),
    the app **registers for push with the cloud service**; it deregisters whenever they go off — by
-   the master switch, by account removal, or by OS-permission denial. There is no "sign-out" event
-   to hang this on: removal is the operation (`FLW-02`). Push respects the user's notification
-   preferences (`SCR-25` Notifications).
+   the last of `SCR-25`'s two push toggles going off, by account removal, or by OS-permission
+   denial. There is no "sign-out" event to hang this on: removal is the operation (`FLW-02`). Push
+   respects the account's two push streams — *new comments* and *new notifications* — which the
+   service holds and the app sets at registration or by `PATCH` (`SCR-25`, [b-oss#244](https://github.com/IanMStevenson/b-oss/issues/244)). The
+   service no longer reads Blipfoto's own push settings. The notifications stream can only move
+   for types Blipfoto creates, which its `feed_*` settings decide; comments are never gated.
    Whenever the OS issues a new device push token (FCM token rotation), the app updates the
    registration with the service — otherwise pushes silently stop reaching the device. See
    [`../../ImplementationSpec/notification-service.md`](../../ImplementationSpec/notification-service.md).
@@ -63,10 +66,10 @@ flowchart TD
 
 ## Acceptance criteria
 - [ ] The app registers with the cloud service whenever an account enables notifications, and
-      deregisters whenever they go off (switch, removal, or OS-permission denial).
+      deregisters whenever they go off (last push toggle off, removal, or OS-permission denial).
 - [ ] A device push token rotation (new FCM token from the OS) updates the existing registration
       with the service rather than leaving it stale.
-- [ ] Pushes respect the user's notification preferences.
+- [ ] Pushes respect the account's two push streams (comments / notifications).
 - [ ] A push states which stream rose and by how much, and names no member.
 - [ ] Tapping a push opens that stream's inbox (`SCR-23` or `SCR-24`), signing in if needed.
 - [ ] A received push refreshes unread counts.

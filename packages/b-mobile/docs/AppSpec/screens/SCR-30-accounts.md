@@ -27,13 +27,14 @@ List state:
 | <  Accounts                          |
 |                                      |
 |  (*) alice             Read-write >  |   active account, marked
-|      Notifications on                |
-|                                      |
+|      Notifications: on               |   tap status → that account's
+|                                      |   Settings › Notifications (#244)
 |  ( ) bobs_family        Read-only >  |   inactive — tap row to switch
+|      Notifications: off              |
 |                                      |
-|  ( ) old_account    Needs re-auth >  |   a token went invalid (FLW-02)
-|      Notifications need re-auth     |   read-token-only case: rest of the
-|                                      |   account is unaffected, see below
+|  ( ) carol             Read-write >  |   notification read token died
+|      Notifications: needs sign-in    |   (FLW-02) — rest of the account
+|      [ Sign in again ]               |   is unaffected, see below
 |                                      |
 |  + Add account                       |
 +--------------------------------------+
@@ -45,7 +46,7 @@ Account-detail state (tap the `>` on a row):
 | <  alice                             |
 |                                      |
 |  Mode            Read-write     >    |   tap to change (FLW-22)
-|  Notifications   On             >    |   tap to change (FLW-22)
+|  Notifications   Notifications: on   |   status only — change in SCR-25
 |                                      |
 |  [ Make active ]                     |   hidden if already active
 |  [ Remove account ]                  |
@@ -54,9 +55,14 @@ Account-detail state (tap the `>` on a row):
 
 ## Components & data shown
 - **Account rows** — avatar, username, current mode label (Read-write / Read-only / Needs
-  re-auth), a notifications indicator, and a marker for the active account.
+  re-auth), a marker for the active account, and a notification **status text** — *Notifications:
+  on / off / needs sign-in* ([b-oss#244](https://github.com/IanMStevenson/b-oss/issues/244)).
+  There is no notifications on/off button here; tapping the status switches to that account and
+  opens its `SCR-25` Notifications settings, where the per-stream push toggles live. An account
+  whose notification read token died (the `reauth-required` push opens this screen) also shows
+  **Sign in again**, which re-runs the `FLW-22` enable path with the push streams it had.
 - **Add account** — opens `SCR-01`'s deliberate (mode-choice) shape via `FLW-20`.
-- **Account detail** — mode, notifications state, **Make active** (if not already active),
+- **Account detail** — mode, notification status (text only), **Make active** (if not already active),
   **Remove account**.
 
 ## States
@@ -110,6 +116,9 @@ Account-detail state (tap the `>` on a row):
 - [ ] Removing the active account leaves another stored account active, or returns to anonymous
       browsing if none remain.
 - [ ] A needs-reauth account can be re-authorized without disturbing its other still-valid token.
+- [ ] Each account shows a notification status (on / off / needs sign-in) and no on/off button;
+      tapping the status switches to that account and opens Settings › Notifications.
+- [ ] An account whose notification read token died offers **Sign in again**.
 - [ ] For a read-write + notifications account, losing only the service's read token shows a
       notifications-specific reason label and doesn't imply the account lost write access.
 - [ ] For a read-only + notifications account, losing its single token shows an ordinary

@@ -33,7 +33,9 @@ flowchart TD
 
 ## Steps, branches & rules
 1. `SCR-01` shows the full mode choice (Read-write / Read-only, notifications toggle),
-   defaulting to Read-write, notifications off.
+   defaulting to Read-write, notifications off. "Get notifications" means **both** push streams on
+   (new comments and new notifications); they can be changed afterwards in `SCR-25`
+   ([b-oss#244](https://github.com/IanMStevenson/b-oss/issues/244)).
 2. **Read-only or Read-write, notifications off** — a single OAuth (implicit grant) round for the
    chosen scope. On success, the token is stored, a new account entry is created (or an existing
    one signed back in), and it becomes the **active** account.

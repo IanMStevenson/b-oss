@@ -17,8 +17,8 @@
 
 import { getToken, setToken, deleteToken } from '../platform/secureStorage.js';
 import { getClientForToken } from '../data/client.js';
-import { useAccountsStore } from '../state/accountsStore.js';
-import type { StoredAccount } from '../state/accountsStore.js';
+import { useAccountsStore, pushStreamsOf, ALL_PUSH_STREAMS } from '../state/accountsStore.js';
+import type { StoredAccount, PushStreams } from '../state/accountsStore.js';
 import { useUploadQueueStore } from '../state/uploadQueueStore.js';
 import { deleteQueuedFile } from '../platform/upload.js';
 import { refreshAccountAvatar } from './avatarFlow.js';
@@ -90,6 +90,10 @@ export interface SignInModeChoice {
    * of the system browser, forcing a fresh login — SCR-01's "force new sign-in" toggle, for
    * adding a second account without logging the system browser out of the first. */
   useEmbedded?: boolean;
+  /** Which push streams to register with when this turns notifications on (b-oss#244). Sign-in's
+   * "Get notifications" means both. changeAccountMode defaults to the account's stored choice, so
+   * "Sign in again" after a dead service token restores what the user had. */
+  pushStreams?: PushStreams;
 }
 
 /** FLW-20 — deliberate sign-in with the full mode choice. Read-write + notifications runs two
@@ -120,7 +124,11 @@ export async function signInDeliberate(
   if (choice.notifications && (await ensurePushPermission())) {
     if (account.appTokenScope === 'read') {
       // Read-only + notifications: the same token serves both — no second round.
-      const registered = await registerAccountForPush(account.id, result.accessToken);
+      const registered = await registerAccountForPush(
+        account.id,
+        result.accessToken,
+        choice.pushStreams ?? ALL_PUSH_STREAMS,
+      );
       if (registered) {
         await setToken(account.id, 'service', result.accessToken);
         useAccountsStore.getState().updateAccount(account.id, { hasServiceToken: true });
@@ -128,7 +136,11 @@ export async function signInDeliberate(
     } else if (!hooks.beforeServiceRound || (await hooks.beforeServiceRound())) {
       try {
         const serviceResult = await runOAuthRound('read', embedded);
-        const registered = await registerAccountForPush(account.id, serviceResult.accessToken);
+        const registered = await registerAccountForPush(
+          account.id,
+          serviceResult.accessToken,
+          choice.pushStreams ?? ALL_PUSH_STREAMS,
+        );
         if (registered) {
           await setToken(account.id, 'service', serviceResult.accessToken);
           useAccountsStore.getState().updateAccount(account.id, { hasServiceToken: true });
@@ -241,12 +253,13 @@ export async function changeAccountMode(
   const refreshed = useAccountsStore.getState().accounts.find((a) => a.id === accountId);
   if (!refreshed) return;
   const finalAppScope = refreshed.appTokenScope;
+  const streams = target.pushStreams ?? pushStreamsOf(refreshed);
 
   if (target.notifications && !refreshed.hasServiceToken && (await ensurePushPermission())) {
     if (finalAppScope === 'read') {
       const appToken = await getToken(accountId, 'app');
       if (appToken) {
-        const registered = await registerAccountForPush(accountId, appToken);
+        const registered = await registerAccountForPush(accountId, appToken, streams);
         if (registered) {
           await setToken(accountId, 'service', appToken);
           useAccountsStore.getState().updateAccount(accountId, { hasServiceToken: true });
@@ -254,7 +267,11 @@ export async function changeAccountMode(
       }
     } else {
       const serviceResult = await runOAuthRound('read');
-      const registered = await registerAccountForPush(accountId, serviceResult.accessToken);
+      const registered = await registerAccountForPush(
+        accountId,
+        serviceResult.accessToken,
+        streams,
+      );
       if (registered) {
         await setToken(accountId, 'service', serviceResult.accessToken);
         useAccountsStore.getState().updateAccount(accountId, { hasServiceToken: true });
