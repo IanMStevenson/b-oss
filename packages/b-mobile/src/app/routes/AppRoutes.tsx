@@ -8,8 +8,7 @@
 // routes — see OverlayProvider.
 
 import { lazy, Suspense } from 'react';
-import { Switch, Route, Redirect } from 'react-router-dom';
-import type { RouteComponentProps } from 'react-router-dom';
+import { Routes, Route, Navigate, useLocation, useParams } from 'react-router-dom';
 import { IonPage, IonSpinner } from '@ionic/react';
 import { SignInScreen } from '../../screens/SCR-01-sign-in/SignInScreen.js';
 import { AccountsScreen } from '../../screens/SCR-30-accounts/AccountsScreen.js';
@@ -57,6 +56,12 @@ const ComposeEntryScreen = lazy(() =>
   })),
 );
 
+// Ionic 9's IonRouterOutlet reads its routes straight from its children (a <Routes> whose
+// children are <Route>s), so the table below is built by a plain function the shell calls inline,
+// not a wrapper component the outlet couldn't see into. Each Route's `element` is a small
+// component of its own where it needs params, query or router state — screens never import
+// react-router themselves.
+
 // Shared Suspense fallback for every lazy-loaded route above.
 function LazyScreenFallback() {
   return (
@@ -79,156 +84,188 @@ interface ReportRouteState {
   reportedComment?: { username: string; excerpt: string };
 }
 
-export function AppRoutes() {
+// Route params are always defined for the paths they're mounted on.
+function useParam(name: string): string {
+  return useParams()[name] as string;
+}
+
+function MapRoute() {
+  const { search } = useLocation();
   return (
-    <Switch>
-      <Route exact path="/browse" component={BrowseScreen} />
-      <Route exact path="/search" component={SearchScreen} />
+    <Suspense fallback={<LazyScreenFallback />}>
+      <MapScreen focusedEntryId={new URLSearchParams(search).get('entry') ?? undefined} />
+    </Suspense>
+  );
+}
+
+function TagRoute() {
+  return <TagEntriesScreen tag={decodeURIComponent(useParam('tag'))} />;
+}
+
+function EntryRoute() {
+  const entryId = useParam('entryId');
+  const state = useLocation().state as EntryRouteState | undefined;
+  // keyed by entry so swiping to another entry starts it with fresh composer state (any
+  // unsent text is kept by data/commentDrafts.ts, not by this instance).
+  return (
+    <EntryDetailScreen
+      key={entryId}
+      entryId={entryId}
+      initialReplyToCommentId={state?.replyToCommentId}
+    />
+  );
+}
+
+function PhotoRoute() {
+  return <PhotoScreen entryId={useParam('entryId')} />;
+}
+
+function EntryMetadataRoute() {
+  return <EntryMetadataScreen entryId={useParam('entryId')} />;
+}
+
+function EditEntryRoute() {
+  return <EditEntryScreen entryId={useParam('entryId')} />;
+}
+
+function ReportEntryRoute() {
+  const state = (useLocation().state ?? {}) as ReportRouteState;
+  return (
+    <ReportEntryScreen
+      entryId={useParam('entryId')}
+      targetUsername={state.targetUsername}
+      reportedComment={state.reportedComment}
+    />
+  );
+}
+
+function DescriptionEditorRoute() {
+  const target = new URLSearchParams(useLocation().search).get('target');
+  return <DescriptionEditorScreen target={target === 'bio' ? 'bio' : 'draft'} />;
+}
+
+function UserProfileRoute() {
+  return <ProfileScreen username={useParam('username')} />;
+}
+
+function FollowersRoute() {
+  return <FollowersFollowingScreen username={useParam('username')} mode="followers" />;
+}
+
+function FollowingRoute() {
+  return <FollowersFollowingScreen username={useParam('username')} mode="following" />;
+}
+
+function UserAwardsRoute() {
+  return <AwardsScreen username={useParam('username')} />;
+}
+
+function SettingsSectionRoute() {
+  return <SettingsScreen section={useParam('section')} />;
+}
+
+function HelpSectionRoute() {
+  return <HelpInfoScreen section={useParam('section')} />;
+}
+
+function AppRouteTable() {
+  return (
+    <Routes>
+      <Route path="/browse" element={<BrowseScreen />} />
+      <Route path="/search" element={<SearchScreen />} />
+      <Route path="/map" element={<MapRoute />} />
+      <Route path="/tag/:tag" element={<TagRoute />} />
+      <Route path="/entry/:entryId" element={<EntryRoute />} />
+      <Route path="/entry/:entryId/photo" element={<PhotoRoute />} />
+      <Route path="/entry/:entryId/metadata" element={<EntryMetadataRoute />} />
       <Route
-        exact
-        path="/map"
-        render={({ location }: RouteComponentProps) => {
-          const params = new URLSearchParams(location.search);
-          return (
-            <Suspense fallback={<LazyScreenFallback />}>
-              <MapScreen focusedEntryId={params.get('entry') ?? undefined} />
-            </Suspense>
-          );
-        }}
-      />
-      <Route
-        exact
-        path="/tag/:tag"
-        render={({ match }: RouteComponentProps<{ tag: string }>) => (
-          <TagEntriesScreen tag={decodeURIComponent(match.params.tag)} />
-        )}
-      />
-      <Route
-        exact
-        path="/entry/:entryId"
-        render={({ match, location }: RouteComponentProps<{ entryId: string }>) => (
-          // keyed by entry so swiping to another entry starts it with fresh composer state (any
-          // unsent text is kept by data/commentDrafts.ts, not by this instance).
-          <EntryDetailScreen
-            key={match.params.entryId}
-            entryId={match.params.entryId}
-            initialReplyToCommentId={
-              (location.state as EntryRouteState | undefined)?.replyToCommentId
-            }
-          />
-        )}
-      />
-      <Route
-        exact
-        path="/entry/:entryId/photo"
-        render={({ match }: RouteComponentProps<{ entryId: string }>) => (
-          <PhotoScreen entryId={match.params.entryId} />
-        )}
-      />
-      <Route
-        exact
-        path="/entry/:entryId/metadata"
-        render={({ match }: RouteComponentProps<{ entryId: string }>) => (
-          <EntryMetadataScreen entryId={match.params.entryId} />
-        )}
-      />
-      <WriteGuardRoute
-        exact
         path="/entry/:entryId/edit"
-        render={({ match }) => <EditEntryScreen entryId={match.params.entryId as string} />}
+        element={
+          <WriteGuardRoute>
+            <EditEntryRoute />
+          </WriteGuardRoute>
+        }
       />
-      <WriteGuardRoute
-        exact
-        path="/entry/:entryId/report"
-        render={({ match, location }) => {
-          const state = (location.state ?? {}) as ReportRouteState;
-          return (
-            <ReportEntryScreen
-              entryId={match.params.entryId as string}
-              targetUsername={state.targetUsername}
-              reportedComment={state.reportedComment}
-            />
-          );
-        }}
-      />
-      <WriteGuardRoute exact path="/compose" component={NewEntryScreen} />
       <Route
-        exact
+        path="/entry/:entryId/report"
+        element={
+          <WriteGuardRoute>
+            <ReportEntryRoute />
+          </WriteGuardRoute>
+        }
+      />
+      <Route
+        path="/compose"
+        element={
+          <WriteGuardRoute>
+            <NewEntryScreen />
+          </WriteGuardRoute>
+        }
+      />
+      <Route
         path="/compose/details"
-        render={() => (
+        element={
           <Suspense fallback={<LazyScreenFallback />}>
             <ComposeEntryScreen />
           </Suspense>
-        )}
+        }
       />
+      <Route path="/compose/description" element={<DescriptionEditorRoute />} />
       <Route
-        exact
-        path="/compose/description"
-        render={({ location }: RouteComponentProps) => {
-          const target = new URLSearchParams(location.search).get('target');
-          return <DescriptionEditorScreen target={target === 'bio' ? 'bio' : 'draft'} />;
-        }}
-      />
-      <Route
-        exact
         path="/compose/location"
-        render={() => (
+        element={
           <Suspense fallback={<LazyScreenFallback />}>
             <LocationPickerScreen />
           </Suspense>
-        )}
+        }
       />
-      <Route exact path="/uploads" component={UploadProgressScreen} />
-      <Route exact path="/me" render={() => <ProfileScreen />} />
+      <Route path="/uploads" element={<UploadProgressScreen />} />
+      <Route path="/me" element={<ProfileScreen />} />
+      <Route path="/user/:username" element={<UserProfileRoute />} />
+      <Route path="/user/:username/followers" element={<FollowersRoute />} />
+      <Route path="/user/:username/following" element={<FollowingRoute />} />
+      <Route path="/me/requests" element={<PendingRequestsScreen />} />
+      <Route path="/me/refused" element={<RefusedFollowersScreen />} />
+      <Route path="/user/:username/awards" element={<UserAwardsRoute />} />
+      <Route path="/me/awards" element={<AwardsScreen />} />
       <Route
-        exact
-        path="/user/:username"
-        render={({ match }) => <ProfileScreen username={match.params.username} />}
+        path="/notifications"
+        element={
+          <AccountGuardRoute>
+            <NotificationsInboxScreen />
+          </AccountGuardRoute>
+        }
       />
       <Route
-        exact
-        path="/user/:username/followers"
-        render={({ match }) => (
-          <FollowersFollowingScreen username={match.params.username} mode="followers" />
-        )}
+        path="/comments"
+        element={
+          <AccountGuardRoute>
+            <CommentsInboxScreen />
+          </AccountGuardRoute>
+        }
       />
-      <Route
-        exact
-        path="/user/:username/following"
-        render={({ match }) => (
-          <FollowersFollowingScreen username={match.params.username} mode="following" />
-        )}
-      />
-      <Route exact path="/me/requests" component={PendingRequestsScreen} />
-      <Route exact path="/me/refused" component={RefusedFollowersScreen} />
-      <Route
-        exact
-        path="/user/:username/awards"
-        render={({ match }) => <AwardsScreen username={match.params.username} />}
-      />
-      <Route exact path="/me/awards" render={() => <AwardsScreen />} />
-      <AccountGuardRoute exact path="/notifications" component={NotificationsInboxScreen} />
-      <AccountGuardRoute exact path="/comments" component={CommentsInboxScreen} />
-      <Route exact path="/settings" render={() => <SettingsScreen />} />
-      <Route
-        exact
-        path="/settings/:section"
-        render={({ match }: RouteComponentProps<{ section: string }>) => (
-          <SettingsScreen section={match.params.section} />
-        )}
-      />
-      <Route exact path="/help" render={() => <HelpInfoScreen />} />
-      <Route
-        exact
-        path="/help/:section"
-        render={({ match }: RouteComponentProps<{ section: string }>) => (
-          <HelpInfoScreen section={match.params.section} />
-        )}
-      />
-      <Route exact path="/accounts" component={AccountsScreen} />
-      <Route exact path="/hidden" component={HiddenMembersScreen} />
-      <Route exact path="/sign-in" component={SignInScreen} />
-      <Redirect exact from="/" to="/browse" />
-    </Switch>
+      <Route path="/settings" element={<SettingsScreen />} />
+      <Route path="/settings/:section" element={<SettingsSectionRoute />} />
+      <Route path="/help" element={<HelpInfoScreen />} />
+      <Route path="/help/:section" element={<HelpSectionRoute />} />
+      <Route path="/accounts" element={<AccountsScreen />} />
+      <Route path="/hidden" element={<HiddenMembersScreen />} />
+      <Route path="/sign-in" element={<SignInScreen />} />
+      <Route path="/" element={<Navigate to="/browse" replace />} />
+    </Routes>
+  );
+}
+
+// Ionic 9's IonRouterOutlet keeps one view per route it can see and holds earlier pages mounted
+// (hidden) behind a pushed one. The app deliberately has no view stack — a screen unmounts when
+// you navigate away and Back rebuilds it, with data/resumeCache.ts restoring your place
+// (app-architecture.md, "Navigation model and screen-state resume"; b-oss#183 closed as not
+// planned). So the outlet is given a single catch-all route whose element is the whole table: one
+// view item, with the real route switching happening inside it.
+export function renderAppRoutes() {
+  return (
+    <Routes>
+      <Route path="/*" element={<AppRouteTable />} />
+    </Routes>
   );
 }

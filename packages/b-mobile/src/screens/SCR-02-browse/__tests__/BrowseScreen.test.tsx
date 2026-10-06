@@ -218,7 +218,7 @@ describe('BrowseScreen', () => {
       vi.mocked(fetchRecentPage).mockClear();
       vi.mocked(fetchFollowingPage).mockClear();
       renderScreen(); // Back
-      expect(document.querySelector('ion-segment')!.getAttribute('value')).toBe('following');
+      expect(document.querySelector('ion-segment')!.value).toBe('following');
       expect(await screen.findByLabelText('2026-01-01')).toBeDefined();
       await new Promise((r) => setTimeout(r, 0));
       expect(fetchFollowingPage).not.toHaveBeenCalled();
@@ -239,9 +239,7 @@ describe('BrowseScreen', () => {
 
       vi.mocked(useActiveAccount).mockReturnValue(account('a2'));
       renderScreen();
-      await waitFor(() =>
-        expect(document.querySelector('ion-segment')!.getAttribute('value')).toBe('recent'),
-      );
+      await waitFor(() => expect(document.querySelector('ion-segment')!.value).toBe('recent'));
     });
 
     it('falls back to Recent if the remembered tab needs an account you no longer have', async () => {
@@ -258,9 +256,7 @@ describe('BrowseScreen', () => {
 
       vi.mocked(useActiveAccount).mockReturnValue(null); // signed out
       renderScreen();
-      await waitFor(() =>
-        expect(document.querySelector('ion-segment')!.getAttribute('value')).toBe('recent'),
-      );
+      await waitFor(() => expect(document.querySelector('ion-segment')!.value).toBe('recent'));
       expect(screen.queryByText('Following')).toBeNull();
     });
 

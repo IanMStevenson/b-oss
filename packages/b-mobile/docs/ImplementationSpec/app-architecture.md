@@ -208,8 +208,8 @@ mean compiling them twice under different rules.
 | ---------------------- | ------------------------------------- | -------------------- | ------------------------------------------------------------------------- |
 | Native container       | Capacitor                             | `8.5.0`              | Settled in `platform-and-reuse.md`. Sets minSdk 24, compile/target SDK 36 |
 | UI framework           | React                                 | `19.x`               | Matches `b-view` and the monorepo's `overrides`                           |
-| App shell / navigation | Ionic React + `@ionic/react-router`   | `8.8.16`             | §5                                                                        |
-| Routing                | `react-router` / `react-router-dom`   | `5.3.x`              | Pinned by Ionic 8 — §5                                                    |
+| App shell / navigation | Ionic React + `@ionic/react-router`   | `9.0.6`              | §5                                                                        |
+| Routing                | `react-router` / `react-router-dom`   | `6.30.x`             | Pinned by Ionic 9 (peer `>=6.4 <7`) — §5                                  |
 | Client state           | Zustand                               | `5.0.x`              | §6                                                                        |
 | Build                  | Vite                                  | `8.x`                | Matches `b-view`                                                          |
 | Maps                   | MapLibre GL JS                        | `6.1.0`              | §13                                                                       |
@@ -299,17 +299,16 @@ Why, concretely — each of these is an `AppSpec/` requirement rather than a nic
 
 **Costs, stated plainly rather than buried:**
 
-- **Ionic 8 pins `react-router` to 5.x.** Versions 6, 7 and 8 of Ionic have never supported React
-  Router 6+; Ionic 9 adds React Router 6 and is
-  [tracked for Q3 2026](https://ionic.io/blog/announcing-ionic-framework-8-8) but is not released as
-  of 2026-08-03. React 19 itself _is_ supported, from
-  [Ionic 8.5](https://ionic.io/blog/announcing-ionic-8-5) onward, so there is no conflict with the
-  monorepo's React 19 override.
-  - **Mitigation, and a hard rule:** `react-router` may be imported **only** in `src/app/routes/`.
-    Screens navigate through a thin `useNavigate()`-style wrapper of our own. The Ionic 9 migration
-    then touches one directory instead of 28.
-  - **Do not wait for Ionic 9.** Starting on a released, stable major and migrating later is lower
-    risk than building v1 on an unreleased one.
+- **Ionic pins `react-router`.** Ionic 8 required React Router 5; Ionic 9 requires React Router 6
+  (`@ionic/react-router@9` peers on `react-router(-dom) >=6.4.0 <7`), and React Router 7+ is
+  unsupported until Ionic adds it. The app moved to Ionic 9.0.6 + React Router 6.30.x in b-oss#235.
+  React 19 itself is supported (Ionic 8.5 onward).
+  - **Hard rule:** `react-router` may be imported **only** in `src/app/routes/`. Screens navigate
+    through a thin `useNavigate()`-style wrapper of our own (`useAppNavigate`), which is what kept
+    the 5 → 6 migration to one directory instead of 28.
+  - Ionic 9's `IonRouterOutlet` reads its routes from its own children and keeps one view per
+    route, holding earlier pages mounted behind a pushed one. See "Navigation model" below for how
+    the app keeps its no-view-stack behaviour.
 - **Two style systems in the tree.** Import Ionic's core CSS only, and map `tokens.css` values onto
   Ionic's CSS custom properties (`--ion-color-*`, `--ion-background-color`, …) in one theme file, so
   the shell inherits `b-view`'s palette rather than Ionic's default.
@@ -1318,8 +1317,10 @@ was.
 
 ## Navigation model and screen-state resume (b-oss#182, #183, #190)
 
-The route table is one `<Switch>` inside a single `IonRouterOutlet` child, so Ionic sees one view
-item and **unmounts a screen when you navigate away** — there is no view stack. Decision (b-oss#183
+The route table sits inside one catch-all `<Route path="/*">` in the `IonRouterOutlet`
+(`renderAppRoutes`, `app/routes/AppRoutes.tsx`), so Ionic sees one view item and **unmounts a
+screen when you navigate away** — there is no view stack. (Ionic 9's outlet needs `<Routes>`/`Route`
+as its direct children; exposing the real routes there would adopt a view stack, so don't.) Decision (b-oss#183
 deferred): keep that, and make Back feel right by remembering state instead.
 
 - **Back = history.** `IonBackButton` pops to where you came from; `backHref` is only the fallback

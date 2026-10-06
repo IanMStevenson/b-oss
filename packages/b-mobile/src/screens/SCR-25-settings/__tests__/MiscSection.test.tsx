@@ -92,8 +92,10 @@ describe('MiscSection', () => {
 
     useAccountsStore.setState({ accounts: [acct('a1', 'alice'), acct('a2', 'bob')] });
     render(<MiscSection />);
-    const segment = document.querySelector('ion-segment[aria-label="Account picture"]')!;
-    expect(segment.getAttribute('value')).toBe('picture');
+    const segment = document.querySelector<HTMLElement & { value: string }>(
+      'ion-segment[aria-label="Account picture"]',
+    )!;
+    expect(segment.value).toBe('picture');
     segment.dispatchEvent(
       new CustomEvent('ionChange', { bubbles: true, detail: { value: 'icon' } }),
     );

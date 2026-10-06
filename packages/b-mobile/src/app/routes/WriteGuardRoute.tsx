@@ -15,36 +15,36 @@
 //
 // The upgrade prompt itself is a plain IonAlert here rather than OverlayProvider's shared
 // `showUpgradePrompt()` (§5, app/OverlayProvider.tsx) — this one's decline action must return the
-// user to where they came from (`history.goBack()`), which the shared overlay has no per-caller
+// user to where they came from (`navigate(-1)`), which the shared overlay has no per-caller
 // hook for yet (its own `dismiss()` only ever clears the overlay, with no side effect). Same copy
 // (TextStrings.csv's UPGRADE.* keys) either way, so the two don't drift even though they aren't
 // (yet) the same component instance. TODO: give OverlayState an optional on-decline callback and
 // retire this local copy in favour of the shared one.
 
 import { useEffect, useRef, useState } from 'react';
-import { Route, useHistory } from 'react-router-dom';
-import type { RouteProps } from 'react-router-dom';
+import type { ReactNode } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { IonAlert } from '@ionic/react';
 import { useActiveAccount, useCanWrite } from '../../state/accountsStore.js';
 import { signInGated } from '../../flows/accountsFlow.js';
 import { t } from '../../strings/index.js';
 
-export function WriteGuardRoute(props: RouteProps) {
+export function WriteGuardRoute({ children }: { children: ReactNode }) {
   const activeAccount = useActiveAccount();
   const canWrite = useCanWrite();
-  const history = useHistory();
+  const navigate = useNavigate();
   const [dismissed, setDismissed] = useState(false);
   const attemptedSignIn = useRef(false);
 
   useEffect(() => {
     if (!activeAccount && !attemptedSignIn.current) {
       attemptedSignIn.current = true;
-      signInGated().catch(() => history.goBack());
+      signInGated().catch(() => navigate(-1));
     }
-  }, [activeAccount, history]);
+  }, [activeAccount, navigate]);
 
   if (canWrite) {
-    return <Route {...props} />;
+    return <>{children}</>;
   }
 
   if (!activeAccount) {
@@ -63,13 +63,13 @@ export function WriteGuardRoute(props: RouteProps) {
       message={t('UPGRADE.body', { username: activeAccount.username })}
       onDidDismiss={() => {
         setDismissed(true);
-        history.goBack();
+        navigate(-1);
       }}
       buttons={[
         { text: t('UPGRADE.button.decline'), role: 'cancel' },
         {
           text: t('UPGRADE.button.confirm'),
-          handler: () => history.push('/accounts'),
+          handler: () => navigate('/accounts'),
         },
       ]}
     />

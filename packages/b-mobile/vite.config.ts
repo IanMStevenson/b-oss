@@ -3,8 +3,15 @@
 
 import { defineConfig } from 'vitest/config';
 import react from '@vitejs/plugin-react';
-import { resolve } from 'node:path';
+import { dirname, resolve } from 'node:path';
+import { createRequire } from 'node:module';
 import { readFileSync, existsSync } from 'node:fs';
+
+// @lit/react's package `exports` only offers its browser build under the `browser` condition, which
+// Vitest's Node-side resolution never selects, so the tests alias it by path — see `test` below.
+function litReactBrowserBuild(): string {
+  return resolve(dirname(createRequire(import.meta.url).resolve('@lit/react')), '../index.js');
+}
 
 function readGeneratedVersion(): string {
   const path = resolve(__dirname, '../../version.generated.json');
@@ -64,5 +71,11 @@ export default defineConfig({
   },
   test: {
     setupFiles: [resolve(__dirname, 'src/test-setup.ts')],
+    // Ionic 9's React wrappers are built on @lit/react, whose `node` export condition is an SSR
+    // build that never sets properties or event listeners on the element. Vitest resolves that
+    // build even under jsdom, so Ionic components would render as inert tags. Aliasing to the
+    // browser build — and inlining the wrapper packages so the alias reaches them — fixes that.
+    server: { deps: { inline: [/@lit\/react/, /@stencil\/react-output-target/] } },
+    alias: { '@lit/react': litReactBrowserBuild() },
   },
 });

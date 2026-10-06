@@ -4,7 +4,7 @@
 // A small in-memory cache of "where you were" in a list screen, so returning to it after opening an
 // entry (b-oss#182) lands on the same tab and page instead of a freshly-built default.
 //
-// Why this exists: `AppRoutes` renders a `<Switch>` inside one `<IonRouterOutlet>` child, so Ionic
+// Why this exists: `renderAppRoutes` gives `<IonRouterOutlet>` a single catch-all route, so Ionic
 // sees a single view and never keeps a page mounted behind a pushed one — opening an entry
 // *unmounts* Browse, and Back rebuilds it. The proper fix (a real view stack) is app-wide and is
 // tracked separately (#183); this keeps the user's place across that unmount without changing how

@@ -12,7 +12,7 @@
 // (tabs, segments, search) puts both inside one shared <IonHeader>, Ionic's normal multi-toolbar
 // pattern, rather than stacking two independent <IonHeader> regions.
 
-import type { ReactNode } from 'react';
+import type { CSSProperties, ReactNode } from 'react';
 import { IonToolbar, IonButtons, IonMenuButton, IonBackButton } from '@ionic/react';
 import { ChevronLeft } from 'lucide-react';
 
@@ -45,14 +45,18 @@ export function AppHeader({
 }: AppHeaderProps) {
   return (
     <IonToolbar
-      style={{
-        '--background': 'var(--green-800)',
-        // The button/back-arrow icon reads --ion-toolbar-color internally (confirmed via
-        // computed style — a plain --color override here is never consumed), which theme.css
-        // sets globally to --ink; this local override is what actually turns it white.
-        '--ion-toolbar-color': '#fff',
-        '--min-height': '48px',
-      }}
+      style={
+        {
+          '--background': 'var(--green-800)',
+          // The button/back-arrow icon reads --ion-toolbar-color internally (confirmed via
+          // computed style — a plain --color override here is never consumed), which theme.css
+          // sets globally to --ink; this local override is what actually turns it white.
+          '--ion-toolbar-color': '#fff',
+          '--min-height': '48px',
+          // Ionic 9 types `--background` on `style` as its own property, so a plain object literal
+          // no longer fits CSSProperties.
+        } as CSSProperties
+      }
     >
       <IonButtons slot="start">
         {variant === 'back' ? (

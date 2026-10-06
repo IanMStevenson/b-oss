@@ -14,14 +14,14 @@
 // ProfileScreen's follow action, SCR-06's star/favourite/comment) reuses the same function.
 
 import { useEffect, useRef, useState } from 'react';
-import { Route, useHistory } from 'react-router-dom';
-import type { RouteProps } from 'react-router-dom';
+import type { ReactNode } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useActiveAccount } from '../../state/accountsStore.js';
 import { signInGated } from '../../flows/accountsFlow.js';
 
-export function AccountGuardRoute(props: RouteProps) {
+export function AccountGuardRoute({ children }: { children: ReactNode }) {
   const activeAccount = useActiveAccount();
-  const history = useHistory();
+  const navigate = useNavigate();
   const attemptedSignIn = useRef(false);
   const [failed, setFailed] = useState(false);
 
@@ -33,11 +33,11 @@ export function AccountGuardRoute(props: RouteProps) {
   }, [activeAccount]);
 
   useEffect(() => {
-    if (failed) history.replace('/browse');
-  }, [failed, history]);
+    if (failed) navigate('/browse', { replace: true });
+  }, [failed, navigate]);
 
   if (activeAccount) {
-    return <Route {...props} />;
+    return <>{children}</>;
   }
 
   // Waiting on the sign-in round kicked off above (or, once it's failed, on the redirect effect
