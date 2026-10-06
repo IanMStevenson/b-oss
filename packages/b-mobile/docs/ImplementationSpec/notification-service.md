@@ -133,6 +133,11 @@ Stated as a prohibition because the failure would be silent and the endpoints ar
 - **Never call `PUT messages/notifications/unread`.** That is the app's call, and only the app's.
 - **Never call `GET entry` with comments included** for a registered user.
 
+The only other Blipfoto call the service makes is **`GET user/profile`** (no username, no extras),
+at registration and on a `PATCH` that replaces the read token, to check whom the token belongs to
+([#240](https://github.com/IanMStevenson/b-oss/issues/240)). It's a plain profile read with no
+read-state side effects.
+
 Use **`messages/totals/unread`**, not the near-identical `messages/notifications/unread/Total`
 resource — the latter returns the notification count under both keys and would make comment
 activity undetectable.
@@ -176,13 +181,17 @@ POST   /v1/registrations
   body: { blipfotoUserId, readToken, deviceToken, platform: "android" | "ios",
           pushComments?: boolean, pushNotifications?: boolean }   (both default true)
   → { registrationId, registrationSecret }
+  → 400 if Blipfoto rejects readToken; 403 if readToken belongs to a different Blipfoto account
+    than blipfotoUserId (case-insensitive; checked with GET user/profile, b-oss#240). Nothing is
+    stored in either case.
   Called by FLW-20 whenever a sign-in enables notifications.
   The per-registration secret returned here authenticates every later call for that registration.
 
 PATCH  /v1/registrations/:id
   auth:  Bearer registrationSecret
   body: { readToken?, deviceToken?, pollIntervalMinutes?, pushComments?, pushNotifications? }
-  → 204   (400 if a push flag isn't a boolean)
+  → 204   (400 if a push flag isn't a boolean or Blipfoto rejects readToken; 403 if readToken
+          belongs to a different account than the registration's. Nothing changes on an error.)
   Called by:
     - FLW-22, re-authorizing the read token (toggling notifications while read-write always
       re-authorizes, per auth.md's token lifecycle table).

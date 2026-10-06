@@ -15,7 +15,12 @@ import {
   updatePollInterval,
   updateStreamToggles,
 } from '../db.js';
-import { fetchUnreadTotals, isBearerUnrecognised, ReadTokenInvalidError } from '../blipfoto.js';
+import {
+  fetchTokenOwner,
+  fetchUnreadTotals,
+  isBearerUnrecognised,
+  ReadTokenInvalidError,
+} from '../blipfoto.js';
 import {
   generateId,
   generateSecret,
@@ -75,6 +80,31 @@ async function authenticate(db: DbLike, id: string, authHeader: string | null) {
   return row;
 }
 
+/** Turns Blipfoto rejecting a token the app has *just* sent into a 400. A 52 counts as invalid
+ * here, and only here: Blipfoto not recognising a token we were only just handed means it's junk
+ * input (b-oss#238). On a stored token the poll treats 52 as an ordinary error instead — see
+ * isBearerUnrecognised. Anything else is rethrown unchanged. */
+function asInvalidTokenError(err: unknown): unknown {
+  if (err instanceof ReadTokenInvalidError || isBearerUnrecognised(err)) {
+    return new HttpError(400, 'The supplied read token is not valid');
+  }
+  return err;
+}
+
+/** Refuse a read token that belongs to a different Blipfoto account from the one it's being
+ * registered for (b-oss#240). Usernames are compared case-insensitively, since Blipfoto treats
+ * them that way and the app's copy may differ in case from the profile's.
+ *
+ * 403 rather than 409: the token is valid, just not authorised to stand in for this account,
+ * which is a permission failure, not a clash with the registration's current state (409). It
+ * also stays distinct from the 400 for an invalid token, so the app can tell "sign in again in a
+ * clean browser" apart from "this token is junk". */
+function requireOwner(owner: string, blipfotoUserId: string): void {
+  if (owner.toLowerCase() !== blipfotoUserId.toLowerCase()) {
+    throw new HttpError(403, 'The read token belongs to a different Blipfoto account');
+  }
+}
+
 function isPlatform(value: unknown): value is Platform {
   return value === 'android' || value === 'ios';
 }
@@ -96,7 +126,8 @@ function requireOptionalBooleans(body: { pushComments?: unknown; pushNotificatio
  * 0. Without this, an account with pre-existing unread items at registration time would see the
  * very first activity-poll tick read as "N new comments/notifications" for items the user
  * already knew about — a false positive the spec doc doesn't discuss but this service can avoid
- * for free, since it already needs a live read token to store. It doesn't read any Blipfoto
+ * for free, since it already needs a live read token to store. Also checks the token belongs to
+ * `blipfotoUserId` (requireOwner) before storing anything. It doesn't read any Blipfoto
  * notification settings: the per-stream push toggles come from the request body, default on
  * (b-oss#244). */
 export async function createRegistration(
@@ -113,18 +144,18 @@ export async function createRegistration(
 
   requireOptionalBooleans(body);
 
+  // Both reads are side-effect-free and independent, so they run together.
   let seedTotals;
+  let owner;
   try {
-    seedTotals = await fetchUnreadTotals(body.readToken);
+    [seedTotals, owner] = await Promise.all([
+      fetchUnreadTotals(body.readToken),
+      fetchTokenOwner(body.readToken),
+    ]);
   } catch (err) {
-    // A 52 counts as an invalid token here, and only here: the app has just handed us this
-    // token, so Blipfoto not recognising it means it's junk input (b-oss#238). On a stored token
-    // the poll treats 52 as an ordinary error instead — see isBearerUnrecognised.
-    if (err instanceof ReadTokenInvalidError || isBearerUnrecognised(err)) {
-      throw new HttpError(400, 'The supplied read token is not valid');
-    }
-    throw err;
+    throw asInvalidTokenError(err);
   }
+  requireOwner(owner, body.blipfotoUserId);
 
   const id = generateId();
   const secret = generateSecret();
@@ -161,10 +192,20 @@ export async function patchRegistration(
   authHeader: string | null,
   body: PatchRegistrationBody,
 ): Promise<void> {
-  await authenticate(db, id, authHeader);
+  const row = await authenticate(db, id, authHeader);
   requireOptionalBooleans(body);
 
   if (body.readToken !== undefined) {
+    // A re-authorised token must belong to the same account as the row. Checked before any field
+    // is written, so a mismatch leaves the registration exactly as it was (b-oss#240).
+    let owner;
+    try {
+      owner = await fetchTokenOwner(body.readToken);
+    } catch (err) {
+      throw asInvalidTokenError(err);
+    }
+    requireOwner(owner, row.blipfoto_user_id);
+
     const key = await importEncryptionKey(env.READ_TOKEN_ENCRYPTION_KEY);
     const { ciphertext, nonce } = await encryptReadToken(body.readToken, key);
     await updateReadToken(db, id, ciphertext, nonce);
