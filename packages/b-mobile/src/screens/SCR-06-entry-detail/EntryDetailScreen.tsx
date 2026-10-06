@@ -54,6 +54,7 @@ import {
   IonText,
   IonButton,
   IonAlert,
+  IonToast,
 } from '@ionic/react';
 import { Flag, UserX, CornerUpLeft, Pencil, Trash2 } from 'lucide-react';
 import { AppHeader } from '../../components/AppHeader.js';
@@ -92,6 +93,7 @@ import { describeError, mapApiError } from '../../data/errors.js';
 import type { BlipComment as ApiComment } from '@b-oss/b-api';
 import { useDevicePrefsStore } from '../../state/devicePrefsStore.js';
 import { AccountIndicator } from '../../components/AccountIndicator.js';
+import { downloadOwnEntryImage } from '../../flows/downloadFlow.js';
 
 interface EntryDetailScreenProps {
   entryId: string;
@@ -149,6 +151,7 @@ export function EntryDetailScreen({ entryId, initialReplyToCommentId }: EntryDet
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [confirmUnfollow, setConfirmUnfollow] = useState(false);
   const [confirmDeleteEntry, setConfirmDeleteEntry] = useState(false);
+  const [downloadToast, setDownloadToast] = useState<string | null>(null);
   const [confirmHide, setConfirmHide] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<ApiComment | null>(null);
 
@@ -395,6 +398,17 @@ export function EntryDetailScreen({ entryId, initialReplyToCommentId }: EntryDet
     useHiddenMembersStore.getState().hide(account.activeAccountId, authorUsername);
   }
 
+  // Own journal only — the flow refuses anything else, and the button is only offered for it.
+  async function handleDownloadPhoto(): Promise<void> {
+    if (entryState.status !== 'loaded') return;
+    try {
+      const location = await downloadOwnEntryImage(entryState.data, activeAccount?.username);
+      setDownloadToast(location ? `Saved to ${location}` : 'Opened the photo');
+    } catch (err) {
+      setErrorMessage(err instanceof Error ? err.message : 'Could not save the photo.');
+    }
+  }
+
   function handleReportEntry(): void {
     navigate.push(`/entry/${entryId}/report`, { targetUsername: authorUsername ?? undefined });
   }
@@ -616,10 +630,17 @@ export function EntryDetailScreen({ entryId, initialReplyToCommentId }: EntryDet
                 ) : undefined
               }
               ownerActions={
-                isOwnEntry && canWrite
+                isOwnEntry
                   ? {
-                      onEdit: () => navigate.push(`/entry/${entryId}/edit`),
-                      onDelete: () => setConfirmDeleteEntry(true),
+                      // Downloading only reads, so a read-only sign-in still gets it; editing and
+                      // deleting need write access.
+                      onDownload: () => void handleDownloadPhoto(),
+                      ...(canWrite
+                        ? {
+                            onEdit: () => navigate.push(`/entry/${entryId}/edit`),
+                            onDelete: () => setConfirmDeleteEntry(true),
+                          }
+                        : {}),
                     }
                   : undefined
               }
@@ -674,6 +695,12 @@ export function EntryDetailScreen({ entryId, initialReplyToCommentId }: EntryDet
         ]}
       />
 
+      <IonToast
+        isOpen={downloadToast !== null}
+        message={downloadToast ?? ''}
+        duration={3500}
+        onDidDismiss={() => setDownloadToast(null)}
+      />
       <IonAlert
         isOpen={!!errorMessage}
         header="Something went wrong"

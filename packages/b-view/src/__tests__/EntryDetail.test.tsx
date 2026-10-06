@@ -182,6 +182,29 @@ describe('EntryDetail', () => {
       expect(screen.queryByLabelText('Edit entry')).toBeNull();
     });
 
+    it('shows a Download segment only when the host supplies onDownload', () => {
+      const onDownload = vi.fn();
+      const { rerender } = render(
+        <EntryDetail
+          {...base}
+          entryState={loadedState(makeEntry())}
+          ownerActions={{ onDownload }}
+        />,
+      );
+      fireEvent.click(screen.getByLabelText('Download photo'));
+      expect(onDownload).toHaveBeenCalledTimes(1);
+      expect(screen.queryByLabelText('Edit entry')).toBeNull();
+
+      rerender(
+        <EntryDetail
+          {...base}
+          entryState={loadedState(makeEntry())}
+          ownerActions={{ onEdit: vi.fn() }}
+        />,
+      );
+      expect(screen.queryByLabelText('Download photo')).toBeNull();
+    });
+
     it('keeps the stars/hearts pill when there are no views to show', () => {
       render(
         <EntryDetail

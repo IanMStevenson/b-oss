@@ -57,6 +57,13 @@ vi.mock('../../../flows/commentsFlow.js', () => ({
 
 const navPush = vi.fn();
 const navReplace = vi.fn();
+const downloadOwnEntryImage =
+  vi.fn<(entry: unknown, username: string | undefined) => Promise<string | null>>();
+vi.mock('../../../flows/downloadFlow.js', () => ({
+  downloadOwnEntryImage: (entry: unknown, username: string | undefined) =>
+    downloadOwnEntryImage(entry, username),
+}));
+
 vi.mock('../../../app/routes/useAppNavigate.js', () => ({
   useAppNavigate: () => ({ push: navPush, replace: navReplace, goBack: vi.fn() }),
 }));
@@ -213,6 +220,65 @@ describe('EntryDetailScreen', () => {
     renderScreen();
     expect(await screen.findByText('You’ve hidden this member.')).toBeDefined();
     expect(screen.queryByText('A day out')).toBeNull();
+  });
+
+  describe('Download photo (b-oss#175) — own journal only', () => {
+    const ownEntry: LoadedEntry = {
+      ...baseLoadedEntry,
+      entry: { ...baseLoadedEntry.entry, username: 'me' },
+    };
+
+    it('offers Download on your own entry', async () => {
+      const { fetchEntry } = await import('../../../data/entries.js');
+      vi.mocked(fetchEntry).mockResolvedValue(ownEntry);
+      renderScreen();
+      await screen.findByText('A day out');
+      expect(screen.getByLabelText('Download photo')).toBeDefined();
+    });
+
+    it('NEVER offers Download on someone else’s entry', async () => {
+      const { fetchEntry } = await import('../../../data/entries.js');
+      vi.mocked(fetchEntry).mockResolvedValue(baseLoadedEntry); // username: 'alice'
+      renderScreen();
+      await screen.findByText('A day out');
+      expect(screen.queryByLabelText('Download photo')).toBeNull();
+    });
+
+    it('offers Download to a read-only owner too (it only reads), but not Edit/Delete', async () => {
+      useAccountsStore.setState({
+        accounts: [{ ...readWriteAccount, appTokenScope: 'read' }],
+        activeAccountId: 'a1',
+        hydrated: true,
+      });
+      const { fetchEntry } = await import('../../../data/entries.js');
+      vi.mocked(fetchEntry).mockResolvedValue(ownEntry);
+      renderScreen();
+      await screen.findByText('A day out');
+      expect(screen.getByLabelText('Download photo')).toBeDefined();
+      expect(screen.queryByLabelText('Edit entry')).toBeNull();
+      expect(screen.queryByLabelText('Delete entry')).toBeNull();
+    });
+
+    it('tapping it saves the photo as the signed-in account and says where', async () => {
+      const { fetchEntry } = await import('../../../data/entries.js');
+      vi.mocked(fetchEntry).mockResolvedValue(ownEntry);
+      downloadOwnEntryImage.mockResolvedValue('Pictures/b-mobile/photo.jpg');
+      renderScreen();
+      await screen.findByText('A day out');
+      await userEvent.click(screen.getByLabelText('Download photo'));
+      await waitFor(() => expect(downloadOwnEntryImage).toHaveBeenCalledTimes(1));
+      expect(downloadOwnEntryImage.mock.calls[0]?.[1]).toBe('me');
+    });
+
+    it('reports a failure instead of failing silently', async () => {
+      const { fetchEntry } = await import('../../../data/entries.js');
+      vi.mocked(fetchEntry).mockResolvedValue(ownEntry);
+      downloadOwnEntryImage.mockRejectedValue(new Error('Could not save the image: disk full'));
+      renderScreen();
+      await screen.findByText('A day out');
+      await userEvent.click(screen.getByLabelText('Download photo'));
+      expect(await screen.findByText(/disk full/)).toBeDefined();
+    });
   });
 
   describe('FLW-13 — owner-only Edit', () => {
