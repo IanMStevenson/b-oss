@@ -20,7 +20,7 @@
     "@bbob/preset": "^4.4.1",
     "@bbob/react": "^4.4.1",
     "@bbob/types": "^4.4.1",
-    "lucide-react": "^1.48.0",
+    "lucide-react": "^1.51.0",
     "react": "^19.3.0",
     "react-dom": "^19.3.0",
     "react-zoom-pan-pinch": "^4.2.0"
