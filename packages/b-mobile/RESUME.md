@@ -17,13 +17,36 @@ model…" and "Image cache"):
   Map/Followers/Entry state (#182, #190). Sign In has Back when drilled into (#195).
 - **Image cache hardening** (#185/#186): dedupe, verify-then-rename, retry, fallback, `[imgcache]` logs.
 - **API fixes**: `journal/month` shape + `username` (#169), page-index clamp (#153).
-- **Settings → Browsing → Photo size** (#194).
-- **CI/dependency hygiene**: CI runs on `b-mobile-initial` (#188); Dependabot targets it (#198).
-- **Test flakes**: Ionic overlays are mocked at the boundary in jsdom (#193) — never drive
-  `IonActionSheet`/`IonAlert` for real in tests.
-- Gradle on the egress-controlled VM: see root `CLAUDE.md`.
+- **Settings → Browsing → Photo size** (#194); **Show zoom/navigation bar** hides the whole controls
+  row of `ThumbnailGrid` (new `showControls`/`showCalendar` props, default true so b-view-backup,
+  b-ark and Chrome are unaffected — #217). The calendar shows only on the Me tab and a user's
+  Entries tab.
+- **Browse tabs**: Recent, Following, Me, Popular, Milestones, New Blippers, Nearby. Milestones uses
+  `entries/milestones`, an **undocumented** endpoint found by on-device probing (noted as unofficial
+  in b-api's `api-reference.md`). The tab strip has an edge fade + chevron when tabs are clipped
+  (`components/ScrollEdgeHint.tsx`, #216).
+- **Tabs reset to page 1 when chosen** (Browse, Search, Profile); only the active tab is mounted,
+  keyed by account + tab, so switching account reloads per-account feeds (#204, #214). Back-from-
+  entry still restores the tab and page.
+- **100 entries per page on every entry feed** (the on-device probe showed all honour it and clamp
+  `page_index` at 200); people lists stay 30. Recent ends at 900 entries, Popular ~327 (#196).
+- **Account indicator/switcher** is in the header of the entry page, lists, Search, Map, Profile,
+  inboxes, Settings and Help (not forms or Accounts). The active account is a pale-green row with a
+  tick; profile pictures come from `flows/avatarFlow.ts` (fetched per account at sign-in and every
+  launch); Settings → Misc → *Account picture* chooses picture vs icon (#209, #212, #219). The entry
+  page and Followers/Following reload when the account changes.
+- **CI**: runs on `b-mobile-initial` (#188); Dependabot targets it (#198). Test flakes were two
+  causes — races asserted synchronously, and timeouts too tight for a loaded `windows-latest`
+  runner. Rules for tests: mock Ionic overlays at the boundary (#193), use `waitFor` for anything
+  that settles after a tick, and rely on the raised limits (vitest 20s/30s, Testing Library 5s —
+  #221).
+- **`docs/AppLimitations.md`** logs what blipfoto.com can do that the app can't, and why.
+- Gradle on the egress-controlled VM: see root `CLAUDE.md`. Also set `ANDROID_HOME=$HOME/Android/Sdk`
+  in a fresh worktree or Gradle can't find the SDK.
 
-Open: notification creation/push deployment (Phase 13, credentials), #196 research, #173 awaiting merge.
+**Open:** #185 (image glitches — fix merged, awaiting confirmation they're gone), #206 (WYSIWYG comment
+editor — parked), #183 (Ionic view stack — deferred), #175 (download — deferred), #149 (port b-ark's
+extras/hi-res), #148 (deploy b-push — needs Cloudflare/Firebase credentials). Epic #167 has only #175 left.
 
 ## Status
 
