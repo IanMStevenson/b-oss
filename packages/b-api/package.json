@@ -11,7 +11,7 @@
     "test": "vitest run"
   },
   "devDependencies": {
-    "msw": "^2.15.0",
+    "msw": "^3.0.2",
     "vitest": "^5.0.1"
   }
 }
