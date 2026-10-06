@@ -74,7 +74,9 @@ export async function fetchUnreadTotals(readToken: string): Promise<UnreadTotals
 export async function fetchPushConfigured(readToken: string): Promise<boolean> {
   const client = new BlipfotoClient(readToken);
   try {
-    const settings = await client.getNotificationSettings();
+    // returnPush is required: without return_push=1 Blipfoto omits the push object entirely,
+    // which read as "not configured" for every user and suppressed every push (b-oss#242).
+    const settings = await client.getNotificationSettings({ returnPush: true });
     return settings.push?.configured === 1;
   } catch (err) {
     if (isReadTokenRejected(err)) {

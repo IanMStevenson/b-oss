@@ -66,6 +66,20 @@ describe('fetchUnreadTotals', () => {
 });
 
 describe('fetchPushConfigured', () => {
+  it('asks Blipfoto for the push object (return_push=1) (b-oss#242)', async () => {
+    // Blipfoto only includes `push` when asked; the old call omitted the flag, so every user
+    // read as unconfigured in production while this file's fakes returned `push` regardless.
+    const spy = vi
+      .spyOn(globalThis, 'fetch')
+      .mockResolvedValueOnce(
+        new Response(envelope({ push: { configured: 1, settings: {} } }), { status: 200 }),
+      );
+    await fetchPushConfigured('a-read-token');
+    const url = new URL(spy.mock.calls[0][0] as string);
+    expect(url.pathname).toBe('/4/user/settings/notifications.json');
+    expect(url.searchParams.get('return_push')).toBe('1');
+  });
+
   it('reads push.configured === 1 as true', async () => {
     mockFetchOnce(envelope({ push: { configured: 1, settings: { comment_received: 1 } } }));
     expect(await fetchPushConfigured('a-read-token')).toBe(true);
