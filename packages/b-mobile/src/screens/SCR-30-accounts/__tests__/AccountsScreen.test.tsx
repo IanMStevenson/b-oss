@@ -13,6 +13,54 @@ import { MemoryRouter } from 'react-router-dom';
 import { AccountsScreen } from '../AccountsScreen.js';
 import { useAccountsStore } from '../../../state/accountsStore.js';
 import type { StoredAccount } from '../../../state/accountsStore.js';
+import { AccountMismatchError } from '../../../flows/accountMismatch.js';
+
+// IonAlert stubbed at the @ionic/react boundary (b-oss#193 — Ionic's animated overlays drop clicks
+// in jsdom under load). The header is rendered as text so it can be found either way.
+vi.mock('@ionic/react', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@ionic/react')>();
+  interface StubButton {
+    text: string;
+    role?: string;
+    handler?: () => void;
+  }
+  function IonAlert({
+    isOpen,
+    header,
+    message,
+    buttons = [],
+    onDidDismiss,
+  }: {
+    isOpen: boolean;
+    header?: string;
+    message?: string;
+    buttons?: StubButton[];
+    onDidDismiss?: () => void;
+  }) {
+    if (!isOpen) return null;
+    return (
+      <div role="dialog" aria-label={header}>
+        <h2>{header}</h2>
+        {message && <p>{message}</p>}
+        {buttons.map((b) => (
+          <button
+            key={b.text}
+            onClick={() => {
+              b.handler?.();
+              onDidDismiss?.();
+            }}
+          >
+            {b.text}
+          </button>
+        ))}
+      </div>
+    );
+  }
+  return { ...actual, IonAlert };
+});
+
+let isNative = false;
+vi.mock('../../../platform/appState.js', () => ({ isNativePlatform: () => isNative }));
 
 const {
   MockNeedsReauthError,
@@ -56,6 +104,7 @@ afterEach(() => {
   cleanup();
   vi.resetAllMocks();
   useAccountsStore.setState({ accounts: [], activeAccountId: null });
+  isNative = false;
 });
 
 function account(overrides: Partial<StoredAccount> = {}): StoredAccount {
@@ -149,9 +198,8 @@ describe('AccountsScreen', () => {
     renderScreen();
     await userEvent.click(screen.getByText('alice'));
     await userEvent.click(screen.getByText('Remove account'));
-    await userEvent.click(
-      document.querySelector('ion-alert[header="Remove account?"] .alert-button-role-destructive')!,
-    );
+    await screen.findByRole('dialog', { name: 'Remove account?' });
+    await userEvent.click(screen.getByRole('button', { name: 'Remove' }));
     await waitFor(() => expect(removeAccount).toHaveBeenCalledWith('a1'));
     expect(await screen.findByText('Add account')).toBeDefined();
   });
@@ -239,6 +287,49 @@ describe('AccountsScreen', () => {
       }),
     );
     expect(screen.queryByText('Remove account')).toBeNull();
+  });
+
+  it('Sign in again as the wrong account explains, and retry uses the in-app browser (b-oss#240)', async () => {
+    isNative = true;
+    changeAccountMode.mockRejectedValueOnce(new AccountMismatchError('alice', 'bob'));
+    useAccountsStore.setState({
+      accounts: [
+        account({ notificationRegistrationId: 'r1', notificationStatus: 'read-token-invalid' }),
+      ],
+      activeAccountId: 'a1',
+    });
+    renderScreen();
+    await userEvent.click(screen.getByText('Sign in again'));
+
+    const dialog = await screen.findByRole('dialog', { name: 'Wrong Blipfoto account' });
+    expect(dialog.textContent).toContain('That sign-in was for bob, not alice.');
+    changeAccountMode.mockResolvedValue(undefined);
+    await userEvent.click(screen.getByRole('button', { name: 'Try again in the app' }));
+
+    await waitFor(() =>
+      expect(changeAccountMode).toHaveBeenLastCalledWith('a1', {
+        scope: 'read,write',
+        notifications: true,
+        useEmbedded: true,
+      }),
+    );
+    expect(screen.queryByText(/Sign-in failed/)).toBeNull();
+  });
+
+  it('a mode change that comes back as another account explains it (b-oss#240)', async () => {
+    changeAccountMode.mockRejectedValueOnce(new AccountMismatchError('alice', 'bob'));
+    useAccountsStore.setState({
+      accounts: [account({ appTokenScope: 'read' })],
+      activeAccountId: 'a1',
+    });
+    renderScreen();
+    await userEvent.click(screen.getByText('alice'));
+    await userEvent.click(screen.getByText('Read-write'));
+    const dialog = await screen.findByRole('dialog', { name: 'Wrong Blipfoto account' });
+    expect(dialog.textContent).toContain('Your browser is signed in to Blipfoto as bob.');
+    await userEvent.click(screen.getByRole('button', { name: 'OK' }));
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+    expect(changeAccountMode).toHaveBeenCalledTimes(1);
   });
 
   it('no Sign in again for accounts whose notifications are simply off', () => {

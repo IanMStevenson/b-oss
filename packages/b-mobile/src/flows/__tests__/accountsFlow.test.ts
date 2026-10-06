@@ -30,8 +30,15 @@ vi.mock('../../platform/secureStorage.js', () => ({
 }));
 
 const revokeToken = vi.fn().mockResolvedValue({ success: 1 });
+// Which tokens were revoked, in order (b-oss#240's tests care which one, not just how many).
+const revokedTokens: string[] = [];
 vi.mock('../../data/client.js', () => ({
-  getClientForToken: vi.fn(() => ({ revokeToken })),
+  getClientForToken: vi.fn((token: string) => ({
+    revokeToken: () => {
+      revokedTokens.push(token);
+      return revokeToken() as Promise<unknown>;
+    },
+  })),
 }));
 
 const runOAuthRound = vi.fn();
@@ -60,8 +67,13 @@ vi.mock('../pushFlow.js', () => ({
   deregisterAccountFromPush: (...args: unknown[]) => deregisterAccountFromPush(...args),
 }));
 
+// Off-native by default (a desktop/CI run); the b-oss#240 browser-default tests flip it.
+let isNative = false;
+vi.mock('../../platform/appState.js', () => ({ isNativePlatform: () => isNative }));
+
 const { useAccountsStore } = await import('../../state/accountsStore.js');
 const { getToken } = await import('../../platform/secureStorage.js');
+const { AccountMismatchError } = await import('../accountMismatch.js');
 const {
   signInGated,
   signInDeliberate,
@@ -74,6 +86,8 @@ const {
 
 function resetStore() {
   tokenStore.clear();
+  revokedTokens.length = 0;
+  isNative = false;
   useAccountsStore.setState({ accounts: [], activeAccountId: null, hydrated: true });
   vi.clearAllMocks();
 }
@@ -335,7 +349,7 @@ describe('changeAccountMode (FLW-22)', () => {
 
     await changeAccountMode('alice', { scope: 'read,write', notifications: false });
 
-    expect(runOAuthRound).toHaveBeenCalledWith('read,write');
+    expect(runOAuthRound).toHaveBeenCalledWith('read,write', { useEmbedded: false });
     // The superseded token is revoked, never left dangling.
     expect(revokeToken).toHaveBeenCalledTimes(1);
     expect(await getToken('alice', 'app')).toBe('new-write-token');
@@ -574,5 +588,254 @@ describe('handleForcedLogout (FLW-02)', () => {
     });
     handleForcedLogout('alice', 'app');
     expect(useAccountsStore.getState().accounts).toHaveLength(1);
+  });
+});
+
+describe('owner check on every round for an existing account (b-oss#240)', () => {
+  type Scope = 'read' | 'read,write';
+  function stored(
+    id: string,
+    scope: Scope | null = 'read,write',
+    extra: Record<string, unknown> = {},
+  ) {
+    return {
+      id,
+      username: id,
+      avatarUrl: null,
+      appTokenScope: scope,
+      hasServiceToken: false,
+      notificationRegistrationId: null,
+      notificationStatus: null,
+      ...extra,
+    };
+  }
+
+  it('sign-in: a service round for someone else is revoked, nothing stored, and rethrown', async () => {
+    runOAuthRound
+      .mockResolvedValueOnce({
+        accessToken: 'tok-rw',
+        grantedScope: 'read,write',
+        username: 'carol',
+      })
+      .mockResolvedValueOnce({
+        accessToken: 'tok-mallory',
+        grantedScope: 'read',
+        username: 'mallory',
+      });
+
+    const err = await signInDeliberate({ scope: 'read,write', notifications: true }).catch(
+      (e: unknown) => e,
+    );
+
+    expect(err).toBeInstanceOf(AccountMismatchError);
+    expect(err).toMatchObject({ expected: 'carol', actual: 'mallory', inApp: false });
+    expect(revokedTokens).toEqual(['tok-mallory']);
+    expect(registerAccountForPush).not.toHaveBeenCalled();
+    expect(await getToken('carol', 'service')).toBeNull();
+    // The first round stands: signed in read-write, just without notifications.
+    expect(await getToken('carol', 'app')).toBe('tok-rw');
+    expect(useAccountsStore.getState().activeAccountId).toBe('carol');
+    expect(useAccountsStore.getState().accounts[0]?.hasServiceToken).toBe(false);
+  });
+
+  it('sign-in: the right owner (any case) registers as normal', async () => {
+    runOAuthRound
+      .mockResolvedValueOnce({
+        accessToken: 'tok-rw',
+        grantedScope: 'read,write',
+        username: 'carol',
+      })
+      .mockResolvedValueOnce({ accessToken: 'tok-svc', grantedScope: 'read', username: 'Carol' });
+
+    await signInDeliberate({ scope: 'read,write', notifications: true });
+
+    expect(revokeToken).not.toHaveBeenCalled();
+    expect(await getToken('carol', 'service')).toBe('tok-svc');
+  });
+
+  it('a mismatch in the in-app browser says so (inApp)', async () => {
+    runOAuthRound
+      .mockResolvedValueOnce({
+        accessToken: 'tok-rw',
+        grantedScope: 'read,write',
+        username: 'carol',
+      })
+      .mockResolvedValueOnce({ accessToken: 'tok-m', grantedScope: 'read', username: 'mallory' });
+    const err = await signInDeliberate({
+      scope: 'read,write',
+      notifications: true,
+      useEmbedded: true,
+    }).catch((e: unknown) => e);
+    expect(err).toMatchObject({ inApp: true });
+  });
+
+  it('enable path: a service round for someone else stores nothing and registers nothing', async () => {
+    tokenStore.set('alice:app', 'write-token');
+    useAccountsStore.setState({ accounts: [stored('alice')], activeAccountId: 'alice' });
+    runOAuthRound.mockResolvedValueOnce({
+      accessToken: 'tok-bob',
+      grantedScope: 'read',
+      username: 'bob',
+    });
+
+    await expect(
+      changeAccountMode('alice', { scope: 'read,write', notifications: true }),
+    ).rejects.toBeInstanceOf(AccountMismatchError);
+
+    expect(revokedTokens).toEqual(['tok-bob']);
+    expect(registerAccountForPush).not.toHaveBeenCalled();
+    expect(await getToken('alice', 'service')).toBeNull();
+    expect(useAccountsStore.getState().accounts[0]?.hasServiceToken).toBe(false);
+  });
+
+  it('scope change: a round for someone else leaves the account and its old token untouched', async () => {
+    tokenStore.set('alice:app', 'old-read-token');
+    useAccountsStore.setState({ accounts: [stored('alice', 'read')], activeAccountId: 'alice' });
+    runOAuthRound.mockResolvedValueOnce({
+      accessToken: 'tok-bob',
+      grantedScope: 'read,write',
+      username: 'bob',
+    });
+
+    await expect(
+      changeAccountMode('alice', { scope: 'read,write', notifications: false }),
+    ).rejects.toBeInstanceOf(AccountMismatchError);
+
+    expect(revokedTokens).toEqual(['tok-bob']); // the new one only — never the old one
+    expect(await getToken('alice', 'app')).toBe('old-read-token');
+    expect(useAccountsStore.getState().accounts[0]?.appTokenScope).toBe('read');
+  });
+
+  it('re-authorizing a needs-reauth account is owner-checked too', async () => {
+    useAccountsStore.setState({ accounts: [stored('alice', null)], activeAccountId: null });
+    runOAuthRound.mockResolvedValueOnce({
+      accessToken: 'tok-bob',
+      grantedScope: 'read,write',
+      username: 'bob',
+    });
+    await expect(
+      changeAccountMode('alice', { scope: 'read,write', notifications: false }),
+    ).rejects.toBeInstanceOf(AccountMismatchError);
+    expect(await getToken('alice', 'app')).toBeNull();
+    expect(useAccountsStore.getState().accounts[0]?.appTokenScope).toBeNull();
+  });
+
+  it('never revokes a wrong-owner token that another account here already holds', async () => {
+    tokenStore.set('alice:app', 'write-token');
+    tokenStore.set('bob:service', 'bobs-read-token');
+    useAccountsStore.setState({
+      accounts: [stored('alice'), stored('bob', 'read,write', { hasServiceToken: true })],
+      activeAccountId: 'alice',
+    });
+    runOAuthRound.mockResolvedValueOnce({
+      accessToken: 'bobs-read-token',
+      grantedScope: 'read',
+      username: 'bob',
+    });
+    await expect(
+      changeAccountMode('alice', { scope: 'read,write', notifications: true }),
+    ).rejects.toBeInstanceOf(AccountMismatchError);
+    expect(revokeToken).not.toHaveBeenCalled();
+    expect(await getToken('bob', 'service')).toBe('bobs-read-token');
+  });
+
+  it("the service's own 403 (pushFlow's AccountMismatchError) revokes the separate read token", async () => {
+    tokenStore.set('alice:app', 'write-token');
+    useAccountsStore.setState({ accounts: [stored('alice')], activeAccountId: 'alice' });
+    runOAuthRound.mockResolvedValueOnce({
+      accessToken: 'tok-svc',
+      grantedScope: 'read',
+      username: 'alice',
+    });
+    registerAccountForPush.mockRejectedValueOnce(new AccountMismatchError('alice', null));
+
+    await expect(
+      changeAccountMode('alice', { scope: 'read,write', notifications: true }),
+    ).rejects.toMatchObject({ expected: 'alice', actual: null });
+    expect(revokedTokens).toEqual(['tok-svc']);
+    expect(await getToken('alice', 'service')).toBeNull();
+  });
+
+  it("the service's 403 on a read-only account never revokes its app token", async () => {
+    tokenStore.set('alice:app', 'read-token');
+    useAccountsStore.setState({ accounts: [stored('alice', 'read')], activeAccountId: 'alice' });
+    registerAccountForPush.mockRejectedValueOnce(new AccountMismatchError('alice', null));
+    await expect(
+      changeAccountMode('alice', { scope: 'read', notifications: true }),
+    ).rejects.toBeInstanceOf(AccountMismatchError);
+    expect(revokeToken).not.toHaveBeenCalled();
+    expect(await getToken('alice', 'app')).toBe('read-token');
+  });
+});
+
+describe('token-change browser default (b-oss#240)', () => {
+  function rw(id: string) {
+    return {
+      id,
+      username: id,
+      avatarUrl: null,
+      appTokenScope: 'read,write' as const,
+      hasServiceToken: false,
+      notificationRegistrationId: null,
+      notificationStatus: null,
+    };
+  }
+  beforeEach(() => {
+    tokenStore.set('alice:app', 'write-token');
+    runOAuthRound.mockResolvedValue({ accessToken: 'r', grantedScope: 'read', username: 'alice' });
+  });
+
+  it('more than one account on native: the clean in-app browser', async () => {
+    isNative = true;
+    useAccountsStore.setState({ accounts: [rw('alice'), rw('bob')], activeAccountId: 'alice' });
+    await changeAccountMode('alice', { scope: 'read,write', notifications: true });
+    expect(runOAuthRound).toHaveBeenCalledWith('read', { useEmbedded: true });
+  });
+
+  it('exactly one account on native: the system browser', async () => {
+    isNative = true;
+    useAccountsStore.setState({ accounts: [rw('alice')], activeAccountId: 'alice' });
+    await changeAccountMode('alice', { scope: 'read,write', notifications: true });
+    expect(runOAuthRound).toHaveBeenCalledWith('read', { useEmbedded: false });
+  });
+
+  it("off native there's no in-app browser, whatever the count", async () => {
+    useAccountsStore.setState({ accounts: [rw('alice'), rw('bob')], activeAccountId: 'alice' });
+    await changeAccountMode('alice', { scope: 'read,write', notifications: true });
+    expect(runOAuthRound).toHaveBeenCalledWith('read', { useEmbedded: false });
+  });
+
+  it("the caller's explicit choice wins (the mismatch retry)", async () => {
+    isNative = true;
+    useAccountsStore.setState({ accounts: [rw('alice')], activeAccountId: 'alice' });
+    await changeAccountMode('alice', {
+      scope: 'read,write',
+      notifications: true,
+      useEmbedded: true,
+    });
+    expect(runOAuthRound).toHaveBeenCalledWith('read', { useEmbedded: true });
+  });
+
+  it('beforeServiceRound: false skips the read-only round and registers nothing', async () => {
+    useAccountsStore.setState({ accounts: [rw('alice')], activeAccountId: 'alice' });
+    const beforeServiceRound = vi.fn().mockResolvedValue(false);
+    await changeAccountMode(
+      'alice',
+      { scope: 'read,write', notifications: true },
+      { beforeServiceRound },
+    );
+    expect(beforeServiceRound).toHaveBeenCalledTimes(1);
+    expect(runOAuthRound).not.toHaveBeenCalled();
+    expect(registerAccountForPush).not.toHaveBeenCalled();
+  });
+
+  it('beforeServiceRound: true proceeds', async () => {
+    useAccountsStore.setState({ accounts: [rw('alice')], activeAccountId: 'alice' });
+    await changeAccountMode(
+      'alice',
+      { scope: 'read,write', notifications: true },
+      { beforeServiceRound: () => Promise.resolve(true) },
+    );
+    expect(registerAccountForPush).toHaveBeenCalledTimes(1);
   });
 });

@@ -93,6 +93,12 @@ Notifications sub-screen (redesigned in [b-oss#244](https://github.com/IanMSteve
     warning. These are token actions, not content writes, so they work in either sign-in mode and
     apply immediately (no Save). When the service has reported the token dead, a note says
     notifications for that account need a sign-in, and turning a toggle on signs in again.
+    On a read-write account, turning the first toggle on first shows `SCR-01`'s **"One more
+    sign-in"** explainer [Cancel] [Continue]; Cancel leaves the toggle off. That sign-in uses the
+    clean in-app browser when more than one account is on the device, and its token's owner is
+    checked: if it's another account, the token is revoked, nothing changes, and an alert names
+    the account it was actually for, with **Try again in the app** on native
+    ([b-oss#240](https://github.com/IanMStevenson/b-oss/issues/240)).
   - **Feed hint** — Blipfoto never creates (or counts) a notification whose `feed_*` type is off,
     so the app can't push about it. While *Push for new notifications* is on and some saved feed
     types are off, a quiet note under it names them (*"Your Blipfoto feed has stars and follower

@@ -81,7 +81,25 @@ flowchart TD
    still-valid token it holds is untouched. This is also how a notification-service-reported stale
    read token gets fixed: scoped to that one token, the account's write access was never affected.
 
+7. **Every authorization round here is for an existing account, so each is owner-checked**
+   ([b-oss#240](https://github.com/IanMStevenson/b-oss/issues/240)): a scope change, the
+   read-only notifications round, re-authorizing a needs-reauth account, and `SCR-30`'s *Sign in
+   again*. The new token's owner (`GET oauth/token`) must match the account, case-insensitively;
+   otherwise the new token is revoked (unless the app already holds that exact token for some
+   account), nothing is stored, and the account stays exactly as it was. The screen that started
+   it says which account the sign-in was actually for and offers to retry in the clean in-app
+   browser. The notification service's 403 (token owner ≠ `blipfotoUserId`) is shown the same way.
+   **Browser:** with more than one account on the device these rounds always use the clean in-app
+   browser (the phone's browser is likely logged in as one of the others); with exactly one, the
+   phone's browser. The retry always uses the in-app browser.
+8. **Turning the first push toggle on for a read-write account** (`SCR-25`) shows the same "One more
+   sign-in" explainer as `SCR-01` before the read-only round — [Cancel] [Continue]. Cancel changes
+   nothing and the toggle goes back off.
+
 ## Acceptance criteria
+- [ ] Every round for an existing account is owner-checked; a mismatch revokes the new token,
+      changes nothing, and is explained with a retry in the in-app browser.
+- [ ] With more than one account, token changes use the in-app browser; with one, the phone's.
 - [ ] Every mode change follows the token lifecycle table in `auth.md` exactly — no transition
       silently upgrades scope or silently retains a token the new mode doesn't need.
 - [ ] Turning notifications off deregisters the account from the notification service; turning

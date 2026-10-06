@@ -23,6 +23,7 @@ import * as pushService from '../data/pushService.js';
 import { useAccountsStore, ALL_PUSH_STREAMS } from '../state/accountsStore.js';
 import type { PushStreams } from '../state/accountsStore.js';
 import { handleForcedLogout } from './accountsFlow.js';
+import { AccountMismatchError } from './accountMismatch.js';
 
 /** Checked/requested *before* any read-token authorization round for notifications (rules.md:
  * "never make the user authorize something already known to be undeliverable" — app-
@@ -50,7 +51,12 @@ export async function ensurePushPermission(): Promise<boolean> {
  *
  * If the account still has an older registration (the "Sign in again" recovery after the
  * service reported its read token dead — FLW-02 keeps the registration id and secret), that row
- * is deleted best-effort once the new one exists, so it isn't left orphaned on the service. */
+ * is deleted best-effort once the new one exists, so it isn't left orphaned on the service.
+ *
+ * The one failure that *is* thrown: b-push's 403 for a read token that belongs to a different
+ * Blipfoto account (its owner check, b-oss#240) becomes AccountMismatchError. The app checks the
+ * owner itself after every round first, so this is defence in depth — but if it ever fires, the
+ * user needs the same "wrong account" explanation, not a silent no-op. */
 export async function registerAccountForPush(
   accountId: string,
   readToken: string,
@@ -87,7 +93,10 @@ export async function registerAccountForPush(
       await pushService.deleteRegistration(staleRegistrationId, staleSecret).catch(() => {});
     }
     return true;
-  } catch {
+  } catch (err) {
+    if (err instanceof pushService.PushServiceError && err.status === 403) {
+      throw new AccountMismatchError(accountId, null);
+    }
     return false;
   }
 }

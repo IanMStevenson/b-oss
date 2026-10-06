@@ -24,6 +24,8 @@ import { deleteQueuedFile } from '../platform/upload.js';
 import { refreshAccountAvatar } from './avatarFlow.js';
 import { runOAuthRound, OAuthCancelledError } from './oauthRound.js';
 import type { OAuthResult } from './oauthRound.js';
+import { AccountMismatchError, sameUsername } from './accountMismatch.js';
+import { isNativePlatform } from '../platform/appState.js';
 import { cancelReminderForAccount } from './reminderFlow.js';
 import {
   ensurePushPermission,
@@ -31,7 +33,7 @@ import {
   deregisterAccountFromPush,
 } from './pushFlow.js';
 
-export { OAuthCancelledError };
+export { OAuthCancelledError, AccountMismatchError };
 
 export class NeedsReauthError extends Error {
   constructor(public readonly accountId: string) {
@@ -56,6 +58,70 @@ async function storeAppToken(result: OAuthResult): Promise<StoredAccount> {
   useAccountsStore.getState().upsertAccount(account);
   void refreshAccountAvatar(account.id); // so the switcher shows their picture straight away
   return account;
+}
+
+/** b-oss#240: which browser a token change for an *existing* account uses (the notifications
+ * read-only round, a scope change, Sign in again) when the caller doesn't say. With more than one
+ * account on this device the system browser is quite likely logged in to Blipfoto as a different
+ * one of them, so the clean in-app browser is forced; with a single account the system browser is
+ * fine (and saves typing a password). The owner check in runRoundForAccount() applies either way. */
+export function tokenChangeUsesEmbedded(): boolean {
+  return isNativePlatform() && useAccountsStore.getState().accounts.length > 1;
+}
+
+/** Best-effort revoke of a token this app has no use for — unless the same string is already held
+ * for some account here. Blipfoto might hand back an existing token for the same user and app,
+ * and revoking a wrong-owner token must never sign out the account it actually belongs to. */
+async function revokeUnlessHeld(token: string): Promise<void> {
+  for (const account of useAccountsStore.getState().accounts) {
+    for (const purpose of ['app', 'service'] as const) {
+      if ((await getToken(account.id, purpose)) === token) return;
+    }
+  }
+  await getClientForToken(token)
+    .revokeToken()
+    .catch(() => {
+      // Best-effort — the token is discarded locally either way.
+    });
+}
+
+/** One OAuth round whose token is meant for `expectedUsername` (b-oss#240). runOAuthRound has
+ * already confirmed the token with `GET oauth/token`, which names its owner; if that isn't the
+ * expected account the token is revoked (unless held — see revokeUnlessHeld), nothing is stored,
+ * and AccountMismatchError says who it was for. */
+async function runRoundForAccount(
+  expectedUsername: string,
+  scope: 'read' | 'read,write',
+  options: { useEmbedded?: boolean },
+): Promise<OAuthResult> {
+  const result = await runOAuthRound(scope, options);
+  if (!sameUsername(result.username, expectedUsername)) {
+    await revokeUnlessHeld(result.accessToken);
+    throw new AccountMismatchError(expectedUsername, result.username, options.useEmbedded === true);
+  }
+  return result;
+}
+
+/** Registers `token` with b-push for the account and, on success, keeps it as the service token.
+ * b-push refusing the token as someone else's (pushFlow's AccountMismatchError, from its 403) is
+ * rethrown after the token is revoked — unless it's the account's own app token (read-only mode,
+ * where the two are the same credential), which revokeUnlessHeld leaves alone. */
+async function registerServiceToken(
+  accountId: string,
+  token: string,
+  streams: PushStreams,
+): Promise<void> {
+  let registered: boolean;
+  try {
+    registered = await registerAccountForPush(accountId, token, streams);
+  } catch (err) {
+    if (err instanceof AccountMismatchError) await revokeUnlessHeld(token);
+    throw err;
+  }
+  if (registered) {
+    await setToken(accountId, 'service', token);
+    useAccountsStore.getState().updateAccount(accountId, { hasServiceToken: true });
+  }
 }
 
 /** Dev-only: seeds an account from a token obtained outside the app (e.g. Blipfoto's own app-
@@ -88,7 +154,8 @@ export interface SignInModeChoice {
   notifications: boolean;
   /** Runs every OAuth round in this sign-in through the embedded WebView (oauthRound.ts) instead
    * of the system browser, forcing a fresh login — SCR-01's "force new sign-in" toggle, for
-   * adding a second account without logging the system browser out of the first. */
+   * adding a second account without logging the system browser out of the first. In
+   * changeAccountMode, omitted means tokenChangeUsesEmbedded() decides (b-oss#240). */
   useEmbedded?: boolean;
   /** Which push streams to register with when this turns notifications on (b-oss#244). Sign-in's
    * "Get notifications" means both. changeAccountMode defaults to the account's stored choice, so
@@ -108,7 +175,8 @@ export interface SignInHooks {
   /** Called right before the second (read-only, notification-service) OAuth round that Read-write
    * + notifications needs. Resolve `false` to skip it — signed in read-write, no notifications —
    * so the screen can explain why the user is about to be asked to sign in again, instead of the
-   * second round appearing out of nowhere and looking like a failure. Omitted: proceeds. */
+   * second round appearing out of nowhere and looking like a failure. Omitted: proceeds.
+   * changeAccountMode takes the same hook for SCR-25's enable path. */
   beforeServiceRound?: () => Promise<boolean>;
 }
 
@@ -124,27 +192,22 @@ export async function signInDeliberate(
   if (choice.notifications && (await ensurePushPermission())) {
     if (account.appTokenScope === 'read') {
       // Read-only + notifications: the same token serves both — no second round.
-      const registered = await registerAccountForPush(
+      await registerServiceToken(
         account.id,
         result.accessToken,
         choice.pushStreams ?? ALL_PUSH_STREAMS,
       );
-      if (registered) {
-        await setToken(account.id, 'service', result.accessToken);
-        useAccountsStore.getState().updateAccount(account.id, { hasServiceToken: true });
-      }
     } else if (!hooks.beforeServiceRound || (await hooks.beforeServiceRound())) {
       try {
-        const serviceResult = await runOAuthRound('read', embedded);
-        const registered = await registerAccountForPush(
+        // The second round is for the account the first one just signed in (b-oss#240): same
+        // browser as the first round, owner-checked. A mismatch is rethrown — the account stays
+        // signed in read-write without notifications, and SCR-01 offers a retry in the app.
+        const serviceResult = await runRoundForAccount(account.username, 'read', embedded);
+        await registerServiceToken(
           account.id,
           serviceResult.accessToken,
           choice.pushStreams ?? ALL_PUSH_STREAMS,
         );
-        if (registered) {
-          await setToken(account.id, 'service', serviceResult.accessToken);
-          useAccountsStore.getState().updateAccount(account.id, { hasServiceToken: true });
-        }
       } catch (err) {
         // A failed/cancelled second round keeps the first token — signed in read-write,
         // simply without notifications (FLW-20 step 3). Not rethrown.
@@ -226,14 +289,19 @@ async function cancelQueuedUploadsForAccount(accountId: string): Promise<void> {
 export async function changeAccountMode(
   accountId: string,
   target: SignInModeChoice,
+  hooks: SignInHooks = {},
 ): Promise<void> {
   const store = useAccountsStore.getState();
   const account = store.accounts.find((a) => a.id === accountId);
   if (!account) throw new Error(`Unknown account: ${accountId}`);
+  // b-oss#240: every round below is for this existing account, so each is owner-checked, and the
+  // browser defaults by account count unless the caller chose (e.g. the mismatch retry forces the
+  // clean in-app browser).
+  const round = { useEmbedded: target.useEmbedded ?? tokenChangeUsesEmbedded() };
 
   if (account.appTokenScope !== target.scope) {
     const oldToken = await getToken(accountId, 'app');
-    const result = await runOAuthRound(target.scope);
+    const result = await runRoundForAccount(account.username, target.scope, round);
     if (oldToken) {
       await getClientForToken(oldToken)
         .revokeToken()
@@ -258,24 +326,11 @@ export async function changeAccountMode(
   if (target.notifications && !refreshed.hasServiceToken && (await ensurePushPermission())) {
     if (finalAppScope === 'read') {
       const appToken = await getToken(accountId, 'app');
-      if (appToken) {
-        const registered = await registerAccountForPush(accountId, appToken, streams);
-        if (registered) {
-          await setToken(accountId, 'service', appToken);
-          useAccountsStore.getState().updateAccount(accountId, { hasServiceToken: true });
-        }
-      }
-    } else {
-      const serviceResult = await runOAuthRound('read');
-      const registered = await registerAccountForPush(
-        accountId,
-        serviceResult.accessToken,
-        streams,
-      );
-      if (registered) {
-        await setToken(accountId, 'service', serviceResult.accessToken);
-        useAccountsStore.getState().updateAccount(accountId, { hasServiceToken: true });
-      }
+      if (appToken) await registerServiceToken(accountId, appToken, streams);
+    } else if (!hooks.beforeServiceRound || (await hooks.beforeServiceRound())) {
+      // The hook is SCR-25's "One more sign-in" explainer; declining it changes nothing.
+      const serviceResult = await runRoundForAccount(refreshed.username, 'read', round);
+      await registerServiceToken(accountId, serviceResult.accessToken, streams);
     }
   } else if (!target.notifications && refreshed.hasServiceToken) {
     // Revoking is only meaningful when the service token is a genuinely separate credential

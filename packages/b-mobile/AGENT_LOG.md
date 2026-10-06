@@ -2230,3 +2230,40 @@ Design agreed on #244 (service half is a separate PR: `feat/b-push-stream-toggle
 - Feed toggles are view-only on a read-only account (SCR-25 spec; wasn't enforced before).
 - Copy is in the deck (TextStrings.csv → deck.ts); the old `FLW22.notifications_off.*` rows were
   rewritten for the new warning.
+
+
+## Token owner check and browser defaults — 2026-10-06 (b-oss#240, app half)
+
+Design agreed on #240 after the #148 device test, where `cyclopstest`'s notification read token
+belonged to `cyclops` (the second round ran in a system browser logged in as `cyclops`). Service
+half is #248 (b-push answers 403 on an owner mismatch). Stacked on #249.
+
+- **Owner check:** `accountsFlow.runRoundForAccount()` wraps every round meant for an *existing*
+  account: the sign-in's second (notifications) round, `changeAccountMode`'s scope change
+  (including re-authorizing a needs-reauth account) and its notifications round (Settings first-on,
+  SCR-30 Sign in again). It compares `OAuthResult.username` (from `GET oauth/token` via
+  `finishRound`) case-insensitively with the account; a mismatch revokes the new token, stores
+  nothing and throws `AccountMismatchError` (`flows/accountMismatch.ts`, expected/actual/inApp).
+  A first sign-in round has nothing to compare with and is unchanged.
+- **Revoke guard:** the stray token isn't revoked if the app already holds that exact string for
+  some account (`revokeUnlessHeld`). Unknown whether Blipfoto reissues the same token for the same
+  user and app; if it does, revoking would have signed out the account it really belongs to.
+- **Service 403:** `registerAccountForPush` maps b-push's 403 to `AccountMismatchError(expected,
+  null)` instead of returning false; `registerServiceToken` revokes the separate read token (never
+  a read-only account's app token).
+- **Browser defaults:** SCR-01's *Use browser to sign in* defaults on with no accounts and off
+  with one or more (derived from the account count until the user flips it, frozen on Continue).
+  Token changes for an existing account default via `tokenChangeUsesEmbedded()`: in-app browser
+  when native and more than one account, else the system browser; callers can still pass
+  `useEmbedded` (the mismatch retry forces `true`).
+- **UI:** `components/AccountMismatchAlert.tsx` (shared alert, retry in the in-app browser on
+  native) on SCR-01, SCR-25 Notifications, SCR-30 Sign in again and the detail view's mode
+  buttons (which previously let every error escape as an unhandled rejection; mismatch and
+  cancel are now caught, other errors still escape as before). `components/ServiceRoundExplainer.tsx`
+  is the "One more sign-in" alert, now shared by SCR-01 and SCR-25 (`changeAccountMode` takes the
+  same `beforeServiceRound` hook as `signInDeliberate`). Copy moved into the deck.
+- Tests: SignInScreen and AccountsScreen now stub `IonAlert` at the boundary (#193); the SCR-30
+  remove test was moved off the real `ion-alert` DOM accordingly.
+- **Not verified on a device:** the embedded WebView's cookie clearing (still open since 12.7).
+  If it doesn't actually clear cookies, the in-app browser could approve as the previous account
+  too; the owner check would still catch it.

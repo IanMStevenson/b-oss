@@ -6,6 +6,18 @@
 //   node scripts/generate-strings.mjs
 
 export const STRINGS = {
+  'AUTH.account_mismatch.body.browser':
+    'That sign-in was for {actual}, not {expected}. Your browser is signed in to Blipfoto as {actual}.',
+  'AUTH.account_mismatch.body.in_app':
+    'That sign-in was for {actual}, not {expected}. Sign in as {expected} to continue.',
+  'AUTH.account_mismatch.body.unknown':
+    'That sign-in was for a different Blipfoto account, not {expected}. Your browser may be signed in to Blipfoto as someone else.',
+  'AUTH.account_mismatch.button_dismiss': 'Not now',
+  'AUTH.account_mismatch.button_ok': 'OK',
+  'AUTH.account_mismatch.button_retry': 'Try again in the app',
+  'AUTH.account_mismatch.retry_hint':
+    'Try again inside this app, which always asks for a password.',
+  'AUTH.account_mismatch.title': 'Wrong Blipfoto account',
   'CONFIRM.avatar_delete.button': 'Remove',
   'CONFIRM.avatar_delete.title': 'Remove your profile picture?',
   'CONFIRM.delete_comment.button': 'Delete',
@@ -80,8 +92,13 @@ export const STRINGS = {
   'FLW22.notifications_off.button': 'Turn off',
   'FLW22.notifications_off.button_keep': 'Keep on',
   'FLW22.notifications_off.title': 'Turn off notifications?',
+  'FLW22.notifications_on.body':
+    "Notifications need a separate read-only approval from Blipfoto, so you'll be asked to sign in once more. Your account stays read-write.",
+  'FLW22.notifications_on.button_cancel': 'Cancel',
+  'FLW22.notifications_on.button_continue': 'Continue',
   'FLW22.notifications_on.explainer':
     'One more step - authorize read-only access for notifications',
+  'FLW22.notifications_on.title': 'One more sign-in',
   'FLW22.upgrade_to_readwrite.body':
     'This needs one more sign-in step, to authorize posting, reacting, commenting and following.',
   'FLW22.upgrade_to_readwrite.button': 'Continue',
@@ -135,6 +152,8 @@ export const STRINGS = {
   'SCR-01.reason.publish': 'Sign in to post your photo',
   'SCR-01.reason.report': 'Sign in to report this',
   'SCR-01.reason.star': 'Sign in to star this entry',
+  'SCR-01.second_auth.button_continue': 'Sign in again',
+  'SCR-01.second_auth.button_skip': 'Skip notifications',
   'SCR-01.tooltip.read_only':
     "This app can see everything you can see, but can't change anything - no posting, reacting, commenting or following. You can switch to read-write later without losing the account.",
   'SCR-01.tooltip.read_write':
