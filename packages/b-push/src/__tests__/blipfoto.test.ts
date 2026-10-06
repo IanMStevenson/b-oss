@@ -6,7 +6,13 @@
 // fcm.test.ts) rather than re-implementing b-api's own envelope parsing in a second test double.
 
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { fetchUnreadTotals, fetchPushConfigured, ReadTokenInvalidError } from '../blipfoto.js';
+import { BlipfotoError } from '@b-oss/b-api';
+import {
+  fetchUnreadTotals,
+  fetchPushConfigured,
+  isBearerUnrecognised,
+  ReadTokenInvalidError,
+} from '../blipfoto.js';
 
 function envelope(data: unknown): string {
   return JSON.stringify({ data, error: null });
@@ -51,10 +57,14 @@ describe('fetchUnreadTotals', () => {
     await expect(fetchUnreadTotals('a-dead-token')).rejects.toBeInstanceOf(ReadTokenInvalidError);
   });
 
-  it('treats code 52 (bearer not recognised) as an invalid read token (b-oss#238)', async () => {
-    // What the live API returns for a junk or unknown bearer: HTTP 200, code 52.
+  it('rethrows code 52 (bearer not recognised) as a plain BlipfotoError, not ReadTokenInvalidError (b-oss#238)', async () => {
+    // What the live API returns for a junk or unknown bearer: HTTP 200, code 52. A revoked user
+    // token is 51, so a 52 is not "this user's token died" and must not trigger the reauth path.
     mockFetchOnce(errorEnvelope(52, 'The client is invalid.'));
-    await expect(fetchUnreadTotals('junk')).rejects.toBeInstanceOf(ReadTokenInvalidError);
+    const err: unknown = await fetchUnreadTotals('junk').catch((e: unknown) => e);
+    expect(err).toBeInstanceOf(BlipfotoError);
+    expect(err).not.toBeInstanceOf(ReadTokenInvalidError);
+    expect(isBearerUnrecognised(err)).toBe(true);
   });
 
   it('rethrows other errors unchanged', async () => {
@@ -95,8 +105,18 @@ describe('fetchPushConfigured', () => {
     await expect(fetchPushConfigured('a-dead-token')).rejects.toBeInstanceOf(ReadTokenInvalidError);
   });
 
-  it('treats code 52 as an invalid read token too (b-oss#238)', async () => {
+  it('does not treat code 52 as an invalid read token (b-oss#238)', async () => {
     mockFetchOnce(errorEnvelope(52, 'The client is invalid.'));
-    await expect(fetchPushConfigured('junk')).rejects.toBeInstanceOf(ReadTokenInvalidError);
+    const err: unknown = await fetchPushConfigured('junk').catch((e: unknown) => e);
+    expect(err).not.toBeInstanceOf(ReadTokenInvalidError);
+    expect(isBearerUnrecognised(err)).toBe(true);
+  });
+});
+
+describe('isBearerUnrecognised', () => {
+  it('is true only for a BlipfotoError with code 52', () => {
+    expect(isBearerUnrecognised(new BlipfotoError(52, 'The client is invalid.'))).toBe(true);
+    expect(isBearerUnrecognised(new BlipfotoError(51, 'Invalid token'))).toBe(false);
+    expect(isBearerUnrecognised(new Error('52'))).toBe(false);
   });
 });

@@ -57,6 +57,9 @@ async function pollOne(
   try {
     totals = await fetchUnreadTotals(readToken);
   } catch (err) {
+    // Only 50/51 arrive as ReadTokenInvalidError. A code 52 is rethrown as a plain BlipfotoError
+    // and lands in runActivityPoll's catch as an ordinary error, leaving the row active
+    // (b-oss#238; see isBearerUnrecognised in blipfoto.ts for why).
     if (err instanceof ReadTokenInvalidError) {
       await markReauthRequired(db, reg.id, nowMs);
       await sendFcmMessage(env, reg.device_token, {

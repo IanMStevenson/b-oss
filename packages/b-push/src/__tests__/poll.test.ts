@@ -187,21 +187,26 @@ describe('runActivityPoll', () => {
     expect(summary.polled).toBe(1);
   });
 
-  it('treats code 52 as a dead read token: marks the row and sends the reauth push (b-oss#238)', async () => {
-    await seedRow();
+  it('treats code 52 on a stored token as an ordinary error: row stays active, no reauth push (b-oss#238)', async () => {
+    // A revoked user token is 51 (Blipfoto source). A 52 on a token that was accepted at
+    // registration would point at something wider (e.g. the client being rejected) and would hit
+    // every row at once, so it must not mark rows dead or tell every user to sign in again.
+    await seedRow({ last_seen_comments_total: 0 });
     vi.spyOn(globalThis, 'fetch').mockResolvedValue(
       new Response(
         JSON.stringify({ data: null, error: { code: 52, message: 'The client is invalid.' } }),
         { status: 200 },
       ),
     );
+    const logged = vi.spyOn(console, 'error').mockImplementation(() => undefined);
     const summary = await runActivityPoll(db, env, () => 5_000_000);
-    expect(summary).toMatchObject({ reauthRequired: 1, errors: 0 });
-    expect((await getRegistrationById(db, 'reg-1'))?.status).toBe('read-token-invalid');
-    expect(sendFcmMessage).toHaveBeenCalledWith(
-      env,
-      'device-1',
-      expect.objectContaining({ kind: 'reauth-required' }),
+
+    expect(summary).toMatchObject({ due: 1, polled: 0, reauthRequired: 0, errors: 1 });
+    expect(sendFcmMessage).not.toHaveBeenCalled();
+    const row = await getRegistrationById(db, 'reg-1');
+    expect(row?.status).toBe('active');
+    expect(logged.mock.calls.map((args) => args.join(' ')).join('\n')).toContain(
+      'BlipfotoError 52',
     );
   });
 

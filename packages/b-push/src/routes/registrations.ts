@@ -15,7 +15,12 @@ import {
   updatePollInterval,
   updateCachedPrefs,
 } from '../db.js';
-import { fetchUnreadTotals, fetchPushConfigured, ReadTokenInvalidError } from '../blipfoto.js';
+import {
+  fetchUnreadTotals,
+  fetchPushConfigured,
+  isBearerUnrecognised,
+  ReadTokenInvalidError,
+} from '../blipfoto.js';
 import {
   generateId,
   generateSecret,
@@ -108,7 +113,10 @@ export async function createRegistration(
       fetchPushConfigured(body.readToken),
     ]);
   } catch (err) {
-    if (err instanceof ReadTokenInvalidError) {
+    // A 52 counts as an invalid token here, and only here: the app has just handed us this
+    // token, so Blipfoto not recognising it means it's junk input (b-oss#238). On a stored token
+    // the poll treats 52 as an ordinary error instead — see isBearerUnrecognised.
+    if (err instanceof ReadTokenInvalidError || isBearerUnrecognised(err)) {
       throw new HttpError(400, 'The supplied read token is not valid');
     }
     throw err;
