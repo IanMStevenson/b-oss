@@ -39,28 +39,38 @@ credentials). The split below keeps your part to a few short sessions.
    `packages/b-mobile/android/app/google-services.json` (already gitignored; the Gradle plugin applies
    only when it exists) and keep the service-account JSON for Stage 2.
 
-## Stage 2 — Cloudflare (you, ~20 min, free plan; from `packages/b-push`)
+## Stage 2 — Cloudflare (you, ~20 min, free plan)
 
-```
-npx wrangler login
-npx wrangler d1 create b-push                      # paste the database_id into wrangler.toml (do NOT commit it)
-npx wrangler d1 execute b-push --file=src/schema.sql --remote
-node -e "console.log(require('crypto').randomBytes(32).toString('base64'))"   # -> READ_TOKEN_ENCRYPTION_KEY
-node -e "console.log(require('crypto').randomBytes(24).toString('hex'))"      # -> REGISTRATION_SECRET
-npx wrangler secret put READ_TOKEN_ENCRYPTION_KEY
-npx wrangler secret put REGISTRATION_SECRET
-npx wrangler secret put FCM_SERVICE_ACCOUNT_JSON   # paste the whole JSON as one line
-npx wrangler deploy                                # prints https://b-push.<you>.workers.dev
-```
+**As agreed 2026-10-06** (replaces the original `wrangler login` / `wrangler secret put` list):
+
+- **Dedicated Cloudflare account** for b-push, not a personal one: free-tier quotas are per account
+  (a public `POST` endpoint must not be able to starve other Workers), a `workers.dev` URL names the
+  account and is baked into the APK, and a community project's infrastructure should be handable to
+  another maintainer. Consider a custom domain before any public release so the URL is independent
+  of the account.
+- **No `wrangler login`.** Deploys use a **scoped API token** (Workers Scripts: Edit, D1: Edit,
+  Account Settings: Read; this account only), usable both by hand and, later, by a tag-triggered
+  GitHub workflow.
+- `account_id` and the D1 `database_id` are committed in `wrangler.toml` (identifiers, not secrets).
+
+Steps:
+
+1. Dashboard → D1 → create `b-push`; run `src/schema.sql` in its Console.
+2. Dashboard → My Profile → API Tokens → create the scoped token above.
+3. From `packages/b-push` on the VM:
+   ```
+   read -rs CLOUDFLARE_API_TOKEN && export CLOUDFLARE_API_TOKEN
+   npx wrangler@4.148.0 deploy        # prints https://b-push.<subdomain>.workers.dev
+   ```
+4. Dashboard → Workers & Pages → `b-push` → Settings → Variables and Secrets, type **Secret**:
+   `READ_TOKEN_ENCRYPTION_KEY` (32 random bytes, base64), `REGISTRATION_SECRET` (random), and
+   `FCM_SERVICE_ACCOUNT_JSON` (the key file's contents). Later deploys leave secrets in place. Until
+   they're set the Worker fails closed: `POST /v1/registrations` returns 401.
 
 Then put the URL and registration secret in the root `.env.local`:
 `VITE_NOTIFY_SERVICE_URL=…` and `VITE_NOTIFY_REGISTRATION_SECRET=…` (same value as the Worker secret).
 Back up the encryption key somewhere safe: losing it makes every stored read token unreadable (users
 would simply re-register, but you'd want to know why).
-
-**One question for you:** do you want `wrangler.toml` to keep the `REPLACE_WITH_REAL_D1_DATABASE_ID`
-placeholder and use a local, uncommitted override, or commit the real id (it is an identifier, not a
-secret)? I'd commit it — fewer foot-guns — but it's your call.
 
 ## Stage 3 — smoke-test the service with no app (me, ~10 min, once the URL exists)
 
