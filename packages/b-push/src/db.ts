@@ -32,7 +32,7 @@ export async function insertRegistration(db: DbLike, row: RegistrationRow): Prom
         (id, secret_hash, blipfoto_user_id, read_token_ciphertext, read_token_nonce,
          device_token, platform, poll_interval_minutes, last_polled_at,
          last_seen_comments_total, last_seen_notifications_total,
-         cached_push_prefs, prefs_fetched_at, status, created_at)
+         push_comments, push_notifications, status, created_at)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     )
     .bind(
@@ -47,8 +47,8 @@ export async function insertRegistration(db: DbLike, row: RegistrationRow): Prom
       row.last_polled_at,
       row.last_seen_comments_total,
       row.last_seen_notifications_total,
-      row.cached_push_prefs,
-      row.prefs_fetched_at,
+      row.push_comments,
+      row.push_notifications,
       row.status,
       row.created_at,
     )
@@ -133,16 +133,25 @@ export async function markReauthRequired(db: DbLike, id: string, polledAt: numbe
     .run();
 }
 
-export async function updateCachedPrefs(
+/** The app's per-stream push toggles (b-oss#244). Each is optional so a PATCH that only touches
+ * one leaves the other as it was; a call with neither is a no-op. */
+export async function updateStreamToggles(
   db: DbLike,
   id: string,
-  prefsJson: string,
-  fetchedAt: number,
+  toggles: { pushComments?: boolean; pushNotifications?: boolean },
 ): Promise<void> {
-  await db
-    .prepare('UPDATE registrations SET cached_push_prefs = ?, prefs_fetched_at = ? WHERE id = ?')
-    .bind(prefsJson, fetchedAt, id)
-    .run();
+  if (toggles.pushComments !== undefined) {
+    await db
+      .prepare('UPDATE registrations SET push_comments = ? WHERE id = ?')
+      .bind(toggles.pushComments ? 1 : 0, id)
+      .run();
+  }
+  if (toggles.pushNotifications !== undefined) {
+    await db
+      .prepare('UPDATE registrations SET push_notifications = ? WHERE id = ?')
+      .bind(toggles.pushNotifications ? 1 : 0, id)
+      .run();
+  }
 }
 
 /** The 1-minute activity-poll tick's selection: active registrations whose interval has elapsed.
@@ -159,16 +168,6 @@ export async function listDueRegistrations(db: DbLike, nowMs: number): Promise<R
          AND (last_polled_at IS NULL OR ? - last_polled_at >= poll_interval_minutes * 60000)`,
     )
     .bind(nowMs)
-    .all<RegistrationRow>();
-  return result.results;
-}
-
-/** The hourly preference-refresh tick (notification-service.md "Preference freshness") — every
- * active registration, not just due ones; that cron is independent of the 1-minute activity poll. */
-export async function listActiveRegistrations(db: DbLike): Promise<RegistrationRow[]> {
-  const result = await db
-    .prepare(`SELECT * FROM registrations WHERE status = 'active'`)
-    .bind()
     .all<RegistrationRow>();
   return result.results;
 }

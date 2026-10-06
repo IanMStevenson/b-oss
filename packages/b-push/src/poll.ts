@@ -3,7 +3,8 @@
 
 // The 1-minute activity-poll cron tick (notification-service.md "Polling design"): for every due
 // registration, one `messages/totals/unread` call, compare against the last-seen totals, push on
-// a rise, store the new totals either way. Also the reauth-required path ("System alert:
+// a rise (for each stream the user has left switched on, b-oss#244), store the new totals either
+// way. Also the reauth-required path ("System alert:
 // reauth-required") — an auth failure marks the row dead and sends exactly one distinct push.
 
 import type { DbLike } from './db.js';
@@ -20,20 +21,6 @@ export interface PollSummary {
   pushed: number;
   reauthRequired: number;
   errors: number;
-}
-
-interface CachedPrefs {
-  configured: boolean;
-}
-
-function parseCachedPrefs(json: string | null): CachedPrefs {
-  if (!json) return { configured: true }; // never fetched yet — see fetchPushConfigured's own note
-  try {
-    const parsed = JSON.parse(json) as Partial<CachedPrefs>;
-    return { configured: parsed.configured !== false };
-  } catch {
-    return { configured: true };
-  }
 }
 
 interface PollOneOutcome {
@@ -80,27 +67,28 @@ async function pollOne(
   const notificationsDelta = totals.notifications - reg.last_seen_notifications_total;
   await markPolled(db, reg.id, nowMs, totals.comments, totals.notifications);
 
+  // The totals are stored above whatever the toggles say, so a stream that's switched back on
+  // later starts from the current count rather than firing a catch-up push for everything that
+  // arrived while it was off (b-oss#244). With both toggles off the row still polls; the app
+  // DELETEs the registration when the user turns the last one off, so that state is transient.
   let pushed = 0;
-  const prefs = parseCachedPrefs(reg.cached_push_prefs);
-  if (prefs.configured) {
-    if (commentsDelta > 0) {
-      await sendFcmMessage(env, reg.device_token, {
-        kind: 'activity',
-        stream: 'comments',
-        accountId: reg.blipfoto_user_id,
-        count: commentsDelta,
-      });
-      pushed++;
-    }
-    if (notificationsDelta > 0) {
-      await sendFcmMessage(env, reg.device_token, {
-        kind: 'activity',
-        stream: 'notifications',
-        accountId: reg.blipfoto_user_id,
-        count: notificationsDelta,
-      });
-      pushed++;
-    }
+  if (reg.push_comments && commentsDelta > 0) {
+    await sendFcmMessage(env, reg.device_token, {
+      kind: 'activity',
+      stream: 'comments',
+      accountId: reg.blipfoto_user_id,
+      count: commentsDelta,
+    });
+    pushed++;
+  }
+  if (reg.push_notifications && notificationsDelta > 0) {
+    await sendFcmMessage(env, reg.device_token, {
+      kind: 'activity',
+      stream: 'notifications',
+      accountId: reg.blipfoto_user_id,
+      count: notificationsDelta,
+    });
+    pushed++;
   }
 
   return { kind: 'polled', pushed };

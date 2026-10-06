@@ -2,8 +2,10 @@
 -- Copyright (C) 2026 Ian Stevenson
 
 -- b-push D1 schema (notification-service.md "Data model (D1)"). One table, one row per
--- (account, device) registration. Applied manually via `wrangler d1 execute` (see wrangler.toml)
--- — never run automatically. Mirrored by packages/b-push/src/__tests__/testDb.ts for tests
+-- (account, device) registration. This file is always the *current* full schema, for a fresh
+-- database; the live database is brought up to it by the numbered files in ../migrations/
+-- (this file counts as 0001). Both are applied by hand in the D1 dashboard console, never
+-- automatically. Mirrored by packages/b-push/src/__tests__/testDb.ts for tests
 -- (loaded into an in-memory node:sqlite database so the real SQL is what gets exercised, not a
 -- hand-rolled re-implementation of it).
 --
@@ -17,6 +19,9 @@
 --   - `status` holds the `active` / `read-token-invalid` state from the "System alert:
 --     reauth-required" section directly, rather than a separate boolean, since the two exhaust
 --     the header's only outcomes today the app doesn't switch a registration itself.
+--   - `push_comments` / `push_notifications` are the app's own per-stream push choices (b-oss#244),
+--     0/1, default on. They replaced `cached_push_prefs` / `prefs_fetched_at`, a cache of
+--     Blipfoto's `push.configured` that turned out to belong to Blipfoto's own app push service.
 
 CREATE TABLE IF NOT EXISTS registrations (
   id                          TEXT PRIMARY KEY,
@@ -30,8 +35,8 @@ CREATE TABLE IF NOT EXISTS registrations (
   last_polled_at              INTEGER,
   last_seen_comments_total       INTEGER NOT NULL DEFAULT 0,
   last_seen_notifications_total  INTEGER NOT NULL DEFAULT 0,
-  cached_push_prefs           TEXT,
-  prefs_fetched_at            INTEGER,
+  push_comments               INTEGER NOT NULL DEFAULT 1,
+  push_notifications          INTEGER NOT NULL DEFAULT 1,
   status                      TEXT NOT NULL DEFAULT 'active',
   created_at                  INTEGER NOT NULL
 );

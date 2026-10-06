@@ -6,7 +6,6 @@ import { createTestDb, type TestDb } from './testDb.js';
 import {
   createRegistration,
   patchRegistration,
-  refreshPreferences,
   getRegistrationStatus,
   deleteRegistrationHandler,
   HttpError,
@@ -53,19 +52,15 @@ function requestUrl(input: RequestInfo | URL): string {
   return input.url;
 }
 
-function mockUnreadTotalsAndPrefs(comments = 0, notifications = 0, pushConfigured = true): void {
+/** Answers `messages/totals/unread` only. Anything else, including the
+ * `user/settings/notifications` call registration used to make, fails the test: b-push must not
+ * read Blipfoto's notification settings any more (b-oss#244). */
+function mockUnreadTotals(comments = 0, notifications = 0): void {
   const spy = vi.spyOn(globalThis, 'fetch');
   spy.mockImplementation((input) => {
     const url = requestUrl(input);
     if (url.includes('messages/totals/unread')) {
       return Promise.resolve(new Response(envelope({ comments, notifications }), { status: 200 }));
-    }
-    if (url.includes('user/settings/notifications')) {
-      return Promise.resolve(
-        new Response(envelope({ push: { configured: pushConfigured ? 1 : 0, settings: {} } }), {
-          status: 200,
-        }),
-      );
     }
     throw new Error(`Unexpected fetch: ${url}`);
   });
@@ -73,7 +68,7 @@ function mockUnreadTotalsAndPrefs(comments = 0, notifications = 0, pushConfigure
 
 describe('createRegistration', () => {
   it('rejects a missing/wrong registration secret', async () => {
-    mockUnreadTotalsAndPrefs();
+    mockUnreadTotals();
     await expect(
       createRegistration(db, env, 'Bearer wrong-secret', {
         blipfotoUserId: 'gbradley',
@@ -92,8 +87,8 @@ describe('createRegistration', () => {
     ).rejects.toThrow(HttpError);
   });
 
-  it('creates a row, seeded with the current unread totals and push-configured flag', async () => {
-    mockUnreadTotalsAndPrefs(4, 9, true);
+  it('creates a row, seeded with the current unread totals, both streams on by default', async () => {
+    mockUnreadTotals(4, 9);
     const result = await createRegistration(db, env, 'Bearer shared-build-time-secret', {
       blipfotoUserId: 'gbradley',
       readToken: 'a-real-read-token',
@@ -114,14 +109,13 @@ describe('createRegistration', () => {
       last_seen_notifications_total: 9,
       status: 'active',
     });
-    expect(row?.cached_push_prefs).toBe('{"configured":true}');
+    expect(row).toMatchObject({ push_comments: 1, push_notifications: 1 });
     // The plaintext read token is never stored verbatim.
     expect(row?.read_token_ciphertext).not.toContain('a-real-read-token');
   });
 
   it('rejects a read token Blipfoto itself reports invalid', async () => {
-    // fetchUnreadTotals/fetchPushConfigured run concurrently (Promise.all) — each needs its own
-    // Response instance, since a body can only be read once.
+    // A fresh Response per call, since a body can only be read once.
     vi.spyOn(globalThis, 'fetch').mockImplementation(() =>
       Promise.resolve(
         new Response(JSON.stringify({ data: null, error: { code: 51, message: 'bad token' } }), {
@@ -137,6 +131,38 @@ describe('createRegistration', () => {
         platform: 'android',
       }),
     ).rejects.toThrow(HttpError);
+  });
+});
+
+describe('createRegistration stream toggles (b-oss#244)', () => {
+  it('stores pushComments/pushNotifications from the body', async () => {
+    mockUnreadTotals();
+    const result = await createRegistration(db, env, 'Bearer shared-build-time-secret', {
+      blipfotoUserId: 'gbradley',
+      readToken: 'a-real-read-token',
+      deviceToken: 'device-1',
+      platform: 'android',
+      pushComments: false,
+      pushNotifications: true,
+    });
+    expect(await getRegistrationById(db, result.registrationId)).toMatchObject({
+      push_comments: 0,
+      push_notifications: 1,
+    });
+  });
+
+  it('rejects a non-boolean toggle with 400 and stores nothing', async () => {
+    mockUnreadTotals();
+    const attempt = createRegistration(db, env, 'Bearer shared-build-time-secret', {
+      blipfotoUserId: 'gbradley',
+      readToken: 'a-real-read-token',
+      deviceToken: 'device-1',
+      platform: 'android',
+      pushComments: 'false' as unknown as boolean,
+    });
+    await expect(attempt).rejects.toMatchObject({ status: 400 });
+    const { results } = await db.prepare('SELECT id FROM registrations').all();
+    expect(results).toHaveLength(0);
   });
 });
 
@@ -164,7 +190,7 @@ describe('createRegistration with a junk read token (b-oss#238)', () => {
 });
 
 async function seedRegistration(): Promise<{ id: string; secret: string }> {
-  mockUnreadTotalsAndPrefs(0, 0, true);
+  mockUnreadTotals(0, 0);
   const result = await createRegistration(db, env, 'Bearer shared-build-time-secret', {
     blipfotoUserId: 'gbradley',
     readToken: 'a-real-read-token',
@@ -208,32 +234,33 @@ describe('patchRegistration', () => {
   });
 });
 
-describe('refreshPreferences', () => {
-  it('re-fetches and caches the push-configured flag', async () => {
+describe('patchRegistration stream toggles (b-oss#244)', () => {
+  it('updates only the toggle supplied', async () => {
     const { id, secret } = await seedRegistration();
-    mockUnreadTotalsAndPrefs(0, 0, false);
-    await refreshPreferences(db, env, id, `Bearer ${secret}`);
-    const row = await getRegistrationById(db, id);
-    expect(row?.cached_push_prefs).toBe('{"configured":false}');
-  });
-
-  it('rejects a wrong secret', async () => {
-    const { id } = await seedRegistration();
-    await expect(refreshPreferences(db, env, id, 'Bearer wrong')).rejects.toMatchObject({
-      status: 404,
+    await patchRegistration(db, env, id, `Bearer ${secret}`, { pushNotifications: false });
+    expect(await getRegistrationById(db, id)).toMatchObject({
+      push_comments: 1,
+      push_notifications: 0,
+    });
+    await patchRegistration(db, env, id, `Bearer ${secret}`, { pushComments: false });
+    expect(await getRegistrationById(db, id)).toMatchObject({
+      push_comments: 0,
+      push_notifications: 0,
     });
   });
 
-  it('does not mark the row read-token-invalid on a dead token — the activity poll owns that', async () => {
+  it('rejects a non-boolean toggle with 400 and changes nothing, not even other fields', async () => {
     const { id, secret } = await seedRegistration();
-    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
-      new Response(JSON.stringify({ data: null, error: { code: 51, message: 'bad token' } }), {
-        status: 200,
+    await expect(
+      patchRegistration(db, env, id, `Bearer ${secret}`, {
+        deviceToken: 'rotated-device',
+        pushComments: 0 as unknown as boolean,
       }),
-    );
-    await refreshPreferences(db, env, id, `Bearer ${secret}`);
-    const row = await getRegistrationById(db, id);
-    expect(row?.status).toBe('active');
+    ).rejects.toMatchObject({ status: 400 });
+    expect(await getRegistrationById(db, id)).toMatchObject({
+      device_token: 'device-1',
+      push_comments: 1,
+    });
   });
 });
 
@@ -243,6 +270,13 @@ describe('getRegistrationStatus', () => {
     const status = await getRegistrationStatus(db, id, `Bearer ${secret}`);
     expect(status.status).toBe('active');
     expect(typeof status.lastPolledAt).toBe('number');
+  });
+
+  it('reports the stream toggles as booleans (b-oss#244)', async () => {
+    const { id, secret } = await seedRegistration();
+    await patchRegistration(db, env, id, `Bearer ${secret}`, { pushComments: false });
+    const status = await getRegistrationStatus(db, id, `Bearer ${secret}`);
+    expect(status).toMatchObject({ pushComments: false, pushNotifications: true });
   });
 });
 

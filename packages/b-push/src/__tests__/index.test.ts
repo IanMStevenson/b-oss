@@ -10,7 +10,6 @@ import { describe, expect, it, vi } from 'vitest';
 const mocks = vi.hoisted(() => ({
   createRegistration: vi.fn(),
   patchRegistration: vi.fn(),
-  refreshPreferences: vi.fn(),
   getRegistrationStatus: vi.fn(),
   deleteRegistrationHandler: vi.fn(),
 }));
@@ -22,7 +21,6 @@ vi.mock('../routes/registrations.js', async () => {
   return { ...actual, ...mocks };
 });
 vi.mock('../poll.js', () => ({ runActivityPoll: vi.fn().mockResolvedValue({}) }));
-vi.mock('../prefsRefresh.js', () => ({ runPrefsRefresh: vi.fn().mockResolvedValue({}) }));
 
 const worker = await import('../index.js');
 const { HttpError } = await import('../routes/registrations.js');
@@ -85,13 +83,12 @@ describe('fetch router', () => {
     expect(response.status).toBe(204);
   });
 
-  it('routes POST /v1/registrations/:id/refresh-preferences to refreshPreferences', async () => {
-    mocks.refreshPreferences.mockResolvedValue(undefined);
+  it('returns 404 for the removed refresh-preferences route (b-oss#244)', async () => {
     const request = new Request('https://example.com/v1/registrations/r1/refresh-preferences', {
       method: 'POST',
     });
     const response = await worker.default.fetch(request, testEnv());
-    expect(response.status).toBe(204);
+    expect(response.status).toBe(404);
   });
 
   it('returns 404 for an unknown path', async () => {
@@ -117,18 +114,11 @@ describe('fetch router', () => {
 });
 
 describe('scheduled handler', () => {
-  it('runs the hourly prefs refresh only for the hourly cron pattern', async () => {
-    const { runPrefsRefresh } = await import('../prefsRefresh.js');
-    const { runActivityPoll } = await import('../poll.js');
-    await worker.default.scheduled({ cron: '0 * * * *' } as never, testEnv());
-    expect(runPrefsRefresh).toHaveBeenCalledTimes(1);
-    expect(runActivityPoll).not.toHaveBeenCalled();
-  });
-
-  it('runs the activity poll for every other cron pattern', async () => {
+  it('runs the activity poll for any cron pattern, including the old hourly one (b-oss#244)', async () => {
     const { runActivityPoll } = await import('../poll.js');
     vi.mocked(runActivityPoll).mockClear();
-    await worker.default.scheduled({ cron: '1-minute-pattern' } as never, testEnv());
-    expect(runActivityPoll).toHaveBeenCalledTimes(1);
+    await worker.default.scheduled({ cron: '*/1 * * * *' } as never, testEnv());
+    await worker.default.scheduled({ cron: '0 * * * *' } as never, testEnv());
+    expect(runActivityPoll).toHaveBeenCalledTimes(2);
   });
 });

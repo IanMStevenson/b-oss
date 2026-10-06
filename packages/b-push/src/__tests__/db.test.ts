@@ -12,9 +12,8 @@ import {
   updatePollInterval,
   markPolled,
   markReauthRequired,
-  updateCachedPrefs,
+  updateStreamToggles,
   listDueRegistrations,
-  listActiveRegistrations,
 } from '../db.js';
 import type { RegistrationRow } from '../types.js';
 
@@ -31,8 +30,8 @@ function row(overrides: Partial<RegistrationRow> = {}): RegistrationRow {
     last_polled_at: null,
     last_seen_comments_total: 0,
     last_seen_notifications_total: 0,
-    cached_push_prefs: null,
-    prefs_fetched_at: null,
+    push_comments: 1,
+    push_notifications: 1,
     status: 'active',
     created_at: 1000,
     ...overrides,
@@ -96,7 +95,7 @@ describe('updateReadToken / updateDeviceToken / updatePollInterval', () => {
   });
 });
 
-describe('markPolled / markReauthRequired / updateCachedPrefs', () => {
+describe('markPolled / markReauthRequired', () => {
   it('markPolled stores the new totals and timestamp', async () => {
     await insertRegistration(db, row());
     await markPolled(db, 'reg-1', 5000, 3, 7);
@@ -117,13 +116,37 @@ describe('markPolled / markReauthRequired / updateCachedPrefs', () => {
     const due = await listDueRegistrations(db, 10_000_000);
     expect(due).toHaveLength(0);
   });
+});
 
-  it('updateCachedPrefs stores the JSON string and fetch time', async () => {
+describe('updateStreamToggles (b-oss#244)', () => {
+  it('sets only the toggle supplied, as 0/1', async () => {
     await insertRegistration(db, row());
-    await updateCachedPrefs(db, 'reg-1', JSON.stringify({ configured: false }), 9000);
-    const found = await getRegistrationById(db, 'reg-1');
-    expect(found?.cached_push_prefs).toBe('{"configured":false}');
-    expect(found?.prefs_fetched_at).toBe(9000);
+    await updateStreamToggles(db, 'reg-1', { pushComments: false });
+    expect(await getRegistrationById(db, 'reg-1')).toMatchObject({
+      push_comments: 0,
+      push_notifications: 1,
+    });
+    await updateStreamToggles(db, 'reg-1', { pushComments: true, pushNotifications: false });
+    expect(await getRegistrationById(db, 'reg-1')).toMatchObject({
+      push_comments: 1,
+      push_notifications: 0,
+    });
+  });
+
+  it('defaults both toggles on for a row inserted without them (the migration path)', async () => {
+    // What an insert from the old Worker looks like once 0002 has run: no toggle columns named.
+    await db
+      .prepare(
+        `INSERT INTO registrations (id, secret_hash, blipfoto_user_id, read_token_ciphertext,
+           read_token_nonce, device_token, platform, created_at)
+         VALUES ('old', 'h', 'u', 'c', 'n', 'd', 'android', 0)`,
+      )
+      .bind()
+      .run();
+    expect(await getRegistrationById(db, 'old')).toMatchObject({
+      push_comments: 1,
+      push_notifications: 1,
+    });
   });
 });
 
@@ -150,17 +173,5 @@ describe('listDueRegistrations', () => {
   it('excludes an inactive (read-token-invalid) row regardless of timing', async () => {
     await insertRegistration(db, row({ status: 'read-token-invalid', last_polled_at: null }));
     expect(await listDueRegistrations(db, 1_000_000)).toHaveLength(0);
-  });
-});
-
-describe('listActiveRegistrations', () => {
-  it('returns only active rows, due or not', async () => {
-    await insertRegistration(
-      db,
-      row({ id: 'a', last_polled_at: Date.now(), poll_interval_minutes: 60 }),
-    );
-    await insertRegistration(db, row({ id: 'b', status: 'read-token-invalid' }));
-    const active = await listActiveRegistrations(db);
-    expect(active.map((r) => r.id)).toEqual(['a']);
   });
 });

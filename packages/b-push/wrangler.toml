@@ -9,6 +9,8 @@
 # Live setup (b-oss#148): a dedicated Cloudflare account, separate from any personal one. The
 # account_id and database_id below are identifiers, not secrets, so they are committed.
 #   - D1 database `b-push` was created in the dashboard and src/schema.sql run in its Console.
+#     Later schema changes are the numbered files in migrations/, also run by hand in the
+#     Console, each at a set point relative to a deploy (migrations/README.md).
 #   - Deploys use a scoped API token (Workers Scripts: Edit, D1: Edit, Account Settings: Read,
 #     limited to this account), never `wrangler login`:
 #       read -rs CLOUDFLARE_API_TOKEN && export CLOUDFLARE_API_TOKEN
@@ -30,12 +32,12 @@ binding = "DB"
 database_name = "b-push"
 database_id = "a4d5a30b-c9ee-45e0-8b38-fbd3921a295e"
 
-# Two independent cron triggers (notification-service.md "Polling design" / "Preference
-# freshness"): a 1-minute activity poll (counts-only, per due registration) and an hourly
-# cached-push-prefs refresh. Both run inside the same scheduled() handler, which reads
-# event.cron to tell them apart (src/index.ts).
+# One cron trigger (notification-service.md "Polling design"): the 1-minute activity poll
+# (counts-only, per due registration). The hourly push-prefs refresh trigger was removed along
+# with the cache it refreshed (b-oss#244); `wrangler deploy` replaces the Worker's whole trigger
+# list, so deploying this drops the hourly one.
 [triggers]
-crons = ["*/1 * * * *", "0 * * * *"]
+crons = ["*/1 * * * *"]
 
 # Workers Logs (b-oss#238): keeps the [b-push] console lines (tick summaries, per-registration
 # failures, unhandled route errors) so they can be read after the fact, not only live via
