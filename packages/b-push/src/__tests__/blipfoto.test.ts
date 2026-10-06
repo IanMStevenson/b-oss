@@ -51,6 +51,12 @@ describe('fetchUnreadTotals', () => {
     await expect(fetchUnreadTotals('a-dead-token')).rejects.toBeInstanceOf(ReadTokenInvalidError);
   });
 
+  it('treats code 52 (bearer not recognised) as an invalid read token (b-oss#238)', async () => {
+    // What the live API returns for a junk or unknown bearer: HTTP 200, code 52.
+    mockFetchOnce(errorEnvelope(52, 'The client is invalid.'));
+    await expect(fetchUnreadTotals('junk')).rejects.toBeInstanceOf(ReadTokenInvalidError);
+  });
+
   it('rethrows other errors unchanged', async () => {
     mockFetchOnce(errorEnvelope(11, 'Rate limited'));
     await expect(fetchUnreadTotals('a-read-token')).rejects.not.toBeInstanceOf(
@@ -73,5 +79,10 @@ describe('fetchPushConfigured', () => {
   it('throws ReadTokenInvalidError on a token-invalid error code', async () => {
     mockFetchOnce(errorEnvelope(50, 'Invalid token'));
     await expect(fetchPushConfigured('a-dead-token')).rejects.toBeInstanceOf(ReadTokenInvalidError);
+  });
+
+  it('treats code 52 as an invalid read token too (b-oss#238)', async () => {
+    mockFetchOnce(errorEnvelope(52, 'The client is invalid.'));
+    await expect(fetchPushConfigured('junk')).rejects.toBeInstanceOf(ReadTokenInvalidError);
   });
 });

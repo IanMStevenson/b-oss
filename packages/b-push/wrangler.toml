@@ -36,3 +36,9 @@ database_id = "a4d5a30b-c9ee-45e0-8b38-fbd3921a295e"
 # event.cron to tell them apart (src/index.ts).
 [triggers]
 crons = ["*/1 * * * *", "0 * * * *"]
+
+# Workers Logs (b-oss#238): keeps the [b-push] console lines (tick summaries, per-registration
+# failures, unhandled route errors) so they can be read after the fact, not only live via
+# `wrangler tail`. Nothing logged includes a token or a request body (src/log.ts).
+[observability]
+enabled = true

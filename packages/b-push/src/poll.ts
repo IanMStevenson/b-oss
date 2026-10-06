@@ -11,6 +11,7 @@ import { listDueRegistrations, markPolled, markReauthRequired } from './db.js';
 import { decryptReadToken, importEncryptionKey } from './crypto.js';
 import { fetchUnreadTotals, ReadTokenInvalidError } from './blipfoto.js';
 import { sendFcmMessage } from './fcm.js';
+import { describeError } from './log.js';
 import type { Env, RegistrationRow } from './types.js';
 
 export interface PollSummary {
@@ -61,7 +62,8 @@ async function pollOne(
       await sendFcmMessage(env, reg.device_token, {
         kind: 'reauth-required',
         accountId: reg.blipfoto_user_id,
-      }).catch(() => {
+      }).catch((sendErr: unknown) => {
+        console.error(`[b-push] reauth push failed for ${reg.id}: ${describeError(sendErr)}`);
         // Best-effort — the row's own status flag (not a resend) is what makes this idempotent;
         // a failed send here is retried next time something else marks the row for reauth, not
         // by this tick itself.
@@ -124,7 +126,8 @@ export async function runActivityPoll(
       if (outcome.kind === 'reauth') summary.reauthRequired++;
       else summary.polled++;
       summary.pushed += outcome.pushed;
-    } catch {
+    } catch (err) {
+      console.error(`[b-push] poll failed for ${reg.id}: ${describeError(err)}`);
       // One registration's failure (a transient Blipfoto/FCM error, not an auth failure — those
       // are handled inside pollOne) must not abort the rest of the tick's batch.
       summary.errors++;
