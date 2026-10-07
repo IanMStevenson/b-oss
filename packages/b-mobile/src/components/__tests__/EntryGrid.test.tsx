@@ -208,3 +208,30 @@ describe('EntryGrid — failed thumbnails (b-oss#185)', () => {
     await waitFor(() => expect(resolveImage.mock.calls.length).toBeGreaterThan(before));
   });
 });
+
+describe('EntryGrid — caption mode (b-oss#259)', () => {
+  const owned: EntryIndex[] = makeEntries(2).map((e) => ({ ...e, username: 'alice' }));
+
+  it('captions with the journal name by default (mixed feeds)', () => {
+    renderGrid(owned);
+    expect(screen.getAllByText('alice').length).toBe(2);
+    expect(screen.queryByText('Entry 1')).toBeNull();
+  });
+
+  it("shows date + title when told it's a single journal", () => {
+    render(
+      <MemoryRouter>
+        <EntryGrid
+          entries={owned}
+          onSelectEntry={() => {}}
+          hasMore={false}
+          onLoadMore={() => {}}
+          onRefresh={() => {}}
+          overlayContent="date-title"
+        />
+      </MemoryRouter>,
+    );
+    expect(screen.getByText('Entry 1')).toBeDefined();
+    expect(screen.queryByText('alice')).toBeNull();
+  });
+});

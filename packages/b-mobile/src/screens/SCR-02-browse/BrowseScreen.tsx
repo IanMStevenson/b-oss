@@ -99,6 +99,7 @@ function ResourceGrid({
   totalEntryCount,
   resumeKey,
   showCalendar,
+  overlayContent,
 }: {
   resource: ReturnType<typeof usePagedResource<EntryIndex>>;
   onSelectEntry: (entryId: string) => void;
@@ -107,6 +108,8 @@ function ResourceGrid({
   resumeKey?: string;
   /** Journal views only (the Me tab) — see EntryGrid's showCalendar. */
   showCalendar?: boolean;
+  /** `'date-title'` for a single journal's grid (the Me tab); omitted = journal name (b-oss#259). */
+  overlayContent?: 'date-title' | 'journal';
 }) {
   if (resource.status === 'loading') {
     return (
@@ -145,6 +148,7 @@ function ResourceGrid({
       onLoadBefore={resource.loadBefore}
       resumeKey={resumeKey}
       showCalendar={showCalendar}
+      overlayContent={overlayContent}
     />
   );
 }
@@ -200,6 +204,7 @@ function JustMeTab({ resumeKey }: { resumeKey: string }) {
       totalEntryCount={totalEntryCount}
       resumeKey={resumeKey}
       showCalendar
+      overlayContent="date-title"
     />
   );
 }

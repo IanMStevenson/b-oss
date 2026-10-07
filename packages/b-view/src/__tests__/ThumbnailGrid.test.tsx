@@ -649,3 +649,72 @@ describe('ThumbnailGrid margins', () => {
     expect(grid.style.gap).toBe('0px');
   });
 });
+
+describe('ThumbnailGrid caption mode (b-oss#259)', () => {
+  const entries: EntryIndex[] = [
+    { ...makeEntries(1)[0], username: 'alice', journal_title: "Alice's journal" },
+    { ...makeEntries(1, 2)[0], username: 'bob' },
+    { ...makeEntries(1, 3)[0] },
+  ];
+
+  it('defaults to date + title, unchanged for single-journal hosts', () => {
+    render(<ThumbnailGrid entries={entries} selectedEntryId={null} onSelectEntry={() => {}} />);
+    expect(screen.getByText('Entry 1')).toBeDefined();
+    expect(screen.getByLabelText('2026-01-01')).toBeDefined();
+    expect(screen.queryByText("Alice's journal")).toBeNull();
+  });
+
+  it("'journal' shows the journal title, falling back to the username, with no date/title", () => {
+    render(
+      <ThumbnailGrid
+        entries={entries}
+        selectedEntryId={null}
+        onSelectEntry={() => {}}
+        overlayContent="journal"
+      />,
+    );
+    expect(screen.getByText("Alice's journal")).toBeDefined();
+    expect(screen.getByText('bob')).toBeDefined();
+    expect(screen.queryByText('Entry 1')).toBeNull();
+    expect(screen.queryByText('Entry 2')).toBeNull();
+  });
+
+  it("'journal' draws no caption for an entry with neither journal title nor username", () => {
+    const { container } = render(
+      <ThumbnailGrid
+        entries={[makeEntries(1)[0]]}
+        selectedEntryId={null}
+        onSelectEntry={() => {}}
+        overlayContent="journal"
+      />,
+    );
+    expect(container.querySelector(`.${gridStyles.thumbOverlay}`)).toBeNull();
+  });
+
+  it('hides the caption on very small tiles, as the title already is', () => {
+    render(
+      <ThumbnailGrid
+        entries={entries}
+        selectedEntryId={null}
+        onSelectEntry={() => {}}
+        overlayContent="journal"
+        sizePercent={40}
+        baseTileSize={100}
+      />,
+    );
+    expect(screen.queryByText("Alice's journal")).toBeNull();
+  });
+
+  it('the show/hide toggle still hides the journal caption', () => {
+    render(
+      <ThumbnailGrid
+        entries={entries}
+        selectedEntryId={null}
+        onSelectEntry={() => {}}
+        overlayContent="journal"
+        showInfoOverlay={false}
+      />,
+    );
+    expect(screen.queryByText("Alice's journal")).toBeNull();
+  });
+});

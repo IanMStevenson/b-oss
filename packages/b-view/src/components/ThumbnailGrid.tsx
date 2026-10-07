@@ -104,6 +104,10 @@ interface ThumbnailGridSearch {
   progress: { loaded: number; total: number };
 }
 
+/** What the per-tile caption shows: `'date-title'` (a single journal's grid — the default) or
+ * `'journal'` (the owning journal's name, for mixed feeds where whose entry it is matters more). */
+export type ThumbnailOverlayContent = 'date-title' | 'journal';
+
 interface ThumbnailGridProps {
   entries: EntryIndex[];
   selectedEntryId: string | null;
@@ -111,6 +115,8 @@ interface ThumbnailGridProps {
   sizePercent?: number;
   onSizeChange?: (newPercent: number) => void;
   showInfoOverlay?: boolean;
+  /** Caption content when the overlay is shown. Default `'date-title'`. */
+  overlayContent?: ThumbnailOverlayContent;
   onShowInfoOverlayChange?: (v: boolean) => void;
   baseUrl?: string;
   resolveAsset?: ResolveAsset;
@@ -208,6 +214,7 @@ function ThumbnailItem({
   invalidateAsset,
   tileSize,
   showInfoOverlay,
+  overlayContent,
   assetRevision,
 }: {
   entry: EntryIndex;
@@ -218,8 +225,10 @@ function ThumbnailItem({
   invalidateAsset?: (path: string) => void | Promise<void>;
   tileSize: number;
   showInfoOverlay: boolean;
+  overlayContent: ThumbnailOverlayContent;
   assetRevision?: number;
 }) {
+  const journalName = entry.journal_title || entry.username || '';
   const [imgError, setImgError] = useState(false);
   const syncSrc = resolveAsset
     ? null
@@ -298,7 +307,12 @@ function ThumbnailItem({
           className={styles.thumbImg}
         />
       )}
-      {showInfoOverlay && (
+      {showInfoOverlay && overlayContent === 'journal' && tileSize >= 80 && journalName !== '' && (
+        <div className={styles.thumbOverlay}>
+          <div className={styles.thumbOverlayDate}>{journalName}</div>
+        </div>
+      )}
+      {showInfoOverlay && overlayContent !== 'journal' && (
         <div className={styles.thumbOverlay}>
           <div className={styles.thumbOverlayDate}>{formatDate(entry.date)}</div>
           {tileSize >= 80 && <div className={styles.thumbOverlayTitle}>{entry.title}</div>}
@@ -315,6 +329,7 @@ export function ThumbnailGrid({
   sizePercent = 100,
   onSizeChange,
   showInfoOverlay = true,
+  overlayContent = 'date-title',
   onShowInfoOverlayChange,
   baseUrl,
   resolveAsset,
@@ -685,6 +700,7 @@ export function ThumbnailGrid({
                 invalidateAsset={invalidateAsset}
                 tileSize={renderTileSize}
                 showInfoOverlay={showInfoOverlay}
+                overlayContent={overlayContent}
                 assetRevision={assetRevision}
               />
             ))}

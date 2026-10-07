@@ -26,7 +26,7 @@ import { useCallback, useMemo, useState } from 'react';
 import { IonRefresher, IonRefresherContent } from '@ionic/react';
 import type { RefresherEventDetail } from '@ionic/core';
 import { ThumbnailGrid } from '@b-oss/b-view';
-import type { EntryIndex } from '@b-oss/b-view';
+import type { EntryIndex, ThumbnailOverlayContent } from '@b-oss/b-view';
 import { resolveImage, invalidateImage } from '../platform/imageCache.js';
 import { useHiddenMembers } from '../state/hiddenMembersStore.js';
 import { useAppNavigate } from '../app/routes/useAppNavigate.js';
@@ -75,6 +75,10 @@ interface EntryGridProps {
    * journal — the Me tab and a user's Entries tab — so it's off unless the caller opts in
    * (b-oss#217). */
   showCalendar?: boolean;
+  /** Tile caption, as on blipfoto.com: `'date-title'` only on a single journal's grid (the Me tab,
+   * a user's Entries); `'journal'` (the journal name) on every mixed feed — which is the default,
+   * so a new grid gets the less cluttered caption unless it opts in (b-oss#259). */
+  overlayContent?: ThumbnailOverlayContent;
 }
 
 export function EntryGrid({
@@ -89,6 +93,7 @@ export function EntryGrid({
   onLoadBefore,
   resumeKey,
   showCalendar = false,
+  overlayContent = 'journal',
 }: EntryGridProps) {
   const hiddenMembers = useHiddenMembers();
   const navigate = useAppNavigate();
@@ -113,7 +118,13 @@ export function EntryGrid({
     () =>
       entries.map((entry) =>
         entry.username != null && hiddenMembers.includes(entry.username)
-          ? { ...entry, title: '', thumbnail_path: HIDDEN_THUMBNAIL }
+          ? {
+              ...entry,
+              title: '',
+              journal_title: undefined,
+              username: undefined,
+              thumbnail_path: HIDDEN_THUMBNAIL,
+            }
           : entry,
       ),
     [entries, hiddenMembers],
@@ -162,6 +173,7 @@ export function EntryGrid({
           // calendar, zoom, info) and gives its line back to the grid (b-oss#217).
           showControls={showZoomBar}
           showCalendar={showCalendar}
+          overlayContent={overlayContent}
           showPagination={showPagination}
           margins={thumbnailMargins}
           onNearEnd={() => {

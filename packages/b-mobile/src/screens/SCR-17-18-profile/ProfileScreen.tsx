@@ -126,6 +126,7 @@ function GridTab({
       onLoadBefore={resource.loadBefore}
       resumeKey={resumeKey}
       showCalendar={showCalendar}
+      overlayContent={showCalendar ? 'date-title' : 'journal'}
     />
   );
 }
