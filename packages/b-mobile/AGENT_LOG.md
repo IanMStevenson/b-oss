@@ -2300,3 +2300,39 @@ see and hard to follow.
 - `ServiceRoundExplainer.ask()` takes optional copy, used for SCR-30's account-named explainer.
 - Not verified on a device: Ionic's handling of a second `/accounts?reauth=` push while SCR-30 is
   already in the stack (the key-based handling should cope either way).
+
+## Phase 13 complete: b-push deployed and verified on a device — 2026-10-06 to 2026-10-07 (b-oss#148)
+
+Deployed b-push for real and tested delivery on Ian's phone. Set-up decisions, all Ian's:
+
+- a **dedicated Cloudflare account**, kept apart from the personal one that hosts the email
+  Workers (shared free-tier quotas, the account name in the baked-in URL, handover);
+- deploys with a **scoped API token**, never `wrangler login`;
+- secrets set in the dashboard;
+- D1 created in the dashboard, with `account_id` and `database_id` committed in `wrangler.toml`.
+
+`packages/b-push/README.md` is the runbook.
+
+The first live run surfaced a long list, each fixed with a regression test in its own PR (see
+RESUME.md, Phase 13, for the list). The lessons worth keeping:
+
+- **Unit-test fakes hid three real bugs:**
+  - Blipfoto only returns `push` settings when asked (#242).
+  - It answers an unknown bearer with code 52, not 51 (#238/#246).
+  - On native, CapacitorHttp reports `data: ''` for 204, which the `Response` constructor rejects
+    (#256).
+
+  Each needed a test asserting the _request shape_ or the _real response shape_, not just the
+  outcome.
+
+- **Multi-account plus a shared system-browser login is a trap.** The first registration silently
+  got `cyclops`'s token under `cyclopstest`. The fix is to verify the owner after every OAuth round
+  (#240); browser choice is only a convenience.
+- **Dead tokens.** Blipfoto tokens don't expire, so "token invalid" almost always means the user
+  revoked the app, which kills every token at once. Detection has to be central (#261), and
+  recovery has to renew both tokens (#263).
+- **Ask before deciding.** Ian has the Blipfoto source and can answer questions about it
+  definitively; that settled the meaning of `push.configured`, `feed_*` gating and the 51/52 codes.
+- **Tooling gotcha.** `gh pr merge --delete-branch` deletes the local worktree that has that branch
+  checked out, gitignored files included (it lost `google-services.json` once). Merge without it,
+  and delete the remote branch separately.
