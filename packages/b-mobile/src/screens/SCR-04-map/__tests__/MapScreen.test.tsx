@@ -464,9 +464,7 @@ describe('MapScreen', () => {
     await waitFor(() => expect(mapInstances.length).toBe(1));
 
     const { default: userEvent } = await import('@testing-library/user-event');
-    await userEvent.click(
-      document.querySelector('.lucide-locate-fixed')?.closest('ion-button') as HTMLElement,
-    );
+    await userEvent.click(screen.getByRole('button', { name: 'My location' }));
 
     await waitFor(() =>
       expect(mapInstances[0].jumpToCalls).toContainEqual({ center: [20, 10], zoom: 13 }),
@@ -484,9 +482,7 @@ describe('MapScreen', () => {
     await waitFor(() => expect(mapInstances.length).toBe(1));
 
     const { default: userEvent } = await import('@testing-library/user-event');
-    await userEvent.click(
-      document.querySelector('.lucide-locate-fixed')?.closest('ion-button') as HTMLElement,
-    );
+    await userEvent.click(screen.getByRole('button', { name: 'My location' }));
 
     await waitFor(() => {
       const dotMarker = markerInstances.find((m) => m.options.element);
@@ -494,5 +490,18 @@ describe('MapScreen', () => {
       expect(dotMarker?.options.color).toBeUndefined();
       expect(dotMarker?.lngLat).toEqual([20, 10]);
     });
+  });
+
+  it('puts the locate control over the map (shared with the location picker), not in the header', async () => {
+    const { getMapStyleUrl } = await import('../../../platform/mapTiles.js');
+    const { fetchEntriesInBounds } = await import('../../../data/map.js');
+    vi.mocked(getMapStyleUrl).mockReturnValue('https://example.com/style.json');
+    vi.mocked(fetchEntriesInBounds).mockResolvedValue([]);
+    renderScreen();
+    await waitFor(() => expect(mapInstances.length).toBe(1));
+
+    const locate = screen.getByRole('button', { name: 'My location' });
+    expect(locate.classList.contains('map-locate')).toBe(true);
+    expect(locate.closest('ion-header')).toBeNull();
   });
 });

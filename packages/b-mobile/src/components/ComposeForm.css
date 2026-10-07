@@ -405,32 +405,6 @@ ion-progress-bar.upload-progress {
   border-top: 1px solid var(--line);
 }
 
-.location-locate {
-  position: absolute;
-  top: 12px;
-  right: 12px;
-  width: 44px;
-  height: 44px;
-  border-radius: 50%;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  background: #ffffff;
-  color: var(--green-800);
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.3);
-}
-
-.location-message {
-  position: absolute;
-  left: 12px;
-  right: 12px;
-  bottom: 28px;
-  padding: 8px 12px;
-  border-radius: 10px;
-  background: var(--bg);
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.25);
-}
-
 /* Description editor: the editor's textarea is a rounded field with no resize handle. */
 .description-editor {
   padding: 16px 16px 16px;

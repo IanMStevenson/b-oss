@@ -136,14 +136,14 @@ export function LocationPickerScreen() {
               <div ref={containerRef} className="location-map-canvas" />
               <button
                 type="button"
-                className="location-locate"
+                className="map-locate"
                 onClick={() => void handleMyLocation()}
                 aria-label="My location"
               >
                 <LocateFixed size={22} aria-hidden="true" />
               </button>
               {locationMessage && (
-                <div className="location-message">
+                <div className="map-message">
                   <IonText color="medium">
                     <p style={{ margin: 0 }}>{locationMessage}</p>
                   </IonText>
