@@ -50,7 +50,7 @@ import { useHiddenMembers } from '../../state/hiddenMembersStore.js';
 import { useAccountsStore } from '../../state/accountsStore.js';
 import { useNotificationCountsStore } from '../../state/notificationCountsStore.js';
 import { openUrl } from '../../platform/browser.js';
-import { CachedImage } from '../../components/CachedImage.js';
+import { InboxRow, RowThumb } from '../../components/InboxRow.js';
 import type { BlipNotification } from '@b-oss/b-api';
 
 type Status = 'loading' | 'loaded' | 'empty' | 'error';
@@ -65,15 +65,25 @@ export function NotificationsInboxScreen() {
   const [items, setItems] = useState<BlipNotification[]>([]);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const latestIdRef = useRef<string | null>(null);
+  // `BlipNotification` has no unread flag. The badge count is the number of unread items, and the
+  // endpoint returns newest first, so the first N rows of the first response are the new ones.
+  // Snapshotted once, before the optimistic clear below zeroes it (same trap as SCR-24's ref).
+  const newIdsRef = useRef<Set<string> | null>(null);
 
   const load = useCallback(() => {
     // Optimistic local clear, at the same moment the fetch (the real, server-side clear) starts
     // — FLW-15 step 2.
+    const unreadCount = useNotificationCountsStore.getState().notifications;
     clearNotifications();
     setStatus('loading');
     setErrorMessage(null);
     fetchRecentNotifications().then(
       (notifications) => {
+        if (newIdsRef.current === null) {
+          newIdsRef.current = new Set(
+            notifications.slice(0, unreadCount).map((n) => n.notification_id_str),
+          );
+        }
         latestIdRef.current = notifications[0]?.notification_id_str ?? null;
         setItems(notifications);
         setStatus(notifications.length === 0 ? 'empty' : 'loaded');
@@ -150,45 +160,24 @@ export function NotificationsInboxScreen() {
               <IonRefresherContent />
             </IonRefresher>
             {visibleItems.map((notification) => (
-              <div
+              <InboxRow
                 key={notification.notification_id_str}
-                style={{
-                  display: 'flex',
-                  gap: 12,
-                  padding: '12px 16px',
-                  borderBottom: '1px solid var(--line-2)',
-                }}
+                unread={newIdsRef.current?.has(notification.notification_id_str) ?? false}
+                leading={
+                  <button
+                    onClick={() => handleTap(notification)}
+                    aria-label="Open"
+                    className="inbox-row-leading"
+                  >
+                    <RowThumb src={notification.image_url} />
+                  </button>
+                }
               >
-                <button
-                  onClick={() => handleTap(notification)}
-                  aria-label="Open"
-                  style={{ flexShrink: 0 }}
-                >
-                  {notification.image_url ? (
-                    <CachedImage
-                      src={notification.image_url}
-                      alt=""
-                      style={{ width: 48, height: 48, borderRadius: 6, objectFit: 'cover' }}
-                    />
-                  ) : (
-                    <div
-                      aria-hidden="true"
-                      style={{
-                        width: 48,
-                        height: 48,
-                        borderRadius: 6,
-                        background: 'var(--bg-alt)',
-                      }}
-                    />
-                  )}
-                </button>
-                <div style={{ flex: 1, minWidth: 0, paddingTop: 4 }}>
-                  <BBCodeText
-                    source={notification.content}
-                    onLinkClick={(href) => void openUrl(href)}
-                  />
-                </div>
-              </div>
+                <BBCodeText
+                  source={notification.content}
+                  onLinkClick={(href) => void openUrl(href)}
+                />
+              </InboxRow>
             ))}
           </>
         )}
