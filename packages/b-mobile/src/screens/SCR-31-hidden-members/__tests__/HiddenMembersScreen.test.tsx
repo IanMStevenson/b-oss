@@ -41,9 +41,11 @@ afterEach(() => {
   vi.resetAllMocks();
 });
 
-function renderScreen() {
+function renderScreen(drilledIn = false) {
   return render(
-    <MemoryRouter>
+    <MemoryRouter
+      initialEntries={[{ pathname: '/hidden', state: drilledIn ? { drilledIn } : null }]}
+    >
       <OverlayProvider>
         <HiddenMembersScreen />
       </OverlayProvider>
@@ -52,6 +54,16 @@ function renderScreen() {
 }
 
 describe('HiddenMembersScreen', () => {
+  it('has the menu button when opened from the nav menu, a back arrow when drilled in from Settings', () => {
+    renderScreen();
+    expect(document.querySelector('ion-menu-button')).not.toBeNull();
+    expect(document.querySelector('ion-back-button')).toBeNull();
+    cleanup();
+    renderScreen(true);
+    expect(document.querySelector('ion-back-button')).not.toBeNull();
+    expect(document.querySelector('ion-menu-button')).toBeNull();
+  });
+
   it('makes no network request and shows the empty state when nobody is hidden', () => {
     renderScreen();
     expect(screen.getByText('You haven’t hidden anyone.')).toBeDefined();

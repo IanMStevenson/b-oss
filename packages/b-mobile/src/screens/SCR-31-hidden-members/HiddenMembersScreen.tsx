@@ -8,13 +8,13 @@
 
 import { IonPage, IonHeader, IonButton, IonContent, IonList, IonItem } from '@ionic/react';
 import { AppHeader } from '../../components/AppHeader.js';
-import { useAppNavigate } from '../../app/routes/useAppNavigate.js';
+import { useAppNavigate, useIsDrilledIn } from '../../app/routes/useAppNavigate.js';
 import { useAccountsStore } from '../../state/accountsStore.js';
 import { useHiddenMembersStore, useHiddenMembers } from '../../state/hiddenMembersStore.js';
-import { AccountIndicator } from '../../components/AccountIndicator.js';
 
 export function HiddenMembersScreen() {
   const navigate = useAppNavigate();
+  const drilledIn = useIsDrilledIn();
   const hidden = useHiddenMembers();
 
   function handleUnhide(username: string): void {
@@ -28,9 +28,9 @@ export function HiddenMembersScreen() {
       <IonHeader>
         <AppHeader
           title="Hidden members"
-          variant="back"
+          variant={drilledIn ? 'back' : 'menu'}
           backHref="/settings"
-          end={<AccountIndicator />}
+          accountIndicator
         />
       </IonHeader>
       <IonContent className="ion-padding">

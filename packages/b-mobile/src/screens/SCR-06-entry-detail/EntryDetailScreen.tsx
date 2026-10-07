@@ -92,7 +92,6 @@ import {
 import { describeError, mapApiError } from '../../data/errors.js';
 import type { BlipComment as ApiComment } from '@b-oss/b-api';
 import { useDevicePrefsStore } from '../../state/devicePrefsStore.js';
-import { AccountIndicator } from '../../components/AccountIndicator.js';
 import { downloadOwnEntryImage } from '../../flows/downloadFlow.js';
 
 interface EntryDetailScreenProps {
@@ -483,7 +482,7 @@ export function EntryDetailScreen({ entryId, initialReplyToCommentId }: EntryDet
   return (
     <IonPage>
       <IonHeader>
-        <AppHeader title="Entry" variant="back" backHref="/browse" end={<AccountIndicator />} />
+        <AppHeader title="Entry" variant="back" backHref="/browse" accountIndicator />
       </IonHeader>
       <IonContent {...scroll}>
         {entryState.status === 'loading' && (

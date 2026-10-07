@@ -21,7 +21,6 @@ import {
   IonButton,
 } from '@ionic/react';
 import { AppHeader } from '../../components/AppHeader.js';
-import { AccountIndicator } from '../../components/AccountIndicator.js';
 import { usePagedResource } from '../../data/usePagedResource.js';
 import {
   fetchRecentPage,
@@ -242,7 +241,7 @@ export function BrowseScreen() {
   return (
     <IonPage>
       <IonHeader>
-        <AppHeader title="Browse" end={<AccountIndicator />} />
+        <AppHeader title="Browse" />
         <IonToolbar>
           <ScrollEdgeHint>
             <IonSegment

@@ -33,7 +33,6 @@ import { useOverlay } from '../../app/OverlayProvider.js';
 import { useActiveAccount, useCanWrite } from '../../state/accountsStore.js';
 import { UserRow } from '../../components/UserRow.js';
 import type { BlipUser } from '@b-oss/b-api';
-import { AccountIndicator } from '../../components/AccountIndicator.js';
 
 interface FollowersFollowingScreenProps {
   username: string;
@@ -102,7 +101,7 @@ export function FollowersFollowingScreen({ username, mode }: FollowersFollowingS
           title={mode === 'followers' ? 'Followers' : 'Following'}
           variant="back"
           backHref={`/user/${encodeURIComponent(username)}`}
-          end={<AccountIndicator />}
+          accountIndicator
         />
       </IonHeader>
       <IonContent {...scroll}>
