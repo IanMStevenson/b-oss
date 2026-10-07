@@ -110,6 +110,22 @@ describe('platformFetch — native path', () => {
     expect(response.status).toBe(404);
   });
 
+  it('returns a body-less Response for 204 instead of throwing (b-oss#148)', async () => {
+    // b-push answers PATCH/DELETE with 204. CapacitorHttp still reports data: '' for it, and the
+    // Response constructor throws on any body for a null-body status, so every toggle change failed
+    // and every deregistration silently left its row behind.
+    const { platformFetch } = await import('../http.js');
+    requestMock.mockResolvedValue({ data: '', status: 204, headers: {} });
+
+    const response = await platformFetch('https://b-push.example/v1/registrations/abc', {
+      method: 'DELETE',
+    });
+
+    expect(response.status).toBe(204);
+    expect(response.ok).toBe(true);
+    await expect(response.text()).resolves.toBe('');
+  });
+
   it('falls through to plain fetch on web', async () => {
     isNative = false;
     const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response('{}'));
