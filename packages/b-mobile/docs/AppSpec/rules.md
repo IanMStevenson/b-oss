@@ -219,7 +219,7 @@ Every screen that loads data defines four states, and specs must address each:
 - **The OS notification permission is a separate gate from the sign-in mode**, requested as part of
   enabling notifications (`FLW-20`). There is **no persistent "blocked by the OS" state** — a
   refusal, or the OS permission being found missing on any later app-launch check, is treated
-  identically to the user turning the notifications master switch off (`SCR-25`/`SCR-30`,
+  identically to the user turning notifications off (the last of `SCR-25`'s push toggles,
   `FLW-22`): the service registration and its read token are revoked, same as a deliberate
   toggle-off, with nothing remembered about the prior preference. Re-enabling always goes through
   the normal on-path again, permission request included.

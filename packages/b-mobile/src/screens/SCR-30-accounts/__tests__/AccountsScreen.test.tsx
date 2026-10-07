@@ -14,7 +14,14 @@ import { AccountsScreen } from '../AccountsScreen.js';
 import { useAccountsStore } from '../../../state/accountsStore.js';
 import type { StoredAccount } from '../../../state/accountsStore.js';
 
-const { MockNeedsReauthError, switchAccount, removeAccount, changeAccountMode } = vi.hoisted(() => {
+const {
+  MockNeedsReauthError,
+  MockOAuthCancelledError,
+  switchAccount,
+  removeAccount,
+  changeAccountMode,
+} = vi.hoisted(() => {
+  class MockOAuthCancelledError extends Error {}
   class MockNeedsReauthError extends Error {
     constructor(public readonly accountId: string) {
       super(`Account ${accountId} needs re-authorization`);
@@ -23,6 +30,7 @@ const { MockNeedsReauthError, switchAccount, removeAccount, changeAccountMode } 
   }
   return {
     MockNeedsReauthError,
+    MockOAuthCancelledError,
     switchAccount: vi.fn<(accountId: string) => void>(),
     removeAccount: vi.fn<(accountId: string) => Promise<void>>(),
     changeAccountMode:
@@ -36,6 +44,7 @@ vi.mock('../../../flows/accountsFlow.js', () => ({
   removeAccount: (id: string) => removeAccount(id),
   changeAccountMode: (id: string, target: unknown) => changeAccountMode(id, target as never),
   NeedsReauthError: MockNeedsReauthError,
+  OAuthCancelledError: MockOAuthCancelledError,
 }));
 
 const push = vi.fn();
@@ -156,5 +165,85 @@ describe('AccountsScreen', () => {
     await waitFor(() =>
       expect(changeAccountMode).toHaveBeenCalledWith('a1', { scope: 'read', notifications: false }),
     );
+  });
+
+  it('shows a notification status per account, and no notifications on/off button (b-oss#244)', () => {
+    useAccountsStore.setState({
+      accounts: [
+        account({ hasServiceToken: true, notificationRegistrationId: 'r1' }),
+        account({ id: 'a2', username: 'bob' }),
+        account({
+          id: 'a3',
+          username: 'carol',
+          notificationRegistrationId: 'r3',
+          notificationStatus: 'read-token-invalid',
+        }),
+      ],
+      activeAccountId: 'a1',
+    });
+    renderScreen();
+    expect(screen.getByText('Notifications: on')).toBeDefined();
+    expect(screen.getByText('Notifications: off')).toBeDefined();
+    expect(screen.getByText('Notifications: needs sign-in')).toBeDefined();
+    expect(screen.queryByText(/Turn notifications/)).toBeNull();
+  });
+
+  it('the detail view has no notifications on/off button either', async () => {
+    useAccountsStore.setState({ accounts: [account()], activeAccountId: 'a1' });
+    renderScreen();
+    await userEvent.click(screen.getByText('alice'));
+    await screen.findByText('Remove account');
+    expect(screen.queryByText(/Turn notifications/)).toBeNull();
+    expect(screen.getByText('Notifications: off')).toBeDefined();
+  });
+
+  it('tapping a status switches to that account and opens its notification settings', async () => {
+    useAccountsStore.setState({
+      accounts: [account(), account({ id: 'a2', username: 'bob' })],
+      activeAccountId: 'a1',
+    });
+    renderScreen();
+    const bobStatus = screen.getAllByText('Notifications: off')[1];
+    await userEvent.click(bobStatus);
+    expect(switchAccount).toHaveBeenCalledWith('a2');
+    expect(switchAccount).toHaveBeenCalledTimes(1); // not also the row's own tap
+    expect(push).toHaveBeenCalledWith('/settings/notifications');
+  });
+
+  it('tapping the active account’s status opens settings without switching', async () => {
+    useAccountsStore.setState({ accounts: [account()], activeAccountId: 'a1' });
+    renderScreen();
+    await userEvent.click(screen.getByText('Notifications: off'));
+    expect(switchAccount).not.toHaveBeenCalled();
+    expect(push).toHaveBeenCalledWith('/settings/notifications');
+    expect(screen.queryByText('Remove account')).toBeNull(); // didn't open the detail view
+  });
+
+  it('an account with a dead notification token offers Sign in again, re-running the enable path', async () => {
+    changeAccountMode.mockResolvedValue(undefined);
+    useAccountsStore.setState({
+      accounts: [
+        account({
+          notificationRegistrationId: 'r1',
+          notificationStatus: 'read-token-invalid',
+        }),
+      ],
+      activeAccountId: 'a1',
+    });
+    renderScreen();
+    await userEvent.click(screen.getByText('Sign in again'));
+    await waitFor(() =>
+      expect(changeAccountMode).toHaveBeenCalledWith('a1', {
+        scope: 'read,write',
+        notifications: true,
+      }),
+    );
+    expect(screen.queryByText('Remove account')).toBeNull();
+  });
+
+  it('no Sign in again for accounts whose notifications are simply off', () => {
+    useAccountsStore.setState({ accounts: [account()], activeAccountId: 'a1' });
+    renderScreen();
+    expect(screen.queryByText('Sign in again')).toBeNull();
   });
 });

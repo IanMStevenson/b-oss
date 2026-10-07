@@ -64,16 +64,25 @@ export interface CreateRegistrationResult {
   registrationSecret: string;
 }
 
+/** The two per-account push streams (b-oss#244). Stored by b-push, sent at registration and
+ * changed by `PATCH`; both default to on server-side when omitted. */
+export interface PushStreamFlags {
+  pushComments?: boolean;
+  pushNotifications?: boolean;
+}
+
 /** `POST /v1/registrations` — `blipfotoUserId` is the account's username: `b-api` exposes no
  * numeric user id anywhere (the same platform limitation `SCR-23`/`SCR-24`'s hidden-member-by-
  * username design already documents), so the username is the only stable identifier this app can
  * hand the service. */
-export function createRegistration(params: {
-  blipfotoUserId: string;
-  readToken: string;
-  deviceToken: string;
-  platform: PushPlatform;
-}): Promise<CreateRegistrationResult> {
+export function createRegistration(
+  params: {
+    blipfotoUserId: string;
+    readToken: string;
+    deviceToken: string;
+    platform: PushPlatform;
+  } & PushStreamFlags,
+): Promise<CreateRegistrationResult> {
   return request<CreateRegistrationResult>('/v1/registrations', {
     method: 'POST',
     bearer: REGISTRATION_SECRET,
@@ -84,7 +93,11 @@ export function createRegistration(params: {
 export function patchRegistration(
   registrationId: string,
   registrationSecret: string,
-  patch: { readToken?: string; deviceToken?: string; pollIntervalMinutes?: number },
+  patch: {
+    readToken?: string;
+    deviceToken?: string;
+    pollIntervalMinutes?: number;
+  } & PushStreamFlags,
 ): Promise<void> {
   return request<void>(`/v1/registrations/${encodeURIComponent(registrationId)}`, {
     method: 'PATCH',
@@ -93,23 +106,12 @@ export function patchRegistration(
   });
 }
 
-/** FLW-17 — a dedicated ping after a successful Notifications-section save, distinct from
- * `patchRegistration` (this says "go re-read Blipfoto now," not "here is a new stored value").
- * Best-effort by design (notification-service.md: "If the ping itself fails, no retry — it
- * degrades to the hourly path") — callers should swallow a rejection, not surface it. */
-export function refreshPreferences(
-  registrationId: string,
-  registrationSecret: string,
-): Promise<void> {
-  return request<void>(
-    `/v1/registrations/${encodeURIComponent(registrationId)}/refresh-preferences`,
-    { method: 'POST', bearer: registrationSecret },
-  );
-}
-
 export interface RegistrationStatusResult {
   status: 'active' | 'read-token-invalid';
   lastPolledAt: number | null;
+  /** Optional: a service deployed before b-oss#244 doesn't return them. */
+  pushComments?: boolean;
+  pushNotifications?: boolean;
 }
 
 /** The launch-time backstop's `GET` (FLW-16 step 8) — a fallback for a missed push, not polled

@@ -19,6 +19,12 @@ export interface StoredAccount {
   hasServiceToken: boolean;
   notificationRegistrationId: string | null;
   notificationStatus: 'active' | 'read-token-invalid' | null;
+  /** Local copy of the two per-account push streams b-push holds (b-oss#244), so Settings and
+   * Accounts render without a network call. Optional because accounts persisted before #244 have
+   * neither — `pushStreamsOf()` treats a missing value as on, matching the service's default. Kept
+   * across a forced logout so "Sign in again" restores what the user had. */
+  pushComments?: boolean;
+  pushNotifications?: boolean;
 }
 
 interface PersistedShape {
@@ -104,4 +110,39 @@ export function useActiveAccount(): StoredAccount | null {
 export function useCanWrite(): boolean {
   const active = useActiveAccount();
   return active?.appTokenScope === 'read,write';
+}
+
+/** The two push streams (b-oss#244). "Notifications on" = at least one is on. */
+export interface PushStreams {
+  comments: boolean;
+  notifications: boolean;
+}
+
+export const ALL_PUSH_STREAMS: PushStreams = { comments: true, notifications: true };
+
+/** Notification state as shown to the user (SCR-25/SCR-30). `needs-sign-in` = the service
+ * reported this account's read token dead (FLW-02's reauth-required push or the launch-time
+ * check); the registration preferences survive, so signing in again restores them. */
+export type NotificationState = 'on' | 'off' | 'needs-sign-in';
+
+export function notificationStateOf(account: StoredAccount): NotificationState {
+  if (account.hasServiceToken) return 'on';
+  if (account.notificationStatus === 'read-token-invalid') return 'needs-sign-in';
+  return 'off';
+}
+
+/** The stored stream choice, missing values defaulting to on. This is the *preference*, not
+ * whether pushes are flowing — callers combine it with `notificationStateOf()`. */
+export function pushStreamsOf(account: StoredAccount): PushStreams {
+  return {
+    comments: account.pushComments ?? true,
+    notifications: account.pushNotifications ?? true,
+  };
+}
+
+/** Whether turning notifications back on after turning them off would need a fresh Blipfoto
+ * sign-in. True for read-write accounts, whose notification read token is a separate credential
+ * that's revoked on the way off; a read-only account reuses its app token, so no sign-in. */
+export function reenablingNeedsSignIn(account: StoredAccount): boolean {
+  return account.appTokenScope === 'read,write';
 }

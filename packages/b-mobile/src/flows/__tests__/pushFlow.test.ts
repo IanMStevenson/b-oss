@@ -45,14 +45,12 @@ vi.mock('../../platform/secureStorage.js', () => ({
 const createRegistration =
   vi.fn<(...args: unknown[]) => Promise<{ registrationId: string; registrationSecret: string }>>();
 const patchRegistration = vi.fn<(...args: unknown[]) => Promise<void>>();
-const refreshPreferences = vi.fn<(...args: unknown[]) => Promise<void>>();
 const getRegistrationStatus =
   vi.fn<(...args: unknown[]) => Promise<{ status: string; lastPolledAt: number | null }>>();
 const deleteRegistration = vi.fn<(...args: unknown[]) => Promise<void>>();
 vi.mock('../../data/pushService.js', () => ({
   createRegistration: (...args: unknown[]) => createRegistration(...args),
   patchRegistration: (...args: unknown[]) => patchRegistration(...args),
-  refreshPreferences: (...args: unknown[]) => refreshPreferences(...args),
   getRegistrationStatus: (...args: unknown[]) => getRegistrationStatus(...args),
   deleteRegistration: (...args: unknown[]) => deleteRegistration(...args),
 }));
@@ -67,7 +65,7 @@ const {
   ensurePushPermission,
   registerAccountForPush,
   deregisterAccountFromPush,
-  pingRefreshPreferences,
+  updatePushStreams,
   updatePollingInterval,
   handleDeviceTokenRotated,
   runLaunchBackstopCheck,
@@ -174,11 +172,50 @@ describe('registerAccountForPush', () => {
       readToken: 'read-token',
       deviceToken: 'device-token',
       platform: 'android',
+      pushComments: true,
+      pushNotifications: true,
     });
     expect(secretStore.get('alice')).toBe('sec-1');
     const stored = useAccountsStore.getState().accounts.find((a) => a.id === 'alice');
     expect(stored?.notificationRegistrationId).toBe('reg-1');
     expect(stored?.notificationStatus).toBe('active');
+  });
+
+  it('sends the chosen streams and stores them locally (b-oss#244)', async () => {
+    setAccounts([account({ id: 'alice' })]);
+    checkPushPermission.mockResolvedValue('granted');
+    registerPush.mockResolvedValue('device-token');
+    pushPlatform.mockReturnValue('android');
+    createRegistration.mockResolvedValue({ registrationId: 'reg-1', registrationSecret: 'sec-1' });
+
+    await registerAccountForPush('alice', 'read-token', { comments: false, notifications: true });
+
+    expect(createRegistration).toHaveBeenCalledWith(
+      expect.objectContaining({ pushComments: false, pushNotifications: true }),
+    );
+    const stored = useAccountsStore.getState().accounts.find((a) => a.id === 'alice');
+    expect(stored?.pushComments).toBe(false);
+    expect(stored?.pushNotifications).toBe(true);
+  });
+
+  it('deletes a stale registration left by a dead read token once the new one exists', async () => {
+    secretStore.set('alice', 'old-sec');
+    setAccounts([
+      account({
+        id: 'alice',
+        notificationRegistrationId: 'old-reg',
+        notificationStatus: 'read-token-invalid',
+      }),
+    ]);
+    checkPushPermission.mockResolvedValue('granted');
+    registerPush.mockResolvedValue('device-token');
+    pushPlatform.mockReturnValue('android');
+    createRegistration.mockResolvedValue({ registrationId: 'reg-2', registrationSecret: 'sec-2' });
+    deleteRegistration.mockResolvedValue(undefined);
+
+    expect(await registerAccountForPush('alice', 'read-token')).toBe(true);
+    expect(deleteRegistration).toHaveBeenCalledWith('old-reg', 'old-sec');
+    expect(secretStore.get('alice')).toBe('sec-2');
   });
 
   it('returns false when the service call itself fails', async () => {
@@ -231,26 +268,40 @@ describe('deregisterAccountFromPush', () => {
   });
 });
 
-describe('pingRefreshPreferences', () => {
-  it('does nothing without a registration', async () => {
+describe('updatePushStreams', () => {
+  it('throws when there is no registration', async () => {
     setAccounts([account({ id: 'alice' })]);
-    await pingRefreshPreferences('alice');
-    expect(refreshPreferences).not.toHaveBeenCalled();
+    await expect(
+      updatePushStreams('alice', { comments: true, notifications: false }),
+    ).rejects.toThrow();
+    expect(patchRegistration).not.toHaveBeenCalled();
   });
 
-  it('pings the service when a registration and secret exist', async () => {
+  it('PATCHes both flags, then updates the local copy', async () => {
     secretStore.set('alice', 'sec-1');
     setAccounts([account({ id: 'alice', notificationRegistrationId: 'reg-1' })]);
-    refreshPreferences.mockResolvedValue(undefined);
-    await pingRefreshPreferences('alice');
-    expect(refreshPreferences).toHaveBeenCalledWith('reg-1', 'sec-1');
+    patchRegistration.mockResolvedValue(undefined);
+
+    await updatePushStreams('alice', { comments: true, notifications: false });
+
+    expect(patchRegistration).toHaveBeenCalledWith('reg-1', 'sec-1', {
+      pushComments: true,
+      pushNotifications: false,
+    });
+    const stored = useAccountsStore.getState().accounts[0];
+    expect(stored?.pushComments).toBe(true);
+    expect(stored?.pushNotifications).toBe(false);
   });
 
-  it('swallows a failure — best-effort, no retry', async () => {
+  it('leaves the local copy alone when the PATCH fails', async () => {
     secretStore.set('alice', 'sec-1');
     setAccounts([account({ id: 'alice', notificationRegistrationId: 'reg-1' })]);
-    refreshPreferences.mockRejectedValue(new Error('network down'));
-    await expect(pingRefreshPreferences('alice')).resolves.toBeUndefined();
+    patchRegistration.mockRejectedValue(new Error('down'));
+
+    await expect(
+      updatePushStreams('alice', { comments: true, notifications: false }),
+    ).rejects.toThrow('down');
+    expect(useAccountsStore.getState().accounts[0]?.pushNotifications).toBeUndefined();
   });
 });
 

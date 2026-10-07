@@ -11,7 +11,6 @@ vi.mock('../../platform/http.js', () => ({
 const {
   createRegistration,
   patchRegistration,
-  refreshPreferences,
   getRegistrationStatus,
   deleteRegistration,
   PushServiceError,
@@ -43,6 +42,25 @@ describe('createRegistration', () => {
     expect(init.method).toBe('POST');
     expect((init.headers as Record<string, string>).Authorization).toMatch(/^Bearer /);
     expect(JSON.parse(init.body as string)).toMatchObject({ blipfotoUserId: 'gbradley' });
+  });
+
+  it('sends the push-stream flags when given (b-oss#244)', async () => {
+    platformFetch.mockResolvedValue(
+      jsonResponse({ registrationId: 'r1', registrationSecret: 's1' }, 201),
+    );
+    await createRegistration({
+      blipfotoUserId: 'gbradley',
+      readToken: 'rt',
+      deviceToken: 'dt',
+      platform: 'android',
+      pushComments: true,
+      pushNotifications: false,
+    });
+    const [, init] = platformFetch.mock.calls[0] as [string, RequestInit];
+    expect(JSON.parse(init.body as string)).toMatchObject({
+      pushComments: true,
+      pushNotifications: false,
+    });
   });
 
   it('throws PushServiceError with the server-supplied message on a non-2xx response', async () => {
@@ -82,19 +100,16 @@ describe('patchRegistration', () => {
     expect((init.headers as Record<string, string>).Authorization).toBe('Bearer per-reg-secret');
   });
 
+  it('sends the push-stream flags in the body (b-oss#244)', async () => {
+    platformFetch.mockResolvedValue(new Response(null, { status: 204 }));
+    await patchRegistration('r1', 's', { pushComments: false });
+    const [, init] = platformFetch.mock.calls[0] as [string, RequestInit];
+    expect(JSON.parse(init.body as string)).toEqual({ pushComments: false });
+  });
+
   it('resolves with no value on 204', async () => {
     platformFetch.mockResolvedValue(new Response(null, { status: 204 }));
     await expect(patchRegistration('r1', 's', {})).resolves.toBeUndefined();
-  });
-});
-
-describe('refreshPreferences', () => {
-  it('POSTs to the refresh-preferences sub-path', async () => {
-    platformFetch.mockResolvedValue(new Response(null, { status: 204 }));
-    await refreshPreferences('r1', 'per-reg-secret');
-    const [url, init] = platformFetch.mock.calls[0] as [string, RequestInit];
-    expect(url).toContain('/v1/registrations/r1/refresh-preferences');
-    expect(init.method).toBe('POST');
   });
 });
 

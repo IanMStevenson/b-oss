@@ -137,10 +137,7 @@ describe('signInDeliberate (FLW-20)', () => {
       username: 'erin',
     });
     const beforeServiceRound = vi.fn().mockResolvedValue(false);
-    await signInDeliberate(
-      { scope: 'read,write', notifications: true },
-      { beforeServiceRound },
-    );
+    await signInDeliberate({ scope: 'read,write', notifications: true }, { beforeServiceRound });
     expect(beforeServiceRound).toHaveBeenCalledTimes(1);
     expect(runOAuthRound).toHaveBeenCalledTimes(1);
     expect(await getToken('erin', 'app')).toBe('tok-rw');
@@ -160,7 +157,11 @@ describe('signInDeliberate (FLW-20)', () => {
   });
 
   it('beforeServiceRound is not consulted for read-only (no second round exists to explain)', async () => {
-    runOAuthRound.mockResolvedValueOnce({ accessToken: 'tok-r', grantedScope: 'read', username: 'gus' });
+    runOAuthRound.mockResolvedValueOnce({
+      accessToken: 'tok-r',
+      grantedScope: 'read',
+      username: 'gus',
+    });
     const beforeServiceRound = vi.fn().mockResolvedValue(true);
     await signInDeliberate({ scope: 'read', notifications: true }, { beforeServiceRound });
     expect(beforeServiceRound).not.toHaveBeenCalled();
@@ -432,6 +433,66 @@ describe('changeAccountMode (FLW-22)', () => {
     expect(runOAuthRound).not.toHaveBeenCalled();
     expect(await getToken('alice', 'service')).toBe('read-token');
     expect(useAccountsStore.getState().accounts[0]?.hasServiceToken).toBe(true);
+  });
+});
+
+describe('changeAccountMode push streams (b-oss#244)', () => {
+  function rwAccount(overrides: Record<string, unknown> = {}) {
+    return {
+      id: 'alice',
+      username: 'alice',
+      avatarUrl: null,
+      appTokenScope: 'read,write' as const,
+      hasServiceToken: false,
+      notificationRegistrationId: null,
+      notificationStatus: null,
+      ...overrides,
+    };
+  }
+
+  beforeEach(() => resetStore());
+
+  it('registers with the streams the caller chose', async () => {
+    tokenStore.set('alice:app', 'write-token');
+    useAccountsStore.setState({ accounts: [rwAccount()], activeAccountId: 'alice' });
+    runOAuthRound.mockResolvedValue({
+      accessToken: 'read-token',
+      grantedScope: 'read',
+      username: 'alice',
+    });
+    await changeAccountMode('alice', {
+      scope: 'read,write',
+      notifications: true,
+      pushStreams: { comments: false, notifications: true },
+    });
+    expect(registerAccountForPush).toHaveBeenCalledWith('alice', 'read-token', {
+      comments: false,
+      notifications: true,
+    });
+  });
+
+  it('without a choice, re-registers with the stored streams (Sign in again)', async () => {
+    tokenStore.set('alice:app', 'write-token');
+    useAccountsStore.setState({
+      accounts: [
+        rwAccount({
+          notificationStatus: 'read-token-invalid',
+          pushComments: true,
+          pushNotifications: false,
+        }),
+      ],
+      activeAccountId: 'alice',
+    });
+    runOAuthRound.mockResolvedValue({
+      accessToken: 'read-token',
+      grantedScope: 'read',
+      username: 'alice',
+    });
+    await changeAccountMode('alice', { scope: 'read,write', notifications: true });
+    expect(registerAccountForPush).toHaveBeenCalledWith('alice', 'read-token', {
+      comments: true,
+      notifications: false,
+    });
   });
 });
 

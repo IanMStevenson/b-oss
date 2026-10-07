@@ -76,9 +76,10 @@ export const STRINGS = {
   'FLW22.downgrade_to_readonly.button': 'Switch to read-only',
   'FLW22.downgrade_to_readonly.title': 'Switch {username} to read-only?',
   'FLW22.notifications_off.body':
-    'This signs the notification service out of this account. You can turn notifications back on anytime.',
-  'FLW22.notifications_off.button': 'Turn off notifications',
-  'FLW22.notifications_off.title': 'Turn off notifications for {username}?',
+    "Turning this off stops all notifications for {username}. To turn them back on later you'll need to sign in to Blipfoto again.",
+  'FLW22.notifications_off.button': 'Turn off',
+  'FLW22.notifications_off.button_keep': 'Keep on',
+  'FLW22.notifications_off.title': 'Turn off notifications?',
   'FLW22.notifications_on.explainer':
     'One more step - authorize read-only access for notifications',
   'FLW22.upgrade_to_readwrite.body':
@@ -188,6 +189,27 @@ export const STRINGS = {
   'SCR-23.empty': 'No notifications yet',
   'SCR-24.empty': 'No comments yet',
   'SCR-25.error.save_generic': "Couldn't save your changes. Check your connection and try again.",
+  'SCR-25.feed_type.feed_entry_favorite_received': 'Favourites',
+  'SCR-25.feed_type.feed_entry_star_received': 'Stars',
+  'SCR-25.feed_type.feed_friends': 'Activity from people you follow',
+  'SCR-25.feed_type.feed_new_award': 'Awards',
+  'SCR-25.feed_type.feed_publish_followers_milestone': 'Follower milestones',
+  'SCR-25.feed_type.feed_publish_milestone': 'Publishing milestones',
+  'SCR-25.notifications.app.caption':
+    'Pushes to this phone for {username}. Turn both off to stop notifications for this account.',
+  'SCR-25.notifications.app.title': 'Notifications from this app',
+  'SCR-25.notifications.feed_hint.all':
+    'Your Blipfoto feed has every notification type turned off, so this app will never have any notifications to tell you about.',
+  'SCR-25.notifications.feed_hint.some':
+    "Your Blipfoto feed has {types} turned off, so you won't be notified about those.",
+  'SCR-25.notifications.feed.caption':
+    "What appears in your activity on blipfoto.com and in every app. A type turned off here is never created, so this app can't notify you about it either.",
+  'SCR-25.notifications.feed.title': 'Blipfoto feed settings',
+  'SCR-25.notifications.interval': 'Check for new activity every',
+  'SCR-25.notifications.needs_sign_in':
+    'Notifications for {username} stopped because Blipfoto needs you to sign in again. Turn one on to sign in.',
+  'SCR-25.notifications.push_comments': 'Push for new comments',
+  'SCR-25.notifications.push_notifications': 'Push for new notifications',
   'SCR-29.row.delete_account': 'Delete my account',
   'SCR-29.row.delete_account.subtitle':
     'Opens your Blipfoto account settings on the web. Not specific to any account signed in here.',
@@ -212,7 +234,11 @@ export const STRINGS = {
     'Remove a follower - ends the relationship. On a private journal they lose access, but they can ask to follow again; on a public journal your entries were never hidden from them anyway.',
   'SCR-29.safety_privacy.report':
     "Report - sends an entry or a comment to Blipfoto's moderators, who can act for everyone, not just you. Use this for anything that should be looked at more widely.",
+  'SCR-30.button.sign_in_again': 'Sign in again',
   'SCR-30.error.load': "Couldn't load your accounts. Try again.",
+  'SCR-30.notifications.needs_sign_in': 'Notifications: needs sign-in',
+  'SCR-30.notifications.off': 'Notifications: off',
+  'SCR-30.notifications.on': 'Notifications: on',
   'SCR-31.empty': "You haven't hidden anyone.",
   'SCR-31.header':
     "You won't see their entries, comments or notifications. This doesn't stop them seeing your journal or commenting on it.",
