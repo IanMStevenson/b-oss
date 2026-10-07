@@ -33,7 +33,7 @@ model…" and "Image cache"):
 - **Account indicator/switcher** is in the header of the entry page, lists, Search, Map, Profile,
   inboxes, Settings and Help (not forms or Accounts). The active account is a pale-green row with a
   tick; profile pictures come from `flows/avatarFlow.ts` (fetched per account at sign-in and every
-  launch); Settings → Misc → *Account picture* chooses picture vs icon (#209, #212, #219). The entry
+  launch); Settings → Misc → _Account picture_ chooses picture vs icon (#209, #212, #219). The entry
   page and Followers/Following reload when the account changes.
 - **CI**: runs on `b-mobile-initial` (#188); Dependabot targets it (#198). Test flakes were two
   causes — races asserted synchronously, and timeouts too tight for a loaded `windows-latest`
@@ -46,7 +46,7 @@ model…" and "Image cache"):
 
 **Open:** #185 (image glitches — fix merged, awaiting confirmation they're gone), #206 (WYSIWYG comment
 editor — parked), #183 (Ionic view stack — deferred), #175 (download — deferred), #149 (port b-ark's
-extras/hi-res), #148 (deploy b-push — needs Cloudflare/Firebase credentials). Epic #167 has only #175 left.
+extras/hi-res), #148 (b-push live; delivery tests pending #240, see Phase 13). Epic #167 has only #175 left.
 
 ## Status
 
@@ -74,8 +74,8 @@ finished app rather than one with known open wiring gaps: the shared overlay mec
 account-switcher popover, a real deep-link/share-intent resolver, the app-resume permission
 recheck, and a fully wired typed copy deck are all in place. Full monorepo
 `typecheck && lint && test && build` green (854 tests, reconfirmed 2026-08-30). **Only Phase 13
-(deploy/test `b-push`) remains, and it's still blocked on the user providing Cloudflare/Firebase
-credentials** — see "Phase 13" below.
+(deploy/test `b-push`) remains. The service has been live since 2026-10-06; the delivery tests
+are pending** (see "Phase 13" below).
 
 ## Last completed step
 
@@ -148,15 +148,43 @@ silently backfill:
   signed-in screens are reachable in a desktop browser via the other session's `devSignInWithToken`
   path). Still no device/emulator in this sandbox regardless.
 
-## Phase 13 (per the user, 2026-08-04): deploy and test the notification service
+## Phase 13: deploy and test the notification service (#148), in progress
 
-Deploy `b-push` for real (Cloudflare Workers + D1 + a Firebase project for FCM's service-account
-JSON) and test it to whatever extent is possible without a fully complete system (no Android
-signing/publishing, per the parked item above). Blocked on the user providing: a Cloudflare
-account, `VITE_NOTIFY_SERVICE_URL`/`VITE_NOTIFY_REGISTRATION_SECRET` (currently empty in
-`.env.local`), and Firebase project credentials. `b-push` itself has been fully built and tested
-against a local SQLite fake since Phase 9 — this phase is deployment and real-world verification,
-not new application code.
+**Live since 2026-10-06** at `https://b-push.b-oss.workers.dev`, on a dedicated Cloudflare account,
+with Firebase project `b-oss-mobile`. How to deploy, read logs, roll back and rotate secrets:
+`packages/b-push/README.md` (PR #253). The deployment record is
+`docs/ImplementationSpec/b-push-deployment-plan.md`; running notes are on #148.
+
+Done: Firebase and Cloudflare setup, smoke tests, Workers Logs, a push-enabled debug build
+installed, and a first registration (`cyclopstest`). The first real run found three service bugs,
+now fixed and merged: #238 (a junk token gave 500, and the service logged nothing) and #242 (the
+push settings were never requested, which would have suppressed every push). The code-52 handling
+was then narrowed so only registration treats 52 as a bad token (#246, open).
+
+**The delivery tests (plan Stage 5) haven't run yet.** The first registration's read token turned
+out to belong to `cyclops`: the second sign-in ran in the system browser, which was signed in as
+`cyclops`, and nothing checked whose token came back (#240). Ian won't sign the phone's browser
+out of `cyclops`, so delivery tests wait for #240.
+
+Open, in merge order (all PRs against `b-mobile-initial`, stacked where noted):
+
+- Service: #246 (code 52) → #247 (#244 stream toggles, migrations) → #248 (#240 owner check) →
+  #253 (runbook). Deploy order: migration 0002, deploy, migration 0003
+  (`packages/b-push/migrations/README.md`).
+- App: #249 (#244 settings redesign) → the #240 app PR (token-owner check, browser defaults).
+- Also found: #241 (debug builds log tokens to logcat), #245 (Blipfoto 500 on feed-settings save),
+  #250, #251 (pre-existing notification-state bugs), #252 (encryption-key rotation fails silently).
+
+Things learned from Blipfoto's source (Ian has access; ask him rather than guessing):
+
+- `push_*` settings belong to Blipfoto's own app push, so this app ignores them.
+- `feed_*` settings decide whether a notification is created at all.
+- Comments are always created and counted.
+- A revoked token returns 51; 52 means an invalid client.
+
+After the merges: Ian runs the migrations and deploys; build and install the app; re-register
+`cyclopstest` through the fixed flow; then the Stage 5 matrix. The one check that matters most is
+that the service never marks anything read (the unread badges don't change when it polls).
 
 ## Questions for the user (blocking, not urgent — collect when convenient)
 
@@ -166,8 +194,8 @@ not new application code.
 - ~~`VITE_MAP_TILES_KEY`~~ — **resolved 2026-08-05**, the user populated it in the root
   `.env.local` directly (a MapTiler Cloud key). No code change needed — `getMapStyleUrl()` already
   reads it and only fell back to `null`/`SCR-04`'s "unavailable" state for its absence.
-- **Nothing else currently blocking.** Only remaining open item is Phase 13's Cloudflare/Firebase
-  credentials, tracked separately below (not a "question", a hard external dependency).
+- **Nothing else currently blocking.** Phase 13's credentials exist now (2026-10-06); what's left
+  is tracked in the "Phase 13" section above.
 
 ### Blipfoto URLs — resolved 2026-08-04
 
