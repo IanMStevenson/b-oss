@@ -17,7 +17,7 @@
 // call exists yet. SCR-19's Followers list already offers this correctly (the list itself
 // confirms who's a follower); SCR-18 defers to it rather than guessing.
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   IonPage,
   IonHeader,
@@ -39,6 +39,7 @@ import {
   fetchUserProfile,
   fetchJournalEntriesFor,
   fetchFavoriteEntriesFor,
+  fetchAwards,
   PAGE_SIZE,
   JOURNAL_PAGE_SIZE,
 } from '../../data/users.js';
@@ -63,6 +64,47 @@ interface ProfileScreenProps {
 }
 
 type Tab = 'about' | 'entries' | 'faves';
+
+const statCellStyle = {
+  flex: 1,
+  display: 'flex',
+  flexDirection: 'column',
+  alignItems: 'center',
+  padding: '6px 4px',
+  minHeight: 44,
+  justifyContent: 'center',
+} as const;
+const statCountStyle = { fontSize: '1rem', color: 'var(--ink)' } as const;
+const statLabelStyle = { fontSize: '0.8125rem', color: 'var(--muted)' } as const;
+
+/** A tappable stat (Followers/Following/Awards/Requests): a link to the list, with a count when
+ * one is known. The API returns no totals for followers/following, so those show the label only. */
+function StatLink({
+  label,
+  count,
+  onClick,
+}: {
+  label: string;
+  count?: number | null;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      style={{
+        ...statCellStyle,
+        background: 'none',
+        border: 0,
+        font: 'inherit',
+        cursor: 'pointer',
+      }}
+    >
+      {count != null && <strong style={statCountStyle}>{count}</strong>}
+      <span style={{ ...statLabelStyle, color: 'var(--green-800)' }}>{label}</span>
+    </button>
+  );
+}
 
 function GridTab({
   fetchPage,
@@ -142,6 +184,19 @@ export function ProfileScreen({ username }: ProfileScreenProps) {
     () => fetchUserProfile(effectiveUsername),
     [effectiveUsername],
   );
+  // Awards are the one count the API gives cheaply (the list itself); followers/following have no
+  // totals. Best-effort: the stat just shows its label if this fails.
+  const [awardCount, setAwardCount] = useState<number | null>(null);
+  useEffect(() => {
+    let live = true;
+    setAwardCount(null);
+    fetchAwards(effectiveUsername)
+      .then((a) => live && setAwardCount(a.length))
+      .catch(() => undefined);
+    return () => {
+      live = false;
+    };
+  }, [effectiveUsername]);
   const isHidden = useIsHidden(effectiveUsername && !isOwn ? effectiveUsername : null);
 
   // Back from an entry rebuilds this screen (data/resumeCache.ts), so remember which tab you were
@@ -224,7 +279,7 @@ export function ProfileScreen({ username }: ProfileScreenProps) {
     <IonPage>
       <IonHeader>
         <AppHeader
-          title={isOwn ? 'My profile' : `${username}'s journal`}
+          title={isOwn ? 'My profile' : 'Profile'}
           variant={isOwn ? 'menu' : 'back'}
           backHref="/browse"
           // Other-user profile deliberately has no account indicator (spec lists My profile
@@ -264,42 +319,96 @@ export function ProfileScreen({ username }: ProfileScreenProps) {
 
         {state.status === 'loaded' && !isHidden && (
           <>
-            <div className="ion-padding" style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
+            <div
+              style={{
+                display: 'flex',
+                gap: 12,
+                alignItems: 'center',
+                padding: '12px 16px 8px',
+              }}
+            >
               <CachedImage
                 src={state.data.user.avatar_url}
                 alt=""
-                style={{ width: 64, height: 64, borderRadius: '50%' }}
+                style={{ width: 48, height: 48, borderRadius: '50%', flex: 'none' }}
               />
-              <div>
-                <h2 style={{ margin: 0, display: 'flex', alignItems: 'center', gap: 6 }}>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <h2
+                  style={{
+                    margin: 0,
+                    fontSize: '1.125rem',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 6,
+                  }}
+                >
                   {state.data.user.username}
-                  <UserBadges icons={state.data.user.icons} size={18} />
+                  <UserBadges icons={state.data.user.icons} size={16} />
                 </h2>
-                {state.data.details && (
-                  <p style={{ margin: 0, color: 'var(--muted)' }}>
-                    {state.data.details.journal_title} · {state.data.details.entry_total} entries
+                {state.data.details?.journal_title && (
+                  <p
+                    style={{
+                      margin: 0,
+                      color: 'var(--muted)',
+                      fontSize: '0.875rem',
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis',
+                      whiteSpace: 'nowrap',
+                    }}
+                  >
+                    {state.data.details.journal_title}
                   </p>
                 )}
               </div>
+              {!isOwn && friendship === 1 && (
+                <IonButton fill="outline" size="small" onClick={() => setConfirmUnfollow(true)}>
+                  Following
+                </IonButton>
+              )}
+              {!isOwn && friendship === 2 && (
+                <IonButton fill="outline" size="small" disabled>
+                  Request sent
+                </IonButton>
+              )}
+              {!isOwn && (friendship === 0 || friendship === 3) && (
+                <IonButton size="small" onClick={() => void handleFollow()}>
+                  Follow
+                </IonButton>
+              )}
             </div>
 
-            {!isOwn && (
-              <div className="ion-padding" style={{ paddingTop: 0 }}>
-                {friendship === 1 && (
-                  <IonButton fill="outline" onClick={() => setConfirmUnfollow(true)}>
-                    Unfollow
-                  </IonButton>
-                )}
-                {friendship === 2 && (
-                  <IonButton fill="outline" disabled>
-                    Request sent
-                  </IonButton>
-                )}
-                {(friendship === 0 || friendship === 3) && (
-                  <IonButton onClick={() => void handleFollow()}>Follow</IonButton>
-                )}
-              </div>
-            )}
+            <nav aria-label="Journal statistics" style={{ display: 'flex', padding: '0 8px' }}>
+              {state.data.details && (
+                <div style={statCellStyle}>
+                  <strong style={statCountStyle}>{state.data.details.entry_total}</strong>
+                  <span style={statLabelStyle}>Entries</span>
+                </div>
+              )}
+              <StatLink
+                label="Followers"
+                onClick={() =>
+                  navigate.push(`/user/${encodeURIComponent(effectiveUsername!)}/followers`)
+                }
+              />
+              <StatLink
+                label="Following"
+                onClick={() =>
+                  navigate.push(`/user/${encodeURIComponent(effectiveUsername!)}/following`)
+                }
+              />
+              <StatLink
+                label="Awards"
+                count={awardCount}
+                onClick={() =>
+                  navigate.push(
+                    isOwn ? '/me/awards' : `/user/${encodeURIComponent(effectiveUsername!)}/awards`,
+                  )
+                }
+              />
+              {isOwn && state.data.details?.privacy === 1 && (
+                <StatLink label="Requests" onClick={() => navigate.push('/me/requests')} />
+              )}
+            </nav>
 
             <IonToolbar>
               <IonSegment value={tab} onIonChange={(e) => handleTabChange(e.detail.value as Tab)}>
@@ -309,43 +418,6 @@ export function ProfileScreen({ username }: ProfileScreenProps) {
               </IonSegment>
             </IonToolbar>
 
-            <div className="ion-padding" style={{ display: 'flex', gap: 12 }}>
-              <IonButton
-                fill="clear"
-                size="small"
-                onClick={() =>
-                  navigate.push(`/user/${encodeURIComponent(effectiveUsername!)}/followers`)
-                }
-              >
-                Followers
-              </IonButton>
-              <IonButton
-                fill="clear"
-                size="small"
-                onClick={() =>
-                  navigate.push(`/user/${encodeURIComponent(effectiveUsername!)}/following`)
-                }
-              >
-                Following
-              </IonButton>
-              <IonButton
-                fill="clear"
-                size="small"
-                onClick={() =>
-                  navigate.push(
-                    isOwn ? '/me/awards' : `/user/${encodeURIComponent(effectiveUsername!)}/awards`,
-                  )
-                }
-              >
-                Awards
-              </IonButton>
-              {isOwn && state.data.details?.privacy === 1 && (
-                <IonButton fill="clear" size="small" onClick={() => navigate.push('/me/requests')}>
-                  Requests
-                </IonButton>
-              )}
-            </div>
-
             {!state.data.visible ? (
               <div className="ion-padding">
                 <p>This journal is protected.</p>
@@ -353,16 +425,23 @@ export function ProfileScreen({ username }: ProfileScreenProps) {
             ) : (
               <>
                 {tab === 'about' && (
-                  <div className="ion-padding">
-                    {state.data.details ? (
+                  <section className="ion-padding" aria-label="About">
+                    {state.data.details?.biography ? (
                       <BBCodeText
                         source={state.data.details.biography}
                         onLinkClick={(href) => void openUrl(href)}
                       />
                     ) : (
-                      <p>No biography.</p>
+                      <p style={{ margin: 0, color: 'var(--muted)' }}>No biography.</p>
                     )}
-                  </div>
+                    {state.data.details?.country_code && (
+                      <p
+                        style={{ margin: '16px 0 0', color: 'var(--muted)', fontSize: '0.875rem' }}
+                      >
+                        Country: {state.data.details.country_code}
+                      </p>
+                    )}
+                  </section>
                 )}
                 {tab === 'entries' && (
                   <GridTab

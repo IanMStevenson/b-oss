@@ -193,7 +193,13 @@ for (const [label, path] of [
   for (const tab of ['Entries', 'Faves']) {
     await page.goto(`${base}${path}`);
     await settle(2000);
-    if (await clickText(tab)) await shot(`profile-${label}-${tab.toLowerCase()}`);
+    // The stat row also says "Entries", so aim at the tab button itself.
+    const tabBtn = page.locator('ion-segment-button', { hasText: tab }).first();
+    if (await tabBtn.count()) {
+      await tabBtn.click().catch(() => {});
+      await settle(1200);
+      await shot(`profile-${label}-${tab.toLowerCase()}`);
+    }
   }
 }
 
