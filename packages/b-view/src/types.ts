@@ -75,6 +75,9 @@ export interface EntryIndex {
    * hidden-member-suppression grid check (rules.md) — a concept with no backup-viewer
    * counterpart, so ThumbnailGrid itself never reads it. */
   username?: string;
+  /** Optional: the entry's journal title, used by ThumbnailGrid's `'journal'` caption mode. Absent
+   * (or empty) falls back to `username`. */
+  journal_title?: string;
 }
 
 export type EntryState =
