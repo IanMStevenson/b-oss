@@ -48,3 +48,31 @@ describe('reset', () => {
     expect(useNotificationCountsStore.getState()).toMatchObject({ comments: 0, notifications: 0 });
   });
 });
+
+describe('a refresh that was already in flight (b-oss#148)', () => {
+  function deferredTotals() {
+    let resolve!: (t: { comments: number; notifications: number }) => void;
+    fetchUnreadTotals.mockReturnValue(new Promise((r) => (resolve = r)));
+    return (t: { comments: number; notifications: number }) => resolve(t);
+  }
+
+  it("doesn't put back a count the inbox cleared while it was fetching", async () => {
+    // Push tap: the account switch starts a refresh, then the Comments inbox opens, clears the
+    // badge and marks everything read. The refresh then lands with the old server figure.
+    const finish = deferredTotals();
+    const refreshing = useNotificationCountsStore.getState().refresh();
+    useNotificationCountsStore.getState().clearComments();
+    finish({ comments: 2, notifications: 4 });
+    await refreshing;
+    expect(useNotificationCountsStore.getState()).toMatchObject({ comments: 0, notifications: 4 });
+  });
+
+  it("doesn't apply a previous account's counts after a reset", async () => {
+    const finish = deferredTotals();
+    const refreshing = useNotificationCountsStore.getState().refresh();
+    useNotificationCountsStore.getState().reset();
+    finish({ comments: 2, notifications: 4 });
+    await refreshing;
+    expect(useNotificationCountsStore.getState()).toMatchObject({ comments: 0, notifications: 0 });
+  });
+});

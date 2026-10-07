@@ -21,24 +21,48 @@ interface NotificationCountsState {
   reset: () => void;
 }
 
+// Bumped whenever a stream's count is cleared or reset. A refresh records them before it fetches
+// and only applies a stream's total if nothing has cleared it in the meantime: otherwise a refresh
+// that started first (e.g. on the account switch a push tap makes) could finish after the inbox had
+// cleared the badge and marked everything read, and put the stale count back (b-oss#148). The same
+// check stops one account's in-flight refresh landing on the next account after a switch.
+let commentsEpoch = 0;
+let notificationsEpoch = 0;
+
 export const useNotificationCountsStore = create<NotificationCountsState>((set) => ({
   comments: 0,
   notifications: 0,
 
   refresh: async () => {
+    const startedAt = { comments: commentsEpoch, notifications: notificationsEpoch };
     try {
       const totals = await fetchUnreadTotals();
-      set({ comments: totals.comments, notifications: totals.notifications });
+      set({
+        ...(startedAt.comments === commentsEpoch ? { comments: totals.comments } : {}),
+        ...(startedAt.notifications === notificationsEpoch
+          ? { notifications: totals.notifications }
+          : {}),
+      });
     } catch {
       // A failed refresh leaves the last-known counts showing rather than zeroing them — a
       // transient network error shouldn't read as "you have no unread activity."
     }
   },
 
-  clearComments: () => set({ comments: 0 }),
-  clearNotifications: () => set({ notifications: 0 }),
+  clearComments: () => {
+    commentsEpoch++;
+    set({ comments: 0 });
+  },
+  clearNotifications: () => {
+    notificationsEpoch++;
+    set({ notifications: 0 });
+  },
 
   /** Signing out / switching accounts — the previous account's counts have nothing to do with
    * whichever account (or anonymous session) comes next. */
-  reset: () => set({ comments: 0, notifications: 0 }),
+  reset: () => {
+    commentsEpoch++;
+    notificationsEpoch++;
+    set({ comments: 0, notifications: 0 });
+  },
 }));
