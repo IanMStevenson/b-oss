@@ -24,6 +24,7 @@ import { useAccountsStore, ALL_PUSH_STREAMS } from '../state/accountsStore.js';
 import type { PushStreams } from '../state/accountsStore.js';
 import { handleForcedLogout } from './accountsFlow.js';
 import { AccountMismatchError } from './accountMismatch.js';
+import type { PushPayload } from '../platform/push.js';
 
 /** Checked/requested *before* any read-token authorization round for notifications (rules.md:
  * "never make the user authorize something already known to be undeliverable" — app-
@@ -217,4 +218,22 @@ export async function runLaunchBackstopCheck(): Promise<void> {
       // backstop for a missed one.
     }
   }
+}
+
+/** FLW-16 — where tapping a push goes. A push names the account it's about, and that isn't
+ * necessarily the active one, so switch to it first: otherwise a comment push for one account
+ * opened the other account's inbox (b-oss#148). Same rule as switchAccount(): an account that's
+ * gone, or whose app token needs re-authorizing, can't simply be switched to, so go to Accounts,
+ * where it can be dealt with. */
+export function routeForPushTap(payload: PushPayload): string {
+  if (payload.kind === 'reauth-required') {
+    // May already have run from onPushReceived or a launch backstop check; it's idempotent.
+    handleForcedLogout(payload.accountId, 'service');
+    return '/accounts';
+  }
+  const store = useAccountsStore.getState();
+  const account = store.accounts.find((a) => a.id === payload.accountId);
+  if (!account || account.appTokenScope === null) return '/accounts';
+  if (store.activeAccountId !== account.id) store.setActiveAccountId(account.id);
+  return payload.stream === 'comments' ? '/comments' : '/notifications';
 }

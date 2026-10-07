@@ -88,7 +88,7 @@ export const STRINGS = {
   'FLW22.downgrade_to_readonly.button': 'Switch to read-only',
   'FLW22.downgrade_to_readonly.title': 'Switch {username} to read-only?',
   'FLW22.notifications_off.body':
-    "Turning this off stops all notifications for {username}. To turn them back on later you'll need to sign in to Blipfoto again.",
+    'Turning this off stops all notifications for {username}. To turn them back on later you may need to sign in to Blipfoto again.',
   'FLW22.notifications_off.button': 'Turn off',
   'FLW22.notifications_off.button_keep': 'Keep on',
   'FLW22.notifications_off.title': 'Turn off notifications?',

@@ -82,6 +82,7 @@ describe('sendFcmMessage', () => {
       };
     };
     expect(sentBody.message.token).toBe('device-token-1');
+    expect(sentBody.message.notification.title).toBe('b-mobile');
     expect(sentBody.message.notification.body).toBe('2 new comments');
     expect(sentBody.message.data).toEqual({
       kind: 'activity',
