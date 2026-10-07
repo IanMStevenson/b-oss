@@ -171,7 +171,7 @@ function PushListener() {
       void useNotificationCountsStore.getState().refresh();
     });
     const offTapped = onPushTapped((payload) => {
-      navigate.current(routeForPushTap(payload));
+      void routeForPushTap(payload).then((route) => navigate.current(route));
     });
     const offTokenChanged = onPushTokenChanged((token) => {
       void handleDeviceTokenRotated(token);

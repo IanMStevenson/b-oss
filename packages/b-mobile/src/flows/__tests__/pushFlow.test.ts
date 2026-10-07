@@ -63,6 +63,16 @@ vi.mock('../accountsFlow.js', () => ({
   handleForcedLogout: (...args: unknown[]) => handleForcedLogout(...args),
 }));
 
+// authReady is a module-level promise in the app; here each test controls when it resolves, so the
+// cold-start case (a push tap arriving before stored accounts have loaded) can be reproduced.
+let releaseAuthReady: () => void = () => {};
+let authReadyPromise: Promise<void> = Promise.resolve();
+vi.mock('../../state/authReady.js', () => ({
+  get authReady() {
+    return authReadyPromise;
+  },
+}));
+
 const { useAccountsStore } = await import('../../state/accountsStore.js');
 const { PushServiceError } = await import('../../data/pushService.js');
 const { AccountMismatchError } = await import('../accountMismatch.js');
@@ -457,41 +467,60 @@ describe('runLaunchBackstopCheck', () => {
 });
 
 describe('routeForPushTap (b-oss#148)', () => {
-  it('switches to the account the push is about, then opens its comments inbox', () => {
+  it('switches to the account the push is about, then opens its comments inbox', async () => {
     setAccounts([account({ id: 'cyclops', username: 'cyclops' }), account()], 'cyclops');
-    expect(routeForPushTap({ kind: 'activity', stream: 'comments', accountId: 'alice' })).toBe(
-      '/comments',
-    );
+    await expect(
+      routeForPushTap({ kind: 'activity', stream: 'comments', accountId: 'alice' }),
+    ).resolves.toBe('/comments');
     expect(useAccountsStore.getState().activeAccountId).toBe('alice');
   });
 
-  it('opens the notifications inbox for a notifications push, already on that account', () => {
+  it('opens the notifications inbox for a notifications push, already on that account', async () => {
     setAccounts([account()], 'alice');
-    expect(routeForPushTap({ kind: 'activity', stream: 'notifications', accountId: 'alice' })).toBe(
-      '/notifications',
-    );
+    await expect(
+      routeForPushTap({ kind: 'activity', stream: 'notifications', accountId: 'alice' }),
+    ).resolves.toBe('/notifications');
     expect(useAccountsStore.getState().activeAccountId).toBe('alice');
   });
 
-  it('goes to Accounts, without switching, for an account that needs re-authorizing', () => {
+  it('goes to Accounts, without switching, for an account that needs re-authorizing', async () => {
     setAccounts([account({ id: 'cyclops' }), account({ appTokenScope: null })], 'cyclops');
-    expect(routeForPushTap({ kind: 'activity', stream: 'comments', accountId: 'alice' })).toBe(
-      '/accounts',
-    );
+    await expect(
+      routeForPushTap({ kind: 'activity', stream: 'comments', accountId: 'alice' }),
+    ).resolves.toBe('/accounts');
     expect(useAccountsStore.getState().activeAccountId).toBe('cyclops');
   });
 
-  it('goes to Accounts for an account no longer on this device', () => {
+  it('goes to Accounts for an account no longer on this device', async () => {
     setAccounts([account({ id: 'cyclops' })], 'cyclops');
-    expect(routeForPushTap({ kind: 'activity', stream: 'comments', accountId: 'gone' })).toBe(
-      '/accounts',
-    );
+    await expect(
+      routeForPushTap({ kind: 'activity', stream: 'comments', accountId: 'gone' }),
+    ).resolves.toBe('/accounts');
     expect(useAccountsStore.getState().activeAccountId).toBe('cyclops');
   });
 
-  it('a reauth-required push clears the service token and goes to Accounts', () => {
+  it('a reauth-required push clears the service token and goes to Accounts', async () => {
     setAccounts([account()], 'alice');
-    expect(routeForPushTap({ kind: 'reauth-required', accountId: 'alice' })).toBe('/accounts');
+    await expect(routeForPushTap({ kind: 'reauth-required', accountId: 'alice' })).resolves.toBe(
+      '/accounts',
+    );
     expect(handleForcedLogout).toHaveBeenCalledWith('alice', 'service');
+  });
+
+  it('waits for stored accounts to load before routing a cold-start tap (b-oss#148)', async () => {
+    // App killed, push tapped: the tap arrives before accountsStore has hydrated. Routing then
+    // found no accounts and sent the user to Accounts instead of the right inbox.
+    authReadyPromise = new Promise<void>((resolve) => {
+      releaseAuthReady = resolve;
+    });
+    setAccounts([]);
+    const route = routeForPushTap({ kind: 'activity', stream: 'comments', accountId: 'alice' });
+
+    setAccounts([account({ id: 'cyclops' }), account()], 'cyclops'); // hydration finishes
+    releaseAuthReady();
+
+    await expect(route).resolves.toBe('/comments');
+    expect(useAccountsStore.getState().activeAccountId).toBe('alice');
+    authReadyPromise = Promise.resolve();
   });
 });
