@@ -58,9 +58,13 @@
   position: absolute;
 }
 
+/* Underlined with a border, not text-decoration: the browser reads the U button's state (and
+   decides what tapping it does) from the computed text-decoration, so a decoration-underlined link
+   would make U show as "on" inside every link. */
 .editor a {
   color: var(--green-700);
-  text-decoration: underline;
+  text-decoration: none;
+  border-bottom: 1px solid currentColor;
 }
 
 .editor[aria-readonly='true'] {
@@ -214,32 +218,34 @@
 .linkActions {
   display: flex;
   justify-content: flex-end;
-  gap: 4px;
-  padding-top: 2px;
+  gap: 8px;
+  padding-top: 6px;
 }
 
+/* Small versions of the "Add comment" pill. */
 .linkAdd,
 .linkCancel,
 .linkRemove {
-  height: 34px;
-  padding: 0 10px;
-  border: 0;
-  background: none;
+  height: 30px;
+  padding: 0 14px;
+  border: 1.5px solid var(--muted-2);
+  border-radius: 999px;
+  background: var(--bg);
   font: inherit;
   font-size: var(--text-sm, 13px);
+  color: var(--muted);
   cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
 }
 
 .linkAdd {
+  border-color: var(--green-700);
   font-weight: var(--font-weight-medium, 500);
   color: var(--green-700);
 }
 
-.linkCancel {
-  color: var(--muted);
-}
-
 .linkRemove {
   margin-right: auto;
+  border-color: var(--color-danger);
   color: var(--color-danger);
 }
