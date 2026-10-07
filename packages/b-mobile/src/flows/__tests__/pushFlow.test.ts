@@ -74,6 +74,7 @@ const {
   updatePollingInterval,
   handleDeviceTokenRotated,
   runLaunchBackstopCheck,
+  routeForPushTap,
 } = await import('../pushFlow.js');
 
 function account(overrides: Partial<StoredAccount> = {}): StoredAccount {
@@ -452,5 +453,45 @@ describe('runLaunchBackstopCheck', () => {
 
     await expect(runLaunchBackstopCheck()).resolves.toBeUndefined();
     expect(handleForcedLogout).not.toHaveBeenCalled();
+  });
+});
+
+describe('routeForPushTap (b-oss#148)', () => {
+  it('switches to the account the push is about, then opens its comments inbox', () => {
+    setAccounts([account({ id: 'cyclops', username: 'cyclops' }), account()], 'cyclops');
+    expect(routeForPushTap({ kind: 'activity', stream: 'comments', accountId: 'alice' })).toBe(
+      '/comments',
+    );
+    expect(useAccountsStore.getState().activeAccountId).toBe('alice');
+  });
+
+  it('opens the notifications inbox for a notifications push, already on that account', () => {
+    setAccounts([account()], 'alice');
+    expect(routeForPushTap({ kind: 'activity', stream: 'notifications', accountId: 'alice' })).toBe(
+      '/notifications',
+    );
+    expect(useAccountsStore.getState().activeAccountId).toBe('alice');
+  });
+
+  it('goes to Accounts, without switching, for an account that needs re-authorizing', () => {
+    setAccounts([account({ id: 'cyclops' }), account({ appTokenScope: null })], 'cyclops');
+    expect(routeForPushTap({ kind: 'activity', stream: 'comments', accountId: 'alice' })).toBe(
+      '/accounts',
+    );
+    expect(useAccountsStore.getState().activeAccountId).toBe('cyclops');
+  });
+
+  it('goes to Accounts for an account no longer on this device', () => {
+    setAccounts([account({ id: 'cyclops' })], 'cyclops');
+    expect(routeForPushTap({ kind: 'activity', stream: 'comments', accountId: 'gone' })).toBe(
+      '/accounts',
+    );
+    expect(useAccountsStore.getState().activeAccountId).toBe('cyclops');
+  });
+
+  it('a reauth-required push clears the service token and goes to Accounts', () => {
+    setAccounts([account()], 'alice');
+    expect(routeForPushTap({ kind: 'reauth-required', accountId: 'alice' })).toBe('/accounts');
+    expect(handleForcedLogout).toHaveBeenCalledWith('alice', 'service');
   });
 });

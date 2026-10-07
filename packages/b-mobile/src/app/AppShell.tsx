@@ -33,7 +33,11 @@ import { onReminderTapped } from '../platform/localNotifications.js';
 import { refreshAccountAvatars } from '../flows/avatarFlow.js';
 import { switchAccount, handleForcedLogout, devSignInWithToken } from '../flows/accountsFlow.js';
 import { onPushReceived, onPushTapped, onPushTokenChanged } from '../platform/push.js';
-import { runLaunchBackstopCheck, handleDeviceTokenRotated } from '../flows/pushFlow.js';
+import {
+  runLaunchBackstopCheck,
+  handleDeviceTokenRotated,
+  routeForPushTap,
+} from '../flows/pushFlow.js';
 import { applyFontScale } from '../platform/accessibility.js';
 import { onAppStateChange } from '../platform/appState.js';
 import { onAppUrlOpen, getLaunchUrl } from '../platform/deepLinks.js';
@@ -167,15 +171,7 @@ function PushListener() {
       void useNotificationCountsStore.getState().refresh();
     });
     const offTapped = onPushTapped((payload) => {
-      if (payload.kind === 'reauth-required') {
-        // handleForcedLogout() may run a second time here (also called from onPushReceived
-        // above, or already applied by a prior launch's backstop check) — idempotent either way,
-        // since it only clears state that may already be cleared.
-        handleForcedLogout(payload.accountId, 'service');
-        navigate.current('/accounts');
-        return;
-      }
-      navigate.current(payload.stream === 'comments' ? '/comments' : '/notifications');
+      navigate.current(routeForPushTap(payload));
     });
     const offTokenChanged = onPushTokenChanged((token) => {
       void handleDeviceTokenRotated(token);

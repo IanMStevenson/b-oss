@@ -224,7 +224,7 @@ describe('NotificationsSection — push toggles', () => {
 
     const dialog = await screen.findByRole('dialog', { name: 'Turn off notifications?' });
     expect(dialog.textContent).toContain(
-      "Turning this off stops all notifications for alice. To turn them back on later you'll need to sign in to Blipfoto again.",
+      'Turning this off stops all notifications for alice. To turn them back on later you may need to sign in to Blipfoto again.',
     );
     await userEvent.click(screen.getByRole('button', { name: 'Keep on' }));
 

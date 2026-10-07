@@ -107,7 +107,8 @@ function notificationFor(payload: FcmPayload): { title: string; body: string } {
   }
   const noun = payload.stream === 'comments' ? 'comment' : 'notification';
   return {
-    title: 'Blipfoto',
+    // The app's name, not Blipfoto's: these come from b-mobile, not from Blipfoto's own app.
+    title: 'b-mobile',
     body: `${payload.count} new ${payload.count === 1 ? noun : `${noun}s`}`,
   };
 }
