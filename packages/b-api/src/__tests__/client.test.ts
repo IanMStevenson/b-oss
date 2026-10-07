@@ -4,7 +4,7 @@
 import { setupServer } from 'msw/node';
 import { http, HttpResponse } from 'msw';
 import { beforeAll, afterAll, afterEach, describe, it, expect } from 'vitest';
-import { BlipfotoClient, BlipfotoError, NetworkError } from '../index.js';
+import { BlipfotoClient, BlipfotoError, HttpError, NetworkError } from '../index.js';
 
 const BASE = 'https://api.blipfoto.com/4/';
 
@@ -1263,6 +1263,29 @@ describe('updateNotificationSettings (User auth only)', () => {
       new_follower: 0,
     });
     expect(result.success).toBe(1);
+  });
+
+  it('an empty HTTP 500 throws an HttpError describing the exchange, without the token (b-oss#245)', async () => {
+    server.use(
+      http.put(
+        `${BASE}user/settings/notifications.json`,
+        () => new HttpResponse(null, { status: 500, headers: { 'X-Request-Id': 'abc' } }),
+      ),
+    );
+    const err = await makeUserClient()
+      .updateNotificationSettings({ feed_friends: 1 })
+      .catch((e: unknown) => e);
+    expect(err).toBeInstanceOf(HttpError);
+    const http500 = err as HttpError;
+    expect(http500.status).toBe(500);
+    expect(http500.isServerError).toBe(true);
+    expect(http500.exchange.requestBody).toBe('feed_friends=1');
+    const text = http500.describe();
+    expect(text).toContain('PUT ');
+    expect(text).toContain('feed_friends=1');
+    expect(text).toContain('x-request-id: abc');
+    expect(text).toContain('(empty)');
+    expect(text).not.toContain(USER_TOKEN);
   });
 });
 

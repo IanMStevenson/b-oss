@@ -13,7 +13,7 @@
 // roll back the optimistic +1 specifically for that case, not generically for any validation
 // outcome). Both are handled before an error ever reaches mapApiError.
 
-import { BlipfotoError, NetworkError } from '@b-oss/b-api';
+import { BlipfotoError, HttpError, NetworkError } from '@b-oss/b-api';
 import type { StringKey } from '../strings/index.js';
 import { t } from '../strings/index.js';
 
@@ -53,6 +53,15 @@ const VALIDATION_CODES: Record<number, StringKey> = {
 export function mapApiError(error: unknown): ApiErrorOutcome {
   if (error instanceof NetworkError) {
     return { kind: 'transport' };
+  }
+  if (error instanceof HttpError) {
+    // Without this a bare 500 reads as an app bug ("Something went wrong") — say whose it is.
+    return {
+      kind: 'message',
+      message: error.isServerError
+        ? `Blipfoto had a server error (${error.status}). Please try again later.`
+        : `Blipfoto returned an unexpected response (${error.status}).`,
+    };
   }
   if (error instanceof BlipfotoError) {
     if (error.isTokenInvalid) {

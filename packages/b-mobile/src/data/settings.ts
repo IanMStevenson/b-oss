@@ -14,6 +14,7 @@
 // returns rather than a hand-authored list that could drift from it.
 
 import { getClient } from './client.js';
+import { recordHttpFailure } from './httpFailureLog.js';
 import type {
   UserSettingsResponse,
   UpdateUserSettingsParams,
@@ -30,6 +31,10 @@ export async function saveUserSettings(params: UpdateUserSettingsParams): Promis
   await client.updateUserSettings(params);
 }
 
+// What the server last said the feed settings were, kept only to accompany a failed save in the
+// http-failure record (b-oss#245).
+let lastFeedRead: NotificationChannel | null = null;
+
 export interface NotificationSettings {
   feed: NotificationChannel | null;
 }
@@ -39,7 +44,8 @@ export interface NotificationSettings {
 export async function fetchNotificationSettings(): Promise<NotificationSettings> {
   const client = await getClient();
   const res = await client.getNotificationSettings({ returnFeed: true });
-  return { feed: res.feed ?? null };
+  lastFeedRead = res.feed ?? null;
+  return { feed: lastFeedRead };
 }
 
 /** Saves feed settings only. Any `push_*`/`email_*` key is dropped defensively, so a stray key
@@ -49,5 +55,10 @@ export async function saveNotificationSettings(settings: Record<string, 0 | 1>):
     Object.entries(settings).filter(([key]) => !/^(push|email)_/.test(key)),
   );
   const client = await getClient();
-  await client.updateNotificationSettings(feedOnly);
+  try {
+    await client.updateNotificationSettings(feedOnly);
+  } catch (err) {
+    await recordHttpFailure(err, { lastFeedRead });
+    throw err;
+  }
 }

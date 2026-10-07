@@ -5,11 +5,36 @@
 // named in §19's "this is where the density should be" list.
 
 import { describe, it, expect } from 'vitest';
-import { BlipfotoError, NetworkError } from '@b-oss/b-api';
+import { BlipfotoError, HttpError, NetworkError } from '@b-oss/b-api';
 import { describeError, mapApiError } from '../errors.js';
 import { t } from '../../strings/index.js';
 
+function httpError(status: number): HttpError {
+  return new HttpError({
+    method: 'PUT',
+    url: 'https://api.blipfoto.com/4/x.json',
+    status,
+    statusText: '',
+    responseHeaders: {},
+    responseBody: '',
+  });
+}
+
 describe('mapApiError', () => {
+  it('says a 5xx is Blipfoto’s, not the app’s (b-oss#245)', () => {
+    expect(mapApiError(httpError(500))).toEqual({
+      kind: 'message',
+      message: 'Blipfoto had a server error (500). Please try again later.',
+    });
+  });
+
+  it('names the status of any other non-envelope response', () => {
+    expect(mapApiError(httpError(404))).toEqual({
+      kind: 'message',
+      message: 'Blipfoto returned an unexpected response (404).',
+    });
+  });
+
   it('maps a NetworkError to transport, the only class the upload queue retries', () => {
     expect(mapApiError(new NetworkError('offline'))).toEqual({ kind: 'transport' });
   });
