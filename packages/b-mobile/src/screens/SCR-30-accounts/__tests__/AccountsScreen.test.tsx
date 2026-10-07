@@ -109,8 +109,10 @@ vi.mock('../../../flows/accountsFlow.js', () => ({
 }));
 
 const push = vi.fn();
+let mockDrilledIn = false;
 vi.mock('../../../app/routes/useAppNavigate.js', () => ({
   useAppNavigate: () => ({ push, replace: vi.fn(), goBack: vi.fn() }),
+  useIsDrilledIn: () => mockDrilledIn,
 }));
 
 afterEach(() => {
@@ -134,7 +136,8 @@ function account(overrides: Partial<StoredAccount> = {}): StoredAccount {
 }
 
 /** `reauthFor` stands in for AppRoutes' `/accounts?reauth=<id>` (header switcher, push tap). */
-function renderScreen(reauthFor?: string) {
+function renderScreen(reauthFor?: string, drilledIn = false) {
+  mockDrilledIn = drilledIn;
   return render(
     <MemoryRouter>
       <AccountsScreen
@@ -145,8 +148,14 @@ function renderScreen(reauthFor?: string) {
 }
 
 describe('AccountsScreen', () => {
-  it('has a back button (reached from Settings), not the nav menu button (b-oss#165)', () => {
+  it('opened from the nav menu it has the menu button, not a back arrow (b-oss#273)', () => {
     renderScreen();
+    expect(document.querySelector('ion-menu-button')).not.toBeNull();
+    expect(document.querySelector('ion-back-button')).toBeNull();
+  });
+
+  it('opened from a Settings row (drilledIn) it has a back button (b-oss#165)', () => {
+    renderScreen(undefined, true);
     expect(document.querySelector('ion-back-button')).not.toBeNull();
     expect(document.querySelector('ion-menu-button')).toBeNull();
   });
@@ -527,7 +536,7 @@ describe('AccountsScreen', () => {
       renderScreen();
       await userEvent.click(screen.getByText('alice'));
       await screen.findByText('Remove account');
-      expect(screen.getByRole('button', { name: 'Back' })).toBeDefined();
+      expect(document.querySelector('ion-back-button')).not.toBeNull();
       expect(screen.getAllByText('alice')).toHaveLength(1);
       expect(screen.queryByText('Make active')).toBeNull();
       expect(screen.queryByText('Switch to read-write')).toBeNull(); // only the other mode
@@ -544,7 +553,7 @@ describe('AccountsScreen', () => {
       );
       await userEvent.click(screen.getByText('alice'));
       await screen.findByText('Remove account');
-      await userEvent.click(screen.getByRole('button', { name: 'Back' }));
+      await userEvent.click(document.querySelector('ion-back-button') as HTMLElement);
       expect(await screen.findByText('Add account')).toBeDefined();
       expect(screen.queryByRole('dialog')).toBeNull();
     });

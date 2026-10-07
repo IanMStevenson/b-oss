@@ -183,11 +183,20 @@ describe('SettingsScreen section routing', () => {
     expect(screen.getByText('Show zoom/navigation bar')).toBeDefined();
   });
 
-  it('the hub has a back button, not just the nav menu, so there is a way out of Settings (b-oss#165)', async () => {
+  it('the hub is a nav-menu destination: menu button, no back arrow (b-oss#278)', async () => {
     renderHub();
     await waitFor(() => expect(fetchUserSettings).toHaveBeenCalled());
-    expect(document.querySelector('ion-back-button')).not.toBeNull();
-    expect(document.querySelector('ion-menu-button')).toBeNull();
+    expect(document.querySelector('ion-menu-button')).not.toBeNull();
+    expect(document.querySelector('ion-back-button')).toBeNull();
+  });
+
+  it('Accounts and Hidden members rows push as drill-ins so they show a back arrow (b-oss#273)', async () => {
+    renderHub();
+    await waitFor(() => expect(fetchUserSettings).toHaveBeenCalled());
+    await userEvent.click(screen.getByText('Accounts'));
+    expect(push).toHaveBeenCalledWith('/accounts', { drilledIn: true });
+    await userEvent.click(screen.getByText('Hidden members'));
+    expect(push).toHaveBeenCalledWith('/hidden', { drilledIn: true });
   });
 
   it('falls back to the hub for an unrecognised section', async () => {

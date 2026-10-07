@@ -31,6 +31,7 @@ import {
   IonAlert,
   IonActionSheet,
 } from '@ionic/react';
+import { EllipsisVertical } from 'lucide-react';
 import { AppHeader } from '../../components/AppHeader.js';
 import { useResource } from '../../data/useResource.js';
 import { usePagedResource } from '../../data/usePagedResource.js';
@@ -46,7 +47,6 @@ import { signInGated } from '../../flows/accountsFlow.js';
 import { describeError, mapApiError } from '../../data/errors.js';
 import { useAppNavigate } from '../../app/routes/useAppNavigate.js';
 import { useOverlay } from '../../app/OverlayProvider.js';
-import { AccountIndicator } from '../../components/AccountIndicator.js';
 import { useAccountsStore, useActiveAccount } from '../../state/accountsStore.js';
 import { resumeClear, resumeGet, resumeSet } from '../../data/resumeCache.js';
 import { useHiddenMembersStore, useIsHidden } from '../../state/hiddenMembersStore.js';
@@ -227,13 +227,14 @@ export function ProfileScreen({ username }: ProfileScreenProps) {
           title={isOwn ? 'My profile' : `${username}'s journal`}
           variant={isOwn ? 'menu' : 'back'}
           backHref="/browse"
+          // Other-user profile deliberately has no account indicator (spec lists My profile
+          // only); AppHeader's default (menu variant only) gives exactly that.
           end={
-            <>
-              {!isOwn && state.status === 'loaded' && (
-                <IonButton onClick={() => setOverflowOpen(true)}>More</IonButton>
-              )}
-              {isOwn && <AccountIndicator />}
-            </>
+            !isOwn && state.status === 'loaded' ? (
+              <IonButton onClick={() => setOverflowOpen(true)} aria-label="More">
+                <EllipsisVertical size={22} aria-hidden="true" />
+              </IonButton>
+            ) : undefined
           }
         />
       </IonHeader>

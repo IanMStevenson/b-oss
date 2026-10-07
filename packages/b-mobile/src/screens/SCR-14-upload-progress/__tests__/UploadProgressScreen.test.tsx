@@ -6,6 +6,7 @@ import { describe, it, expect, afterEach, beforeEach, vi } from 'vitest';
 import { render, screen, cleanup } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
+import { OverlayProvider } from '../../../app/OverlayProvider.js';
 import { UploadProgressScreen } from '../UploadProgressScreen.js';
 import { useUploadQueueStore } from '../../../state/uploadQueueStore.js';
 import type { UploadQueueItem } from '../../../state/uploadQueueStore.js';
@@ -52,7 +53,9 @@ afterEach(() => {
 function renderScreen() {
   return render(
     <MemoryRouter>
-      <UploadProgressScreen />
+      <OverlayProvider>
+        <UploadProgressScreen />
+      </OverlayProvider>
     </MemoryRouter>,
   );
 }

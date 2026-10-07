@@ -178,7 +178,12 @@ export function SignInScreen() {
   return (
     <IonPage>
       <IonHeader>
-        <AppHeader title="Sign In" variant={drilledIn ? 'back' : 'menu'} backHref="/accounts" />
+        <AppHeader
+          title="Sign In"
+          variant={drilledIn ? 'back' : 'menu'}
+          backHref="/accounts"
+          accountIndicator={false}
+        />
       </IonHeader>
       <IonContent className="ion-padding">
         <p>How do you want to sign in?</p>

@@ -39,7 +39,6 @@ import {
 import type { RefresherEventDetail } from '@ionic/core';
 import { BBCodeText } from '@b-oss/b-view';
 import { AppHeader } from '../../components/AppHeader.js';
-import { AccountIndicator } from '../../components/AccountIndicator.js';
 import {
   fetchRecentNotifications,
   isNotificationFromHiddenMember,
@@ -124,12 +123,7 @@ export function NotificationsInboxScreen() {
   return (
     <IonPage>
       <IonHeader>
-        <AppHeader
-          title="Notifications"
-          variant="back"
-          backHref="/browse"
-          end={<AccountIndicator />}
-        />
+        <AppHeader title="Notifications" variant="menu" />
       </IonHeader>
       <IonContent>
         {status === 'loading' && (

@@ -47,8 +47,8 @@ import 'maplibre-gl/dist/maplibre-gl.css';
 // configuration, must run once before any Map is constructed.
 setWorkerUrl(maplibreWorkerUrl);
 import { tokens } from '@b-oss/b-visual';
+import { LocateFixed } from 'lucide-react';
 import { AppHeader } from '../../components/AppHeader.js';
-import { AccountIndicator } from '../../components/AccountIndicator.js';
 import { getMapStyleUrl } from '../../platform/mapTiles.js';
 import { getCurrentPosition } from '../../platform/geolocation.js';
 import { resolveImage } from '../../platform/imageCache.js';
@@ -335,16 +335,13 @@ export function MapScreen({ focusedEntryId }: MapScreenProps) {
         <AppHeader
           title="Map"
           end={
-            <>
-              <IonButton
-                onClick={() => void handleMyLocation()}
-                disabled={!styleUrl}
-                aria-label="My location"
-              >
-                My location
-              </IonButton>
-              <AccountIndicator />
-            </>
+            <IonButton
+              onClick={() => void handleMyLocation()}
+              disabled={!styleUrl}
+              aria-label="My location"
+            >
+              <LocateFixed size={22} aria-hidden="true" />
+            </IonButton>
           }
         />
       </IonHeader>

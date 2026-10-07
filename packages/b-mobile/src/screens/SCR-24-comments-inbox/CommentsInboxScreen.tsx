@@ -33,7 +33,6 @@ import {
 import type { RefresherEventDetail } from '@ionic/core';
 import { CornerUpLeft, MoreVertical } from 'lucide-react';
 import { AppHeader } from '../../components/AppHeader.js';
-import { AccountIndicator } from '../../components/AccountIndicator.js';
 import { UserBadges } from '../../components/UserBadges.js';
 import { fetchRecentComments, unreadCommentIds } from '../../data/notifications.js';
 import { deleteComment } from '../../flows/commentsFlow.js';
@@ -147,7 +146,7 @@ export function CommentsInboxScreen() {
   return (
     <IonPage>
       <IonHeader>
-        <AppHeader title="Comments" variant="back" backHref="/browse" end={<AccountIndicator />} />
+        <AppHeader title="Comments" />
       </IonHeader>
       <IonContent>
         {status === 'loading' && (

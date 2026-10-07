@@ -39,7 +39,6 @@ import {
 } from '@ionic/react';
 import type { RefresherEventDetail } from '@ionic/core';
 import { AppHeader } from '../../components/AppHeader.js';
-import { AccountIndicator } from '../../components/AccountIndicator.js';
 import { usePagedResource } from '../../data/usePagedResource.js';
 import { resumeClear, resumeGet, resumeSet } from '../../data/resumeCache.js';
 import { useActiveAccount } from '../../state/accountsStore.js';
@@ -265,7 +264,7 @@ export function SearchScreen() {
   return (
     <IonPage>
       <IonHeader>
-        <AppHeader title="Search" end={<AccountIndicator />} />
+        <AppHeader title="Search" />
         <IonToolbar>
           <form
             onSubmit={handleSubmit}
