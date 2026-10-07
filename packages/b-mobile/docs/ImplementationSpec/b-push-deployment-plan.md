@@ -1,5 +1,12 @@
 # Deploying and verifying the notification service (b-push) — plan
 
+> **Outcome (2026-10-07): done.** b-push is live and verified on a device. Stage 2 was done
+> differently from the original plan (see below); Stage 5's "Preferences" row was replaced by the
+> per-stream toggles (#244); token rotation was fixed in code (#265) but not device-tested, by
+> choice. Results and every fix found along the way are in the comments on
+> [#148](https://github.com/IanMStevenson/b-oss/issues/148). Operations live in
+> `packages/b-push/README.md`.
+
 Plan for [#148](https://github.com/IanMStevenson/b-oss/issues/148) (Phase 13). `packages/b-push`
 is built and unit-tested against a local SQLite fake; **nothing has ever run against real
 Cloudflare, real FCM, or the real Blipfoto totals endpoint.** This plan gets it live and proves

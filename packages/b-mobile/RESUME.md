@@ -46,7 +46,7 @@ model…" and "Image cache"):
 
 **Open:** #185 (image glitches — fix merged, awaiting confirmation they're gone), #206 (WYSIWYG comment
 editor — parked), #183 (Ionic view stack — deferred), #175 (download — deferred), #149 (port b-ark's
-extras/hi-res), #148 (b-push live; delivery tests pending #240, see Phase 13). Epic #167 has only #175 left.
+extras/hi-res), #148 (done 2026-10-07, see Phase 13). Epic #167 has only #175 left.
 
 ## Status
 
@@ -74,8 +74,7 @@ finished app rather than one with known open wiring gaps: the shared overlay mec
 account-switcher popover, a real deep-link/share-intent resolver, the app-resume permission
 recheck, and a fully wired typed copy deck are all in place. Full monorepo
 `typecheck && lint && test && build` green (854 tests, reconfirmed 2026-08-30). **Only Phase 13
-(deploy/test `b-push`) remains. The service has been live since 2026-10-06; the delivery tests
-are pending** (see "Phase 13" below).
+(deploy/test `b-push`) was left, and it's done (2026-10-07)** — see "Phase 13" below.
 
 ## Last completed step
 
@@ -148,43 +147,40 @@ silently backfill:
   signed-in screens are reachable in a desktop browser via the other session's `devSignInWithToken`
   path). Still no device/emulator in this sandbox regardless.
 
-## Phase 13: deploy and test the notification service (#148), in progress
+## Phase 13: deploy and test the notification service (#148), DONE 2026-10-07
 
-**Live since 2026-10-06** at `https://b-push.b-oss.workers.dev`, on a dedicated Cloudflare account,
-with Firebase project `b-oss-mobile`. How to deploy, read logs, roll back and rotate secrets:
-`packages/b-push/README.md` (PR #253). The deployment record is
-`docs/ImplementationSpec/b-push-deployment-plan.md`; running notes are on #148.
+b-push is **live** at `https://b-push.b-oss.workers.dev` on a dedicated Cloudflare account, with
+Firebase project `b-oss-mobile`. Operations (deploy with the scoped token, migrations, logs,
+rollback, secrets, free-tier limits): `packages/b-push/README.md`. What actually happened, stage by
+stage: `docs/ImplementationSpec/b-push-deployment-plan.md` and the comments on #148.
 
-Done: Firebase and Cloudflare setup, smoke tests, Workers Logs, a push-enabled debug build
-installed, and a first registration (`cyclopstest`). The first real run found three service bugs,
-now fixed and merged: #238 (a junk token gave 500, and the service logged nothing) and #242 (the
-push settings were never requested, which would have suppressed every push). The code-52 handling
-was then narrowed so only registration treats 52 as a bad token (#246, open).
+Verified on the phone (`cyclopstest` receiving, `cyclops` acting): basic push; the service marks
+nothing read; tap-through switches to the push's account (including from a cold start); background
+and Doze delivery; per-stream toggles; deregistration; re-registration with the account-owner
+check; re-authorization end to end after revoking b-mobile on blipfoto.com. Token rotation (a
+reinstall) wasn't device-tested, by choice; the service fix for it is in (#266).
 
-**The delivery tests (plan Stage 5) haven't run yet.** The first registration's read token turned
-out to belong to `cyclops`: the second sign-in ran in the system browser, which was signed in as
-`cyclops`, and nothing checked whose token came back (#240). Ian won't sign the phone's browser
-out of `cyclops`, so delivery tests wait for #240.
+The first real run found a lot. All of it is fixed and merged, in roughly this order:
 
-Open, in merge order (all PRs against `b-mobile-initial`, stacked where noted):
-
-- Service: #246 (code 52) → #247 (#244 stream toggles, migrations) → #248 (#240 owner check) →
-  #253 (runbook). Deploy order: migration 0002, deploy, migration 0003
-  (`packages/b-push/migrations/README.md`).
-- App: #249 (#244 settings redesign) → the #240 app PR (token-owner check, browser defaults).
-- Also found: #241 (debug builds log tokens to logcat), #245 (Blipfoto 500 on feed-settings save),
-  #250, #251 (pre-existing notification-state bugs), #252 (encryption-key rotation fails silently).
+- **Service:** junk token gave 500, and no logging (#238); push settings never requested (#242);
+  code 52 handling (#246); stream toggles replace Blipfoto's push settings (#244); token-owner
+  check (#240); runbook; stale device tokens never removed (#265).
+- **App:** 204 responses threw on native, so PATCH/DELETE never worked from a device (#256); tap
+  ignored the push's account (#257) and broke on a cold start (#258); stale unread badge (#260);
+  dead app token never detected, and recovery renewed only the service token (#261/#250); the
+  re-sign-in flow (#263); settings redesign with no master switch (#249).
 
 Things learned from Blipfoto's source (Ian has access; ask him rather than guessing):
 
-- `push_*` settings belong to Blipfoto's own app push, so this app ignores them.
+- `push_*` settings are Blipfoto's own app push, so this app ignores them.
 - `feed_*` settings decide whether a notification is created at all.
 - Comments are always created and counted.
 - A revoked token returns 51; 52 means an invalid client.
+- Tokens don't expire, so revoking b-mobile on blipfoto.com kills _all_ its tokens for that user.
 
-After the merges: Ian runs the migrations and deploys; build and install the app; re-register
-`cyclopstest` through the fixed flow; then the Stage 5 matrix. The one check that matters most is
-that the service never marks anything read (the unread badges don't change when it polls).
+Still open, tracked separately: #241 (debug builds log tokens to logcat), #245 (Blipfoto 500 on
+feed-settings save), #251 (permission revoke leaves notifications marked on), #252 (encryption-key
+rotation fails silently), #259 (thumbnail captions).
 
 ## Questions for the user (blocking, not urgent — collect when convenient)
 
