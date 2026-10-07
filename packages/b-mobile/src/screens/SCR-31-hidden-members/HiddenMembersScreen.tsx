@@ -7,10 +7,17 @@
 // fetch (SCR-19/SCR-25 are Phase 5/8); both are left as documented TODOs rather than guessed at.
 
 import { IonPage, IonHeader, IonButton, IonContent, IonList, IonItem } from '@ionic/react';
+import { EyeOff } from 'lucide-react';
 import { AppHeader } from '../../components/AppHeader.js';
 import { useAppNavigate, useIsDrilledIn } from '../../app/routes/useAppNavigate.js';
 import { useAccountsStore } from '../../state/accountsStore.js';
 import { useHiddenMembersStore, useHiddenMembers } from '../../state/hiddenMembersStore.js';
+
+// Hiding is device-local and one-way (they can still see you); said once, muted, rather than as
+// three paragraphs.
+const EXPLANATION =
+  'Hidden members’ entries, comments and notifications are not shown on this device. ' +
+  'They can still see your journal and comment on your entries.';
 
 export function HiddenMembersScreen() {
   const navigate = useAppNavigate();
@@ -34,40 +41,41 @@ export function HiddenMembersScreen() {
         />
       </IonHeader>
       <IonContent className="ion-padding">
-        <p>
-          You won&rsquo;t see their entries, comments or notifications on this app on this device.
-          This doesn&rsquo;t stop them seeing your journal or commenting on your entries.
-        </p>
-
         {hidden.length === 0 ? (
-          <p>You haven&rsquo;t hidden anyone.</p>
+          // One line and a muted footnote (UX review 34), centred like the other empty states.
+          <div style={{ textAlign: 'center', padding: '48px 16px 0' }}>
+            <EyeOff size={40} strokeWidth={1.5} aria-hidden="true" color="var(--muted)" />
+            <p style={{ fontSize: '1.1rem', margin: '12px 0 8px' }}>
+              You haven&rsquo;t hidden anyone.
+            </p>
+            <p style={{ color: 'var(--muted)', fontSize: '0.85rem', margin: 0 }}>{EXPLANATION}</p>
+          </div>
         ) : (
-          <IonList>
-            {hidden.map((username) => (
-              <IonItem key={username}>
-                <button
-                  onClick={() => navigate.push(`/user/${encodeURIComponent(username)}`)}
-                  style={{
-                    background: 'none',
-                    border: 'none',
-                    font: 'inherit',
-                    textAlign: 'left',
-                    flex: 1,
-                  }}
-                >
-                  {username}
-                </button>
-                <IonButton slot="end" onClick={() => handleUnhide(username)}>
-                  Unhide
-                </IonButton>
-              </IonItem>
-            ))}
-          </IonList>
+          <>
+            <p style={{ color: 'var(--muted)', fontSize: '0.85rem' }}>{EXPLANATION}</p>
+            <IonList>
+              {hidden.map((username) => (
+                <IonItem key={username}>
+                  <button
+                    onClick={() => navigate.push(`/user/${encodeURIComponent(username)}`)}
+                    style={{
+                      background: 'none',
+                      border: 'none',
+                      font: 'inherit',
+                      textAlign: 'left',
+                      flex: 1,
+                    }}
+                  >
+                    {username}
+                  </button>
+                  <IonButton slot="end" onClick={() => handleUnhide(username)}>
+                    Unhide
+                  </IonButton>
+                </IonItem>
+              ))}
+            </IonList>
+          </>
         )}
-
-        <p style={{ color: 'var(--muted)' }}>
-          Hiding is held on this device for this account, and doesn&rsquo;t transfer elsewhere.
-        </p>
       </IonContent>
     </IonPage>
   );

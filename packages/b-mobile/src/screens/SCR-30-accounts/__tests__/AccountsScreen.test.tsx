@@ -175,7 +175,7 @@ describe('AccountsScreen', () => {
     renderScreen();
     expect(screen.getByText('alice')).toBeDefined();
     expect(screen.getByText('bob')).toBeDefined();
-    expect(screen.getByText(/Active/)).toBeDefined();
+    expect(screen.getByLabelText('Active account')).toBeDefined();
     expect(screen.getByText('Read-only')).toBeDefined();
   });
 

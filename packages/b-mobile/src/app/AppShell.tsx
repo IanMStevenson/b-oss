@@ -17,9 +17,10 @@ import {
   IonMenuToggle,
 } from '@ionic/react';
 import { IonReactRouter } from '@ionic/react-router';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import type { NavigateFunction } from 'react-router-dom';
-import type { RefObject } from 'react';
+import type { CSSProperties, RefObject } from 'react';
+import { AccountRowBody } from '../components/AccountRowBody.js';
 import { OverlayProvider, OverlayHost } from './OverlayProvider.js';
 import { renderAppRoutes } from './routes/AppRoutes.js';
 import { useAccountsStore, useActiveAccount, useCanWrite } from '../state/accountsStore.js';
@@ -59,91 +60,113 @@ function useLatestNavigate(): RefObject<NavigateFunction> {
 
 // Primary nav per 01-information-architecture.md's navigation map. Every target route already
 // exists in AppRoutes (several still as ScreenPlaceholder pending their own phase), so the full
-// item set is wired now rather than growing the menu piecemeal each phase. TODO(Phase 5+): the
-// (av) account-switcher indicator next to My Profile (rules.md, Multi-account clarity).
+// item set is wired now rather than growing the menu piecemeal each phase.
+//
+// Laid out like the header switcher (UX review X10, batch G): an account block on top (the same
+// AccountRowBody as the switcher/Accounts screen; tap opens Accounts), the current destination
+// highlighted in the same pale green, and three groups split by hairlines — go places, your
+// stuff, then the housekeeping set (Settings, Help, Accounts, Hidden members).
+const NAV_CURRENT_STYLE = {
+  '--background': 'var(--green-100, #eef2ee)',
+  '--color': 'var(--green-800, #1f4d3a)',
+  fontWeight: 600,
+} as CSSProperties;
+
+function NavItem({
+  to,
+  label,
+  badge = 0,
+  currentPath,
+}: {
+  to: string;
+  label: string;
+  badge?: number;
+  currentPath: string;
+}) {
+  const current = currentPath === to || currentPath.startsWith(`${to}/`);
+  return (
+    <IonMenuToggle autoHide={false}>
+      <IonItem
+        routerLink={to}
+        aria-current={current ? 'page' : undefined}
+        style={current ? NAV_CURRENT_STYLE : undefined}
+      >
+        <IonLabel>{label}</IonLabel>
+        {badge > 0 && <IonBadge slot="end">{badge}</IonBadge>}
+      </IonItem>
+    </IonMenuToggle>
+  );
+}
+
+function NavDivider() {
+  return <div role="separator" style={{ borderTop: '1px solid var(--line, #e5e7eb)' }} />;
+}
+
+function NavAccountBlock() {
+  const activeAccount = useActiveAccount();
+  const accountCount = useAccountsStore((s) => s.accounts.length);
+  if (!activeAccount) return null;
+  return (
+    <IonMenuToggle autoHide={false}>
+      <IonItem
+        routerLink="/accounts"
+        detail={false}
+        lines="none"
+        aria-label={`Account: ${activeAccount.username}. ${
+          accountCount > 1 ? 'Switch or manage accounts' : 'Manage accounts'
+        }`}
+        style={{ '--padding-top': '8px', '--padding-bottom': '8px' }}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, width: '100%' }}>
+          <AccountRowBody account={activeAccount} active={false} avatarSize={40} />
+        </div>
+      </IonItem>
+    </IonMenuToggle>
+  );
+}
+
 function NavMenu() {
   const activeAccount = useActiveAccount();
   const canWrite = useCanWrite();
   const notificationsCount = useNotificationCountsStore((s) => s.notifications);
   const commentsCount = useNotificationCountsStore((s) => s.comments);
+  const { pathname } = useLocation();
   // swipeGesture off: a swipe from the left screen edge was opening this menu by accident (and
   // competing with the in-page swipe navigation). The menu opens from the header button only.
   return (
     <IonMenu contentId={MAIN_CONTENT_ID} swipeGesture={false}>
       <IonContent>
-        <IonList>
-          {canWrite && (
-            <IonMenuToggle autoHide={false}>
-              <IonItem routerLink="/compose">
-                <IonLabel>New Entry</IonLabel>
-              </IonItem>
-            </IonMenuToggle>
-          )}
-          <IonMenuToggle autoHide={false}>
-            <IonItem routerLink="/browse">
-              <IonLabel>Browse</IonLabel>
-            </IonItem>
-          </IonMenuToggle>
-          <IonMenuToggle autoHide={false}>
-            <IonItem routerLink="/search">
-              <IonLabel>Search</IonLabel>
-            </IonItem>
-          </IonMenuToggle>
-          <IonMenuToggle autoHide={false}>
-            <IonItem routerLink="/map">
-              <IonLabel>Map</IonLabel>
-            </IonItem>
-          </IonMenuToggle>
+        <NavAccountBlock />
+        <IonList lines="none" style={{ padding: 0 }}>
+          {activeAccount && <NavDivider />}
+          {canWrite && <NavItem to="/compose" label="New Entry" currentPath={pathname} />}
+          <NavItem to="/browse" label="Browse" currentPath={pathname} />
+          <NavItem to="/search" label="Search" currentPath={pathname} />
+          <NavItem to="/map" label="Map" currentPath={pathname} />
           {activeAccount && (
             <>
-              <IonMenuToggle autoHide={false}>
-                <IonItem routerLink="/me">
-                  <IonLabel>My Profile</IonLabel>
-                </IonItem>
-              </IonMenuToggle>
-              <IonMenuToggle autoHide={false}>
-                <IonItem routerLink="/notifications">
-                  <IonLabel>Notifications</IonLabel>
-                  {notificationsCount > 0 && <IonBadge slot="end">{notificationsCount}</IonBadge>}
-                </IonItem>
-              </IonMenuToggle>
-              <IonMenuToggle autoHide={false}>
-                <IonItem routerLink="/comments">
-                  <IonLabel>Comments</IonLabel>
-                  {commentsCount > 0 && <IonBadge slot="end">{commentsCount}</IonBadge>}
-                </IonItem>
-              </IonMenuToggle>
-              <IonMenuToggle autoHide={false}>
-                <IonItem routerLink="/settings">
-                  <IonLabel>Settings</IonLabel>
-                </IonItem>
-              </IonMenuToggle>
+              <NavDivider />
+              <NavItem to="/me" label="My Profile" currentPath={pathname} />
+              <NavItem
+                to="/notifications"
+                label="Notifications"
+                badge={notificationsCount}
+                currentPath={pathname}
+              />
+              <NavItem
+                to="/comments"
+                label="Comments"
+                badge={commentsCount}
+                currentPath={pathname}
+              />
             </>
           )}
-          <IonMenuToggle autoHide={false}>
-            <IonItem routerLink="/help">
-              <IonLabel>Help & Info</IonLabel>
-            </IonItem>
-          </IonMenuToggle>
-          <IonMenuToggle autoHide={false}>
-            <IonItem routerLink="/accounts">
-              <IonLabel>Accounts</IonLabel>
-            </IonItem>
-          </IonMenuToggle>
-          {activeAccount && (
-            <IonMenuToggle autoHide={false}>
-              <IonItem routerLink="/hidden">
-                <IonLabel>Hidden members</IonLabel>
-              </IonItem>
-            </IonMenuToggle>
-          )}
-          {!activeAccount && (
-            <IonMenuToggle autoHide={false}>
-              <IonItem routerLink="/sign-in">
-                <IonLabel>Sign in</IonLabel>
-              </IonItem>
-            </IonMenuToggle>
-          )}
+          <NavDivider />
+          {activeAccount && <NavItem to="/settings" label="Settings" currentPath={pathname} />}
+          <NavItem to="/help" label="Help & Info" currentPath={pathname} />
+          <NavItem to="/accounts" label="Accounts" currentPath={pathname} />
+          {activeAccount && <NavItem to="/hidden" label="Hidden members" currentPath={pathname} />}
+          {!activeAccount && <NavItem to="/sign-in" label="Sign in" currentPath={pathname} />}
         </IonList>
       </IonContent>
     </IonMenu>
