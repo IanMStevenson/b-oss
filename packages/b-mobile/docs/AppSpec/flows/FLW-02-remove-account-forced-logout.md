@@ -77,7 +77,21 @@ flowchart TD
      stale-token report means the account has no working credential: handle it as an ordinary
      whole-account forced logout down the branch above, with no notifications-specific label.
      The distinction is which mode the account is in, not which source reported the failure.
-5. Whenever the app has **no active account** (all removed, or none ever signed in), it returns
+5. **Signing in again** (b-oss#263) — one path, `accountsFlow.reauthorizeAccount`, whichever token
+   died and whichever way the user got there (`SCR-30` row, its **Sign in again**, the header
+   switcher, the `reauth-required` push → `SCR-30` with that account's dialog):
+   1. Notifications-only: check the app token first (below); if it's dead, carry on as needs-reauth.
+   2. App sign-in at the scope the account had — a forced logout remembers it
+      (`lastAppTokenScope`), so the user isn't asked to choose read-write or read-only again.
+      Owner-checked, browser per `tokenChangeUsesEmbedded` (`FLW-22`). Before it, the old service
+      token is settled: read-only's *is* the dead app token; read-write's is checked with one call.
+   3. If the account had notifications on and they need a sign-in: the "One more sign-in"
+      explainer, then the read-only sign-in and registration (read-write), or registration with
+      the new app token (read-only, no extra sign-in). **Not now** or a cancelled round leaves it
+      signed in, notifications still needing a sign-in.
+   4. The account becomes active; the user stays on `SCR-30`, with a "{username} is signed in
+      again" confirmation.
+6. Whenever the app has **no active account** (all removed, or none ever signed in), it returns
    to a **logged-out state**: account-required screens close or revert; others re-render as
    anonymous (still able to browse public content via the app-level bearer).
 
@@ -99,6 +113,9 @@ flowchart TD
       on blipfoto.com kills every token it holds, so if the app token is dead too the whole account
       is re-authorized (app-token sign-in, then the service sign-in for read-write), not just the
       service token (b-oss#261; read-only case b-oss#250).
+- [ ] Signing in again reuses the mode the account had, follows straight on with the
+      notifications sign-in (after the explainer) if notifications were on, and ends with the
+      account active (b-oss#263).
 - [ ] Losing the active account's only/last token switches the active account to another stored
       one, or to anonymous browsing if none remain.
 - [ ] With no active account, account-required screens close/revert and public browsing still

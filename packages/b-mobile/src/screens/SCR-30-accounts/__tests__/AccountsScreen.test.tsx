@@ -4,13 +4,14 @@
 
 // SCR-30 has no server fetch — accounts come synchronously from accountsStore — so its "states"
 // are: empty (no accounts), loaded (the list, with the active one badged), and the inline detail
-// sub-view (mode change / remove), plus the NeedsReauthError path switchAccount() can throw.
+// sub-view (mode change / remove), plus the re-sign-in flow's entry points and dialogs (b-oss#263).
 
 import { describe, it, expect, afterEach, vi } from 'vitest';
-import { render, screen, cleanup, waitFor } from '@testing-library/react';
+import { render, screen, cleanup, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { MemoryRouter } from 'react-router-dom';
+import { MemoryRouter, Routes, Route } from 'react-router-dom';
 import { AccountsScreen } from '../AccountsScreen.js';
+import { AccountsRoute } from '../../../app/routes/AccountsRoute.js';
 import { useAccountsStore } from '../../../state/accountsStore.js';
 import type { StoredAccount } from '../../../state/accountsStore.js';
 import { AccountMismatchError } from '../../../flows/accountMismatch.js';
@@ -56,7 +57,10 @@ vi.mock('@ionic/react', async (importOriginal) => {
       </div>
     );
   }
-  return { ...actual, IonAlert };
+  function IonToast({ isOpen, message }: { isOpen: boolean; message?: string }) {
+    return isOpen ? <div role="status">{message}</div> : null;
+  }
+  return { ...actual, IonAlert, IonToast };
 });
 
 let isNative = false;
@@ -68,7 +72,7 @@ const {
   switchAccount,
   removeAccount,
   changeAccountMode,
-  recoverNotifications,
+  reauthorizeAccount,
 } = vi.hoisted(() => {
   class MockOAuthCancelledError extends Error {}
   class MockNeedsReauthError extends Error {
@@ -86,16 +90,20 @@ const {
       vi.fn<
         (accountId: string, target: { scope: string; notifications: boolean }) => Promise<void>
       >(),
-    recoverNotifications:
-      vi.fn<(accountId: string, options: { useEmbedded?: boolean }) => Promise<void>>(),
+    reauthorizeAccount:
+      vi.fn<
+        (
+          accountId: string,
+          options: { useEmbedded?: boolean; beforeServiceRound?: () => Promise<boolean> },
+        ) => Promise<{ signedIn: boolean }>
+      >(),
   };
 });
 vi.mock('../../../flows/accountsFlow.js', () => ({
   switchAccount: (id: string) => switchAccount(id),
   removeAccount: (id: string) => removeAccount(id),
   changeAccountMode: (id: string, target: unknown) => changeAccountMode(id, target as never),
-  recoverNotifications: (id: string, options: unknown) =>
-    recoverNotifications(id, options as never),
+  reauthorizeAccount: (id: string, options: unknown) => reauthorizeAccount(id, options as never),
   NeedsReauthError: MockNeedsReauthError,
   OAuthCancelledError: MockOAuthCancelledError,
 }));
@@ -125,10 +133,13 @@ function account(overrides: Partial<StoredAccount> = {}): StoredAccount {
   };
 }
 
-function renderScreen() {
+/** `reauthFor` stands in for AppRoutes' `/accounts?reauth=<id>` (header switcher, push tap). */
+function renderScreen(reauthFor?: string) {
   return render(
     <MemoryRouter>
-      <AccountsScreen />
+      <AccountsScreen
+        reauthRequest={reauthFor ? { accountId: reauthFor, key: 'nav-1' } : undefined}
+      />
     </MemoryRouter>,
   );
 }
@@ -176,17 +187,16 @@ describe('AccountsScreen', () => {
     expect(switchAccount).toHaveBeenCalledWith('a2');
   });
 
-  it('a NeedsReauthError on switch shows the re-authorize prompt instead of throwing', async () => {
-    switchAccount.mockImplementation(() => {
-      throw new MockNeedsReauthError('a2');
-    });
+  it('tapping a needs-reauth account shows the sign-in dialog instead of switching (b-oss#263)', async () => {
     useAccountsStore.setState({
       accounts: [account(), account({ id: 'a2', username: 'bob', appTokenScope: null })],
       activeAccountId: 'a1',
     });
     renderScreen();
     await userEvent.click(screen.getByText('bob'));
-    expect(await screen.findByText('Needs re-authorization')).toBeDefined();
+    const dialog = await screen.findByRole('dialog', { name: 'bob needs to sign in again' });
+    expect(dialog.textContent).toContain("Blipfoto no longer accepts this account's sign-in.");
+    expect(switchAccount).not.toHaveBeenCalled();
   });
 
   it('tapping the active account opens its detail view', async () => {
@@ -214,7 +224,7 @@ describe('AccountsScreen', () => {
     useAccountsStore.setState({ accounts: [account()], activeAccountId: 'a1' });
     renderScreen();
     await userEvent.click(screen.getByText('alice'));
-    await userEvent.click(screen.getByText('Read-only'));
+    await userEvent.click(screen.getByText('Switch to read-only'));
     await waitFor(() =>
       expect(changeAccountMode).toHaveBeenCalledWith('a1', { scope: 'read', notifications: false }),
     );
@@ -273,7 +283,7 @@ describe('AccountsScreen', () => {
   });
 
   it('an account with a dead notification token offers Sign in again, running the recovery flow', async () => {
-    recoverNotifications.mockResolvedValue(undefined);
+    reauthorizeAccount.mockResolvedValue({ signedIn: true });
     useAccountsStore.setState({
       accounts: [
         account({
@@ -285,14 +295,18 @@ describe('AccountsScreen', () => {
     });
     renderScreen();
     await userEvent.click(screen.getByText('Sign in again'));
-    await waitFor(() => expect(recoverNotifications).toHaveBeenCalledWith('a1', {}));
+    await waitFor(() =>
+      expect(reauthorizeAccount).toHaveBeenCalledWith('a1', {
+        beforeServiceRound: expect.any(Function) as unknown,
+      }),
+    );
     expect(changeAccountMode).not.toHaveBeenCalled();
     expect(screen.queryByText('Remove account')).toBeNull();
   });
 
   it('Sign in again as the wrong account explains, and retry uses the in-app browser (b-oss#240)', async () => {
     isNative = true;
-    recoverNotifications.mockRejectedValueOnce(new AccountMismatchError('alice', 'bob'));
+    reauthorizeAccount.mockRejectedValueOnce(new AccountMismatchError('alice', 'bob'));
     useAccountsStore.setState({
       accounts: [
         account({ notificationRegistrationId: 'r1', notificationStatus: 'read-token-invalid' }),
@@ -304,11 +318,14 @@ describe('AccountsScreen', () => {
 
     const dialog = await screen.findByRole('dialog', { name: 'Wrong Blipfoto account' });
     expect(dialog.textContent).toContain('That sign-in was for bob, not alice.');
-    recoverNotifications.mockResolvedValue(undefined);
+    reauthorizeAccount.mockResolvedValue({ signedIn: true });
     await userEvent.click(screen.getByRole('button', { name: 'Try again in the app' }));
 
     await waitFor(() =>
-      expect(recoverNotifications).toHaveBeenLastCalledWith('a1', { useEmbedded: true }),
+      expect(reauthorizeAccount).toHaveBeenLastCalledWith(
+        'a1',
+        expect.objectContaining({ useEmbedded: true }),
+      ),
     );
     expect(screen.queryByText(/Sign-in failed/)).toBeNull();
   });
@@ -321,7 +338,7 @@ describe('AccountsScreen', () => {
     });
     renderScreen();
     await userEvent.click(screen.getByText('alice'));
-    await userEvent.click(screen.getByText('Read-write'));
+    await userEvent.click(screen.getByText('Switch to read-write'));
     const dialog = await screen.findByRole('dialog', { name: 'Wrong Blipfoto account' });
     expect(dialog.textContent).toContain('Your browser is signed in to Blipfoto as bob.');
     await userEvent.click(screen.getByRole('button', { name: 'OK' }));
@@ -333,5 +350,203 @@ describe('AccountsScreen', () => {
     useAccountsStore.setState({ accounts: [account()], activeAccountId: 'a1' });
     renderScreen();
     expect(screen.queryByText('Sign in again')).toBeNull();
+  });
+
+  describe('signing in again (b-oss#263)', () => {
+    const dead = () => account({ id: 'a2', username: 'bob', appTokenScope: null });
+    const deadNotifications = () =>
+      account({
+        id: 'a3',
+        username: 'carol',
+        notificationRegistrationId: 'r3',
+        notificationStatus: 'read-token-invalid',
+      });
+
+    /** reauthorizeAccount's stand-in: does what the real one does to the store on success. */
+    function succeedFor(id: string) {
+      reauthorizeAccount.mockImplementation((accountId) => {
+        useAccountsStore.getState().updateAccount(accountId, { appTokenScope: 'read,write' });
+        useAccountsStore.getState().setActiveAccountId(id);
+        return Promise.resolve({ signedIn: true });
+      });
+    }
+
+    it('shows needs-sign-in statuses red and bold, each with Sign in again on the row', () => {
+      useAccountsStore.setState({
+        accounts: [account(), dead(), deadNotifications()],
+        activeAccountId: 'a1',
+      });
+      renderScreen();
+      for (const text of ['Needs sign-in', 'Notifications: needs sign-in']) {
+        const status = screen.getByText(text);
+        expect(status.style.color).toBe('var(--ion-color-danger)');
+        expect(status.style.fontWeight).toBe('700');
+      }
+      expect(screen.getByText('Notifications: off').style.color).not.toBe(
+        'var(--ion-color-danger)',
+      );
+      expect(screen.getAllByText('Sign in again')).toHaveLength(2);
+    });
+
+    it('dialog → Sign in runs the re-sign-in, then confirms with a toast, staying on Accounts', async () => {
+      succeedFor('a2');
+      useAccountsStore.setState({ accounts: [account(), dead()], activeAccountId: 'a1' });
+      renderScreen();
+      await userEvent.click(screen.getByText('bob'));
+      await screen.findByRole('dialog', { name: 'bob needs to sign in again' });
+      await userEvent.click(screen.getByRole('button', { name: 'Sign in' }));
+
+      await waitFor(() => expect(reauthorizeAccount).toHaveBeenCalledWith('a2', expect.anything()));
+      expect((await screen.findByRole('status')).textContent).toBe('bob is signed in again');
+      expect(useAccountsStore.getState().activeAccountId).toBe('a2');
+      expect(screen.getByText('Add account')).toBeDefined(); // the list, not the detail view
+      expect(screen.queryByText('Remove account')).toBeNull();
+      expect(screen.queryByRole('dialog')).toBeNull();
+    });
+
+    it('dialog → Cancel changes nothing', async () => {
+      useAccountsStore.setState({ accounts: [account(), dead()], activeAccountId: 'a1' });
+      renderScreen();
+      await userEvent.click(screen.getByText('bob'));
+      await userEvent.click(await screen.findByRole('button', { name: 'Cancel' }));
+      await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+      expect(reauthorizeAccount).not.toHaveBeenCalled();
+    });
+
+    it("the row's own Sign in again skips the dialog", async () => {
+      succeedFor('a2');
+      useAccountsStore.setState({ accounts: [account(), dead()], activeAccountId: 'a1' });
+      renderScreen();
+      await userEvent.click(screen.getByText('Sign in again'));
+      await waitFor(() => expect(reauthorizeAccount).toHaveBeenCalledWith('a2', expect.anything()));
+      expect(screen.queryByRole('dialog', { name: 'bob needs to sign in again' })).toBeNull();
+    });
+
+    it('tapping a red notifications status shows the same dialog', async () => {
+      useAccountsStore.setState({
+        accounts: [account(), deadNotifications()],
+        activeAccountId: 'a1',
+      });
+      renderScreen();
+      await userEvent.click(screen.getByText('Notifications: needs sign-in'));
+      expect(
+        await screen.findByRole('dialog', { name: 'carol needs to sign in again' }),
+      ).toBeDefined();
+      expect(push).not.toHaveBeenCalled();
+      expect(switchAccount).not.toHaveBeenCalled();
+    });
+
+    it('opened as /accounts?reauth=<id> (header switcher, reauth-required push) shows that account’s dialog', async () => {
+      useAccountsStore.setState({ accounts: [account(), dead()], activeAccountId: 'a1' });
+      renderScreen('a2');
+      expect(
+        await screen.findByRole('dialog', { name: 'bob needs to sign in again' }),
+      ).toBeDefined();
+    });
+
+    it('the /accounts route turns ?reauth=<id> into that request', async () => {
+      useAccountsStore.setState({ accounts: [account(), dead()], activeAccountId: 'a1' });
+      render(
+        <MemoryRouter initialEntries={['/accounts?reauth=a2']}>
+          <Routes>
+            <Route path="/accounts" element={<AccountsRoute />} />
+          </Routes>
+        </MemoryRouter>,
+      );
+      expect(
+        await screen.findByRole('dialog', { name: 'bob needs to sign in again' }),
+      ).toBeDefined();
+    });
+
+    it('?reauth= for an account that no longer needs it shows nothing', () => {
+      useAccountsStore.setState({ accounts: [account()], activeAccountId: 'a1' });
+      renderScreen('a1');
+      expect(screen.queryByRole('dialog')).toBeNull();
+    });
+
+    it('"One more sign-in" names the account; Continue goes ahead', async () => {
+      let answer: boolean | undefined;
+      reauthorizeAccount.mockImplementation(async (_id, options) => {
+        answer = await options.beforeServiceRound?.();
+        return { signedIn: true };
+      });
+      useAccountsStore.setState({ accounts: [account(), dead()], activeAccountId: 'a1' });
+      renderScreen();
+      await userEvent.click(screen.getByText('Sign in again'));
+      const explainer = await screen.findByRole('dialog', { name: 'One more sign-in' });
+      expect(explainer.textContent).toContain(
+        'To turn notifications back on for bob, Blipfoto needs you to approve one more sign-in.',
+      );
+      await userEvent.click(screen.getByRole('button', { name: 'Continue' }));
+      await waitFor(() => expect(answer).toBe(true));
+      expect((await screen.findByRole('status')).textContent).toBe('bob is signed in again');
+    });
+
+    it('"One more sign-in" → Not now still confirms the app sign-in', async () => {
+      let answer: boolean | undefined;
+      reauthorizeAccount.mockImplementation(async (_id, options) => {
+        answer = await options.beforeServiceRound?.();
+        return { signedIn: true };
+      });
+      useAccountsStore.setState({ accounts: [account(), dead()], activeAccountId: 'a1' });
+      renderScreen();
+      await userEvent.click(screen.getByText('Sign in again'));
+      await screen.findByRole('dialog', { name: 'One more sign-in' });
+      await userEvent.click(screen.getByRole('button', { name: 'Not now' }));
+      await waitFor(() => expect(answer).toBe(false));
+      expect((await screen.findByRole('status')).textContent).toBe('bob is signed in again');
+    });
+
+    it('no toast when nothing was signed in (notifications-only, Not now)', async () => {
+      reauthorizeAccount.mockResolvedValue({ signedIn: false });
+      useAccountsStore.setState({ accounts: [deadNotifications()], activeAccountId: 'a3' });
+      renderScreen();
+      await userEvent.click(screen.getByText('Sign in again'));
+      await waitFor(() => expect(reauthorizeAccount).toHaveBeenCalled());
+      expect(screen.queryByRole('status')).toBeNull();
+    });
+
+    it('a needs-reauth account can still be removed from its row', async () => {
+      removeAccount.mockResolvedValue(undefined);
+      useAccountsStore.setState({ accounts: [account(), dead()], activeAccountId: 'a1' });
+      renderScreen();
+      await userEvent.click(screen.getByText('Remove'));
+      const dialog = await screen.findByRole('dialog', { name: 'Remove account?' });
+      expect(dialog.textContent).toContain("bob's access");
+      await userEvent.click(within(dialog).getByRole('button', { name: 'Remove' }));
+      await waitFor(() => expect(removeAccount).toHaveBeenCalledWith('a2'));
+    });
+  });
+
+  describe('account detail (b-oss#263)', () => {
+    it('has the app header with a back arrow, shows the username once, and no Make active', async () => {
+      useAccountsStore.setState({
+        accounts: [account(), account({ id: 'a2', username: 'bob' })],
+        activeAccountId: 'a1',
+      });
+      renderScreen();
+      await userEvent.click(screen.getByText('alice'));
+      await screen.findByText('Remove account');
+      expect(screen.getByRole('button', { name: 'Back' })).toBeDefined();
+      expect(screen.getAllByText('alice')).toHaveLength(1);
+      expect(screen.queryByText('Make active')).toBeNull();
+      expect(screen.queryByText('Switch to read-write')).toBeNull(); // only the other mode
+    });
+
+    it('Back returns to the list without re-opening any dialog', async () => {
+      useAccountsStore.setState({
+        accounts: [account(), account({ id: 'a2', username: 'bob', appTokenScope: null })],
+        activeAccountId: 'a1',
+      });
+      renderScreen('a2');
+      await userEvent.click(
+        within(await screen.findByRole('dialog')).getByRole('button', { name: 'Cancel' }),
+      );
+      await userEvent.click(screen.getByText('alice'));
+      await screen.findByText('Remove account');
+      await userEvent.click(screen.getByRole('button', { name: 'Back' }));
+      expect(await screen.findByText('Add account')).toBeDefined();
+      expect(screen.queryByRole('dialog')).toBeNull();
+    });
   });
 });

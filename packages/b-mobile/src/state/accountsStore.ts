@@ -25,6 +25,10 @@ export interface StoredAccount {
    * across a forced logout so "Sign in again" restores what the user had. */
   pushComments?: boolean;
   pushNotifications?: boolean;
+  /** The app-token scope held before a forced logout cleared it (b-oss#263), so signing in again
+   * uses the same mode without asking. Optional: accounts persisted before #263 have none, and
+   * re-sign-in then falls back to read-write (the gated sign-in's default). */
+  lastAppTokenScope?: 'read' | 'read,write';
 }
 
 interface PersistedShape {
@@ -124,6 +128,17 @@ export const ALL_PUSH_STREAMS: PushStreams = { comments: true, notifications: tr
  * reported this account's read token dead (FLW-02's reauth-required push or the launch-time
  * check); the registration preferences survive, so signing in again restores them. */
 export type NotificationState = 'on' | 'off' | 'needs-sign-in';
+
+/** Whether the account had notifications on before a token died (b-oss#263): it still holds a
+ * service token, the service reported it dead, or a registration survives without one. Signing in
+ * again then turns them back on as part of the same flow. */
+export function hadNotifications(account: StoredAccount): boolean {
+  return (
+    account.hasServiceToken ||
+    account.notificationStatus === 'read-token-invalid' ||
+    account.notificationRegistrationId !== null
+  );
+}
 
 export function notificationStateOf(account: StoredAccount): NotificationState {
   if (account.hasServiceToken) return 'on';

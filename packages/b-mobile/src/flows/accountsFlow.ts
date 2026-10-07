@@ -22,7 +22,12 @@ import {
   getClientForAccount,
   setAppTokenRejectedHandler,
 } from '../data/client.js';
-import { useAccountsStore, pushStreamsOf, ALL_PUSH_STREAMS } from '../state/accountsStore.js';
+import {
+  useAccountsStore,
+  pushStreamsOf,
+  hadNotifications,
+  ALL_PUSH_STREAMS,
+} from '../state/accountsStore.js';
 import type { StoredAccount, PushStreams } from '../state/accountsStore.js';
 import { useUploadQueueStore } from '../state/uploadQueueStore.js';
 import { deleteQueuedFile } from '../platform/upload.js';
@@ -368,7 +373,9 @@ export function handleForcedLogout(accountId: string, purpose: 'app' | 'service'
 
   void deleteToken(accountId, purpose);
   if (purpose === 'app') {
-    store.updateAccount(accountId, { appTokenScope: null });
+    // Remember the mode so signing in again doesn't ask for it (b-oss#263).
+    const lastAppTokenScope = account.appTokenScope ?? account.lastAppTokenScope;
+    store.updateAccount(accountId, { appTokenScope: null, lastAppTokenScope });
   } else {
     store.updateAccount(accountId, {
       hasServiceToken: false,
@@ -393,26 +400,114 @@ export function handleForcedLogout(accountId: string, purpose: 'app' | 'service'
 // not only in the upload queue (b-oss#261).
 setAppTokenRejectedHandler((accountId) => handleForcedLogout(accountId, 'app'));
 
-/** FLW-02 recovery: Accounts → "Sign in again" for an account whose notification read token the
- * service reported dead. Blipfoto tokens don't expire, so that almost always means the user
- * revoked b-mobile on blipfoto.com, which kills **every** token it holds for them, the app token
- * included. So check the app token first. If it's dead, the account goes into needs-reauth and
- * changeAccountMode re-authorizes it (app-token round, then the service round for read-write)
- * instead of renewing only the service token and leaving a dead app token behind (b-oss#261).
- * This also covers a read-only account, whose service token *is* its app token (b-oss#250). */
+export interface ReauthorizeOptions {
+  /** Which browser the rounds use; omitted means tokenChangeUsesEmbedded() decides (b-oss#240).
+   * The wrong-account retry forces the clean in-app browser. */
+  useEmbedded?: boolean;
+  /** "One more sign-in" (b-oss#263): called after the app sign-in and right before the separate
+   * notifications round a read-write account needs. Resolve `false` (Not now) to leave the
+   * account signed in with notifications still needing a sign-in. Omitted: proceeds. */
+  beforeServiceRound?: () => Promise<boolean>;
+}
+
+/** FLW-02 recovery (b-oss#263) — the one path for signing an account in again, whichever token
+ * died. Every entry point (Accounts row, its Sign in again button, the header switcher, the
+ * reauth-required push) ends up here.
+ *
+ * 1. Notifications-only (app token held, service token reported dead): check the app token first.
+ *    Revoking b-mobile on blipfoto.com kills every token it holds, so a dead service token usually
+ *    means a dead app token too; if so the account drops into needs-reauth (b-oss#261).
+ * 2. App token dead: one app-token round at the scope the account had (`lastAppTokenScope`, kept
+ *    by handleForcedLogout), owner-checked, via changeAccountMode. Its service token is settled
+ *    first so the notifications part below knows whether it still works — read-only accounts'
+ *    service token *is* the dead app token; a read-write account's is checked with one call.
+ *    The account becomes active as soon as the app sign-in succeeds.
+ * 3. If the account had notifications on and they now need a sign-in, changeAccountMode's enable
+ *    path turns them back on with the streams it had: the `beforeServiceRound` explainer, then
+ *    the read-only round, for read-write; the new app token directly, for read-only. Cancelling
+ *    that round (or Not now) leaves the account signed in, notifications needing a sign-in.
+ *
+ * Resolves `signedIn: true` if a sign-in actually took (app token, or notifications back on).
+ * Throws OAuthCancelledError if the app round is cancelled (nothing changed) and
+ * AccountMismatchError from either round; after a notifications-round mismatch the account is
+ * already signed in, so retrying runs only the notifications part. */
+export async function reauthorizeAccount(
+  accountId: string,
+  options: ReauthorizeOptions = {},
+): Promise<{ signedIn: boolean }> {
+  const find = () => useAccountsStore.getState().accounts.find((a) => a.id === accountId);
+  const initial = find();
+  if (!initial) throw new Error(`Unknown account: ${accountId}`);
+  const useEmbedded = options.useEmbedded ?? tokenChangeUsesEmbedded();
+
+  if (initial.appTokenScope !== null) await checkAppToken(accountId);
+
+  let signedIn = false;
+  const beforeAppRound = find();
+  if (!beforeAppRound) return { signedIn };
+  if (beforeAppRound.appTokenScope === null) {
+    await settleServiceTokenAfterAppDeath(beforeAppRound);
+    const settled = find();
+    if (!settled) return { signedIn };
+    // notifications = whatever is held, so this call only replaces the app token and never
+    // touches the service side (that's step 3's job, with its own explainer).
+    await changeAccountMode(
+      accountId,
+      {
+        scope: settled.lastAppTokenScope ?? 'read,write',
+        notifications: settled.hasServiceToken,
+        useEmbedded,
+      },
+      {},
+    );
+    useAccountsStore.getState().setActiveAccountId(accountId);
+    signedIn = true;
+  }
+
+  const appSignedIn = find();
+  if (!appSignedIn || appSignedIn.appTokenScope === null) return { signedIn };
+  useAccountsStore.getState().setActiveAccountId(accountId);
+  if (appSignedIn.hasServiceToken || !hadNotifications(appSignedIn)) return { signedIn };
+  try {
+    await changeAccountMode(
+      accountId,
+      { scope: appSignedIn.appTokenScope, notifications: true, useEmbedded },
+      { beforeServiceRound: options.beforeServiceRound },
+    );
+  } catch (err) {
+    // Cancelling the notifications round is the same as Not now: signed in, notifications off.
+    if (!(err instanceof OAuthCancelledError)) throw err;
+  }
+  return { signedIn: signedIn || find()?.hasServiceToken === true };
+}
+
+/** Step 2 of reauthorizeAccount: before re-signing in an account whose app token died, decide
+ * whether its service token still works. Read-only: it's the same credential, so it's dead.
+ * Read-write: one cheap call; a rejection marks it dead (as b-push's report would), anything else
+ * (offline) leaves it for the service to judge later. */
+async function settleServiceTokenAfterAppDeath(account: StoredAccount): Promise<void> {
+  if (!account.hasServiceToken) return;
+  if (account.lastAppTokenScope === 'read') {
+    handleForcedLogout(account.id, 'service');
+    return;
+  }
+  try {
+    const client = await getClientForAccount(account.id, 'service');
+    await client.verifyToken(import.meta.env.VITE_BLIPFOTO_CLIENT_ID ?? '');
+  } catch (err) {
+    if (err instanceof BlipfotoError && err.isTokenInvalid) {
+      handleForcedLogout(account.id, 'service');
+    }
+  }
+}
+
+/** FLW-02 recovery for a dead notification read token — now just reauthorizeAccount, which
+ * checks the app token first (b-oss#261) and re-authorizes the whole account if that died too. */
 export async function recoverNotifications(
   accountId: string,
-  options: { useEmbedded?: boolean } = {},
-): Promise<void> {
-  const account = useAccountsStore.getState().accounts.find((a) => a.id === accountId);
-  if (!account) throw new Error(`Unknown account: ${accountId}`);
-  const scope = account.appTokenScope ?? 'read,write';
-  if (account.appTokenScope !== null) await checkAppToken(accountId);
-  await changeAccountMode(accountId, {
-    scope,
-    notifications: true,
-    useEmbedded: options.useEmbedded,
-  });
+  options: ReauthorizeOptions = {},
+): Promise<{ signedIn: boolean }> {
+  return reauthorizeAccount(accountId, options);
 }
 
 /** One cheap call with the app token; a rejection drops the account into needs-reauth. Anything

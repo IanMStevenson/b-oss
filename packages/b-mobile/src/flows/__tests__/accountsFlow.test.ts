@@ -91,7 +91,9 @@ const {
   changeAccountMode,
   handleForcedLogout,
   recoverNotifications,
+  reauthorizeAccount,
   NeedsReauthError,
+  OAuthCancelledError,
 } = await import('../accountsFlow.js');
 const { BlipfotoError } = await import('@b-oss/b-api');
 
@@ -968,5 +970,260 @@ describe('recoverNotifications (FLW-02, b-oss#261)', () => {
 
     expect(runOAuthRound).toHaveBeenCalledTimes(1);
     expect(useAccountsStore.getState().accounts[0].appTokenScope).toBe('read,write');
+  });
+});
+
+const { getClientForAccount } = await import('../../data/client.js');
+
+describe('reauthorizeAccount (FLW-02 re-sign-in, b-oss#263)', () => {
+  const verifyServiceToken = vi.fn<(...args: unknown[]) => Promise<unknown>>();
+
+  beforeEach(() => {
+    vi.mocked(getClientForAccount).mockImplementation((_id: string, purpose = 'app') =>
+      Promise.resolve({
+        verifyToken: purpose === 'service' ? verifyServiceToken : verifyAppToken,
+      } as never),
+    );
+  });
+
+  /** An account whose app token was just rejected, the way data/client.ts reports it. */
+  function forcedOut(overrides: Partial<StoredAccount> = {}): void {
+    useAccountsStore.setState({
+      accounts: [
+        account({ id: 'carol', username: 'carol', appTokenScope: 'read,write' }),
+        account(overrides),
+      ],
+      activeAccountId: 'alice',
+    });
+    seedToken('alice', 'app', 'tok-dead');
+    handleForcedLogout('alice', 'app');
+  }
+
+  it('a forced logout remembers the scope, and a later one keeps it', () => {
+    forcedOut({ appTokenScope: 'read' });
+    expect(useAccountsStore.getState().accounts[1]).toMatchObject({
+      appTokenScope: null,
+      lastAppTokenScope: 'read',
+    });
+    handleForcedLogout('alice', 'app');
+    expect(useAccountsStore.getState().accounts[1].lastAppTokenScope).toBe('read');
+  });
+
+  it('app-only account: one round at the remembered scope, no explainer, becomes active', async () => {
+    forcedOut({ appTokenScope: 'read' });
+    expect(useAccountsStore.getState().activeAccountId).toBe('carol');
+    runOAuthRound.mockResolvedValueOnce({
+      accessToken: 'tok-ro2',
+      grantedScope: 'read',
+      username: 'alice',
+    });
+    const beforeServiceRound = vi.fn().mockResolvedValue(true);
+
+    await expect(reauthorizeAccount('alice', { beforeServiceRound })).resolves.toEqual({
+      signedIn: true,
+    });
+
+    expect(runOAuthRound).toHaveBeenCalledTimes(1);
+    expect(runOAuthRound).toHaveBeenCalledWith('read', expect.anything());
+    expect(beforeServiceRound).not.toHaveBeenCalled();
+    expect(registerAccountForPush).not.toHaveBeenCalled();
+    expect(await getToken('alice', 'app')).toBe('tok-ro2');
+    expect(useAccountsStore.getState().accounts[1].appTokenScope).toBe('read');
+    expect(useAccountsStore.getState().activeAccountId).toBe('alice');
+  });
+
+  it('an account persisted before #263 (no remembered scope) signs in read-write', async () => {
+    useAccountsStore.setState({
+      accounts: [account({ appTokenScope: null })],
+      activeAccountId: null,
+    });
+    runOAuthRound.mockResolvedValueOnce({
+      accessToken: 'tok-rw2',
+      grantedScope: 'read,write',
+      username: 'alice',
+    });
+    await reauthorizeAccount('alice');
+    expect(runOAuthRound).toHaveBeenCalledWith('read,write', expect.anything());
+  });
+
+  it('read-write with notifications: app round, then the explainer, then the service round (Continue)', async () => {
+    forcedOut({
+      hasServiceToken: true,
+      notificationRegistrationId: 'r1',
+      notificationStatus: 'active',
+    });
+    seedToken('alice', 'service', 'tok-svc-dead');
+    verifyServiceToken.mockRejectedValue(new BlipfotoError(51, 'Invalid token'));
+    const order: string[] = [];
+    runOAuthRound.mockImplementation((scope: string) => {
+      order.push(`round:${scope}`);
+      return Promise.resolve(
+        scope === 'read'
+          ? { accessToken: 'tok-svc2', grantedScope: 'read', username: 'alice' }
+          : { accessToken: 'tok-app2', grantedScope: 'read,write', username: 'alice' },
+      );
+    });
+    const beforeServiceRound = vi.fn(() => {
+      order.push('explainer');
+      // The account is already signed in and active when the explainer shows.
+      expect(useAccountsStore.getState().activeAccountId).toBe('alice');
+      return Promise.resolve(true);
+    });
+
+    await expect(reauthorizeAccount('alice', { beforeServiceRound })).resolves.toEqual({
+      signedIn: true,
+    });
+
+    expect(order).toEqual(['round:read,write', 'explainer', 'round:read']);
+    expect(registerAccountForPush).toHaveBeenCalledWith('alice', 'tok-svc2', expect.anything());
+    expect(await getToken('alice', 'app')).toBe('tok-app2');
+    expect(await getToken('alice', 'service')).toBe('tok-svc2');
+    expect(useAccountsStore.getState().accounts[1]).toMatchObject({
+      appTokenScope: 'read,write',
+      hasServiceToken: true,
+    });
+  });
+
+  it('Not now: signed in and active, notifications still need a sign-in', async () => {
+    forcedOut({
+      hasServiceToken: true,
+      notificationRegistrationId: 'r1',
+      notificationStatus: 'active',
+    });
+    seedToken('alice', 'service', 'tok-svc-dead');
+    verifyServiceToken.mockRejectedValue(new BlipfotoError(51, 'Invalid token'));
+    runOAuthRound.mockResolvedValueOnce({
+      accessToken: 'tok-app2',
+      grantedScope: 'read,write',
+      username: 'alice',
+    });
+
+    await reauthorizeAccount('alice', { beforeServiceRound: () => Promise.resolve(false) });
+
+    expect(runOAuthRound).toHaveBeenCalledTimes(1);
+    const alice = useAccountsStore.getState().accounts[1];
+    expect(alice.appTokenScope).toBe('read,write');
+    expect(alice.hasServiceToken).toBe(false);
+    expect(alice.notificationStatus).toBe('read-token-invalid');
+    expect(useAccountsStore.getState().activeAccountId).toBe('alice');
+  });
+
+  it('cancelling the notifications round is the same as Not now', async () => {
+    forcedOut({ notificationRegistrationId: 'r1', notificationStatus: 'read-token-invalid' });
+    runOAuthRound
+      .mockResolvedValueOnce({
+        accessToken: 'tok-app2',
+        grantedScope: 'read,write',
+        username: 'alice',
+      })
+      .mockRejectedValueOnce(new OAuthCancelledError('declined'));
+
+    await expect(reauthorizeAccount('alice')).resolves.toEqual({ signedIn: true });
+    expect(useAccountsStore.getState().accounts[1].appTokenScope).toBe('read,write');
+  });
+
+  it('cancelling the app round changes nothing', async () => {
+    forcedOut();
+    runOAuthRound.mockRejectedValueOnce(new OAuthCancelledError('declined'));
+    await expect(reauthorizeAccount('alice')).rejects.toBeInstanceOf(OAuthCancelledError);
+    expect(useAccountsStore.getState().accounts[1].appTokenScope).toBeNull();
+    expect(useAccountsStore.getState().activeAccountId).toBe('carol');
+  });
+
+  it("a read-write account's service token that still works isn't replaced", async () => {
+    forcedOut({
+      hasServiceToken: true,
+      notificationRegistrationId: 'r1',
+      notificationStatus: 'active',
+    });
+    seedToken('alice', 'service', 'tok-svc');
+    verifyServiceToken.mockResolvedValue({ username: 'alice', scope: 'read' });
+    runOAuthRound.mockResolvedValueOnce({
+      accessToken: 'tok-app2',
+      grantedScope: 'read,write',
+      username: 'alice',
+    });
+    const beforeServiceRound = vi.fn().mockResolvedValue(true);
+
+    await reauthorizeAccount('alice', { beforeServiceRound });
+
+    expect(runOAuthRound).toHaveBeenCalledTimes(1);
+    expect(beforeServiceRound).not.toHaveBeenCalled();
+    expect(await getToken('alice', 'service')).toBe('tok-svc');
+  });
+
+  it('read-only with notifications: its service token was the dead app token — one round, re-registered with the new one', async () => {
+    forcedOut({ appTokenScope: 'read', hasServiceToken: true, notificationRegistrationId: 'r1' });
+    seedToken('alice', 'service', 'tok-dead');
+    runOAuthRound.mockResolvedValueOnce({
+      accessToken: 'tok-ro2',
+      grantedScope: 'read',
+      username: 'alice',
+    });
+    const beforeServiceRound = vi.fn().mockResolvedValue(true);
+
+    await reauthorizeAccount('alice', { beforeServiceRound });
+
+    expect(runOAuthRound).toHaveBeenCalledTimes(1);
+    expect(beforeServiceRound).not.toHaveBeenCalled();
+    expect(verifyServiceToken).not.toHaveBeenCalled();
+    expect(registerAccountForPush).toHaveBeenCalledWith('alice', 'tok-ro2', expect.anything());
+    expect(await getToken('alice', 'service')).toBe('tok-ro2');
+  });
+
+  it('notifications-only (app token fine): one service round after the explainer, and active', async () => {
+    useAccountsStore.setState({
+      accounts: [
+        account({ id: 'carol', username: 'carol' }),
+        account({ notificationRegistrationId: 'r1', notificationStatus: 'read-token-invalid' }),
+      ],
+      activeAccountId: 'carol',
+    });
+    seedToken('alice', 'app', 'tok-app');
+    verifyAppToken.mockResolvedValue({ username: 'alice', scope: 'read,write' });
+    runOAuthRound.mockResolvedValueOnce({
+      accessToken: 'tok-svc2',
+      grantedScope: 'read',
+      username: 'alice',
+    });
+    const beforeServiceRound = vi.fn().mockResolvedValue(true);
+
+    await expect(reauthorizeAccount('alice', { beforeServiceRound })).resolves.toEqual({
+      signedIn: true,
+    });
+
+    expect(beforeServiceRound).toHaveBeenCalledTimes(1);
+    expect(runOAuthRound).toHaveBeenCalledTimes(1);
+    expect(runOAuthRound).toHaveBeenCalledWith('read', expect.anything());
+    expect(await getToken('alice', 'app')).toBe('tok-app');
+    expect(useAccountsStore.getState().activeAccountId).toBe('alice');
+  });
+
+  it('notifications-only, Not now: nothing was signed in', async () => {
+    useAccountsStore.setState({
+      accounts: [
+        account({ notificationRegistrationId: 'r1', notificationStatus: 'read-token-invalid' }),
+      ],
+      activeAccountId: 'alice',
+    });
+    seedToken('alice', 'app', 'tok-app');
+    verifyAppToken.mockResolvedValue({ username: 'alice', scope: 'read,write' });
+
+    await expect(
+      reauthorizeAccount('alice', { beforeServiceRound: () => Promise.resolve(false) }),
+    ).resolves.toEqual({ signedIn: false });
+    expect(runOAuthRound).not.toHaveBeenCalled();
+  });
+
+  it('the app round is owner-checked: the wrong account changes nothing', async () => {
+    forcedOut();
+    runOAuthRound.mockResolvedValueOnce({
+      accessToken: 'tok-bob',
+      grantedScope: 'read,write',
+      username: 'bob',
+    });
+    await expect(reauthorizeAccount('alice')).rejects.toBeInstanceOf(AccountMismatchError);
+    expect(useAccountsStore.getState().accounts[1].appTokenScope).toBeNull();
+    expect(await getToken('alice', 'app')).toBeNull();
   });
 });
