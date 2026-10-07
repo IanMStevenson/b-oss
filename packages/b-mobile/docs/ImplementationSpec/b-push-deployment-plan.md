@@ -13,7 +13,7 @@ credentials). The split below keeps your part to a few short sessions.
 
 | Proven (local fakes / unit tests) | Never exercised for real |
 | --- | --- |
-| Registration API (POST/PATCH/GET/DELETE/refresh), auth, validation | Worker running on Cloudflare; D1 `--remote`; the two cron triggers |
+| Registration API (POST/PATCH/GET/DELETE), auth, validation | Worker running on Cloudflare; D1 `--remote`; the cron trigger |
 | Counts-only poll logic and the "never mark anything read" rule | `messages/totals/unread` with a **read-only service token** from the second OAuth round |
 | AES-GCM `read_token` encryption; FCM v1 payload + JWT signing code | FCM OAuth2 token exchange and a real delivery to a device |
 | App side: permission flow, registration calls, token-rotation PATCH, reauth routing | Android receiving, channel routing, tap-through, Doze/killed-app delivery |
@@ -79,8 +79,9 @@ Using only `curl` (no real tokens):
   secret gate works; there is no health endpoint, and an unknown path returns 404 JSON).
 - `POST` with the right secret but a junk read token → expect a clean validation/401, and **no row**
   left in D1 (`wrangler d1 execute … --remote "select count(*) from registrations"`).
-- `npx wrangler tail` while a cron tick fires, to confirm both triggers run (1-minute and hourly) and
-  an empty table is a quiet no-op.
+- `npx wrangler tail` while a cron tick fires, to confirm the trigger runs and an empty table is a
+  quiet no-op. (This originally also checked an hourly prefs-refresh trigger, since removed by
+  [#244](https://github.com/IanMStevenson/b-oss/issues/244).)
 
 ## Stage 4 — wire the app and register (you + me, ~15 min)
 
@@ -99,7 +100,7 @@ Using only `curl` (no real tokens):
 | **Reads nothing** | Before/after: check the unread badges on blipfoto.com and in the app | Badges are **unchanged** by the service polling (the core design rule) |
 | Tap-through | Tap the push | App opens to the right inbox |
 | Background | Screen off / app swiped away / Doze (leave 15 min) | Still delivered (FCM high-priority notification message) |
-| Preferences | Turn a push group off on blipfoto.com, trigger **Refresh** via Settings save | That group stops notifying (service uses cached prefs; hourly refresh as backstop) |
+| Stream toggles | Turn "push for new comments" off in Settings, then get a comment | No comment push, notification pushes still arrive; turning it back on sends no catch-up push ([#244](https://github.com/IanMStevenson/b-oss/issues/244)) |
 | Token rotation | Clear app data or `adb shell` reinstall, sign in again | One registration, `PATCH`ed or replaced — never two live rows pushing twice |
 | Reauth | Revoke the app's access on blipfoto.com (or invalidate the read token) | One `reauth-required` push, row → `read-token-invalid`, polling stops; app routes to Accounts and recovers on re-authorise |
 | Deregister | Turn notifications off / remove account | Row **deleted** (not flagged) and no further pushes |

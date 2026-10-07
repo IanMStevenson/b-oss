@@ -6,7 +6,7 @@
 // provides). Two independent jobs, both from notification-service.md's "Security notes":
 //   - `read_token` at rest: AES-256-GCM under one static Worker secret, random nonce per row.
 //   - the per-registration bearer `registrationSecret`: generated once, never stored — only its
-//     SHA-256 hash is persisted, and PATCH/DELETE/refresh-preferences compare against that hash.
+//     SHA-256 hash is persisted, and PATCH/GET/DELETE compare against that hash.
 
 const AES_ALGO = 'AES-GCM';
 const NONCE_BYTES = 12; // 96-bit, the standard/recommended AES-GCM nonce size
@@ -53,7 +53,7 @@ export async function hashSecret(secret: string): Promise<string> {
   return toHex(new Uint8Array(digest));
 }
 
-/** Constant-time comparison of two hex digests — PATCH/DELETE/refresh-preferences must not leak
+/** Constant-time comparison of two hex digests — PATCH/GET/DELETE must not leak
  * how many leading characters of a guessed secret's hash matched via response-time differences.
  * Both inputs are always the fixed-length output of hashSecret() in practice, but this still
  * compares length first without early-exiting the byte loop on a mismatch. */

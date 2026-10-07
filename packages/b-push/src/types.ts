@@ -34,8 +34,11 @@ export interface RegistrationRow {
   last_polled_at: number | null;
   last_seen_comments_total: number;
   last_seen_notifications_total: number;
-  cached_push_prefs: string | null;
-  prefs_fetched_at: number | null;
+  /** The app's own per-stream push choices (b-oss#244), stored as SQLite 0/1. Default 1. These
+   * are b-push settings, not Blipfoto ones: Blipfoto's `push_*` settings belong to its own app's
+   * push service and are never read or written here. */
+  push_comments: number;
+  push_notifications: number;
   status: RegistrationStatus;
   created_at: number;
 }
@@ -47,6 +50,9 @@ export interface CreateRegistrationBody {
   readToken: string;
   deviceToken: string;
   platform: Platform;
+  /** Optional, default true (b-oss#244). */
+  pushComments?: boolean;
+  pushNotifications?: boolean;
 }
 
 export interface CreateRegistrationResult {
@@ -58,9 +64,13 @@ export interface PatchRegistrationBody {
   readToken?: string;
   deviceToken?: string;
   pollIntervalMinutes?: number;
+  pushComments?: boolean;
+  pushNotifications?: boolean;
 }
 
 export interface RegistrationStatusResult {
   status: RegistrationStatus;
   lastPolledAt: number | null;
+  pushComments: boolean;
+  pushNotifications: boolean;
 }

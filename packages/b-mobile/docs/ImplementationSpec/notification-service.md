@@ -66,8 +66,7 @@ One `registrations` table, one row per (account, device) pair:
 | `poll_interval_minutes` | per-registration, server-enforced floor of 5 |
 | `last_polled_at` | drives which registrations are due on a given 1-minute tick |
 | `last_seen_unread_totals` | cached `messages/totals/unread` result — the only activity signal the service has, see Polling design |
-| `cached_push_prefs` | last-fetched `user/settings/notifications` push-group toggles |
-| `prefs_fetched_at` | when `cached_push_prefs` was last refreshed |
+| `push_comments`, `push_notifications` | the app's own per-stream push choices, default on; set at registration and by `PATCH` (see Push choices, below) |
 
 ## Polling design
 
@@ -97,7 +96,8 @@ A cron tick fires every 1 minute (Cloudflare's minimum granularity). Each tick:
 2. Calls `messages/totals/unread` once per due registration — **1 subrequest each, and the only
    Blipfoto call the activity poll makes.** Compares against `last_seen_unread_totals`.
 3. Where either total has risen, dispatches a push carrying **which stream moved and by how much**,
-   filtered by `cached_push_prefs`, and stores the new totals.
+   for each stream whose toggle (`push_comments` / `push_notifications`) is on, and stores the new
+   totals either way, so a stream switched back on later doesn't fire a catch-up push.
 
 The two totals are independent: a comment increments only the comment total and never the
 notification total, so they can be compared and reported separately without double-counting.
@@ -137,28 +137,29 @@ Use **`messages/totals/unread`**, not the near-identical `messages/notifications
 resource — the latter returns the notification count under both keys and would make comment
 activity undetectable.
 
-## Preference freshness
+## Push choices
 
-The service does **not** get told preferences by the app at registration time, and does not
-re-read `user/settings/notifications` on every activity poll (too many reads for no benefit —
-preferences change rarely). Instead, two paths, matched to how they actually change:
+*Replaced the earlier "Preference freshness" design
+([#244](https://github.com/IanMStevenson/b-oss/issues/244)).* The service never reads or writes
+Blipfoto's `user/settings/notifications`. Its `push_*` settings, and `push.configured`, belong to
+Blipfoto's own app push service (set when a device registers through `POST /user/settings/push`,
+which only trusted apps can call), so they say nothing about b-push. The earlier design cached
+`push.configured` and suppressed every push when it was 0, which silenced anyone who had never
+used Blipfoto's own app with push.
 
-- **App-made changes** (the common case — someone edits Notifications in `SCR-25` and expects it
-  to take effect immediately): `FLW-17`, on a successful Notifications-section save, calls
-  `POST /v1/registrations/:id/refresh-preferences` (see contract, below) — a dedicated ping, no
-  body, distinct from `PATCH` (which changes *stored* fields; this says "go re-read Blipfoto
-  now"). If the ping itself fails, no retry — it degrades to the hourly path, never worse than not
-  having pinged at all.
-- **Everywhere-else changes** (blipfoto.com, rare): a separate hourly cron, `0 * * * *`, refetches
-  `cached_push_prefs` for every registration — ~20 extra Blipfoto reads/hour at this scale,
-  negligible. Worst-case staleness for a web-made change: **up to 59 minutes**, accepted.
+Instead, each registration holds two flags of its own, `pushComments` and `pushNotifications`, both
+default on. The app sends them at registration and changes them with `PATCH`; they're per account
+per device. Counts-only polling means the choice is per stream, not per event type. There's no
+master switch on the service: the app `DELETE`s the registration when the user turns the last one
+off. Blipfoto's `feed_*` settings stay Blipfoto account settings, edited in the app but never
+consulted by the service.
 
-This is a separate cron trigger from the 1-minute activity poll (well within the 5-trigger account
-limit) so it doesn't compete with the activity poll above.
+There is no hourly prefs-refresh cron and no `refresh-preferences` endpoint any more; the 1-minute
+activity poll is the only cron trigger.
 
 ## Registration contract
 
-App-to-service API. Auth on `PATCH`/`DELETE`/`refresh-preferences` is `Bearer <secret>`, the
+App-to-service API. Auth on `PATCH`/`GET`/`DELETE` is `Bearer <secret>`, the
 opaque secret returned at registration — separate from the Blipfoto read token, which the app must
 never use to authenticate to the service itself.
 
@@ -172,15 +173,16 @@ means shipping an app update, so treat it as a coarse gate rather than a credent
 ```
 POST   /v1/registrations
   auth:  Bearer <shared registration secret>   (build-time constant, not per-user)
-  body: { blipfotoUserId, readToken, deviceToken, platform: "android" | "ios" }
+  body: { blipfotoUserId, readToken, deviceToken, platform: "android" | "ios",
+          pushComments?: boolean, pushNotifications?: boolean }   (both default true)
   → { registrationId, registrationSecret }
   Called by FLW-20 whenever a sign-in enables notifications.
   The per-registration secret returned here authenticates every later call for that registration.
 
 PATCH  /v1/registrations/:id
   auth:  Bearer registrationSecret
-  body: { readToken?, deviceToken?, pollIntervalMinutes? }
-  → 204
+  body: { readToken?, deviceToken?, pollIntervalMinutes?, pushComments?, pushNotifications? }
+  → 204   (400 if a push flag isn't a boolean)
   Called by:
     - FLW-22, re-authorizing the read token (toggling notifications while read-write always
       re-authorizes, per auth.md's token lifecycle table).
@@ -188,15 +190,11 @@ PATCH  /v1/registrations/:id
       specified anywhere; the app must call this on FCM token rotation or pushes silently stop.
     - SCR-25's Advanced polling-interval control (floor of 5 enforced here regardless of what the
       UI sends).
-
-POST   /v1/registrations/:id/refresh-preferences
-  auth:  Bearer registrationSecret
-  → 204
-  Called by FLW-17 after a successful Notifications-section save.
+    - SCR-25's per-stream push toggles (b-oss#244).
 
 GET    /v1/registrations/:id
   auth:  Bearer registrationSecret
-  → { status: "active" | "read-token-invalid", lastPolledAt }
+  → { status: "active" | "read-token-invalid", lastPolledAt, pushComments, pushNotifications }
   Read counterpart to the above, for CRUD symmetry. Not polled by the app in normal operation —
   the reauth-required push (below) is the primary signal — but used by the app's launch-time
   health check as a backstop for a missed push. See FLW-02.
@@ -205,7 +203,7 @@ DELETE /v1/registrations/:id
   auth:  Bearer registrationSecret
   → 204
   Called whenever the account's notifications go off, by any route: the user turning off the
-  SCR-25/SCR-30 master switch, an account removal, or the app treating OS-permission-denied as an
+  last of the two stream toggles, an account removal, or the app treating OS-permission-denied as an
   off decision (FLW-20, FLW-22) — deliberately the same call for all three, since the app treats
   them as the same event, not three different ones.
 ```

@@ -13,14 +13,9 @@ import {
   updateReadToken,
   updateDeviceToken,
   updatePollInterval,
-  updateCachedPrefs,
+  updateStreamToggles,
 } from '../db.js';
-import {
-  fetchUnreadTotals,
-  fetchPushConfigured,
-  isBearerUnrecognised,
-  ReadTokenInvalidError,
-} from '../blipfoto.js';
+import { fetchUnreadTotals, isBearerUnrecognised, ReadTokenInvalidError } from '../blipfoto.js';
 import {
   generateId,
   generateSecret,
@@ -28,7 +23,6 @@ import {
   timingSafeEqualHex,
   importEncryptionKey,
   encryptReadToken,
-  decryptReadToken,
 } from '../crypto.js';
 import type {
   Env,
@@ -66,7 +60,7 @@ function requireRegistrationSecret(authHeader: string | null, env: Env): void {
   }
 }
 
-/** `PATCH`/`DELETE`/`refresh-preferences`/`GET` auth: the per-registration bearer secret returned
+/** `PATCH`/`DELETE`/`GET` auth: the per-registration bearer secret returned
  * once at creation. Loads the row as a side effect (every caller needs it anyway). A wrong id and
  * a right-id-wrong-secret both collapse to the same 404 rather than a distinguishing 401/404 pair
  * — neither case should tell a caller anything about whether an id merely exists. */
@@ -85,14 +79,26 @@ function isPlatform(value: unknown): value is Platform {
   return value === 'android' || value === 'ios';
 }
 
+/** The stream toggles (b-oss#244) are optional on both `POST` and `PATCH`, but if present they
+ * must be real booleans. A truthy string like "false" would otherwise be stored as on, the
+ * opposite of what the caller meant. */
+function requireOptionalBooleans(body: { pushComments?: unknown; pushNotifications?: unknown }) {
+  for (const key of ['pushComments', 'pushNotifications'] as const) {
+    const value = body[key];
+    if (value !== undefined && typeof value !== 'boolean') {
+      throw new HttpError(400, `${key} must be a boolean`);
+    }
+  }
+}
+
 /** `POST /v1/registrations` — also seeds `last_seen_*_total` from a real, immediate
  * `messages/totals/unread` call using the just-provided read token, rather than leaving both at
  * 0. Without this, an account with pre-existing unread items at registration time would see the
  * very first activity-poll tick read as "N new comments/notifications" for items the user
  * already knew about — a false positive the spec doc doesn't discuss but this service can avoid
- * for free, since it already needs a live read token to store. Also seeds `cached_push_prefs`
- * from the same round-trip's readily-available context (one extra call, at registration time
- * only, not on every poll — "Preference freshness" only rules out doing this on *every* poll). */
+ * for free, since it already needs a live read token to store. It doesn't read any Blipfoto
+ * notification settings: the per-stream push toggles come from the request body, default on
+ * (b-oss#244). */
 export async function createRegistration(
   db: DbLike,
   env: Env,
@@ -105,13 +111,11 @@ export async function createRegistration(
     throw new HttpError(400, 'blipfotoUserId, readToken, deviceToken and platform are required');
   }
 
-  let seedTotals = { comments: 0, notifications: 0 };
-  let pushConfigured = true;
+  requireOptionalBooleans(body);
+
+  let seedTotals;
   try {
-    [seedTotals, pushConfigured] = await Promise.all([
-      fetchUnreadTotals(body.readToken),
-      fetchPushConfigured(body.readToken),
-    ]);
+    seedTotals = await fetchUnreadTotals(body.readToken);
   } catch (err) {
     // A 52 counts as an invalid token here, and only here: the app has just handed us this
     // token, so Blipfoto not recognising it means it's junk input (b-oss#238). On a stored token
@@ -141,8 +145,8 @@ export async function createRegistration(
     last_polled_at: nowMs,
     last_seen_comments_total: seedTotals.comments,
     last_seen_notifications_total: seedTotals.notifications,
-    cached_push_prefs: JSON.stringify({ configured: pushConfigured }),
-    prefs_fetched_at: nowMs,
+    push_comments: body.pushComments === false ? 0 : 1,
+    push_notifications: body.pushNotifications === false ? 0 : 1,
     status: 'active',
     created_at: nowMs,
   });
@@ -158,6 +162,7 @@ export async function patchRegistration(
   body: PatchRegistrationBody,
 ): Promise<void> {
   await authenticate(db, id, authHeader);
+  requireOptionalBooleans(body);
 
   if (body.readToken !== undefined) {
     const key = await importEncryptionKey(env.READ_TOKEN_ENCRYPTION_KEY);
@@ -170,37 +175,7 @@ export async function patchRegistration(
   if (body.pollIntervalMinutes !== undefined) {
     await updatePollInterval(db, id, body.pollIntervalMinutes);
   }
-}
-
-/** `POST /v1/registrations/:id/refresh-preferences` — a dedicated ping, distinct from `PATCH`
- * (notification-service.md: "this says 'go re-read Blipfoto now'", not "here is a new stored
- * field value"). Called by `FLW-17` right after a successful Notifications-section save, so the
- * change takes effect immediately instead of waiting for the hourly cron. */
-export async function refreshPreferences(
-  db: DbLike,
-  env: Env,
-  id: string,
-  authHeader: string | null,
-): Promise<void> {
-  const row = await authenticate(db, id, authHeader);
-  const key = await importEncryptionKey(env.READ_TOKEN_ENCRYPTION_KEY);
-  const readToken = await decryptReadToken(
-    { ciphertext: row.read_token_ciphertext, nonce: row.read_token_nonce },
-    key,
-  );
-  try {
-    const configured = await fetchPushConfigured(readToken);
-    await updateCachedPrefs(db, id, JSON.stringify({ configured }), Date.now());
-  } catch (err) {
-    if (err instanceof ReadTokenInvalidError) {
-      // Not this endpoint's job to flip the row's status — same reasoning as
-      // prefsRefresh.ts's own note: only the activity poll marks read-token-invalid, so a
-      // resend/duplicate reauth-required push (or a missed one, if it went dead here instead)
-      // can't happen. Swallow and let the next activity-poll tick find it.
-      return;
-    }
-    throw err;
-  }
+  await updateStreamToggles(db, id, body);
 }
 
 export async function getRegistrationStatus(
@@ -209,7 +184,12 @@ export async function getRegistrationStatus(
   authHeader: string | null,
 ): Promise<RegistrationStatusResult> {
   const row = await authenticate(db, id, authHeader);
-  return { status: row.status, lastPolledAt: row.last_polled_at };
+  return {
+    status: row.status,
+    lastPolledAt: row.last_polled_at,
+    pushComments: row.push_comments === 1,
+    pushNotifications: row.push_notifications === 1,
+  };
 }
 
 /** `DELETE /v1/registrations/:id` — a real row removal, not a soft-disable (notification-

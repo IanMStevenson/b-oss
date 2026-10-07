@@ -2,22 +2,19 @@
 // Copyright (C) 2026 Ian Stevenson
 
 // The Worker entry point: a tiny hand-rolled router for the registration contract (no framework —
-// five routes don't need one) plus the scheduled() handler for both cron triggers (wrangler.toml).
+// four routes don't need one) plus the scheduled() handler for the cron trigger (wrangler.toml).
 // Never invoked by this repo's own tooling — see wrangler.toml's own header comment. The routing/
-// auth/business logic this delegates to (src/routes/registrations.ts, src/poll.ts,
-// src/prefsRefresh.ts) is what src/__tests__ actually exercises; this file is deliberately thin.
+// auth/business logic this delegates to (src/routes/registrations.ts, src/poll.ts) is what src/__tests__ actually exercises; this file is deliberately thin.
 
 import type { CreateRegistrationBody, Env, PatchRegistrationBody } from './types.js';
 import {
   createRegistration,
   patchRegistration,
-  refreshPreferences,
   getRegistrationStatus,
   deleteRegistrationHandler,
   HttpError,
 } from './routes/registrations.js';
 import { runActivityPoll } from './poll.js';
-import { runPrefsRefresh } from './prefsRefresh.js';
 import { describeError } from './log.js';
 
 function json(body: unknown, status = 200): Response {
@@ -74,12 +71,6 @@ async function handleRequest(request: Request, env: Env): Promise<Response> {
       return noContent();
     }
 
-    // POST /v1/registrations/:id/refresh-preferences
-    if (parts.length === 4 && parts[3] === 'refresh-preferences' && request.method === 'POST') {
-      await refreshPreferences(db(env), env, id, request.headers.get('Authorization'));
-      return noContent();
-    }
-
     return json({ error: 'Not found' }, 404);
   } catch (err) {
     if (err instanceof HttpError) {
@@ -98,20 +89,14 @@ function db(env: Env) {
   return env.DB;
 }
 
-/** Cloudflare cron ties both triggers to the same `scheduled()` handler; `event.cron` is the only
- * way to tell them apart (wrangler.toml: every-1-minute for the activity poll, the hourly
- * "0 * * * *" pattern for the prefs refresh — notification-service.md's "Polling design" /
- * "Preference freshness"). Anything that isn't recognisably the hourly pattern is treated as the
- * activity poll, so an unexpected/misconfigured cron string fails toward the more frequent, less
- * damaging job rather than silently doing nothing. */
-async function handleScheduled(event: ScheduledEvent, env: Env): Promise<void> {
-  if (event.cron === '0 * * * *') {
-    const summary = await runPrefsRefresh(db(env), env);
-    console.log(`[b-push] prefs refresh ${JSON.stringify(summary)}`);
-  } else {
-    const summary = await runActivityPoll(db(env), env);
-    console.log(`[b-push] activity poll ${JSON.stringify(summary)}`);
-  }
+/** The 1-minute activity poll, the only cron trigger (wrangler.toml; notification-service.md
+ * "Polling design"). There used to be a second, hourly trigger that refreshed a cache of
+ * Blipfoto's push settings; it was removed with that cache (b-oss#244), so `event.cron` no
+ * longer needs inspecting. If the old hourly trigger were ever still attached, it would just run
+ * one extra activity poll, which only polls registrations that are due anyway. */
+async function handleScheduled(_event: ScheduledEvent, env: Env): Promise<void> {
+  const summary = await runActivityPoll(db(env), env);
+  console.log(`[b-push] activity poll ${JSON.stringify(summary)}`);
 }
 
 export default {

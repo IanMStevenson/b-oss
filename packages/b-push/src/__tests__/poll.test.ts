@@ -51,8 +51,8 @@ async function seedRow(overrides: Partial<RegistrationRow> = {}): Promise<void> 
     last_polled_at: null,
     last_seen_comments_total: 0,
     last_seen_notifications_total: 0,
-    cached_push_prefs: JSON.stringify({ configured: true }),
-    prefs_fetched_at: null,
+    push_comments: 1,
+    push_notifications: 1,
     status: 'active',
     created_at: 0,
     ...overrides,
@@ -130,21 +130,61 @@ describe('runActivityPoll', () => {
     expect(sendFcmMessage).not.toHaveBeenCalled();
   });
 
-  it('skips sending (but still records the new totals) when push is not configured', async () => {
-    await seedRow({ cached_push_prefs: JSON.stringify({ configured: false }) });
-    mockUnreadTotals(9, 9);
-    const summary = await runActivityPoll(db, env, () => 1_000_000);
-    expect(summary.pushed).toBe(0);
-    expect(sendFcmMessage).not.toHaveBeenCalled();
-    const row = await getRegistrationById(db, 'reg-1');
-    expect(row?.last_seen_comments_total).toBe(9);
+  it('pushes for every user regardless of Blipfoto push settings: it never reads them (b-oss#244)', async () => {
+    // The old gate suppressed every push when Blipfoto's push.configured was 0, i.e. for anyone
+    // who had never used Blipfoto's own app with push. The only Blipfoto call now is the totals.
+    await seedRow();
+    mockUnreadTotals(1, 1);
+    await runActivityPoll(db, env, () => 1_000_000);
+    expect(sendFcmMessage).toHaveBeenCalledTimes(2);
+    const fetchMock = vi.mocked(globalThis.fetch);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(fetchMock.mock.calls[0][0] as string).toContain('messages/totals/unread');
   });
 
-  it('treats a never-fetched prefs cache as push-allowed by default', async () => {
-    await seedRow({ cached_push_prefs: null, last_seen_comments_total: 0 });
-    mockUnreadTotals(1, 0);
-    await runActivityPoll(db, env, () => 1_000_000);
+  it('skips the comments push when push_comments is off, but still records the new total (b-oss#244)', async () => {
+    await seedRow({ push_comments: 0 });
+    mockUnreadTotals(4, 2);
+    const summary = await runActivityPoll(db, env, () => 1_000_000);
+    expect(summary.pushed).toBe(1);
     expect(sendFcmMessage).toHaveBeenCalledTimes(1);
+    expect(sendFcmMessage).toHaveBeenCalledWith(
+      env,
+      'device-1',
+      expect.objectContaining({ stream: 'notifications', count: 2 }),
+    );
+    expect(await getRegistrationById(db, 'reg-1')).toMatchObject({
+      last_seen_comments_total: 4,
+      last_seen_notifications_total: 2,
+    });
+  });
+
+  it('skips the notifications push when push_notifications is off, but still records the new total (b-oss#244)', async () => {
+    await seedRow({ push_notifications: 0 });
+    mockUnreadTotals(1, 6);
+    const summary = await runActivityPoll(db, env, () => 1_000_000);
+    expect(summary.pushed).toBe(1);
+    expect(sendFcmMessage).toHaveBeenCalledWith(
+      env,
+      'device-1',
+      expect.objectContaining({ stream: 'comments', count: 1 }),
+    );
+    expect((await getRegistrationById(db, 'reg-1'))?.last_seen_notifications_total).toBe(6);
+  });
+
+  it('with both streams off: still polls and records totals, pushes nothing, and a re-enabled stream sends no stale catch-up (b-oss#244)', async () => {
+    await seedRow({ push_comments: 0, push_notifications: 0 });
+    mockUnreadTotals(3, 3);
+    const summary = await runActivityPoll(db, env, () => 1_000_000);
+    expect(summary).toMatchObject({ due: 1, polled: 1, pushed: 0 });
+    expect(sendFcmMessage).not.toHaveBeenCalled();
+
+    // Turn comments back on; nothing new arrives, so the next tick must not push the 3 that
+    // came in while it was off.
+    await db.prepare('UPDATE registrations SET push_comments = 1').bind().run();
+    const next = await runActivityPoll(db, env, () => 1_000_000 + 5 * 60_000);
+    expect(next.pushed).toBe(0);
+    expect(sendFcmMessage).not.toHaveBeenCalled();
   });
 
   it('on a dead read token: marks read-token-invalid, sends exactly one reauth-required push, and excludes the row from the next tick', async () => {
