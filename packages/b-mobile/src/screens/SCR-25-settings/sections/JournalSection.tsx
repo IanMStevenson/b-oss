@@ -9,11 +9,18 @@
 // that "refresh" happen.
 
 import { useEffect, useState } from 'react';
-import { IonButton, IonCheckbox, IonSpinner, IonText, IonAlert } from '@ionic/react';
+import { IonList, IonSpinner, IonText, IonAlert } from '@ionic/react';
 import { fetchUserSettings, saveUserSettings } from '../../../data/settings.js';
 import { describeError, mapApiError } from '../../../data/errors.js';
 import { useCanWrite } from '../../../state/accountsStore.js';
 import { useAppNavigate } from '../../../app/routes/useAppNavigate.js';
+import {
+  CaptionRow,
+  FormActions,
+  SectionHeader,
+  TextFieldRow,
+  ToggleRow,
+} from '../../../components/SettingsForm.js';
 
 interface FormState {
   journalTitle: string;
@@ -105,62 +112,39 @@ export function JournalSection() {
   }
 
   return (
-    <div className="ion-padding">
-      {saveError && (
-        <IonText color="danger">
-          <p>{saveError}</p>
-        </IonText>
-      )}
-
-      <label style={{ display: 'block', marginBottom: 18 }}>
-        Journal title
-        <input
-          type="text"
+    <div>
+      <IonList>
+        <SectionHeader>Your journal</SectionHeader>
+        {saveError && <CaptionRow tone="danger">{saveError}</CaptionRow>}
+        <TextFieldRow
+          label="Journal title"
           value={form.journalTitle}
           disabled={!canWrite}
-          onChange={(e) => setForm({ ...form, journalTitle: e.target.value })}
-          style={{ width: '100%', font: 'inherit', padding: 8, marginTop: 6 }}
+          onChange={(journalTitle) => setForm({ ...form, journalTitle })}
         />
-      </label>
-
-      <div style={{ marginBottom: 18 }}>
-        <IonCheckbox
+        <ToggleRow
+          label="Protected journal"
+          caption="People must ask to follow you; you can refuse or remove followers."
           checked={form.privacy}
           disabled={!canWrite}
-          onIonChange={(e) => setForm({ ...form, privacy: e.detail.checked })}
-        >
-          Protected journal
-        </IonCheckbox>
-        <IonText color="medium">
-          <p style={{ marginTop: 4 }}>
-            When on, people must ask to follow you, and you can refuse a request or remove a
-            follower.
-          </p>
-        </IonText>
-      </div>
+          onChange={(privacy) => setForm({ ...form, privacy })}
+        />
+        <ToggleRow
+          label="Allow comments"
+          checked={form.comments}
+          disabled={!canWrite}
+          onChange={(comments) => setForm({ ...form, comments })}
+        />
+        {!canWrite && <CaptionRow>This account is read-only.</CaptionRow>}
+      </IonList>
 
-      <IonCheckbox
-        checked={form.comments}
-        disabled={!canWrite}
-        onIonChange={(e) => setForm({ ...form, comments: e.detail.checked })}
-        style={{ marginBottom: 18 }}
-      >
-        Allow comments
-      </IonCheckbox>
-
-      {canWrite ? (
-        <div style={{ marginTop: 16, display: 'flex', gap: 8 }}>
-          <IonButton disabled={saving} onClick={() => void handleSave()}>
-            {saving ? <IonSpinner name="dots" /> : 'Save'}
-          </IonButton>
-          <IonButton fill="outline" disabled={saving} onClick={handleBack}>
-            Cancel
-          </IonButton>
-        </div>
-      ) : (
-        <IonText color="medium">
-          <p>This account is read-only.</p>
-        </IonText>
+      {canWrite && (
+        <FormActions
+          saving={saving}
+          dirty={dirty}
+          onSave={() => void handleSave()}
+          onCancel={handleBack}
+        />
       )}
 
       <IonAlert

@@ -57,3 +57,85 @@ ion-content {
 ion-menu ion-content {
   --padding-top: var(--ion-safe-area-top);
 }
+
+/* Settings / Help forms (UX review X5/X6/X9, b-oss#272/#278): share Notifications' look — grey
+   13px caption above each group, 16px gutters, one-line grey captions under labels. */
+.settings-section-header {
+  padding-top: 16px;
+  padding-inline: 16px;
+  min-height: 0;
+}
+
+.settings-section-header ion-note {
+  font-size: 13px;
+}
+
+.settings-caption {
+  margin: 2px 0 0;
+  font-size: 13px;
+  line-height: 1.35;
+  color: var(--muted);
+}
+
+.settings-caption-row {
+  --padding-top: 0;
+  --padding-bottom: 4px;
+}
+
+.settings-caption-row .settings-caption {
+  margin: 0;
+}
+
+.settings-toggle-text {
+  display: flex;
+  flex-direction: column;
+  padding: 10px 0;
+  white-space: normal;
+}
+
+.settings-actions {
+  padding: 24px 16px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.settings-external-icon {
+  color: var(--muted);
+}
+
+/* Toggle-like choices (Margins, Photo size) read as a choice, not navigation: the pill segment
+   instead of the tab underline. */
+ion-segment.settings-pill-segment {
+  --background: var(--line-2);
+  border-radius: 999px;
+  padding: 3px;
+  margin: 0 16px 4px;
+  width: calc(100% - 32px);
+  min-height: 40px;
+}
+
+ion-segment.settings-pill-segment ion-segment-button {
+  --color: var(--ink);
+  --color-checked: #ffffff;
+  --indicator-color: var(--green-800);
+  --border-radius: 999px;
+  min-height: 34px;
+}
+
+/* The md indicator is a 2px underline by default; stretch it into a filled pill behind the label. */
+ion-segment.settings-pill-segment ion-segment-button::part(indicator) {
+  padding: 0;
+  height: 100%;
+  align-self: stretch;
+}
+
+ion-segment.settings-pill-segment ion-segment-button::part(indicator-background) {
+  height: 100%;
+  border-radius: 999px;
+  background: var(--green-800);
+}
+
+ion-segment.settings-pill-segment ion-segment-button::part(native) {
+  letter-spacing: 0;
+}

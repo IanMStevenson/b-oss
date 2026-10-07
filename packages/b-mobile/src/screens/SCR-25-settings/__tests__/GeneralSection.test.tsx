@@ -106,6 +106,15 @@ describe('GeneralSection', () => {
     expect(goBack).toHaveBeenCalled();
   });
 
+  it('Save stays disabled until something changes', async () => {
+    renderScreen();
+    const input = await screen.findByDisplayValue('Alice Example');
+    const save = screen.getByText('Save', { selector: 'ion-button' });
+    expect(save).toHaveProperty('disabled', true);
+    await userEvent.type(input, '!');
+    expect(save).toHaveProperty('disabled', false);
+  });
+
   it('Cancel with no edits goes straight back with no confirmation', async () => {
     renderScreen();
     await screen.findByDisplayValue('Alice Example');

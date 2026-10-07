@@ -142,7 +142,7 @@ describe('ProfileSection', () => {
     await screen.findByDisplayValue('alice');
     expect(screen.queryByText('Save', { selector: 'ion-button' })).toBeNull();
     expect(screen.getByText('This account is read-only.')).toBeDefined();
-    expect(screen.queryByText('Take photo', { selector: 'ion-button' })).toBeNull();
+    expect(screen.queryByText('Take photo')).toBeNull();
   });
 
   it('links out to the biography editor in bio mode', async () => {
@@ -166,7 +166,7 @@ describe('ProfileSection', () => {
     renderScreen();
     await screen.findByText('No avatar set.');
 
-    await userEvent.click(screen.getByText('Take photo', { selector: 'ion-button' }));
+    await userEvent.click(screen.getByText('Take photo'));
     await screen.findByText('mock-crop-area');
     await userEvent.click(screen.getByText('mock-crop-area'));
     await userEvent.click(screen.getByText('Use this photo'));
@@ -183,13 +183,13 @@ describe('ProfileSection', () => {
     renderScreen();
     await screen.findByText('No avatar set.');
 
-    await userEvent.click(screen.getByText('Take photo', { selector: 'ion-button' }));
+    await userEvent.click(screen.getByText('Take photo'));
     expect(
       await screen.findByText(
         'Camera access is needed to take a photo. Please allow it and try again.',
       ),
     ).toBeDefined();
-    expect(screen.getByText('Choose from device', { selector: 'ion-button' })).toBeDefined();
+    expect(screen.getByText('Choose from device')).toBeDefined();
   });
 
   it('deletes the avatar after confirming', async () => {
@@ -208,7 +208,7 @@ describe('ProfileSection', () => {
     renderScreen();
     await screen.findByAltText('Current avatar');
 
-    await userEvent.click(screen.getByText('Delete avatar', { selector: 'ion-button' }));
+    await userEvent.click(screen.getByText('Delete avatar'));
     const confirmButton = document.querySelector(
       'ion-alert[header="Delete avatar?"] button.alert-button-role-destructive',
     ) as HTMLElement;

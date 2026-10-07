@@ -30,8 +30,8 @@ afterEach(() => {
 describe('BrowsingSection', () => {
   it('shows both toggles on, and Normal selected, by default', () => {
     render(<BrowsingSection />);
-    const zoomToggle = screen.getByText('Show zoom/navigation bar').closest('ion-checkbox')!;
-    const paginationToggle = screen.getByText('Show pagination').closest('ion-checkbox')!;
+    const zoomToggle = screen.getByLabelText('Show zoom/navigation bar');
+    const paginationToggle = screen.getByLabelText('Show pagination');
     expect(zoomToggle.getAttribute('checked')).not.toBe('false');
     expect(paginationToggle.getAttribute('checked')).not.toBe('false');
     // IonLabel doesn't reliably render its children in this jsdom setup (SettingsScreen.tsx's own
@@ -39,18 +39,24 @@ describe('BrowsingSection', () => {
     expect(document.querySelector('ion-segment')!.value).toBe('normal');
   });
 
-  it('toggling the zoom bar checkbox persists immediately', () => {
+  it('says changes apply immediately, with no Save button', () => {
     render(<BrowsingSection />);
-    const toggle = screen.getByText('Show zoom/navigation bar').closest('ion-checkbox')!;
+    expect(screen.getByText('Changes apply immediately.')).toBeDefined();
+    expect(screen.queryByText('Save')).toBeNull();
+  });
+
+  it('toggling the zoom bar toggle persists immediately', () => {
+    render(<BrowsingSection />);
+    const toggle = screen.getByLabelText('Show zoom/navigation bar');
     toggle.dispatchEvent(
       new CustomEvent('ionChange', { bubbles: true, detail: { checked: false } }),
     );
     expect(useDevicePrefsStore.getState().showZoomBar).toBe(false);
   });
 
-  it('toggling the pagination checkbox persists immediately', () => {
+  it('toggling the pagination toggle persists immediately', () => {
     render(<BrowsingSection />);
-    const toggle = screen.getByText('Show pagination').closest('ion-checkbox')!;
+    const toggle = screen.getByLabelText('Show pagination');
     toggle.dispatchEvent(
       new CustomEvent('ionChange', { bubbles: true, detail: { checked: false } }),
     );
