@@ -20,7 +20,7 @@
 // plugin exists in this app's set — see platform/camera.ts's own documented scope reduction).
 
 import { useEffect, useState } from 'react';
-import { IonButton, IonSpinner, IonText, IonAlert } from '@ionic/react';
+import { IonButton, IonItem, IonList, IonSpinner, IonText, IonAlert } from '@ionic/react';
 import { fetchUserSettings, saveUserSettings } from '../../../data/settings.js';
 import { describeError, mapApiError } from '../../../data/errors.js';
 import { useCanWrite, useActiveAccount, useAccountsStore } from '../../../state/accountsStore.js';
@@ -32,6 +32,14 @@ import { PhotoCropper } from '../../../components/PhotoCropper.js';
 import { cropToJpegBlob } from '../../../data/imageCrop.js';
 import type { Area } from 'react-easy-crop';
 import { CachedImage } from '../../../components/CachedImage.js';
+import {
+  ActionRow,
+  CaptionRow,
+  FormActions,
+  NavRow,
+  SectionHeader,
+  TextFieldRow,
+} from '../../../components/SettingsForm.js';
 
 export function ProfileSection() {
   const navigate = useAppNavigate();
@@ -196,117 +204,110 @@ export function ProfileSection() {
   }
 
   return (
-    <div className="ion-padding">
-      <h2>Avatar</h2>
-      {avatarError && (
-        <IonText color="danger">
-          <p>{avatarError}</p>
-        </IonText>
-      )}
+    <div>
+      <IonList>
+        <SectionHeader>Profile picture</SectionHeader>
+        {avatarError && <CaptionRow tone="danger">{avatarError}</CaptionRow>}
 
-      {pickedPhoto ? (
-        <div>
-          <PhotoCropper
-            imageSrc={pickedPhoto.webPath}
-            onCropAreaChange={(_percent, pixels) => setCropPixels(pixels)}
-          />
-          <div style={{ marginTop: 8, display: 'flex', gap: 8 }}>
-            <IonButton
-              disabled={avatarBusy !== null || !cropPixels}
-              onClick={() => void handleUseCroppedAvatar()}
-            >
-              {avatarBusy === 'saving' ? <IonSpinner name="dots" /> : 'Use this photo'}
-            </IonButton>
-            <IonButton
-              fill="outline"
-              disabled={avatarBusy !== null}
-              onClick={() => {
-                setPickedPhoto(null);
-                setCropPixels(null);
-              }}
-            >
-              Cancel
-            </IonButton>
-          </div>
-        </div>
-      ) : (
-        <>
-          {avatarUrl ? (
-            <CachedImage
-              src={avatarUrl}
-              alt="Current avatar"
-              style={{ width: 96, height: 96, borderRadius: '50%', objectFit: 'cover' }}
+        {pickedPhoto ? (
+          <div className="ion-padding">
+            <PhotoCropper
+              imageSrc={pickedPhoto.webPath}
+              onCropAreaChange={(_percent, pixels) => setCropPixels(pixels)}
             />
-          ) : (
-            <IonText color="medium">
-              <p>No avatar set.</p>
-            </IonText>
-          )}
-          {canWrite && (
-            <div style={{ marginTop: 8, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+            <div style={{ marginTop: 8, display: 'flex', gap: 8 }}>
               <IonButton
-                fill="outline"
-                disabled={avatarBusy !== null}
-                onClick={() => void pickAvatarPhoto('camera')}
+                disabled={avatarBusy !== null || !cropPixels}
+                onClick={() => void handleUseCroppedAvatar()}
               >
-                {avatarBusy === 'camera' ? <IonSpinner name="dots" /> : 'Take photo'}
+                {avatarBusy === 'saving' ? <IonSpinner name="dots" /> : 'Use this photo'}
               </IonButton>
               <IonButton
                 fill="outline"
                 disabled={avatarBusy !== null}
-                onClick={() => void pickAvatarPhoto('gallery')}
+                onClick={() => {
+                  setPickedPhoto(null);
+                  setCropPixels(null);
+                }}
               >
-                {avatarBusy === 'gallery' ? <IonSpinner name="dots" /> : 'Choose from device'}
+                Cancel
               </IonButton>
-              {avatarUrl && (
-                <IonButton
-                  fill="outline"
-                  color="danger"
-                  disabled={avatarBusy !== null}
-                  onClick={() => setConfirmDeleteAvatar(true)}
-                >
-                  {avatarBusy === 'deleting' ? <IonSpinner name="dots" /> : 'Delete avatar'}
-                </IonButton>
-              )}
             </div>
-          )}
-        </>
-      )}
+          </div>
+        ) : (
+          <>
+            <IonItem lines={canWrite ? 'inset' : 'none'}>
+              {avatarUrl ? (
+                <CachedImage
+                  src={avatarUrl}
+                  alt="Current avatar"
+                  style={{
+                    width: 72,
+                    height: 72,
+                    borderRadius: '50%',
+                    objectFit: 'cover',
+                    margin: '12px 0',
+                  }}
+                />
+              ) : (
+                <IonText color="medium">
+                  <p>No avatar set.</p>
+                </IonText>
+              )}
+            </IonItem>
+            {canWrite && (
+              <>
+                <ActionRow
+                  label="Take photo"
+                  busy={avatarBusy === 'camera'}
+                  disabled={avatarBusy !== null}
+                  onClick={() => void pickAvatarPhoto('camera')}
+                />
+                <ActionRow
+                  label="Choose from device"
+                  busy={avatarBusy === 'gallery'}
+                  disabled={avatarBusy !== null}
+                  onClick={() => void pickAvatarPhoto('gallery')}
+                />
+                {avatarUrl && (
+                  <ActionRow
+                    label="Delete avatar"
+                    danger
+                    busy={avatarBusy === 'deleting'}
+                    disabled={avatarBusy !== null}
+                    onClick={() => setConfirmDeleteAvatar(true)}
+                  />
+                )}
+              </>
+            )}
+          </>
+        )}
 
-      <h2 style={{ marginTop: 24 }}>Biography</h2>
-      <IonButton fill="outline" onClick={() => navigate.push('/compose/description?target=bio')}>
-        Edit biography
-      </IonButton>
+        <SectionHeader>Biography</SectionHeader>
+        <NavRow
+          label="Edit biography"
+          kind="push"
+          onClick={() => navigate.push('/compose/description?target=bio')}
+        />
 
-      <h2 style={{ marginTop: 24 }}>Username</h2>
-      {saveError && (
-        <IonText color="danger">
-          <p>{saveError}</p>
-        </IonText>
-      )}
-      <label>
-        Username
-        <input
-          type="text"
+        <SectionHeader>Account name</SectionHeader>
+        {saveError && <CaptionRow tone="danger">{saveError}</CaptionRow>}
+        <TextFieldRow
+          label="Username"
           value={username}
           disabled={!canWrite}
-          onChange={(e) => setUsername(e.target.value)}
-          style={{ width: '100%', font: 'inherit', padding: 8 }}
+          onChange={setUsername}
         />
-      </label>
-      {canWrite ? (
-        <div style={{ marginTop: 8, display: 'flex', gap: 8 }}>
-          <IonButton disabled={saving || !dirty} onClick={() => void handleSaveUsername()}>
-            {saving ? <IonSpinner name="dots" /> : 'Save'}
-          </IonButton>
-          <IonButton fill="outline" disabled={saving} onClick={handleBack}>
-            Cancel
-          </IonButton>
-        </div>
-      ) : (
-        <IonText color="medium">
-          <p>This account is read-only.</p>
-        </IonText>
+        {!canWrite && <CaptionRow>This account is read-only.</CaptionRow>}
+      </IonList>
+
+      {canWrite && (
+        <FormActions
+          saving={saving}
+          dirty={dirty}
+          onSave={() => void handleSaveUsername()}
+          onCancel={handleBack}
+        />
       )}
 
       <IonAlert

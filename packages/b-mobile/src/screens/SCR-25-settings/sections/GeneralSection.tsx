@@ -9,13 +9,21 @@
 // account).
 
 import { useEffect, useState } from 'react';
-import { IonButton, IonCheckbox, IonSpinner, IonText, IonAlert } from '@ionic/react';
+import { IonList, IonSpinner, IonText, IonAlert } from '@ionic/react';
 import { fetchUserSettings, saveUserSettings } from '../../../data/settings.js';
 import { fetchCountries, fetchLocales } from '../../../data/config.js';
 import type { ConfigOption } from '../../../data/config.js';
 import { describeError, mapApiError } from '../../../data/errors.js';
 import { useCanWrite } from '../../../state/accountsStore.js';
 import { useAppNavigate } from '../../../app/routes/useAppNavigate.js';
+import {
+  CaptionRow,
+  FormActions,
+  SectionHeader,
+  SelectRow,
+  TextFieldRow,
+  ToggleRow,
+} from '../../../components/SettingsForm.js';
 
 interface FormState {
   realName: string;
@@ -114,78 +122,48 @@ export function GeneralSection() {
   }
 
   return (
-    <div className="ion-padding">
-      {saveError && (
-        <IonText color="danger">
-          <p>{saveError}</p>
-        </IonText>
-      )}
-
-      <label style={{ display: 'block', marginBottom: 18 }}>
-        Real name
-        <input
-          type="text"
+    <div>
+      <IonList>
+        <SectionHeader>About you</SectionHeader>
+        {saveError && <CaptionRow tone="danger">{saveError}</CaptionRow>}
+        <TextFieldRow
+          label="Real name"
           value={form.realName}
           disabled={!canWrite}
-          onChange={(e) => setForm({ ...form, realName: e.target.value })}
-          style={{ width: '100%', font: 'inherit', padding: 8, marginTop: 6 }}
+          onChange={(realName) => setForm({ ...form, realName })}
         />
-      </label>
-
-      <label style={{ display: 'block', marginBottom: 18 }}>
-        Country
-        <select
+        <SelectRow
+          label="Country"
           value={form.countryCode}
+          options={countries}
           disabled={!canWrite}
-          onChange={(e) => setForm({ ...form, countryCode: e.target.value })}
-          style={{ width: '100%', font: 'inherit', padding: 8, marginTop: 6 }}
-        >
-          {countries.map((c) => (
-            <option key={c.code} value={c.code}>
-              {c.title}
-            </option>
-          ))}
-        </select>
-      </label>
-
-      <label style={{ display: 'block', marginBottom: 18 }}>
-        Locale
-        <select
+          onChange={(countryCode) => setForm({ ...form, countryCode })}
+        />
+        <SelectRow
+          label="Locale"
           value={form.localeCode}
+          options={locales}
           disabled={!canWrite}
-          onChange={(e) => setForm({ ...form, localeCode: e.target.value })}
-          style={{ width: '100%', font: 'inherit', padding: 8, marginTop: 6 }}
-        >
-          {locales.map((l) => (
-            <option key={l.code} value={l.code}>
-              {l.title}
-            </option>
-          ))}
-        </select>
-      </label>
+          onChange={(localeCode) => setForm({ ...form, localeCode })}
+        />
 
-      <IonCheckbox
-        checked={form.realNameSearch}
-        disabled={!canWrite}
-        onIonChange={(e) => setForm({ ...form, realNameSearch: e.detail.checked })}
-        style={{ marginBottom: 18 }}
-      >
-        Let people find me by my real name
-      </IonCheckbox>
+        <SectionHeader>Privacy</SectionHeader>
+        <ToggleRow
+          label="Let people find me by my real name"
+          checked={form.realNameSearch}
+          disabled={!canWrite}
+          onChange={(realNameSearch) => setForm({ ...form, realNameSearch })}
+        />
+        {!canWrite && <CaptionRow>This account is read-only.</CaptionRow>}
+      </IonList>
 
-      {canWrite ? (
-        <div style={{ marginTop: 16, display: 'flex', gap: 8 }}>
-          <IonButton disabled={saving} onClick={() => void handleSave()}>
-            {saving ? <IonSpinner name="dots" /> : 'Save'}
-          </IonButton>
-          <IonButton fill="outline" disabled={saving} onClick={handleBack}>
-            Cancel
-          </IonButton>
-        </div>
-      ) : (
-        <IonText color="medium">
-          <p>This account is read-only.</p>
-        </IonText>
+      {canWrite && (
+        <FormActions
+          saving={saving}
+          dirty={dirty}
+          onSave={() => void handleSave()}
+          onCancel={handleBack}
+        />
       )}
 
       <IonAlert

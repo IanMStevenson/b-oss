@@ -207,6 +207,20 @@ export const STRINGS = {
   'SCR-22.empty': 'No awards yet',
   'SCR-23.empty': 'No notifications yet',
   'SCR-24.empty': 'No comments yet',
+  'SCR-25.browsing.applies_now': 'Changes apply immediately.',
+  'SCR-25.browsing.grid.title': 'Thumbnail grid',
+  'SCR-25.browsing.margins': 'Margins',
+  'SCR-25.browsing.margins.caption':
+    'Narrow tightens the gaps. None removes them, and zoom sets how many fit per row.',
+  'SCR-25.browsing.pagination': 'Show pagination',
+  'SCR-25.browsing.pagination.caption': 'Page numbers below the grid. Swiping still changes page.',
+  'SCR-25.browsing.photo_size': 'Photo size',
+  'SCR-25.browsing.photo_size.caption':
+    'Full width may need scrolling. Fit to screen shows the whole photo.',
+  'SCR-25.browsing.photo.title': 'Entry photo',
+  'SCR-25.browsing.zoom_bar': 'Show zoom/navigation bar',
+  'SCR-25.browsing.zoom_bar.caption':
+    'The row above the thumbnails. Pinch and swipe still work without it.',
   'SCR-25.error.save_generic': "Couldn't save your changes. Check your connection and try again.",
   'SCR-25.feed_type.feed_entry_favorite_received': 'Favourites',
   'SCR-25.feed_type.feed_entry_star_received': 'Stars',

@@ -122,7 +122,7 @@ describe('HelpInfoScreen hub — works with no account signed in (SCR-29 is not 
 
   it('the link-handling toggle defaults off and persists when flipped', () => {
     renderHub();
-    const toggle = screen.getByText('Open blipfoto.com links in this app').closest('ion-checkbox')!;
+    const toggle = screen.getByLabelText('Open blipfoto.com links in this app');
     expect(toggle.getAttribute('checked')).not.toBe('true');
 
     toggle.dispatchEvent(
