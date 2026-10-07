@@ -11,6 +11,7 @@
 
 import { useEffect, useRef } from 'react';
 import { BBCodeEditor } from './BBCodeEditor.js';
+import { ProseMirrorBBCodeEditor } from './ProseMirrorBBCodeEditor.js';
 import styles from './CommentComposer.module.css';
 
 export interface CommentComposerProps {
@@ -33,6 +34,8 @@ export interface CommentComposerProps {
   autoFocus?: boolean;
   /** A rich-text box with a B / I / U / S / link toolbar in its footer; `value` is BBCode. */
   formatting?: boolean;
+  /** Which rich-text engine (b-oss#206 spike): ProseMirror's model, or the browser's own editing. */
+  editor?: 'prosemirror' | 'native';
 }
 
 export function CommentComposer({
@@ -47,7 +50,9 @@ export function CommentComposer({
   onCancel,
   autoFocus = false,
   formatting = false,
+  editor = 'prosemirror',
 }: CommentComposerProps) {
+  const RichEditor = editor === 'prosemirror' ? ProseMirrorBBCodeEditor : BBCodeEditor;
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const canSubmit = value.trim().length > 0 && !posting;
 
@@ -67,7 +72,7 @@ export function CommentComposer({
     >
       <div className={styles.box}>
         {formatting ? (
-          <BBCodeEditor
+          <RichEditor
             value={value}
             onChange={onChange}
             ariaLabel={ariaLabel}

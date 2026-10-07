@@ -193,6 +193,29 @@ function buildInline(doc: Document, segments: Segment[], depth: number, parent: 
   }
 }
 
+/** A run of text and its formatting, outermost first — the DOM-free view of parsed BBCode. */
+export interface BBRun {
+  text: string;
+  marks: { tag: BBTag; attr?: string }[];
+}
+
+/** Parses BBCode into lines of formatted runs (an empty line is an empty array; an empty source
+ * has no lines). For editors that keep their own document model rather than the DOM. */
+export function parseBBCodeLines(source: string): BBRun[][] {
+  const normalized = source.replace(/\r\n?/g, '\n');
+  if (normalized === '') return [];
+  const lines: Segment[][] = [[]];
+  flatten(parseBBCode(normalized), [], lines);
+  return lines.map((line) =>
+    line.map((seg) => ({
+      text: seg.text,
+      marks: seg.marks.map((m) =>
+        m.attr === undefined ? { tag: m.tag } : { tag: m.tag, attr: m.attr },
+      ),
+    })),
+  );
+}
+
 /** Replaces `container`'s contents with editor DOM for `source`: a <div> per line, an empty line
  * holding just a <br> (the browser needs one to give the line height and a caret position). An
  * empty source leaves the container empty. */

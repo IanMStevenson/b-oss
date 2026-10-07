@@ -249,3 +249,24 @@
   border-color: var(--color-danger);
   color: var(--color-danger);
 }
+
+/* The ProseMirror editor (b-oss#206 spike): the mount point, and the few rules ProseMirror needs
+   (its own stylesheet, minus what .editor already sets). */
+.pmMount {
+  display: block;
+}
+
+.pmMount :global(.ProseMirror) {
+  word-wrap: break-word;
+  white-space: break-spaces;
+  font-variant-ligatures: none;
+  font-feature-settings: 'liga' 0;
+}
+
+.pmMount :global(.ProseMirror-hideselection *::selection) {
+  background: transparent;
+}
+
+.pmMount :global(.ProseMirror-hideselection) {
+  caret-color: transparent;
+}

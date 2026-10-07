@@ -84,7 +84,7 @@ describe('CommentComposer', () => {
   });
 });
 
-describe('CommentComposer — rich-text box (b-oss#206)', () => {
+describe('CommentComposer — rich-text box, native engine (b-oss#206)', () => {
   const box = () => screen.getByRole('textbox', { name: 'Your comment' });
   let exec: ReturnType<typeof vi.fn<(command: string, ui: boolean, arg?: string) => boolean>>;
   let states: Record<string, boolean>;
@@ -128,7 +128,13 @@ describe('CommentComposer — rich-text box (b-oss#206)', () => {
   });
 
   it('shows BBCode as formatting, not tags', () => {
-    render(<Host formatting initial={'[b]bold[/b] and [url=https://x.org]link[/url]\nline 2'} />);
+    render(
+      <Host
+        editor="native"
+        formatting
+        initial={'[b]bold[/b] and [url=https://x.org]link[/url]\nline 2'}
+      />,
+    );
     expect(box().getAttribute('contenteditable')).toBe('true');
     expect(box().querySelector('b')?.textContent).toBe('bold');
     expect(box().querySelector('a')?.getAttribute('href')).toBe('https://x.org');
@@ -138,14 +144,22 @@ describe('CommentComposer — rich-text box (b-oss#206)', () => {
 
   it('reports what the user typed as BBCode, and enables the submit button', () => {
     const onChange = vi.fn();
-    render(<CommentComposer formatting value="" onChange={onChange} onSubmit={() => {}} />);
+    render(
+      <CommentComposer
+        editor="native"
+        formatting
+        value=""
+        onChange={onChange}
+        onSubmit={() => {}}
+      />,
+    );
     box().innerHTML = 'hi <b>there</b><div>[i]typed[/i]</div>';
     fireEvent.input(box());
     expect(onChange).toHaveBeenLastCalledWith('hi [b]there[/b]\n[i]typed[/i]');
   });
 
   it('never redraws the box for its own typing (the keyboard is mid-word), only for outside changes', () => {
-    const { rerender } = render(<Host formatting initial="draft" />);
+    const { rerender } = render(<Host editor="native" formatting initial="draft" />);
     const text = box().firstChild!.firstChild as Text;
     text.data = 'draft typed';
     fireEvent.input(box());
@@ -153,20 +167,28 @@ describe('CommentComposer — rich-text box (b-oss#206)', () => {
     expect(box().firstChild!.firstChild).toBe(text);
 
     // A host clearing the box after a post does redraw it.
-    rerender(<CommentComposer formatting value="" onChange={() => {}} onSubmit={() => {}} />);
+    rerender(
+      <CommentComposer
+        editor="native"
+        formatting
+        value=""
+        onChange={() => {}}
+        onSubmit={() => {}}
+      />,
+    );
     expect(box().innerHTML).toBe('');
     expect(box().getAttribute('data-empty')).toBe('true');
   });
 
   it('the submit button stays off for a box with only blank lines', () => {
-    render(<Host formatting />);
+    render(<Host editor="native" formatting />);
     box().innerHTML = '<div><br></div><div><br></div>';
     fireEvent.input(box());
     expect(screen.getByText('Add comment').hasAttribute('disabled')).toBe(true);
   });
 
   it("B / I / U / S use the browser's formatting command on the selection", () => {
-    render(<Host formatting initial="say hello" />);
+    render(<Host editor="native" formatting initial="say hello" />);
     select(4, 9);
     for (const label of ['Bold', 'Italic', 'Underline', 'Strikethrough']) {
       fireEvent.click(screen.getByLabelText(label));
@@ -181,7 +203,7 @@ describe('CommentComposer — rich-text box (b-oss#206)', () => {
   });
 
   it('with nothing selected, formats combine: the caret is left alone between taps', () => {
-    render(<Host formatting initial="ab" />);
+    render(<Host editor="native" formatting initial="ab" />);
     select(2, 2);
     const before = window.getSelection()!.getRangeAt(0);
     fireEvent.click(screen.getByLabelText('Bold'));
@@ -195,7 +217,7 @@ describe('CommentComposer — rich-text box (b-oss#206)', () => {
   });
 
   it('if the caret was lost between taps, puts it back and replays the formats already chosen', () => {
-    render(<Host formatting initial="ab" />);
+    render(<Host editor="native" formatting initial="ab" />);
     select(2, 2);
     fireEvent.click(screen.getByLabelText('Bold'));
     window.getSelection()!.removeAllRanges();
@@ -211,7 +233,7 @@ describe('CommentComposer — rich-text box (b-oss#206)', () => {
   });
 
   it('shows which formats are on where the caret is', () => {
-    render(<Host formatting initial="[b]x[/b]" />);
+    render(<Host editor="native" formatting initial="[b]x[/b]" />);
     states = { bold: true };
     select(0, 1);
     expect(screen.getByLabelText('Bold').getAttribute('aria-pressed')).toBe('true');
@@ -219,13 +241,13 @@ describe('CommentComposer — rich-text box (b-oss#206)', () => {
   });
 
   it('keeps the box focused when a toolbar button is pressed (so the keyboard stays up)', () => {
-    render(<Host formatting />);
+    render(<Host editor="native" formatting />);
     expect(fireEvent.mouseDown(screen.getByLabelText('Bold'))).toBe(false);
     expect(fireEvent.mouseDown(screen.getByLabelText('Link'))).toBe(false);
   });
 
   it('pastes plain text only', () => {
-    render(<Host formatting initial="x" />);
+    render(<Host editor="native" formatting initial="x" />);
     select(1, 1);
     const pasted = fireEvent.paste(box(), {
       clipboardData: {
@@ -237,7 +259,7 @@ describe('CommentComposer — rich-text box (b-oss#206)', () => {
   });
 
   it('is read-only, with the toolbar disabled, while a post is in flight', () => {
-    render(<Host formatting posting initial="hi" />);
+    render(<Host editor="native" formatting posting initial="hi" />);
     expect(box().getAttribute('contenteditable')).toBe('false');
     expect(box().getAttribute('aria-readonly')).toBe('true');
     expect(screen.getByLabelText('Bold').hasAttribute('disabled')).toBe(true);
@@ -245,13 +267,13 @@ describe('CommentComposer — rich-text box (b-oss#206)', () => {
   });
 
   it('focuses the box on mount only when asked', () => {
-    render(<Host formatting autoFocus initial="edit me" />);
+    render(<Host editor="native" formatting autoFocus initial="edit me" />);
     expect(document.activeElement).toBe(box());
   });
 
   describe('link', () => {
     it('makes the selection a link to the address (https:// added when missing)', () => {
-      render(<Host formatting initial="see this page now" />);
+      render(<Host editor="native" formatting initial="see this page now" />);
       select(4, 13);
       fireEvent.click(screen.getByLabelText('Link'));
       expect(screen.queryByLabelText('Link text')).toBeNull(); // the selection is the text
@@ -262,7 +284,7 @@ describe('CommentComposer — rich-text box (b-oss#206)', () => {
     });
 
     it('with nothing selected inserts a link, its text optional (the address otherwise)', () => {
-      render(<Host formatting initial="x" />);
+      render(<Host editor="native" formatting initial="x" />);
       select(1, 1);
       fireEvent.click(screen.getByLabelText('Link'));
       fireEvent.change(screen.getByLabelText('Link address'), {
@@ -290,7 +312,7 @@ describe('CommentComposer — rich-text box (b-oss#206)', () => {
     });
 
     it('in an existing link, offers to change or remove it', () => {
-      render(<Host formatting initial="[url=https://old.org]old[/url]" />);
+      render(<Host editor="native" formatting initial="[url=https://old.org]old[/url]" />);
       const linkText = box().querySelector('a')!.firstChild as Text;
       const range = document.createRange();
       range.setStart(linkText, 1);
@@ -317,7 +339,7 @@ describe('CommentComposer — rich-text box (b-oss#206)', () => {
 
     it('Enter confirms the link and does NOT submit the comment', () => {
       const onSubmit = vi.fn();
-      render(<Host formatting initial="hi" onSubmit={onSubmit} />);
+      render(<Host editor="native" formatting initial="hi" onSubmit={onSubmit} />);
       select(0, 2);
       fireEvent.click(screen.getByLabelText('Link'));
       const field = screen.getByLabelText('Link address');
@@ -328,7 +350,7 @@ describe('CommentComposer — rich-text box (b-oss#206)', () => {
     });
 
     it('Cancel, Escape and an empty address change nothing', () => {
-      render(<Host formatting initial="hi" />);
+      render(<Host editor="native" formatting initial="hi" />);
       select(0, 2);
       fireEvent.click(screen.getByLabelText('Link'));
       fireEvent.click(screen.getByText('Cancel'));
