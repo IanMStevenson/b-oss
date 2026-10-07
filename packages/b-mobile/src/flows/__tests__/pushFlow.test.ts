@@ -59,7 +59,9 @@ vi.mock('../../data/pushService.js', async () => ({
 }));
 
 const handleForcedLogout = vi.fn<(...args: unknown[]) => void>();
+const clearServiceToken = vi.fn<(...args: unknown[]) => Promise<void>>();
 vi.mock('../accountsFlow.js', () => ({
+  clearServiceToken: (...args: unknown[]) => clearServiceToken(...args),
   handleForcedLogout: (...args: unknown[]) => handleForcedLogout(...args),
 }));
 
@@ -413,17 +415,17 @@ describe('runLaunchBackstopCheck', () => {
     expect(checkPushPermission).not.toHaveBeenCalled();
   });
 
-  it('deregisters when OS permission is no longer granted — same as the user turning it off', async () => {
+  it('clears the whole notifications state when OS permission is no longer granted — same as the user turning it off (b-oss#251)', async () => {
     secretStore.set('alice', 'sec-1');
     setAccounts([
       account({ id: 'alice', hasServiceToken: true, notificationRegistrationId: 'reg-1' }),
     ]);
     checkPushPermission.mockResolvedValue('denied');
-    deleteRegistration.mockResolvedValue(undefined);
+    clearServiceToken.mockResolvedValue(undefined);
 
     await runLaunchBackstopCheck();
 
-    expect(deleteRegistration).toHaveBeenCalledWith('reg-1', 'sec-1');
+    expect(clearServiceToken).toHaveBeenCalledWith('alice', 'read,write');
     expect(getRegistrationStatus).not.toHaveBeenCalled();
   });
 

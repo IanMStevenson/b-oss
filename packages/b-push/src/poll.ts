@@ -30,6 +30,31 @@ interface PollOneOutcome {
   pushed: number;
 }
 
+/** Marks the row dead and sends the one distinct reauth-required push. */
+async function reauthRequired(
+  db: DbLike,
+  env: Env,
+  reg: RegistrationRow,
+  nowMs: number,
+): Promise<void> {
+  await markReauthRequired(db, reg.id, nowMs);
+  await sendFcmMessage(env, reg.device_token, {
+    kind: 'reauth-required',
+    accountId: reg.blipfoto_user_id,
+  }).catch(async (sendErr: unknown) => {
+    // The device is gone, so nobody can act on the reauth push: drop the row and its token.
+    if (sendErr instanceof DeviceUnregisteredError) {
+      await deleteRegistration(db, reg.id);
+      console.log(`[b-push] removed ${reg.id}: device unregistered`);
+      return;
+    }
+    console.error(`[b-push] reauth push failed for ${reg.id}: ${describeError(sendErr)}`);
+    // Best-effort — the row's own status flag (not a resend) is what makes this idempotent;
+    // a failed send here is retried next time something else marks the row for reauth, not
+    // by this tick itself.
+  });
+}
+
 async function pollOne(
   db: DbLike,
   env: Env,
@@ -37,10 +62,20 @@ async function pollOne(
   reg: RegistrationRow,
   nowMs: number,
 ): Promise<PollOneOutcome> {
-  const readToken = await decryptReadToken(
-    { ciphertext: reg.read_token_ciphertext, nonce: reg.read_token_nonce },
-    encryptionKey,
-  );
+  let readToken;
+  try {
+    readToken = await decryptReadToken(
+      { ciphertext: reg.read_token_ciphertext, nonce: reg.read_token_nonce },
+      encryptionKey,
+    );
+  } catch (err) {
+    // Undecryptable under the current key (READ_TOKEN_ENCRYPTION_KEY rotated or lost): as dead as
+    // a rejected token. Marking it reauth-required stops the every-minute retry, and the user's
+    // "Sign in again" PATCHes a fresh token encrypted under the current key (b-oss#252).
+    console.error(`[b-push] cannot decrypt read token for ${reg.id}: ${describeError(err)}`);
+    await reauthRequired(db, env, reg, nowMs);
+    return { kind: 'reauth', pushed: 0 };
+  }
 
   let totals;
   try {
@@ -50,22 +85,7 @@ async function pollOne(
     // and lands in runActivityPoll's catch as an ordinary error, leaving the row active
     // (b-oss#238; see isBearerUnrecognised in blipfoto.ts for why).
     if (err instanceof ReadTokenInvalidError) {
-      await markReauthRequired(db, reg.id, nowMs);
-      await sendFcmMessage(env, reg.device_token, {
-        kind: 'reauth-required',
-        accountId: reg.blipfoto_user_id,
-      }).catch(async (sendErr: unknown) => {
-        // The device is gone, so nobody can act on the reauth push: drop the row and its token.
-        if (sendErr instanceof DeviceUnregisteredError) {
-          await deleteRegistration(db, reg.id);
-          console.log(`[b-push] removed ${reg.id}: device unregistered`);
-          return;
-        }
-        console.error(`[b-push] reauth push failed for ${reg.id}: ${describeError(sendErr)}`);
-        // Best-effort — the row's own status flag (not a resend) is what makes this idempotent;
-        // a failed send here is retried next time something else marks the row for reauth, not
-        // by this tick itself.
-      });
+      await reauthRequired(db, env, reg, nowMs);
       return { kind: 'reauth', pushed: 0 };
     }
     throw err;

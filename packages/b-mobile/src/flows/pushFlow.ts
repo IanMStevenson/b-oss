@@ -22,7 +22,7 @@ import {
 import * as pushService from '../data/pushService.js';
 import { useAccountsStore, ALL_PUSH_STREAMS } from '../state/accountsStore.js';
 import type { PushStreams } from '../state/accountsStore.js';
-import { handleForcedLogout } from './accountsFlow.js';
+import { clearServiceToken, handleForcedLogout } from './accountsFlow.js';
 import { AccountMismatchError } from './accountMismatch.js';
 import type { PushPayload } from '../platform/push.js';
 import { authReady } from '../state/authReady.js';
@@ -197,7 +197,7 @@ export async function runLaunchBackstopCheck(): Promise<void> {
 
     const permission = await checkPushPermission();
     if (permission !== 'granted') {
-      await deregisterAccountFromPush(account.id);
+      await clearServiceToken(account.id, account.appTokenScope);
       continue;
     }
 

@@ -9,6 +9,10 @@ const config: CapacitorConfig = {
   appId: 'io.github.ianmstevenson.bmobile',
   appName: 'b-mobile',
   webDir: 'dist',
+  // Capacitor's default ('debug') logs every native bridge call with its arguments in debug
+  // builds: Authorization headers, the registration body and secret, SecureStorage values. That
+  // all lands in logcat (b-oss#241). 'none' also silences the app's own console logs on device.
+  loggingBehavior: 'none',
 };
 
 export default config;
