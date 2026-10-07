@@ -48,7 +48,10 @@ const patchRegistration = vi.fn<(...args: unknown[]) => Promise<void>>();
 const getRegistrationStatus =
   vi.fn<(...args: unknown[]) => Promise<{ status: string; lastPolledAt: number | null }>>();
 const deleteRegistration = vi.fn<(...args: unknown[]) => Promise<void>>();
-vi.mock('../../data/pushService.js', () => ({
+vi.mock('../../data/pushService.js', async () => ({
+  PushServiceError: (
+    await vi.importActual<typeof import('../../data/pushService.js')>('../../data/pushService.js')
+  ).PushServiceError,
   createRegistration: (...args: unknown[]) => createRegistration(...args),
   patchRegistration: (...args: unknown[]) => patchRegistration(...args),
   getRegistrationStatus: (...args: unknown[]) => getRegistrationStatus(...args),
@@ -61,6 +64,8 @@ vi.mock('../accountsFlow.js', () => ({
 }));
 
 const { useAccountsStore } = await import('../../state/accountsStore.js');
+const { PushServiceError } = await import('../../data/pushService.js');
+const { AccountMismatchError } = await import('../accountMismatch.js');
 const {
   ensurePushPermission,
   registerAccountForPush,
@@ -227,6 +232,33 @@ describe('registerAccountForPush', () => {
 
     expect(await registerAccountForPush('alice', 'read-token')).toBe(false);
     expect(secretStore.has('alice')).toBe(false);
+  });
+
+  it("maps the service's 403 (token belongs to someone else, b-oss#240) to AccountMismatchError", async () => {
+    setAccounts([account({ id: 'alice' })]);
+    checkPushPermission.mockResolvedValue('granted');
+    registerPush.mockResolvedValue('device-token');
+    pushPlatform.mockReturnValue('android');
+    createRegistration.mockRejectedValue(
+      new PushServiceError(403, 'The read token belongs to a different Blipfoto account'),
+    );
+
+    const err = await registerAccountForPush('alice', 'read-token').catch((e: unknown) => e);
+    expect(err).toBeInstanceOf(AccountMismatchError);
+    expect(err).toMatchObject({ expected: 'alice', actual: null });
+    expect(secretStore.has('alice')).toBe(false);
+    const stored = useAccountsStore.getState().accounts.find((a) => a.id === 'alice');
+    expect(stored?.notificationRegistrationId).toBeNull();
+  });
+
+  it('other service errors (e.g. 400 for a dead token) still just return false', async () => {
+    setAccounts([account({ id: 'alice' })]);
+    checkPushPermission.mockResolvedValue('granted');
+    registerPush.mockResolvedValue('device-token');
+    pushPlatform.mockReturnValue('android');
+    createRegistration.mockRejectedValue(new PushServiceError(400, 'Invalid read token'));
+
+    expect(await registerAccountForPush('alice', 'read-token')).toBe(false);
   });
 });
 

@@ -101,6 +101,11 @@ remain available after the explainer is dismissed:
   selected; see [auth.md](../api-appendix/auth.md) for what it implies.
 - **Sign in / Continue** button — launches Blipfoto OAuth (implicit grant). Labelled "Continue"
   in the deliberate case (a choice was made first), "Sign in" in the gated case.
+- **Use browser to sign in** (native only, deliberate case) — on: the phone's browser (reuses an
+  existing Blipfoto login); off: the clean in-app browser (cookies cleared, always asks for a
+  password). Defaults **on** with no accounts yet and **off** when one already exists
+  ([b-oss#240](https://github.com/IanMStevenson/b-oss/issues/240)); the user can change it either
+  way.
 - **Create account** link — opens the Blipfoto registration page in the device browser (no in-app
   registration).
 - **Browse without signing in** — shown only when sign-in was *offered*, not when the user is
@@ -121,6 +126,13 @@ remain available after the explainer is dismissed:
   on this screen. If it fails on the *second* authorization of a two-token sign-in, the
   already-obtained read-write token is kept (the user is signed in read-write; notifications
   simply aren't enabled yet — retry is offered without discarding the first token).
+- **Wrong account** ([b-oss#240](https://github.com/IanMStevenson/b-oss/issues/240)) — the second
+  (notifications) round returned a token for a different Blipfoto account than the first (or the
+  notification service refused it as someone else's). The token is revoked, nothing is stored, and
+  an alert says *"That sign-in was for {actual}, not {expected}. Your browser is signed in to
+  Blipfoto as {actual}."* On native it offers **Try again in the app** (redo just that round in the
+  clean in-app browser) or **Not now**; either way the account stays signed in read-write and the
+  screen closes to `SCR-30`.
 - **Cancelled** — the user backed out of the OAuth provider; return to Idle without an error
   banner.
 - **Success** — token(s) stored, account added/updated and made active; the screen closes and

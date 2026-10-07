@@ -18,6 +18,12 @@
 //     Save/Cancel like General/Journal. Blipfoto's own `push_*` settings are never read or written
 //     any more; b-push no longer reads them either, so the old refresh-preferences ping is gone.
 //
+// Turning the first toggle on for a read-write account needs a second, read-only Blipfoto sign-in
+// (b-oss#240): the "One more sign-in" explainer from SCR-01 comes first ([Cancel] snaps the toggle
+// back), and the round is owner-checked by the flow. With more than one account on the device it
+// runs in the clean in-app browser (accountsFlow's tokenChangeUsesEmbedded); if it still comes back
+// as another account, the mismatch alert explains and offers to retry in the in-app browser.
+//
 // The feed hint under *Push for new notifications*: Blipfoto never creates (or counts) a
 // notification whose `feed_*` type is off, so b-push can't push about it (confirmed from
 // Blipfoto's source on b-oss#244; comments are never gated). The hint is computed from the
@@ -50,6 +56,9 @@ import {
 } from '../../../state/accountsStore.js';
 import type { PushStreams, StoredAccount } from '../../../state/accountsStore.js';
 import { changeAccountMode, OAuthCancelledError } from '../../../flows/accountsFlow.js';
+import { AccountMismatchError } from '../../../flows/accountMismatch.js';
+import { AccountMismatchAlert, canRetryInApp } from '../../../components/AccountMismatchAlert.js';
+import { useServiceRoundExplainer } from '../../../components/ServiceRoundExplainer.js';
 import { updatePollingInterval, updatePushStreams } from '../../../flows/pushFlow.js';
 import { useDevicePrefsStore } from '../../../state/devicePrefsStore.js';
 import { t, type StringKey } from '../../../strings/index.js';
@@ -111,6 +120,13 @@ function PushSection({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [confirmOff, setConfirmOff] = useState(false);
+  const [mismatch, setMismatch] = useState<AccountMismatchError | null>(null);
+  // The streams the last enable attempt asked for, so a mismatch retry asks for the same.
+  const [enablingStreams, setEnablingStreams] = useState<PushStreams | null>(null);
+  const explainer = useServiceRoundExplainer({
+    cancel: t('FLW22.notifications_on.button_cancel'),
+    proceed: t('FLW22.notifications_on.button_continue'),
+  });
   // An Ionic toggle flips itself on tap; when the store value doesn't change (Keep on, a failure,
   // a cancelled sign-in) React has nothing to re-render, so remount the toggles to snap back.
   const [toggleKey, setToggleKey] = useState(0);
@@ -130,7 +146,9 @@ function PushSection({
     try {
       await action();
     } catch (err) {
-      if (!(err instanceof OAuthCancelledError)) {
+      if (err instanceof AccountMismatchError) {
+        setMismatch(err);
+      } else if (!(err instanceof OAuthCancelledError)) {
         setError(err instanceof Error && err.message ? err.message : fallback);
       }
     } finally {
@@ -151,13 +169,15 @@ function PushSection({
     const next: PushStreams = { ...streams, [stream]: value };
 
     if (!on) {
-      // First one on from off (or needs sign-in): the enable path, with just this stream.
+      // First one on from off (or needs sign-in): the enable path, with just this stream. A
+      // read-write account explains the second sign-in first; Cancel there changes nothing.
+      setEnablingStreams(next);
       void run(async () => {
-        await changeAccountMode(account.id, {
-          scope,
-          notifications: true,
-          pushStreams: next,
-        });
+        await changeAccountMode(
+          account.id,
+          { scope, notifications: true, pushStreams: next },
+          { beforeServiceRound: explainer.ask },
+        );
       }, 'Could not turn notifications on.');
       return;
     }
@@ -172,6 +192,20 @@ function PushSection({
     }
 
     void run(() => updatePushStreams(account.id, next), 'Could not change notifications.');
+  }
+
+  /** Mismatch retry: the same enable, forced into the clean in-app browser, no explainer (the
+   * user has just been through it). */
+  function retryInApp(): void {
+    if (scope === null || !enablingStreams) return;
+    void run(async () => {
+      await changeAccountMode(account.id, {
+        scope,
+        notifications: true,
+        pushStreams: enablingStreams,
+        useEmbedded: true,
+      });
+    }, 'Could not turn notifications on.');
   }
 
   async function handlePollingIntervalChange(minutes: number): Promise<void> {
@@ -303,6 +337,15 @@ function PushSection({
             handler: () => void turnOff(),
           },
         ]}
+      />
+      {explainer.element}
+      <AccountMismatchAlert
+        error={mismatch}
+        canRetry={mismatch !== null && canRetryInApp(mismatch, scope)}
+        onClose={(retry) => {
+          setMismatch(null);
+          if (retry) retryInApp();
+        }}
       />
     </IonList>
   );

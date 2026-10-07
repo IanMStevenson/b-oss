@@ -15,8 +15,15 @@
 // "never shown again", since it covers a backdrop/swipe dismiss the same as tapping "Got it".
 // Gated on devicePrefsStore's own `hydrated` flag so a returning user's persisted `true` isn't
 // raced by a not-yet-loaded default `false`.
+//
+// Browser default (b-oss#240): the very first account defaults to the phone's browser (reuses an
+// existing Blipfoto login); with an account already here it defaults to the clean in-app browser,
+// since the phone's browser is probably still logged in as that first account. The choice stays
+// visible either way. The second (notifications) round uses the same browser as the first and is
+// owner-checked by the flow; if it comes back as someone else, the account stays signed in without
+// notifications and the mismatch alert offers to redo just that round in the app.
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   IonPage,
   IonHeader,
@@ -26,21 +33,28 @@ import {
   IonItem,
   IonLabel,
   IonToggle,
-  IonAlert,
   IonButton,
   IonSpinner,
   IonText,
 } from '@ionic/react';
 import { AppHeader } from '../../components/AppHeader.js';
-import { signInDeliberate, OAuthCancelledError } from '../../flows/accountsFlow.js';
+import {
+  signInDeliberate,
+  changeAccountMode,
+  OAuthCancelledError,
+} from '../../flows/accountsFlow.js';
 import type { SignInModeChoice } from '../../flows/accountsFlow.js';
+import { AccountMismatchError } from '../../flows/accountMismatch.js';
+import { AccountMismatchAlert, canRetryInApp } from '../../components/AccountMismatchAlert.js';
+import { useServiceRoundExplainer } from '../../components/ServiceRoundExplainer.js';
 import { openUrl } from '../../platform/browser.js';
 import { isPushAvailable } from '../../platform/push.js';
 import { isNativePlatform } from '../../platform/appState.js';
 import { useAppNavigate } from '../../app/routes/useAppNavigate.js';
 import { useOverlay } from '../../app/OverlayProvider.js';
 import { useDevicePrefsStore } from '../../state/devicePrefsStore.js';
-import { useActiveAccount } from '../../state/accountsStore.js';
+import { useActiveAccount, useAccountsStore } from '../../state/accountsStore.js';
+import { t } from '../../strings/index.js';
 
 const SIGNUP_URL = 'https://www.blipfoto.com/account/signup';
 
@@ -58,19 +72,27 @@ export function SignInScreen() {
   const setSeenFirstRunExplainer = useDevicePrefsStore((s) => s.setSeenFirstRunExplainer);
   const [scope, setScope] = useState<SignInModeChoice['scope']>('read,write');
   const [notifications, setNotifications] = useState(false);
-  // Default off: sign in inside the app's own screen (always asks for a password, so it works for
-  // adding a second account). On = the phone's browser, a shortcut when already signed in to
-  // Blipfoto there. Inverted from the old "Force new sign-in" toggle (b-oss#165).
-  const [useBrowser, setUseBrowser] = useState(false);
+  // On = the phone's browser, a shortcut when already signed in to Blipfoto there; off = inside
+  // the app's own screen, which always asks for a password (b-oss#165). Until the user flips it,
+  // it follows the account count (b-oss#240): on for the first account, off when adding another.
+  // Derived rather than initialised so it's right even if the accounts store hydrates after mount.
+  const accountCount = useAccountsStore((s) => s.accounts.length);
+  const [browserChoice, setBrowserChoice] = useState<boolean | null>(null);
+  const useBrowser = browserChoice ?? accountCount === 0;
   // A build without Firebase credentials can never deliver notifications — offering the toggle
   // would just silently do nothing (and used to crash). Optimistically true until the native check
   // answers, so it doesn't flicker disabled on every visit.
   const [pushAvailable, setPushAvailable] = useState(true);
-  // Resolver for the "one more sign-in" interstitial below; non-null while it's showing.
-  const serviceRoundAnswer = useRef<((proceed: boolean) => void) | null>(null);
-  const [explainServiceRound, setExplainServiceRound] = useState(false);
+  // Read-write + notifications needs a second, read-only Blipfoto approval for the notification
+  // service. Without this the user is simply dropped into a second sign-in with no explanation,
+  // which looks like the first one failed (b-oss#165).
+  const explainer = useServiceRoundExplainer({
+    cancel: t('SCR-01.second_auth.button_skip'),
+    proceed: t('SCR-01.second_auth.button_continue'),
+  });
   const [status, setStatus] = useState<Status>('idle');
   const [error, setError] = useState<string | null>(null);
+  const [mismatch, setMismatch] = useState<AccountMismatchError | null>(null);
 
   useEffect(() => {
     if (hydrated && !seenFirstRunExplainer) {
@@ -85,25 +107,21 @@ export function SignInScreen() {
     void isPushAvailable().then(setPushAvailable);
   }, []);
 
-  function answerServiceRound(proceed: boolean): void {
-    serviceRoundAnswer.current?.(proceed);
-    serviceRoundAnswer.current = null;
-    setExplainServiceRound(false);
-  }
-
-  // Read-write + notifications needs a second, read-only Blipfoto approval for the notification
-  // service. Without this the user is simply dropped into a second sign-in with no explanation,
-  // which looks like the first one failed (b-oss#165).
-  function beforeServiceRound(): Promise<boolean> {
-    return new Promise((resolve) => {
-      serviceRoundAnswer.current = resolve;
-      setExplainServiceRound(true);
-    });
+  function fail(err: unknown): void {
+    if (err instanceof AccountMismatchError) {
+      // The account itself is signed in; only its notifications round went to someone else.
+      setStatus('idle');
+      setMismatch(err);
+      return;
+    }
+    setStatus('error');
+    setError(err instanceof Error ? err.message : 'Sign-in failed. Please try again.');
   }
 
   async function handleContinue() {
     setError(null);
     setStatus('authenticating');
+    setBrowserChoice(useBrowser); // freeze it: the first round adds an account
     try {
       await signInDeliberate(
         {
@@ -111,7 +129,7 @@ export function SignInScreen() {
           notifications: notifications && pushAvailable,
           useEmbedded: isNativePlatform() && !useBrowser,
         },
-        { beforeServiceRound },
+        { beforeServiceRound: explainer.ask },
       );
       navigate.replace('/accounts');
     } catch (err) {
@@ -119,10 +137,41 @@ export function SignInScreen() {
         setStatus('idle');
         return;
       }
-      setStatus('error');
-      setError(err instanceof Error ? err.message : 'Sign-in failed. Please try again.');
+      fail(err);
     }
   }
+
+  /** After a mismatch: Not now leaves the account signed in without notifications; retry redoes
+   * just the notifications round, for that account, in the clean in-app browser. */
+  async function handleMismatchClosed(err: AccountMismatchError, retry: boolean) {
+    setMismatch(null);
+    if (!retry) {
+      navigate.replace('/accounts');
+      return;
+    }
+    setError(null);
+    setStatus('authenticating');
+    const account = useAccountsStore.getState().accounts.find((a) => a.id === err.expected);
+    try {
+      await changeAccountMode(err.expected, {
+        scope: account?.appTokenScope ?? 'read,write',
+        notifications: true,
+        useEmbedded: true,
+      });
+      navigate.replace('/accounts');
+    } catch (retryErr) {
+      if (retryErr instanceof OAuthCancelledError) {
+        navigate.replace('/accounts');
+        return;
+      }
+      fail(retryErr);
+    }
+  }
+
+  const mismatchScope = mismatch
+    ? (useAccountsStore.getState().accounts.find((a) => a.id === mismatch.expected)
+        ?.appTokenScope ?? null)
+    : null;
 
   const busy = status === 'authenticating';
 
@@ -175,7 +224,7 @@ export function SignInScreen() {
               <h2>Use browser to sign in</h2>
               <p style={{ paddingLeft: 16 }}>
                 If you&rsquo;re already signed in to Blipfoto in your phone&rsquo;s browser, this is
-                a shortcut. Leave it off to sign in inside this app, which always asks for your
+                a shortcut. Turn it off to sign in inside this app, which always asks for your
                 password &mdash; handy when adding a second account.
               </p>
             </IonLabel>
@@ -183,7 +232,7 @@ export function SignInScreen() {
               slot="end"
               aria-label="Use browser to sign in"
               checked={useBrowser}
-              onIonChange={(e) => setUseBrowser(e.detail.checked)}
+              onIonChange={(e) => setBrowserChoice(e.detail.checked)}
             />
           </IonItem>
         )}
@@ -203,16 +252,13 @@ export function SignInScreen() {
         </IonButton>
       </IonContent>
 
-      <IonAlert
-        isOpen={explainServiceRound}
-        header="One more sign-in"
-        message="Notifications need a separate read-only approval from Blipfoto, so you'll be asked to sign in once more. Your account stays read-write."
-        backdropDismiss={false}
-        onDidDismiss={() => answerServiceRound(false)}
-        buttons={[
-          { text: 'Skip notifications', role: 'cancel', handler: () => answerServiceRound(false) },
-          { text: 'Sign in again', handler: () => answerServiceRound(true) },
-        ]}
+      {explainer.element}
+      <AccountMismatchAlert
+        error={mismatch}
+        canRetry={mismatch !== null && canRetryInApp(mismatch, mismatchScope)}
+        onClose={(retry) => {
+          if (mismatch) void handleMismatchClosed(mismatch, retry);
+        }}
       />
     </IonPage>
   );

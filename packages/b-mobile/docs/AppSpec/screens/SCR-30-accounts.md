@@ -60,7 +60,11 @@ Account-detail state (tap the `>` on a row):
   There is no notifications on/off button here; tapping the status switches to that account and
   opens its `SCR-25` Notifications settings, where the per-stream push toggles live. An account
   whose notification read token died (the `reauth-required` push opens this screen) also shows
-  **Sign in again**, which re-runs the `FLW-22` enable path with the push streams it had.
+  **Sign in again**, which re-runs the `FLW-22` enable path with the push streams it had. Sign in
+  again and the detail view's mode changes are owner-checked (`FLW-22` step 7,
+  [b-oss#240](https://github.com/IanMStevenson/b-oss/issues/240)): a sign-in that comes back as
+  another account changes nothing and shows the wrong-account alert, with **Try again in the app**
+  on native.
 - **Add account** — opens `SCR-01`'s deliberate (mode-choice) shape via `FLW-20`.
 - **Account detail** — mode, notification status (text only), **Make active** (if not already active),
   **Remove account**.

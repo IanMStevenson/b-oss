@@ -14,6 +14,7 @@ import { NotificationsSection, feedHint } from '../sections/NotificationsSection
 import { useAccountsStore } from '../../../state/accountsStore.js';
 import type { StoredAccount } from '../../../state/accountsStore.js';
 import { useDevicePrefsStore } from '../../../state/devicePrefsStore.js';
+import { AccountMismatchError } from '../../../flows/accountMismatch.js';
 
 vi.mock('@ionic/react', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@ionic/react')>();
@@ -79,6 +80,11 @@ const { updatePollingInterval, updatePushStreams } = vi.hoisted(() => ({
   updatePushStreams: vi.fn(),
 }));
 vi.mock('../../../flows/pushFlow.js', () => ({ updatePollingInterval, updatePushStreams }));
+
+// Off-native by default (no in-app browser, so the mismatch alert offers no retry); the
+// retry test flips it.
+let isNative = false;
+vi.mock('../../../platform/appState.js', () => ({ isNativePlatform: () => isNative }));
 
 vi.mock('../../../platform/prefs.js', () => ({
   getPref: vi.fn().mockResolvedValue(null),
@@ -148,6 +154,7 @@ beforeEach(() => {
 afterEach(() => {
   cleanup();
   vi.resetAllMocks();
+  isNative = false;
 });
 
 describe('NotificationsSection — push toggles', () => {
@@ -173,11 +180,15 @@ describe('NotificationsSection — push toggles', () => {
     await screen.findByText('Blipfoto feed settings');
     flip('Push for new comments', true);
     await waitFor(() =>
-      expect(changeAccountMode).toHaveBeenCalledWith('a1', {
-        scope: 'read,write',
-        notifications: true,
-        pushStreams: { comments: true, notifications: false },
-      }),
+      expect(changeAccountMode).toHaveBeenCalledWith(
+        'a1',
+        {
+          scope: 'read,write',
+          notifications: true,
+          pushStreams: { comments: true, notifications: false },
+        },
+        { beforeServiceRound: expect.any(Function) as unknown },
+      ),
     );
     expect(updatePushStreams).not.toHaveBeenCalled();
   });
@@ -269,11 +280,15 @@ describe('NotificationsSection — push toggles', () => {
     expect((toggle('Push for new comments') as HTMLIonToggleElement).checked).toBe(false);
     flip('Push for new notifications', true);
     await waitFor(() =>
-      expect(changeAccountMode).toHaveBeenCalledWith('a1', {
-        scope: 'read,write',
-        notifications: true,
-        pushStreams: { comments: false, notifications: true },
-      }),
+      expect(changeAccountMode).toHaveBeenCalledWith(
+        'a1',
+        {
+          scope: 'read,write',
+          notifications: true,
+          pushStreams: { comments: false, notifications: true },
+        },
+        { beforeServiceRound: expect.any(Function) as unknown },
+      ),
     );
   });
 });
@@ -439,5 +454,99 @@ describe('NotificationsSection — check interval', () => {
     fireEvent.blur(input);
     expect(await screen.findByText('server floor rejected')).toBeDefined();
     await waitFor(() => expect(input.value).toBe('5'));
+  });
+});
+
+describe('NotificationsSection — second sign-in and wrong account (b-oss#240)', () => {
+  type Hooks = { beforeServiceRound?: () => Promise<boolean> };
+  /** Mirrors the real flow: a read-write account asks the hook before the read-only round. */
+  function enableAsksFirst(): void {
+    changeAccountMode.mockImplementation(async (_id: string, _target: unknown, hooks?: Hooks) => {
+      if (hooks?.beforeServiceRound) await hooks.beforeServiceRound();
+    });
+  }
+
+  it('explains the second sign-in before it, and Cancel aborts with the toggle snapping back', async () => {
+    let proceeded: boolean | null = null;
+    changeAccountMode.mockImplementation(async (_id: string, _target: unknown, hooks?: Hooks) => {
+      proceeded = (await hooks?.beforeServiceRound?.()) ?? true;
+    });
+    render(<NotificationsSection />);
+    await screen.findByText('Blipfoto feed settings');
+
+    const before = toggle('Push for new comments') as HTMLIonToggleElement;
+    before.checked = true; // what the Ionic toggle does to itself on tap
+    flip('Push for new comments', true);
+
+    const dialog = await screen.findByRole('dialog', { name: 'One more sign-in' });
+    expect(dialog.textContent).toContain('separate read-only approval');
+    await userEvent.click(screen.getByRole('button', { name: 'Cancel' }));
+
+    await waitFor(() => expect(proceeded).toBe(false));
+    await waitFor(() => expect(toggle('Push for new comments')).not.toBe(before));
+    expect((toggle('Push for new comments') as HTMLIonToggleElement).checked).toBe(false);
+    expect(screen.queryByRole('dialog')).toBeNull();
+  });
+
+  it('Continue goes ahead with the second sign-in', async () => {
+    let proceeded: boolean | null = null;
+    changeAccountMode.mockImplementation(async (_id: string, _target: unknown, hooks?: Hooks) => {
+      proceeded = (await hooks?.beforeServiceRound?.()) ?? true;
+    });
+    render(<NotificationsSection />);
+    await screen.findByText('Blipfoto feed settings');
+    flip('Push for new notifications', true);
+    await screen.findByRole('dialog', { name: 'One more sign-in' });
+    await userEvent.click(screen.getByRole('button', { name: 'Continue' }));
+    await waitFor(() => expect(proceeded).toBe(true));
+  });
+
+  it('a round for another account shows who it was for (no retry off native)', async () => {
+    enableAsksFirst();
+    changeAccountMode.mockRejectedValueOnce(new AccountMismatchError('alice', 'bob'));
+    render(<NotificationsSection />);
+    await screen.findByText('Blipfoto feed settings');
+    flip('Push for new comments', true);
+
+    const dialog = await screen.findByRole('dialog', { name: 'Wrong Blipfoto account' });
+    expect(dialog.textContent).toContain(
+      'That sign-in was for bob, not alice. Your browser is signed in to Blipfoto as bob.',
+    );
+    expect(screen.queryByRole('button', { name: 'Try again in the app' })).toBeNull();
+    await userEvent.click(screen.getByRole('button', { name: 'OK' }));
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+    expect(screen.queryByText(/Could not turn/)).toBeNull();
+  });
+
+  it('on native, retry runs the same enable in the clean in-app browser', async () => {
+    isNative = true;
+    changeAccountMode.mockRejectedValueOnce(new AccountMismatchError('alice', 'bob'));
+    render(<NotificationsSection />);
+    await screen.findByText('Blipfoto feed settings');
+    flip('Push for new notifications', true);
+
+    await screen.findByRole('dialog', { name: 'Wrong Blipfoto account' });
+    changeAccountMode.mockResolvedValue(undefined);
+    await userEvent.click(screen.getByRole('button', { name: 'Try again in the app' }));
+
+    await waitFor(() =>
+      expect(changeAccountMode).toHaveBeenLastCalledWith('a1', {
+        scope: 'read,write',
+        notifications: true,
+        pushStreams: { comments: false, notifications: true },
+        useEmbedded: true,
+      }),
+    );
+  });
+
+  it("the service's own 403 (owner unknown) gets the same explanation", async () => {
+    changeAccountMode.mockRejectedValueOnce(new AccountMismatchError('alice', null));
+    render(<NotificationsSection />);
+    await screen.findByText('Blipfoto feed settings');
+    flip('Push for new comments', true);
+    const dialog = await screen.findByRole('dialog', { name: 'Wrong Blipfoto account' });
+    expect(dialog.textContent).toContain(
+      'That sign-in was for a different Blipfoto account, not alice.',
+    );
   });
 });

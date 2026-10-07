@@ -14,8 +14,55 @@ import { SignInScreen } from '../SignInScreen.js';
 import { OverlayProvider, OverlayHost } from '../../../app/OverlayProvider.js';
 import { useDevicePrefsStore } from '../../../state/devicePrefsStore.js';
 import * as accountsStore from '../../../state/accountsStore.js';
+import type { StoredAccount } from '../../../state/accountsStore.js';
+import { AccountMismatchError } from '../../../flows/accountMismatch.js';
 
-const { MockOAuthCancelledError, signInDeliberate } = vi.hoisted(() => {
+// IonAlert stubbed at the @ionic/react boundary (b-oss#193 — Ionic's animated overlays drop clicks
+// in jsdom under load). The header is rendered as text too, so the existing explainer assertions
+// still find it.
+vi.mock('@ionic/react', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@ionic/react')>();
+  interface StubButton {
+    text: string;
+    role?: string;
+    handler?: () => void;
+  }
+  function IonAlert({
+    isOpen,
+    header,
+    message,
+    buttons = [],
+    onDidDismiss,
+  }: {
+    isOpen: boolean;
+    header?: string;
+    message?: string;
+    buttons?: StubButton[];
+    onDidDismiss?: () => void;
+  }) {
+    if (!isOpen) return null;
+    return (
+      <div role="dialog" aria-label={header}>
+        <h2>{header}</h2>
+        {message && <p>{message}</p>}
+        {buttons.map((b) => (
+          <button
+            key={b.text}
+            onClick={() => {
+              b.handler?.();
+              onDidDismiss?.();
+            }}
+          >
+            {b.text}
+          </button>
+        ))}
+      </div>
+    );
+  }
+  return { ...actual, IonAlert };
+});
+
+const { MockOAuthCancelledError, signInDeliberate, changeAccountMode } = vi.hoisted(() => {
   class MockOAuthCancelledError extends Error {
     constructor(reason: string) {
       super(reason);
@@ -31,11 +78,13 @@ const { MockOAuthCancelledError, signInDeliberate } = vi.hoisted(() => {
           hooks?: { beforeServiceRound?: () => Promise<boolean> },
         ) => Promise<string>
       >(),
+    changeAccountMode: vi.fn<(accountId: string, target: unknown) => Promise<void>>(),
   };
 });
 vi.mock('../../../flows/accountsFlow.js', () => ({
   signInDeliberate: (choice: unknown, hooks: unknown) =>
     signInDeliberate(choice as never, hooks as never),
+  changeAccountMode: (id: string, target: unknown) => changeAccountMode(id, target),
   OAuthCancelledError: MockOAuthCancelledError,
 }));
 
@@ -65,7 +114,20 @@ afterEach(() => {
   useDevicePrefsStore.setState({ hydrated: false, seenFirstRunExplainer: false });
   isNative = false;
   pushAvailable = true;
+  accountsStore.useAccountsStore.setState({ accounts: [], activeAccountId: null });
 });
+
+function storedAccount(id: string): StoredAccount {
+  return {
+    id,
+    username: id,
+    avatarUrl: null,
+    appTokenScope: 'read,write',
+    hasServiceToken: false,
+    notificationRegistrationId: null,
+    notificationStatus: null,
+  };
+}
 
 function renderScreen() {
   return render(
@@ -143,13 +205,31 @@ describe('SignInScreen', () => {
     expect(screen.queryByText('Use browser to sign in')).toBeNull();
   });
 
-  it('on native, signs in inside the app by default; "Use browser to sign in" is off', async () => {
+  it('on native with no accounts yet, defaults to the browser (reuses an existing login)', async () => {
     isNative = true;
     signInDeliberate.mockResolvedValue('acct1');
     renderScreen();
 
     const toggle = screen.getByLabelText('Use browser to sign in');
-    expect(toggle.getAttribute('checked')).not.toBe('true');
+    expect((toggle as HTMLIonToggleElement).checked).toBe(true);
+    await userEvent.click(screen.getByText('Continue'));
+
+    await waitFor(() =>
+      expect(signInDeliberate).toHaveBeenCalledWith(
+        expect.objectContaining({ useEmbedded: false }),
+        expect.anything(),
+      ),
+    );
+  });
+
+  it('on native with an account already here, defaults to signing in inside the app', async () => {
+    isNative = true;
+    accountsStore.useAccountsStore.setState({ accounts: [storedAccount('ian')] });
+    signInDeliberate.mockResolvedValue('acct1');
+    renderScreen();
+
+    const toggle = screen.getByLabelText('Use browser to sign in');
+    expect((toggle as HTMLIonToggleElement).checked).toBe(false);
     await userEvent.click(screen.getByText('Continue'));
 
     await waitFor(() =>
@@ -162,6 +242,7 @@ describe('SignInScreen', () => {
 
   it('turning "Use browser to sign in" on uses the system browser (useEmbedded false)', async () => {
     isNative = true;
+    accountsStore.useAccountsStore.setState({ accounts: [storedAccount('ian')] });
     signInDeliberate.mockResolvedValue('acct1');
     renderScreen();
 
@@ -221,6 +302,71 @@ describe('SignInScreen', () => {
     await userEvent.click(screen.getByText('Sign in again'));
 
     await waitFor(() => expect(replace).toHaveBeenCalledWith('/accounts'));
+  });
+
+  it('the first account can still choose the in-app browser', async () => {
+    isNative = true;
+    signInDeliberate.mockResolvedValue('acct1');
+    renderScreen();
+
+    screen
+      .getByLabelText('Use browser to sign in')
+      .dispatchEvent(new CustomEvent('ionChange', { bubbles: true, detail: { checked: false } }));
+    await userEvent.click(screen.getByText('Continue'));
+
+    await waitFor(() =>
+      expect(signInDeliberate).toHaveBeenCalledWith(
+        expect.objectContaining({ useEmbedded: true }),
+        expect.anything(),
+      ),
+    );
+  });
+
+  it('a notifications round for another account explains, and Not now goes to Accounts', async () => {
+    signInDeliberate.mockRejectedValue(new AccountMismatchError('carol', 'mallory'));
+    renderScreen();
+    await userEvent.click(screen.getByText('Continue'));
+
+    const dialog = await screen.findByRole('dialog', { name: 'Wrong Blipfoto account' });
+    expect(dialog.textContent).toContain(
+      'That sign-in was for mallory, not carol. Your browser is signed in to Blipfoto as mallory.',
+    );
+    expect(replace).not.toHaveBeenCalled();
+    await userEvent.click(screen.getByRole('button', { name: 'OK' }));
+    await waitFor(() => expect(replace).toHaveBeenCalledWith('/accounts'));
+    expect(changeAccountMode).not.toHaveBeenCalled();
+  });
+
+  it('on native, retry redoes just the notifications round in the clean in-app browser', async () => {
+    isNative = true;
+    accountsStore.useAccountsStore.setState({ accounts: [storedAccount('carol')] });
+    signInDeliberate.mockRejectedValue(new AccountMismatchError('carol', 'mallory', true));
+    changeAccountMode.mockResolvedValue(undefined);
+    renderScreen();
+    await userEvent.click(screen.getByText('Continue'));
+
+    const dialog = await screen.findByRole('dialog', { name: 'Wrong Blipfoto account' });
+    expect(dialog.textContent).toContain('Sign in as carol to continue.');
+    await userEvent.click(screen.getByRole('button', { name: 'Try again in the app' }));
+
+    await waitFor(() =>
+      expect(changeAccountMode).toHaveBeenCalledWith('carol', {
+        scope: 'read,write',
+        notifications: true,
+        useEmbedded: true,
+      }),
+    );
+    await waitFor(() => expect(replace).toHaveBeenCalledWith('/accounts'));
+  });
+
+  it("the service's own 403 (owner unknown) gets the same explanation", async () => {
+    signInDeliberate.mockRejectedValue(new AccountMismatchError('carol', null));
+    renderScreen();
+    await userEvent.click(screen.getByText('Continue'));
+    const dialog = await screen.findByRole('dialog', { name: 'Wrong Blipfoto account' });
+    expect(dialog.textContent).toContain(
+      'That sign-in was for a different Blipfoto account, not carol.',
+    );
   });
 
   it('error: a real sign-in failure shows the message and stays on the form', async () => {

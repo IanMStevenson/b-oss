@@ -12,6 +12,11 @@
 // the per-stream toggles live. An account whose notification read token died (the
 // reauth-required push routes here) also gets **Sign in again**, which re-runs the enable path
 // (changeAccountMode) with the streams it had, replacing the dead registration.
+//
+// Sign in again and the mode-change buttons are token changes for an existing account (b-oss#240):
+// the flow owner-checks every round and picks the clean in-app browser when there's more than one
+// account here. A round that comes back as someone else shows the mismatch alert, which can retry
+// the same change in the in-app browser.
 
 import { useState } from 'react';
 import {
@@ -39,6 +44,8 @@ import {
   NeedsReauthError,
   OAuthCancelledError,
 } from '../../flows/accountsFlow.js';
+import { AccountMismatchError } from '../../flows/accountMismatch.js';
+import { AccountMismatchAlert, canRetryInApp } from '../../components/AccountMismatchAlert.js';
 import { useAppNavigate } from '../../app/routes/useAppNavigate.js';
 import { t } from '../../strings/index.js';
 
@@ -71,11 +78,27 @@ function AccountDetail({ account, onClose }: { account: StoredAccount; onClose: 
   const activeAccountId = useAccountsStore((s) => s.activeAccountId);
   const [confirmRemove, setConfirmRemove] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [mismatch, setMismatch] = useState<{
+    error: AccountMismatchError;
+    scope: 'read' | 'read,write';
+    notifications: boolean;
+  } | null>(null);
 
-  async function handleModeChange(scope: 'read' | 'read,write', notifications: boolean) {
+  async function handleModeChange(
+    scope: 'read' | 'read,write',
+    notifications: boolean,
+    useEmbedded?: boolean,
+  ) {
     setBusy(true);
     try {
-      await changeAccountMode(account.id, { scope, notifications });
+      await changeAccountMode(account.id, { scope, notifications, useEmbedded });
+    } catch (err) {
+      if (err instanceof AccountMismatchError) {
+        setMismatch({ error: err, scope, notifications });
+        return;
+      }
+      if (err instanceof OAuthCancelledError) return;
+      throw err;
     } finally {
       setBusy(false);
     }
@@ -146,6 +169,17 @@ function AccountDetail({ account, onClose }: { account: StoredAccount; onClose: 
         Remove account
       </IonButton>
 
+      <AccountMismatchAlert
+        error={mismatch?.error ?? null}
+        canRetry={mismatch !== null && canRetryInApp(mismatch.error, mismatch.scope)}
+        onClose={(retry) => {
+          const retrying = mismatch;
+          setMismatch(null);
+          if (retry && retrying) {
+            void handleModeChange(retrying.scope, retrying.notifications, true);
+          }
+        }}
+      />
       <IonAlert
         isOpen={confirmRemove}
         onDidDismiss={() => setConfirmRemove(false)}
@@ -169,6 +203,10 @@ export function AccountsScreen() {
 
   const [signingInId, setSigningInId] = useState<string | null>(null);
   const [signInError, setSignInError] = useState<string | null>(null);
+  const [signInMismatch, setSignInMismatch] = useState<{
+    error: AccountMismatchError;
+    account: StoredAccount;
+  } | null>(null);
 
   const detailAccount = accounts.find((a) => a.id === detailId) ?? null;
 
@@ -190,7 +228,7 @@ export function AccountsScreen() {
 
   /** FLW-02 recovery for a dead notification read token — the same enable path Settings uses,
    * with the account's stored streams (changeAccountMode's default). */
-  async function handleSignInAgain(account: StoredAccount) {
+  async function handleSignInAgain(account: StoredAccount, useEmbedded?: boolean) {
     if (signingInId) return;
     setSigningInId(account.id);
     setSignInError(null);
@@ -198,9 +236,12 @@ export function AccountsScreen() {
       await changeAccountMode(account.id, {
         scope: account.appTokenScope ?? 'read,write',
         notifications: true,
+        useEmbedded,
       });
     } catch (err) {
-      if (!(err instanceof OAuthCancelledError)) {
+      if (err instanceof AccountMismatchError) {
+        setSignInMismatch({ error: err, account });
+      } else if (!(err instanceof OAuthCancelledError)) {
         setSignInError(err instanceof Error ? err.message : 'Sign-in failed. Please try again.');
       }
     } finally {
@@ -306,6 +347,18 @@ export function AccountsScreen() {
           </div>
         )}
 
+        <AccountMismatchAlert
+          error={signInMismatch?.error ?? null}
+          canRetry={
+            signInMismatch !== null &&
+            canRetryInApp(signInMismatch.error, signInMismatch.account.appTokenScope)
+          }
+          onClose={(retry) => {
+            const retrying = signInMismatch?.account;
+            setSignInMismatch(null);
+            if (retry && retrying) void handleSignInAgain(retrying, true);
+          }}
+        />
         <IonAlert
           isOpen={reauthPrompt !== null}
           onDidDismiss={() => setReauthPrompt(null)}

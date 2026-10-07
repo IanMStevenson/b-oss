@@ -67,9 +67,22 @@ flowchart TD
    token, and platform — as specified in
    [`../../ImplementationSpec/notification-service.md`](../../ImplementationSpec/notification-service.md); out of scope here beyond
    noting it happens as part of this flow.
-7. **Any OAuth error/decline on a first-and-only round** → show a message, stay on `SCR-01`, no
+7. **Which browser, and who the token belongs to**
+   ([b-oss#240](https://github.com/IanMStevenson/b-oss/issues/240)). `SCR-01`'s *Use browser to sign
+   in* defaults **on** (the phone's browser, reusing an existing Blipfoto login) when there are no
+   accounts yet, and **off** (the clean in-app browser, cookies cleared, always asks for a password)
+   when adding another account, since the phone's browser is probably still logged in as the first.
+   The user can change it either way. Both rounds of step 3 use the same browser. The **second**
+   round is for a known account, so its token's owner (`GET oauth/token`) is compared,
+   case-insensitively, with the account the first round signed in. A mismatch revokes the new
+   token, stores nothing, and keeps the account signed in read-write without notifications; `SCR-01`
+   says which account the sign-in was actually for and offers to redo just that round in the
+   in-app browser. The notification service's own 403 (token owner ≠ `blipfotoUserId`) gets the
+   same explanation. A first round has nothing to compare with: whoever signs in is the account
+   added, as before.
+8. **Any OAuth error/decline on a first-and-only round** → show a message, stay on `SCR-01`, no
    partial session stored.
-8. **Create account** → opens Blipfoto registration in the browser; on return the user restarts
+9. **Create account** → opens Blipfoto registration in the browser; on return the user restarts
    this flow.
 
 ## Acceptance criteria
@@ -87,6 +100,10 @@ flowchart TD
 - [ ] Where the permission has already been refused, the app explains and offers system settings
       instead of issuing a request that cannot prompt — and never runs an authorization round whose
       token it is about to revoke.
+- [ ] The browser defaults to the phone's browser for the first account and the in-app browser
+      when one already exists; the user can still choose either.
+- [ ] A second (notifications) round that returns another account's token revokes it, stores
+      nothing, and says which account it was for, with a retry in the in-app browser.
 - [ ] A refusal leaves the account signed in without notifications, the same way a
       failed/cancelled second OAuth round does, with no registration made and nothing remembered
       for next time.
