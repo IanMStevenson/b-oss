@@ -157,6 +157,35 @@ export async function sendFcmMessage(
     },
   );
   if (!response.ok) {
-    throw new Error(`FCM send failed: ${response.status} ${await response.text()}`);
+    const text = await response.text();
+    if (response.status === 404 && fcmErrorCode(text) === 'UNREGISTERED') {
+      throw new DeviceUnregisteredError();
+    }
+    throw new Error(`FCM send failed: ${response.status} ${text}`);
+  }
+}
+
+/** FCM's answer for a device token that no longer exists: the app was uninstalled, its data
+ * cleared, or the phone replaced. The app can't deregister in those cases (it has lost its
+ * per-registration secret), so the poll deletes the row itself (b-oss#265). Deliberately only
+ * `UNREGISTERED`: a 400 `INVALID_ARGUMENT` is also what a malformed *payload* gets, so treating it
+ * as "token gone" would let a bug in our own message delete every registration. */
+export class DeviceUnregisteredError extends Error {
+  constructor() {
+    super('FCM reports the device token as unregistered');
+    this.name = 'DeviceUnregisteredError';
+  }
+}
+
+/** The `errorCode` FCM v1 puts in its error details, e.g. `UNREGISTERED`. */
+function fcmErrorCode(body: string): string | null {
+  try {
+    const parsed = JSON.parse(body) as {
+      error?: { details?: { '@type'?: string; errorCode?: string }[] };
+    };
+    const detail = parsed.error?.details?.find((d) => d['@type']?.endsWith('fcm.v1.FcmError'));
+    return detail?.errorCode ?? null;
+  } catch {
+    return null;
   }
 }

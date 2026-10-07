@@ -8,10 +8,10 @@
 // reauth-required") — an auth failure marks the row dead and sends exactly one distinct push.
 
 import type { DbLike } from './db.js';
-import { listDueRegistrations, markPolled, markReauthRequired } from './db.js';
+import { deleteRegistration, listDueRegistrations, markPolled, markReauthRequired } from './db.js';
 import { decryptReadToken, importEncryptionKey } from './crypto.js';
 import { fetchUnreadTotals, ReadTokenInvalidError } from './blipfoto.js';
-import { sendFcmMessage } from './fcm.js';
+import { DeviceUnregisteredError, sendFcmMessage } from './fcm.js';
 import { describeError } from './log.js';
 import type { Env, RegistrationRow } from './types.js';
 
@@ -20,6 +20,8 @@ export interface PollSummary {
   polled: number;
   pushed: number;
   reauthRequired: number;
+  /** Registrations deleted because FCM says their device is gone (b-oss#265). */
+  removed: number;
   errors: number;
 }
 
@@ -52,7 +54,13 @@ async function pollOne(
       await sendFcmMessage(env, reg.device_token, {
         kind: 'reauth-required',
         accountId: reg.blipfoto_user_id,
-      }).catch((sendErr: unknown) => {
+      }).catch(async (sendErr: unknown) => {
+        // The device is gone, so nobody can act on the reauth push: drop the row and its token.
+        if (sendErr instanceof DeviceUnregisteredError) {
+          await deleteRegistration(db, reg.id);
+          console.log(`[b-push] removed ${reg.id}: device unregistered`);
+          return;
+        }
         console.error(`[b-push] reauth push failed for ${reg.id}: ${describeError(sendErr)}`);
         // Best-effort — the row's own status flag (not a resend) is what makes this idempotent;
         // a failed send here is retried next time something else marks the row for reauth, not
@@ -108,6 +116,7 @@ export async function runActivityPoll(
     polled: 0,
     pushed: 0,
     reauthRequired: 0,
+    removed: 0,
     errors: 0,
   };
 
@@ -118,6 +127,14 @@ export async function runActivityPoll(
       else summary.polled++;
       summary.pushed += outcome.pushed;
     } catch (err) {
+      if (err instanceof DeviceUnregisteredError) {
+        // Uninstalled, data cleared or phone replaced: the app lost the secret it would need to
+        // DELETE this itself, so remove it here rather than poll with its read token forever.
+        await deleteRegistration(db, reg.id);
+        console.log(`[b-push] removed ${reg.id}: device unregistered`);
+        summary.removed++;
+        continue;
+      }
       console.error(`[b-push] poll failed for ${reg.id}: ${describeError(err)}`);
       // One registration's failure (a transient Blipfoto/FCM error, not an auth failure — those
       // are handled inside pollOne) must not abort the rest of the tick's batch.
