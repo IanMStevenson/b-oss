@@ -14,6 +14,7 @@ import type { UserProfile } from '../../../data/users.js';
 
 vi.mock('../../../data/users.js', () => ({
   fetchUserProfile: vi.fn(),
+  fetchAwards: vi.fn().mockResolvedValue([{}, {}, {}]),
   fetchJournalEntriesFor: vi.fn().mockResolvedValue({ items: [], more: false }),
   fetchFavoriteEntriesFor: vi.fn().mockResolvedValue({ items: [], more: false }),
   PAGE_SIZE: 30,
@@ -58,7 +59,9 @@ const aliceProfile: UserProfile = {
   latestEntry: null,
 };
 
-beforeEach(() => {
+beforeEach(async () => {
+  const users = await import('../../../data/users.js');
+  vi.mocked(users.fetchAwards).mockResolvedValue([{}, {}, {}] as never);
   useAccountsStore.setState({ accounts: [meAccount], activeAccountId: 'a1', hydrated: true });
   useHiddenMembersStore.setState({ hiddenByAccount: {}, hydrated: true });
 });
@@ -96,15 +99,20 @@ describe('ProfileScreen', () => {
 
     vi.mocked(fetchUserProfile).mockResolvedValue(aliceProfile);
     await userEvent.click(screen.getByText('Retry'));
-    expect(await screen.findByText("alice's journal")).toBeDefined();
+    expect(await screen.findByText("Alice's journal")).toBeDefined();
   });
 
   it("renders another member's profile with a Follow button", async () => {
     const { fetchUserProfile } = await import('../../../data/users.js');
     vi.mocked(fetchUserProfile).mockResolvedValue(aliceProfile);
     renderScreen('alice');
-    expect(await screen.findByText("alice's journal")).toBeDefined();
-    await waitFor(() => expect(screen.getByText("Alice's journal · 42 entries")).toBeDefined());
+    expect(await screen.findByText("Alice's journal")).toBeDefined();
+    expect(screen.getByText('Profile')).toBeDefined();
+    expect(screen.getByRole('navigation', { name: 'Journal statistics' })).toBeDefined();
+    expect(screen.getByText('42')).toBeDefined();
+    expect(screen.getByRole('button', { name: 'Followers' })).toBeDefined();
+    expect(screen.getByRole('button', { name: 'Following' })).toBeDefined();
+    await waitFor(() => expect(screen.getByRole('button', { name: /3\s*Awards/ })).toBeDefined());
     expect(screen.getByText('Follow')).toBeDefined();
   });
 
@@ -123,7 +131,7 @@ describe('ProfileScreen', () => {
     // IonAlert renders its (hidden) confirm button into the DOM unconditionally, so scope to the
     // real ion-button to avoid matching that one too.
     await waitFor(() =>
-      expect(screen.getByText('Unfollow', { selector: 'ion-button' })).toBeDefined(),
+      expect(screen.getByText('Following', { selector: 'ion-button' })).toBeDefined(),
     );
     expect(followUser).toHaveBeenCalledWith('alice');
   });
