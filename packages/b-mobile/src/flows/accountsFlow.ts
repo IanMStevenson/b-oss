@@ -16,7 +16,12 @@
 // permission generally.
 
 import { getToken, setToken, deleteToken } from '../platform/secureStorage.js';
-import { getClientForToken } from '../data/client.js';
+import { BlipfotoError } from '@b-oss/b-api';
+import {
+  getClientForToken,
+  getClientForAccount,
+  setAppTokenRejectedHandler,
+} from '../data/client.js';
 import { useAccountsStore, pushStreamsOf, ALL_PUSH_STREAMS } from '../state/accountsStore.js';
 import type { StoredAccount, PushStreams } from '../state/accountsStore.js';
 import { useUploadQueueStore } from '../state/uploadQueueStore.js';
@@ -380,5 +385,43 @@ export function handleForcedLogout(accountId: string, purpose: 'app' | 'service'
       .getState()
       .accounts.find((a) => a.id !== accountId && a.appTokenScope !== null);
     useAccountsStore.getState().setActiveAccountId(next?.id ?? null);
+  }
+}
+
+// Every call made with an account's app token reports a rejected token here (data/client.ts), so
+// a token revoked on blipfoto.com puts the account into needs-reauth wherever it's first noticed,
+// not only in the upload queue (b-oss#261).
+setAppTokenRejectedHandler((accountId) => handleForcedLogout(accountId, 'app'));
+
+/** FLW-02 recovery: Accounts → "Sign in again" for an account whose notification read token the
+ * service reported dead. Blipfoto tokens don't expire, so that almost always means the user
+ * revoked b-mobile on blipfoto.com, which kills **every** token it holds for them, the app token
+ * included. So check the app token first. If it's dead, the account goes into needs-reauth and
+ * changeAccountMode re-authorizes it (app-token round, then the service round for read-write)
+ * instead of renewing only the service token and leaving a dead app token behind (b-oss#261).
+ * This also covers a read-only account, whose service token *is* its app token (b-oss#250). */
+export async function recoverNotifications(
+  accountId: string,
+  options: { useEmbedded?: boolean } = {},
+): Promise<void> {
+  const account = useAccountsStore.getState().accounts.find((a) => a.id === accountId);
+  if (!account) throw new Error(`Unknown account: ${accountId}`);
+  const scope = account.appTokenScope ?? 'read,write';
+  if (account.appTokenScope !== null) await checkAppToken(accountId);
+  await changeAccountMode(accountId, {
+    scope,
+    notifications: true,
+    useEmbedded: options.useEmbedded,
+  });
+}
+
+/** One cheap call with the app token; a rejection drops the account into needs-reauth. Anything
+ * else (offline, say) is left for the sign-in that follows to surface. */
+async function checkAppToken(accountId: string): Promise<void> {
+  try {
+    const client = await getClientForAccount(accountId, 'app');
+    await client.verifyToken(import.meta.env.VITE_BLIPFOTO_CLIENT_ID ?? '');
+  } catch (err) {
+    if (err instanceof BlipfotoError && err.isTokenInvalid) handleForcedLogout(accountId, 'app');
   }
 }

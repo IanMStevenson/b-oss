@@ -68,6 +68,7 @@ const {
   switchAccount,
   removeAccount,
   changeAccountMode,
+  recoverNotifications,
 } = vi.hoisted(() => {
   class MockOAuthCancelledError extends Error {}
   class MockNeedsReauthError extends Error {
@@ -85,12 +86,16 @@ const {
       vi.fn<
         (accountId: string, target: { scope: string; notifications: boolean }) => Promise<void>
       >(),
+    recoverNotifications:
+      vi.fn<(accountId: string, options: { useEmbedded?: boolean }) => Promise<void>>(),
   };
 });
 vi.mock('../../../flows/accountsFlow.js', () => ({
   switchAccount: (id: string) => switchAccount(id),
   removeAccount: (id: string) => removeAccount(id),
   changeAccountMode: (id: string, target: unknown) => changeAccountMode(id, target as never),
+  recoverNotifications: (id: string, options: unknown) =>
+    recoverNotifications(id, options as never),
   NeedsReauthError: MockNeedsReauthError,
   OAuthCancelledError: MockOAuthCancelledError,
 }));
@@ -267,8 +272,8 @@ describe('AccountsScreen', () => {
     expect(screen.queryByText('Remove account')).toBeNull(); // didn't open the detail view
   });
 
-  it('an account with a dead notification token offers Sign in again, re-running the enable path', async () => {
-    changeAccountMode.mockResolvedValue(undefined);
+  it('an account with a dead notification token offers Sign in again, running the recovery flow', async () => {
+    recoverNotifications.mockResolvedValue(undefined);
     useAccountsStore.setState({
       accounts: [
         account({
@@ -280,18 +285,14 @@ describe('AccountsScreen', () => {
     });
     renderScreen();
     await userEvent.click(screen.getByText('Sign in again'));
-    await waitFor(() =>
-      expect(changeAccountMode).toHaveBeenCalledWith('a1', {
-        scope: 'read,write',
-        notifications: true,
-      }),
-    );
+    await waitFor(() => expect(recoverNotifications).toHaveBeenCalledWith('a1', {}));
+    expect(changeAccountMode).not.toHaveBeenCalled();
     expect(screen.queryByText('Remove account')).toBeNull();
   });
 
   it('Sign in again as the wrong account explains, and retry uses the in-app browser (b-oss#240)', async () => {
     isNative = true;
-    changeAccountMode.mockRejectedValueOnce(new AccountMismatchError('alice', 'bob'));
+    recoverNotifications.mockRejectedValueOnce(new AccountMismatchError('alice', 'bob'));
     useAccountsStore.setState({
       accounts: [
         account({ notificationRegistrationId: 'r1', notificationStatus: 'read-token-invalid' }),
@@ -303,15 +304,11 @@ describe('AccountsScreen', () => {
 
     const dialog = await screen.findByRole('dialog', { name: 'Wrong Blipfoto account' });
     expect(dialog.textContent).toContain('That sign-in was for bob, not alice.');
-    changeAccountMode.mockResolvedValue(undefined);
+    recoverNotifications.mockResolvedValue(undefined);
     await userEvent.click(screen.getByRole('button', { name: 'Try again in the app' }));
 
     await waitFor(() =>
-      expect(changeAccountMode).toHaveBeenLastCalledWith('a1', {
-        scope: 'read,write',
-        notifications: true,
-        useEmbedded: true,
-      }),
+      expect(recoverNotifications).toHaveBeenLastCalledWith('a1', { useEmbedded: true }),
     );
     expect(screen.queryByText(/Sign-in failed/)).toBeNull();
   });
