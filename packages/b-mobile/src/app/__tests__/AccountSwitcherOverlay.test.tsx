@@ -112,18 +112,42 @@ describe('AccountSwitcherOverlay', () => {
     expect(onDismiss).toHaveBeenCalled();
   });
 
-  it('a NeedsReauthError dismisses and routes to SCR-30 instead of throwing', async () => {
-    switchAccount.mockImplementation(() => {
-      throw new MockNeedsReauthError('a2');
-    });
+  it("picking a needs-reauth account dismisses and opens SCR-30 with that account's sign-in dialog (b-oss#263)", async () => {
     useAccountsStore.setState({
       accounts: [account(), account({ id: 'a2', username: 'bob', appTokenScope: null })],
       activeAccountId: 'a1',
     });
     const { onDismiss } = renderOverlay();
     await userEvent.click(screen.getByText('bob'));
+    expect(switchAccount).not.toHaveBeenCalled();
     expect(onDismiss).toHaveBeenCalled();
-    expect(push).toHaveBeenCalledWith('/accounts');
+    expect(push).toHaveBeenCalledWith('/accounts?reauth=a2');
+  });
+
+  it('a NeedsReauthError from switching routes the same way instead of throwing', async () => {
+    switchAccount.mockImplementation(() => {
+      throw new MockNeedsReauthError('a2');
+    });
+    useAccountsStore.setState({
+      accounts: [account(), account({ id: 'a2', username: 'bob' })],
+      activeAccountId: 'a1',
+    });
+    const { onDismiss } = renderOverlay();
+    await userEvent.click(screen.getByText('bob'));
+    expect(onDismiss).toHaveBeenCalled();
+    expect(push).toHaveBeenCalledWith('/accounts?reauth=a2');
+  });
+
+  it('shows a needs-reauth account in red as "Needs sign-in" (b-oss#263)', () => {
+    useAccountsStore.setState({
+      accounts: [account(), account({ id: 'a2', username: 'bob', appTokenScope: null })],
+      activeAccountId: 'a1',
+    });
+    renderOverlay();
+    const status = screen.getByText('Needs sign-in');
+    expect(status.style.color).toBe('var(--ion-color-danger)');
+    expect(status.style.fontWeight).toBe('700');
+    expect(screen.getByText('Read-write').style.color).not.toBe('var(--ion-color-danger)');
   });
 
   it('"Manage accounts" dismisses and opens SCR-30', async () => {

@@ -499,10 +499,10 @@ describe('routeForPushTap (b-oss#148)', () => {
     expect(useAccountsStore.getState().activeAccountId).toBe('cyclops');
   });
 
-  it('a reauth-required push clears the service token and goes to Accounts', async () => {
+  it("a reauth-required push clears the service token and opens Accounts with that account's sign-in dialog (b-oss#263)", async () => {
     setAccounts([account()], 'alice');
     await expect(routeForPushTap({ kind: 'reauth-required', accountId: 'alice' })).resolves.toBe(
-      '/accounts',
+      '/accounts?reauth=alice',
     );
     expect(handleForcedLogout).toHaveBeenCalledWith('alice', 'service');
   });

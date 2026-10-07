@@ -235,7 +235,8 @@ export async function routeForPushTap(payload: PushPayload): Promise<string> {
   if (payload.kind === 'reauth-required') {
     // May already have run from onPushReceived or a launch backstop check; it's idempotent.
     handleForcedLogout(payload.accountId, 'service');
-    return '/accounts';
+    // SCR-30 opens with this account's "needs to sign in again" dialog (b-oss#263).
+    return `/accounts?reauth=${encodeURIComponent(payload.accountId)}`;
   }
   const store = useAccountsStore.getState();
   const account = store.accounts.find((a) => a.id === payload.accountId);

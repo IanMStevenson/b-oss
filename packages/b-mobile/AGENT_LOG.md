@@ -2267,3 +2267,36 @@ half is #248 (b-push answers 403 on an owner mismatch). Stacked on #249.
 - **Not verified on a device:** the embedded WebView's cookie clearing (still open since 12.7).
   If it doesn't actually clear cookies, the in-app browser could approve as the previous account
   too; the owner check would still catch it.
+
+
+## Re-sign-in flow for a dead token — 2026-10-07 (b-oss#263)
+
+Design agreed on #263 after #148's test 5a, where the recovery after #262's detection was hard to
+see and hard to follow.
+
+- **One flow:** `accountsFlow.reauthorizeAccount(id, { beforeServiceRound, useEmbedded })`.
+  Notifications-only → checks the app token first (#261). App token dead → settles the old service
+  token (read-only: it *was* the app token, so dead; read-write: one `verifyToken` call with it),
+  then `changeAccountMode` at `lastAppTokenScope` with `notifications` = whatever is still held, so
+  that call only replaces the app token; then, if `hadNotifications()` and no service token, a
+  second `changeAccountMode` enable call with the explainer hook. Cancelling the service round =
+  Not now. Returns `{ signedIn }` so the screen only toasts when something actually took.
+  `recoverNotifications` is now a thin alias.
+- **Scope memory:** `StoredAccount.lastAppTokenScope?` (optional; old records fall back to
+  read-write), set by `handleForcedLogout('app')` and kept if it fires twice.
+- **Entry points:** SCR-30 row tap / red status tap → dialog; the row's *Sign in again* skips the
+  dialog; header switcher and `routeForPushTap` navigate to `/accounts?reauth=<id>`, turned into an
+  `AccountsScreen` prop by `app/routes/AccountsRoute.tsx` (screens can't import react-router —
+  lint rule) and handled once per `location.key`.
+- **Back loop cause:** the old "Re-authorize" alert's handler swapped the whole page for the detail
+  view, unmounting the open `IonAlert`, so its `onDidDismiss` never ran and `reauthPrompt` stayed
+  set; Back re-rendered the list with the alert open again. The overlays now live outside the
+  list/detail switch, and the flow never lands on the detail view. (The test stub always fires
+  `onDidDismiss`, so a unit test can't reproduce the original bug — the regression test covers the
+  Back path itself.)
+- **Detail view:** `AppHeader` with `onBack`, username only in the title, one "Switch to …" button
+  for the other mode, *Make active* removed (only the active account opens the detail view).
+  A needs-reauth row has a quiet *Remove*, since the detail view is no longer reachable for it.
+- `ServiceRoundExplainer.ask()` takes optional copy, used for SCR-30's account-named explainer.
+- Not verified on a device: Ionic's handling of a second `/accounts?reauth=` push while SCR-30 is
+  already in the stack (the key-based handling should cope either way).
