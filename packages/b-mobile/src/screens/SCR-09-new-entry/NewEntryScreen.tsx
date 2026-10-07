@@ -18,7 +18,9 @@
 
 import { useEffect, useState } from 'react';
 import { IonPage, IonHeader, IonContent, IonButton, IonText, IonSpinner } from '@ionic/react';
+import { Camera, Image as ImageIcon } from 'lucide-react';
 import { AppHeader } from '../../components/AppHeader.js';
+import '../../components/ComposeForm.css';
 import {
   takePhoto,
   pickPhoto,
@@ -122,39 +124,61 @@ export function NewEntryScreen() {
       <IonHeader>
         <AppHeader title="New entry" accountIndicator={false} />
       </IonHeader>
-      <IonContent className="ion-padding">
-        {photoMessage && (
-          <IonText color="danger">
-            <p>{photoMessage}</p>
-          </IonText>
-        )}
+      <IonContent>
+        <div className="new-entry-tiles">
+          <IonButton
+            className="new-entry-tile"
+            expand="block"
+            disabled={busy !== null}
+            onClick={() => void handleTakePhoto()}
+          >
+            {busy === 'camera' ? (
+              <IonSpinner name="dots" />
+            ) : (
+              <span className="new-entry-tile-inner">
+                <Camera size={32} aria-hidden="true" />
+                Take a photo
+              </span>
+            )}
+          </IonButton>
+          <IonButton
+            className="new-entry-tile"
+            expand="block"
+            fill="outline"
+            disabled={busy !== null}
+            onClick={() => void handlePickPhoto()}
+          >
+            {busy === 'picker' ? (
+              <IonSpinner name="dots" />
+            ) : (
+              <span className="new-entry-tile-inner">
+                <ImageIcon size={32} aria-hidden="true" />
+                Choose from device
+              </span>
+            )}
+          </IonButton>
+        </div>
 
-        <IonButton expand="block" disabled={busy !== null} onClick={() => void handleTakePhoto()}>
-          {busy === 'camera' ? <IonSpinner name="dots" /> : 'Take a photo'}
-        </IonButton>
-        {cameraMessage && (
-          <IonText color="medium">
-            <p>{cameraMessage}</p>
-          </IonText>
-        )}
-
-        <IonButton
-          expand="block"
-          fill="outline"
-          disabled={busy !== null}
-          onClick={() => void handlePickPhoto()}
-        >
-          {busy === 'picker' ? <IonSpinner name="dots" /> : 'Choose from device'}
-        </IonButton>
-
-        {!isNativeCamera() && (
-          <IonText color="medium">
-            <p>
-              Running in a desktop browser — the system picker will use your browser&rsquo;s own
-              file chooser.
-            </p>
-          </IonText>
-        )}
+        <div className="compose-form" style={{ paddingTop: 0 }}>
+          {photoMessage && (
+            <IonText color="danger">
+              <p>{photoMessage}</p>
+            </IonText>
+          )}
+          {cameraMessage && (
+            <IonText color="medium">
+              <p>{cameraMessage}</p>
+            </IonText>
+          )}
+          {!isNativeCamera() && (
+            <IonText color="medium">
+              <p>
+                Running in a desktop browser — the system picker will use your browser&rsquo;s own
+                file chooser.
+              </p>
+            </IonText>
+          )}
+        </div>
       </IonContent>
     </IonPage>
   );

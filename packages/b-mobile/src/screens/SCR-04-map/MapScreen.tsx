@@ -46,7 +46,7 @@ import 'maplibre-gl/dist/maplibre-gl.css';
 // instead of computing its own. Module-scoped, not per-render: this is global maplibre-gl
 // configuration, must run once before any Map is constructed.
 setWorkerUrl(maplibreWorkerUrl);
-import { tokens } from '@b-oss/b-visual';
+import { createPin } from '../../components/mapPin.js';
 import { LocateFixed } from 'lucide-react';
 import { AppHeader } from '../../components/AppHeader.js';
 import { getMapStyleUrl } from '../../platform/mapTiles.js';
@@ -149,10 +149,7 @@ export function MapScreen({ focusedEntryId }: MapScreenProps) {
         content.appendChild(button);
 
         const popup = new Popup({ closeButton: false }).setDOMContent(content);
-        const marker = new Marker({ color: tokens.green800 })
-          .setLngLat([entry.lon, entry.lat])
-          .setPopup(popup)
-          .addTo(map);
+        const marker = createPin().setLngLat([entry.lon, entry.lat]).setPopup(popup).addTo(map);
         markersRef.current.set(entry.entry_id, marker);
 
         if (focusedEntryId && entry.entry_id === focusedEntryId && !focusedPopupOpenedRef.current) {

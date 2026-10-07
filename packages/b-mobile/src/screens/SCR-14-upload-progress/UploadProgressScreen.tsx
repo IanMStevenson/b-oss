@@ -9,26 +9,29 @@
 // wiring FileTransfer's own progress events through the MultipartImpl seam would be a bigger,
 // separate change to b-api's shared contract for a bar the spec doesn't actually require.
 
-import { IonPage, IonHeader, IonContent, IonText } from '@ionic/react';
+import { IonPage, IonHeader, IonContent, IonProgressBar, IonText } from '@ionic/react';
+import { CircleAlert, CircleCheck, Clock, LoaderCircle } from 'lucide-react';
+import type { ReactNode } from 'react';
 import { AppHeader } from '../../components/AppHeader.js';
 import { useAppNavigate } from '../../app/routes/useAppNavigate.js';
 import { useUploadQueueStore } from '../../state/uploadQueueStore.js';
 import type { UploadQueueItem, UploadStatus } from '../../state/uploadQueueStore.js';
+import '../../components/ComposeForm.css';
 
-// Plain glyphs, matching SCR-14's own wireframe ("✔ Uploaded", "⟳ Uploading…", "⏳ Waiting",
-// "✖ Failed") — no new icon-set dependency for four static glyphs.
+// Lucide icons in the status chips, replacing the wireframe's emoji glyphs (which render
+// differently per platform and ignored the green/red palette).
 const STATUS_LABEL: Record<UploadStatus, string> = {
-  waiting: '⏳ Waiting',
-  uploading: '⟳ Uploading…',
-  uploaded: '✔ Uploaded',
-  failed: '✖ Failed',
+  waiting: 'Waiting',
+  uploading: 'Uploading…',
+  uploaded: 'Uploaded',
+  failed: 'Failed',
 };
 
-const STATUS_COLOR: Record<UploadStatus, string> = {
-  waiting: 'medium',
-  uploading: 'primary',
-  uploaded: 'success',
-  failed: 'danger',
+const STATUS_ICON: Record<UploadStatus, ReactNode> = {
+  waiting: <Clock size={16} aria-hidden="true" />,
+  uploading: <LoaderCircle size={16} aria-hidden="true" className="upload-spin" />,
+  uploaded: <CircleCheck size={16} aria-hidden="true" />,
+  failed: <CircleAlert size={16} aria-hidden="true" />,
 };
 
 export function UploadProgressScreen() {
@@ -47,43 +50,38 @@ export function UploadProgressScreen() {
       <IonHeader>
         <AppHeader title="Uploads" />
       </IonHeader>
-      <IonContent className="ion-padding">
+      <IonContent>
         {sorted.length === 0 && (
-          <IonText color="medium">
-            <p>Nothing queued or recently uploaded.</p>
-          </IonText>
+          <div className="compose-form">
+            <IonText color="medium">
+              <p>Nothing queued or recently uploaded.</p>
+            </IonText>
+          </div>
         )}
 
         {sorted.map((item) => (
           <button
             key={item.id}
             type="button"
+            className="upload-row"
             onClick={() => handleTap(item)}
             disabled={item.status !== 'uploaded'}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: 12,
-              width: '100%',
-              padding: '8px 0',
-              border: 'none',
-              borderBottom: '1px solid var(--border)',
-              background: 'none',
-              textAlign: 'left',
-              cursor: item.status === 'uploaded' ? 'pointer' : 'default',
-            }}
+            style={{ cursor: item.status === 'uploaded' ? 'pointer' : 'default' }}
           >
-            <div style={{ flex: 1 }}>
-              <div>{item.displayTitle}</div>
-              <IonText
-                color={STATUS_COLOR[item.status] as 'medium' | 'primary' | 'success' | 'danger'}
-              >
-                <p style={{ margin: 0 }}>
+            <div className="upload-row-text">
+              <div className="upload-row-title">{item.displayTitle}</div>
+              <div className={`upload-row-status is-${item.status}`}>
+                {STATUS_ICON[item.status]}
+                <span>
                   {STATUS_LABEL[item.status]}
                   {item.status === 'failed' && item.error ? ` — ${item.error}` : ''}
-                </p>
-              </IonText>
+                </span>
+              </div>
+              {item.status === 'uploading' && (
+                <IonProgressBar type="indeterminate" className="upload-progress" />
+              )}
             </div>
+            <span className="upload-row-kind">{item.kind === 'edit' ? 'Edit' : 'New entry'}</span>
           </button>
         ))}
       </IonContent>
