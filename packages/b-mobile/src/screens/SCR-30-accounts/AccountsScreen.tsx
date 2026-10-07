@@ -199,6 +199,7 @@ function AccountDetail({ account, onClose }: { account: StoredAccount; onClose: 
         </IonButton>
         <IonButton
           expand="block"
+          fill="outline"
           color="danger"
           disabled={busy}
           onClick={() => setConfirmRemove(true)}
@@ -408,7 +409,6 @@ export function AccountsScreen({ reauthRequest }: { reauthRequest?: ReauthReques
                       <div style={{ display: 'flex', gap: 8 }}>
                         <IonButton
                           size="small"
-                          color="danger"
                           disabled={signingInId !== null}
                           onClick={(e) => {
                             e.stopPropagation();

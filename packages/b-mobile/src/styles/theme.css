@@ -34,3 +34,68 @@
   --ion-color-step-150: var(--line-2);
   --ion-color-step-250: var(--line);
 }
+
+/*
+ * Buttons (UX review X1, confirmed style): pill-shaped, sentence case, no drop shadow, one accent.
+ * Hierarchy: filled green = primary, outline = secondary, clear = tertiary text, red
+ * (color="danger") only for destructive actions. Matches the white 1px pill group and green-800
+ * accent on the Entry page. Ionic's uppercase/letter-spacing/min-height live inside the
+ * button's shadow DOM, so they need `::part(native)` (same technique as ion-segment-button in
+ * globals.css); radius/shadow/height are exposed custom properties.
+ *
+ * Toolbar buttons (`.in-buttons`, i.e. inside <IonButtons> in AppHeader) are left to Ionic's
+ * own header styling so the header and its icon buttons are untouched. Icon-only buttons keep
+ * Ionic's padding but get the round radius and a 40px touch target.
+ */
+ion-button:not(.in-buttons) {
+  --border-radius: 999px;
+  --box-shadow: none;
+  --padding-start: 20px;
+  --padding-end: 20px;
+  --padding-top: 0;
+  --padding-bottom: 0;
+  min-height: 40px;
+  font-weight: 600;
+}
+
+ion-button:not(.in-buttons)::part(native) {
+  text-transform: none;
+  letter-spacing: 0;
+  font-size: 0.9375rem;
+  min-height: 40px;
+}
+
+/* `size="small"` stays compact, but never under the 40px touch target. */
+ion-button.button-small:not(.in-buttons) {
+  --padding-start: 16px;
+  --padding-end: 16px;
+  height: auto;
+  min-height: 40px;
+}
+
+ion-button.button-small:not(.in-buttons)::part(native) {
+  font-size: 0.875rem;
+}
+
+ion-button.button-has-icon-only:not(.in-buttons) {
+  --padding-start: 10px;
+  --padding-end: 10px;
+  min-width: 40px;
+}
+
+/* Secondary: green outline, transparent fill. (Danger outline picks up the red via color.) */
+ion-button.button-outline:not(.in-buttons):not([color]) {
+  --border-color: var(--green-800);
+  --border-width: 1px;
+  --color: var(--green-800);
+}
+
+/* Tertiary: text only. */
+ion-button.button-clear:not(.in-buttons):not([color]) {
+  --color: var(--green-800);
+}
+
+/* Disabled looks disabled without turning into a different shape. */
+ion-button.button-disabled:not(.in-buttons) {
+  opacity: 0.45;
+}

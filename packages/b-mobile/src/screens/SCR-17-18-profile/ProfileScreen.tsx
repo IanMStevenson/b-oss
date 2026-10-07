@@ -296,9 +296,7 @@ export function ProfileScreen({ username }: ProfileScreenProps) {
                   </IonButton>
                 )}
                 {(friendship === 0 || friendship === 3) && (
-                  <IonButton fill="outline" onClick={() => void handleFollow()}>
-                    Follow
-                  </IonButton>
+                  <IonButton onClick={() => void handleFollow()}>Follow</IonButton>
                 )}
               </div>
             )}
