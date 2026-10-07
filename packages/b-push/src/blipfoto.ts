@@ -23,14 +23,29 @@ export class ReadTokenInvalidError extends Error {
   }
 }
 
-/** Whether Blipfoto has rejected the read token itself. b-api's `isTokenInvalid` covers 50/51;
- * b-push also treats 52 ("The client is invalid.") as a rejected token. Blipfoto returns 52 for a
- * bearer it doesn't recognise at all, because a bearer can be either a user token or a client id.
- * b-push only ever sends user read tokens, never a client id, so here a 52 can only mean the read
- * token isn't recognised (b-oss#238). b-api itself is left alone: in the app, 52 means a build
- * misconfiguration, not a dead per-account token. */
+/** Whether Blipfoto has rejected the read token itself: 50/51, b-api's `isTokenInvalid`. The
+ * Blipfoto source (checked 2026-10-06, b-oss#148) confirms a revoked or deleted user token comes
+ * back as **51**, so this is the only signal that a *stored* token has died and the user needs to
+ * re-authorise. Only this throws ReadTokenInvalidError, which is what makes the activity poll
+ * mark a row `read-token-invalid` and send the reauth-required push. */
 function isReadTokenRejected(err: unknown): boolean {
-  return err instanceof BlipfotoError && (err.isTokenInvalid || err.code === 52);
+  return err instanceof BlipfotoError && err.isTokenInvalid;
+}
+
+/** Blipfoto code 52, "The client is invalid.": the bearer isn't recognised as a user token at
+ * all, so Blipfoto falls back to reading it as a client id and rejects that. Per the Blipfoto
+ * source this is *not* what a revoked user token returns (that's 51, above). So its meaning
+ * depends on where it turns up (b-oss#238):
+ *   - At registration, on a token the app has only just sent, it means the token is junk: invalid
+ *     input, so `createRegistration` answers 400.
+ *   - On a token already stored and previously accepted, it would mean something wider has gone
+ *     wrong (e.g. the app's client being rejected), which would hit every registration at once.
+ *     Marking rows dead and pushing "sign in again" to every user would be the wrong response to
+ *     that, so the poll treats it as an ordinary, logged, counted error and leaves the row active.
+ * The functions below therefore rethrow a 52 as the plain BlipfotoError, never as
+ * ReadTokenInvalidError, and only the registration route checks for it. */
+export function isBearerUnrecognised(err: unknown): boolean {
+  return err instanceof BlipfotoError && err.code === 52;
 }
 
 export interface UnreadTotals {
