@@ -113,6 +113,12 @@ export function BBCodeEditor({
   /** The BBCode the DOM currently holds — what we last drew or last reported. */
   const shown = useRef<string | null>(null);
   const savedRange = useRef<Range | null>(null);
+  /** B / I / U / S tapped at a collapsed caret, in order, and where it was. */
+  const caretFormats = useRef<{
+    container: Node;
+    offset: number;
+    commands: FormatCommand[];
+  } | null>(null);
   const [active, setActive] = useState<ActiveFormats>(NONE_ACTIVE);
   const [inLink, setInLink] = useState(false);
 
@@ -174,26 +180,61 @@ export function BBCodeEditor({
     onChange(next);
   }
 
-  /** Puts focus and the remembered selection back in the box before a command. */
-  function restoreSelection(): void {
+  /** Makes sure the box has focus and the selection, before a command. The selection is left alone
+   * if it's still in the box: re-setting it, even to the same place, throws away the formats the
+   * browser is holding for the next typed characters (B then I with nothing selected would end up
+   * italic only). Returns whether it had to be put back. */
+  function restoreSelection(): boolean {
     const editor = editorRef.current;
-    if (!editor) return;
-    if (document.activeElement !== editor) editor.focus();
-    const range = savedRange.current;
     const sel = window.getSelection();
-    if (range && sel && editor.contains(range.commonAncestorContainer)) {
-      sel.removeAllRanges();
-      sel.addRange(range);
-    }
+    if (!editor || !sel) return false;
+    const inBox = sel.rangeCount > 0 && editor.contains(sel.getRangeAt(0).commonAncestorContainer);
+    if (inBox && document.activeElement === editor) return false;
+    // Focus first (it may move the caret), then put the remembered selection back.
+    editor.focus();
+    const range = savedRange.current;
+    if (!range || !editor.contains(range.commonAncestorContainer)) return false;
+    sel.removeAllRanges();
+    sel.addRange(range);
+    return true;
+  }
+
+  function currentRange(): Range | null {
+    const sel = window.getSelection();
+    return sel && sel.rangeCount > 0 ? sel.getRangeAt(0) : null;
   }
 
   function format(command: FormatCommand): void {
     if (readOnly) return;
-    restoreSelection();
+    const restored = restoreSelection();
     exec('styleWithCSS', 'false');
-    exec(command);
+    const range = currentRange();
+    if (range?.collapsed) {
+      // With nothing selected, each tap only changes the formats for the next typed characters.
+      // Keep a list per caret position, so they can be replayed if the selection had to be put back.
+      const pending = caretFormats.current;
+      const samePlace =
+        pending !== null &&
+        pending.container === range.startContainer &&
+        pending.offset === range.startOffset;
+      if (restored && samePlace) pending.commands.forEach((c) => exec(c));
+      exec(command);
+      caretFormats.current = {
+        container: range.startContainer,
+        offset: range.startOffset,
+        commands: samePlace ? [...pending.commands, command] : [command],
+      };
+    } else {
+      caretFormats.current = null;
+      exec(command);
+    }
     report();
-    setActive((a) => ({ ...a, [command]: queryState(command) }));
+    setActive({
+      bold: queryState('bold'),
+      italic: queryState('italic'),
+      underline: queryState('underline'),
+      strikeThrough: queryState('strikeThrough'),
+    });
   }
 
   function openLink(): void {

@@ -180,6 +180,36 @@ describe('CommentComposer — rich-text box (b-oss#206)', () => {
     expect(exec).toHaveBeenCalledWith('styleWithCSS', false, 'false');
   });
 
+  it('with nothing selected, formats combine: the caret is left alone between taps', () => {
+    render(<Host formatting initial="ab" />);
+    select(2, 2);
+    const before = window.getSelection()!.getRangeAt(0);
+    fireEvent.click(screen.getByLabelText('Bold'));
+    fireEvent.click(screen.getByLabelText('Italic'));
+    // Re-setting the selection would throw away the browser's pending bold, so it isn't touched.
+    expect(window.getSelection()!.getRangeAt(0)).toBe(before);
+    expect(commands()).toEqual([
+      ['bold', undefined],
+      ['italic', undefined],
+    ]);
+  });
+
+  it('if the caret was lost between taps, puts it back and replays the formats already chosen', () => {
+    render(<Host formatting initial="ab" />);
+    select(2, 2);
+    fireEvent.click(screen.getByLabelText('Bold'));
+    window.getSelection()!.removeAllRanges();
+    box().blur();
+    fireEvent.click(screen.getByLabelText('Italic'));
+    expect(commands()).toEqual([
+      ['bold', undefined],
+      ['bold', undefined], // replayed: restoring the caret dropped it
+      ['italic', undefined],
+    ]);
+    const range = window.getSelection()!.getRangeAt(0);
+    expect([range.collapsed, range.startOffset]).toEqual([true, 2]);
+  });
+
   it('shows which formats are on where the caret is', () => {
     render(<Host formatting initial="[b]x[/b]" />);
     states = { bold: true };
