@@ -1,13 +1,18 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (C) 2026 Ian Stevenson
 
-// fetchUnreadTotals goes through @b-oss/b-api's BlipfotoClient, which itself
+// fetchUnreadTotals/fetchTokenOwner go through @b-oss/b-api's BlipfotoClient, which itself
 // uses the global fetch by default — mocked here at the fetch boundary (same approach as
 // fcm.test.ts) rather than re-implementing b-api's own envelope parsing in a second test double.
 
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { BlipfotoError } from '@b-oss/b-api';
-import { fetchUnreadTotals, isBearerUnrecognised, ReadTokenInvalidError } from '../blipfoto.js';
+import {
+  fetchTokenOwner,
+  fetchUnreadTotals,
+  isBearerUnrecognised,
+  ReadTokenInvalidError,
+} from '../blipfoto.js';
 
 function envelope(data: unknown): string {
   return JSON.stringify({ data, error: null });
@@ -67,6 +72,32 @@ describe('fetchUnreadTotals', () => {
     await expect(fetchUnreadTotals('a-read-token')).rejects.not.toBeInstanceOf(
       ReadTokenInvalidError,
     );
+  });
+});
+
+describe('fetchTokenOwner (b-oss#240)', () => {
+  it("asks for the token's own profile (no username, no extras) and returns its username", async () => {
+    const spy = vi
+      .spyOn(globalThis, 'fetch')
+      .mockResolvedValueOnce(
+        new Response(
+          envelope({ user: { username: 'cyclops', avatar_url: '', icons: [] }, visibility: 1 }),
+          { status: 200 },
+        ),
+      );
+    expect(await fetchTokenOwner('a-read-token')).toBe('cyclops');
+    const url = new URL(spy.mock.calls[0][0] as string);
+    expect(url.pathname).toBe('/4/user/profile.json');
+    expect(url.searchParams.toString()).toBe('');
+    expect(spy.mock.calls[0][1]?.method ?? 'GET').toBe('GET');
+  });
+
+  it('throws ReadTokenInvalidError on 51, and rethrows 52 as a plain BlipfotoError', async () => {
+    mockFetchOnce(errorEnvelope(51, 'Invalid token'));
+    await expect(fetchTokenOwner('a-dead-token')).rejects.toBeInstanceOf(ReadTokenInvalidError);
+    mockFetchOnce(errorEnvelope(52, 'The client is invalid.'));
+    const err: unknown = await fetchTokenOwner('junk').catch((e: unknown) => e);
+    expect(isBearerUnrecognised(err)).toBe(true);
   });
 });
 

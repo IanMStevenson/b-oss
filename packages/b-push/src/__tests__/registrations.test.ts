@@ -52,23 +52,29 @@ function requestUrl(input: RequestInfo | URL): string {
   return input.url;
 }
 
-/** Answers `messages/totals/unread` only. Anything else, including the
+/** Answers the only two Blipfoto calls b-push makes: `messages/totals/unread`, and
+ * `user/profile` (the token owner, b-oss#240), as `owner`. Anything else, including the
  * `user/settings/notifications` call registration used to make, fails the test: b-push must not
  * read Blipfoto's notification settings any more (b-oss#244). */
-function mockUnreadTotals(comments = 0, notifications = 0): void {
+function mockBlipfoto(comments = 0, notifications = 0, owner = 'gbradley') {
   const spy = vi.spyOn(globalThis, 'fetch');
   spy.mockImplementation((input) => {
     const url = requestUrl(input);
     if (url.includes('messages/totals/unread')) {
       return Promise.resolve(new Response(envelope({ comments, notifications }), { status: 200 }));
     }
+    if (url.includes('user/profile')) {
+      const user = { username: owner, avatar_url: '', icons: [] };
+      return Promise.resolve(new Response(envelope({ user, visibility: 1 }), { status: 200 }));
+    }
     throw new Error(`Unexpected fetch: ${url}`);
   });
+  return spy;
 }
 
 describe('createRegistration', () => {
   it('rejects a missing/wrong registration secret', async () => {
-    mockUnreadTotals();
+    mockBlipfoto();
     await expect(
       createRegistration(db, env, 'Bearer wrong-secret', {
         blipfotoUserId: 'gbradley',
@@ -88,7 +94,7 @@ describe('createRegistration', () => {
   });
 
   it('creates a row, seeded with the current unread totals, both streams on by default', async () => {
-    mockUnreadTotals(4, 9);
+    mockBlipfoto(4, 9);
     const result = await createRegistration(db, env, 'Bearer shared-build-time-secret', {
       blipfotoUserId: 'gbradley',
       readToken: 'a-real-read-token',
@@ -136,7 +142,7 @@ describe('createRegistration', () => {
 
 describe('createRegistration stream toggles (b-oss#244)', () => {
   it('stores pushComments/pushNotifications from the body', async () => {
-    mockUnreadTotals();
+    mockBlipfoto();
     const result = await createRegistration(db, env, 'Bearer shared-build-time-secret', {
       blipfotoUserId: 'gbradley',
       readToken: 'a-real-read-token',
@@ -152,7 +158,7 @@ describe('createRegistration stream toggles (b-oss#244)', () => {
   });
 
   it('rejects a non-boolean toggle with 400 and stores nothing', async () => {
-    mockUnreadTotals();
+    mockBlipfoto();
     const attempt = createRegistration(db, env, 'Bearer shared-build-time-secret', {
       blipfotoUserId: 'gbradley',
       readToken: 'a-real-read-token',
@@ -163,6 +169,83 @@ describe('createRegistration stream toggles (b-oss#244)', () => {
     await expect(attempt).rejects.toMatchObject({ status: 400 });
     const { results } = await db.prepare('SELECT id FROM registrations').all();
     expect(results).toHaveLength(0);
+  });
+});
+
+describe('token owner check (b-oss#240)', () => {
+  const body = {
+    blipfotoUserId: 'cyclopstest',
+    readToken: 'a-real-read-token',
+    deviceToken: 'device-1',
+    platform: 'android' as const,
+  };
+
+  it('creates the registration when the token belongs to blipfotoUserId, ignoring case', async () => {
+    const spy = mockBlipfoto(0, 0, 'CyclopsTest');
+    const result = await createRegistration(db, env, 'Bearer shared-build-time-secret', body);
+    expect(await getRegistrationById(db, result.registrationId)).not.toBeNull();
+    // Asked for the token's own profile: no username, no extras.
+    const profileUrl = spy.mock.calls
+      .map(([input]) => new URL(requestUrl(input)))
+      .find((u) => u.pathname.includes('user/profile'));
+    expect(profileUrl?.searchParams.toString()).toBe('');
+  });
+
+  it('rejects a token belonging to a different account with 403 and stores nothing', async () => {
+    mockBlipfoto(0, 0, 'cyclops');
+    const attempt = createRegistration(db, env, 'Bearer shared-build-time-secret', body);
+    await expect(attempt).rejects.toMatchObject({
+      status: 403,
+      message: 'The read token belongs to a different Blipfoto account',
+    });
+    const { results } = await db.prepare('SELECT id FROM registrations').all();
+    expect(results).toHaveLength(0);
+  });
+
+  it('PATCH: accepts a re-authorised token for the same account', async () => {
+    const { id, secret } = await seedRegistration();
+    mockBlipfoto(0, 0, 'GBradley');
+    const before = await getRegistrationById(db, id);
+    await patchRegistration(db, env, id, `Bearer ${secret}`, { readToken: 'fresh-read-token' });
+    const after = await getRegistrationById(db, id);
+    expect(after?.read_token_ciphertext).not.toBe(before?.read_token_ciphertext);
+  });
+
+  it('PATCH: rejects a token for a different account with 403 and leaves the row unchanged', async () => {
+    const { id, secret } = await seedRegistration();
+    const before = await getRegistrationById(db, id);
+    mockBlipfoto(0, 0, 'someone-else');
+    await expect(
+      patchRegistration(db, env, id, `Bearer ${secret}`, {
+        readToken: 'someone-elses-token',
+        deviceToken: 'rotated-device',
+        pushComments: false,
+      }),
+    ).rejects.toMatchObject({ status: 403 });
+    expect(await getRegistrationById(db, id)).toEqual(before);
+  });
+
+  it('PATCH: rejects a token Blipfoto reports invalid with 400 and leaves the row unchanged', async () => {
+    const { id, secret } = await seedRegistration();
+    const before = await getRegistrationById(db, id);
+    vi.spyOn(globalThis, 'fetch').mockImplementation(() =>
+      Promise.resolve(
+        new Response(JSON.stringify({ data: null, error: { code: 51, message: 'bad token' } }), {
+          status: 200,
+        }),
+      ),
+    );
+    await expect(
+      patchRegistration(db, env, id, `Bearer ${secret}`, { readToken: 'dead-token' }),
+    ).rejects.toMatchObject({ status: 400 });
+    expect(await getRegistrationById(db, id)).toEqual(before);
+  });
+
+  it('PATCH without a readToken makes no Blipfoto call', async () => {
+    const { id, secret } = await seedRegistration();
+    const spy = vi.spyOn(globalThis, 'fetch');
+    await patchRegistration(db, env, id, `Bearer ${secret}`, { deviceToken: 'rotated-device' });
+    expect(spy).not.toHaveBeenCalled();
   });
 });
 
@@ -190,7 +273,7 @@ describe('createRegistration with a junk read token (b-oss#238)', () => {
 });
 
 async function seedRegistration(): Promise<{ id: string; secret: string }> {
-  mockUnreadTotals(0, 0);
+  mockBlipfoto(0, 0);
   const result = await createRegistration(db, env, 'Bearer shared-build-time-secret', {
     blipfotoUserId: 'gbradley',
     readToken: 'a-real-read-token',
@@ -220,6 +303,7 @@ describe('patchRegistration', () => {
   it('re-encrypts a new read token and resets status to active', async () => {
     const { id, secret } = await seedRegistration();
     // Simulate the row having gone dead first.
+    mockBlipfoto();
     await patchRegistration(db, env, id, `Bearer ${secret}`, { readToken: 'fresh-read-token' });
     const row = await getRegistrationById(db, id);
     expect(row?.status).toBe('active');

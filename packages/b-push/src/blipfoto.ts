@@ -1,8 +1,10 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (C) 2026 Ian Stevenson
 
-// The only Blipfoto call this service is allowed to make (notification-service.md "The service
-// must never mark anything read" / "Polling design"). Reuses @b-oss/b-api rather
+// The only two Blipfoto calls this service is allowed to make, both side-effect-free reads
+// (notification-service.md "The service must never mark anything read" / "Polling design"):
+// `messages/totals/unread` for the poll, and `user/profile` to check who a token belongs to at
+// registration. Reuses @b-oss/b-api rather
 // than hand-rolling a second HTTP client: b-api has zero Node/Electron/browser-specific
 // dependencies (fetch/URL/URLSearchParams only, all Worker globals), so it's safe here exactly as
 // it is in b-mobile, and reusing it keeps the envelope-parsing and error-code semantics
@@ -45,7 +47,7 @@ function isReadTokenRejected(err: unknown): boolean {
  *     wrong (e.g. the app's client being rejected), which would hit every registration at once.
  *     Marking rows dead and pushing "sign in again" to every user would be the wrong response to
  *     that, so the poll treats it as an ordinary, logged, counted error and leaves the row active.
- * The functions below therefore rethrow a 52 as the plain BlipfotoError, never as
+ * Both fetch functions below therefore rethrow a 52 as the plain BlipfotoError, never as
  * ReadTokenInvalidError, and only the registration route checks for it. */
 export function isBearerUnrecognised(err: unknown): boolean {
   return err instanceof BlipfotoError && err.code === 52;
@@ -68,6 +70,28 @@ export async function fetchUnreadTotals(readToken: string): Promise<UnreadTotals
       returnNotifications: true,
     });
     return { comments: result.comments ?? 0, notifications: result.notifications ?? 0 };
+  } catch (err) {
+    if (isReadTokenRejected(err)) {
+      throw new ReadTokenInvalidError();
+    }
+    throw err;
+  }
+}
+
+/** Who the read token belongs to: `GET user/profile` with no `username` returns the
+ * authenticated user's own profile (b-api docs/api-reference.md). Used only at registration and
+ * on a `PATCH` that replaces the token, to refuse a token for the wrong account (b-oss#240): a
+ * sign-in in a browser already logged in as someone else hands the app that person's token, and
+ * b-push would then poll and push the other account's activity under this one's name.
+ *
+ * Side-effect-free: a plain profile read with none of the `return_*` extras, nothing to do with
+ * the messages streams, so it can't touch anyone's read state. `GET oauth/token` would also
+ * name the owner, but it needs the app's client id, which this service doesn't hold. */
+export async function fetchTokenOwner(readToken: string): Promise<string> {
+  const client = new BlipfotoClient(readToken);
+  try {
+    const profile = await client.getUserProfile();
+    return profile.user.username;
   } catch (err) {
     if (isReadTokenRejected(err)) {
       throw new ReadTokenInvalidError();
