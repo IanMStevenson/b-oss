@@ -57,12 +57,13 @@ The free plan keeps up to 200,000 events a day.
 
 The lines b-push writes (never tokens or request bodies; see `src/log.ts`):
 
-| Line                                                                                   | Meaning                                                  |
-| -------------------------------------------------------------------------------------- | -------------------------------------------------------- |
-| `[b-push] activity poll {"due":1,"polled":1,"pushed":0,"reauthRequired":0,"errors":0}` | One cron tick. `due:0` is normal between polls           |
-| `[b-push] poll failed for <registration id>: <error>`                                  | One registration's poll failed. It's retried next minute |
-| `[b-push] reauth push failed for <id>: <error>`                                        | The "sign in again" push couldn't be sent                |
-| `[b-push] <METHOD> <path>: <error>`                                                    | An unexpected error in an HTTP request (it returned 500) |
+| Line                                                                                               | Meaning                                                                                                                                                                                           |
+| -------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `[b-push] activity poll {"due":1,"polled":1,"pushed":0,"reauthRequired":0,"removed":0,"errors":0}` | One cron tick. `due:0` is normal between polls                                                                                                                                                    |
+| `[b-push] poll failed for <registration id>: <error>`                                              | One registration's poll failed. It's retried next minute                                                                                                                                          |
+| `[b-push] reauth push failed for <id>: <error>`                                                    | The "sign in again" push couldn't be sent                                                                                                                                                         |
+| `[b-push] removed <id>: device unregistered`                                                       | FCM says that device no longer exists (app uninstalled, data cleared, new phone), so the registration and its read token were deleted ([#265](https://github.com/IanMStevenson/b-oss/issues/265)) |
+| `[b-push] <METHOD> <path>: <error>`                                                                | An unexpected error in an HTTP request (it returned 500)                                                                                                                                          |
 
 Each HTTP request also appears as an event with its status.
 

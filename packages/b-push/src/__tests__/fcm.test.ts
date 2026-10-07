@@ -9,7 +9,7 @@
 
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import { generateKeyPairSync } from 'node:crypto';
-import { sendFcmMessage } from '../fcm.js';
+import { DeviceUnregisteredError, sendFcmMessage } from '../fcm.js';
 import type { Env } from '../types.js';
 
 let privateKeyPem: string;
@@ -175,5 +175,41 @@ describe('sendFcmMessage', () => {
         accountId: 'gbradley',
       }),
     ).rejects.toThrow(/FCM send failed/);
+  });
+
+  // FCM v1's error body for a token that no longer exists (uninstalled / data cleared).
+  function fcmError(httpStatus: number, status: string, errorCode: string): Response {
+    return new Response(
+      JSON.stringify({
+        error: {
+          code: httpStatus,
+          message: 'Requested entity was not found.',
+          status,
+          details: [{ '@type': 'type.googleapis.com/google.firebase.fcm.v1.FcmError', errorCode }],
+        },
+      }),
+      { status: httpStatus },
+    );
+  }
+  const activity = { kind: 'activity', stream: 'comments', accountId: 'a', count: 1 } as const;
+
+  it('throws DeviceUnregisteredError for 404 UNREGISTERED (b-oss#265)', async () => {
+    mockFetchSequence(
+      new Response(JSON.stringify({ access_token: 't' }), { status: 200 }),
+      fcmError(404, 'NOT_FOUND', 'UNREGISTERED'),
+    );
+    await expect(sendFcmMessage(testEnv(), 'gone', activity)).rejects.toBeInstanceOf(
+      DeviceUnregisteredError,
+    );
+  });
+
+  it('does not treat INVALID_ARGUMENT as a gone device: it may be our payload (b-oss#265)', async () => {
+    mockFetchSequence(
+      new Response(JSON.stringify({ access_token: 't' }), { status: 200 }),
+      fcmError(400, 'INVALID_ARGUMENT', 'INVALID_ARGUMENT'),
+    );
+    const err: unknown = await sendFcmMessage(testEnv(), 'x', activity).catch((e: unknown) => e);
+    expect(err).not.toBeInstanceOf(DeviceUnregisteredError);
+    expect(String(err)).toMatch(/FCM send failed: 400/);
   });
 });

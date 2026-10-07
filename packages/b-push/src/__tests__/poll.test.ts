@@ -9,10 +9,12 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createTestDb, type TestDb } from './testDb.js';
 import { insertRegistration, getRegistrationById } from '../db.js';
 import { runActivityPoll } from '../poll.js';
+import { DeviceUnregisteredError } from '../fcm.js';
 import type { Env, RegistrationRow } from '../types.js';
 
 const sendFcmMessage = vi.fn<(...args: unknown[]) => Promise<void>>().mockResolvedValue(undefined);
-vi.mock('../fcm.js', () => ({
+vi.mock('../fcm.js', async () => ({
+  ...(await vi.importActual<typeof import('../fcm.js')>('../fcm.js')),
   sendFcmMessage: (...args: unknown[]) => sendFcmMessage(...args),
 }));
 
@@ -89,7 +91,14 @@ afterEach(() => {
 describe('runActivityPoll', () => {
   it('does nothing when no registration is due', async () => {
     const summary = await runActivityPoll(db, env, () => 1_000_000);
-    expect(summary).toEqual({ due: 0, polled: 0, pushed: 0, reauthRequired: 0, errors: 0 });
+    expect(summary).toEqual({
+      due: 0,
+      polled: 0,
+      pushed: 0,
+      reauthRequired: 0,
+      removed: 0,
+      errors: 0,
+    });
     expect(sendFcmMessage).not.toHaveBeenCalled();
   });
 
@@ -259,5 +268,34 @@ describe('runActivityPoll', () => {
     const lines = logged.mock.calls.map((args) => args.join(' '));
     expect(lines.some((l) => l.includes('reg-1'))).toBe(true);
     expect(lines.join('\n')).not.toContain('a-real-read-token');
+  });
+
+  it('deletes a registration whose device FCM reports unregistered (b-oss#265)', async () => {
+    // App uninstalled or its data cleared: it can't DELETE its own row any more, so the poll must,
+    // or the service keeps polling with that read token forever.
+    await seedRow({ last_seen_comments_total: 0 });
+    mockUnreadTotals(1, 0);
+    sendFcmMessage.mockRejectedValueOnce(new DeviceUnregisteredError());
+    const summary = await runActivityPoll(db, env, () => 5_000_000);
+    expect(summary).toMatchObject({ due: 1, removed: 1, errors: 0 });
+    expect(await getRegistrationById(db, 'reg-1')).toBeNull();
+  });
+
+  it('also deletes it when the reauth push finds the device gone (b-oss#265)', async () => {
+    await seedRow();
+    mockTokenInvalid();
+    sendFcmMessage.mockRejectedValueOnce(new DeviceUnregisteredError());
+    await runActivityPoll(db, env, () => 5_000_000);
+    expect(await getRegistrationById(db, 'reg-1')).toBeNull();
+  });
+
+  it('keeps the registration for any other FCM failure (b-oss#265)', async () => {
+    await seedRow({ last_seen_comments_total: 0 });
+    mockUnreadTotals(1, 0);
+    vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    sendFcmMessage.mockRejectedValueOnce(new Error('FCM send failed: 400 INVALID_ARGUMENT'));
+    const summary = await runActivityPoll(db, env, () => 5_000_000);
+    expect(summary).toMatchObject({ removed: 0, errors: 1 });
+    expect(await getRegistrationById(db, 'reg-1')).not.toBeNull();
   });
 });
