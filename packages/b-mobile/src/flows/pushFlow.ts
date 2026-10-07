@@ -25,6 +25,7 @@ import type { PushStreams } from '../state/accountsStore.js';
 import { handleForcedLogout } from './accountsFlow.js';
 import { AccountMismatchError } from './accountMismatch.js';
 import type { PushPayload } from '../platform/push.js';
+import { authReady } from '../state/authReady.js';
 
 /** Checked/requested *before* any read-token authorization round for notifications (rules.md:
  * "never make the user authorize something already known to be undeliverable" — app-
@@ -224,8 +225,13 @@ export async function runLaunchBackstopCheck(): Promise<void> {
  * necessarily the active one, so switch to it first: otherwise a comment push for one account
  * opened the other account's inbox (b-oss#148). Same rule as switchAccount(): an account that's
  * gone, or whose app token needs re-authorizing, can't simply be switched to, so go to Accounts,
- * where it can be dealt with. */
-export function routeForPushTap(payload: PushPayload): string {
+ * where it can be dealt with.
+ *
+ * Waits for authReady first. Tapping a push when the app isn't running launches it, and the tap
+ * arrives before the stored accounts have loaded; reading the store then found no accounts and
+ * sent every cold-start tap to Accounts (b-oss#148). */
+export async function routeForPushTap(payload: PushPayload): Promise<string> {
+  await authReady;
   if (payload.kind === 'reauth-required') {
     // May already have run from onPushReceived or a launch backstop check; it's idempotent.
     handleForcedLogout(payload.accountId, 'service');
