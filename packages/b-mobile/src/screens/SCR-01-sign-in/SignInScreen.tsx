@@ -179,7 +179,7 @@ export function SignInScreen() {
     <IonPage>
       <IonHeader>
         <AppHeader
-          title="Sign In"
+          title="Sign in"
           variant={drilledIn ? 'back' : 'menu'}
           backHref="/accounts"
           accountIndicator={false}

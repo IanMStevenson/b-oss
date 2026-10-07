@@ -21,12 +21,10 @@
 // in again" dialog every entry point shares; not duplicated here for a lightweight overlay.
 
 import { IonButton } from '@ionic/react';
-import { Check } from 'lucide-react';
-import { AccountAvatar } from '../components/AccountAvatar.js';
+import { AccountRowBody } from '../components/AccountRowBody.js';
 import { useAccountsStore } from '../state/accountsStore.js';
 import type { StoredAccount } from '../state/accountsStore.js';
 import { switchAccount, NeedsReauthError } from '../flows/accountsFlow.js';
-import { modeLabel, NEEDS_SIGN_IN_STYLE } from '../screens/SCR-30-accounts/AccountsScreen.js';
 import { useAppNavigate } from './routes/useAppNavigate.js';
 
 export function AccountSwitcherOverlay({ onDismiss }: { onDismiss: () => void }) {
@@ -93,7 +91,6 @@ export function AccountSwitcherOverlay({ onDismiss }: { onDismiss: () => void })
       >
         {accounts.map((account) => {
           const active = account.id === activeAccountId;
-          const needsReauth = account.appTokenScope === null;
           return (
             <button
               key={account.id}
@@ -116,27 +113,7 @@ export function AccountSwitcherOverlay({ onDismiss }: { onDismiss: () => void })
                 cursor: 'pointer',
               }}
             >
-              <AccountAvatar avatarUrl={account.avatarUrl} size={32} />
-              <span style={{ flex: 1, minWidth: 0 }}>
-                <span style={{ display: 'block' }}>{account.username}</span>
-                <span
-                  style={{
-                    display: 'block',
-                    fontSize: '0.8rem',
-                    ...(needsReauth ? NEEDS_SIGN_IN_STYLE : { color: 'var(--muted)' }),
-                  }}
-                >
-                  {modeLabel(account)}
-                </span>
-              </span>
-              {active && (
-                <Check
-                  size={18}
-                  strokeWidth={2}
-                  aria-label="Active account"
-                  style={{ color: 'var(--green-800, #1f4d3a)', flexShrink: 0 }}
-                />
-              )}
+              <AccountRowBody account={account} active={active} />
             </button>
           );
         })}

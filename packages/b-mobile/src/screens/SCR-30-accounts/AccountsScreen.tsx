@@ -43,6 +43,8 @@ import {
   IonToast,
 } from '@ionic/react';
 import { AppHeader } from '../../components/AppHeader.js';
+import { AccountRowBody } from '../../components/AccountRowBody.js';
+import { modeLabel, NEEDS_SIGN_IN_STYLE } from '../../components/accountPresentation.js';
 import { useServiceRoundExplainer } from '../../components/ServiceRoundExplainer.js';
 import { useAccountsStore, notificationStateOf } from '../../state/accountsStore.js';
 import type { StoredAccount, NotificationState } from '../../state/accountsStore.js';
@@ -75,26 +77,15 @@ export function needsSignIn(account: StoredAccount): boolean {
   return account.appTokenScope === null || notificationStateOf(account) === 'needs-sign-in';
 }
 
-/** Red + bold, for a status that needs the user to act (b-oss#263). */
-export const NEEDS_SIGN_IN_STYLE = {
-  color: 'var(--ion-color-danger)',
-  fontWeight: 700,
-} as const;
-
 const linkStyle = {
   background: 'none',
   border: 'none',
   padding: 0,
   font: 'inherit',
   fontSize: 14,
-  color: 'var(--green-700)',
+  color: 'var(--muted)',
   textAlign: 'start' as const,
 };
-
-export function modeLabel(account: StoredAccount): string {
-  if (account.appTokenScope === null) return t('SCR-30.status.needs_sign_in');
-  return account.appTokenScope === 'read,write' ? 'Read-write' : 'Read-only';
-}
 
 function RemoveAccountAlert({
   account,
@@ -382,70 +373,63 @@ export function AccountsScreen({ reauthRequest }: { reauthRequest?: ReauthReques
               return (
                 <IonItem key={account.id} button onClick={() => handleRowTap(account)}>
                   <div
-                    style={{ display: 'flex', flexDirection: 'column', gap: 4, padding: '8px 0' }}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 12,
+                      width: '100%',
+                      padding: '8px 0',
+                    }}
                   >
-                    <span style={isActive ? { fontWeight: 600 } : undefined}>
-                      {account.username}
-                    </span>
-                    {appDead ? (
-                      <span style={{ ...NEEDS_SIGN_IN_STYLE, fontSize: 14 }}>
-                        {t('SCR-30.status.needs_sign_in')}
-                      </span>
-                    ) : (
-                      <button
-                        type="button"
-                        style={
-                          notificationsDead ? { ...linkStyle, ...NEEDS_SIGN_IN_STYLE } : linkStyle
-                        }
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          openNotificationSettings(account);
-                        }}
-                      >
-                        {notificationStatusText(account)}
-                      </button>
-                    )}
-                    {needsSignIn(account) && (
-                      <div style={{ display: 'flex', gap: 8 }}>
-                        <IonButton
-                          size="small"
-                          disabled={signingInId !== null}
+                    <AccountRowBody account={account} active={isActive}>
+                      {!appDead && (
+                        <button
+                          type="button"
+                          style={
+                            notificationsDead ? { ...linkStyle, ...NEEDS_SIGN_IN_STYLE } : linkStyle
+                          }
                           onClick={(e) => {
                             e.stopPropagation();
-                            void handleSignInAgain(account);
+                            openNotificationSettings(account);
                           }}
                         >
-                          {signingInId === account.id ? (
-                            <IonSpinner name="dots" />
-                          ) : (
-                            t('SCR-30.button.sign_in_again')
-                          )}
-                        </IonButton>
-                        {appDead && (
+                          {notificationStatusText(account)}
+                        </button>
+                      )}
+                      {needsSignIn(account) && (
+                        <div style={{ display: 'flex', gap: 8, marginTop: 4 }}>
                           <IonButton
                             size="small"
-                            fill="clear"
-                            color="medium"
                             disabled={signingInId !== null}
                             onClick={(e) => {
                               e.stopPropagation();
-                              setRemoveId(account.id);
+                              void handleSignInAgain(account);
                             }}
                           >
-                            {t('SCR-30.button.remove')}
+                            {signingInId === account.id ? (
+                              <IonSpinner name="dots" />
+                            ) : (
+                              t('SCR-30.button.sign_in_again')
+                            )}
                           </IonButton>
-                        )}
-                      </div>
-                    )}
+                          {appDead && (
+                            <IonButton
+                              size="small"
+                              fill="clear"
+                              color="medium"
+                              disabled={signingInId !== null}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setRemoveId(account.id);
+                              }}
+                            >
+                              {t('SCR-30.button.remove')}
+                            </IonButton>
+                          )}
+                        </div>
+                      )}
+                    </AccountRowBody>
                   </div>
-                  {!appDead && (
-                    <IonNote
-                      slot="end"
-                      style={isActive ? { color: 'var(--green-800)' } : undefined}
-                    >
-                      {isActive ? `Active · ${modeLabel(account)}` : modeLabel(account)}
-                    </IonNote>
-                  )}
                 </IonItem>
               );
             })}

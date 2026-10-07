@@ -67,6 +67,8 @@ describe('HiddenMembersScreen', () => {
   it('makes no network request and shows the empty state when nobody is hidden', () => {
     renderScreen();
     expect(screen.getByText('You haven’t hidden anyone.')).toBeDefined();
+    expect(screen.getByText(/can still see your journal/)).toBeDefined();
+    expect(screen.queryByText('Unhide')).toBeNull();
   });
 
   it('lists hidden members and unhides one immediately, with no confirmation', async () => {
