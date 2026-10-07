@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (C) 2026 Ian Stevenson
 
-// The BBCode preset — exactly the five supported tags, nothing else. Unknown tags aren't given a
+// The BBCode preset — exactly the supported tags (the five toolbar ones, plus [email]), nothing else. Unknown tags aren't given a
 // processor here, which is what makes @bbob leave them as their literal source text rather than
 // dropping them — nothing should silently disappear from someone's description or comment.
 // Consumed by BBCodeText, which renders to real React elements rather than dangerouslySetInnerHTML.
@@ -36,6 +36,16 @@ function urlTag(node: TagNodeObject): TagNodeObject {
   return TagNode.create('a', { href }, label);
 }
 
+// [email=address]label[/email] (or bare [email]address[/email]) — blipfoto.com's mailto form of
+// [url], which its comment editor writes for an email link (b-oss#206).
+function emailTag(node: TagNodeObject): TagNodeObject {
+  const attrTarget = getUniqAttr(node.attrs);
+  const isBare = typeof attrTarget !== 'string';
+  const address = (isBare ? contentText(node.content) : attrTarget).replace(/^mailto:/i, '');
+  const label = isBare ? [address] : toArray(node.content);
+  return TagNode.create('a', { href: `mailto:${address}` }, label);
+}
+
 function simpleTag(tag: string) {
   return (node: TagNodeObject): TagNodeObject => TagNode.create(tag, {}, toArray(node.content));
 }
@@ -46,10 +56,15 @@ function simpleTag(tag: string) {
 // to render it as a same-named HTML element, which is not what we want).
 export const BBCODE_TAGS = ['b', 'i', 'u', 's', 'url'] as const;
 
+/** What's rendered: BBCODE_TAGS (the ones toolbars offer) plus `email`, which only arrives from
+ * blipfoto.com's own editor or ours (an email link) and has no toolbar button of its own. */
+export const RENDERED_BBCODE_TAGS = [...BBCODE_TAGS, 'email'] as const;
+
 export const bbcodePreset = createPreset({
   b: simpleTag('b'),
   i: simpleTag('i'),
   u: simpleTag('u'),
   s: simpleTag('s'),
   url: urlTag,
+  email: emailTag,
 });

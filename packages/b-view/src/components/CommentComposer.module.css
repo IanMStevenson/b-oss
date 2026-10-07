@@ -33,6 +33,40 @@
   color: var(--ink);
 }
 
+/* The rich-text box (BBCodeEditor). pre-wrap keeps typed runs of spaces as real spaces rather
+   than &nbsp;, and lines that are too long wrap even without a space (a pasted URL). */
+.editor {
+  position: relative;
+  display: block;
+  box-sizing: border-box;
+  min-height: 120px;
+  max-height: 60vh;
+  overflow-y: auto;
+  padding: 10px;
+  outline: none;
+  font-size: var(--text-md, 15px);
+  line-height: var(--leading-normal, 1.45);
+  color: var(--ink);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.editor[data-empty='true']::before {
+  content: attr(data-placeholder);
+  color: var(--muted-2);
+  pointer-events: none;
+  position: absolute;
+}
+
+.editor a {
+  color: var(--green-700);
+  text-decoration: underline;
+}
+
+.editor[aria-readonly='true'] {
+  color: var(--muted);
+}
+
 .error {
   margin: 8px 0 0;
   font-size: var(--text-sm, 13px);
@@ -108,12 +142,21 @@
   font-size: var(--text-md, 15px);
   color: var(--muted-2);
   cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
 }
 
-.fmtBtn:hover:not(:disabled),
-.fmtBtn[aria-expanded='true'] {
+.fmtBtn[aria-expanded='true'],
+.fmtBtn[aria-pressed='true'] {
   color: var(--ink);
   background: var(--line-2);
+}
+
+/* Hover only where there is one: on a touchscreen it sticks after a tap and reads as "on". */
+@media (hover: hover) {
+  .fmtBtn:hover:not(:disabled) {
+    color: var(--ink);
+    background: var(--line-2);
+  }
 }
 
 .fmtBtn:disabled {
@@ -141,13 +184,15 @@
   font-family: Georgia, serif;
 }
 
-.linkRow {
-  display: flex;
-  align-items: center;
-  gap: 6px;
+.linkPanel {
   padding: 4px 0 8px;
   border-bottom: 1px dashed var(--line);
   margin-bottom: 4px;
+}
+
+.linkRow {
+  display: flex;
+  padding: 2px 0;
 }
 
 .linkInput {
@@ -161,8 +206,21 @@
   border-radius: 4px;
 }
 
+.linkInput:focus {
+  outline: none;
+  border-color: var(--green-700);
+}
+
+.linkActions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 4px;
+  padding-top: 2px;
+}
+
 .linkAdd,
-.linkCancel {
+.linkCancel,
+.linkRemove {
   height: 34px;
   padding: 0 10px;
   border: 0;
@@ -179,4 +237,9 @@
 
 .linkCancel {
   color: var(--muted);
+}
+
+.linkRemove {
+  margin-right: auto;
+  color: var(--color-danger);
 }
