@@ -75,6 +75,15 @@ describe('NotificationsInboxScreen', () => {
     expect(useNotificationCountsStore.getState().notifications).toBe(0);
   });
 
+  it('marks as new as many of the newest rows as the badge said were unread', async () => {
+    // beforeEach sets the badge to 3.
+    fetchRecentNotifications.mockResolvedValue(
+      [1, 2, 3, 4, 5].map((n) => notification({ notification_id_str: String(n) })),
+    );
+    renderScreen();
+    await waitFor(() => expect(screen.getAllByText('New')).toHaveLength(3));
+  });
+
   it('shows an empty state when there are none', async () => {
     fetchRecentNotifications.mockResolvedValue([]);
     renderScreen();

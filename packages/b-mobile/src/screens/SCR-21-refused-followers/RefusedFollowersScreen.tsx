@@ -45,14 +45,12 @@ function RefusedRow({
   const alsoHidden = useIsHidden(user.username);
   return (
     <UserRow user={user} onTap={onTap}>
-      <div slot="end" style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end' }}>
-        <IonButton size="small" onClick={onAllow}>
-          Allow
-        </IonButton>
-        {alsoHidden && (
-          <span style={{ fontSize: '0.75rem', color: 'var(--muted)' }}>also hidden</span>
-        )}
-      </div>
+      {alsoHidden && (
+        <span style={{ fontSize: '0.75rem', color: 'var(--muted)' }}>also hidden</span>
+      )}
+      <IonButton size="small" onClick={onAllow}>
+        Allow
+      </IonButton>
     </UserRow>
   );
 }
@@ -97,23 +95,27 @@ export function RefusedFollowersScreen() {
       <IonHeader>
         <AppHeader title="Refused followers" variant="back" backHref="/settings" accountIndicator />
       </IonHeader>
-      <IonContent className="ion-padding">
-        <p>They can&rsquo;t see your journal. This doesn&rsquo;t hide their entries from you.</p>
+      <IonContent>
+        <p style={{ margin: 0, padding: '16px' }}>
+          They can&rsquo;t see your journal. This doesn&rsquo;t hide their entries from you.
+        </p>
 
         {resource.status === 'loading' && (
-          <div style={{ display: 'flex', justifyContent: 'center' }}>
+          <div style={{ display: 'flex', justifyContent: 'center', padding: 16 }}>
             <IonSpinner />
           </div>
         )}
         {resource.status === 'error' && (
-          <>
+          <div className="ion-padding">
             <IonText color="danger">
               <p>{resource.errorMessage}</p>
             </IonText>
             <IonButton onClick={resource.refresh}>Retry</IonButton>
-          </>
+          </div>
         )}
-        {resource.status === 'empty' && <p>You haven&rsquo;t refused anyone.</p>}
+        {resource.status === 'empty' && (
+          <p style={{ margin: 0, padding: '0 16px' }}>You haven&rsquo;t refused anyone.</p>
+        )}
         {(resource.status === 'loaded' || resource.status === 'empty') && (
           <>
             <IonRefresher slot="fixed" onIonRefresh={handleRefresh}>

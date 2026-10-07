@@ -41,7 +41,7 @@ import { useAppNavigate } from '../../app/routes/useAppNavigate.js';
 import { useAccountsStore } from '../../state/accountsStore.js';
 import { useHiddenMembers, useHiddenMembersStore } from '../../state/hiddenMembersStore.js';
 import { useNotificationCountsStore } from '../../state/notificationCountsStore.js';
-import { CachedImage } from '../../components/CachedImage.js';
+import { InboxRow, RowThumb } from '../../components/InboxRow.js';
 import type { BlipComment } from '@b-oss/b-api';
 
 type Status = 'loading' | 'loaded' | 'empty' | 'error';
@@ -173,66 +173,48 @@ export function CommentsInboxScreen() {
               <IonRefresherContent />
             </IonRefresher>
             {visibleItems.map((comment) => (
-              <div
+              <InboxRow
                 key={comment.comment_id_str}
-                style={{
-                  display: 'flex',
-                  gap: 12,
-                  padding: '12px 16px',
-                  borderBottom: '1px solid var(--line-2)',
-                }}
-              >
-                <button
-                  onClick={() =>
-                    comment.entry_id_str &&
-                    navigate.push(`/entry/${encodeURIComponent(comment.entry_id_str)}`)
-                  }
-                  aria-label="Open entry"
-                  style={{ flexShrink: 0 }}
-                >
-                  <CachedImage
-                    src={comment.thumbnail_url}
-                    alt=""
-                    style={{ width: 56, height: 56, borderRadius: 4, objectFit: 'cover' }}
-                  />
-                </button>
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
-                    <button
-                      onClick={() =>
-                        navigate.push(`/user/${encodeURIComponent(comment.commenter.username)}`)
-                      }
-                      style={{ font: 'inherit', color: 'var(--green-700)', fontWeight: 700 }}
-                    >
-                      {comment.commenter.username}
-                    </button>
-                    <UserBadges icons={comment.commenter.icons} />
-                    {newIdsRef.current?.has(comment.comment_id_str) && (
-                      <span style={{ color: 'var(--ion-color-success)', fontSize: 12 }}>New</span>
-                    )}
-                  </div>
-                  <div style={{ fontSize: 14, marginTop: 4 }}>{comment.content}</div>
-                </div>
-                <div
-                  style={{
-                    display: 'flex',
-                    flexDirection: 'column',
-                    alignItems: 'center',
-                    gap: 12,
-                    flexShrink: 0,
-                    paddingTop: 4,
-                  }}
-                >
-                  {comment.actions.reply === 1 && (
-                    <button onClick={() => handleReply(comment)} aria-label="Reply">
-                      <CornerUpLeft size={18} strokeWidth={1.6} color="var(--muted)" />
-                    </button>
-                  )}
-                  <button onClick={() => setOverflowTarget(comment)} aria-label="More actions">
-                    <MoreVertical size={18} strokeWidth={1.6} color="var(--muted)" />
+                align="top"
+                unread={newIdsRef.current?.has(comment.comment_id_str) ?? false}
+                leading={
+                  <button
+                    onClick={() =>
+                      comment.entry_id_str &&
+                      navigate.push(`/entry/${encodeURIComponent(comment.entry_id_str)}`)
+                    }
+                    aria-label="Open entry"
+                    className="inbox-row-leading"
+                  >
+                    <RowThumb src={comment.thumbnail_url} />
                   </button>
+                }
+                actions={
+                  <>
+                    {comment.actions.reply === 1 && (
+                      <button onClick={() => handleReply(comment)} aria-label="Reply">
+                        <CornerUpLeft size={18} strokeWidth={1.6} color="var(--muted)" />
+                      </button>
+                    )}
+                    <button onClick={() => setOverflowTarget(comment)} aria-label="More actions">
+                      <MoreVertical size={18} strokeWidth={1.6} color="var(--muted)" />
+                    </button>
+                  </>
+                }
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                  <button
+                    onClick={() =>
+                      navigate.push(`/user/${encodeURIComponent(comment.commenter.username)}`)
+                    }
+                    className="inbox-row-name"
+                  >
+                    {comment.commenter.username}
+                  </button>
+                  <UserBadges icons={comment.commenter.icons} />
                 </div>
-              </div>
+                <div style={{ marginTop: 2 }}>{comment.content}</div>
+              </InboxRow>
             ))}
           </>
         )}

@@ -13,20 +13,12 @@
 // the API itself clears `secret` once an award is earned, so showing "Secret" only when the flag
 // is actually set is correct without this screen needing its own earned/secret interaction logic.
 
-import {
-  IonPage,
-  IonHeader,
-  IonContent,
-  IonSpinner,
-  IonText,
-  IonButton,
-  IonList,
-} from '@ionic/react';
+import { IonPage, IonHeader, IonContent, IonSpinner, IonText, IonButton } from '@ionic/react';
 import { AppHeader } from '../../components/AppHeader.js';
 import { useResource } from '../../data/useResource.js';
 import { fetchAwards } from '../../data/users.js';
 import { useActiveAccount } from '../../state/accountsStore.js';
-import { CachedImage } from '../../components/CachedImage.js';
+import { InboxRow, RowThumb } from '../../components/InboxRow.js';
 import type { BlipAward } from '@b-oss/b-api';
 
 const AWARD_SLUGS: Record<string, string> = {
@@ -80,48 +72,38 @@ export function AwardsScreen({ username }: AwardsScreenProps) {
           accountIndicator
         />
       </IonHeader>
-      <IonContent className="ion-padding">
+      <IonContent>
         {state.status === 'loading' && (
-          <div style={{ display: 'flex', justifyContent: 'center' }}>
+          <div style={{ display: 'flex', justifyContent: 'center', padding: 16 }}>
             <IonSpinner />
           </div>
         )}
         {state.status === 'error' && (
-          <>
+          <div className="ion-padding">
             <IonText color="danger">
               <p>{state.message}</p>
             </IonText>
             <IonButton onClick={reload}>Retry</IonButton>
-          </>
+          </div>
         )}
-        {state.status === 'empty' && <p>No awards yet.</p>}
+        {state.status === 'empty' && <p className="ion-padding">No awards yet.</p>}
         {state.status === 'loaded' && (
-          <IonList>
+          <div>
             {[...state.data]
               .sort((a, b) => Number(a.award_id_str) - Number(b.award_id_str))
               .map((award) => {
                 const earned = award.added_stamp !== null;
                 return (
-                  <div
+                  <InboxRow
                     key={award.award_id_str}
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: 12,
-                      padding: '8px 0',
-                      opacity: earned ? 1 : 0.35,
-                    }}
+                    leading={<RowThumb src={award.icon_url} />}
+                    style={{ opacity: earned ? 1 : 0.35 }}
                   >
-                    <CachedImage
-                      src={award.icon_url}
-                      alt=""
-                      style={{ width: 40, height: 40, flexShrink: 0 }}
-                    />
-                    <span>{awardLabel(award)}</span>
-                  </div>
+                    {awardLabel(award)}
+                  </InboxRow>
                 );
               })}
-          </IonList>
+          </div>
         )}
       </IonContent>
     </IonPage>
