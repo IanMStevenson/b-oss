@@ -37,3 +37,22 @@ if (typeof ResizeObserver === 'undefined') {
 // machine (b-oss#221). A larger ceiling doesn't slow tests that succeed: they resolve as soon as
 // the condition holds. Only meaningful under jsdom.
 if (typeof document !== 'undefined') configure({ asyncUtilTimeout: 5000 });
+
+// ProseMirror (the comment editor, b-oss#206) measures the DOM to map coordinates and scroll the
+// caret into view; jsdom has no layout, so give it empty geometry.
+if (typeof document !== 'undefined') {
+  const noRects = () =>
+    ({
+      length: 0,
+      item: () => null,
+      [Symbol.iterator]: [][Symbol.iterator],
+    }) as unknown as DOMRectList;
+  const emptyRect = () => new DOMRect(0, 0, 0, 0);
+  const stub = (target: object, name: string, value: unknown) => {
+    if (!(name in target)) Object.defineProperty(target, name, { value, configurable: true });
+  };
+  stub(Range.prototype, 'getClientRects', noRects);
+  stub(Range.prototype, 'getBoundingClientRect', emptyRect);
+  stub(Element.prototype, 'getClientRects', noRects);
+  stub(document, 'elementFromPoint', () => null);
+}

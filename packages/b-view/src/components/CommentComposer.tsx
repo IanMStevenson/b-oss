@@ -6,21 +6,12 @@
 // across navigation), performs the post, and reports `posting` / `error` back. Used for a new
 // comment, a reply (beneath the comment being replied to) and an edit (in place of the comment).
 //
-// Plain text, with an optional formatting toolbar in the box's footer (`formatting`): B / I / U / S
-// wrap the selection in BBCode and the link button asks for an address (b-oss#173). Which edits
-// each button makes lives in ../bbcodeEdit.ts, so it is testable without a DOM.
+// Plain text by default. With `formatting`, the box is a rich-text editor (./BBCodeEditor.tsx,
+// b-oss#206): toolbar formatting shows as formatting rather than tags, while `value` stays BBCode.
 
-import { useEffect, useRef, useState } from 'react';
-import { Link as LinkIcon } from 'lucide-react';
-import { wrapWithTag, insertLink, type FormatTag, type EditResult } from '../bbcodeEdit.js';
+import { useEffect, useRef } from 'react';
+import { BBCodeEditor } from './BBCodeEditor.js';
 import styles from './CommentComposer.module.css';
-
-const FORMAT_BUTTONS: { tag: FormatTag; label: string; className: string }[] = [
-  { tag: 'b', label: 'Bold', className: styles.fmtBold },
-  { tag: 'i', label: 'Italic', className: styles.fmtItalic },
-  { tag: 'u', label: 'Underline', className: styles.fmtUnderline },
-  { tag: 's', label: 'Strikethrough', className: styles.fmtStrike },
-];
 
 export interface CommentComposerProps {
   value: string;
@@ -40,7 +31,7 @@ export interface CommentComposerProps {
   onCancel?: () => void;
   /** Focus the box on mount — for a reply/edit the user just asked for. */
   autoFocus?: boolean;
-  /** Show the B / I / U / S / link toolbar in the box's footer. */
+  /** A rich-text box with a B / I / U / S / link toolbar in its footer; `value` is BBCode. */
   formatting?: boolean;
 }
 
@@ -59,45 +50,9 @@ export function CommentComposer({
 }: CommentComposerProps) {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const canSubmit = value.trim().length > 0 && !posting;
-  // The link button asks for an address in a small inline field. The textarea's selection is
-  // remembered when it opens, because focus moves to that field.
-  const [linkOpen, setLinkOpen] = useState(false);
-  const [linkAddress, setLinkAddress] = useState('');
-  const savedSelection = useRef({ start: 0, end: 0 });
-
-  /** Applies an edit to the controlled value, then puts focus and the selection back. */
-  function apply(edit: EditResult): void {
-    onChange(edit.value);
-    requestAnimationFrame(() => {
-      const box = textareaRef.current;
-      if (!box) return;
-      box.focus();
-      box.setSelectionRange(edit.selectionStart, edit.selectionEnd);
-    });
-  }
-
-  function format(tag: FormatTag): void {
-    const box = textareaRef.current;
-    if (!box || posting) return;
-    apply(wrapWithTag(box.value, box.selectionStart, box.selectionEnd, tag));
-  }
-
-  function openLink(): void {
-    const box = textareaRef.current;
-    if (!box || posting) return;
-    savedSelection.current = { start: box.selectionStart, end: box.selectionEnd };
-    setLinkAddress('');
-    setLinkOpen(true);
-  }
-
-  function confirmLink(): void {
-    const { start, end } = savedSelection.current;
-    apply(insertLink(value, start, end, linkAddress));
-    setLinkOpen(false);
-  }
 
   useEffect(() => {
-    if (autoFocus) textareaRef.current?.focus();
+    if (autoFocus && !formatting) textareaRef.current?.focus();
     // Only on mount: re-focusing on every render would fight the user's own focus.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -111,80 +66,27 @@ export function CommentComposer({
       }}
     >
       <div className={styles.box}>
-        <textarea
-          ref={textareaRef}
-          className={styles.textarea}
-          value={value}
-          onChange={(e) => onChange(e.target.value)}
-          placeholder={placeholder}
-          aria-label={ariaLabel}
-          aria-busy={posting}
-          readOnly={posting}
-          rows={5}
-        />
-        {formatting && (
-          <div className={styles.footer}>
-            {linkOpen && (
-              <div className={styles.linkRow}>
-                <input
-                  type="url"
-                  className={styles.linkInput}
-                  value={linkAddress}
-                  onChange={(e) => setLinkAddress(e.target.value)}
-                  onKeyDown={(e) => {
-                    // Enter confirms the link — it must not submit the whole comment.
-                    if (e.key === 'Enter') {
-                      e.preventDefault();
-                      confirmLink();
-                    } else if (e.key === 'Escape') {
-                      e.preventDefault();
-                      setLinkOpen(false);
-                    }
-                  }}
-                  placeholder="Link address, e.g. https://…"
-                  aria-label="Link address"
-                  autoFocus
-                />
-                <button type="button" className={styles.linkAdd} onClick={confirmLink}>
-                  Add link
-                </button>
-                <button
-                  type="button"
-                  className={styles.linkCancel}
-                  onClick={() => setLinkOpen(false)}
-                >
-                  Cancel
-                </button>
-              </div>
-            )}
-            <div className={styles.toolbar} role="toolbar" aria-label="Formatting">
-              {FORMAT_BUTTONS.map(({ tag, label, className }) => (
-                <button
-                  key={tag}
-                  type="button"
-                  className={`${styles.fmtBtn} ${className}`}
-                  aria-label={label}
-                  disabled={posting}
-                  // Keep the textarea focused (and its selection) when a button is tapped.
-                  onMouseDown={(e) => e.preventDefault()}
-                  onClick={() => format(tag)}
-                >
-                  {tag.toUpperCase()}
-                </button>
-              ))}
-              <button
-                type="button"
-                className={styles.fmtBtn}
-                aria-label="Link"
-                aria-expanded={linkOpen}
-                disabled={posting}
-                onMouseDown={(e) => e.preventDefault()}
-                onClick={openLink}
-              >
-                <LinkIcon size={15} strokeWidth={1.8} />
-              </button>
-            </div>
-          </div>
+        {formatting ? (
+          <BBCodeEditor
+            value={value}
+            onChange={onChange}
+            ariaLabel={ariaLabel}
+            placeholder={placeholder}
+            readOnly={posting}
+            autoFocus={autoFocus}
+          />
+        ) : (
+          <textarea
+            ref={textareaRef}
+            className={styles.textarea}
+            value={value}
+            onChange={(e) => onChange(e.target.value)}
+            placeholder={placeholder}
+            aria-label={ariaLabel}
+            aria-busy={posting}
+            readOnly={posting}
+            rows={5}
+          />
         )}
       </div>
 

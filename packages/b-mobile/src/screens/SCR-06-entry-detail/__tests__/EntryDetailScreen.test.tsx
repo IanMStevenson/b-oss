@@ -534,7 +534,8 @@ describe('EntryDetailScreen', () => {
     async function flows() {
       return await import('../../../flows/commentsFlow.js');
     }
-    const box = (name = 'Your comment') => screen.getByLabelText<HTMLTextAreaElement>(name);
+    // The composers are rich-text boxes (b-oss#206), so their text is the element's textContent.
+    const box = (name = 'Your comment') => screen.getByRole('textbox', { name });
 
     it('has the composer inline at the bottom — no separate screen, no navigation', async () => {
       await load();
@@ -562,7 +563,7 @@ describe('EntryDetailScreen', () => {
       await waitFor(() =>
         expect(postComment).toHaveBeenCalledWith({ entryId: '1', content: 'Lovely' }),
       );
-      await waitFor(() => expect(box().value).toBe(''));
+      await waitFor(() => expect(box().textContent).toBe(''));
 
       // Refresh in flight: the entry is still on screen and no spinner replaced the page.
       expect(screen.getByText('A day out')).toBeDefined();
@@ -600,11 +601,11 @@ describe('EntryDetailScreen', () => {
       await userEvent.type(box(), 'Lovely');
       await userEvent.click(screen.getByText('Add comment'));
       expect((await screen.findByRole('alert')).textContent).toMatch(/Your text is still here/);
-      expect(box().value).toBe('Lovely');
+      expect(box().textContent).toBe('Lovely');
 
       await userEvent.click(screen.getByText('Add comment'));
       await waitFor(() => expect(postComment).toHaveBeenCalledTimes(2));
-      await waitFor(() => expect(box().value).toBe(''));
+      await waitFor(() => expect(box().textContent).toBe(''));
     });
 
     it('remembers unsent text across leaving and returning (no discard prompt needed)', async () => {
@@ -616,7 +617,7 @@ describe('EntryDetailScreen', () => {
 
       renderScreen();
       await screen.findByText('A day out');
-      expect(box().value).toBe('half a thought');
+      expect(box().textContent).toBe('half a thought');
     });
 
     it('does not offer a composer to a read-only account, or where comments are switched off', async () => {
@@ -656,7 +657,7 @@ describe('EntryDetailScreen', () => {
       await userEvent.click(screen.getByText('Add comment'));
       await waitFor(() => expect(signInGated).toHaveBeenCalled());
       expect(postComment).not.toHaveBeenCalled();
-      expect(box().value).toBe('Lovely'); // nothing lost
+      expect(box().textContent).toBe('Lovely'); // nothing lost
     });
 
     it('says so when comments are switched off, instead of silently hiding the box', async () => {
@@ -739,8 +740,10 @@ describe('EntryDetailScreen', () => {
 
       await userEvent.click(screen.getByLabelText('Edit comment'));
       const editor = box('Edit your comment');
-      expect(editor.value).toBe('First!');
-      expect(screen.queryByText('First!', { selector: 'p, div' })).toBeNull(); // replaced by the editor
+      expect(editor.textContent).toBe('First!');
+      // Replaced by the editor: the only "First!" left is the editor's own line.
+      const shown = screen.queryAllByText('First!', { selector: 'p, div' });
+      expect(shown.filter((el) => !editor.contains(el))).toEqual([]);
 
       await userEvent.clear(editor);
       await userEvent.type(editor, 'First, edited');
@@ -764,7 +767,7 @@ describe('EntryDetailScreen', () => {
       expect(screen.queryByLabelText('Reply to bob')).toBeNull();
 
       await userEvent.click(screen.getByLabelText('Reply'));
-      expect(box('Reply to bob').value).toBe('draft reply');
+      expect(box('Reply to bob').textContent).toBe('draft reply');
     });
 
     it('opens the reply composer on arrival when sent here from the comments inbox', async () => {
