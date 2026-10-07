@@ -5,6 +5,7 @@
 // for, since these are the rules most likely to be got subtly wrong. Mocks every platform/data
 // boundary so this runs as pure logic, no jsdom/native runtime needed.
 
+import type { StoredAccount } from '../../state/accountsStore.js';
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 
 vi.mock('../../platform/prefs.js', () => ({
@@ -32,7 +33,15 @@ vi.mock('../../platform/secureStorage.js', () => ({
 const revokeToken = vi.fn().mockResolvedValue({ success: 1 });
 // Which tokens were revoked, in order (b-oss#240's tests care which one, not just how many).
 const revokedTokens: string[] = [];
+// recoverNotifications' app-token check (b-oss#261): resolves when the token is alive, rejects with
+// a BlipfotoError 51 when a test says it's dead.
+const verifyAppToken = vi.fn<(...args: unknown[]) => Promise<unknown>>();
+const appTokenRejectedHandlers: ((accountId: string) => void)[] = [];
 vi.mock('../../data/client.js', () => ({
+  getClientForAccount: vi.fn(() => Promise.resolve({ verifyToken: verifyAppToken })),
+  setAppTokenRejectedHandler: (handler: (accountId: string) => void) => {
+    appTokenRejectedHandlers.push(handler);
+  },
   getClientForToken: vi.fn((token: string) => ({
     revokeToken: () => {
       revokedTokens.push(token);
@@ -81,8 +90,10 @@ const {
   removeAccount,
   changeAccountMode,
   handleForcedLogout,
+  recoverNotifications,
   NeedsReauthError,
 } = await import('../accountsFlow.js');
+const { BlipfotoError } = await import('@b-oss/b-api');
 
 function resetStore() {
   tokenStore.clear();
@@ -837,5 +848,125 @@ describe('token-change browser default (b-oss#240)', () => {
       { beforeServiceRound: () => Promise.resolve(true) },
     );
     expect(registerAccountForPush).toHaveBeenCalledTimes(1);
+  });
+});
+
+// Tokens go straight into the secure-storage fake; accounts are the StoredAccount shape.
+function seedToken(accountId: string, purpose: 'app' | 'service', token: string): void {
+  tokenStore.set(`${accountId}:${purpose}`, token);
+}
+function account(overrides: Partial<StoredAccount> = {}): StoredAccount {
+  return {
+    id: 'alice',
+    username: 'alice',
+    avatarUrl: null,
+    appTokenScope: 'read,write',
+    hasServiceToken: false,
+    notificationRegistrationId: null,
+    notificationStatus: null,
+    ...overrides,
+  };
+}
+
+describe('dead app token (FLW-02, b-oss#261)', () => {
+  it("registers handleForcedLogout as the client layer's app-token-rejected handler", () => {
+    useAccountsStore.setState({
+      accounts: [account({ id: 'alice', username: 'alice', appTokenScope: 'read,write' })],
+      activeAccountId: 'alice',
+    });
+    seedToken('alice', 'app', 'tok-dead');
+    expect(appTokenRejectedHandlers).toHaveLength(1);
+    appTokenRejectedHandlers[0]('alice');
+    expect(useAccountsStore.getState().accounts[0].appTokenScope).toBeNull();
+  });
+});
+
+describe('recoverNotifications (FLW-02, b-oss#261)', () => {
+  function deadServiceAccount(overrides: Partial<StoredAccount> = {}) {
+    return account({
+      id: 'alice',
+      username: 'alice',
+      appTokenScope: 'read,write',
+      hasServiceToken: false,
+      notificationStatus: 'read-token-invalid',
+      ...overrides,
+    });
+  }
+
+  it('app token still alive: renews only the service token (one sign-in)', async () => {
+    useAccountsStore.setState({ accounts: [deadServiceAccount()], activeAccountId: 'alice' });
+    seedToken('alice', 'app', 'tok-app');
+    verifyAppToken.mockResolvedValue({ username: 'alice', scope: 'read,write' });
+    runOAuthRound.mockResolvedValueOnce({
+      accessToken: 'tok-svc',
+      grantedScope: 'read',
+      username: 'alice',
+    });
+
+    await recoverNotifications('alice');
+
+    expect(runOAuthRound).toHaveBeenCalledTimes(1);
+    expect(runOAuthRound).toHaveBeenCalledWith('read', expect.anything());
+    expect(useAccountsStore.getState().accounts[0].appTokenScope).toBe('read,write');
+  });
+
+  it('app token dead too (b-mobile revoked on blipfoto.com): re-authorizes the account, then the service', async () => {
+    useAccountsStore.setState({ accounts: [deadServiceAccount()], activeAccountId: 'alice' });
+    seedToken('alice', 'app', 'tok-dead');
+    verifyAppToken.mockRejectedValue(new BlipfotoError(51, 'Invalid token'));
+    runOAuthRound
+      .mockResolvedValueOnce({
+        accessToken: 'tok-app2',
+        grantedScope: 'read,write',
+        username: 'alice',
+      })
+      .mockResolvedValueOnce({ accessToken: 'tok-svc2', grantedScope: 'read', username: 'alice' });
+
+    await recoverNotifications('alice');
+
+    expect(runOAuthRound).toHaveBeenNthCalledWith(1, 'read,write', expect.anything());
+    expect(runOAuthRound).toHaveBeenNthCalledWith(2, 'read', expect.anything());
+    expect(await getToken('alice', 'app')).toBe('tok-app2');
+    expect(await getToken('alice', 'service')).toBe('tok-svc2');
+    expect(useAccountsStore.getState().accounts[0]).toMatchObject({
+      appTokenScope: 'read,write',
+      hasServiceToken: true,
+    });
+  });
+
+  it('read-only account with a dead token: one sign-in, reused as the service token (b-oss#250)', async () => {
+    useAccountsStore.setState({
+      accounts: [deadServiceAccount({ appTokenScope: 'read' })],
+      activeAccountId: 'alice',
+    });
+    seedToken('alice', 'app', 'tok-dead');
+    verifyAppToken.mockRejectedValue(new BlipfotoError(51, 'Invalid token'));
+    runOAuthRound.mockResolvedValueOnce({
+      accessToken: 'tok-ro2',
+      grantedScope: 'read',
+      username: 'alice',
+    });
+
+    await recoverNotifications('alice');
+
+    expect(runOAuthRound).toHaveBeenCalledTimes(1);
+    expect(runOAuthRound).toHaveBeenCalledWith('read', expect.anything());
+    expect(registerAccountForPush).toHaveBeenCalledWith('alice', 'tok-ro2', expect.anything());
+  });
+
+  it("a check that fails for another reason (offline) doesn't force a full re-auth", async () => {
+    useAccountsStore.setState({ accounts: [deadServiceAccount()], activeAccountId: 'alice' });
+    seedToken('alice', 'app', 'tok-app');
+    verifyAppToken.mockRejectedValue(new Error('network down'));
+    runOAuthRound.mockResolvedValueOnce({
+      accessToken: 'tok-svc',
+      grantedScope: 'read',
+      username: 'alice',
+    });
+
+    await recoverNotifications('alice');
+
+    expect(runOAuthRound).toHaveBeenCalledTimes(1);
+    expect(useAccountsStore.getState().accounts[0].appTokenScope).toBe('read,write');
   });
 });

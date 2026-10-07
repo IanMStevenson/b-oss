@@ -11,7 +11,8 @@
 // off / needs sign-in) that switches to that account and opens Settings → Notifications, where
 // the per-stream toggles live. An account whose notification read token died (the
 // reauth-required push routes here) also gets **Sign in again**, which re-runs the enable path
-// (changeAccountMode) with the streams it had, replacing the dead registration.
+// with the streams it had, replacing the dead registration, and first checks the app token,
+// re-authorizing the whole account if that died too (recoverNotifications, b-oss#261).
 //
 // Sign in again and the mode-change buttons are token changes for an existing account (b-oss#240):
 // the flow owner-checks every round and picks the clean in-app browser when there's more than one
@@ -41,6 +42,7 @@ import {
   switchAccount,
   removeAccount,
   changeAccountMode,
+  recoverNotifications,
   NeedsReauthError,
   OAuthCancelledError,
 } from '../../flows/accountsFlow.js';
@@ -226,18 +228,14 @@ export function AccountsScreen() {
     navigate.push('/settings/notifications');
   }
 
-  /** FLW-02 recovery for a dead notification read token — the same enable path Settings uses,
-   * with the account's stored streams (changeAccountMode's default). */
+  /** FLW-02 recovery for a dead notification read token. recoverNotifications checks the app
+   * token too, since revoking b-mobile on blipfoto.com kills both (b-oss#261). */
   async function handleSignInAgain(account: StoredAccount, useEmbedded?: boolean) {
     if (signingInId) return;
     setSigningInId(account.id);
     setSignInError(null);
     try {
-      await changeAccountMode(account.id, {
-        scope: account.appTokenScope ?? 'read,write',
-        notifications: true,
-        useEmbedded,
-      });
+      await recoverNotifications(account.id, { useEmbedded });
     } catch (err) {
       if (err instanceof AccountMismatchError) {
         setSignInMismatch({ error: err, account });

@@ -93,6 +93,12 @@ flowchart TD
 - [ ] A notification-service-reported stale read token (push or launch check) triggers the same
       background-token handling as an invalid-session error; the account keeps full write access
       and `SCR-30` labels the needs-reauth reason as notifications-specific.
+- [ ] An invalid-session code on **any** call made with an account's app token is detected
+      centrally (`data/client.ts`), not just in the upload queue (b-oss#261).
+- [ ] "Sign in again" for a dead notification token first checks the app token. Revoking b-mobile
+      on blipfoto.com kills every token it holds, so if the app token is dead too the whole account
+      is re-authorized (app-token sign-in, then the service sign-in for read-write), not just the
+      service token (b-oss#261; read-only case b-oss#250).
 - [ ] Losing the active account's only/last token switches the active account to another stored
       one, or to anonymous browsing if none remain.
 - [ ] With no active account, account-required screens close/revert and public browsing still

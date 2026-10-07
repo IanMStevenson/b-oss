@@ -30,6 +30,43 @@ function resolveBaseUrl(): string {
   return `${window.location.origin}/api/blipfoto/4/`;
 }
 
+// FLW-02: a 50/51 on any call made with an account's own app token means that token is dead
+// (revoked on blipfoto.com, say), so the account must drop into needs-reauth rather than show
+// "The user access token is invalid" with a Retry that can never work. Only the upload queue used
+// to act on it (b-oss#261). The handler is registered by flows/accountsFlow.ts, which owns
+// handleForcedLogout; importing it here would be circular (accountsFlow.ts imports this module).
+let onAppTokenRejected: (accountId: string) => void = () => {};
+
+export function setAppTokenRejectedHandler(handler: (accountId: string) => void): void {
+  onAppTokenRejected = handler;
+}
+
+// Blipfoto reports errors inside a normal 200 envelope, so the status alone says nothing. A cheap
+// text check first: every response carries an "error" key, but only a token failure has code 50/51.
+const TOKEN_REJECTED = /"code"\s*:\s*5[01]\b/;
+
+function fetchForAppToken(accountId: string): typeof fetch {
+  return async (input, init) => {
+    const response = await platformFetch(input, init);
+    const text = await response.clone().text();
+    if (TOKEN_REJECTED.test(text)) {
+      try {
+        const code = (JSON.parse(text) as { error?: { code?: unknown } | null }).error?.code;
+        if (code === 50 || code === 51) onAppTokenRejected(accountId);
+      } catch {
+        // Not JSON: not a Blipfoto error envelope, so nothing to act on.
+      }
+    }
+    return response;
+  };
+}
+
+/** The fetch a client for `accountId`'s token should use: the app token is watched for
+ * rejection; the service token is b-push's to judge, so it isn't. */
+function fetchFor(accountId: string, purpose: TokenPurpose): typeof fetch {
+  return purpose === 'app' ? fetchForAppToken(accountId) : platformFetch;
+}
+
 function anonymousClient(): BlipfotoClient {
   const clientId = import.meta.env.VITE_BLIPFOTO_CLIENT_ID as string;
   return new BlipfotoClient(clientId, resolveBaseUrl(), platformFetch, getMultipartImpl());
@@ -50,7 +87,12 @@ export async function getClient(purpose: TokenPurpose = 'app'): Promise<Blipfoto
   const token = await getToken(active.id, purpose);
   if (!token) return anonymousClient();
 
-  return new BlipfotoClient(token, resolveBaseUrl(), platformFetch, getMultipartImpl());
+  return new BlipfotoClient(
+    token,
+    resolveBaseUrl(),
+    fetchFor(active.id, purpose),
+    getMultipartImpl(),
+  );
 }
 
 /** For calls whose content doesn't depend on who's asking — Browse (Recent/Popular/Nearby, not
@@ -99,5 +141,10 @@ export async function getClientForAccount(
   if (!token) {
     throw new Error(`No ${purpose} token held for account ${accountId} — needs reauthorization.`);
   }
-  return new BlipfotoClient(token, resolveBaseUrl(), platformFetch, getMultipartImpl());
+  return new BlipfotoClient(
+    token,
+    resolveBaseUrl(),
+    fetchFor(accountId, purpose),
+    getMultipartImpl(),
+  );
 }
