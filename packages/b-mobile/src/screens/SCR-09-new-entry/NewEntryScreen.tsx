@@ -120,7 +120,7 @@ export function NewEntryScreen() {
   return (
     <IonPage>
       <IonHeader>
-        <AppHeader title="New entry" variant="back" backHref="/browse" />
+        <AppHeader title="New entry" accountIndicator={false} />
       </IonHeader>
       <IonContent className="ion-padding">
         {photoMessage && (

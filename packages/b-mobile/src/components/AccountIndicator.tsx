@@ -30,6 +30,10 @@ export function AccountIndicator() {
         background: 'none',
         border: 'none',
         padding: 0,
+        // 16px end gutter in total (IonButtons already contributes ~4px) — it sat ~4px from the
+        // screen edge while the rest of the app uses a 16px gutter. Margin on the button, not a
+        // wrapper, so nothing is reserved when this returns null.
+        marginRight: 12,
         cursor: 'pointer',
         width: SIZE,
         height: SIZE,

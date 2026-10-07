@@ -93,6 +93,38 @@ describe('BrowseScreen', () => {
     expect(await screen.findByLabelText('2026-01-01')).toBeDefined();
   });
 
+  it('captions Recent with the journal name, and Me with date + title (b-oss#259)', async () => {
+    const { fetchRecentPage, fetchJustMePage } = await import('../../../data/entries.js');
+    const { fetchUserProfile } = await import('../../../data/users.js');
+    const { useActiveAccount } = await import('../../../state/accountsStore.js');
+    vi.mocked(useActiveAccount).mockReturnValue({
+      id: 'a1',
+      username: 'alice',
+      avatarUrl: null,
+      appTokenScope: 'read',
+      hasServiceToken: false,
+      notificationRegistrationId: null,
+      notificationStatus: null,
+    });
+    const owned = { ...entry, username: 'alice' };
+    vi.mocked(fetchRecentPage).mockResolvedValue({ items: [owned], more: false });
+    vi.mocked(fetchJustMePage).mockResolvedValue({ items: [owned], more: false });
+    vi.mocked(fetchUserProfile).mockResolvedValue({
+      user: { username: 'alice', avatar_url: '', icons: [] },
+      details: { entry_total: 1 } as never,
+      visible: true,
+      friendship: null,
+      latestEntry: null,
+    });
+    renderScreen();
+    expect(await screen.findByText('alice')).toBeDefined();
+    expect(screen.queryByText('Sunrise')).toBeNull();
+
+    const segment = document.querySelector('ion-segment')!;
+    segment.dispatchEvent(new CustomEvent('ionChange', { detail: { value: 'justme' } }));
+    expect(await screen.findByText('Sunrise')).toBeDefined();
+  });
+
   it('hides the Following/Just Me tabs when signed out', async () => {
     const { fetchRecentPage } = await import('../../../data/entries.js');
     const { useActiveAccount } = await import('../../../state/accountsStore.js');

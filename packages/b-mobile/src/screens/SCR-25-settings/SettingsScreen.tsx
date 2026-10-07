@@ -31,7 +31,6 @@ import {
   IonText,
 } from '@ionic/react';
 import { AppHeader } from '../../components/AppHeader.js';
-import { AccountIndicator } from '../../components/AccountIndicator.js';
 import { useResource } from '../../data/useResource.js';
 import { fetchUserSettings } from '../../data/settings.js';
 import { useAppNavigate } from '../../app/routes/useAppNavigate.js';
@@ -102,12 +101,7 @@ function SettingsHub() {
   return (
     <IonPage>
       <IonHeader>
-        <AppHeader
-          title="Settings"
-          variant="back"
-          backHref="/browse"
-          end={<AccountIndicator />}
-        />
+        <AppHeader title="Settings" />
       </IonHeader>
       <IonContent>
         {/* Blipfoto account settings: server-backed (user/settings), follows whichever account
@@ -148,7 +142,7 @@ function SettingsHub() {
           <IonListHeader>
             <IonNote>App Settings</IonNote>
           </IonListHeader>
-          <IonItem button onClick={() => navigate.push('/accounts')}>
+          <IonItem button onClick={() => navigate.push('/accounts', { drilledIn: true })}>
             <span>Accounts</span>
             <IonNote slot="end">{activeAccount?.username}</IonNote>
           </IonItem>
@@ -157,7 +151,7 @@ function SettingsHub() {
               <span>Reminders</span>
             </IonItem>
           )}
-          <IonItem button onClick={() => navigate.push('/hidden')}>
+          <IonItem button onClick={() => navigate.push('/hidden', { drilledIn: true })}>
             <span>Hidden members</span>
           </IonItem>
           <IonItem button onClick={() => navigate.push('/settings/browsing')}>

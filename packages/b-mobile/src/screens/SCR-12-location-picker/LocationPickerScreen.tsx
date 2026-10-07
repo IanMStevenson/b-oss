@@ -130,7 +130,11 @@ export function LocationPickerScreen() {
           <div style={{ position: 'relative', height: '100%' }}>
             <div ref={containerRef} style={{ position: 'absolute', inset: 0 }} />
             <div style={{ position: 'absolute', top: 8, right: 8 }}>
-              <IonButton onClick={() => void handleMyLocation()} aria-label="My location">
+              <IonButton
+                fill="outline"
+                onClick={() => void handleMyLocation()}
+                aria-label="My location"
+              >
                 My location
               </IonButton>
             </div>

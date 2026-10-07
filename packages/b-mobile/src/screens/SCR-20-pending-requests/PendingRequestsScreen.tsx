@@ -31,7 +31,6 @@ import { useAccountsStore } from '../../state/accountsStore.js';
 import { useHiddenMembersStore } from '../../state/hiddenMembersStore.js';
 import { UserRow } from '../../components/UserRow.js';
 import type { BlipUser } from '@b-oss/b-api';
-import { AccountIndicator } from '../../components/AccountIndicator.js';
 
 export function PendingRequestsScreen() {
   const navigate = useAppNavigate();
@@ -100,12 +99,7 @@ export function PendingRequestsScreen() {
   return (
     <IonPage>
       <IonHeader>
-        <AppHeader
-          title="Follow requests"
-          variant="back"
-          backHref="/me"
-          end={<AccountIndicator />}
-        />
+        <AppHeader title="Follow requests" variant="back" backHref="/me" accountIndicator />
       </IonHeader>
       <IonContent>
         {resource.status === 'loading' && (
@@ -147,6 +141,7 @@ export function PendingRequestsScreen() {
                 <IonButton
                   slot="end"
                   size="small"
+                  fill="outline"
                   color="danger"
                   onClick={() => gateOrRun(() => setRefuseTarget(user))}
                 >

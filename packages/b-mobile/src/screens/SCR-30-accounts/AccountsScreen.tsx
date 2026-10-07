@@ -56,7 +56,7 @@ import {
 } from '../../flows/accountsFlow.js';
 import { AccountMismatchError } from '../../flows/accountMismatch.js';
 import { AccountMismatchAlert, canRetryInApp } from '../../components/AccountMismatchAlert.js';
-import { useAppNavigate } from '../../app/routes/useAppNavigate.js';
+import { useAppNavigate, useIsDrilledIn } from '../../app/routes/useAppNavigate.js';
 import { t } from '../../strings/index.js';
 
 const STATUS_TEXT: Record<NotificationState, () => string> = {
@@ -199,6 +199,7 @@ function AccountDetail({ account, onClose }: { account: StoredAccount; onClose: 
         </IonButton>
         <IonButton
           expand="block"
+          fill="outline"
           color="danger"
           disabled={busy}
           onClick={() => setConfirmRemove(true)}
@@ -236,6 +237,7 @@ export interface ReauthRequest {
 
 export function AccountsScreen({ reauthRequest }: { reauthRequest?: ReauthRequest } = {}) {
   const navigate = useAppNavigate();
+  const drilledIn = useIsDrilledIn();
   const accounts = useAccountsStore((s) => s.accounts);
   const activeAccountId = useAccountsStore((s) => s.activeAccountId);
   const [detailId, setDetailId] = useState<string | null>(null);
@@ -360,7 +362,12 @@ export function AccountsScreen({ reauthRequest }: { reauthRequest?: ReauthReques
             onBack={() => setDetailId(null)}
           />
         ) : (
-          <AppHeader title="Accounts" variant="back" backHref="/settings" />
+          <AppHeader
+            title="Accounts"
+            variant={drilledIn ? 'back' : 'menu'}
+            backHref="/settings"
+            accountIndicator={false}
+          />
         )}
       </IonHeader>
       <IonContent>
@@ -402,7 +409,6 @@ export function AccountsScreen({ reauthRequest }: { reauthRequest?: ReauthReques
                       <div style={{ display: 'flex', gap: 8 }}>
                         <IonButton
                           size="small"
-                          color="danger"
                           disabled={signingInId !== null}
                           onClick={(e) => {
                             e.stopPropagation();

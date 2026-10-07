@@ -32,7 +32,6 @@ import { useAccountsStore, useCanWrite } from '../../state/accountsStore.js';
 import { useIsHidden } from '../../state/hiddenMembersStore.js';
 import { UserRow } from '../../components/UserRow.js';
 import type { BlipUser } from '@b-oss/b-api';
-import { AccountIndicator } from '../../components/AccountIndicator.js';
 
 function RefusedRow({
   user,
@@ -96,12 +95,7 @@ export function RefusedFollowersScreen() {
   return (
     <IonPage>
       <IonHeader>
-        <AppHeader
-          title="Refused followers"
-          variant="back"
-          backHref="/settings"
-          end={<AccountIndicator />}
-        />
+        <AppHeader title="Refused followers" variant="back" backHref="/settings" accountIndicator />
       </IonHeader>
       <IonContent className="ion-padding">
         <p>They can&rsquo;t see your journal. This doesn&rsquo;t hide their entries from you.</p>
