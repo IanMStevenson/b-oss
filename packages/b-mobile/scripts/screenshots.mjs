@@ -160,10 +160,28 @@ async function clickText(text) {
 }
 
 // Browse tabs.
-for (const tab of ['Following', 'Me', 'Popular', 'Milestones', 'New Blippers', 'Nearby']) {
+for (const [tabIndex, tab] of [
+  'recent',
+  'following',
+  'me',
+  'popular',
+  'milestones',
+  'new',
+  'nearby',
+].entries()) {
+  if (tabIndex === 0) continue;
   await page.goto(`${base}/browse`);
   await settle(2000);
-  if (await clickText(tab)) await shot(`browse-tab-${tab.toLowerCase().replace(/\s+/g, '-')}`);
+  // `value` is a property, not an attribute, so pick by position (Recent is index 0).
+  const seg = page.locator('ion-segment-button').nth(tabIndex);
+  if (await seg.count()) {
+    await seg
+      .first()
+      .click()
+      .catch(() => {});
+    await settle(1500);
+    await shot(`browse-tab-${tab}`);
+  }
 }
 
 // Profile tabs (own and another member's).
