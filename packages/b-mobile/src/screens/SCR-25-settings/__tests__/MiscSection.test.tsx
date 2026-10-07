@@ -48,19 +48,10 @@ afterEach(() => {
 });
 
 describe('MiscSection', () => {
-  it('shows the upload-full-size toggle, defaulting on', () => {
+  it('no longer offers the dead upload-full-size checkbox', () => {
+    useAccountsStore.setState({ accounts: [acct('a1', 'alice'), acct('a2', 'bob')] });
     render(<MiscSection />);
-    expect(screen.getByText('Upload full-size photos')).toBeDefined();
-    expect(useDevicePrefsStore.getState().uploadFullSize).toBe(true);
-  });
-
-  it('toggling upload-full-size persists immediately', () => {
-    render(<MiscSection />);
-    const toggle = screen.getByText('Upload full-size photos').closest('ion-checkbox')!;
-    toggle.dispatchEvent(
-      new CustomEvent('ionChange', { bubbles: true, detail: { checked: false } }),
-    );
-    expect(useDevicePrefsStore.getState().uploadFullSize).toBe(false);
+    expect(screen.queryByText('Upload full-size photos')).toBeNull();
   });
 
   it('hides the confirm-account toggle with fewer than two accounts stored', () => {

@@ -92,12 +92,25 @@ describe('SettingsScreen hub', () => {
       'Profile',
       'Notifications',
       'Reminders',
-      'Misc',
       'Browsing',
       'Hidden members',
     ]) {
       expect(screen.getByText(label)).toBeDefined();
     }
+  });
+
+  it('shows the Misc row only with two or more accounts (its settings are multi-account ones)', async () => {
+    renderHub();
+    await waitFor(() => expect(fetchUserSettings).toHaveBeenCalled());
+    expect(screen.queryByText('Misc')).toBeNull();
+    cleanup();
+    useAccountsStore.setState({
+      accounts: [account(), account({ id: 'a2', username: 'bob' })],
+      activeAccountId: 'a1',
+      hydrated: true,
+    });
+    renderHub();
+    await waitFor(() => expect(screen.getByText('Misc')).toBeDefined());
   });
 
   it('groups rows under Blipfoto Account Settings and App Settings headers', async () => {
