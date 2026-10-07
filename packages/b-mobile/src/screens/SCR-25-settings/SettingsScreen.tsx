@@ -34,7 +34,7 @@ import { AppHeader } from '../../components/AppHeader.js';
 import { useResource } from '../../data/useResource.js';
 import { fetchUserSettings } from '../../data/settings.js';
 import { useAppNavigate } from '../../app/routes/useAppNavigate.js';
-import { useActiveAccount } from '../../state/accountsStore.js';
+import { useAccountsStore, useActiveAccount } from '../../state/accountsStore.js';
 import { GeneralSection } from './sections/GeneralSection.js';
 import { JournalSection } from './sections/JournalSection.js';
 import { ProfileSection } from './sections/ProfileSection.js';
@@ -93,6 +93,7 @@ function SectionScreen({ section }: { section: SettingsSection }) {
 function SettingsHub() {
   const navigate = useAppNavigate();
   const activeAccount = useActiveAccount();
+  const accountCount = useAccountsStore((s) => s.accounts.length);
   const canWrite = activeAccount?.appTokenScope === 'read,write';
   const { state } = useResource(() => fetchUserSettings(), [activeAccount?.id]);
 
@@ -157,9 +158,11 @@ function SettingsHub() {
           <IonItem button onClick={() => navigate.push('/settings/browsing')}>
             <span>Browsing</span>
           </IonItem>
-          <IonItem button onClick={() => navigate.push('/settings/misc')}>
-            <span>Misc</span>
-          </IonItem>
+          {accountCount >= 2 && (
+            <IonItem button onClick={() => navigate.push('/settings/misc')}>
+              <span>Misc</span>
+            </IonItem>
+          )}
         </IonList>
 
         {state.status === 'loading' && (
