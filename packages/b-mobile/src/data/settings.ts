@@ -14,6 +14,8 @@
 // returns rather than a hand-authored list that could drift from it.
 
 import { getClient } from './client.js';
+import { recordHttpFailure } from './httpFailureLog.js';
+import { HttpError } from '@b-oss/b-api';
 import type {
   UserSettingsResponse,
   UpdateUserSettingsParams,
@@ -30,6 +32,10 @@ export async function saveUserSettings(params: UpdateUserSettingsParams): Promis
   await client.updateUserSettings(params);
 }
 
+// What the server last said the feed settings were, kept only to accompany a failed save in the
+// http-failure record (b-oss#245).
+let lastFeedRead: NotificationChannel | null = null;
+
 export interface NotificationSettings {
   feed: NotificationChannel | null;
 }
@@ -39,15 +45,43 @@ export interface NotificationSettings {
 export async function fetchNotificationSettings(): Promise<NotificationSettings> {
   const client = await getClient();
   const res = await client.getNotificationSettings({ returnFeed: true });
-  return { feed: res.feed ?? null };
+  lastFeedRead = res.feed ?? null;
+  return { feed: lastFeedRead };
 }
 
 /** Saves feed settings only. Any `push_*`/`email_*` key is dropped defensively, so a stray key
- * can never write Blipfoto's own push/email preferences from this app (b-oss#244). */
+ * can never write Blipfoto's own push/email preferences from this app (b-oss#244).
+ *
+ * Workaround for a confirmed Blipfoto bug (b-oss#245): every save after the first answers with an
+ * empty HTTP 500, but the change *has* been applied before the server crashes. So a 5xx from this
+ * one endpoint isn't believed: the settings are read back, and the save counts as done if they now
+ * hold what we sent. If they don't, or the read-back fails too, the original error stands. Applies
+ * to this endpoint only — not a general retry-on-500 policy. */
 export async function saveNotificationSettings(settings: Record<string, 0 | 1>): Promise<void> {
   const feedOnly = Object.fromEntries(
     Object.entries(settings).filter(([key]) => !/^(push|email)_/.test(key)),
   );
   const client = await getClient();
-  await client.updateNotificationSettings(feedOnly);
+  try {
+    await client.updateNotificationSettings(feedOnly);
+  } catch (err) {
+    if (!(err instanceof HttpError) || !err.isServerError) throw err;
+    if (await feedSettingsMatch(client, feedOnly)) return;
+    await recordHttpFailure(err, { lastFeedRead });
+    throw err;
+  }
+}
+
+async function feedSettingsMatch(
+  client: Awaited<ReturnType<typeof getClient>>,
+  wanted: Record<string, 0 | 1>,
+): Promise<boolean> {
+  try {
+    const res = await client.getNotificationSettings({ returnFeed: true });
+    lastFeedRead = res.feed ?? null;
+    const current = lastFeedRead?.settings;
+    return !!current && Object.entries(wanted).every(([key, value]) => current[key] === value);
+  } catch {
+    return false;
+  }
 }

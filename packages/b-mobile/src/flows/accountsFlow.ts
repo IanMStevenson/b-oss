@@ -343,25 +343,35 @@ export async function changeAccountMode(
       await registerServiceToken(accountId, serviceResult.accessToken, streams);
     }
   } else if (!target.notifications && refreshed.hasServiceToken) {
-    // Revoking is only meaningful when the service token is a genuinely separate credential
-    // (read-write + notifications) — in read-only mode it's the same string as the app token,
-    // which the app itself still needs.
-    if (finalAppScope === 'read,write') {
-      const serviceToken = await getToken(accountId, 'service');
-      if (serviceToken) {
-        await getClientForToken(serviceToken)
-          .revokeToken()
-          .catch(() => {});
-      }
-    }
-    await deleteToken(accountId, 'service');
-    // deregisterAccountFromPush() clears the registration-specific fields
-    // (notificationRegistrationId/notificationStatus) and best-effort DELETEs the b-push row;
-    // hasServiceToken is this module's own concept (Blipfoto service-token possession) and stays
-    // its responsibility to clear, same as every other token-lifecycle field above.
-    useAccountsStore.getState().updateAccount(accountId, { hasServiceToken: false });
-    await deregisterAccountFromPush(accountId);
+    await clearServiceToken(accountId, finalAppScope);
   }
+}
+
+/** Notifications off for good: the service token revoked and deleted, hasServiceToken cleared, the
+ * b-push registration deregistered. Shared by changeAccountMode and the launch check that finds
+ * the OS permission withdrawn, which FLW-22 treats as the same event (b-oss#251). */
+export async function clearServiceToken(
+  accountId: string,
+  appTokenScope: StoredAccount['appTokenScope'],
+): Promise<void> {
+  // Revoking is only meaningful when the service token is a genuinely separate credential
+  // (read-write + notifications) — in read-only mode it's the same string as the app token,
+  // which the app itself still needs.
+  if (appTokenScope === 'read,write') {
+    const serviceToken = await getToken(accountId, 'service');
+    if (serviceToken) {
+      await getClientForToken(serviceToken)
+        .revokeToken()
+        .catch(() => {});
+    }
+  }
+  await deleteToken(accountId, 'service');
+  // deregisterAccountFromPush() clears the registration-specific fields
+  // (notificationRegistrationId/notificationStatus/streams) and best-effort DELETEs the b-push
+  // row; hasServiceToken is this module's own concept (Blipfoto service-token possession) and
+  // stays its responsibility to clear, same as every other token-lifecycle field above.
+  useAccountsStore.getState().updateAccount(accountId, { hasServiceToken: false });
+  await deregisterAccountFromPush(accountId);
 }
 
 /** FLW-02 — forced logout: an invalid-session error, or the notification service reporting a

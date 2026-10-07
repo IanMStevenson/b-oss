@@ -89,6 +89,7 @@ const {
   switchAccount,
   removeAccount,
   changeAccountMode,
+  clearServiceToken,
   handleForcedLogout,
   recoverNotifications,
   reauthorizeAccount,
@@ -413,6 +414,36 @@ describe('changeAccountMode (FLW-22)', () => {
     expect(revokeToken).toHaveBeenCalledTimes(1);
     expect(tokenStore.has('alice:service')).toBe(false);
     expect(useAccountsStore.getState().accounts[0]?.hasServiceToken).toBe(false);
+  });
+
+  it('clearServiceToken (the OS-permission-withdrawn path) leaves no notifications state behind (b-oss#251)', async () => {
+    tokenStore.set('alice:app', 'write-token');
+    tokenStore.set('alice:service', 'separate-read-token');
+    useAccountsStore.setState({
+      accounts: [
+        {
+          id: 'alice',
+          username: 'alice',
+          avatarUrl: null,
+          appTokenScope: 'read,write',
+          hasServiceToken: true,
+          notificationRegistrationId: 'reg-1',
+          notificationStatus: 'active',
+          pushComments: true,
+          pushNotifications: true,
+        },
+      ],
+      activeAccountId: 'alice',
+      hydrated: true,
+    });
+    await clearServiceToken('alice', 'read,write');
+    const account = useAccountsStore.getState().accounts[0];
+    expect(revokeToken).toHaveBeenCalledTimes(1);
+    expect(tokenStore.has('alice:service')).toBe(false);
+    expect(tokenStore.get('alice:app')).toBe('write-token');
+    expect(account?.hasServiceToken).toBe(false);
+    // The registration-specific fields are deregisterAccountFromPush's job (mocked here).
+    expect(deregisterAccountFromPush).toHaveBeenCalledWith('alice');
   });
 
   it('turning notifications off in read-only mode does not revoke the shared app token', async () => {

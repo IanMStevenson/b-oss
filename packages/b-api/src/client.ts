@@ -32,7 +32,7 @@ import type {
   UpdateEntryParams,
   UpdateUserSettingsParams,
 } from './types.js';
-import { BlipfotoError, NetworkError } from './errors.js';
+import { BlipfotoError, HttpError, NetworkError } from './errors.js';
 
 function buildUrl(
   baseUrl: string,
@@ -56,6 +56,15 @@ function buildFormBody(params: Record<string, string | number | undefined>): URL
     }
   }
   return body;
+}
+
+interface RequestContext {
+  method: string;
+  url: string;
+  requestBody?: string;
+  status?: number;
+  statusText?: string;
+  responseHeaders?: Record<string, string>;
 }
 
 export class BlipfotoClient {
@@ -86,17 +95,43 @@ export class BlipfotoClient {
     };
   }
 
-  private parseEnvelopeBody<T>(bodyText: string): T {
-    const envelope = JSON.parse(bodyText) as ApiEnvelope<T>;
+  private parseEnvelopeBody<T>(bodyText: string, exchange: RequestContext): T {
+    let envelope: ApiEnvelope<T>;
+    try {
+      envelope = JSON.parse(bodyText) as ApiEnvelope<T>;
+    } catch {
+      // Not a Blipfoto envelope at all (an empty 500, an HTML error page): keep what was seen.
+      throw new HttpError({
+        method: exchange.method,
+        url: exchange.url,
+        requestBody: exchange.requestBody,
+        status: exchange.status ?? 0,
+        statusText: exchange.statusText ?? '',
+        responseHeaders: exchange.responseHeaders ?? {},
+        responseBody: bodyText.slice(0, 500),
+      });
+    }
     if (envelope.error !== null) {
       throw new BlipfotoError(envelope.error.code, envelope.error.message);
     }
     return envelope.data as T;
   }
 
-  private async parseEnvelope<T>(response: Response): Promise<T> {
+  private async parseEnvelope<T>(
+    response: Response,
+    request: { method: string; url: string; requestBody?: string },
+  ): Promise<T> {
     this.updateRateLimit(response.headers);
-    return this.parseEnvelopeBody<T>(await response.text());
+    const responseHeaders: Record<string, string> = {};
+    response.headers.forEach((value, key) => {
+      if (key.toLowerCase() !== 'set-cookie') responseHeaders[key] = value;
+    });
+    return this.parseEnvelopeBody<T>(await response.text(), {
+      ...request,
+      status: response.status,
+      statusText: response.statusText,
+      responseHeaders,
+    });
   }
 
   private async request<T>(
@@ -112,7 +147,7 @@ export class BlipfotoClient {
     } catch (err) {
       throw new NetworkError('Network request failed', err);
     }
-    return this.parseEnvelope<T>(response);
+    return this.parseEnvelope<T>(response, { method: 'GET', url });
   }
 
   private async mutate<T>(
@@ -121,6 +156,7 @@ export class BlipfotoClient {
     body: Record<string, string | number | undefined> = {},
   ): Promise<T> {
     const url = new URL(`${path}.json`, this.baseUrl).toString();
+    const form = buildFormBody(body);
     let response: Response;
     try {
       response = await this.fetchImpl(url, {
@@ -129,12 +165,12 @@ export class BlipfotoClient {
           Authorization: `Bearer ${this.accessToken}`,
           'Content-Type': 'application/x-www-form-urlencoded',
         },
-        body: buildFormBody(body),
+        body: form,
       });
     } catch (err) {
       throw new NetworkError('Network request failed', err);
     }
-    return this.parseEnvelope<T>(response);
+    return this.parseEnvelope<T>(response, { method, url, requestBody: form.toString() });
   }
 
   private async mutateMultipart<T>(
@@ -163,7 +199,12 @@ export class BlipfotoClient {
         throw new NetworkError('Network request failed', err);
       }
       this.updateRateLimit(result.headers);
-      return this.parseEnvelopeBody<T>(result.body);
+      return this.parseEnvelopeBody<T>(result.body, {
+        method,
+        url,
+        status: result.status,
+        responseHeaders: result.headers,
+      });
     }
 
     // Default (web) path: FormData + Blob only — a native file path has nothing to read from
@@ -193,7 +234,7 @@ export class BlipfotoClient {
     } catch (err) {
       throw new NetworkError('Network request failed', err);
     }
-    return this.parseEnvelope<T>(response);
+    return this.parseEnvelope<T>(response, { method, url });
   }
 
   // ── Config ────────────────────────────────────────────────────────────────

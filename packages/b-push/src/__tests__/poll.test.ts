@@ -218,6 +218,32 @@ describe('runActivityPoll', () => {
     expect(sendFcmMessage).not.toHaveBeenCalled();
   });
 
+  it('a read token encrypted under another key ends up reauth-required with exactly one push (b-oss#252)', async () => {
+    await seedRow();
+    const rotated = {
+      ...env,
+      READ_TOKEN_ENCRYPTION_KEY: btoa(String.fromCharCode(...new Uint8Array(32).fill(9))),
+    };
+    vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    const fetchSpy = vi.spyOn(globalThis, 'fetch');
+
+    const summary = await runActivityPoll(db, rotated, () => 1_000_000);
+
+    expect(summary).toMatchObject({ reauthRequired: 1, polled: 0, errors: 0 });
+    expect(fetchSpy).not.toHaveBeenCalled();
+    expect(sendFcmMessage).toHaveBeenCalledTimes(1);
+    expect(sendFcmMessage).toHaveBeenCalledWith(
+      rotated,
+      'device-1',
+      expect.objectContaining({ kind: 'reauth-required', accountId: 'gbradley' }),
+    );
+    expect((await getRegistrationById(db, 'reg-1'))?.status).toBe('read-token-invalid');
+
+    sendFcmMessage.mockClear();
+    expect((await runActivityPoll(db, rotated, () => 2_000_000)).due).toBe(0);
+    expect(sendFcmMessage).not.toHaveBeenCalled();
+  });
+
   it("one registration's failure does not abort the rest of the batch", async () => {
     await seedRow({ id: 'reg-1', device_token: 'device-1' });
     await seedRow({ id: 'reg-2', device_token: 'device-2' });
