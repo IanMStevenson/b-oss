@@ -141,6 +141,7 @@ export function PendingRequestsScreen() {
                 <IonButton
                   slot="end"
                   size="small"
+                  fill="outline"
                   color="danger"
                   onClick={() => gateOrRun(() => setRefuseTarget(user))}
                 >

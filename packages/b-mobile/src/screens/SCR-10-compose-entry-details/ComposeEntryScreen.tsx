@@ -194,9 +194,22 @@ export function ComposeEntryScreen() {
                 {isMember && (
                   <IonButton
                     size="small"
-                    fill="outline"
+                    fill={cropping ? 'solid' : 'outline'}
                     onClick={() => setCropping((c) => !c)}
-                    style={{ position: 'absolute', bottom: 8, right: 8 }}
+                    style={{
+                      position: 'absolute',
+                      bottom: 8,
+                      right: 8,
+                      // Legible over any photo: opaque white pill while idle, solid green once
+                      // cropping is active (a thin green outline vanished into the image).
+                      ...(cropping
+                        ? {}
+                        : {
+                            '--background': 'rgba(255, 255, 255, 0.92)',
+                            '--background-activated': '#ffffff',
+                            '--border-color': 'transparent',
+                          }),
+                    }}
                   >
                     {cropping ? 'Done cropping' : 'Crop'}
                   </IonButton>
