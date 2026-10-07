@@ -22,7 +22,6 @@ import {
   IonText,
   IonSpinner,
   IonAlert,
-  IonCheckbox,
 } from '@ionic/react';
 import { AppHeader } from '../../components/AppHeader.js';
 import { useAppNavigate } from '../../app/routes/useAppNavigate.js';
@@ -33,7 +32,8 @@ import { validatePickedPhoto } from '../../data/photoValidation.js';
 import { fetchUserProfile } from '../../data/users.js';
 import { enqueueDraft } from '../../flows/composeFlow.js';
 import { describeError, mapApiError } from '../../data/errors.js';
-import { MonthDatePicker } from '../../components/MonthDatePicker.js';
+import { DateField } from '../../components/DateField.js';
+import { LinkRow, TextField, ToggleRow } from '../../components/ComposeForm.js';
 import { PhotoCropper } from '../../components/PhotoCropper.js';
 import { cropToProportions } from '../../data/imageCrop.js';
 import type { Area } from 'react-easy-crop';
@@ -149,9 +149,9 @@ export function ComposeEntryScreen() {
       <IonHeader>
         <AppHeader title="New entry" variant="back" onBack={handleBack} />
       </IonHeader>
-      <IonContent className="ion-padding">
+      <IonContent>
         {unusablePhoto ? (
-          <div>
+          <div className="compose-form">
             <IonText color="danger">
               <p>{unusablePhoto}</p>
             </IonText>
@@ -167,49 +167,40 @@ export function ComposeEntryScreen() {
         ) : (
           <>
             {submitError && (
-              <IonText color="danger">
-                <p>{submitError}</p>
-              </IonText>
+              <div className="compose-form">
+                <IonText color="danger">
+                  <p>{submitError}</p>
+                </IonText>
+              </div>
             )}
 
             {draft.photo && (
-              <div style={{ position: 'relative' }}>
+              <div className="compose-photo-frame">
                 {cropping ? (
                   <PhotoCropper
                     imageSrc={draft.photo.webPath}
                     onCropAreaChange={handleCropComplete}
                   />
                 ) : (
-                  <img
-                    src={draft.photo.webPath}
-                    alt="Selected"
-                    style={{
-                      width: '100%',
-                      maxHeight: 240,
-                      objectFit: 'contain',
-                      background: 'var(--bg-alt)',
-                    }}
-                  />
+                  <img src={draft.photo.webPath} alt="Selected" />
                 )}
                 {isMember && (
+                  // Legible over any photo: opaque white pill while idle, solid green once
+                  // cropping is active (a thin green outline vanished into the image).
                   <IonButton
                     size="small"
+                    className="compose-crop-button"
                     fill={cropping ? 'solid' : 'outline'}
                     onClick={() => setCropping((c) => !c)}
-                    style={{
-                      position: 'absolute',
-                      bottom: 8,
-                      right: 8,
-                      // Legible over any photo: opaque white pill while idle, solid green once
-                      // cropping is active (a thin green outline vanished into the image).
-                      ...(cropping
-                        ? {}
+                    style={
+                      cropping
+                        ? undefined
                         : {
                             '--background': 'rgba(255, 255, 255, 0.92)',
                             '--background-activated': '#ffffff',
                             '--border-color': 'transparent',
-                          }),
-                    }}
+                          }
+                    }
                   >
                     {cropping ? 'Done cropping' : 'Crop'}
                   </IonButton>
@@ -217,94 +208,84 @@ export function ComposeEntryScreen() {
               </div>
             )}
 
-            <label>
-              Title
-              <input
-                type="text"
+            <div className="compose-form">
+              <TextField
+                label="Title"
                 value={draft.title}
                 maxLength={TITLE_LIMIT}
-                onChange={(e) => patchDraft({ title: e.target.value })}
-                style={{ width: '100%', font: 'inherit', padding: 8 }}
+                caption={
+                  draft.title.length >= TITLE_LIMIT - 10
+                    ? `${TITLE_LIMIT - draft.title.length} characters left`
+                    : null
+                }
+                onChange={(title) => patchDraft({ title })}
               />
-            </label>
-            {draft.title.length >= TITLE_LIMIT - 10 && (
-              <IonText color="medium">
-                <p>{TITLE_LIMIT - draft.title.length} characters left</p>
-              </IonText>
-            )}
 
-            <label>
-              Tags (comma-separated)
-              <input
-                type="text"
+              <TextField
+                label="Tags (comma-separated)"
                 value={draft.tags}
                 maxLength={TAGS_LIMIT}
-                onChange={(e) => patchDraft({ tags: e.target.value })}
-                style={{ width: '100%', font: 'inherit', padding: 8 }}
+                onChange={(tags) => patchDraft({ tags })}
               />
-            </label>
 
-            <div>
-              <span>Description</span>
-              <p>{draft.description ? draft.description.slice(0, 80) : 'No description'}</p>
-              <IonButton
-                fill="outline"
-                size="small"
+              <LinkRow
+                label="Description"
+                summary={draft.description ? draft.description.slice(0, 80) : 'No description'}
                 onClick={() => navigate.push('/compose/description')}
-              >
-                Edit description
-              </IonButton>
-            </div>
+              />
 
-            <MonthDatePicker value={draft.date} onChange={(date) => patchDraft({ date })} />
-
-            {eligibilityLoading && <IonSpinner name="dots" />}
-            {!eligibilityLoading && eligibility?.message && (
               <div>
-                <IonText color="warning">
-                  <p>{eligibility.message}</p>
-                </IonText>
-                {eligibility.existingEntryId && (
-                  <IonButton
-                    fill="outline"
-                    size="small"
-                    onClick={() => navigate.push(`/entry/${eligibility.existingEntryId}`)}
-                  >
-                    View that entry
-                  </IonButton>
+                <DateField value={draft.date} onChange={(date) => patchDraft({ date })} />
+
+                {eligibilityLoading && <IonSpinner name="dots" />}
+                {!eligibilityLoading && eligibility?.message && (
+                  <div>
+                    <IonText color="warning">
+                      <p>{eligibility.message}</p>
+                    </IonText>
+                    {eligibility.existingEntryId && (
+                      <IonButton
+                        fill="outline"
+                        size="small"
+                        onClick={() => navigate.push(`/entry/${eligibility.existingEntryId}`)}
+                      >
+                        View that entry
+                      </IonButton>
+                    )}
+                  </div>
                 )}
               </div>
-            )}
 
-            <div>
-              <IonCheckbox
+              <ToggleRow
+                label="Location"
                 checked={draft.location != null}
-                onIonChange={(e) => {
-                  if (e.detail.checked && !draft.location) {
+                onChange={(checked) => {
+                  if (checked && !draft.location) {
                     navigate.push('/compose/location');
-                  } else if (!e.detail.checked) {
+                  } else if (!checked && draft.location) {
                     patchDraft({ location: null, displayLocation: false });
                   }
                 }}
               >
-                Add location
-              </IonCheckbox>
-              {draft.location && (
-                <IonButton
-                  fill="clear"
-                  size="small"
-                  onClick={() => navigate.push('/compose/location')}
-                >
-                  Change
-                </IonButton>
-              )}
+                {draft.location && (
+                  <IonButton
+                    fill="clear"
+                    size="small"
+                    onClick={() => navigate.push('/compose/location')}
+                  >
+                    Change
+                  </IonButton>
+                )}
+              </ToggleRow>
             </div>
           </>
         )}
 
-        <IonButton expand="block" disabled={!canUpload} onClick={() => void handleUpload()}>
-          {submitting ? <IonSpinner name="dots" /> : 'Upload'}
-        </IonButton>
+        <div className="compose-form">
+          <IonButton expand="block" disabled={!canUpload} onClick={() => void handleUpload()}>
+            {submitting ? <IonSpinner name="dots" /> : 'Upload'}
+          </IonButton>
+        </div>
       </IonContent>
 
       <IonAlert

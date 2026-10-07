@@ -22,7 +22,7 @@ const { MockMap, MockMarker, mapInstances, markerInstances } = vi.hoisted(() => 
     lngLat: [number, number];
     handlers: Record<string, Array<() => void>> = {};
     removed = false;
-    constructor(public options?: { draggable?: boolean }) {
+    constructor(public options?: { draggable?: boolean; color?: string }) {
       this.lngLat = [0, 0];
       markerInstances.push(this);
     }
@@ -177,10 +177,17 @@ describe('LocationPickerScreen', () => {
     renderScreen();
     await waitFor(() => expect(mapInstances.length).toBe(1));
 
-    await userEvent.click(screen.getByText('My location', { selector: 'ion-button' }));
+    await userEvent.click(screen.getByRole('button', { name: 'My location' }));
     await waitFor(() =>
       expect(mapInstances[0].jumpToCalls).toContainEqual({ center: [6, 5], zoom: 12 }),
     );
     expect(markerInstances).toHaveLength(1);
+  });
+
+  it('uses the shared green pin (same as the Map screen), draggable', async () => {
+    renderScreen();
+    mapInstances[0].trigger('click', { lngLat: { lat: 1, lng: 2 } });
+    await waitFor(() => expect(markerInstances.length).toBe(1));
+    expect(markerInstances[0].options).toEqual({ color: '#1f4d3a', draggable: true });
   });
 });

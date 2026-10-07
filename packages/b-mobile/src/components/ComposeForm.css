@@ -1,0 +1,440 @@
+/* SPDX-License-Identifier: GPL-3.0-or-later */
+/* Copyright (C) 2026 Ian Stevenson */
+
+/* Compose / edit-entry form (UX review X5, b-oss#270). 16px gutters and the label-above-field
+   rhythm of Settings; fields are rounded boxes, never resizable. */
+
+.compose-form {
+  padding: 16px 16px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.compose-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.compose-field-label {
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.compose-field-input,
+.compose-field-textarea {
+  box-sizing: border-box;
+  width: 100%;
+  font: inherit;
+  font-size: 16px;
+  color: var(--ink);
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 12px;
+  min-height: 48px;
+  outline: none;
+  appearance: none;
+  -webkit-appearance: none;
+}
+
+.compose-field-textarea {
+  resize: none;
+  line-height: 1.4;
+}
+
+.compose-field-input:focus,
+.compose-field-textarea:focus {
+  border-color: var(--green-800);
+  box-shadow: 0 0 0 1px var(--green-800);
+}
+
+.compose-field-caption {
+  font-size: 13px;
+  line-height: 1.35;
+  color: var(--muted);
+}
+
+/* A field-shaped row that navigates elsewhere. */
+.compose-link-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  min-height: 56px;
+  padding: 8px 12px;
+  box-sizing: border-box;
+  text-align: left;
+  color: var(--ink);
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+}
+
+.compose-link-text {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.compose-link-summary {
+  font-size: 16px;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.compose-link-chevron {
+  flex: none;
+  color: var(--muted);
+}
+
+/* Toggle row: full-bleed like Settings rows, so the item's own 16px start/end padding is the gutter. */
+.compose-toggle-row {
+  --padding-start: 0;
+  --inner-padding-end: 0;
+  --min-height: 56px;
+}
+
+.compose-toggle-row::part(native) {
+  align-items: center;
+}
+
+.compose-toggle-text ion-button {
+  margin-inline-start: -16px;
+  margin-block: 0;
+}
+
+.compose-toggle-text {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  padding: 8px 0;
+  white-space: normal;
+}
+
+/* Edit screen: photo section and destructive action. */
+.compose-photo-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.compose-photo {
+  display: block;
+  width: 100%;
+  max-height: 240px;
+  object-fit: contain;
+  background: var(--bg-alt);
+  border-radius: 10px;
+}
+
+.compose-danger-zone {
+  margin-top: 8px;
+  padding-top: 16px;
+  border-top: 1px solid var(--line);
+}
+
+/* Compose: photo block, with Crop as a pill over a scrim in the corner. */
+.compose-photo-frame {
+  position: relative;
+  margin: 16px 16px 0;
+  border-radius: 10px;
+  overflow: hidden;
+  background: var(--bg-alt);
+}
+
+.compose-photo-frame img {
+  display: block;
+  width: 100%;
+  max-height: 240px;
+  object-fit: contain;
+}
+
+.compose-crop-button {
+  position: absolute;
+  bottom: 8px;
+  right: 8px;
+}
+
+/* Compact date field: a single row that expands to a small calendar. */
+.date-field-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  min-height: 56px;
+  padding: 8px 12px;
+  box-sizing: border-box;
+  text-align: left;
+  color: var(--ink);
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+}
+
+.date-field-row[aria-expanded='true'] {
+  border-color: var(--green-800);
+}
+
+.date-field-value {
+  flex: 1;
+  font-size: 16px;
+}
+
+.date-field-picker {
+  margin-top: 8px;
+  padding: 8px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--bg);
+}
+
+.date-field-picker[hidden] {
+  display: none;
+}
+
+/* Month grid. */
+.month-picker-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 4px;
+  font-weight: 600;
+}
+
+.month-picker-nav {
+  width: 40px;
+  height: 40px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  color: var(--green-800);
+}
+
+.month-picker-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 2px;
+  justify-items: center;
+}
+
+.month-picker-weekday {
+  font-size: 12px;
+  color: var(--muted);
+  line-height: 24px;
+}
+
+.month-picker-day {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  font-size: 14px;
+  color: var(--ink);
+  border: 1px solid transparent;
+}
+
+.month-picker-day.is-today {
+  border-color: var(--green-800);
+}
+
+.month-picker-day.is-selected {
+  background: var(--green-800);
+  border-color: var(--green-800);
+  color: #ffffff;
+  font-weight: 600;
+}
+
+/* Unavailable days: faded, no strike-through (the stub marks most days unavailable, and a month of strikes is noisy). */
+.month-picker-day:disabled {
+  opacity: 1;
+  color: var(--ink-disabled);
+  cursor: default;
+}
+
+/* New entry: two big tiles. */
+.new-entry-tiles {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  padding: 16px;
+}
+
+ion-button.new-entry-tile:not(.in-buttons) {
+  --border-radius: 16px;
+  --padding-start: 8px;
+  --padding-end: 8px;
+  --padding-top: 8px;
+  --padding-bottom: 8px;
+  height: 128px;
+  margin: 0;
+}
+
+ion-button.new-entry-tile:not(.in-buttons)::part(native) {
+  height: 100%;
+}
+
+.new-entry-tile-inner {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  white-space: normal;
+}
+
+/* Upload queue rows. */
+.upload-list {
+  padding: 0;
+  margin: 0;
+  list-style: none;
+}
+
+.upload-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  min-height: 64px;
+  padding: 12px 16px;
+  box-sizing: border-box;
+  text-align: left;
+  color: var(--ink);
+  background: none;
+  border-bottom: 1px solid var(--line-2);
+}
+
+.upload-row:disabled {
+  opacity: 1;
+}
+
+.upload-row-text {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.upload-row-title {
+  font-size: 16px;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.upload-row-status {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  font-size: 13px;
+  line-height: 1.35;
+}
+
+.upload-row-status svg {
+  flex: none;
+  margin-top: 1px;
+}
+
+.upload-row-status.is-waiting {
+  color: var(--muted);
+}
+
+.upload-row-status.is-uploading,
+.upload-row-status.is-uploaded {
+  color: var(--green-800);
+}
+
+.upload-row-status.is-failed {
+  color: var(--ion-color-danger);
+}
+
+.upload-row-kind {
+  flex: none;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.upload-spin {
+  animation: upload-spin 1s linear infinite;
+}
+
+@keyframes upload-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+ion-progress-bar.upload-progress {
+  --background: var(--line-2);
+  --progress-background: var(--green-800);
+  height: 3px;
+  border-radius: 2px;
+  margin-top: 4px;
+}
+
+/* Location picker: map above, footer below (not overlaid, so the map attribution stays visible). */
+.location-picker {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.location-map {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+}
+
+/* Doubled class: maplibre-gl.css sets `.maplibregl-map {position: relative}` on this element. */
+.location-map-canvas.location-map-canvas {
+  position: absolute;
+  inset: 0;
+}
+
+.location-footer {
+  flex: none;
+  display: flex;
+  gap: 8px;
+  padding: 12px 16px;
+  background: var(--bg);
+  border-top: 1px solid var(--line);
+}
+
+.location-locate {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: #ffffff;
+  color: var(--green-800);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.3);
+}
+
+.location-message {
+  position: absolute;
+  left: 12px;
+  right: 12px;
+  bottom: 28px;
+  padding: 8px 12px;
+  border-radius: 10px;
+  background: var(--bg);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.25);
+}
+
+/* Description editor: the editor's textarea is a rounded field with no resize handle. */
+.description-editor {
+  padding: 16px 16px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
