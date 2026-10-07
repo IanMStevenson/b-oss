@@ -27,7 +27,7 @@
 // which isn't true of the device's own position.
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { IonPage, IonHeader, IonButton, IonContent, IonSpinner, IonText } from '@ionic/react';
+import { IonPage, IonHeader, IonContent, IonSpinner, IonText } from '@ionic/react';
 import { Map as MapLibreMap, Marker, Popup, setWorkerUrl } from 'maplibre-gl';
 import type { ErrorEvent as MapLibreErrorEvent } from 'maplibre-gl';
 import maplibreWorkerUrl from 'maplibre-gl/dist/maplibre-gl-worker.mjs?worker&url';
@@ -123,7 +123,7 @@ export function MapScreen({ focusedEntryId }: MapScreenProps) {
 
         const button = document.createElement('button');
         button.type = 'button';
-        button.style.cssText = 'display:flex;flex-direction:column;gap:4px;padding:0;';
+        button.className = 'entry-popup-button';
         button.addEventListener('click', () =>
           navigateRef.current.push(`/entry/${entry.entry_id}`),
         );
@@ -132,7 +132,7 @@ export function MapScreen({ focusedEntryId }: MapScreenProps) {
         if (entry.thumbnailUrl) {
           img = document.createElement('img');
           img.alt = '';
-          img.style.cssText = 'width:100%;max-width:160px;border-radius:4px;display:block;';
+          img.className = 'entry-popup-thumb';
           button.appendChild(img);
           void resolveImage(entry.thumbnailUrl).then((src) => {
             // Guard against a stale async resolution setting src on an <img> whose marker was
@@ -141,14 +141,20 @@ export function MapScreen({ focusedEntryId }: MapScreenProps) {
           });
         }
 
-        const label = document.createElement('span');
-        label.textContent = `${entry.title || 'Untitled'} — ${entry.username}`;
-        button.appendChild(label);
+        const title = document.createElement('span');
+        title.className = 'entry-popup-title';
+        title.textContent = entry.title || 'Untitled';
+        const user = document.createElement('span');
+        user.className = 'entry-popup-user';
+        user.textContent = entry.username;
+        button.append(title, user);
 
         const content = document.createElement('div');
         content.appendChild(button);
 
-        const popup = new Popup({ closeButton: false }).setDOMContent(content);
+        const popup = new Popup({ closeButton: false, className: 'entry-popup' }).setDOMContent(
+          content,
+        );
         const marker = createPin().setLngLat([entry.lon, entry.lat]).setPopup(popup).addTo(map);
         markersRef.current.set(entry.entry_id, marker);
 
@@ -329,18 +335,7 @@ export function MapScreen({ focusedEntryId }: MapScreenProps) {
   return (
     <IonPage>
       <IonHeader>
-        <AppHeader
-          title="Map"
-          end={
-            <IonButton
-              onClick={() => void handleMyLocation()}
-              disabled={!styleUrl}
-              aria-label="My location"
-            >
-              <LocateFixed size={22} aria-hidden="true" />
-            </IonButton>
-          }
-        />
+        <AppHeader title="Map" />
       </IonHeader>
       <IonContent>
         {!styleUrl ? (
@@ -350,6 +345,14 @@ export function MapScreen({ focusedEntryId }: MapScreenProps) {
         ) : (
           <div style={{ position: 'relative', height: '100%' }}>
             <div ref={containerRef} style={{ position: 'absolute', inset: 0 }} />
+            <button
+              type="button"
+              className="map-locate"
+              onClick={() => void handleMyLocation()}
+              aria-label="My location"
+            >
+              <LocateFixed size={22} aria-hidden="true" />
+            </button>
             {mapError && (
               <div
                 className="ion-padding"
@@ -376,18 +379,9 @@ export function MapScreen({ focusedEntryId }: MapScreenProps) {
               </div>
             )}
             {locationMessage && (
-              <div
-                className="ion-padding"
-                style={{
-                  position: 'absolute',
-                  bottom: 0,
-                  left: 0,
-                  right: 0,
-                  background: 'var(--bg)',
-                }}
-              >
+              <div className="map-message">
                 <IonText color="medium">
-                  <p>{locationMessage}</p>
+                  <p style={{ margin: 0 }}>{locationMessage}</p>
                 </IonText>
               </div>
             )}

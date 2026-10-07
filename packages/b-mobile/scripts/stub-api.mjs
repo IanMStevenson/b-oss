@@ -177,7 +177,10 @@ function handle(path, q) {
     case 'entries/favorites':
     case 'entries/milestones':
     case 'entries/journal':
+      return feed();
     case 'entries/search':
+      // A query containing "zzz" matches nothing (reaches the no-results state).
+      if ((q.get('query') ?? '').includes('zzz')) return { page: page(0, size, 0), entries: [] };
       return feed();
     case 'entry': {
       const id = Number(q.get('entry_id') ?? q.get('entry_id_str') ?? 5000000000) - 5000000000;
@@ -251,6 +254,8 @@ function handle(path, q) {
     case 'users/followers':
     case 'users/following':
     case 'users/search':
+      if ((q.get('query') ?? '').includes('zzz')) return { page: page(0, 20, 0), users: [] };
+      return { page: page(0, 20, 0), users: people.map(user) };
     case 'users/requests/pending':
     case 'users/requests/blocked':
       return { page: page(0, 20, 0), users: people.map(user) };

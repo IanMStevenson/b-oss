@@ -339,6 +339,44 @@ async function seedDraft(mode, patch = {}) {
   await shot('uploads-with-items');
 }
 
+// Search with results / no results, and the people tab; Map with several entry pins and with one
+// opened popup (focused entry).
+{
+  const typeQuery = async (text) => {
+    await page.goto(`${base}/search`);
+    await settle(1500);
+    await page.getByPlaceholder('Search…').fill(text);
+    await page.keyboard.press('Enter');
+    await settle(2000);
+  };
+  await typeQuery('light');
+  await shot('search-results');
+  await page.locator('ion-segment-button', { hasText: 'People' }).first().click();
+  await settle(1500);
+  await shot('search-people-results');
+  await typeQuery('zzzz');
+  await shot('search-no-results');
+  await page.locator('ion-segment-button', { hasText: 'People' }).first().click();
+  await settle(1500);
+  await shot('search-people-no-results');
+
+  await page.goto(`${base}/browse`);
+  await settle(1500);
+  await page.evaluate(async () => {
+    const { resumeSet } = await import('/src/data/resumeCache.ts');
+    resumeSet('map:view', { center: [-2.5, 51.55], zoom: 8 });
+  });
+  await page.evaluate(() => {
+    history.pushState({}, '', '/map');
+    dispatchEvent(new PopStateEvent('popstate'));
+  });
+  await settle(3000);
+  await shot('map-with-pins');
+  await page.goto(`${base}/map?entry=5000000000`);
+  await settle(3000);
+  await shot('map-popup');
+}
+
 // Account switcher open, and side menu.
 await page.goto(`${base}/browse`);
 await settle(2000);

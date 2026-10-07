@@ -37,7 +37,10 @@ import {
   IonInfiniteScroll,
   IonInfiniteScrollContent,
 } from '@ionic/react';
+import { Search, SearchX, UserRoundX, X } from 'lucide-react';
 import type { RefresherEventDetail } from '@ionic/core';
+import { EmptyState } from '../../components/EmptyState.js';
+import './SearchScreen.css';
 import { AppHeader } from '../../components/AppHeader.js';
 import { usePagedResource } from '../../data/usePagedResource.js';
 import { resumeClear, resumeGet, resumeSet } from '../../data/resumeCache.js';
@@ -57,9 +60,27 @@ const DEBOUNCE_MS = 400;
 
 function IdlePrompt() {
   return (
-    <div className="ion-padding">
-      <p>Search entries and people.</p>
-    </div>
+    <EmptyState
+      icon={<Search size={40} strokeWidth={1.5} />}
+      title="Search entries and people"
+      hint="Type above to search Blipfoto."
+    />
+  );
+}
+
+function NoResults({ term, people }: { term: string; people?: boolean }) {
+  return (
+    <EmptyState
+      icon={
+        people ? (
+          <UserRoundX size={40} strokeWidth={1.5} />
+        ) : (
+          <SearchX size={40} strokeWidth={1.5} />
+        )
+      }
+      title={`No results for \u2018${term}\u2019.`}
+      hint="Check the spelling or try a different word."
+    />
   );
 }
 
@@ -114,11 +135,7 @@ function EntriesTab({
     );
   }
   if (resource.status === 'empty') {
-    return (
-      <div className="ion-padding">
-        <p>No results for &lsquo;{trimmed}&rsquo;.</p>
-      </div>
-    );
+    return <NoResults term={trimmed} />;
   }
   return (
     <EntryGrid
@@ -189,11 +206,7 @@ function PeopleTab({
     );
   }
   if (resource.status === 'empty') {
-    return (
-      <div className="ion-padding">
-        <p>No results for &lsquo;{trimmed}&rsquo;.</p>
-      </div>
-    );
+    return <NoResults term={trimmed} people />;
   }
   return (
     <>
@@ -266,24 +279,29 @@ export function SearchScreen() {
       <IonHeader>
         <AppHeader title="Search" />
         <IonToolbar>
-          <form
-            onSubmit={handleSubmit}
-            style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '0 12px' }}
-          >
-            <input
-              type="search"
-              enterKeyHint="search"
-              value={inputValue}
-              onChange={(e) => handleInputChange(e.target.value)}
-              placeholder="Search…"
-              aria-label="Search"
-              style={{ flex: 1, font: 'inherit', padding: 8, minWidth: 0 }}
-            />
-            {inputValue.length > 0 && (
-              <IonButton fill="clear" type="button" onClick={handleClear} aria-label="Clear search">
-                Clear
-              </IonButton>
-            )}
+          <form onSubmit={handleSubmit} className="search-form" role="search">
+            <div className="search-field">
+              <Search size={20} aria-hidden="true" className="search-field-icon" />
+              <input
+                type="search"
+                enterKeyHint="search"
+                value={inputValue}
+                onChange={(e) => handleInputChange(e.target.value)}
+                placeholder="Search…"
+                aria-label="Search"
+                className="search-field-input"
+              />
+              {inputValue.length > 0 && (
+                <button
+                  type="button"
+                  onClick={handleClear}
+                  aria-label="Clear search"
+                  className="search-field-clear"
+                >
+                  <X size={20} aria-hidden="true" />
+                </button>
+              )}
+            </div>
           </form>
         </IonToolbar>
         <IonToolbar>

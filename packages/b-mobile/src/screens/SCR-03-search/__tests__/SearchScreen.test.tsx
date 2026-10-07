@@ -70,7 +70,7 @@ describe('SearchScreen', () => {
   it('shows a neutral idle prompt with no query, and runs no search', async () => {
     const { fetchSearchEntriesPage } = await import('../../../data/entries.js');
     renderScreen();
-    expect(screen.getByText('Search entries and people.')).toBeDefined();
+    expect(screen.getByText('Search entries and people')).toBeDefined();
     await new Promise((r) => setTimeout(r, 500));
     expect(fetchSearchEntriesPage).not.toHaveBeenCalled();
   });
@@ -81,7 +81,7 @@ describe('SearchScreen', () => {
     fireEvent.change(getInput(), { target: { value: '   ' } });
     await new Promise((r) => setTimeout(r, 500));
     expect(fetchSearchEntriesPage).not.toHaveBeenCalled();
-    expect(screen.getByText('Search entries and people.')).toBeDefined();
+    expect(screen.getByText('Search entries and people')).toBeDefined();
   });
 
   it('searches the Entries tab after the debounce for a non-empty term', async () => {
@@ -119,6 +119,38 @@ describe('SearchScreen', () => {
     renderScreen();
     fireEvent.change(getInput(), { target: { value: 'nope' } });
     expect(await screen.findByText('No results for ‘nope’.')).toBeDefined();
+  });
+
+  it('offers a hint under the no-results line', async () => {
+    const { fetchSearchEntriesPage } = await import('../../../data/entries.js');
+    vi.mocked(fetchSearchEntriesPage).mockResolvedValue({ items: [], more: false });
+    renderScreen();
+    fireEvent.change(getInput(), { target: { value: 'nope' } });
+    await screen.findByText('No results for ‘nope’.');
+    expect(screen.getByText('Check the spelling or try a different word.')).toBeDefined();
+  });
+
+  it('shows the same no-results state on the People tab', async () => {
+    const { fetchSearchEntriesPage } = await import('../../../data/entries.js');
+    const { fetchSearchUsersPage } = await import('../../../data/users.js');
+    vi.mocked(fetchSearchEntriesPage).mockResolvedValue({ items: [], more: false });
+    vi.mocked(fetchSearchUsersPage).mockResolvedValue({ items: [], more: false });
+    renderScreen();
+    fireEvent.change(getInput(), { target: { value: 'nope' } });
+    await screen.findByText('No results for ‘nope’.');
+    document
+      .querySelector('ion-segment')!
+      .dispatchEvent(new CustomEvent('ionChange', { detail: { value: 'people' } }));
+    expect(await screen.findByText('No results for ‘nope’.')).toBeDefined();
+  });
+
+  it('clears the field with the clear button inside it', () => {
+    renderScreen();
+    expect(screen.queryByRole('button', { name: 'Clear search' })).toBeNull();
+    fireEvent.change(getInput(), { target: { value: 'sun' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Clear search' }));
+    expect(getInput().value).toBe('');
+    expect(screen.getByText('Search entries and people')).toBeDefined();
   });
 
   it('shows an error with retry on failure', async () => {
