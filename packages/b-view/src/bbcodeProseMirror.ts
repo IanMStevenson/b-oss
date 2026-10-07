@@ -1,17 +1,17 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (C) 2026 Ian Stevenson
 
-// BBCode <-> ProseMirror document, for the model-based comment editor (b-oss#206 spike). Where the
-// contenteditable editor (BBCodeEditor) treats the browser's DOM as the document, here
-// ProseMirror's own model is the document and the DOM is just its view — including the formats
-// for the next typed characters ("stored marks"), which the browser can't hold reliably.
+// BBCode <-> ProseMirror document for the comment editor (b-oss#206). ProseMirror's model is the
+// document — including the formats for the next typed characters ("stored marks") — and the DOM
+// is just its view.
 //
 // The schema is BBCode's shape and nothing more: a document of lines (one per `\n`), text, and the
-// five marks. Parsing reuses bbcodeDom.ts's tested parser; writing follows the same rules as its
-// DOM serializer (adjacent runs merge, newlines sit in the deepest shared tag, no escaping).
+// marks b / i / u / s / link. Parsing is bbcodeParse.ts. Writing merges adjacent runs of a format,
+// puts a newline inside a tag both lines share, keeps already-open tags open, and never escapes
+// brackets — typed brackets are just text.
 
 import { Schema, type Node as PMNode, type Mark } from 'prosemirror-model';
-import { parseBBCodeLines, type BBTag } from './bbcodeDom.js';
+import { parseBBCodeLines, type BBTag } from './bbcodeParse.js';
 
 export const bbcodeSchema = new Schema({
   nodes: {
@@ -57,7 +57,7 @@ export const bbcodeSchema = new Schema({
         {
           tag: 'a[href]',
           getAttrs: (dom) => {
-            const href = (dom).getAttribute('href') ?? '';
+            const href = dom.getAttribute('href') ?? '';
             return /^mailto:/i.test(href)
               ? { address: href.slice('mailto:'.length), email: true }
               : { address: href, email: false };

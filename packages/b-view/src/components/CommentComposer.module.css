@@ -33,8 +33,8 @@
   color: var(--ink);
 }
 
-/* The rich-text box (BBCodeEditor). pre-wrap keeps typed runs of spaces as real spaces rather
-   than &nbsp;, and lines that are too long wrap even without a space (a pasted URL). */
+/* The rich-text box (BBCodeEditor's ProseMirror surface). Long lines wrap even without a space
+   (a pasted URL). */
 .editor {
   position: relative;
   display: block;
@@ -58,13 +58,9 @@
   position: absolute;
 }
 
-/* Underlined with a border, not text-decoration: the browser reads the U button's state (and
-   decides what tapping it does) from the computed text-decoration, so a decoration-underlined link
-   would make U show as "on" inside every link. */
 .editor a {
   color: var(--green-700);
-  text-decoration: none;
-  border-bottom: 1px solid currentColor;
+  text-decoration: underline;
 }
 
 .editor[aria-readonly='true'] {
@@ -250,8 +246,8 @@
   color: var(--color-danger);
 }
 
-/* The ProseMirror editor (b-oss#206 spike): the mount point, and the few rules ProseMirror needs
-   (its own stylesheet, minus what .editor already sets). */
+/* The editor's mount point, and the few rules ProseMirror needs (its own stylesheet, minus what
+   .editor already sets). */
 .pmMount {
   display: block;
 }

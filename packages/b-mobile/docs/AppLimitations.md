@@ -25,6 +25,7 @@ here), a deliberate deferral (can), or just not built.
 ## Resolved
 
 - **Comment box renders toolbar formatting WYSIWYG, storing BBCode** ([#206](https://github.com/IanMStevenson/b-oss/issues/206)).
-  The comment, reply and edit boxes are now a rich-text editor (`b-view`'s `BBCodeEditor`) that
-  shows formatting and reads/writes BBCode, as on blipfoto.com. On-device checks are in
-  `UNTESTED_PATHS.md`.
+  The comment, reply and edit boxes are now a rich-text editor (`b-view`'s `BBCodeEditor`, built on
+  ProseMirror) that shows formatting and reads/writes BBCode, as on blipfoto.com. It also avoids
+  faults the site's own editor has: underline/strike can be turned off mid-word, and formats chosen
+  for the next characters survive opening the link field. Tried on a real phone 2026-10-07.
