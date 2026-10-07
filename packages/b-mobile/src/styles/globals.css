@@ -139,3 +139,99 @@ ion-segment.settings-pill-segment ion-segment-button::part(indicator-background)
 ion-segment.settings-pill-segment ion-segment-button::part(native) {
   letter-spacing: 0;
 }
+
+/* Inbox / people rows (UX review X7/X8, b-oss#274/#271): one anatomy for Notifications, Comments,
+   Awards and every people list — 16px gutters, hairline between rows, a fixed leading slot (48px
+   rounded square for entries and award icons, 40px circle for people), body, then trailing
+   actions. The unread marker is a green-800 dot hanging in the left gutter. */
+.inbox-row {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--line-2);
+  background: var(--bg, #fff);
+}
+
+.inbox-row-top {
+  align-items: flex-start;
+}
+
+.inbox-row-unread-dot {
+  position: absolute;
+  left: 4px;
+  top: 50%;
+  width: 8px;
+  height: 8px;
+  margin-top: -4px;
+  border-radius: 50%;
+  background: var(--green-800);
+}
+
+.inbox-row-leading {
+  flex-shrink: 0;
+  display: block;
+  padding: 0;
+  background: none;
+  border: none;
+}
+
+.inbox-row-thumb {
+  display: block;
+  width: 48px;
+  height: 48px;
+  border-radius: 8px;
+  object-fit: cover;
+  background: var(--bg-alt);
+}
+
+.inbox-row-avatar {
+  display: block;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  object-fit: cover;
+  background: var(--bg-alt);
+}
+
+.inbox-row-body {
+  flex: 1;
+  min-width: 0;
+  font-size: 15px;
+  line-height: 1.35;
+}
+
+.inbox-row-body a {
+  color: var(--green-800);
+  font-weight: 600;
+}
+
+.inbox-row-name {
+  font: inherit;
+  font-weight: 600;
+  color: var(--green-800);
+  padding: 0;
+  text-align: left;
+}
+
+.inbox-row-actions {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.inbox-row-top .inbox-row-actions {
+  flex-direction: column;
+  gap: 12px;
+}
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}

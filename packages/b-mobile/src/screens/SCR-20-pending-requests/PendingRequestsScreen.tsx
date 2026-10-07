@@ -131,15 +131,10 @@ export function PendingRequestsScreen() {
                 user={user}
                 onTap={() => navigate.push(`/user/${encodeURIComponent(user.username)}`)}
               >
-                <IonButton
-                  slot="end"
-                  size="small"
-                  onClick={() => gateOrRun(() => void handleApprove(user))}
-                >
+                <IonButton size="small" onClick={() => gateOrRun(() => void handleApprove(user))}>
                   Approve
                 </IonButton>
                 <IonButton
-                  slot="end"
                   size="small"
                   fill="outline"
                   color="danger"

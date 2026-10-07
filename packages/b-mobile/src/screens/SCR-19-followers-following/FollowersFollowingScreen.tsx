@@ -136,7 +136,6 @@ export function FollowersFollowingScreen({ username, mode }: FollowersFollowingS
               >
                 {isOwnFollowers && (
                   <button
-                    slot="end"
                     onClick={() => requestRemove(user)}
                     aria-label={`Remove ${user.username}`}
                   >
