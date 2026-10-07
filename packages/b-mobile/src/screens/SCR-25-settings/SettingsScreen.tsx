@@ -24,12 +24,12 @@ import {
   IonHeader,
   IonContent,
   IonList,
-  IonListHeader,
   IonItem,
   IonNote,
   IonSpinner,
   IonText,
 } from '@ionic/react';
+import { SectionHeader } from '../../components/SettingsForm.js';
 import { AppHeader } from '../../components/AppHeader.js';
 import { useResource } from '../../data/useResource.js';
 import { fetchUserSettings } from '../../data/settings.js';
@@ -110,23 +110,21 @@ function SettingsHub() {
             notified about from my Blipfoto account", even though its Advanced polling interval
             happens to be stored locally (data/settings.ts's own header comment). */}
         <IonList>
-          <IonListHeader>
-            <IonNote>Blipfoto Account Settings</IonNote>
-          </IonListHeader>
-          <IonItem button onClick={() => navigate.push('/settings/general')}>
+          <SectionHeader>Blipfoto Account Settings</SectionHeader>
+          <IonItem button detail onClick={() => navigate.push('/settings/general')}>
             <span>General</span>
           </IonItem>
-          <IonItem button onClick={() => navigate.push('/settings/journal')}>
+          <IonItem button detail onClick={() => navigate.push('/settings/journal')}>
             <span>Journal</span>
           </IonItem>
-          <IonItem button onClick={() => navigate.push('/settings/profile')}>
+          <IonItem button detail onClick={() => navigate.push('/settings/profile')}>
             <span>Profile</span>
           </IonItem>
-          <IonItem button onClick={() => navigate.push('/settings/notifications')}>
+          <IonItem button detail onClick={() => navigate.push('/settings/notifications')}>
             <span>Notifications</span>
           </IonItem>
           {privacyProtected && (
-            <IonItem button onClick={() => navigate.push('/me/refused')}>
+            <IonItem button detail onClick={() => navigate.push('/me/refused')}>
               <span>Refused followers</span>
               <IonNote slot="end">People who can&rsquo;t see your journal</IonNote>
             </IonItem>
@@ -139,22 +137,20 @@ function SettingsHub() {
             reachable at all) — the row here is just a discoverable shortcut alongside its
             siblings, not the only path to it. */}
         <IonList>
-          <IonListHeader>
-            <IonNote>App Settings</IonNote>
-          </IonListHeader>
-          <IonItem button onClick={() => navigate.push('/accounts', { drilledIn: true })}>
+          <SectionHeader>App Settings</SectionHeader>
+          <IonItem button detail onClick={() => navigate.push('/accounts', { drilledIn: true })}>
             <span>Accounts</span>
             <IonNote slot="end">{activeAccount?.username}</IonNote>
           </IonItem>
           {canWrite && (
-            <IonItem button onClick={() => navigate.push('/settings/reminders')}>
+            <IonItem button detail onClick={() => navigate.push('/settings/reminders')}>
               <span>Reminders</span>
             </IonItem>
           )}
-          <IonItem button onClick={() => navigate.push('/hidden', { drilledIn: true })}>
+          <IonItem button detail onClick={() => navigate.push('/hidden', { drilledIn: true })}>
             <span>Hidden members</span>
           </IonItem>
-          <IonItem button onClick={() => navigate.push('/settings/browsing')}>
+          <IonItem button detail onClick={() => navigate.push('/settings/browsing')}>
             <span>Browsing</span>
           </IonItem>
           <IonItem button onClick={() => navigate.push('/settings/misc')}>

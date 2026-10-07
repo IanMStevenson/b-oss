@@ -79,7 +79,7 @@ describe('JournalSection', () => {
   it('toggling privacy and saving sends the flag', async () => {
     renderScreen();
     await screen.findByDisplayValue('My journal');
-    const privacyToggle = screen.getByText('Protected journal').closest('ion-checkbox')!;
+    const privacyToggle = screen.getByLabelText('Protected journal');
     privacyToggle.dispatchEvent(
       new CustomEvent('ionChange', { bubbles: true, detail: { checked: true } }),
     );

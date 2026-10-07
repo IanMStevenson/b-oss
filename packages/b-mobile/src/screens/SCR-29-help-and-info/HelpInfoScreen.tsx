@@ -31,10 +31,16 @@ import {
   IonContent,
   IonList,
   IonItem,
-  IonCheckbox,
   IonButton,
   IonAlert,
 } from '@ionic/react';
+import {
+  ActionRow,
+  CaptionRow,
+  NavRow,
+  SectionHeader,
+  ToggleRow,
+} from '../../components/SettingsForm.js';
 import { AppHeader } from '../../components/AppHeader.js';
 import { CachedImage } from '../../components/CachedImage.js';
 import { useAppNavigate } from '../../app/routes/useAppNavigate.js';
@@ -240,36 +246,47 @@ function HelpInfoHub() {
       </IonHeader>
       <IonContent>
         <IonList>
-          <IonItem button onClick={() => navigate.push('/help/icon-guide')}>
-            <span>Icon guide</span>
-          </IonItem>
-          <IonItem button onClick={() => navigate.push('/help/safety-privacy')}>
-            <span>Safety &amp; privacy</span>
-          </IonItem>
-          <IonItem button onClick={() => void openUrl(HELP_URL)}>
-            <span>Help</span>
-          </IonItem>
-          <IonItem button onClick={() => void openUrl(TERMS_URL)}>
-            <span>Terms &amp; legal</span>
-          </IonItem>
-          <IonItem button onClick={() => void openUrl(PRIVACY_URL)}>
-            <span>Privacy policy</span>
-          </IonItem>
-          <IonItem button onClick={() => setConfirmDeleteAccount(true)}>
-            <span>Delete my account</span>
-          </IonItem>
-          <IonItem>
-            <IonCheckbox
-              checked={openLinksInApp}
-              onIonChange={(e) => setOpenLinksInApp(e.detail.checked)}
-            >
-              Open blipfoto.com links in this app
-            </IonCheckbox>
-          </IonItem>
-          <IonItem button onClick={() => navigate.push('/help/licences')}>
-            <span>Open-source licences</span>
-          </IonItem>
-          <IonItem>
+          <NavRow
+            label="Icon guide"
+            kind="push"
+            onClick={() => navigate.push('/help/icon-guide')}
+          />
+          <NavRow
+            label="Safety & privacy"
+            kind="push"
+            onClick={() => navigate.push('/help/safety-privacy')}
+          />
+          <NavRow
+            label="Open-source licences"
+            kind="push"
+            onClick={() => navigate.push('/help/licences')}
+          />
+
+          <SectionHeader>On blipfoto.com</SectionHeader>
+          <NavRow label="Help" kind="external" onClick={() => void openUrl(HELP_URL)} />
+          <NavRow label="Terms & legal" kind="external" onClick={() => void openUrl(TERMS_URL)} />
+          <NavRow
+            label="Privacy policy"
+            kind="external"
+            onClick={() => void openUrl(PRIVACY_URL)}
+          />
+
+          <SectionHeader>This device</SectionHeader>
+          <ToggleRow
+            label="Open blipfoto.com links in this app"
+            checked={openLinksInApp}
+            onChange={setOpenLinksInApp}
+          />
+
+          <SectionHeader>Account</SectionHeader>
+          <ActionRow
+            label="Delete my account"
+            danger
+            onClick={() => setConfirmDeleteAccount(true)}
+          />
+          <CaptionRow>Opens Blipfoto in your browser to delete your account.</CaptionRow>
+
+          <IonItem lines="none">
             <span style={{ color: 'var(--muted)' }}>App version {version}</span>
           </IonItem>
         </IonList>
