@@ -19,6 +19,7 @@ import { join } from 'node:path';
 const date = new Date().toISOString().slice(0, 10);
 const outDir = process.argv[2] ?? join(homedir(), 'dev/tmp/b-mobile-screenshots', date);
 const base = process.argv[3] ?? 'http://127.0.0.1:5191';
+const stubPort = process.env.STUB_PORT ?? '5192'; // where scripts/stub-api.mjs is listening
 mkdirSync(outDir, { recursive: true });
 
 const browser = await chromium.launch();
@@ -31,12 +32,12 @@ const ctx = await browser.newContext({
 // Two accounts, so the header's account switcher and the Accounts screen show their multi-account
 // states (the switcher is hidden with fewer than two). The dev-token sign-in adds/refreshes the
 // first; the second has no token, as an account needing a sign-in would.
-await ctx.addInitScript(() => {
+await ctx.addInitScript((stubPort) => {
   if (localStorage.getItem('b-mobile:accounts')) return;
   const acct = (u, scope) => ({
     id: u,
     username: u,
-    avatarUrl: `http://127.0.0.1:5192/img/${u}/avatar.jpg`,
+    avatarUrl: `http://127.0.0.1:${stubPort}/img/${u}/avatar.jpg`,
     appTokenScope: scope,
     hasServiceToken: false,
     notificationRegistrationId: null,
@@ -49,7 +50,7 @@ await ctx.addInitScript(() => {
       activeAccountId: 'cyclopstest',
     }),
   );
-});
+}, stubPort);
 
 // maptiler is unreachable from here; a style with only a background keeps the map layout (pins,
 // controls, popups) reviewable.
@@ -226,7 +227,7 @@ async function seedDraft(mode, patch = {}) {
         ...patch,
       });
     },
-    { mode, patch, photoUrl: 'http://127.0.0.1:5192/img/3/full.jpg' },
+    { mode, patch, photoUrl: `http://127.0.0.1:${stubPort}/img/3/full.jpg` },
   );
   // Client-side navigation keeps the in-memory draft (a reload would drop it).
   return async (path) => {
@@ -241,6 +242,10 @@ async function seedDraft(mode, patch = {}) {
   const go = await seedDraft('publish');
   await go('/compose/details');
   await shot('compose-details-with-photo');
+  // Date row expanded to its month grid.
+  await page.getByRole('button', { name: /^Date:/ }).click();
+  await settle(1500);
+  await shot('compose-details-date-open');
   await go('/compose/description');
   await shot('compose-description-with-text');
   await go('/compose/location');
@@ -250,6 +255,82 @@ async function seedDraft(mode, patch = {}) {
   const go = await seedDraft('edit');
   await go('/entry/5000000000/edit');
   await shot('entry-edit-with-draft');
+}
+
+// Upload queue with items in every state, by driving uploadQueueStore through vite's module graph
+// (same trick as the draft above; the store's own persist() writes to prefs, harmless here).
+{
+  await page.goto(`${base}/browse`);
+  await settle(1500);
+  await page.evaluate(async () => {
+    const { useUploadQueueStore } = await import('/src/state/uploadQueueStore.ts');
+    const now = Date.now();
+    const base = {
+      accountId: 'cyclopstest',
+      filePath: null,
+      fileMimeType: null,
+      fields: {},
+      attempts: 0,
+      nextAttemptAt: null,
+      error: null,
+      resultEntryId: null,
+    };
+    useUploadQueueStore.setState({
+      hydrated: true,
+      items: [
+        {
+          ...base,
+          id: 'q1',
+          kind: 'publish',
+          status: 'uploading',
+          displayTitle: 'Harbour at dusk',
+          createdAt: now,
+        },
+        {
+          ...base,
+          id: 'q2',
+          kind: 'publish',
+          status: 'waiting',
+          displayTitle: 'Morning light',
+          createdAt: now - 1000,
+        },
+        {
+          ...base,
+          id: 'q3',
+          kind: 'edit',
+          entryId: '5000000000',
+          status: 'waiting',
+          displayTitle: 'A title long enough that it will need to be truncated on a phone screen',
+          createdAt: now - 2000,
+        },
+        {
+          ...base,
+          id: 'q4',
+          kind: 'publish',
+          status: 'failed',
+          attempts: 6,
+          error: 'Could not reach Blipfoto. Check your connection.',
+          displayTitle: 'Blurry cat',
+          createdAt: now - 3000,
+        },
+        {
+          ...base,
+          id: 'q5',
+          kind: 'publish',
+          status: 'uploaded',
+          resultEntryId: '5000000000',
+          displayTitle: 'Sunrise',
+          createdAt: now - 4000,
+        },
+      ],
+    });
+  });
+  await page.evaluate(() => {
+    history.pushState({}, '', '/uploads');
+    dispatchEvent(new PopStateEvent('popstate'));
+  });
+  await settle(1500);
+  await shot('uploads-with-items');
 }
 
 // Account switcher open, and side menu.

@@ -11,10 +11,12 @@
 // requirement.
 
 import { useEffect, useRef, useState } from 'react';
-import { IonButton, IonSpinner } from '@ionic/react';
+import { IonSpinner } from '@ionic/react';
+import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { fetchMonthEligibility } from '../data/journal.js';
 import type { DayEligibility } from '../data/journal.js';
-import { formatLocalDate } from '../data/dates.js';
+import { formatLocalDate, todayDate } from '../data/dates.js';
+import './ComposeForm.css';
 
 const WEEKDAY_LABELS = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
 
@@ -95,33 +97,42 @@ export function MonthDatePicker({ value, onChange }: MonthDatePickerProps) {
     });
   }
 
+  const today = todayDate();
+
   return (
     <div>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-        <IonButton fill="clear" aria-label="Previous month" onClick={() => changeMonth(-1)}>
-          ‹
-        </IonButton>
+      <div className="month-picker-head">
+        <button
+          type="button"
+          className="month-picker-nav"
+          aria-label="Previous month"
+          onClick={() => changeMonth(-1)}
+        >
+          <ChevronLeft size={22} aria-hidden="true" />
+        </button>
         <span>
           {new Date(visibleYear, visibleMonth - 1, 1).toLocaleDateString(undefined, {
             month: 'long',
             year: 'numeric',
           })}
         </span>
-        <IonButton fill="clear" aria-label="Next month" onClick={() => changeMonth(1)}>
-          ›
-        </IonButton>
+        <button
+          type="button"
+          className="month-picker-nav"
+          aria-label="Next month"
+          onClick={() => changeMonth(1)}
+        >
+          <ChevronRight size={22} aria-hidden="true" />
+        </button>
       </div>
 
       {loading && <IonSpinner name="dots" />}
       {error && <p style={{ color: 'var(--color-danger, red)' }}>{error}</p>}
 
       {!loading && !error && (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 2 }}>
+        <div className="month-picker-grid">
           {WEEKDAY_LABELS.map((label, i) => (
-            <div
-              key={i}
-              style={{ textAlign: 'center', fontSize: '0.75rem', color: 'var(--muted)' }}
-            >
+            <div key={i} className="month-picker-weekday">
               {label}
             </div>
           ))}
@@ -130,24 +141,21 @@ export function MonthDatePicker({ value, onChange }: MonthDatePickerProps) {
             const eligibility = map?.[cell.date];
             const publishable = eligibility?.publishable ?? true;
             const isSelected = cell.date === value;
+            const classes = ['month-picker-day'];
+            if (isSelected) classes.push('is-selected');
+            if (cell.date === today) classes.push('is-today');
             return (
               <button
                 key={cell.date}
                 type="button"
-                disabled={!publishable}
+                className={classes.join(' ')}
+                // The selected day stays enabled even if the API calls it unavailable, so it
+                // never reads as a disabled tile; the reason is shown under the date field and
+                // gates Upload.
+                disabled={!publishable && !isSelected}
                 aria-label={`${cell.date}${publishable ? '' : ' (unavailable)'}`}
                 aria-pressed={isSelected}
                 onClick={() => onChange(cell.date)}
-                style={{
-                  padding: 8,
-                  border: isSelected
-                    ? '2px solid var(--ion-color-primary, #3880ff)'
-                    : '1px solid transparent',
-                  borderRadius: 6,
-                  background: publishable ? 'var(--bg-alt)' : 'transparent',
-                  color: publishable ? 'inherit' : 'var(--muted)',
-                  opacity: publishable ? 1 : 0.4,
-                }}
               >
                 {cell.day}
               </button>

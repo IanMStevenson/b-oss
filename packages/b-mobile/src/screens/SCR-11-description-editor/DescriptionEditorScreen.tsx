@@ -31,6 +31,7 @@ import { useAppNavigate } from '../../app/routes/useAppNavigate.js';
 import { useComposeDraftStore } from '../../state/composeDraftStore.js';
 import { fetchUserSettings, saveUserSettings } from '../../data/settings.js';
 import { describeError, mapApiError } from '../../data/errors.js';
+import '../../components/ComposeForm.css';
 import { BBCodeToolbar } from '../../components/BBCodeToolbar.js';
 import { BBCODE_TAGS } from '@b-oss/b-view';
 
@@ -75,19 +76,21 @@ function DraftDescriptionEditor() {
       <IonHeader>
         <AppHeader title="Description" variant="back" onBack={handleBack} />
       </IonHeader>
-      <IonContent className="ion-padding">
-        <BBCodeToolbar tags={BBCODE_TAGS} textareaRef={textareaRef} onChange={setContent} />
-        <textarea
-          ref={textareaRef}
-          value={content}
-          onChange={(e) => setContent(e.target.value)}
-          placeholder="Describe this entry…"
-          rows={12}
-          style={{ width: '100%', font: 'inherit', padding: 8 }}
-        />
-        <IonButton expand="block" onClick={handleOk}>
-          OK
-        </IonButton>
+      <IonContent>
+        <div className="description-editor">
+          <BBCodeToolbar tags={BBCODE_TAGS} textareaRef={textareaRef} onChange={setContent} />
+          <textarea
+            ref={textareaRef}
+            className="compose-field-textarea"
+            value={content}
+            onChange={(e) => setContent(e.target.value)}
+            placeholder="Describe this entry…"
+            rows={12}
+          />
+          <IonButton expand="block" onClick={handleOk}>
+            OK
+          </IonButton>
+        </div>
       </IonContent>
 
       <IonAlert
@@ -165,34 +168,40 @@ function BiographyEditor() {
       <IonHeader>
         <AppHeader title="Biography" variant="back" onBack={handleBack} />
       </IonHeader>
-      <IonContent className="ion-padding">
-        {loading ? (
-          <IonSpinner />
-        ) : loadError ? (
-          <IonText color="danger">
-            <p>{loadError}</p>
-          </IonText>
-        ) : (
-          <>
-            {saveError && (
-              <IonText color="danger">
-                <p>{saveError}</p>
-              </IonText>
-            )}
-            <BBCodeToolbar tags={BBCODE_TAGS} textareaRef={textareaRef} onChange={setContent} />
-            <textarea
-              ref={textareaRef}
-              value={content}
-              onChange={(e) => setContent(e.target.value)}
-              placeholder="Tell people about yourself…"
-              rows={12}
-              style={{ width: '100%', font: 'inherit', padding: 8 }}
-            />
-            <IonButton expand="block" disabled={loading || saving} onClick={() => void handleOk()}>
-              {saving ? <IonSpinner name="dots" /> : 'OK'}
-            </IonButton>
-          </>
-        )}
+      <IonContent>
+        <div className="description-editor">
+          {loading ? (
+            <IonSpinner />
+          ) : loadError ? (
+            <IonText color="danger">
+              <p>{loadError}</p>
+            </IonText>
+          ) : (
+            <>
+              {saveError && (
+                <IonText color="danger">
+                  <p>{saveError}</p>
+                </IonText>
+              )}
+              <BBCodeToolbar tags={BBCODE_TAGS} textareaRef={textareaRef} onChange={setContent} />
+              <textarea
+                ref={textareaRef}
+                className="compose-field-textarea"
+                value={content}
+                onChange={(e) => setContent(e.target.value)}
+                placeholder="Tell people about yourself…"
+                rows={12}
+              />
+              <IonButton
+                expand="block"
+                disabled={loading || saving}
+                onClick={() => void handleOk()}
+              >
+                {saving ? <IonSpinner name="dots" /> : 'OK'}
+              </IonButton>
+            </>
+          )}
+        </div>
       </IonContent>
 
       <IonAlert

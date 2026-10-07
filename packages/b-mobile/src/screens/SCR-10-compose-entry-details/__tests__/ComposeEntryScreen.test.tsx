@@ -164,10 +164,37 @@ describe('ComposeEntryScreen', () => {
 
   it('navigating to add a location without one first pushes to the location picker', () => {
     renderScreen();
-    const checkbox = screen.getByText('Add location').closest('ion-checkbox')!;
+    const checkbox = screen.getByLabelText('Location');
     checkbox.dispatchEvent(
       new CustomEvent('ionChange', { bubbles: true, detail: { checked: true } }),
     );
     expect(push).toHaveBeenCalledWith('/compose/location');
+  });
+
+  it('shows the date as a compact row; the calendar is closed until tapped, and picking a day closes it', async () => {
+    fetchMonthEligibility.mockResolvedValue({
+      '2026-01-16': { publishable: false, message: 'Taken', existingEntryId: 'e1' },
+    });
+    renderScreen();
+    const row = screen.getByRole('button', { name: /^Date:/ });
+    expect(row.getAttribute('aria-expanded')).toBe('false');
+    // Nothing fetched / rendered for the month until the row is opened.
+    expect(screen.queryByLabelText('2026-01-15')).toBeNull();
+    expect(fetchMonthEligibility).not.toHaveBeenCalled();
+
+    await userEvent.click(row);
+    const selected = await screen.findByLabelText('2026-01-15');
+    // Selected day: pressed, and enabled (never styled/behaving as disabled).
+    expect(selected.getAttribute('aria-pressed')).toBe('true');
+    expect((selected as HTMLButtonElement).disabled).toBe(false);
+    // Per-day state from the API still applies.
+    expect(screen.getByLabelText<HTMLButtonElement>('2026-01-16 (unavailable)').disabled).toBe(
+      true,
+    );
+
+    await userEvent.click(screen.getByLabelText('2026-01-20'));
+    expect(useComposeDraftStore.getState().draft?.date).toBe('2026-01-20');
+    expect(row.getAttribute('aria-expanded')).toBe('false');
+    expect(row.getAttribute('aria-label')).toMatch(/20/);
   });
 });

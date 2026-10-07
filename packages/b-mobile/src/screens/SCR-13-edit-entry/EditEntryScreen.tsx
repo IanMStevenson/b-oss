@@ -25,9 +25,10 @@ import {
   IonText,
   IonSpinner,
   IonAlert,
-  IonCheckbox,
 } from '@ionic/react';
 import { AppHeader } from '../../components/AppHeader.js';
+import { CachedImage } from '../../components/CachedImage.js';
+import { LinkRow, TextField, ToggleRow } from '../../components/ComposeForm.js';
 import { useAppNavigate } from '../../app/routes/useAppNavigate.js';
 import { useComposeDraftStore } from '../../state/composeDraftStore.js';
 import { useActiveAccount } from '../../state/accountsStore.js';
@@ -53,6 +54,9 @@ export function EditEntryScreen({ entryId }: EditEntryScreenProps) {
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [photoError, setPhotoError] = useState<string | null>(null);
+  // The entry's current photo, shown until a replacement is picked. Only known when this screen
+  // instance loaded the entry itself (a resumed draft doesn't carry it).
+  const [currentImage, setCurrentImage] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [confirmDiscard, setConfirmDiscard] = useState(false);
@@ -93,6 +97,7 @@ export function EditEntryScreen({ entryId }: EditEntryScreenProps) {
           thumbnailCrop: null,
           dirty: false,
         });
+        setCurrentImage(loaded.entry.images?.image ?? loaded.entry.images?.thumbnail ?? null);
         hasSeededRef.current = true;
         setLoading(false);
       },
@@ -202,108 +207,101 @@ export function EditEntryScreen({ entryId }: EditEntryScreenProps) {
       <IonHeader>
         <AppHeader title="Edit entry" variant="back" onBack={handleBack} />
       </IonHeader>
-      <IonContent className="ion-padding">
-        {submitError && (
-          <IonText color="danger">
-            <p>{submitError}</p>
-          </IonText>
-        )}
-        {deleteError && (
-          <IonText color="danger">
-            <p>{deleteError}</p>
-          </IonText>
-        )}
+      <IonContent>
+        <div className="compose-form">
+          {submitError && (
+            <IonText color="danger">
+              <p>{submitError}</p>
+            </IonText>
+          )}
+          {deleteError && (
+            <IonText color="danger">
+              <p>{deleteError}</p>
+            </IonText>
+          )}
 
-        <label>
-          Title
-          <input
-            type="text"
+          <TextField
+            label="Title"
             value={draft.title}
             maxLength={50}
-            onChange={(e) => patchDraft({ title: e.target.value })}
-            style={{ width: '100%', font: 'inherit', padding: 8 }}
+            onChange={(title) => patchDraft({ title })}
           />
-        </label>
 
-        <label>
-          Tags (comma-separated)
-          <input
-            type="text"
+          <TextField
+            label="Tags (comma-separated)"
             value={draft.tags}
             maxLength={255}
-            onChange={(e) => patchDraft({ tags: e.target.value })}
-            style={{ width: '100%', font: 'inherit', padding: 8 }}
+            onChange={(tags) => patchDraft({ tags })}
           />
-        </label>
 
-        <div>
-          <span>Description</span>
-          <p>{draft.description ? draft.description.slice(0, 80) : 'No description'}</p>
-          <IonButton fill="outline" size="small" onClick={() => navigate.push('/compose/description')}>
-            Edit description
-          </IonButton>
-        </div>
+          <LinkRow
+            label="Description"
+            summary={draft.description ? draft.description.slice(0, 80) : 'No description'}
+            onClick={() => navigate.push('/compose/description')}
+          />
 
-        <div>
-          <IonCheckbox
+          <ToggleRow
+            label="Location"
             checked={draft.location != null}
-            onIonChange={(e) => {
-              if (e.detail.checked && !draft.location) {
+            onChange={(checked) => {
+              if (checked && !draft.location) {
                 navigate.push('/compose/location');
-              } else if (!e.detail.checked) {
+              } else if (!checked && draft.location) {
                 patchDraft({ location: null, displayLocation: false });
               }
             }}
           >
-            Location
-          </IonCheckbox>
-          {draft.location && (
-            <IonButton fill="clear" size="small" onClick={() => navigate.push('/compose/location')}>
-              Change
+            {draft.location && (
+              <IonButton
+                fill="clear"
+                size="small"
+                onClick={() => navigate.push('/compose/location')}
+              >
+                Change
+              </IonButton>
+            )}
+          </ToggleRow>
+
+          <div className="compose-field">
+            <span className="compose-field-label">Photo</span>
+            {photoError && (
+              <IonText color="danger">
+                <p>{photoError}</p>
+              </IonText>
+            )}
+            {draft.photo ? (
+              <img src={draft.photo.webPath} alt="New photo" className="compose-photo" />
+            ) : (
+              currentImage && (
+                <CachedImage src={currentImage} alt="Current photo" className="compose-photo" />
+              )
+            )}
+            <div className="compose-photo-actions">
+              <IonButton fill="outline" size="small" onClick={() => void pickNewPhoto('camera')}>
+                Take a photo
+              </IonButton>
+              <IonButton fill="outline" size="small" onClick={() => void pickNewPhoto('gallery')}>
+                Choose from device
+              </IonButton>
+            </div>
+          </div>
+
+          <IonButton expand="block" disabled={submitting} onClick={() => void handleSave()}>
+            {submitting ? <IonSpinner name="dots" /> : 'Save'}
+          </IonButton>
+
+          <div className="compose-danger-zone">
+            <IonButton
+              expand="block"
+              fill="outline"
+              color="danger"
+              disabled={deletingEntry}
+              onClick={() => setConfirmDeleteEntry(true)}
+            >
+              Delete entry
             </IonButton>
-          )}
+          </div>
         </div>
-
-        <div>
-          <span>Photo</span>
-          {photoError && (
-            <IonText color="danger">
-              <p>{photoError}</p>
-            </IonText>
-          )}
-          {draft.photo && (
-            <img
-              src={draft.photo.webPath}
-              alt="New photo"
-              style={{
-                width: '100%',
-                maxHeight: 240,
-                objectFit: 'contain',
-                background: 'var(--bg-alt)',
-              }}
-            />
-          )}
-          <IonButton fill="outline" size="small" onClick={() => void pickNewPhoto('camera')}>
-            Take a photo
-          </IonButton>
-          <IonButton fill="outline" size="small" onClick={() => void pickNewPhoto('gallery')}>
-            Choose from device
-          </IonButton>
-        </div>
-
-        <IonButton expand="block" disabled={submitting} onClick={() => void handleSave()}>
-          {submitting ? <IonSpinner name="dots" /> : 'Save'}
-        </IonButton>
-
-        <IonButton
-          expand="block"
-          fill="outline"
-          color="danger"
-          disabled={deletingEntry}
-          onClick={() => setConfirmDeleteEntry(true)}
-        >
-          Delete entry
-        </IonButton>
       </IonContent>
 
       <IonAlert

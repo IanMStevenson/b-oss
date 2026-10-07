@@ -12,9 +12,13 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { IonPage, IonHeader, IonButton, IonContent, IonText } from '@ionic/react';
-import { Map as MapLibreMap, Marker } from 'maplibre-gl';
+import { LocateFixed } from 'lucide-react';
+import { Map as MapLibreMap } from 'maplibre-gl';
+import type { Marker } from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import { AppHeader } from '../../components/AppHeader.js';
+import { createPin } from '../../components/mapPin.js';
+import '../../components/ComposeForm.css';
 import { getMapStyleUrl } from '../../platform/mapTiles.js';
 import { getCurrentPosition } from '../../platform/geolocation.js';
 import { useAppNavigate } from '../../app/routes/useAppNavigate.js';
@@ -46,7 +50,7 @@ export function LocationPickerScreen() {
     if (markerRef.current) {
       markerRef.current.setLngLat([lon, lat]);
     } else {
-      markerRef.current = new Marker({ draggable: true }).setLngLat([lon, lat]).addTo(map);
+      markerRef.current = createPin({ draggable: true }).setLngLat([lon, lat]).addTo(map);
       markerRef.current.on('dragend', () => {
         const pos = markerRef.current!.getLngLat();
         setSelected({ lat: pos.lat, lon: pos.lng });
@@ -127,45 +131,28 @@ export function LocationPickerScreen() {
             </IonText>
           </div>
         ) : (
-          <div style={{ position: 'relative', height: '100%' }}>
-            <div ref={containerRef} style={{ position: 'absolute', inset: 0 }} />
-            <div style={{ position: 'absolute', top: 8, right: 8 }}>
-              <IonButton
-                fill="outline"
+          <div className="location-picker">
+            <div className="location-map">
+              <div ref={containerRef} className="location-map-canvas" />
+              <button
+                type="button"
+                className="location-locate"
                 onClick={() => void handleMyLocation()}
                 aria-label="My location"
               >
-                My location
-              </IonButton>
+                <LocateFixed size={22} aria-hidden="true" />
+              </button>
+              {locationMessage && (
+                <div className="location-message">
+                  <IonText color="medium">
+                    <p style={{ margin: 0 }}>{locationMessage}</p>
+                  </IonText>
+                </div>
+              )}
             </div>
-            {locationMessage && (
-              <div
-                className="ion-padding"
-                style={{
-                  position: 'absolute',
-                  bottom: 64,
-                  left: 0,
-                  right: 0,
-                  background: 'var(--bg)',
-                }}
-              >
-                <IonText color="medium">
-                  <p>{locationMessage}</p>
-                </IonText>
-              </div>
-            )}
-            <div
-              style={{
-                position: 'absolute',
-                bottom: 0,
-                left: 0,
-                right: 0,
-                display: 'flex',
-                gap: 8,
-                padding: 12,
-                background: 'var(--bg)',
-              }}
-            >
+            {/* Below the map, not over it: MapLibre's attribution chip sits at the map's bottom
+                edge and used to be covered by an absolutely-positioned footer. */}
+            <div className="location-footer">
               <IonButton fill="outline" style={{ flex: 1 }} onClick={handleClear}>
                 Clear
               </IonButton>
