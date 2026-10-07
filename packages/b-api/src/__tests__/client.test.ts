@@ -625,10 +625,12 @@ describe('updateEntry (User auth only)', () => {
 });
 
 describe('deleteEntry (User auth only)', () => {
-  it('DELETEs with entry_id in body', async () => {
+  it('DELETEs with entry_id in the query string', async () => {
     server.use(
       http.delete(`${BASE}entry.json`, async ({ request }) => {
-        const body = new URLSearchParams(await request.text());
+        // DELETE parameters travel in the query string, with no body (b-oss#285).
+        expect(await request.text()).toBe('');
+        const body = new URL(request.url).searchParams;
         expect(body.get('entry_id')).toBe('9876543210');
         return HttpResponse.json(envelope({ success: 1 }), { headers: rateLimitHeaders() });
       }),
@@ -699,10 +701,12 @@ describe('updateComment (User auth only)', () => {
 });
 
 describe('deleteComment (User auth only)', () => {
-  it('DELETEs with comment_id in body', async () => {
+  it('DELETEs with comment_id in the query string', async () => {
     server.use(
       http.delete(`${BASE}entry/comment.json`, async ({ request }) => {
-        const body = new URLSearchParams(await request.text());
+        // DELETE parameters travel in the query string, with no body (b-oss#285).
+        expect(await request.text()).toBe('');
+        const body = new URL(request.url).searchParams;
         expect(body.get('comment_id')).toBe('111');
         return HttpResponse.json(envelope({ success: 1 }), { headers: rateLimitHeaders() });
       }),
@@ -1336,10 +1340,12 @@ describe('follow (User auth only)', () => {
 });
 
 describe('unfollow (User auth only)', () => {
-  it('DELETEs with comma-separated usernames in body', async () => {
+  it('DELETEs with comma-separated usernames in the query string', async () => {
     server.use(
       http.delete(`${BASE}users/following.json`, async ({ request }) => {
-        const body = new URLSearchParams(await request.text());
+        // DELETE parameters travel in the query string, with no body (b-oss#285).
+        expect(await request.text()).toBe('');
+        const body = new URL(request.url).searchParams;
         expect(body.get('usernames')).toBe('alice');
         return HttpResponse.json(envelope({ friendships: [mockFriendship] }), {
           headers: rateLimitHeaders(),
@@ -1369,7 +1375,9 @@ describe('removeFollower (User auth only)', () => {
   it('DELETEs with usernames', async () => {
     server.use(
       http.delete(`${BASE}users/followers.json`, async ({ request }) => {
-        const body = new URLSearchParams(await request.text());
+        // DELETE parameters travel in the query string, with no body (b-oss#285).
+        expect(await request.text()).toBe('');
+        const body = new URL(request.url).searchParams;
         expect(body.get('usernames')).toBe('spammer');
         return HttpResponse.json(envelope({ friendships: [] }), { headers: rateLimitHeaders() });
       }),
@@ -1412,7 +1420,9 @@ describe('rejectPendingRequests (User auth only)', () => {
   it('DELETEs with usernames', async () => {
     server.use(
       http.delete(`${BASE}users/requests/pending.json`, async ({ request }) => {
-        const body = new URLSearchParams(await request.text());
+        // DELETE parameters travel in the query string, with no body (b-oss#285).
+        expect(await request.text()).toBe('');
+        const body = new URL(request.url).searchParams;
         expect(body.get('usernames')).toBe('spammer');
         return HttpResponse.json(envelope({ friendships: [] }), { headers: rateLimitHeaders() });
       }),
@@ -1452,7 +1462,9 @@ describe('unblockUsers (User auth only)', () => {
   it('DELETEs with usernames', async () => {
     server.use(
       http.delete(`${BASE}users/requests/blocked.json`, async ({ request }) => {
-        const body = new URLSearchParams(await request.text());
+        // DELETE parameters travel in the query string, with no body (b-oss#285).
+        expect(await request.text()).toBe('');
+        const body = new URL(request.url).searchParams;
         expect(body.get('usernames')).toBe('alice,bob');
         return HttpResponse.json(envelope({ friendships: [mockFriendship] }), {
           headers: rateLimitHeaders(),
