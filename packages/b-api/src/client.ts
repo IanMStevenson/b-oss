@@ -155,22 +155,36 @@ export class BlipfotoClient {
     path: string,
     body: Record<string, string | number | undefined> = {},
   ): Promise<T> {
-    const url = new URL(`${path}.json`, this.baseUrl).toString();
+    const target = new URL(`${path}.json`, this.baseUrl);
     const form = buildFormBody(body);
+    // The API reads DELETE parameters from the query string only ("parameters either in the
+    // querystring (GET or DELETE) or in the request body (POST or PUT)" — docs/api-general.md).
+    // Sent as a body, they're silently ignored: "No comment ID provided" (b-oss#285).
+    const inQuery = method === 'DELETE';
+    if (inQuery) form.forEach((value, key) => target.searchParams.set(key, value));
+    const url = target.toString();
     let response: Response;
     try {
-      response = await this.fetchImpl(url, {
-        method,
-        headers: {
-          Authorization: `Bearer ${this.accessToken}`,
-          'Content-Type': 'application/x-www-form-urlencoded',
-        },
-        body: form,
-      });
+      response = await this.fetchImpl(
+        url,
+        inQuery
+          ? { method, headers: { Authorization: `Bearer ${this.accessToken}` } }
+          : {
+              method,
+              headers: {
+                Authorization: `Bearer ${this.accessToken}`,
+                'Content-Type': 'application/x-www-form-urlencoded',
+              },
+              body: form,
+            },
+      );
     } catch (err) {
       throw new NetworkError('Network request failed', err);
     }
-    return this.parseEnvelope<T>(response, { method, url, requestBody: form.toString() });
+    return this.parseEnvelope<T>(
+      response,
+      inQuery ? { method, url } : { method, url, requestBody: form.toString() },
+    );
   }
 
   private async mutateMultipart<T>(
