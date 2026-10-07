@@ -58,7 +58,8 @@ export default defineConfig({
     // running in a desktop browser.
     proxy: {
       '/api/blipfoto': {
-        target: 'https://api.blipfoto.com',
+        // B_API_PROXY_TARGET points this at scripts/stub-api.mjs where the real API is unreachable.
+        target: process.env.B_API_PROXY_TARGET ?? 'https://api.blipfoto.com',
         changeOrigin: true,
         rewrite: (path) => path.replace(/^\/api\/blipfoto/, ''),
       },
