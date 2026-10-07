@@ -69,8 +69,14 @@ async function nativeFetch(
   // A real Response is constructed (rather than a hand-rolled duck-typed object) so
   // `response.headers instanceof Headers` holds for b-api's updateRateLimit() and every other
   // Response method callers might reasonably use continues to behave exactly like web fetch().
-  return new Response(data, { status: result.status, headers: result.headers });
+  // 101/103/204/205/304 are "null body" statuses: the Response constructor throws if given any
+  // body for them, even an empty string. b-push answers PATCH/DELETE with 204, so without this
+  // every toggle change threw and every deregistration silently left its row behind (b-oss#148).
+  const body = NULL_BODY_STATUSES.has(result.status) ? null : data;
+  return new Response(body, { status: result.status, headers: result.headers });
 }
+
+const NULL_BODY_STATUSES = new Set([101, 103, 204, 205, 304]);
 
 export const platformFetch: typeof fetch = (input, init) => {
   if (Capacitor.isNativePlatform()) {
