@@ -20,6 +20,17 @@ describe('BBCodeText', () => {
     expect(screen.getByText(/\[script\]alert\(1\)\[\/script\]/)).toBeDefined();
   });
 
+  it('renders [email] as a mailto: link, in both forms', () => {
+    const { container } = render(
+      <BBCodeText source="[email=me@example.com]write[/email] or [email]you@example.com[/email]" />,
+    );
+    const links = Array.from(container.querySelectorAll('a'));
+    expect(links.map((a) => [a.getAttribute('href'), a.textContent])).toEqual([
+      ['mailto:me@example.com', 'write'],
+      ['mailto:you@example.com', 'you@example.com'],
+    ]);
+  });
+
   it('never uses dangerouslySetInnerHTML-style raw injection for [url] content', () => {
     const { container } = render(<BBCodeText source="[url=https://example.com]link[/url]" />);
     const anchor = container.querySelector('a');

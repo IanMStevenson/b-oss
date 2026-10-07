@@ -41,11 +41,20 @@ model…" and "Image cache"):
   that settles after a tick, and rely on the raised limits (vitest 20s/30s, Testing Library 5s —
   #221).
 - **`docs/AppLimitations.md`** logs what blipfoto.com can do that the app can't, and why.
+- **Rich-text comment editor** (#206, PR #282): the comment/reply/edit boxes are b-view's
+  `BBCodeEditor`, a ProseMirror editor whose value is BBCode (`bbcodeParse.ts` parses,
+  `bbcodeProseMirror.ts` maps to/from the document). ProseMirror replaced a first version that
+  edited the DOM with the browser's own formatting commands, as blipfoto.com does: that version
+  inherited the browser's hidden "formats for the next characters" state (U/S couldn't be turned
+  off mid-word; the link field dropped pending formats). Design record in PR #282.
+- **All DELETE calls were broken** until #286: b-api sent DELETE parameters in the body, but the API
+  reads them from the query string (#285). Fixed for delete comment/entry, unfollow and the
+  follower/request actions.
 - Gradle on the egress-controlled VM: see root `CLAUDE.md`. Also set `ANDROID_HOME=$HOME/Android/Sdk`
   in a fresh worktree or Gradle can't find the SDK.
 
 **Open:** #185 (image glitches — fix merged, awaiting confirmation they're gone), #206 (WYSIWYG comment
-editor — parked), #183 (Ionic view stack — deferred), #175 (download — deferred), #149 (port b-ark's
+editor — done, PR #282), #183 (Ionic view stack — deferred), #175 (download — deferred), #149 (port b-ark's
 extras/hi-res), #148 (done 2026-10-07, see Phase 13). Epic #167 has only #175 left.
 
 ## Status

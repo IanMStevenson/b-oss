@@ -1,17 +1,18 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (C) 2026 Ian Stevenson
 
-// SCR-25 Misc section. Both fields are device-local (unaffected by which account is active,
+// SCR-25 Misc section. Its fields are device-local (unaffected by which account is active,
 // unlike Reminders) and persist immediately — no Save/Cancel. `confirmAccountBeforeReaction`
-// gates flows/useAccountConfirmGate.tsx (built in Phase 4); this is the first UI to flip it.
+// gates flows/useAccountConfirmGate.tsx (built in Phase 4); this is the first UI to flip it. Both
+// fields only matter with two or more accounts, so the hub hides the Misc row below that. (The
+// 'Upload full-size photos' checkbox that used to lead this section did nothing — downscaling
+// isn't implemented — and was removed.)
 
 import { IonCheckbox, IonSegment, IonSegmentButton, IonLabel, IonText } from '@ionic/react';
 import { useDevicePrefsStore } from '../../../state/devicePrefsStore.js';
 import { useAccountsStore } from '../../../state/accountsStore.js';
 
 export function MiscSection() {
-  const uploadFullSize = useDevicePrefsStore((s) => s.uploadFullSize);
-  const setUploadFullSize = useDevicePrefsStore((s) => s.setUploadFullSize);
   const confirmAccountBeforeReaction = useDevicePrefsStore((s) => s.confirmAccountBeforeReaction);
   const setConfirmAccountBeforeReaction = useDevicePrefsStore(
     (s) => s.setConfirmAccountBeforeReaction,
@@ -22,20 +23,6 @@ export function MiscSection() {
 
   return (
     <div className="ion-padding">
-      <IonCheckbox
-        checked={uploadFullSize}
-        disabled
-        onIonChange={(e) => setUploadFullSize(e.detail.checked)}
-      >
-        Upload full-size photos
-      </IonCheckbox>
-      <IonText color="medium">
-        <p>
-          Photo downscaling isn&rsquo;t implemented yet — entries always upload at full size
-          regardless of this setting for now.
-        </p>
-      </IonText>
-
       {accountCount >= 2 && (
         <>
           <IonCheckbox

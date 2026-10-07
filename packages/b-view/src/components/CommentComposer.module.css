@@ -33,6 +33,40 @@
   color: var(--ink);
 }
 
+/* The rich-text box (BBCodeEditor's ProseMirror surface). Long lines wrap even without a space
+   (a pasted URL). */
+.editor {
+  position: relative;
+  display: block;
+  box-sizing: border-box;
+  min-height: 120px;
+  max-height: 60vh;
+  overflow-y: auto;
+  padding: 10px;
+  outline: none;
+  font-size: var(--text-md, 15px);
+  line-height: var(--leading-normal, 1.45);
+  color: var(--ink);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.editor[data-empty='true']::before {
+  content: attr(data-placeholder);
+  color: var(--muted-2);
+  pointer-events: none;
+  position: absolute;
+}
+
+.editor a {
+  color: var(--green-700);
+  text-decoration: underline;
+}
+
+.editor[aria-readonly='true'] {
+  color: var(--muted);
+}
+
 .error {
   margin: 8px 0 0;
   font-size: var(--text-sm, 13px);
@@ -108,12 +142,21 @@
   font-size: var(--text-md, 15px);
   color: var(--muted-2);
   cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
 }
 
-.fmtBtn:hover:not(:disabled),
-.fmtBtn[aria-expanded='true'] {
+.fmtBtn[aria-expanded='true'],
+.fmtBtn[aria-pressed='true'] {
   color: var(--ink);
   background: var(--line-2);
+}
+
+/* Hover only where there is one: on a touchscreen it sticks after a tap and reads as "on". */
+@media (hover: hover) {
+  .fmtBtn:hover:not(:disabled) {
+    color: var(--ink);
+    background: var(--line-2);
+  }
 }
 
 .fmtBtn:disabled {
@@ -141,13 +184,15 @@
   font-family: Georgia, serif;
 }
 
-.linkRow {
-  display: flex;
-  align-items: center;
-  gap: 6px;
+.linkPanel {
   padding: 4px 0 8px;
   border-bottom: 1px dashed var(--line);
   margin-bottom: 4px;
+}
+
+.linkRow {
+  display: flex;
+  padding: 2px 0;
 }
 
 .linkInput {
@@ -161,22 +206,63 @@
   border-radius: 4px;
 }
 
+.linkInput:focus {
+  outline: none;
+  border-color: var(--green-700);
+}
+
+.linkActions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  padding-top: 6px;
+}
+
+/* Small versions of the "Add comment" pill. */
 .linkAdd,
-.linkCancel {
-  height: 34px;
-  padding: 0 10px;
-  border: 0;
-  background: none;
+.linkCancel,
+.linkRemove {
+  height: 30px;
+  padding: 0 14px;
+  border: 1.5px solid var(--muted-2);
+  border-radius: 999px;
+  background: var(--bg);
   font: inherit;
   font-size: var(--text-sm, 13px);
+  color: var(--muted);
   cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
 }
 
 .linkAdd {
+  border-color: var(--green-700);
   font-weight: var(--font-weight-medium, 500);
   color: var(--green-700);
 }
 
-.linkCancel {
-  color: var(--muted);
+.linkRemove {
+  margin-right: auto;
+  border-color: var(--color-danger);
+  color: var(--color-danger);
+}
+
+/* The editor's mount point, and the few rules ProseMirror needs (its own stylesheet, minus what
+   .editor already sets). */
+.pmMount {
+  display: block;
+}
+
+.pmMount :global(.ProseMirror) {
+  word-wrap: break-word;
+  white-space: break-spaces;
+  font-variant-ligatures: none;
+  font-feature-settings: 'liga' 0;
+}
+
+.pmMount :global(.ProseMirror-hideselection *::selection) {
+  background: transparent;
+}
+
+.pmMount :global(.ProseMirror-hideselection) {
+  caret-color: transparent;
 }
