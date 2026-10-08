@@ -6,20 +6,23 @@
 // 16px gutters. UX review X5/X6/X9 (b-oss#272, #278). Label spans are plain <span>s rather than
 // IonLabel for the same jsdom reason as the rest of the settings screens (RESUME.md).
 
-import type { ReactNode } from 'react';
+import { useMemo, useRef, useState, type ReactNode } from 'react';
 import {
   IonButton,
   IonInput,
   IonItem,
+  IonList,
   IonListHeader,
   IonNote,
-  IonSelect,
-  IonSelectOption,
+  IonContent,
+  IonHeader,
+  IonModal,
+  IonToolbar,
   IonSpinner,
   IonText,
   IonToggle,
 } from '@ionic/react';
-import { ExternalLink } from 'lucide-react';
+import { Check, ExternalLink } from 'lucide-react';
 
 /** Grey section caption above a group of rows (same markup Notifications uses). */
 export function SectionHeader({ children }: { children: ReactNode }) {
@@ -65,31 +68,83 @@ export function TextFieldRow({ label, value, disabled, onChange }: TextFieldRowP
 
 interface SelectRowProps {
   label: string;
+  /** Left-aligned title of the picker, on the same row as Cancel (e.g. 'Select country'). */
+  pickerTitle: string;
   value: string;
   options: Array<{ code: string; title: string }>;
   disabled?: boolean;
   onChange: (value: string) => void;
 }
 
-/** Choice from a list: IonItem with the label stacked above an IonSelect (modal list picker). */
-export function SelectRow({ label, value, options, disabled, onChange }: SelectRowProps) {
+/** Choice from a long list: a row showing the current choice that opens a modal list. The list is
+ * sorted alphabetically, opens scrolled to the current choice with it highlighted, and has a
+ * header with the title on the left and Cancel on the right. (IonSelect's modal interface can't
+ * put a title beside Cancel or scroll to the selection, so this is a plain IonModal.) */
+export function SelectRow({
+  label,
+  pickerTitle,
+  value,
+  options,
+  disabled,
+  onChange,
+}: SelectRowProps) {
+  const [open, setOpen] = useState(false);
+  const selectedRef = useRef<HTMLIonItemElement | null>(null);
+  const sorted = useMemo(
+    () => [...options].sort((a, b) => a.title.localeCompare(b.title)),
+    [options],
+  );
+  const current = options.find((o) => o.code === value);
+
   return (
-    <IonItem>
-      <IonSelect
-        label={label}
-        labelPlacement="stacked"
-        interface="modal"
-        value={value}
-        disabled={disabled}
-        onIonChange={(e) => onChange(String(e.detail.value ?? ''))}
+    <>
+      <IonItem button detail={false} disabled={disabled} onClick={() => setOpen(true)}>
+        <div style={{ padding: '8px 0' }}>
+          <IonNote style={{ display: 'block', fontSize: 12 }}>{label}</IonNote>
+          <span>{current?.title ?? ''}</span>
+        </div>
+      </IonItem>
+      <IonModal
+        isOpen={open}
+        onDidPresent={() => selectedRef.current?.scrollIntoView?.({ block: 'center' })}
+        onDidDismiss={() => setOpen(false)}
       >
-        {options.map((o) => (
-          <IonSelectOption key={o.code} value={o.code}>
-            {o.title}
-          </IonSelectOption>
-        ))}
-      </IonSelect>
-    </IonItem>
+        <IonHeader>
+          <IonToolbar>
+            <div style={{ display: 'flex', alignItems: 'center', padding: '0 8px 0 16px' }}>
+              <h2 style={{ flex: 1, margin: 0, fontSize: 18, fontWeight: 600 }}>{pickerTitle}</h2>
+              <IonButton fill="clear" onClick={() => setOpen(false)}>
+                Cancel
+              </IonButton>
+            </div>
+          </IonToolbar>
+        </IonHeader>
+        <IonContent>
+          <IonList>
+            {sorted.map((o) => {
+              const selected = o.code === value;
+              return (
+                <IonItem
+                  key={o.code}
+                  ref={selected ? selectedRef : undefined}
+                  button
+                  detail={false}
+                  color={selected ? 'light' : undefined}
+                  aria-current={selected ? 'true' : undefined}
+                  onClick={() => {
+                    setOpen(false);
+                    if (!selected) onChange(o.code);
+                  }}
+                >
+                  <span style={{ fontWeight: selected ? 600 : undefined }}>{o.title}</span>
+                  {selected && <Check slot="end" size={18} aria-hidden="true" />}
+                </IonItem>
+              );
+            })}
+          </IonList>
+        </IonContent>
+      </IonModal>
+    </>
   );
 }
 

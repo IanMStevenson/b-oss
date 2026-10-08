@@ -134,13 +134,15 @@ export function GeneralSection() {
         />
         <SelectRow
           label="Country"
+          pickerTitle="Select country"
           value={form.countryCode}
           options={countries}
           disabled={!canWrite}
           onChange={(countryCode) => setForm({ ...form, countryCode })}
         />
         <SelectRow
-          label="Locale"
+          label="Language"
+          pickerTitle="Select language"
           value={form.localeCode}
           options={locales}
           disabled={!canWrite}

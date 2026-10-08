@@ -262,8 +262,39 @@ function handle(path, q) {
     case 'config/countries':
       return {
         countries: [
+          // Deliberately unsorted and long enough to scroll, so the picker's sort and
+          // scroll-to-selection are visible.
           { country_code: 'GB', title: 'United Kingdom' },
-          { country_code: 'IE', title: 'Ireland' },
+          ...[
+            ['IE', 'Ireland'],
+            ['US', 'United States'],
+            ['FR', 'France'],
+            ['DE', 'Germany'],
+            ['ES', 'Spain'],
+            ['IT', 'Italy'],
+            ['NL', 'Netherlands'],
+            ['SE', 'Sweden'],
+            ['NO', 'Norway'],
+            ['DK', 'Denmark'],
+            ['PL', 'Poland'],
+            ['PT', 'Portugal'],
+            ['AU', 'Australia'],
+            ['CA', 'Canada'],
+            ['NZ', 'New Zealand'],
+            ['JP', 'Japan'],
+            ['IN', 'India'],
+            ['BR', 'Brazil'],
+            ['AR', 'Argentina'],
+            ['ZA', 'South Africa'],
+            ['CH', 'Switzerland'],
+            ['AT', 'Austria'],
+            ['BE', 'Belgium'],
+            ['GR', 'Greece'],
+            ['FI', 'Finland'],
+            ['MX', 'Mexico'],
+            ['TR', 'Turkey'],
+            ['EG', 'Egypt'],
+          ].map(([country_code, title]) => ({ country_code, title })),
         ],
       };
     case 'config/locales':

@@ -228,21 +228,20 @@ export const STRINGS = {
   'SCR-25.feed_type.feed_new_award': 'Awards',
   'SCR-25.feed_type.feed_publish_followers_milestone': 'Follower milestones',
   'SCR-25.feed_type.feed_publish_milestone': 'Publishing milestones',
-  'SCR-25.notifications.app.caption':
-    'Pushes to this phone for {username}. Turn both off to stop notifications for this account.',
-  'SCR-25.notifications.app.title': 'Notifications from this app',
+  'SCR-25.notifications.app.caption': 'Notifications from b-mobile on this device',
+  'SCR-25.notifications.app.title': 'b-mobile notifications',
   'SCR-25.notifications.feed_hint.all':
     'Your Blipfoto feed has every notification type turned off, so this app will never have any notifications to tell you about.',
   'SCR-25.notifications.feed_hint.some':
     "Your Blipfoto feed has {types} turned off, so you won't be notified about those.",
   'SCR-25.notifications.feed.caption':
-    "What appears in your activity on blipfoto.com and in every app. A type turned off here is never created, so this app can't notify you about it either.",
+    'These settings apply to both the Blipfoto website and to b-mobile. Only items enabled here can appear as app notifications.',
   'SCR-25.notifications.feed.title': 'Blipfoto feed settings',
   'SCR-25.notifications.interval': 'Check for new activity every',
   'SCR-25.notifications.needs_sign_in':
     'Notifications for {username} stopped because Blipfoto needs you to sign in again. Turn one on to sign in.',
-  'SCR-25.notifications.push_comments': 'Push for new comments',
-  'SCR-25.notifications.push_notifications': 'Push for new notifications',
+  'SCR-25.notifications.push_comments': 'New comments',
+  'SCR-25.notifications.push_notifications': 'New notifications',
   'SCR-29.row.delete_account': 'Delete my account',
   'SCR-29.row.delete_account.subtitle':
     'Opens your Blipfoto account settings on the web. Not specific to any account signed in here.',

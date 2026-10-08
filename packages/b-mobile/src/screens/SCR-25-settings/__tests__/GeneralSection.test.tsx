@@ -3,7 +3,7 @@
 // @vitest-environment jsdom
 
 import { describe, it, expect, afterEach, beforeEach, vi } from 'vitest';
-import { render, screen, cleanup, waitFor } from '@testing-library/react';
+import { render, screen, cleanup, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
 import { BlipfotoError } from '@b-oss/b-api';
@@ -104,6 +104,42 @@ describe('GeneralSection', () => {
       }),
     );
     expect(goBack).toHaveBeenCalled();
+  });
+
+  it('Country opens a sorted list titled "Select country" with the current choice marked', async () => {
+    renderScreen();
+    await screen.findByDisplayValue('Alice Example');
+    await userEvent.click(screen.getByText('United Kingdom'));
+    expect(await screen.findByText('Select country')).toBeDefined();
+    // Title and Cancel share one header row.
+    const row = screen.getByText('Select country').parentElement as HTMLElement;
+    expect(within(row).getByText('Cancel')).toBeDefined();
+    const items = Array.from(document.querySelectorAll('ion-list ion-item span')).map(
+      (e) => e.textContent,
+    );
+    expect(items.slice(-2)).toEqual(['France', 'United Kingdom']);
+    const current = screen.getAllByText('United Kingdom').map((e) => e.closest('ion-item'));
+    expect(current.some((i) => i?.getAttribute('aria-current') === 'true')).toBe(true);
+  });
+
+  it('choosing a country from the list changes the form and saves it', async () => {
+    renderScreen();
+    await screen.findByDisplayValue('Alice Example');
+    await userEvent.click(screen.getByText('United Kingdom'));
+    await userEvent.click(await screen.findByText('France'));
+    await userEvent.click(screen.getByText('Save', { selector: 'ion-button' }));
+    await waitFor(() =>
+      expect(saveUserSettings).toHaveBeenCalledWith(
+        expect.objectContaining({ country_code: 'fr' }),
+      ),
+    );
+  });
+
+  it('Language opens a list titled "Select language"', async () => {
+    renderScreen();
+    await screen.findByDisplayValue('Alice Example');
+    await userEvent.click(screen.getByText('English'));
+    expect(await screen.findByText('Select language')).toBeDefined();
   });
 
   it('Save stays disabled until something changes', async () => {
