@@ -92,7 +92,7 @@ function BiographyEditor() {
   return (
     <IonPage>
       <IonHeader>
-        <AppHeader title="Biography" variant="back" onBack={handleBack} />
+        <AppHeader title="Biography" variant="back" onBack={handleBack} accountIndicator />
       </IonHeader>
       <IonContent>
         <div className="description-editor">

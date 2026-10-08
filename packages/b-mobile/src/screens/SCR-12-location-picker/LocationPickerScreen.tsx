@@ -121,7 +121,7 @@ export function LocationPickerScreen() {
   return (
     <IonPage>
       <IonHeader>
-        <AppHeader title="Pick location" variant="back" />
+        <AppHeader title="Pick location" variant="back" accountIndicator />
       </IonHeader>
       <IonContent>
         {!styleUrl ? (

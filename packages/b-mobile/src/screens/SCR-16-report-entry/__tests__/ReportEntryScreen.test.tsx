@@ -7,6 +7,7 @@ import { describe, it, expect, afterEach, beforeEach, vi } from 'vitest';
 import { render, screen, cleanup, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
+import { OverlayProvider } from '../../../app/OverlayProvider.js';
 import { ReportEntryScreen } from '../ReportEntryScreen.js';
 import { useAccountsStore } from '../../../state/accountsStore.js';
 import { useHiddenMembersStore } from '../../../state/hiddenMembersStore.js';
@@ -52,7 +53,9 @@ afterEach(() => {
 function renderScreen(props: Partial<ComponentProps<typeof ReportEntryScreen>> = {}) {
   return render(
     <MemoryRouter>
-      <ReportEntryScreen entryId="1" {...props} />
+      <OverlayProvider>
+        <ReportEntryScreen entryId="1" {...props} />
+      </OverlayProvider>
     </MemoryRouter>,
   );
 }

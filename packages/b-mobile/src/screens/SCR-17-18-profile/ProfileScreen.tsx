@@ -31,9 +31,8 @@ import {
   IonSegmentButton,
   IonLabel,
   IonAlert,
-  IonActionSheet,
 } from '@ionic/react';
-import { EllipsisVertical } from 'lucide-react';
+import { UserX } from 'lucide-react';
 import { AppHeader } from '../../components/AppHeader.js';
 import { useResource } from '../../data/useResource.js';
 import { usePagedResource } from '../../data/usePagedResource.js';
@@ -191,7 +190,6 @@ export function ProfileScreen({ username }: ProfileScreenProps) {
   const [friendshipState, setFriendshipState] = useState<0 | 1 | 2 | 3 | null>(null);
   const [confirmUnfollow, setConfirmUnfollow] = useState(false);
   const [confirmHide, setConfirmHide] = useState(false);
-  const [overflowOpen, setOverflowOpen] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const fillsHeight =
@@ -268,15 +266,9 @@ export function ProfileScreen({ username }: ProfileScreenProps) {
           title={isOwn ? 'My profile' : 'Profile'}
           variant={isOwn ? 'menu' : 'back'}
           backHref="/browse"
-          // Other-user profile deliberately has no account indicator (spec lists My profile
-          // only); AppHeader's default (menu variant only) gives exactly that.
-          end={
-            !isOwn && state.status === 'loaded' ? (
-              <IonButton onClick={() => setOverflowOpen(true)} aria-label="More">
-                <EllipsisVertical size={22} aria-hidden="true" />
-              </IonButton>
-            ) : undefined
-          }
+          // Shows the account indicator on own AND other profiles (following acts as the
+          // active account), so it is always on rather than the menu-variant default.
+          accountIndicator
         />
       </IonHeader>
       <IonContent>
@@ -352,6 +344,22 @@ export function ProfileScreen({ username }: ProfileScreenProps) {
                   </p>
                 )}
               </div>
+              {!isOwn && (
+                <button
+                  aria-label={`Hide ${state.data.user.username}`}
+                  onClick={() => setConfirmHide(true)}
+                  style={{
+                    flex: 'none',
+                    background: 'none',
+                    border: 'none',
+                    padding: 8,
+                    cursor: 'pointer',
+                    color: 'var(--muted)',
+                  }}
+                >
+                  <UserX size={20} strokeWidth={1.6} aria-hidden="true" />
+                </button>
+              )}
             </div>
 
             <nav
@@ -513,19 +521,6 @@ export function ProfileScreen({ username }: ProfileScreenProps) {
         message={errorMessage ?? ''}
         onDidDismiss={() => setErrorMessage(null)}
         buttons={['OK']}
-      />
-
-      <IonActionSheet
-        isOpen={overflowOpen}
-        onDidDismiss={() => setOverflowOpen(false)}
-        buttons={[
-          {
-            text: `Hide ${effectiveUsername ?? ''}`,
-            role: 'destructive',
-            handler: () => setConfirmHide(true),
-          },
-          { text: 'Cancel', role: 'cancel' },
-        ]}
       />
     </IonPage>
   );

@@ -103,6 +103,7 @@ export function ReportEntryScreen({
           title={reportedComment ? 'Report comment' : 'Report entry'}
           variant="back"
           backHref={`/entry/${entryId}`}
+          accountIndicator
         />
       </IonHeader>
       <IonContent className="ion-padding">

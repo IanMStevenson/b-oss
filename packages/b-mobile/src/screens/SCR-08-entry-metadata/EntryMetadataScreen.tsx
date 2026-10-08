@@ -46,7 +46,12 @@ export function EntryMetadataScreen({ entryId }: EntryMetadataScreenProps) {
   return (
     <IonPage>
       <IonHeader>
-        <AppHeader title="Camera info" variant="back" backHref={`/entry/${entryId}`} />
+        <AppHeader
+          title="Camera info"
+          variant="back"
+          backHref={`/entry/${entryId}`}
+          accountIndicator
+        />
       </IonHeader>
       <IonContent>
         {entryState.status === 'loading' && (

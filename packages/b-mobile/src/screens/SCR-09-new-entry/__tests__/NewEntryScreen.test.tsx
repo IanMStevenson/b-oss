@@ -6,6 +6,7 @@ import { describe, it, expect, afterEach, beforeEach, vi } from 'vitest';
 import { render, screen, cleanup, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
+import { OverlayProvider } from '../../../app/OverlayProvider.js';
 import { NewEntryScreen } from '../NewEntryScreen.js';
 import { useAccountsStore } from '../../../state/accountsStore.js';
 import { useComposeDraftStore } from '../../../state/composeDraftStore.js';
@@ -65,7 +66,9 @@ afterEach(() => {
 function renderScreen() {
   return render(
     <MemoryRouter>
-      <NewEntryScreen />
+      <OverlayProvider>
+        <NewEntryScreen />
+      </OverlayProvider>
     </MemoryRouter>,
   );
 }
