@@ -4,6 +4,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { useUploadQueueStore } from '../uploadQueueStore.js';
 import type { UploadQueueItem } from '../uploadQueueStore.js';
+import { getPref, setPref } from '../../platform/prefs.js';
 
 vi.mock('../../platform/prefs.js', () => ({
   getPref: vi.fn().mockResolvedValue(null),
@@ -71,5 +72,36 @@ describe('uploadQueueStore', () => {
     useUploadQueueStore.getState().enqueue(item({ id: 'q1', accountId: 'a1', status: 'uploaded' }));
     expect(useUploadQueueStore.getState().cancelForAccount('a1')).toEqual([]);
     expect(useUploadQueueStore.getState().items).toHaveLength(1);
+  });
+
+  describe('hydrate', () => {
+    beforeEach(() => {
+      useUploadQueueStore.setState({ items: [], hydrated: false });
+      vi.mocked(setPref).mockClear();
+    });
+
+    it('loads the saved queue', async () => {
+      vi.mocked(getPref).mockResolvedValueOnce(JSON.stringify([item({ id: 's1' })]));
+      await useUploadQueueStore.getState().hydrate();
+      expect(useUploadQueueStore.getState().hydrated).toBe(true);
+      expect(useUploadQueueStore.getState().items.map((i) => i.id)).toEqual(['s1']);
+    });
+
+    it('keeps an item enqueued before prefs finished loading, and saves both', async () => {
+      vi.mocked(getPref).mockResolvedValueOnce(JSON.stringify([item({ id: 's1' })]));
+      const loading = useUploadQueueStore.getState().hydrate();
+      useUploadQueueStore.getState().enqueue(item({ id: 'new' }));
+      await loading;
+      expect(useUploadQueueStore.getState().items.map((i) => i.id)).toEqual(['s1', 'new']);
+      const saved = JSON.parse(vi.mocked(setPref).mock.calls.at(-1)![1]) as UploadQueueItem[];
+      expect(saved.map((i) => i.id)).toEqual(['s1', 'new']);
+    });
+
+    it('treats corrupt saved data as an empty queue', async () => {
+      vi.mocked(getPref).mockResolvedValueOnce('{not json');
+      await useUploadQueueStore.getState().hydrate();
+      expect(useUploadQueueStore.getState().hydrated).toBe(true);
+      expect(useUploadQueueStore.getState().items).toEqual([]);
+    });
   });
 });

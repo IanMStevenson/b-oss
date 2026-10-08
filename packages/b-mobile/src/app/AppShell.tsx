@@ -30,6 +30,7 @@ import { maybeRunFeedProbe } from '../diagnostics/feedProbe.js';
 import { useHiddenMembersStore } from '../state/hiddenMembersStore.js';
 import { useDevicePrefsStore } from '../state/devicePrefsStore.js';
 import { useNotificationCountsStore } from '../state/notificationCountsStore.js';
+import { useUploadQueueStore } from '../state/uploadQueueStore.js';
 import { startUploadQueueRunner } from '../flows/uploadQueueRunner.js';
 import { onReminderTapped } from '../platform/localNotifications.js';
 import { refreshAccountAvatars } from '../flows/avatarFlow.js';
@@ -328,8 +329,10 @@ export function AppShell() {
     void useDevicePrefsStore.getState().hydrate();
     // The upload queue (§9) has non-React consumers by design — started once here rather than
     // from any one screen, so a background upload resumes even if the app launches straight into
-    // a route that never touches uploadQueueStore itself.
-    startUploadQueueRunner();
+    // a route that never touches uploadQueueStore itself. Loaded from prefs first, so the runner's
+    // launch recovery (a stuck `uploading` item back to `waiting`) sees the persisted queue rather
+    // than an empty store (b-oss#342).
+    void useUploadQueueStore.getState().hydrate().then(startUploadQueueRunner);
     // FLW-16 step 8 — the launch-time backstop, run once accounts are known (it reads
     // accountsStore directly, not via a React selector, so it just needs hydrate() to resolve).
     void accountsHydrated.then(() => runLaunchBackstopCheck());

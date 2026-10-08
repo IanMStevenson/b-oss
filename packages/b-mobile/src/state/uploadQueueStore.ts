@@ -69,15 +69,21 @@ export const useUploadQueueStore = create<UploadQueueState>((set, get) => ({
 
   hydrate: async () => {
     const raw = await getPref(PREFS_KEY);
+    let saved: UploadQueueItem[] = [];
     if (raw) {
       try {
-        set({ items: JSON.parse(raw) as UploadQueueItem[], hydrated: true });
-        return;
+        saved = JSON.parse(raw) as UploadQueueItem[];
       } catch {
-        // Corrupt prefs — fall through to an empty, hydrated state rather than crash launch.
+        // Corrupt prefs — continue with an empty saved queue rather than crash launch.
       }
     }
-    set({ hydrated: true });
+    // Anything enqueued while prefs were still loading is kept (and re-persisted alongside the
+    // saved items) rather than overwritten by them.
+    const savedIds = new Set(saved.map((i) => i.id));
+    const pending = get().items.filter((i) => !savedIds.has(i.id));
+    const items = [...saved, ...pending];
+    if (pending.length > 0) persist(items);
+    set({ items, hydrated: true });
   },
 
   enqueue: (item) => {
