@@ -115,6 +115,11 @@ for (const [mode, path, button] of [
     el.scrollTo(0, el.scrollHeight);
   });
   await page.waitForTimeout(600);
+  const strip = await page.evaluate(() => {
+    const r = document.querySelector('.system-nav-strip')?.getBoundingClientRect();
+    return r && { top: Math.round(r.top), height: Math.round(r.height) };
+  });
+  console.log(mode, 'nav strip', strip);
   const box = await page.getByRole('button', { name: button }).boundingBox();
   console.log(
     mode,

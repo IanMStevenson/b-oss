@@ -340,6 +340,7 @@ export function AppShell() {
           <IonRouterOutlet id={MAIN_CONTENT_ID}>{renderAppRoutes()}</IonRouterOutlet>
         </IonReactRouter>
       </OverlayProvider>
+      <div className="system-nav-strip" aria-hidden="true" />
     </IonApp>
   );
 }

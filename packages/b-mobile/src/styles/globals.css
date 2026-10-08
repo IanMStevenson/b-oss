@@ -324,3 +324,17 @@ ion-segment.settings-pill-segment ion-segment-button::part(native) {
   font-size: 13px;
   color: var(--muted);
 }
+
+/* Solid backing for the (transparent, edge-to-edge) navigation bar: the content's bottom padding
+   keeps the end of a page clear of it, and this strip stops anything scrolling past from showing
+   through behind the bar's icons (b-oss#300). Zero height where there is no bottom inset. */
+.system-nav-strip {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: var(--ion-safe-area-bottom, 0px);
+  background: var(--bg, #fff);
+  z-index: 10000;
+  pointer-events: none;
+}
