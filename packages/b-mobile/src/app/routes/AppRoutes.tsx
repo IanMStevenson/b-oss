@@ -16,7 +16,6 @@ import { SearchScreen } from '../../screens/SCR-03-search/SearchScreen.js';
 import { TagEntriesScreen } from '../../screens/SCR-05-tag-entries/TagEntriesScreen.js';
 import { EntryDetailScreen } from '../../screens/SCR-06-entry-detail/EntryDetailScreen.js';
 import { PhotoScreen } from '../../screens/SCR-07-full-screen-photo/PhotoScreen.js';
-import { EntryMetadataScreen } from '../../screens/SCR-08-entry-metadata/EntryMetadataScreen.js';
 import { NewEntryScreen } from '../../screens/SCR-09-new-entry/NewEntryScreen.js';
 import { DescriptionEditorScreen } from '../../screens/SCR-11-description-editor/DescriptionEditorScreen.js';
 import { EditEntryScreen } from '../../screens/SCR-13-edit-entry/EditEntryScreen.js';
@@ -120,10 +119,6 @@ function PhotoRoute() {
   return <PhotoScreen entryId={useParam('entryId')} />;
 }
 
-function EntryMetadataRoute() {
-  return <EntryMetadataScreen entryId={useParam('entryId')} />;
-}
-
 function EditEntryRoute() {
   return <EditEntryScreen entryId={useParam('entryId')} />;
 }
@@ -177,7 +172,6 @@ function AppRouteTable() {
       <Route path="/tag/:tag" element={<TagRoute />} />
       <Route path="/entry/:entryId" element={<EntryRoute />} />
       <Route path="/entry/:entryId/photo" element={<PhotoRoute />} />
-      <Route path="/entry/:entryId/metadata" element={<EntryMetadataRoute />} />
       <Route
         path="/entry/:entryId/edit"
         element={
