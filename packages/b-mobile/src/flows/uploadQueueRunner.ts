@@ -64,6 +64,28 @@ export function wakeUploadQueueRunner(): void {
   void drain();
 }
 
+/** SCR-14's Retry on a failed item: back to `waiting` with a fresh attempt budget, then drain.
+ * `mayHavePublished` is kept, so a publish that may already have landed still gets the 252 check. */
+export function retryUploadItem(id: string): void {
+  const item = useUploadQueueStore.getState().items.find((i) => i.id === id);
+  if (!item || item.status !== 'failed') return;
+  useUploadQueueStore.getState().updateItem(id, {
+    status: 'waiting',
+    attempts: 0,
+    nextAttemptAt: null,
+    error: null,
+  });
+  wakeUploadQueueRunner();
+}
+
+/** SCR-14's Remove on a failed item: drops it from the queue and deletes its copied photo. */
+export async function removeUploadItem(id: string): Promise<void> {
+  const item = useUploadQueueStore.getState().items.find((i) => i.id === id);
+  if (!item || item.status !== 'failed') return;
+  useUploadQueueStore.getState().removeItem(id);
+  if (item.filePath) await deleteQueuedFile(item.filePath);
+}
+
 async function drain(): Promise<void> {
   if (draining) return;
   draining = true;

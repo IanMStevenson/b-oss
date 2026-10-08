@@ -43,7 +43,8 @@ Known Blipfoto API limits: [AppLimitations.md](AppLimitations.md). Paths are rel
   location, replace photo, Delete entry; no date field; Save enqueues and returns to the entry.
 - **Biography editor** (`/compose/description`, despite the path): from Settings → Profile.
 - **Uploads**: Waiting / Uploading… / Uploaded / Failed (+ error); indeterminate bar while
-  uploading; tap an uploaded item to open it. No retry or remove buttons.
+  uploading; tap an uploaded item to open it. A failed item has Retry (back to Waiting, fresh
+  attempt count) and Remove (asks first; drops it and its copied photo).
 - **Report**: five reasons (at least one required) plus note. A comment report uses the same
   endpoint with a prefilled note `<user>'s comment: "<excerpt>"`. Afterwards offers to hide.
 - **Profile** (`/me`, `/user/:u`, one component): tabs About, Entries, Faves, Followers, Following.
