@@ -43,6 +43,7 @@ import { applyFontScale } from '../platform/accessibility.js';
 import { onAppStateChange } from '../platform/appState.js';
 import { onAppUrlOpen, getLaunchUrl } from '../platform/deepLinks.js';
 import { resolveDeepLink, routeDeepLink } from '../flows/deepLinkResolver.js';
+import { isBackSwallowedAt, BROWSE_BACK_PRIORITY } from './hardwareBack.js';
 import { checkForSharedImage, onShareReceived } from '../platform/shareIntent.js';
 
 const MAIN_CONTENT_ID = 'main-content';
@@ -264,6 +265,32 @@ function ReminderTapListener() {
   return null;
 }
 
+// Ionic fires `ionBackButton` on the system Back button and runs only the highest-priority
+// registered handler; not calling `processNextHandler` stops the router's own handler (and so the
+// navigate/exit) from running. Menu and overlay handlers outrank this one.
+interface BackButtonDetail {
+  register: (priority: number, handler: (processNextHandler: () => void) => void) => void;
+}
+
+function BrowseBackGuard() {
+  const { pathname } = useLocation();
+  const pathRef = useRef(pathname);
+  pathRef.current = pathname;
+  useEffect(() => {
+    const onBack = (e: Event) => {
+      (e as CustomEvent<BackButtonDetail>).detail.register(
+        BROWSE_BACK_PRIORITY,
+        (processNextHandler: () => void) => {
+          if (!isBackSwallowedAt(pathRef.current)) processNextHandler();
+        },
+      );
+    };
+    document.addEventListener('ionBackButton', onBack);
+    return () => document.removeEventListener('ionBackButton', onBack);
+  }, []);
+  return null;
+}
+
 export function AppShell() {
   const activeAccountId = useAccountsStore((s) => s.activeAccountId);
 
@@ -334,12 +361,14 @@ export function AppShell() {
         <IonReactRouter>
           <NavMenu />
           <ReminderTapListener />
+          <BrowseBackGuard />
           <PushListener />
           <DeepLinkListener />
           <OverlayHost />
           <IonRouterOutlet id={MAIN_CONTENT_ID}>{renderAppRoutes()}</IonRouterOutlet>
         </IonReactRouter>
       </OverlayProvider>
+      <div className="system-nav-strip" aria-hidden="true" />
     </IonApp>
   );
 }

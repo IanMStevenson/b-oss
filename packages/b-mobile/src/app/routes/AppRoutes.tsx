@@ -139,11 +139,6 @@ function ReportEntryRoute() {
   );
 }
 
-function DescriptionEditorRoute() {
-  const target = new URLSearchParams(useLocation().search).get('target');
-  return <DescriptionEditorScreen target={target === 'bio' ? 'bio' : 'draft'} />;
-}
-
 function UserProfileRoute() {
   return <ProfileScreen username={useParam('username')} />;
 }
@@ -210,7 +205,7 @@ function AppRouteTable() {
           </Suspense>
         }
       />
-      <Route path="/compose/description" element={<DescriptionEditorRoute />} />
+      <Route path="/compose/description" element={<DescriptionEditorScreen />} />
       <Route
         path="/compose/location"
         element={

@@ -105,6 +105,10 @@ const baseLoadedEntry: LoadedEntry = {
   comments: [],
 };
 
+// Every test here renders Ionic + the ProseMirror composer; under full-suite load that can exceed
+// even the global 20s limit, and the editor lookups below wait up to 15s on their own.
+vi.setConfig({ testTimeout: 45_000 });
+
 beforeEach(() => {
   useAccountsStore.setState({
     accounts: [readWriteAccount],
@@ -535,14 +539,19 @@ describe('EntryDetailScreen', () => {
       return await import('../../../flows/commentsFlow.js');
     }
     // The composers are rich-text boxes (b-oss#206), so their text is the element's textContent.
+    // The editor (ProseMirror) is created in an effect after the composer mounts, so it is looked up
+    // asynchronously: findByRole retries until the textbox exists, with a ceiling above the global
+    // 5s asyncUtilTimeout for a starved runner. `box()` is the sync read for once it's there.
     const box = (name = 'Your comment') => screen.getByRole('textbox', { name });
+    const findBox = (name = 'Your comment') =>
+      screen.findByRole('textbox', { name }, { timeout: 15_000 });
 
     it('has the composer inline at the bottom — no separate screen, no navigation', async () => {
       await load();
       renderScreen();
       await screen.findByText('A day out');
       expect(screen.getByText('Comments (0)')).toBeDefined();
-      expect(box()).toBeDefined();
+      expect(await findBox()).toBeDefined();
       expect(screen.getByText('Add comment').hasAttribute('disabled')).toBe(true);
       expect(navPush).not.toHaveBeenCalled();
     });
@@ -558,7 +567,7 @@ describe('EntryDetailScreen', () => {
       let finishRefresh: (e: LoadedEntry) => void = () => {};
       vi.mocked(fetchEntry).mockReturnValueOnce(new Promise((r) => (finishRefresh = r)));
 
-      await userEvent.type(box(), 'Lovely');
+      await userEvent.type(await findBox(), 'Lovely');
       await userEvent.click(screen.getByText('Add comment'));
       await waitFor(() =>
         expect(postComment).toHaveBeenCalledWith({ entryId: '1', content: 'Lovely' }),
@@ -598,7 +607,7 @@ describe('EntryDetailScreen', () => {
       renderScreen();
       await screen.findByText('A day out');
 
-      await userEvent.type(box(), 'Lovely');
+      await userEvent.type(await findBox(), 'Lovely');
       await userEvent.click(screen.getByText('Add comment'));
       expect((await screen.findByRole('alert')).textContent).toMatch(/Your text is still here/);
       expect(box().textContent).toBe('Lovely');
@@ -612,12 +621,13 @@ describe('EntryDetailScreen', () => {
       await load();
       const first = renderScreen();
       await screen.findByText('A day out');
-      await userEvent.type(box(), 'half a thought');
+      await userEvent.type(await findBox(), 'half a thought');
       first.unmount();
 
       renderScreen();
       await screen.findByText('A day out');
-      expect(box().textContent).toBe('half a thought');
+      await findBox();
+      await waitFor(() => expect(box().textContent).toBe('half a thought'));
     });
 
     it('does not offer a composer to a read-only account, or where comments are switched off', async () => {
@@ -653,7 +663,7 @@ describe('EntryDetailScreen', () => {
       await load();
       renderScreen();
       await screen.findByText('A day out');
-      await userEvent.type(box(), 'Lovely');
+      await userEvent.type(await findBox(), 'Lovely');
       await userEvent.click(screen.getByText('Add comment'));
       await waitFor(() => expect(signInGated).toHaveBeenCalled());
       expect(postComment).not.toHaveBeenCalled();
@@ -716,8 +726,8 @@ describe('EntryDetailScreen', () => {
       await screen.findByText('First!');
 
       await userEvent.click(screen.getByLabelText('Reply'));
-      const reply = box('Reply to bob');
-      expect(document.activeElement).toBe(reply); // focused, ready to type
+      const reply = await findBox('Reply to bob');
+      await waitFor(() => expect(document.activeElement).toBe(reply)); // focused, ready to type
       await userEvent.type(reply, 'Thanks!');
       await userEvent.click(screen.getByText('Reply', { selector: 'button[type="submit"]' }));
 
@@ -739,8 +749,8 @@ describe('EntryDetailScreen', () => {
       await screen.findByText('First!');
 
       await userEvent.click(screen.getByLabelText('Edit comment'));
-      const editor = box('Edit your comment');
-      expect(editor.textContent).toBe('First!');
+      const editor = await findBox('Edit your comment');
+      await waitFor(() => expect(editor.textContent).toBe('First!'));
       // Replaced by the editor: the only "First!" left is the editor's own line.
       const shown = screen.queryAllByText('First!', { selector: 'p, div' });
       expect(shown.filter((el) => !editor.contains(el))).toEqual([]);
@@ -759,7 +769,7 @@ describe('EntryDetailScreen', () => {
       await screen.findByText('First!');
 
       await userEvent.click(screen.getByLabelText('Reply'));
-      await userEvent.type(box('Reply to bob'), 'draft reply');
+      await userEvent.type(await findBox('Reply to bob'), 'draft reply');
       // Every IonAlert on this screen renders its own Cancel in jsdom, so scope to the composer.
       await userEvent.click(
         within(box('Reply to bob').closest('form') as HTMLElement).getByText('Cancel'),
@@ -767,14 +777,15 @@ describe('EntryDetailScreen', () => {
       expect(screen.queryByLabelText('Reply to bob')).toBeNull();
 
       await userEvent.click(screen.getByLabelText('Reply'));
-      expect(box('Reply to bob').textContent).toBe('draft reply');
+      await findBox('Reply to bob');
+      await waitFor(() => expect(box('Reply to bob').textContent).toBe('draft reply'));
     });
 
     it('opens the reply composer on arrival when sent here from the comments inbox', async () => {
       await load(withComment({ reply: 1, edit: 0, delete: 0 }));
       renderScreen({ initialReplyToCommentId: 'c1' });
       await screen.findByText('First!');
-      expect(await screen.findByLabelText('Reply to bob')).toBeDefined();
+      expect(await findBox('Reply to bob')).toBeDefined();
     });
 
     it('ignores an inbox hand-off for a comment you cannot reply to', async () => {

@@ -75,12 +75,14 @@ function RemindersGroup() {
         <>
           <SelectRow
             label="Reminder hour"
+            pickerTitle="Reminder hour"
             value={String(hour)}
             options={HOUR_OPTIONS}
             onChange={(v) => apply({ enabled, hour: Number(v), minute })}
           />
           <SelectRow
             label="Reminder minute"
+            pickerTitle="Reminder minute"
             value={String(minute)}
             options={MINUTE_OPTIONS}
             onChange={(v) => apply({ enabled, hour, minute: Number(v) })}

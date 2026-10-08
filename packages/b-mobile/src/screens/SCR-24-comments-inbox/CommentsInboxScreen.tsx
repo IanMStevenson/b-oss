@@ -31,7 +31,8 @@ import {
   IonRefresherContent,
 } from '@ionic/react';
 import type { RefresherEventDetail } from '@ionic/core';
-import { CornerUpLeft, MoreVertical } from 'lucide-react';
+import { CornerUpLeft, MessageSquare, MoreVertical } from 'lucide-react';
+import { EmptyState } from '../../components/EmptyState.js';
 import { AppHeader } from '../../components/AppHeader.js';
 import { UserBadges } from '../../components/UserBadges.js';
 import { fetchRecentComments, unreadCommentIds } from '../../data/notifications.js';
@@ -163,9 +164,10 @@ export function CommentsInboxScreen() {
           </div>
         )}
         {status === 'empty' && (
-          <div className="ion-padding">
-            <p>No comments yet.</p>
-          </div>
+          <EmptyState
+            icon={<MessageSquare size={40} strokeWidth={1.5} />}
+            title="No comments yet."
+          />
         )}
         {(status === 'loaded' || status === 'empty') && (
           <>

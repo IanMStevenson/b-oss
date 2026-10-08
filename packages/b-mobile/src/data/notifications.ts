@@ -134,6 +134,32 @@ export function resolveWebPathTarget(
   return null;
 }
 
+/** The member a notification is about, when it can be read off reliably: `content_html` must open
+ * with an `<a>` whose href is a bare profile path, and the BBCode `content` must open with the same
+ * text (plain or as a `[url]` tag), so the remainder can be rendered without it. Anything else
+ * (no leading link, a link to an entry, a text mismatch) returns null and the caller shows the
+ * content untouched: the payload has no structured actor field, so guessing would risk bolding
+ * the wrong words. */
+export function leadingActor(
+  notification: BlipNotification,
+): { username: string; rest: string } | null {
+  const match = /^\s*<a\s[^>]*href="([^"]+)"[^>]*>([^<]+)<\/a>/i.exec(notification.content_html);
+  if (!match) return null;
+  const target = resolveWebPathTarget(pathOf(match[1]));
+  if (target?.kind !== 'profile') return null;
+  const name = match[2].trim();
+  if (!name) return null;
+  const content = notification.content.trimStart();
+  const tagged = /^\[url(?:=[^\]]*)?\]([^[]*)\[\/url\]/i.exec(content);
+  if (tagged && tagged[1].trim() === name) {
+    return { username: target.username, rest: content.slice(tagged[0].length) };
+  }
+  if (content.startsWith(name)) {
+    return { username: target.username, rest: content.slice(name.length) };
+  }
+  return null;
+}
+
 /** SCR-23's tap routing, in the order the spec states it: follow-request first (a hardcoded
  * server-side path inside `content_html`, "a far more robust signal than username parsing"),
  * then `link_url`'s own entry/profile shape, else the link opens externally. */

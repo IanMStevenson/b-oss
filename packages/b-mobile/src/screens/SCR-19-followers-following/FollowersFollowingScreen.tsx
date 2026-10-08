@@ -21,7 +21,8 @@ import {
   IonInfiniteScrollContent,
 } from '@ionic/react';
 import type { RefresherEventDetail } from '@ionic/core';
-import { X } from 'lucide-react';
+import { Users, X } from 'lucide-react';
+import { EmptyState } from '../../components/EmptyState.js';
 import { AppHeader } from '../../components/AppHeader.js';
 import { usePagedResource } from '../../data/usePagedResource.js';
 import { useScrollResume } from '../../data/useScrollResume.js';
@@ -119,9 +120,10 @@ export function FollowersFollowingScreen({ username, mode }: FollowersFollowingS
           </div>
         )}
         {resource.status === 'empty' && (
-          <div className="ion-padding">
-            <p>{mode === 'followers' ? 'No followers yet.' : 'Not following anyone yet.'}</p>
-          </div>
+          <EmptyState
+            icon={<Users size={40} strokeWidth={1.5} />}
+            title={mode === 'followers' ? 'No followers yet.' : 'Not following anyone yet.'}
+          />
         )}
         {(resource.status === 'loaded' || resource.status === 'empty') && (
           <>

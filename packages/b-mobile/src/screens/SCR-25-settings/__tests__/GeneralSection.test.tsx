@@ -3,7 +3,7 @@
 // @vitest-environment jsdom
 
 import { describe, it, expect, afterEach, beforeEach, vi } from 'vitest';
-import { render, screen, cleanup, waitFor } from '@testing-library/react';
+import { render, screen, cleanup, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
 import { BlipfotoError } from '@b-oss/b-api';
@@ -76,6 +76,20 @@ function renderScreen() {
   );
 }
 
+/** The form's Cancel — not the picker modal's, which may still be animating out from an earlier test. */
+function formCancel(): HTMLElement {
+  const [button] = screen
+    .getAllByText('Cancel', { selector: 'ion-button' })
+    .filter((b) => !b.closest('ion-modal'));
+  return button;
+}
+
+/** Cancel the picker and wait for it to go, so it can't leak its portalled content into later tests. */
+async function closePicker(row: HTMLElement, title: string): Promise<void> {
+  await userEvent.click(within(row).getByText('Cancel'));
+  await waitFor(() => expect(screen.queryByText(title)).toBeNull());
+}
+
 describe('GeneralSection', () => {
   it('loads current values into the form', async () => {
     renderScreen();
@@ -106,6 +120,44 @@ describe('GeneralSection', () => {
     expect(goBack).toHaveBeenCalled();
   });
 
+  it('Country opens a sorted list titled "Select country" with the current choice marked', async () => {
+    renderScreen();
+    await screen.findByDisplayValue('Alice Example');
+    await userEvent.click(screen.getByText('United Kingdom'));
+    expect(await screen.findByText('Select country')).toBeDefined();
+    // Title and Cancel share one header row.
+    const row = screen.getByText('Select country').parentElement as HTMLElement;
+    expect(within(row).getByText('Cancel')).toBeDefined();
+    const items = Array.from(document.querySelectorAll('ion-list ion-item span')).map(
+      (e) => e.textContent,
+    );
+    expect(items.slice(-2)).toEqual(['France', 'United Kingdom']);
+    const current = screen.getAllByText('United Kingdom').map((e) => e.closest('ion-item'));
+    expect(current.some((i) => i?.getAttribute('aria-current') === 'true')).toBe(true);
+    await closePicker(row, 'Select country');
+  });
+
+  it('choosing a country from the list changes the form and saves it', async () => {
+    renderScreen();
+    await screen.findByDisplayValue('Alice Example');
+    await userEvent.click(screen.getByText('United Kingdom'));
+    await userEvent.click(await screen.findByText('France'));
+    await userEvent.click(screen.getByText('Save', { selector: 'ion-button' }));
+    await waitFor(() =>
+      expect(saveUserSettings).toHaveBeenCalledWith(
+        expect.objectContaining({ country_code: 'fr' }),
+      ),
+    );
+  });
+
+  it('Language opens a list titled "Select language"', async () => {
+    renderScreen();
+    await screen.findByDisplayValue('Alice Example');
+    await userEvent.click(screen.getByText('English'));
+    const title = await screen.findByText('Select language');
+    await closePicker(title.parentElement as HTMLElement, 'Select language');
+  });
+
   it('Save stays disabled until something changes', async () => {
     renderScreen();
     const input = await screen.findByDisplayValue('Alice Example');
@@ -118,7 +170,7 @@ describe('GeneralSection', () => {
   it('Cancel with no edits goes straight back with no confirmation', async () => {
     renderScreen();
     await screen.findByDisplayValue('Alice Example');
-    await userEvent.click(screen.getByText('Cancel', { selector: 'ion-button' }));
+    await userEvent.click(formCancel());
     expect(goBack).toHaveBeenCalled();
   });
 
@@ -126,7 +178,7 @@ describe('GeneralSection', () => {
     renderScreen();
     const input = await screen.findByDisplayValue('Alice Example');
     await userEvent.type(input, '!');
-    await userEvent.click(screen.getByText('Cancel', { selector: 'ion-button' }));
+    await userEvent.click(formCancel());
     expect(await screen.findByText('Discard changes?')).toBeDefined();
     expect(goBack).not.toHaveBeenCalled();
   });

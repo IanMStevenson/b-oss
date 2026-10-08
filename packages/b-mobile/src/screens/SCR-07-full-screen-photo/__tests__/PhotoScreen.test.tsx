@@ -102,8 +102,10 @@ describe('PhotoScreen', () => {
       ...reactionFields,
     });
     const { container } = renderScreen();
-    const img = await screen.findByRole('dialog').then(() => container.querySelector('img'));
-    img!.dispatchEvent(new Event('error'));
+    await screen.findByRole('dialog');
+    // The dialog can be up a beat before its <img> is, so wait for the image itself.
+    await waitFor(() => expect(container.querySelector('img')).not.toBeNull());
+    container.querySelector('img')!.dispatchEvent(new Event('error'));
     expect(await screen.findByText(/couldn't be loaded/)).toBeDefined();
     const retryButton = screen.getByText('Retry');
     expect(retryButton).toBeDefined();
@@ -115,5 +117,22 @@ describe('PhotoScreen', () => {
         'https://example.com/photo.jpg',
       ),
     );
+  });
+
+  it('shows title, journal name and date, and arrows for the adjacent entries (disabled when none)', async () => {
+    const { fetchEntry } = await import('../../../data/entries.js');
+    vi.mocked(fetchEntry).mockResolvedValue({
+      entry: baseEntry,
+      prevEntryId: '0',
+      nextEntryId: null,
+      ...reactionFields,
+    });
+    renderScreen();
+    await screen.findByRole('dialog');
+    expect(screen.getByText('A day out')).toBeDefined();
+    expect(screen.getByText(/Alice's journal/)).toBeDefined();
+    expect(screen.getByText(/1st Jan 2026/)).toBeDefined();
+    expect(screen.getByLabelText<HTMLButtonElement>('Previous image').disabled).toBe(false);
+    expect(screen.getByLabelText<HTMLButtonElement>('Next image').disabled).toBe(true);
   });
 });

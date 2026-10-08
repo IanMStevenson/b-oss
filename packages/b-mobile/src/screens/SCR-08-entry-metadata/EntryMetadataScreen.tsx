@@ -6,6 +6,8 @@
 // documented in PhotoScreen.tsx applies here: fetches via useLiveEntry rather than being handed
 // the entry object from SCR-06.
 
+import { Camera } from 'lucide-react';
+import { EmptyState } from '../../components/EmptyState.js';
 import {
   IonPage,
   IonHeader,
@@ -66,7 +68,12 @@ export function EntryMetadataScreen({ entryId }: EntryMetadataScreenProps) {
           (() => {
             const fields = entryState.data.exif ? metadataFields(entryState.data.exif) : [];
             if (fields.length === 0) {
-              return <p className="ion-padding">No camera information.</p>;
+              return (
+                <EmptyState
+                  icon={<Camera size={40} strokeWidth={1.5} />}
+                  title="No camera information."
+                />
+              );
             }
             return (
               <IonList>

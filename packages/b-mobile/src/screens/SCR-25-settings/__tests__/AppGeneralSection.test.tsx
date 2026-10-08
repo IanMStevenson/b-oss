@@ -85,7 +85,7 @@ describe('AppGeneralSection — reminders', () => {
   it('starts off, with no time pickers shown', () => {
     render(<AppGeneralSection />);
     expect(toggleOf('Daily reminder').getAttribute('checked')).not.toBe('true');
-    expect(document.querySelector('ion-select')).toBeNull();
+    expect(screen.queryByText('Reminder hour')).toBeNull();
   });
 
   it('enabling schedules the reminder and reveals the time pickers', async () => {
@@ -94,19 +94,16 @@ describe('AppGeneralSection — reminders', () => {
     await waitFor(() =>
       expect(scheduleReminder).toHaveBeenCalledWith('a1', { hour: 20, minute: 0 }),
     );
-    const labels = Array.from(
-      document.querySelectorAll<HTMLElement & { label: string }>('ion-select'),
-    ).map((el) => el.label);
-    expect(labels).toEqual(['Reminder hour', 'Reminder minute']);
+    expect(screen.getByText('Reminder hour')).toBeDefined();
+    expect(screen.getByText('Reminder minute')).toBeDefined();
   });
 
   it('shows the active account’s own already-configured time', () => {
     useDevicePrefsStore.getState().setReminder('a1', { enabled: true, hour: 7, minute: 30 });
     render(<AppGeneralSection />);
-    const selects = Array.from(document.querySelectorAll('ion-select')) as Array<
-      HTMLElement & { value: string }
-    >;
-    expect(selects.map((s) => s.value)).toEqual(['7', '30']);
+    // SelectRow shows the label with the current choice beneath it.
+    expect(screen.getByText('Reminder hour').parentElement?.textContent).toContain('07');
+    expect(screen.getByText('Reminder minute').parentElement?.textContent).toContain('30');
   });
 
   it('disabling cancels the reminder', async () => {

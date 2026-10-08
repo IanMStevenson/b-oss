@@ -5,6 +5,8 @@
 // exactly as reversible as hiding, per the spec. A write, gated on read-write; the list and
 // profile navigation stay available read-only.
 
+import { UserRoundX } from 'lucide-react';
+import { EmptyState } from '../../components/EmptyState.js';
 import { useState } from 'react';
 import {
   IonPage,
@@ -114,7 +116,10 @@ export function RefusedFollowersScreen() {
           </div>
         )}
         {resource.status === 'empty' && (
-          <p style={{ margin: 0, padding: '0 16px' }}>You haven&rsquo;t refused anyone.</p>
+          <EmptyState
+            icon={<UserRoundX size={40} strokeWidth={1.5} />}
+            title="You haven’t refused anyone."
+          />
         )}
         {(resource.status === 'loaded' || resource.status === 'empty') && (
           <>

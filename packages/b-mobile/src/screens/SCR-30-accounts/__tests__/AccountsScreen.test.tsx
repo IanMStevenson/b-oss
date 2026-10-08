@@ -25,6 +25,35 @@ vi.mock('@ionic/react', async (importOriginal) => {
     role?: string;
     handler?: () => void;
   }
+  function IonActionSheet({
+    isOpen,
+    header,
+    buttons = [],
+    onDidDismiss,
+  }: {
+    isOpen: boolean;
+    header?: string;
+    buttons?: StubButton[];
+    onDidDismiss?: () => void;
+  }) {
+    if (!isOpen) return null;
+    return (
+      <div role="menu" aria-label={header}>
+        {buttons.map((b) => (
+          <button
+            key={b.text}
+            role="menuitem"
+            onClick={() => {
+              b.handler?.();
+              onDidDismiss?.();
+            }}
+          >
+            {b.text}
+          </button>
+        ))}
+      </div>
+    );
+  }
   function IonAlert({
     isOpen,
     header,
@@ -60,8 +89,11 @@ vi.mock('@ionic/react', async (importOriginal) => {
   function IonToast({ isOpen, message }: { isOpen: boolean; message?: string }) {
     return isOpen ? <div role="status">{message}</div> : null;
   }
-  return { ...actual, IonAlert, IonToast };
+  return { ...actual, IonActionSheet, IonAlert, IonToast };
 });
+
+const openUrl = vi.hoisted(() => vi.fn<(url: string) => Promise<void>>());
+vi.mock('../../../platform/browser.js', () => ({ openUrl }));
 
 let isNative = false;
 vi.mock('../../../platform/appState.js', () => ({ isNativePlatform: () => isNative }));
@@ -208,37 +240,6 @@ describe('AccountsScreen', () => {
     expect(switchAccount).not.toHaveBeenCalled();
   });
 
-  it('tapping the active account opens its detail view', async () => {
-    useAccountsStore.setState({ accounts: [account()], activeAccountId: 'a1' });
-    renderScreen();
-    await userEvent.click(screen.getByText('alice'));
-    expect(await screen.findByText('Remove account')).toBeDefined();
-    expect(screen.getByText('Mode')).toBeDefined();
-  });
-
-  it('detail view: removing an account calls removeAccount and returns to the list', async () => {
-    removeAccount.mockResolvedValue(undefined);
-    useAccountsStore.setState({ accounts: [account()], activeAccountId: 'a1' });
-    renderScreen();
-    await userEvent.click(screen.getByText('alice'));
-    await userEvent.click(screen.getByText('Remove account'));
-    await screen.findByRole('dialog', { name: 'Remove account?' });
-    await userEvent.click(screen.getByRole('button', { name: 'Remove' }));
-    await waitFor(() => expect(removeAccount).toHaveBeenCalledWith('a1'));
-    expect(await screen.findByText('Add account')).toBeDefined();
-  });
-
-  it('detail view: changing mode calls changeAccountMode with the chosen scope', async () => {
-    changeAccountMode.mockResolvedValue(undefined);
-    useAccountsStore.setState({ accounts: [account()], activeAccountId: 'a1' });
-    renderScreen();
-    await userEvent.click(screen.getByText('alice'));
-    await userEvent.click(screen.getByText('Switch to read-only'));
-    await waitFor(() =>
-      expect(changeAccountMode).toHaveBeenCalledWith('a1', { scope: 'read', notifications: false }),
-    );
-  });
-
   it('shows a notification status per account, and no notifications on/off button (b-oss#244)', () => {
     useAccountsStore.setState({
       accounts: [
@@ -258,15 +259,6 @@ describe('AccountsScreen', () => {
     expect(screen.getByText('Notifications: off')).toBeDefined();
     expect(screen.getByText('Notifications: needs sign-in')).toBeDefined();
     expect(screen.queryByText(/Turn notifications/)).toBeNull();
-  });
-
-  it('the detail view has no notifications on/off button either', async () => {
-    useAccountsStore.setState({ accounts: [account()], activeAccountId: 'a1' });
-    renderScreen();
-    await userEvent.click(screen.getByText('alice'));
-    await screen.findByText('Remove account');
-    expect(screen.queryByText(/Turn notifications/)).toBeNull();
-    expect(screen.getByText('Notifications: off')).toBeDefined();
   });
 
   it('tapping a status switches to that account and opens its notification settings', async () => {
@@ -346,8 +338,9 @@ describe('AccountsScreen', () => {
       activeAccountId: 'a1',
     });
     renderScreen();
-    await userEvent.click(screen.getByText('alice'));
-    await userEvent.click(screen.getByText('Switch to read-write'));
+    await userEvent.click(screen.getByRole('button', { name: 'Account options for alice' }));
+    await userEvent.click(screen.getByRole('menuitem', { name: 'Switch to read-write' }));
+    await userEvent.click(within(await screen.findByRole('dialog')).getByText('Continue'));
     const dialog = await screen.findByRole('dialog', { name: 'Wrong Blipfoto account' });
     expect(dialog.textContent).toContain('Your browser is signed in to Blipfoto as bob.');
     await userEvent.click(screen.getByRole('button', { name: 'OK' }));
@@ -514,48 +507,139 @@ describe('AccountsScreen', () => {
       await waitFor(() => expect(reauthorizeAccount).toHaveBeenCalled());
       expect(screen.queryByRole('status')).toBeNull();
     });
-
-    it('a needs-reauth account can still be removed from its row', async () => {
-      removeAccount.mockResolvedValue(undefined);
-      useAccountsStore.setState({ accounts: [account(), dead()], activeAccountId: 'a1' });
-      renderScreen();
-      await userEvent.click(screen.getByText('Remove'));
-      const dialog = await screen.findByRole('dialog', { name: 'Remove account?' });
-      expect(dialog.textContent).toContain("bob's access");
-      await userEvent.click(within(dialog).getByRole('button', { name: 'Remove' }));
-      await waitFor(() => expect(removeAccount).toHaveBeenCalledWith('a2'));
-    });
   });
 
-  describe('account detail (b-oss#263)', () => {
-    it('has the app header with a back arrow, shows the username once, and no Make active', async () => {
+  describe('per-account menu (b-oss#306)', () => {
+    const menuFor = async (name: string) => {
+      await userEvent.click(screen.getByRole('button', { name: `Account options for ${name}` }));
+      return screen.findByRole('menu');
+    };
+
+    it('highlights the active row like the header switcher', () => {
       useAccountsStore.setState({
         accounts: [account(), account({ id: 'a2', username: 'bob' })],
         activeAccountId: 'a1',
       });
       renderScreen();
-      await userEvent.click(screen.getByText('alice'));
-      await screen.findByText('Remove account');
-      expect(document.querySelector('ion-back-button')).not.toBeNull();
-      expect(screen.getAllByText('alice')).toHaveLength(1);
-      expect(screen.queryByText('Make active')).toBeNull();
-      expect(screen.queryByText('Switch to read-write')).toBeNull(); // only the other mode
+      const rows = document.querySelectorAll('ion-item');
+      expect((rows[0] as HTMLElement).style.getPropertyValue('--background')).toBe(
+        'var(--green-100, #eef2ee)',
+      );
+      expect((rows[1] as HTMLElement).style.getPropertyValue('--background')).toBe('');
     });
 
-    it('Back returns to the list without re-opening any dialog', async () => {
+    it('tapping the active account does nothing (no detail view)', async () => {
+      useAccountsStore.setState({ accounts: [account()], activeAccountId: 'a1' });
+      renderScreen();
+      await userEvent.click(screen.getByText('alice'));
+      expect(switchAccount).not.toHaveBeenCalled();
+      expect(screen.getByText('Add account')).toBeDefined();
+    });
+
+    it('has an options button per account, sitting before the avatar/name', () => {
       useAccountsStore.setState({
-        accounts: [account(), account({ id: 'a2', username: 'bob', appTokenScope: null })],
+        accounts: [account(), account({ id: 'a2', username: 'bob' })],
         activeAccountId: 'a1',
       });
-      renderScreen('a2');
-      await userEvent.click(
-        within(await screen.findByRole('dialog')).getByRole('button', { name: 'Cancel' }),
+      renderScreen();
+      const button = screen.getByRole('button', { name: 'Account options for alice' });
+      expect(screen.getByRole('button', { name: 'Account options for bob' })).toBeDefined();
+      expect(
+        button.compareDocumentPosition(screen.getByText('alice')) &
+          Node.DOCUMENT_POSITION_FOLLOWING,
+      ).toBeTruthy();
+    });
+
+    it('opening the menu does not switch accounts', async () => {
+      useAccountsStore.setState({
+        accounts: [account(), account({ id: 'a2', username: 'bob' })],
+        activeAccountId: 'a1',
+      });
+      renderScreen();
+      await menuFor('bob');
+      expect(switchAccount).not.toHaveBeenCalled();
+    });
+
+    it('read-write account offers Switch to read-only; Continue runs changeAccountMode', async () => {
+      changeAccountMode.mockResolvedValue(undefined);
+      useAccountsStore.setState({ accounts: [account()], activeAccountId: 'a1' });
+      renderScreen();
+      const menu = await menuFor('alice');
+      expect(within(menu).queryByText('Switch to read-write')).toBeNull();
+      await userEvent.click(within(menu).getByText('Switch to read-only'));
+      const dialog = await screen.findByRole('dialog', { name: 'Switch to read-only' });
+      expect(dialog.textContent).toContain('sign in again');
+      expect(changeAccountMode).not.toHaveBeenCalled();
+      await userEvent.click(within(dialog).getByRole('button', { name: 'Continue' }));
+      await waitFor(() =>
+        expect(changeAccountMode).toHaveBeenCalledWith('a1', {
+          scope: 'read',
+          notifications: false,
+        }),
       );
-      await userEvent.click(screen.getByText('alice'));
-      await screen.findByText('Remove account');
-      await userEvent.click(document.querySelector('ion-back-button') as HTMLElement);
-      expect(await screen.findByText('Add account')).toBeDefined();
-      expect(screen.queryByRole('dialog')).toBeNull();
+    });
+
+    it('read-only account offers Switch to read-write', async () => {
+      changeAccountMode.mockResolvedValue(undefined);
+      useAccountsStore.setState({
+        accounts: [account({ appTokenScope: 'read', hasServiceToken: true })],
+        activeAccountId: 'a1',
+      });
+      renderScreen();
+      await userEvent.click(within(await menuFor('alice')).getByText('Switch to read-write'));
+      await userEvent.click(within(await screen.findByRole('dialog')).getByText('Continue'));
+      await waitFor(() =>
+        expect(changeAccountMode).toHaveBeenCalledWith('a1', {
+          scope: 'read,write',
+          notifications: true,
+        }),
+      );
+    });
+
+    it('cancelling the mode-change explanation changes nothing', async () => {
+      useAccountsStore.setState({ accounts: [account()], activeAccountId: 'a1' });
+      renderScreen();
+      await userEvent.click(within(await menuFor('alice')).getByText('Switch to read-only'));
+      await userEvent.click(within(await screen.findByRole('dialog')).getByText('Cancel'));
+      expect(changeAccountMode).not.toHaveBeenCalled();
+    });
+
+    it('Disconnect account confirms, then removes the account', async () => {
+      removeAccount.mockResolvedValue(undefined);
+      useAccountsStore.setState({
+        accounts: [account(), account({ id: 'a2', username: 'bob' })],
+        activeAccountId: 'a1',
+      });
+      renderScreen();
+      await userEvent.click(within(await menuFor('bob')).getByText('Disconnect account'));
+      const dialog = await screen.findByRole('dialog', { name: 'Disconnect account?' });
+      expect(dialog.textContent).toContain("bob's access");
+      expect(removeAccount).not.toHaveBeenCalled();
+      await userEvent.click(within(dialog).getByRole('button', { name: 'Disconnect' }));
+      await waitFor(() => expect(removeAccount).toHaveBeenCalledWith('a2'));
+    });
+
+    it('Delete account explains it happens on blipfoto.com, and only opens it on Continue', async () => {
+      openUrl.mockResolvedValue(undefined);
+      useAccountsStore.setState({ accounts: [account()], activeAccountId: 'a1' });
+      renderScreen();
+      await userEvent.click(within(await menuFor('alice')).getByText('Delete account'));
+      const dialog = await screen.findByRole('dialog', { name: 'Delete account' });
+      expect(dialog.textContent).toContain('blipfoto.com');
+      expect(openUrl).not.toHaveBeenCalled();
+      await userEvent.click(within(dialog).getByRole('button', { name: 'Continue' }));
+      expect(openUrl).toHaveBeenCalledWith('https://www.blipfoto.com/settings/profile#sidebar');
+    });
+
+    it('a needs-sign-in account keeps Sign in again, and its menu has no mode switch', async () => {
+      const dead = () => account({ id: 'a2', username: 'bob', appTokenScope: null });
+      useAccountsStore.setState({ accounts: [account(), dead()], activeAccountId: 'a1' });
+      renderScreen();
+      expect(screen.getByText('Sign in again')).toBeDefined();
+      expect(screen.queryByText('Remove')).toBeNull();
+      const menu = await menuFor('bob');
+      expect(within(menu).queryByText(/Switch to/)).toBeNull();
+      expect(within(menu).getByText('Disconnect account')).toBeDefined();
     });
   });
 });

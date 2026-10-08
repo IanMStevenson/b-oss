@@ -1,20 +1,14 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (C) 2026 Ian Stevenson
 
-// SCR-11 — Description Editor (§14). Two data sources, chosen by `target`:
-//   - `'draft'` (default) — the two compose-flow callers, SCR-10 and SCR-13, both read/write the
-//     same composeDraftStore.description field (§6); no route param needed to know what's being
-//     edited beyond "whatever draft is currently open".
-//   - `'bio'` (Phase 8) — SCR-25 -> Profile -> Biography, a third caller with a different data
-//     source (no compose draft involved, per the TODO this mode replaces): fetches the account's
-//     current biography via data/settings.ts on mount and saves it directly with `saveUserSettings`
-//     on OK, entirely self-contained — ProfileSection never round-trips the text itself. Routed via
-//     `/compose/description?target=bio` (AppRoutes.tsx parses the query param, §5's react-router
-//     boundary).
+// SCR-11 — Description Editor (§14), now Biography only: SCR-25 -> Profile -> Biography, routed via
+// `/compose/description` (kept for that route). Fetches the account's current biography via
+// data/settings.ts on mount and saves it directly with `saveUserSettings` on OK. The entry
+// description is no longer edited here — compose and edit-entry have it inline (ComposeForm's
+// DescriptionField), as on blipfoto.com.
 //
-// Five buttons, not four (SCR-15's comment editor excludes the link tag; entries include it, per
-// §14/§21's corrected tag set) — components/BBCodeToolbar.tsx is shared between the two, this
-// screen just passes the full BBCODE_TAGS.
+// Five buttons (entries and biographies include the link tag; SCR-15's comment editor excluded
+// it) — components/BBCodeToolbar.tsx is shared, this screen just passes the full BBCODE_TAGS.
 
 import { useEffect, useRef, useState } from 'react';
 import {
@@ -28,82 +22,14 @@ import {
 } from '@ionic/react';
 import { AppHeader } from '../../components/AppHeader.js';
 import { useAppNavigate } from '../../app/routes/useAppNavigate.js';
-import { useComposeDraftStore } from '../../state/composeDraftStore.js';
 import { fetchUserSettings, saveUserSettings } from '../../data/settings.js';
 import { describeError, mapApiError } from '../../data/errors.js';
 import '../../components/ComposeForm.css';
 import { BBCodeToolbar } from '../../components/BBCodeToolbar.js';
 import { BBCODE_TAGS } from '@b-oss/b-view';
 
-interface DescriptionEditorScreenProps {
-  target?: 'draft' | 'bio';
-}
-
-export function DescriptionEditorScreen({ target = 'draft' }: DescriptionEditorScreenProps) {
-  if (target === 'bio') {
-    return <BiographyEditor />;
-  }
-  return <DraftDescriptionEditor />;
-}
-
-function DraftDescriptionEditor() {
-  const navigate = useAppNavigate();
-  const draft = useComposeDraftStore((s) => s.draft);
-  const patchDraft = useComposeDraftStore((s) => s.patchDraft);
-  const textareaRef = useRef<HTMLTextAreaElement>(null);
-
-  const initial = draft?.description ?? '';
-  const [content, setContent] = useState(initial);
-  const [confirmDiscard, setConfirmDiscard] = useState(false);
-
-  const hasChanges = content !== initial;
-
-  function handleBack(): void {
-    if (hasChanges) {
-      setConfirmDiscard(true);
-      return;
-    }
-    navigate.goBack();
-  }
-
-  function handleOk(): void {
-    patchDraft({ description: content });
-    navigate.goBack();
-  }
-
-  return (
-    <IonPage>
-      <IonHeader>
-        <AppHeader title="Description" variant="back" onBack={handleBack} />
-      </IonHeader>
-      <IonContent>
-        <div className="description-editor">
-          <BBCodeToolbar tags={BBCODE_TAGS} textareaRef={textareaRef} onChange={setContent} />
-          <textarea
-            ref={textareaRef}
-            className="compose-field-textarea"
-            value={content}
-            onChange={(e) => setContent(e.target.value)}
-            placeholder="Describe this entry…"
-            rows={12}
-          />
-          <IonButton expand="block" onClick={handleOk}>
-            OK
-          </IonButton>
-        </div>
-      </IonContent>
-
-      <IonAlert
-        isOpen={confirmDiscard}
-        header="Discard changes?"
-        onDidDismiss={() => setConfirmDiscard(false)}
-        buttons={[
-          { text: 'Keep editing', role: 'cancel' },
-          { text: 'Discard', role: 'destructive', handler: () => navigate.goBack() },
-        ]}
-      />
-    </IonPage>
-  );
+export function DescriptionEditorScreen() {
+  return <BiographyEditor />;
 }
 
 function BiographyEditor() {
