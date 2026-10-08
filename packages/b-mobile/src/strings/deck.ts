@@ -193,7 +193,7 @@ export const STRINGS = {
   'SCR-15.error.post_failed': "Couldn't post your comment. Your text is still here - try again.",
   'SCR-16.error.no_reason': 'Select a reason',
   'SCR-17.empty.awards': 'No awards yet.',
-  'SCR-17.empty.entries': "You haven't posted anything yet. Share your first entry from New Entry.",
+  'SCR-17.empty.entries': "You haven't posted anything yet. Share your first entry from New entry.",
   'SCR-17.empty.favourites': "You haven't favourited anything yet.",
   'SCR-17.empty.followers': 'No followers yet.',
   'SCR-17.empty.following': "You're not following anyone yet.",
@@ -246,12 +246,12 @@ export const STRINGS = {
   'SCR-29.row.delete_account.subtitle':
     'Opens your Blipfoto account settings on the web. Not specific to any account signed in here.',
   'SCR-29.row.help': 'Help',
-  'SCR-29.row.icon_guide': 'Icon Guide',
-  'SCR-29.row.licences': 'Open Source Licenses',
+  'SCR-29.row.icon_guide': 'Icon guide',
+  'SCR-29.row.licences': 'Open source licences',
   'SCR-29.row.link_handling': 'Open blipfoto.com links in this app',
-  'SCR-29.row.privacy_policy': 'Blipfoto Privacy Policy',
-  'SCR-29.row.safety_privacy': 'Safety & Privacy',
-  'SCR-29.row.terms': 'Blipfoto Terms & Legal',
+  'SCR-29.row.privacy_policy': 'Blipfoto privacy policy',
+  'SCR-29.row.safety_privacy': 'Safety & privacy',
+  'SCR-29.row.terms': 'Blipfoto terms & legal',
   'SCR-29.safety_privacy.cutoff':
     "Want someone gone entirely? Make your journal private, remove them as a follower, hide them, and refuse any new request they send. That last step only becomes available once they actually ask again - it's a sequence, not one switch.",
   'SCR-29.safety_privacy.delete_comment':

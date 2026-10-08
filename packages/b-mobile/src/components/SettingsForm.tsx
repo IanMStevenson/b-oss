@@ -9,6 +9,7 @@
 import { useMemo, useRef, useState, type ReactNode } from 'react';
 import {
   IonButton,
+  IonDatetime,
   IonInput,
   IonItem,
   IonList,
@@ -18,6 +19,9 @@ import {
   IonHeader,
   IonModal,
   IonToolbar,
+  IonLabel,
+  IonSegment,
+  IonSegmentButton,
   IonSpinner,
   IonText,
   IonToggle,
@@ -142,6 +146,131 @@ export function SelectRow({
               );
             })}
           </IonList>
+        </IonContent>
+      </IonModal>
+    </>
+  );
+}
+
+interface SegmentRowProps<T extends string> {
+  label: string;
+  value: T;
+  options: Array<{ value: T; label: string }>;
+  onChange: (value: T) => void;
+}
+
+/** Choice between a few short options: the label above a lozenge (pill) segment, so it reads as a
+ * choice rather than as tab navigation. The one segment style for settings. */
+export function SegmentRow<T extends string>({
+  label,
+  value,
+  options,
+  onChange,
+}: SegmentRowProps<T>) {
+  return (
+    <>
+      <IonItem lines="none" style={{ '--min-height': '36px' }}>
+        <span>{label}</span>
+      </IonItem>
+      <IonSegment
+        className="settings-pill-segment"
+        aria-label={label}
+        value={value}
+        onIonChange={(e) => onChange(e.detail.value as T)}
+      >
+        {options.map((o) => (
+          <IonSegmentButton key={o.value} value={o.value}>
+            <IonLabel>{o.label}</IonLabel>
+          </IonSegmentButton>
+        ))}
+      </IonSegment>
+    </>
+  );
+}
+
+function pad2(n: number): string {
+  return String(n).padStart(2, '0');
+}
+
+interface TimeRowProps {
+  label: string;
+  pickerTitle: string;
+  hour: number;
+  minute: number;
+  /** Minutes the wheel offers (e.g. [0, 15, 30, 45]). */
+  minuteValues?: number[];
+  disabled?: boolean;
+  onChange: (time: { hour: number; minute: number }) => void;
+}
+
+/** Time of day: a row showing the current time (24h, e.g. 20:00) that opens a wheel time picker
+ * in a modal with Cancel / Done, matching SelectRow's header. */
+export function TimeRow({
+  label,
+  pickerTitle,
+  hour,
+  minute,
+  minuteValues,
+  disabled,
+  onChange,
+}: TimeRowProps) {
+  const [open, setOpen] = useState(false);
+  const current = `${pad2(hour)}:${pad2(minute)}`;
+  const [pending, setPending] = useState(current);
+
+  function done(): void {
+    setOpen(false);
+    const [h, m] = pending.split(':').map(Number);
+    if (h !== undefined && m !== undefined && pending !== current) onChange({ hour: h, minute: m });
+  }
+
+  return (
+    <>
+      <IonItem
+        button
+        detail={false}
+        disabled={disabled}
+        onClick={() => {
+          setPending(current);
+          setOpen(true);
+        }}
+      >
+        <div style={{ padding: '8px 0' }}>
+          <IonNote style={{ display: 'block', fontSize: 12 }}>{label}</IonNote>
+          <span>{current}</span>
+        </div>
+      </IonItem>
+      <IonModal isOpen={open} onDidDismiss={() => setOpen(false)}>
+        <IonHeader>
+          <IonToolbar>
+            <div style={{ display: 'flex', alignItems: 'center', padding: '0 8px 0 16px' }}>
+              <h2 style={{ flex: 1, margin: 0, fontSize: 18, fontWeight: 600 }}>{pickerTitle}</h2>
+              <IonButton fill="clear" onClick={() => setOpen(false)}>
+                Cancel
+              </IonButton>
+              <IonButton fill="clear" onClick={done}>
+                Done
+              </IonButton>
+            </div>
+          </IonToolbar>
+        </IonHeader>
+        <IonContent>
+          <div style={{ display: 'flex', justifyContent: 'center', padding: '24px 0' }}>
+            <IonDatetime
+              aria-label={label}
+              presentation="time"
+              preferWheel
+              hourCycle="h23"
+              minuteValues={minuteValues}
+              value={pending}
+              onIonChange={(e) => {
+                if (typeof e.detail.value === 'string') {
+                  const m = /(\d{2}):(\d{2})/.exec(e.detail.value);
+                  if (m) setPending(`${m[1]}:${m[2]}`);
+                }
+              }}
+            />
+          </div>
         </IonContent>
       </IonModal>
     </>
