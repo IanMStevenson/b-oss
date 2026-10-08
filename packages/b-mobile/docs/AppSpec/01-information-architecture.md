@@ -23,7 +23,7 @@ flowchart TD
         MP[SCR-04 Map]
         MYP[SCR-17 My Profile]
         SET[SCR-25 Settings]
-        HLP[SCR-29 Help & Info]
+        HLP[SCR-29 Help & About]
         NOTE[SCR-23 Notifications]
         MYC[SCR-24 Comments]
     end
@@ -74,7 +74,7 @@ flowchart TD
 
 Notes:
 - **Logged-out** primary navigation is reduced: Browse (Recent/Popular/Nearby only), Search, Map,
-  public Profiles and Entries, Help & Info, and a Sign In entry point. Account-requiring actions
+  public Profiles and Entries, Help & About, and a Sign In entry point. Account-requiring actions
   trigger the sign-in flow (`FLW-01`).
 - **Entry Detail (`SCR-06`)** is the content hub, reachable from every feed, search, tag, map,
   notification, deep link, and profile.
@@ -116,7 +116,7 @@ Notes:
 | SCR-23 | Notifications Inbox | [Must] | Recent notifications with unread count; delivery via the cloud notification service. |
 | SCR-24 | Comments Inbox | [Must] | Recent comments received, with unread count and reply affordance. |
 | SCR-25 | Settings | [Must] | Hub + sections: General, Journal, Profile (username / biography / picture), Notifications, Reminders, Misc. Links to Accounts, Hidden members and Refused followers. Account-gated; device-level settings live on `SCR-29` instead. |
-| SCR-29 | Help & Info | [Should] | Help hub, icon guide, legal/open-source, **privacy policy**, and the device-level link-handling toggle. Not account-gated — the only settings-bearing screen reachable logged out. |
+| SCR-29 | Help & About | [Should] | Help hub, icon guide, legal/open-source, **privacy policy**, and the device-level link-handling toggle. Not account-gated — the only settings-bearing screen reachable logged out. |
 | SCR-30 | Accounts | [Must] | List of signed-in accounts with mode/notifications status; switch, add, change mode, remove. |
 | SCR-31 | Hidden Members | [Must] | Members whose content is suppressed for this account, and unhiding them. **You can't see them.** Device-local. |
 

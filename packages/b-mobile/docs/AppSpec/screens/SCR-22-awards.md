@@ -4,7 +4,7 @@
 each badge means.
 
 **Reached from:** the Awards tab of `SCR-17 My Profile` / `SCR-18 User Profile`; an award push
-target; `SCR-29 Help & Info` (icon guide).
+target; `SCR-29 Help & About` (icon guide).
 **Leads to:** the icon guide (`SCR-29`).
 
 ## Layout (ASCII wireframe)

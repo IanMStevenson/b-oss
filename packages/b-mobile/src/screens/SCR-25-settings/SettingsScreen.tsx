@@ -34,25 +34,23 @@ import { AppHeader } from '../../components/AppHeader.js';
 import { useResource } from '../../data/useResource.js';
 import { fetchUserSettings } from '../../data/settings.js';
 import { useAppNavigate } from '../../app/routes/useAppNavigate.js';
-import { useAccountsStore, useActiveAccount } from '../../state/accountsStore.js';
+import { useActiveAccount } from '../../state/accountsStore.js';
 import { GeneralSection } from './sections/GeneralSection.js';
 import { JournalSection } from './sections/JournalSection.js';
 import { ProfileSection } from './sections/ProfileSection.js';
 import { NotificationsSection } from './sections/NotificationsSection.js';
-import { RemindersSection } from './sections/RemindersSection.js';
-import { MiscSection } from './sections/MiscSection.js';
+import { AppGeneralSection } from './sections/AppGeneralSection.js';
 import { BrowsingSection } from './sections/BrowsingSection.js';
 
 export type SettingsSection =
-  'general' | 'journal' | 'profile' | 'notifications' | 'reminders' | 'misc' | 'browsing';
+  'general' | 'journal' | 'profile' | 'notifications' | 'app' | 'browsing';
 
 const SECTION_TITLES: Record<SettingsSection, string> = {
   general: 'General',
   journal: 'Journal',
   profile: 'Profile',
   notifications: 'Notifications',
-  reminders: 'Reminders',
-  misc: 'Misc',
+  app: 'General',
   browsing: 'Browsing',
 };
 
@@ -82,8 +80,7 @@ function SectionScreen({ section }: { section: SettingsSection }) {
         {section === 'journal' && <JournalSection />}
         {section === 'profile' && <ProfileSection />}
         {section === 'notifications' && <NotificationsSection />}
-        {section === 'reminders' && <RemindersSection />}
-        {section === 'misc' && <MiscSection />}
+        {section === 'app' && <AppGeneralSection />}
         {section === 'browsing' && <BrowsingSection />}
       </IonContent>
     </IonPage>
@@ -93,8 +90,6 @@ function SectionScreen({ section }: { section: SettingsSection }) {
 function SettingsHub() {
   const navigate = useAppNavigate();
   const activeAccount = useActiveAccount();
-  const accountCount = useAccountsStore((s) => s.accounts.length);
-  const canWrite = activeAccount?.appTokenScope === 'read,write';
   const { state } = useResource(() => fetchUserSettings(), [activeAccount?.id]);
 
   const privacyProtected = state.status === 'loaded' ? state.data.privacy === 1 : null;
@@ -143,22 +138,15 @@ function SettingsHub() {
             <span>Accounts</span>
             <IonNote slot="end">{activeAccount?.username}</IonNote>
           </IonItem>
-          {canWrite && (
-            <IonItem button detail onClick={() => navigate.push('/settings/reminders')}>
-              <span>Reminders</span>
-            </IonItem>
-          )}
+          <IonItem button detail onClick={() => navigate.push('/settings/app')}>
+            <span>General</span>
+          </IonItem>
           <IonItem button detail onClick={() => navigate.push('/hidden', { drilledIn: true })}>
             <span>Hidden members</span>
           </IonItem>
           <IonItem button detail onClick={() => navigate.push('/settings/browsing')}>
             <span>Browsing</span>
           </IonItem>
-          {accountCount >= 2 && (
-            <IonItem button detail onClick={() => navigate.push('/settings/misc')}>
-              <span>Misc</span>
-            </IonItem>
-          )}
         </IonList>
 
         {state.status === 'loading' && (

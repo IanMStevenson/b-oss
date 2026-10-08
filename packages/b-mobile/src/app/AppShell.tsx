@@ -163,7 +163,7 @@ function NavMenu() {
           )}
           <NavDivider />
           {activeAccount && <NavItem to="/settings" label="Settings" currentPath={pathname} />}
-          <NavItem to="/help" label="Help & Info" currentPath={pathname} />
+          <NavItem to="/help" label="Help & About" currentPath={pathname} />
           <NavItem to="/accounts" label="Accounts" currentPath={pathname} />
           {activeAccount && <NavItem to="/hidden" label="Hidden members" currentPath={pathname} />}
           {!activeAccount && <NavItem to="/sign-in" label="Sign in" currentPath={pathname} />}

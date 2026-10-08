@@ -8,7 +8,6 @@ import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
 import { HelpInfoScreen } from '../HelpInfoScreen.js';
 import { OverlayProvider, OverlayHost } from '../../../app/OverlayProvider.js';
-import { useDevicePrefsStore } from '../../../state/devicePrefsStore.js';
 
 const { openUrl } = vi.hoisted(() => ({ openUrl: vi.fn() }));
 vi.mock('../../../platform/browser.js', () => ({ openUrl }));
@@ -26,14 +25,6 @@ vi.mock('../../../app/routes/useAppNavigate.js', () => ({
 
 beforeEach(() => {
   openUrl.mockResolvedValue(undefined);
-  useDevicePrefsStore.setState({
-    confirmAccountBeforeReaction: false,
-    reminders: {},
-    uploadFullSize: true,
-    openBlipfotoLinksInApp: false,
-    notificationPollingIntervalMinutes: 5,
-    hydrated: true,
-  });
 });
 
 afterEach(() => {
@@ -53,82 +44,55 @@ function renderHub() {
 }
 
 describe('HelpInfoScreen hub — works with no account signed in (SCR-29 is not account-gated)', () => {
-  it('lists every row, including the app version', () => {
+  it('lists the Help and About sections with their rows, and the app version', () => {
     renderHub();
     for (const label of [
-      'Icon guide',
-      'Safety & privacy',
       'Help',
-      'Terms & legal',
-      'Privacy policy',
-      'Delete my account',
-      'Open blipfoto.com links in this app',
-      'Open-source licences',
+      'About',
+      'Icon Guide',
+      'Safety & Privacy',
+      'Blipfoto Terms & Legal',
+      'Blipfoto Privacy Policy',
+      'App Version',
+      'Open Source Licenses',
     ]) {
-      expect(screen.getByText(label)).toBeDefined();
+      expect(screen.getAllByText(label).length).toBeGreaterThan(0);
     }
-    expect(screen.getByText(/App version/)).toBeDefined();
+    expect(screen.getByText('App Version').closest('ion-item')!.textContent).toMatch(/\d+\.\d+/);
   });
 
-  it('Help/Terms/Privacy policy each open their own real Blipfoto page directly', async () => {
+  it('no longer carries Delete my account or the link-handling toggle', () => {
+    renderHub();
+    expect(screen.queryByText('Delete my account')).toBeNull();
+    expect(screen.queryByText('Open blipfoto.com links in this app')).toBeNull();
+  });
+
+  it('Help/Terms/Privacy rows each open their own real Blipfoto page directly', async () => {
     renderHub();
     const expected: Record<string, string> = {
-      Help: 'https://www.blipfoto.com/help',
-      'Terms & legal': 'https://www.blipfoto.com/legal/terms',
-      'Privacy policy': 'https://www.blipfoto.com/legal/privacy',
+      'Blipfoto Terms & Legal': 'https://www.blipfoto.com/legal/terms',
+      'Blipfoto Privacy Policy': 'https://www.blipfoto.com/legal/privacy',
     };
     for (const [label, url] of Object.entries(expected)) {
       await userEvent.click(screen.getByText(label));
       expect(openUrl).toHaveBeenLastCalledWith(url);
     }
+    // the first "Help" is the section caption, the second the row
+    const helpRow = screen.getAllByText('Help')[1];
+    await userEvent.click(helpRow);
+    expect(openUrl).toHaveBeenLastCalledWith('https://www.blipfoto.com/help');
     expect(openUrl).toHaveBeenCalledTimes(3);
   });
 
-  it('Delete my account shows an interstitial first, and only opens the page on Continue', async () => {
+  it('Icon Guide / Safety & Privacy / Open Source Licenses navigate in-app, not to the browser', async () => {
     renderHub();
-    await userEvent.click(screen.getByText('Delete my account'));
-    expect(openUrl).not.toHaveBeenCalled();
-    expect(
-      await screen.findByText(/Make sure you're signed in there to the account/),
-    ).toBeDefined();
-
-    await userEvent.click(document.querySelector('button.alert-button-role-cancel')!);
-    expect(openUrl).not.toHaveBeenCalled();
-
-    await userEvent.click(screen.getByText('Delete my account'));
-    const continueButton = Array.from(document.querySelectorAll('button.alert-button')).find(
-      (b) => b.textContent === 'Continue',
-    ) as HTMLButtonElement;
-    await userEvent.click(continueButton);
-    expect(openUrl).toHaveBeenCalledWith('https://www.blipfoto.com/settings/profile#sidebar');
-  });
-
-  it('the Delete my account row never names a specific stored account', () => {
-    renderHub();
-    const row = screen.getByText('Delete my account').closest('ion-item')!;
-    expect(row.textContent).not.toMatch(/'s account/);
-  });
-
-  it('Icon guide / Safety & privacy / Open-source licences navigate in-app, not to the browser', async () => {
-    renderHub();
-    await userEvent.click(screen.getByText('Icon guide'));
-    await userEvent.click(screen.getByText('Safety & privacy'));
-    await userEvent.click(screen.getByText('Open-source licences'));
+    await userEvent.click(screen.getByText('Icon Guide'));
+    await userEvent.click(screen.getByText('Safety & Privacy'));
+    await userEvent.click(screen.getByText('Open Source Licenses'));
     expect(push).toHaveBeenCalledWith('/help/icon-guide');
     expect(push).toHaveBeenCalledWith('/help/safety-privacy');
     expect(push).toHaveBeenCalledWith('/help/licences');
     expect(openUrl).not.toHaveBeenCalled();
-  });
-
-  it('the link-handling toggle defaults off and persists when flipped', () => {
-    renderHub();
-    const toggle = screen.getByLabelText('Open blipfoto.com links in this app');
-    expect(toggle.getAttribute('checked')).not.toBe('true');
-
-    toggle.dispatchEvent(
-      new CustomEvent('ionChange', { bubbles: true, detail: { checked: true } }),
-    );
-    expect(useDevicePrefsStore.getState().openBlipfotoLinksInApp).toBe(true);
   });
 });
 
@@ -180,7 +144,9 @@ describe('HelpInfoScreen sections', () => {
         <HelpInfoScreen section="licences" />
       </MemoryRouter>,
     );
-    expect(screen.getByText('@ionic/react')).toBeDefined();
+    expect(screen.getByText('@ionic/react and @ionic/react-router')).toBeDefined();
+    // the rich-text comment editor's ProseMirror packages are shipped, so must be listed
+    expect(screen.getByText(/^ProseMirror/)).toBeDefined();
   });
 
   it('falls back to the hub for an unrecognised section', () => {
@@ -192,6 +158,6 @@ describe('HelpInfoScreen sections', () => {
         </OverlayProvider>
       </MemoryRouter>,
     );
-    expect(screen.getByText('Icon guide')).toBeDefined();
+    expect(screen.getByText('Icon Guide')).toBeDefined();
   });
 });

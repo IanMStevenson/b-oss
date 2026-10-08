@@ -15,15 +15,17 @@ local preferences. Every setting lives on this one screen rather than in separat
 ```
 +--------------------------------------+
 | <  Settings                     (av) |
-|  Accounts                       >    |  which account, mode, add/switch
-|  General                        >    |
+|  BLIPFOTO ACCOUNT SETTINGS           |
+|  General                        >    |  (the Blipfoto account's own)
 |  Journal                        >    |
 |  Profile                        >    |
 |  Notifications                  >    |
-|  Reminders                      >    |
-|  Misc                           >    |
-|  Hidden members                 >    |  always shown
 |  Refused followers              >    |  (only if journal is protected)
+|  APP SETTINGS                        |
+|  Accounts                       >    |  which account, mode, add/switch
+|  General                        >    |  reminders, multi-account, links
+|  Hidden members                 >    |  always shown
+|  Browsing                       >    |
 +--------------------------------------+
 ```
 
@@ -60,8 +62,11 @@ Notifications sub-screen (redesigned in [b-oss#244](https://github.com/IanMSteve
 | **Profile › Biography** | Biography (BBCode via `SCR-11`) | Server (`user/settings`) |
 | **Profile › Picture** | Avatar: take / choose / delete | Server (`user/settings`, avatar) |
 | **Notifications** | *Notifications from this app*: Push for new comments, Push for new notifications, check interval; *Blipfoto feed settings*: the six `feed_*` toggles | Push toggles/interval — notification service, per account per device (local copy on the account record); feed toggles — server (`user/settings/notifications`) |
-| **Reminders** | Daily reminder on/off + time | Local, **per account**; read-write accounts only (drives `FLW-18`) |
-| **Misc** | Upload full-size toggle; **confirm account before Star/Favourite/comment** toggle (default **off**; shown only with 2+ accounts stored) | Local, **per device** — these describe how this installation behaves, not an account |
+| **App General › Reminders** | Daily reminder on/off + time, with a short explanation of when it fires | Local, **per account**; read-write accounts only (drives `FLW-18`) |
+| **App General › Multiple accounts** | **Confirm account before Star/Favourite/comment** toggle (default **off**); account picture (profile picture / icon). Whole section shown only with 2+ accounts stored | Local, **per device** — these describe how this installation behaves, not an account |
+| **App General › Links** | **Open blipfoto.com links in this app** toggle (default **off**) | Local, **per device** |
+
+*App Settings → General* is one page (the former separate Reminders and Misc pages, plus the link toggle that used to live on Help). The name overlaps the Blipfoto account's own General page deliberately; the two sit under different hub captions.
 
 - **Hidden members** → `SCR-31`. Always shown, whatever the journal's privacy setting. Subtitle:
   *"People whose content you won't see."*
@@ -70,10 +75,10 @@ Notifications sub-screen (redesigned in [b-oss#244](https://github.com/IanMSteve
 - The two rows sit together and are **never merged**. They are opposite-facing features and the
   subtitles are what distinguish them — see [rules.md](../rules.md) (Hiding members, and refusing
   followers).
-- **The privacy policy and the blipfoto.com link-handling toggle are deliberately *not* here.**
-  They live on `SCR-29 Help & Info`, which is not account-gated. Both are device-level rather than
-  account-level, and the privacy policy in particular must be reachable by someone who has never
-  signed in — this screen is unreachable in that state. Don't duplicate them here; one home each.
+- **The privacy policy is deliberately *not* here.** It lives on `SCR-29 Help & About`, which is not
+  account-gated: it must be reachable by someone who has never signed in. The blipfoto.com
+  link-handling toggle moved here (App Settings → General) from Help in b-oss#305, at Ian's
+  request, so a logged-out user can no longer change it.
 - **Confirm account before Star/Favourite/comment** — off by default; only offered when **two or
   more accounts** are stored (hidden with fewer, since it would have no effect). When on, those
   three actions ask which stored account to act as, before the read-write check, rather than
@@ -130,11 +135,11 @@ Notifications sub-screen (redesigned in [b-oss#244](https://github.com/IanMSteve
   **Take** requests the camera permission at the point it's tapped, and handles refusal the same way
   `SCR-09` does — explain, leave "choose" working, and route to system settings rather than
   re-requesting if the OS will no longer prompt.
-- **Reminders / Misc** persist locally with no network call; saving Reminders (re)schedules the
+- **App General** (Reminders, Multiple accounts, Links) persists locally with no network call; saving Reminders (re)schedules the
   daily reminder (`FLW-18`).
 - **Local settings split two ways, and the distinction is visible to the user**: **Reminders** are
   **per account** (each read-write account has its own on/off and time, and switching accounts
-  shows that account's), while **Misc** is **per device** (one setting for the installation,
+  shows that account's), while **Multiple accounts** and **Links** are **per device** (one setting for the installation,
   unaffected by which account is active). Hidden members (`SCR-31`) are per account, like
   Reminders.
 - **The Reminders section is hidden entirely for a read-only account** — it cannot publish, so a
@@ -142,7 +147,7 @@ Notifications sub-screen (redesigned in [b-oss#244](https://github.com/IanMSteve
   sections, there is no value worth showing. See `FLW-18`.
 - **Read-only accounts** see every server-backed section (General, Journal, Profile, and the
   Notifications **feed toggles**) as **view-only** — no Save affordance — since all of
-  them write to the account; see [rules.md](../rules.md). Reminders/Misc (local-only), Accounts,
+  them write to the account; see [rules.md](../rules.md). App General (local-only), Accounts,
   **Hidden members** (device-local, not a server write), and the Notifications **push toggles**
   (token actions, not content writes — read-only + notifications is a valid sign-in mode) remain
   fully usable regardless of mode. Refused followers involves server writes and follows the same
@@ -186,5 +191,5 @@ See [endpoints.md](../api-appendix/endpoints.md).
       and when on, Star/Favourite/comment show the account-confirm dialog before acting.
 - [ ] There is no Sharing section and no membership-purchase option.
 - [ ] Given a read-only account, every server-backed section shows current values with no Save
-      affordance, except the Notifications push toggles; Accounts, Reminders, Misc, and the
+      affordance, except the Notifications push toggles; Accounts, App General, and the
       push toggles remain fully usable.

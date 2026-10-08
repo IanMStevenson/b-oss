@@ -36,7 +36,7 @@ describe('AppShell', () => {
 
     window.history.pushState({}, '', '/help/licences');
     render(<AppShell />);
-    expect(await screen.findByText('Open-source licences')).toBeDefined();
+    expect(await screen.findByText('Open Source Licenses')).toBeDefined();
     cleanup();
 
     window.history.pushState({}, '', '/nope');
@@ -51,7 +51,7 @@ describe('AppShell', () => {
 
     window.history.pushState({}, '', '/help/licences');
     window.dispatchEvent(new PopStateEvent('popstate'));
-    await screen.findByText('Open-source licences');
+    await screen.findByText('Open Source Licenses');
     await waitFor(() =>
       expect(document.querySelectorAll('ion-router-outlet .ion-page')).toHaveLength(1),
     );
@@ -102,7 +102,7 @@ describe('AppShell', () => {
     it('signed out: no account block, a Sign in item instead', async () => {
       window.history.pushState({}, '', '/help');
       render(<AppShell />);
-      await screen.findAllByText('Help & Info');
+      await screen.findAllByText('Help & About');
       expect(screen.queryByLabelText(/^Account:/)).toBeNull();
       expect(screen.getByText('Sign in')).toBeDefined();
     });
