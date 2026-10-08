@@ -204,7 +204,12 @@ interface LicencesFile {
  * licence's name and URL are known. */
 interface NativeLicencesFile {
   licences: Array<{ id: string; name: string; url: string | null; text: string | null }>;
-  artifacts: Array<{ name: string; version: string; licences: number[] }>;
+  artifacts: Array<{
+    name: string;
+    version: string;
+    licences: number[];
+    notices?: Array<{ path: string; text: string }>;
+  }>;
 }
 
 function InlineLink({ url, children }: { url: string; children: ReactNode }) {
@@ -268,6 +273,12 @@ function NativeLicenceGroup({
             {artifacts.map((a) => (
               <li key={`${a.name}@${a.version}`}>
                 {a.name} {a.version}
+                {a.notices?.map((n) => (
+                  <details key={n.path}>
+                    <summary>Notice</summary>
+                    <pre style={{ whiteSpace: 'pre-wrap', overflowWrap: 'anywhere' }}>{n.text}</pre>
+                  </details>
+                ))}
               </li>
             ))}
           </ul>

@@ -19,6 +19,15 @@ describe('native-licences.generated.json', () => {
     }
   });
 
+  it('bundles full text for every licence and names the Ionic libraries as MIT', () => {
+    for (const l of generated.licences) expect(l.text, l.id).toBeTruthy();
+    const mit = generated.licences.findIndex((l) => l.id === 'MIT');
+    const ionic = generated.artifacts.filter((a) => a.name.startsWith('io.ionic.libs:'));
+    expect(ionic.length).toBeGreaterThan(0);
+    for (const a of ionic) expect(a.licences, a.name).toEqual([mit]);
+    expect(generated.licences.some((l) => l.name === 'License')).toBe(false);
+  });
+
   it('carries the Apache-2.0 text and a link or text for every licence', () => {
     const apache = generated.licences.find((l) => l.id === 'Apache-2.0');
     expect(apache?.text).toContain('TERMS AND CONDITIONS FOR USE, REPRODUCTION, AND DISTRIBUTION');
@@ -65,6 +74,24 @@ describe('buildNativeLicences', () => {
       { name: 'a:one', version: '1', licences: [0, 1] },
       { name: 'b:two', version: '2', licences: [0] },
     ]);
+  });
+
+  it('matches URL-only licences, attaches texts and carries NOTICE files', () => {
+    const out = buildNativeLicences(
+      [
+        {
+          group: 'io.ionic.libs',
+          name: 'x',
+          version: '1',
+          licences: [{ name: 'License', url: 'https://github.com/ionic-team/x/blob/main/LICENSE' }],
+          notices: [{ path: 'META-INF/NOTICE', text: 'N' }],
+        },
+      ],
+      '',
+      { MIT: 'MIT TEXT' },
+    );
+    expect(out.licences[0]).toMatchObject({ id: 'MIT', text: 'MIT TEXT' });
+    expect(out.artifacts[0].notices).toEqual([{ path: 'META-INF/NOTICE', text: 'N' }]);
   });
 
   it('stops on an artifact whose POM declares no licence', () => {

@@ -14,8 +14,14 @@
 // The `nativeLicencesReport` task in android/app/build.gradle reads the licence each artifact's POM
 // declares (inheriting from a parent POM if needed) for everything on releaseRuntimeClasspath.
 // POMs carry a licence name and URL, not its text. The Apache-2.0 text, which covers nearly every
-// artifact, is scripts/apache-2.0.txt (the canonical copy from apache.org); any other licence is shown as its name and the
-// URL its POM gives, with no text bundled.
+// artifact, is scripts/apache-2.0.txt (the canonical copy from apache.org); the other recognised
+// licences' texts are in scripts/licence-texts/ (see TEXT_FILES). A licence not recognised here is
+// shown as its name and the URL its POM gives, with no text bundled. A few POMs name their licence
+// only 'License' (the Ionic libraries) or point at a README; those are matched by URL.
+//
+// The task also collects NOTICE files shipped inside the artifacts; they're carried onto the
+// artifact as `notices: [{ path, text }]` and shown under it. As of 2026-10-08 no runtime artifact
+// ships one (only Gradle/AGP build tooling does), so the committed file has none.
 //
 // Usage: node scripts/native-licences.mjs [path-to-native-licences.json]
 //   With a path, skips Gradle and converts that report (the task's output).
@@ -39,6 +45,20 @@ const APACHE = {
 };
 const KNOWN = [
   [/apache/i, APACHE],
+  [
+    // Ionic's libraries: POM says just 'License'; the repo LICENSE at that URL is MIT.
+    { url: /github\.com\/ionic-team\//i },
+    { id: 'MIT', name: 'MIT License', url: 'https://opensource.org/licenses/MIT' },
+  ],
+  [
+    // libyuv (inside androidx.camera:camera-core): POM links its README.chromium.
+    { url: /libyuv/i },
+    {
+      id: 'BSD-3-Clause-libyuv',
+      name: 'BSD 3-Clause License (libyuv)',
+      url: 'https://chromium.googlesource.com/libyuv/libyuv/+/refs/heads/main/LICENSE',
+    },
+  ],
   [
     /android software development kit/i,
     {
@@ -65,17 +85,30 @@ const KNOWN = [
   ],
 ];
 
+// Full texts, by licence id. Fetched from each project's own source (see the PR that added them):
+// bsd-3-clause.txt holds both BSD-3 copyright variants in use (hamcrest, protobuf).
+const TEXT_FILES = {
+  'BSD-3-Clause': 'bsd-3-clause.txt',
+  'BSD-3-Clause-libyuv': 'libyuv-bsd.txt',
+  'EPL-1.0': 'epl-1.0.txt',
+  'Android-SDK-License': 'android-sdk-license.txt',
+  MIT: 'mit-ionic.txt',
+};
+
 /** The licence a POM-declared { name, url } belongs to. Anything not recognised keeps the name
  * and URL its POM gave, keyed by URL, so it stays a separate entry with a working link. */
 function classify({ name, url }) {
-  for (const [pattern, licence] of KNOWN) if (pattern.test(name)) return licence;
+  for (const [pattern, licence] of KNOWN) {
+    const hit = pattern instanceof RegExp ? pattern.test(name) : pattern.url.test(url ?? '');
+    if (hit) return licence;
+  }
   return { id: url || name, name: name || 'Licence', url: url || null };
 }
 
 /** The JSON the licences page renders: { licences: [{ id, name, url, text }], artifacts: [{ name,
  * version, licences }] }, `licences` indexing the top-level `licences`. An artifact with no declared licence stops
  * the script, to be looked at by hand. */
-export function buildNativeLicences(report, apache) {
+export function buildNativeLicences(report, apache, texts = {}) {
   const licences = [];
   const index = new Map();
   const intern = (declared) => {
@@ -86,7 +119,7 @@ export function buildNativeLicences(report, apache) {
         id: l.id,
         name: l.name,
         url: l.url,
-        text: l.id === APACHE.id ? apache : null,
+        text: l.id === APACHE.id ? apache : (texts[l.id] ?? null),
       });
     }
     return index.get(l.id);
@@ -99,6 +132,7 @@ export function buildNativeLicences(report, apache) {
       name: `${a.group}:${a.name}`,
       version: a.version,
       licences: [...new Set(a.licences.map(intern))],
+      ...(a.notices?.length ? { notices: a.notices } : {}),
     };
   });
   artifacts.sort((a, b) => a.name.localeCompare(b.name) || a.version.localeCompare(b.version));
@@ -123,7 +157,13 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
   }
   const report = JSON.parse(fs.readFileSync(reportPath, 'utf8'));
   const apache = fs.readFileSync(path.join(__dirname, 'apache-2.0.txt'), 'utf8').trim();
-  const result = buildNativeLicences(report, apache);
+  const texts = Object.fromEntries(
+    Object.entries(TEXT_FILES).map(([id, file]) => [
+      id,
+      fs.readFileSync(path.join(__dirname, 'licence-texts', file), 'utf8').trim(),
+    ]),
+  );
+  const result = buildNativeLicences(report, apache, texts);
   const prettier = await import('prettier');
   const options = (await prettier.resolveConfig(OUT_PATH)) ?? {};
   fs.writeFileSync(
