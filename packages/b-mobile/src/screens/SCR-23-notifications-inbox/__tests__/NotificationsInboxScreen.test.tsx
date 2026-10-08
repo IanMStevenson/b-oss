@@ -97,13 +97,27 @@ describe('NotificationsInboxScreen', () => {
 
     fetchRecentNotifications.mockResolvedValueOnce([notification()]);
     await userEvent.click(screen.getByText('Retry', { selector: 'ion-button' }));
-    expect(await screen.findByText('alice started following you')).toBeDefined();
+    expect(await screen.findByText('started following you')).toBeDefined();
   });
 
-  it('lists notifications, rendering the server-supplied text as-is', async () => {
+  it('lists notifications with the member name as its own profile button', async () => {
     fetchRecentNotifications.mockResolvedValue([notification()]);
+    const history = renderScreen();
+    expect(await screen.findByText('started following you')).toBeDefined();
+    await userEvent.click(screen.getByRole('button', { name: 'alice' }));
+    expect(history.location.pathname).toBe('/user/alice');
+  });
+
+  it('shows the content as sent when no member can be read off the payload', async () => {
+    fetchRecentNotifications.mockResolvedValue([
+      notification({
+        content: 'you earned an award',
+        content_html: '<p>you earned an award</p>',
+      }),
+    ]);
     renderScreen();
-    expect(await screen.findByText('alice started following you')).toBeDefined();
+    expect(await screen.findByText('you earned an award')).toBeDefined();
+    expect(screen.queryByRole('button', { name: 'alice' })).toBeNull();
   });
 
   it('suppresses a notification best-effort-recognised as from a hidden member', async () => {
@@ -135,7 +149,7 @@ describe('NotificationsInboxScreen', () => {
     ]);
     renderScreen();
     expect(await screen.findByText('you earned an award')).toBeDefined();
-    expect(screen.queryByText('alice started following you')).toBeNull();
+    expect(screen.queryByText('started following you')).toBeNull();
   });
 
   it('tapping an entry notification opens the entry', async () => {
@@ -155,7 +169,7 @@ describe('NotificationsInboxScreen', () => {
   it('tapping a profile notification opens the profile', async () => {
     fetchRecentNotifications.mockResolvedValue([notification()]); // links to /alice
     const history = renderScreen();
-    await screen.findByText('alice started following you');
+    await screen.findByText('started following you');
     await userEvent.click(screen.getByLabelText('Open'));
     expect(history.location.pathname).toBe('/user/alice');
   });
@@ -170,7 +184,7 @@ describe('NotificationsInboxScreen', () => {
       }),
     ]);
     const history = renderScreen();
-    await screen.findByText('alice wants to follow you');
+    await screen.findByText('wants to follow you');
     await userEvent.click(screen.getByLabelText('Open'));
     expect(history.location.pathname).toBe('/me/requests');
   });
@@ -195,7 +209,7 @@ describe('NotificationsInboxScreen', () => {
   it('pull-to-refresh fetches only newer items via the since_id cursor and prepends them', async () => {
     fetchRecentNotifications.mockResolvedValueOnce([notification({ notification_id_str: '5' })]);
     renderScreen();
-    await screen.findByText('alice started following you');
+    await screen.findByText('started following you');
 
     fetchRecentNotifications.mockResolvedValueOnce([
       notification({ notification_id_str: '6', content: 'a brand new one' }),

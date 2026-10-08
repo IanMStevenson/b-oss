@@ -202,6 +202,10 @@ ion-segment.settings-pill-segment ion-segment-button::part(native) {
   line-height: 1.35;
 }
 
+.inbox-row-body p {
+  margin: 2px 0 0;
+}
+
 .inbox-row-body a {
   color: var(--green-800);
   font-weight: 600;

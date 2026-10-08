@@ -69,7 +69,7 @@ const comment = (i, entryId = null) => ({
 const notification = (i) => ({
   notification_id_str: String(9000 + i),
   content: `${people[i % people.length]} starred your entry`,
-  content_html: `<b>${people[i % people.length]}</b> starred your entry "${titles[i]}"`,
+  content_html: `<a href="https://www.blipfoto.com/${people[i % people.length]}">${people[i % people.length]}</a> starred your entry "${titles[i]}"`,
   image_url: img(i, 'thumb'),
   link_url: `https://www.blipfoto.com/entry/${5000000000 + i}`,
 });
