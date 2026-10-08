@@ -13,7 +13,13 @@
 // startUploadQueueRunner()'s own recovery sweep (§9's "honest limitation": a Capacitor app can't
 // upload while its process is dead — an item stuck `uploading` from a prior run is reset to
 // `waiting` and resumed, not left stranded).
+//
+// Lost publish responses: if a publish reached the server but its response never came back, the
+// retry is rejected with 252 "already posted" (one entry per day). An item that may have
+// published already (`mayHavePublished`) checks that day's entry on 252 and, if there is one,
+// counts as uploaded rather than failed.
 
+import { BlipfotoError } from '@b-oss/b-api';
 import { getClientForAccount } from '../data/client.js';
 import { describeError, mapApiError } from '../data/errors.js';
 import { readQueuedFileAsSource, deleteQueuedFile } from '../platform/upload.js';
@@ -41,7 +47,11 @@ export function startUploadQueueRunner(): void {
   const store = useUploadQueueStore.getState();
   for (const item of store.items) {
     if (item.status === 'uploading') {
-      store.updateItem(item.id, { status: 'waiting', nextAttemptAt: null });
+      store.updateItem(item.id, {
+        status: 'waiting',
+        nextAttemptAt: null,
+        ...(item.kind === 'publish' ? { mayHavePublished: true } : {}),
+      });
     }
   }
   wakeUploadQueueRunner();
@@ -116,15 +126,44 @@ async function processItem(item: UploadQueueItem): Promise<void> {
             })
           ).entry.entry_id_str;
 
-    useUploadQueueStore.getState().updateItem(item.id, {
-      status: 'uploaded',
-      resultEntryId: entryId,
-      error: null,
-    });
-    if (item.filePath) await deleteQueuedFile(item.filePath);
-    onEntryPublished(item.accountId);
+    await markUploaded(item, entryId);
   } catch (err) {
+    const existingId = await findAlreadyPublishedEntry(item, err);
+    if (existingId) {
+      await markUploaded(item, existingId);
+      return;
+    }
     handleFailure(item, err);
+  }
+}
+
+async function markUploaded(item: UploadQueueItem, entryId: string): Promise<void> {
+  useUploadQueueStore.getState().updateItem(item.id, {
+    status: 'uploaded',
+    resultEntryId: entryId,
+    error: null,
+  });
+  if (item.filePath) await deleteQueuedFile(item.filePath);
+  onEntryPublished(item.accountId);
+}
+
+/** A 252 on a publish that may already have landed: the id of that day's entry, if there is
+ * one. Null in every other case, including when the lookup itself fails — the item then fails
+ * with the 252 message as before. */
+async function findAlreadyPublishedEntry(
+  item: UploadQueueItem,
+  err: unknown,
+): Promise<string | null> {
+  if (item.kind !== 'publish' || !item.mayHavePublished) return null;
+  if (!(err instanceof BlipfotoError) || err.code !== 252) return null;
+  const date = (item.fields as PublishQueueFields).date;
+  if (!date) return null;
+  try {
+    const client = await getClientForAccount(item.accountId);
+    const { day } = await client.getJournalDay(date);
+    return day.entry?.entry_id_str ?? null;
+  } catch {
+    return null;
   }
 }
 
@@ -145,6 +184,7 @@ function handleFailure(item: UploadQueueItem, err: unknown): void {
       status: 'waiting',
       attempts,
       nextAttemptAt: Date.now() + nextBackoffMs(attempts),
+      ...(item.kind === 'publish' ? { mayHavePublished: true } : {}),
     });
     return;
   }

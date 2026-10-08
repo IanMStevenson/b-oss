@@ -12,6 +12,7 @@ import com.getcapacitor.annotation.CapacitorPlugin;
 
 import java.io.File;
 import java.io.FileOutputStream;
+import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 
@@ -29,6 +30,10 @@ import java.io.OutputStream;
 // resume, backing out of compose and re-entering) doesn't re-import the same photo again — the
 // same "consume once" shape platform/deepLinks.ts's OAuth-round listener already relies on for
 // its own redirect URL.
+//
+// The stream is checked before anything is copied (SharedImagePolicy): content:// from another
+// app only, a decodable image, and a capped copy size. A rejected share resolves with an empty
+// path, the same as no share at all.
 @CapacitorPlugin(name = "ShareIntent")
 public class ShareIntentPlugin extends Plugin {
 
@@ -64,8 +69,19 @@ public class ShareIntentPlugin extends Plugin {
       call.resolve(new JSObject().put("path", ""));
       return;
     }
+    if (!SharedImagePolicy.isAcceptedSource(
+        source.getScheme(), source.getAuthority(), getContext().getPackageName())) {
+      intent.removeExtra(Intent.EXTRA_STREAM);
+      call.resolve(new JSObject().put("path", ""));
+      return;
+    }
     try {
       int[] dimensions = readDimensions(source);
+      if (!SharedImagePolicy.isDecodableImage(dimensions[0], dimensions[1])) {
+        intent.removeExtra(Intent.EXTRA_STREAM);
+        call.resolve(new JSObject().put("path", ""));
+        return;
+      }
       File dest = copyToCache(source, intent.getType());
       intent.removeExtra(Intent.EXTRA_STREAM);
 
@@ -83,9 +99,7 @@ public class ShareIntentPlugin extends Plugin {
 
   /** Bounds-only decode (no pixels loaded) — a separate ContentResolver stream from the copy
    * below, since a content:// InputStream generally can't be rewound after reading. Returns
-   * [-1, -1] on any failure; callers (platform/shareIntent.ts, data/photoValidation.ts) already
-   * treat an unknown width/height as "skip the dimension check" — the same null-safety precedent
-   * every other picked-photo path in this app already follows. */
+   * [-1, -1] on any failure, which resolveSharedImage treats as "not an image" and rejects. */
   private int[] readDimensions(Uri source) {
     try (InputStream in = getContext().getContentResolver().openInputStream(source)) {
       BitmapFactory.Options options = new BitmapFactory.Options();
@@ -105,11 +119,11 @@ public class ShareIntentPlugin extends Plugin {
     File dest = new File(dir, filename);
     try (InputStream in = getContext().getContentResolver().openInputStream(source);
         OutputStream out = new FileOutputStream(dest)) {
-      byte[] buffer = new byte[8192];
-      int read;
-      while ((read = in.read(buffer)) != -1) {
-        out.write(buffer, 0, read);
-      }
+      if (in == null) throw new IOException("No stream for shared URI");
+      SharedImagePolicy.copyCapped(in, out, SharedImagePolicy.MAX_COPY_BYTES);
+    } catch (Exception e) {
+      dest.delete();
+      throw e;
     }
     return dest;
   }

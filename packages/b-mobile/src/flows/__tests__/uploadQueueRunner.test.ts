@@ -16,7 +16,7 @@ import {
   nextBackoffMs,
 } from '../uploadQueueRunner.js';
 
-const client = { publishEntry: vi.fn(), updateEntry: vi.fn() };
+const client = { publishEntry: vi.fn(), updateEntry: vi.fn(), getJournalDay: vi.fn() };
 vi.mock('../../data/client.js', () => ({ getClientForAccount: () => Promise.resolve(client) }));
 
 vi.mock('../../platform/upload.js', () => ({
@@ -151,6 +151,63 @@ describe('uploadQueueRunner', () => {
     );
   });
 
+  it('flags a publish that may have landed after a transport failure', async () => {
+    client.publishEntry.mockRejectedValue(new NetworkError('timeout'));
+    setQueue([baseItem()]);
+
+    wakeUploadQueueRunner();
+
+    await vi.waitFor(() => expect(getItem('q1').attempts).toBe(1));
+    expect(getItem('q1').mayHavePublished).toBe(true);
+  });
+
+  it("marks a retried publish uploaded when 252 comes back and that day's entry exists", async () => {
+    client.publishEntry.mockRejectedValue(new BlipfotoError(252, 'Already posted'));
+    client.getJournalDay.mockResolvedValue({ day: { entry: { entry_id_str: 'e77' } } });
+    setQueue([baseItem({ attempts: 1, mayHavePublished: true })]);
+
+    wakeUploadQueueRunner();
+
+    await vi.waitFor(() => expect(getItem('q1').status).toBe('uploaded'));
+    expect(client.getJournalDay).toHaveBeenCalledWith('2026-01-01');
+    expect(getItem('q1').resultEntryId).toBe('e77');
+    const { deleteQueuedFile } = await import('../../platform/upload.js');
+    expect(deleteQueuedFile).toHaveBeenCalledWith('uploads/q1.jpg');
+    expect(onEntryPublished).toHaveBeenCalledWith('acct1');
+  });
+
+  it('still fails a first-attempt 252 without looking up the day', async () => {
+    client.publishEntry.mockRejectedValue(new BlipfotoError(252, 'Already posted'));
+    setQueue([baseItem()]);
+
+    wakeUploadQueueRunner();
+
+    await vi.waitFor(() => expect(getItem('q1').status).toBe('failed'));
+    expect(client.getJournalDay).not.toHaveBeenCalled();
+  });
+
+  it('fails a retried 252 when the day turns out to have no entry', async () => {
+    client.publishEntry.mockRejectedValue(new BlipfotoError(252, 'Already posted'));
+    client.getJournalDay.mockResolvedValue({ day: { entry: null } });
+    setQueue([baseItem({ attempts: 1, mayHavePublished: true })]);
+
+    wakeUploadQueueRunner();
+
+    await vi.waitFor(() => expect(getItem('q1').status).toBe('failed'));
+    expect(getItem('q1').resultEntryId).toBeNull();
+  });
+
+  it('fails a retried 252 when the day lookup itself fails', async () => {
+    client.publishEntry.mockRejectedValue(new BlipfotoError(252, 'Already posted'));
+    client.getJournalDay.mockRejectedValue(new NetworkError('down'));
+    setQueue([baseItem({ attempts: 1, mayHavePublished: true })]);
+
+    wakeUploadQueueRunner();
+
+    await vi.waitFor(() => expect(getItem('q1').status).toBe('failed'));
+  });
+
+  // The two startup tests leave a never-resolving publish in flight, so they stay last.
   it('resets a stuck "uploading" item back to "waiting" on startup (killed-process recovery)', () => {
     client.publishEntry.mockImplementation(() => new Promise(() => {})); // never resolves
     setQueue([baseItem({ status: 'uploading' })]);
@@ -161,5 +218,14 @@ describe('uploadQueueRunner', () => {
     // item must already read back as picked-up (no longer stuck) — the queue's own state update
     // for the recovery reset is synchronous.
     expect(['waiting', 'uploading']).toContain(getItem('q1').status);
+  });
+
+  it('flags a publish recovered from "uploading" on startup', () => {
+    client.publishEntry.mockImplementation(() => new Promise(() => {}));
+    setQueue([baseItem({ status: 'uploading' })]);
+
+    startUploadQueueRunner();
+
+    expect(getItem('q1').mayHavePublished).toBe(true);
   });
 });
