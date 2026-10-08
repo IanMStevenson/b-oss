@@ -483,7 +483,7 @@ Vitest + Testing Library under jsdom, run from the repo root. Pure logic (error 
 queue, BBCode preset, deep links, notification suppression/routing, crop maths) carries most of the
 tests; screens render with `src/platform/` mocked and `b-api` stubbed, using
 `app/routes/test-router.tsx`. On-device checks are manual; there is no device or emulator on the dev
-VM, and unverified paths are listed in [`../UNTESTED_PATHS.md`](../UNTESTED_PATHS.md).
+VM, and paths the owner has decided not to test are listed in [`../DECIDED_NOT_TO_TEST.md`](../DECIDED_NOT_TO_TEST.md).
 
 `vite.config.ts`'s `test` block aliases `@lit/react` to its browser build and inlines it; otherwise
 Vitest resolves Ionic 9's wrappers to an SSR build and components render as inert tags.
@@ -527,7 +527,7 @@ run`) break the root `vitest.config.ts` `setupFiles` path, which resolves agains
 - No Android device or emulator is available on the dev VM. Compilation (`./gradlew
 assembleDebug`), jsdom tests and a headless-browser pass (Playwright, see the `run-b-view`
   skill) do not verify on-device behaviour. Do not claim device behaviour is verified from them;
-  see `docs/UNTESTED_PATHS.md`.
+  see `docs/DECIDED_NOT_TO_TEST.md`.
 
 **Testing under jsdom**
 
