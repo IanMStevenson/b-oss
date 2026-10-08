@@ -75,19 +75,20 @@ A Day object represents a calendar day in a user's journal.
 
 A Comment object represents a comment on a journal entry.
 
-| Name             | Description                                                            | Datatype             |
-| ---------------- | ---------------------------------------------------------------------- | -------------------- |
-| `comment_id`     | The comment's unique ID.                                               | integer              |
-| `parent_id`      | The comment parent's unique ID, or null for top-level comments.        | integer\|null        |
-| `entry_id`       | The unique ID of the entry to which this comment belongs.              | integer\|null        |
-| `thumbnail_url`  | The URL of a thumbnail image to display next to the comment.           | string               |
-| `content`        | The comment's content, which may contain markup.                       | string               |
-| `content_html`   | The comment's content formatted as HTML.                               | string               |
-| `commenter`      | The user who added the comment.                                        | User                 |
-| `actions.reply`  | 1 if the authenticated user can reply, otherwise 0.                    | integer              |
-| `actions.edit`   | 1 if the authenticated user can edit, otherwise 0.                     | integer              |
-| `actions.delete` | 1 if the authenticated user can delete, otherwise 0.                   | integer              |
-| `replies`        | Array of reply Comment objects if `include_replies=1`, otherwise null. | array(Comment)\|null |
+| Name             | Description                                                                                                                          | Datatype             |
+| ---------------- | ------------------------------------------------------------------------------------------------------------------------------------ | -------------------- |
+| `comment_id`     | The comment's unique ID.                                                                                                             | integer              |
+| `parent_id`      | The comment parent's unique ID, or null for top-level comments.                                                                      | integer\|null        |
+| `entry_id`       | The unique ID of the entry to which this comment belongs.                                                                            | integer\|null        |
+| `thumbnail_url`  | The URL of a thumbnail image to display next to the comment.                                                                         | string               |
+| `content`        | The comment's content, which may contain markup.                                                                                     | string               |
+| `content_html`   | The comment's content formatted as HTML.                                                                                             | string               |
+| `commenter`      | The user who added the comment.                                                                                                      | User                 |
+| `actions.reply`  | 1 if the authenticated user can reply, otherwise 0.                                                                                  | integer              |
+| `actions.edit`   | 1 if the authenticated user can edit, otherwise 0. Observed: set only for the comment's author.                                      | integer              |
+| `actions.delete` | 1 if the authenticated user can delete, otherwise 0. Observed: set for the comment's author and for the owner of the entry it is on. | integer              |
+| `replies`        | Array of reply Comment objects if `include_replies=1`, otherwise null.                                                               | array(Comment)\|null |
+| `unread`         | Not in Blipfoto's docs. Returned only by `messages/comments/recent`: 1 if the comment was unread as of this response.                | integer              |
 
 ```json
 {
@@ -183,6 +184,8 @@ A Page object represents pagination in a response. Values may differ from reques
 }
 ```
 
+**Observed: the page index is clamped.** On the entry feeds (`entries/journal`, `recent`, `popular`, `following`, `favorites`, `search`) a `page_index` above **200** is silently clamped to 200. The response's `page.index` says 200 and no error is raised. A `page_size` of 100 is honoured on all of those feeds, so 200 × 100 = about 20,000 entries is the deepest a feed can be paged. Always compare the returned `page.index` with the one requested before labelling results by page.
+
 ---
 
 ### Friendship
@@ -270,6 +273,8 @@ A User object represents basic information about a single Blipfoto user.
 
 - **User** — requires a user access token
 - **App** — requires app-level auth (client credentials); no user token needed
+
+Every request needs a bearer, so "App" means the Client ID is sent as the bearer (see [api-general.md](api-general.md#app-auth)). Where this reference corrects the authorisation level in Blipfoto's own docs, it says so in a note.
 
 ---
 
@@ -368,6 +373,8 @@ Return a page of entries from a journal.
 
 **Response:** `page` (Page), `entries` (Array(Entry))
 
+> Observed: `page_index` is clamped to 200 (see [Page](#page)). With `page_size` 100, entries beyond the first ~20,000 can't be reached through this resource.
+
 ---
 
 ### GET entries/recent
@@ -425,7 +432,9 @@ same `page_index` / `page_size` parameters, and its first entry matches
 
 Perform an entry search and return relevant results.
 
-**Authorization:** User
+**Authorization:** User / App
+
+> Blipfoto's docs list this resource as User only; it has been observed to work with App auth.
 
 **Parameters:**
 
@@ -456,18 +465,18 @@ Return information about a journal entry.
 
 **Parameters:**
 
-| Name                 | Description                                                                                              | Required? |
-| -------------------- | -------------------------------------------------------------------------------------------------------- | --------- |
-| `entry_id`           | The unique ID of the entry.                                                                              | No        |
-| `username`           | If `entry_id` omitted, returns this user's most recent entry. Omit for authenticated user's most recent. | No        |
-| `return_details`     | Pass 1 to include a `details` object.                                                                    | No        |
-| `return_metadata`    | Pass 1 to include a `metadata` object (EXIF).                                                            | No        |
-| `return_comments`    | Pass 1 to include a `comments` object.                                                                   | No        |
-| `include_replies`    | With `return_comments=1`, pass 1 to include replies.                                                     | No        |
-| `return_related`     | Pass 1 to include a `related` object (previous/next/year entries).                                       | No        |
-| `return_friendships` | Pass 1 to include a `friendships` array.                                                                 | No        |
-| `return_actions`     | Pass 1 to include an `actions` object.                                                                   | No        |
-| `return_image_urls`  | Pass 1 to include an `image_urls` object.                                                                | No        |
+| Name                 | Description                                                                                                                               | Required? |
+| -------------------- | ----------------------------------------------------------------------------------------------------------------------------------------- | --------- |
+| `entry_id`           | The unique ID of the entry.                                                                                                               | No        |
+| `username`           | If `entry_id` omitted, returns this user's most recent entry. Omit for authenticated user's most recent.                                  | No        |
+| `return_details`     | Pass 1 to include a `details` object.                                                                                                     | No        |
+| `return_metadata`    | Pass 1 to include a `metadata` object (EXIF).                                                                                             | No        |
+| `return_comments`    | Pass 1 to include a `comments` object. Observed side effect: clears the authenticated user's unread comment notifications for this entry. | No        |
+| `include_replies`    | With `return_comments=1`, pass 1 to include replies.                                                                                      | No        |
+| `return_related`     | Pass 1 to include a `related` object (previous/next/year entries).                                                                        | No        |
+| `return_friendships` | Pass 1 to include a `friendships` array.                                                                                                  | No        |
+| `return_actions`     | Pass 1 to include an `actions` object.                                                                                                    | No        |
+| `return_image_urls`  | Pass 1 to include an `image_urls` object.                                                                                                 | No        |
 
 **Response:** `entry` (Entry), plus optional objects below.
 
@@ -515,13 +524,13 @@ Return information about a journal entry.
 
 #### actions object (if `return_actions=1`)
 
-| Name       | Description                                               | Datatype |
-| ---------- | --------------------------------------------------------- | -------- |
-| `star`     | 1 if authenticated user can star.                         | integer  |
-| `favorite` | 1 if authenticated user can favorite.                     | integer  |
-| `comment`  | 1 if authenticated user can comment.                      | integer  |
-| `edit`     | 1 = full edit, 2 = tags & location only, 0 = cannot edit. | integer  |
-| `delete`   | 1 if authenticated user can delete.                       | integer  |
+| Name       | Description                                                                                                                              | Datatype |
+| ---------- | ---------------------------------------------------------------------------------------------------------------------------------------- | -------- |
+| `star`     | 1 if authenticated user can star.                                                                                                        | integer  |
+| `favorite` | 1 if authenticated user can favorite.                                                                                                    | integer  |
+| `comment`  | 1 if authenticated user can comment. For a signed-in viewer, 0 means comments are switched off on this journal (posting gets error 205). | integer  |
+| `edit`     | 1 = full edit, 2 = tags & location only, 0 = cannot edit.                                                                                | integer  |
+| `delete`   | 1 if authenticated user can delete.                                                                                                      | integer  |
 
 #### image_urls object (if `return_image_urls=1`)
 
@@ -531,6 +540,8 @@ Return information about a journal entry.
 | `stdres`   | URL of standard resolution image. | String\|null |
 | `hires`    | URL of high resolution image.     | String\|null |
 | `original` | URL of original image.            | String\|null |
+
+> Observed: `hires` and `original` come back `null` because they are not available to our app type, so `stdres` is the largest image b-api can obtain. Additional photos are not returned either (see [entry/photo](#post--delete-entryphoto)). backup-engine gets the higher resolutions and additional photos from the entry's web page instead.
 
 ---
 
@@ -550,7 +561,7 @@ Publish a new journal entry.
 | `date`                   | Entry date in YYYY-MM-DD format. Defaults to EXIF `DateTimeOriginal` or current date. | No        |
 | `title`                  | Entry title (max 50 characters).                                                      | No        |
 | `description`            | Entry description (may contain markup).                                               | No        |
-| `tags`                   | Comma-separated list of tags.                                                         | No        |
+| `tags`                   | Comma-separated list of tags (max 255 characters in total).                           | No        |
 | `lat`                    | Latitude (WSG84).                                                                     | No        |
 | `lon`                    | Longitude (WSG84).                                                                    | No        |
 | `display_location`       | Set to 1 to display entry on maps.                                                    | No        |
@@ -578,18 +589,18 @@ Update an existing journal entry. The value of the `edit` action determines whic
 
 **Parameters:**
 
-| Name                                                                                                                     | Description                             | Required? |
-| ------------------------------------------------------------------------------------------------------------------------ | --------------------------------------- | --------- |
-| `entry_id`                                                                                                               | The entry's unique ID.                  | Yes       |
-| `image`                                                                                                                  | Replacement JPG image.                  | No        |
-| `date`                                                                                                                   | Entry date in YYYY-MM-DD.               | No        |
-| `title`                                                                                                                  | Entry title (max 50 characters).        | No        |
-| `description`                                                                                                            | Entry description (may contain markup). | No        |
-| `tags`                                                                                                                   | Comma-separated list of tags.           | No        |
-| `lat`                                                                                                                    | Latitude (WSG84).                       | No        |
-| `lon`                                                                                                                    | Longitude (WSG84).                      | No        |
-| `display_location`                                                                                                       | 1 to enable map display, 0 to disable.  | No        |
-| `exif_Make` / `exif_Model` / `exif_ExposureTime` / `exif_FNumber` / `exif_FocalLength` / `exif_ISO` / `exif_Orientation` | Override EXIF fields.                   | No        |
+| Name                                                                                                                     | Description                                                 | Required? |
+| ------------------------------------------------------------------------------------------------------------------------ | ----------------------------------------------------------- | --------- |
+| `entry_id`                                                                                                               | The entry's unique ID.                                      | Yes       |
+| `image`                                                                                                                  | Replacement JPG image.                                      | No        |
+| `date`                                                                                                                   | Entry date in YYYY-MM-DD.                                   | No        |
+| `title`                                                                                                                  | Entry title (max 50 characters).                            | No        |
+| `description`                                                                                                            | Entry description (may contain markup).                     | No        |
+| `tags`                                                                                                                   | Comma-separated list of tags (max 255 characters in total). | No        |
+| `lat`                                                                                                                    | Latitude (WSG84).                                           | No        |
+| `lon`                                                                                                                    | Longitude (WSG84).                                          | No        |
+| `display_location`                                                                                                       | 1 to enable map display, 0 to disable.                      | No        |
+| `exif_Make` / `exif_Model` / `exif_ExposureTime` / `exif_FNumber` / `exif_FocalLength` / `exif_ISO` / `exif_Orientation` | Override EXIF fields.                                       | No        |
 
 **Response:** `entry` (Entry)
 
@@ -698,6 +709,8 @@ Report an entry. At least one valid reason must be given.
 
 **Response:** `success` (integer)
 
+There is no separate resource for reporting a comment, so a reported comment has to be identified in the `comment` text of an entry report.
+
 ---
 
 ### POST entry/star
@@ -713,6 +726,12 @@ Star an entry.
 | `entry_id` | The entry's unique ID. | Yes       |
 
 **Response:** `success` (integer)
+
+---
+
+### POST / DELETE entry/photo
+
+Add or remove an entry's additional photos. These resources are not available to our app type, so b-api doesn't wrap them. Additional photos are not returned to it by `GET entry` either. Error 233 is the related quota.
 
 ---
 
@@ -746,7 +765,7 @@ Describes a month in a user's journal.
 | `username`   | Username of the user. Omit to use authenticated user.                                                          | No        |
 | `week_start` | Day week starts: 1 (Monday) to 7 (Sunday), or 0 to ignore week start. Defaults to authenticated user's locale. | No        |
 
-**Response:**
+**Response:** a `month` object (observed; the published docs show these fields flat), i.e. `{ month: { month, year, week_start, days } }`:
 
 | Name         | Description                                                                    | Datatype         |
 | ------------ | ------------------------------------------------------------------------------ | ---------------- |
@@ -760,6 +779,8 @@ Describes a month in a user's journal.
 ### GET messages/comments/recent
 
 Return recent comments on the authenticated user's journal, newest first.
+
+> Observed side effect: fetching this clears **all** of the account's unread comments, not just the ones returned. Each comment's `unread` flag is only meaningful in the first response; later pages show everything as read.
 
 **Authorization:** User
 
@@ -777,6 +798,8 @@ Return recent comments on the authenticated user's journal, newest first.
 ### GET messages/notifications/recent
 
 Return recent notifications for the authenticated user, newest first.
+
+> Observed side effect: fetching this marks the returned notifications read, and only those.
 
 **Authorization:** User
 
@@ -796,6 +819,8 @@ Return recent notifications for the authenticated user, newest first.
 | `content_html`    | Notification content as HTML.              | string   |
 | `image_url`       | URL of the notification's image.           | string   |
 | `link_url`        | URL of the notification's link.            | string   |
+
+The text arrives pre-composed. A notification has no type, author, timestamp or unread field, so the member involved can be found only from `content` and the target only from `link_url`. Observed: items in both this and the comments stream are kept for about two weeks.
 
 ---
 
@@ -830,11 +855,13 @@ Returns totals for unread messages.
 
 **Response:** `comments` (integer, if requested), `notifications` (integer, if requested)
 
+> Observed: this is the only `messages/*` read with no side effect. Nothing is marked read, which makes it the resource to poll. The two counts are independent; a new comment raises only `comments`. Don't use `messages/notifications/unread/Total` instead. It isn't in Blipfoto's docs, and it reports the notification count under both keys.
+
 ---
 
 ### GET oauth/token
 
-Retrieve the Token object for the auth in use. When using Implicit Grant, use this to verify the token was issued to your app.
+Retrieve the Token object for the auth in use. When using Implicit Grant, use this to verify the token was issued to your app, and to read back the `scope` actually granted. The payload is nested under `token`, as for every `oauth/token` call.
 
 **Authorization:** User
 
@@ -873,7 +900,7 @@ Obtain a new access token (Authorization Code or Resource Owner Credentials gran
 
 ### DELETE oauth/token
 
-Delete the access token in use (typically on user sign-out).
+Delete the access token in use (typically on user sign-out). Only the token sent as the bearer is revoked; any other tokens the same user holds, including other tokens for the same app, are unaffected.
 
 **Authorization:** User
 
@@ -901,7 +928,9 @@ Return a list of available awards in the context of a recipient user.
 
 Return information about a specific user.
 
-**Authorization:** User
+**Authorization:** User / App
+
+> Blipfoto's docs list this resource as User only; it has been observed to work with App auth.
 
 **Parameters:**
 
@@ -972,7 +1001,7 @@ Update the user's settings.
 | Name               | Description                                    | Required? |
 | ------------------ | ---------------------------------------------- | --------- |
 | `username`         | A new username.                                | No        |
-| `journal_title`    | A new journal title.                           | No        |
+| `journal_title`    | A new journal title (max 25 characters).       | No        |
 | `real_name`        | The user's real name.                          | No        |
 | `real_name_search` | 1 to enable search by real name, 0 to disable. | No        |
 | `biography`        | Biography (may contain markup).                | No        |
@@ -990,6 +1019,8 @@ Update the user's settings.
 ### GET user/settings/notifications
 
 Return a user's notification settings.
+
+The `push` group's settings belong to Blipfoto's own push service, which devices register with through `POST user/settings/push`. That service is not available to our app type, so these settings don't govern any push b-oss sends.
 
 **Authorization:** User
 
@@ -1094,6 +1125,8 @@ Return a paginated list of a user's followers.
 
 Remove followers from the authenticated user's followers list.
 
+This ends the follow and nothing more; it does not refuse the member or add them to `users/requests/blocked`. On a public journal they can simply follow again. On a protected journal they lose access and have to send a new follow request, which arrives at `users/requests/pending`.
+
 **Authorization:** User
 
 **Parameters:**
@@ -1109,6 +1142,8 @@ Remove followers from the authenticated user's followers list.
 ### GET users/requests/blocked
 
 Return a list of users blocked by the authenticated user.
+
+"Blocked" here means members whose follow request was refused (`DELETE users/requests/pending`). Removing a follower doesn't put anyone on this list.
 
 **Authorization:** User
 
@@ -1182,7 +1217,9 @@ Block (reject) a list of follow requests.
 
 Perform a user search and return relevant results.
 
-**Authorization:** User
+**Authorization:** User / App
+
+> Blipfoto's docs list this resource as User only; it has been observed to work with App auth.
 
 **Parameters:**
 
