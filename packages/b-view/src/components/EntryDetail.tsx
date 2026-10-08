@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (C) 2026 Ian Stevenson
 
-import { useEffect, useState, useCallback, type ReactNode } from 'react';
+import { useEffect, useRef, useState, useCallback, type ReactNode } from 'react';
 import {
   ArrowLeft,
   Loader2,
@@ -23,9 +23,13 @@ import type { BlipEntry, BlipComment, EntryIndex, EntryState } from '../types.js
 import { EntryNavStrip, type HistoryItem } from './EntryNavStrip.js';
 import { AsyncThumb, type ResolveAsset } from './AsyncThumb.js';
 import { Lightbox } from './Lightbox.js';
+import { formatLongDate } from '../entryDates.js';
 import { BBCodeText } from './BBCodeText.js';
 import { useSwipeNav } from '../useSwipeNav.js';
 import styles from './EntryDetail.module.css';
+
+/** Window for telling a double-tap on the photo from two single taps. */
+const DOUBLE_TAP_MS = 280;
 
 interface EntryDetailReactions {
   starred: boolean;
@@ -95,6 +99,10 @@ interface EntryDetailProps {
    * before. Extras thumbnails always still open the internal Lightbox regardless — this only
    * covers the main-photo fullscreen button. */
   onFullscreen?: () => void;
+  /** Double-tap/double-click on the main photo. Supplying it delays a single tap's previous/next
+   * entry navigation by DOUBLE_TAP_MS so the first tap of a double can be told apart (and cancelled);
+   * omitted, a tap navigates at once, as before. Typically the same as `onFullscreen`. */
+  onPhotoDoubleTap?: () => void;
   /** Called when a tag chip is tapped, with the raw tag text — for a host that has a tag-entries
    * screen/route to navigate to. Omitted: tags render as plain, non-interactive text, as before. */
   onTagClick?: (tag: string) => void;
@@ -258,6 +266,7 @@ export function EntryDetail({
   onUserClick,
   onLinkClick,
   onFullscreen,
+  onPhotoDoubleTap,
   onTagClick,
   onLocationClick,
 }: EntryDetailProps) {
@@ -277,6 +286,32 @@ export function EntryDetail({
     onSwipeRight: () => lightboxIndex === null && nextEntryId && onNavigate(nextEntryId),
     onSwipeLeft: () => lightboxIndex === null && prevEntryId && onNavigate(prevEntryId),
   });
+
+  // Single taps on the photo navigate entries; when a double-tap handler exists they wait out the
+  // double-tap window so the first tap of a double doesn't move to another entry first.
+  const tapTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(
+    () => () => {
+      if (tapTimer.current) clearTimeout(tapTimer.current);
+    },
+    [],
+  );
+  const onPhotoTap = (id: string | null) => {
+    if (!onPhotoDoubleTap) {
+      if (id) onNavigate(id);
+      return;
+    }
+    if (tapTimer.current) {
+      clearTimeout(tapTimer.current);
+      tapTimer.current = null;
+      onPhotoDoubleTap();
+      return;
+    }
+    tapTimer.current = setTimeout(() => {
+      tapTimer.current = null;
+      if (id) onNavigate(id);
+    }, DOUBLE_TAP_MS);
+  };
 
   const imagePath =
     entryState.status === 'loaded'
@@ -428,12 +463,12 @@ export function EntryDetail({
                 />
                 <div
                   className={`${styles.photoHalf} ${styles.photoHalfLeft}`}
-                  onClick={() => prevEntryId && onNavigate(prevEntryId)}
+                  onClick={() => onPhotoTap(prevEntryId)}
                   aria-hidden="true"
                 />
                 <div
                   className={`${styles.photoHalf} ${styles.photoHalfRight}`}
-                  onClick={() => nextEntryId && onNavigate(nextEntryId)}
+                  onClick={() => onPhotoTap(nextEntryId)}
                   aria-hidden="true"
                 />
               </div>
@@ -665,12 +700,15 @@ export function EntryDetail({
         </div>
       </div>
 
-      {lightboxIndex !== null && lightboxUrls.length > 0 && (
+      {lightboxIndex !== null && lightboxUrls.length > 0 && entryState.status === 'loaded' && (
         <Lightbox
           images={lightboxUrls}
           index={lightboxIndex}
           onClose={() => setLightboxIndex(null)}
           onNavigate={setLightboxIndex}
+          title={entryState.data.title}
+          journalTitle={entryState.data.journal_title}
+          date={formatLongDate(entryState.data.date)}
         />
       )}
     </div>

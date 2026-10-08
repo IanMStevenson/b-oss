@@ -45,3 +45,12 @@ export function formatStripDate(isoDate: string): { day: string; monthYear: stri
     monthYear: `${MONTHS_SHORT[month - 1]}, ${m[1].slice(2)}`,
   };
 }
+
+/** "2nd Oct 2026" for the lightbox header, from a `YYYY-MM-DD` entry date (parsed from the string,
+ * timezone-proof like formatStripDate). Anything malformed comes back unchanged. */
+export function formatLongDate(isoDate: string): string {
+  const parts = formatStripDate(isoDate);
+  if (!parts) return isoDate;
+  const [mon] = parts.monthYear.split(', ');
+  return `${parts.day} ${mon} ${isoDate.slice(0, 4)}`;
+}

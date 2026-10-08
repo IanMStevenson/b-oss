@@ -17,7 +17,7 @@
 import { useEffect, useState } from 'react';
 import type { CSSProperties } from 'react';
 import { IonPage, IonContent, IonSpinner, IonText, IonButton } from '@ionic/react';
-import { Lightbox } from '@b-oss/b-view';
+import { Lightbox, formatLongDate } from '@b-oss/b-view';
 import { useLiveEntry } from '../../data/useLiveEntry.js';
 import { useAppNavigate } from '../../app/routes/useAppNavigate.js';
 
@@ -27,7 +27,7 @@ interface PhotoScreenProps {
 
 export function PhotoScreen({ entryId }: PhotoScreenProps) {
   const navigate = useAppNavigate();
-  const { entryState, reload } = useLiveEntry(entryId);
+  const { entryState, reload, prevEntryId, nextEntryId } = useLiveEntry(entryId);
   const [imageError, setImageError] = useState(false);
 
   // Lightbox has no retry UI of its own for a broken <img> — reset whenever the entry (or its
@@ -40,6 +40,12 @@ export function PhotoScreen({ entryId }: PhotoScreenProps) {
   function close(): void {
     navigate.replace(`/entry/${entryId}`);
   }
+
+  function goTo(id: string): void {
+    navigate.replace(`/entry/${id}/photo`);
+  }
+
+  const entry = entryState.status === 'loaded' ? entryState.data : null;
 
   return (
     <IonPage>
@@ -82,6 +88,13 @@ export function PhotoScreen({ entryId }: PhotoScreenProps) {
               index={0}
               onClose={close}
               onNavigate={() => {}}
+              title={entry?.title}
+              journalTitle={entry?.journal_title}
+              date={entry ? formatLongDate(entry.date) : undefined}
+              entryNav={{
+                onPrevious: prevEntryId ? () => goTo(prevEntryId) : undefined,
+                onNext: nextEntryId ? () => goTo(nextEntryId) : undefined,
+              }}
               onImageError={() => setImageError(true)}
             />
           ) : (
