@@ -2,15 +2,15 @@
 // Copyright (C) 2026 Ian Stevenson
 
 // Shared types: the Worker's env bindings, the registrations row shape, and the registration
-// contract's request/response bodies (notification-service.md "Registration contract").
+// contract's request/response bodies (ARCHITECTURE.md "Registration contract").
 
 export interface Env {
   DB: D1Database;
-  /** Base64, 32 raw bytes — AES-256-GCM key for read_token at rest (notification-service.md
+  /** Base64, 32 raw bytes — AES-256-GCM key for read_token at rest (ARCHITECTURE.md
    * "Security notes": a single static Worker secret, random nonce per row). */
   READ_TOKEN_ENCRYPTION_KEY: string;
   /** The shared, build-time constant every app install presents on POST /v1/registrations — "a
-   * coarse gate, not a credential" (notification-service.md). Must match the app build's
+   * coarse gate, not a credential" (ARCHITECTURE.md). Must match the app build's
    * VITE_NOTIFY_REGISTRATION_SECRET. */
   REGISTRATION_SECRET: string;
   /** A Firebase service-account key file's JSON contents, as a string — used to sign the FCM
@@ -43,7 +43,7 @@ export interface RegistrationRow {
   created_at: number;
 }
 
-// ── Registration contract bodies (notification-service.md) ────────────────────────────────────
+// ── Registration contract bodies (ARCHITECTURE.md) ───────────────────────────────────────────
 
 export interface CreateRegistrationBody {
   blipfotoUserId: string;

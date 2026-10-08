@@ -10,7 +10,7 @@
 // Reminders section); they go through flows/reminderFlow.ts's setReminderEnabled(), which also
 // (re)schedules the OS notification. The Misc settings are per device and only matter with two or
 // more accounts stored, so that section is hidden below that. Signed out, the page is still
-// reachable (the links toggle must work logged out, rules.md): Reminders shows greyed out.
+// reachable (the links toggle must work logged out): Reminders shows greyed out.
 
 import { IonList } from '@ionic/react';
 import {

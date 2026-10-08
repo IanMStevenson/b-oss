@@ -4,7 +4,7 @@
 // FLW-06 (star/favourite), FLW-08 (follow/unfollow), FLW-11 (report). Pure API wrappers only —
 // the optimistic update, the rollback-on-failure, and the account/write gating all live in the
 // calling screen (SCR-06), same split as accountsFlow.ts vs. its screens. The one thing that does
-// belong here: interpreting error-codes.md's "not actually a failure" codes (221/222) and the
+// belong here: interpreting the API's "not actually a failure" codes (221/222) and the
 // favourite-quota code (223) — that's call-specific API knowledge, not UI policy.
 
 import { BlipfotoError } from '@b-oss/b-api';
@@ -12,11 +12,11 @@ import type { BlipFriendship, ReportReasons } from '@b-oss/b-api';
 import { getClient } from '../data/client.js';
 import { t } from '../strings/index.js';
 
-/** error-codes.md 223 — daily favourite quota reached. Distinct from a generic failure so the
+/** API code 223 — daily favourite quota reached. Distinct from a generic failure so the
  * caller can show the quota-specific message FLW-06 requires. */
 export class FavoriteQuotaError extends Error {}
 
-/** error-codes.md 221 — "already starred" is not a failure; the optimistic state already matches
+/** API code 221 — "already starred" is not a failure; the optimistic state already matches
  * reality, so this resolves normally rather than throwing. */
 export async function starEntry(entryId: string): Promise<void> {
   const client = await getClient();
@@ -28,7 +28,7 @@ export async function starEntry(entryId: string): Promise<void> {
   }
 }
 
-/** error-codes.md 222 — "already favourited," same non-failure treatment as 221. 223 is a real
+/** API code 222 — "already favourited," same non-failure treatment as 221. 223 is a real
  * refusal and surfaces as FavoriteQuotaError for the caller to show its specific message and
  * roll back. */
 export async function favoriteEntry(entryId: string): Promise<void> {

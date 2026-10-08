@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (C) 2026 Ian Stevenson
 
-// HTTP handlers for the registration contract (notification-service.md "Registration contract").
+// HTTP handlers for the registration contract (ARCHITECTURE.md "Registration contract").
 // Each takes the parsed request pieces it needs (not a raw Request) plus a DbLike, so they're
 // unit-testable without going through src/index.ts's router or a real HTTP request at all.
 
@@ -56,8 +56,9 @@ function requireBearer(authHeader: string | null): string {
 }
 
 /** `POST` auth: the shared, build-time constant every install carries — "a coarse gate, not a
- * credential" (notification-service.md). Compared as plain strings (not hashed) since it isn't
- * itself derived from anything secret-per-row the way a registration's own bearer secret is. */
+ * credential" (ARCHITECTURE.md "Security notes"). Compared as plain strings (not hashed) since it
+ * isn't itself derived from anything secret-per-row the way a registration's own bearer secret is.
+ */
 function requireRegistrationSecret(authHeader: string | null, env: Env): void {
   const presented = requireBearer(authHeader);
   if (presented !== env.REGISTRATION_SECRET) {
@@ -244,9 +245,9 @@ export async function getRegistrationStatus(
   };
 }
 
-/** `DELETE /v1/registrations/:id` — a real row removal, not a soft-disable (notification-
- * service.md, "Security notes": "an account that's removed or turns notifications off should
- * leave no live read token sitting in the service's store"). */
+/** `DELETE /v1/registrations/:id` — a real row removal, not a soft-disable (ARCHITECTURE.md,
+ * "Security notes": an account that's removed or turns notifications off should leave no live
+ * read token sitting in the service's store). */
 export async function deleteRegistrationHandler(
   db: DbLike,
   id: string,

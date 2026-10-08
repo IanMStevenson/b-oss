@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "Cloud notification service for b-mobile (Cloudflare Worker + D1) — see docs/ImplementationSpec/notification-service.md in packages/b-mobile.",
+  "description": "Cloud notification service for b-mobile (Cloudflare Worker + D1) — see packages/b-push/ARCHITECTURE.md.",
   "scripts": {
     "build": "tsc",
     "typecheck": "tsc --noEmit",

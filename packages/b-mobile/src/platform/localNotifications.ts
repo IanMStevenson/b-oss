@@ -23,8 +23,8 @@
 //
 // Web has no real implementation of scheduled notifications (the plugin's web fallback exists
 // but can't survive a page reload, let alone actually fire while the tab is closed) — every
-// export here is a silent no-op off native, which is honest given rules.md's own "reminders...
-// no fire-time network check" framing already assumes a real OS scheduler.
+// export here is a silent no-op off native, which is honest given reminders (no fire-time network
+// check) already assume a real OS scheduler.
 
 import { Capacitor } from '@capacitor/core';
 import { LocalNotifications } from '@capacitor/local-notifications';
@@ -46,8 +46,8 @@ function reminderIdFor(accountId: string): number {
 }
 
 /** Shared with push (§12) — the same POST_NOTIFICATIONS runtime permission on Android 13+, no
- * remembered "blocked" state distinct from the setting itself (rules.md, applied to reminders per
- * §12's explicit note). Returns whether the permission is held after this call. */
+ * remembered "blocked" state distinct from the setting itself (applied to reminders per §12's
+ * explicit note). Returns whether the permission is held after this call. */
 export async function ensureNotificationPermission(): Promise<boolean> {
   if (!Capacitor.isNativePlatform()) return false;
   const current = await LocalNotifications.checkPermissions();

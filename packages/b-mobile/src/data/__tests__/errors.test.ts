@@ -70,8 +70,8 @@ describe('mapApiError', () => {
     });
   });
 
-  // error-codes.md's write/validation codes (TODO G's table) → TextStrings.csv's "validation"
-  // category (TODO F's keys) — a sample across the distinct groups, not every code, since the
+  // The API's write/validation codes (b-api docs/api-general.md) → strings/deck.ts's `ERR.*`
+  // keys — a sample across the distinct groups, not every code, since the
   // mapping itself is a flat table with no branching logic per entry.
   it.each([
     [101, 'ERR.101.username_invalid'],

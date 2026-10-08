@@ -24,12 +24,13 @@ packages/b-ark              Electron shell only. Implements PlatformIO (Electron
 packages/b-ark-ui-chrome    No Electron deps. Browser React shell (BackupPage) + BrowserBackend (wraps chrome.*) implementing BackendContext, BrowserPlatformIO (File System Access), and the mountChip content-script. Exports the Chrome platform primitives for the shell to reuse.
 packages/b-ark-chrome       Chrome extension shell only — service worker (sw.ts), OAuth capture, content scripts. Should consume BrowserBackend/BrowserPlatformIO and the platform primitives from b-ark-ui-chrome.
 packages/b-mobile           Capacitor/Ionic Android app. Depends on b-api, b-view, b-visual only (no backup-engine). All `@capacitor/*` imports live in src/platform/**; the rest of the app uses those wrappers.
-packages/b-push             Cloudflare Worker + D1 notification service for b-mobile. Depends on b-api only. Deployed manually; see packages/b-push/README.md.
+packages/b-push             Cloudflare Worker + D1 notification service for b-mobile. Depends on b-api only. Design in packages/b-push/ARCHITECTURE.md; deployed manually, see packages/b-push/README.md.
 ```
 
 b-mobile does not share the PlatformIO/BackendContext abstractions: it is its own app shell with a
 Capacitor platform layer (`src/platform/`). Its design record is
-`packages/b-mobile/docs/ImplementationSpec/app-architecture.md`.
+`packages/b-mobile/docs/ImplementationSpec/app-architecture.md`; what it currently does (and the
+SCR-/FLW- id index cited in source comments) is `packages/b-mobile/docs/BEHAVIOUR.md`.
 
 The Chrome side mirrors the Electron split: `b-ark-chrome` is to `b-ark-ui-chrome` what
 `b-ark` is to `b-ark-ui-electron` (extension shell over a no-platform-deps React/backend kit).

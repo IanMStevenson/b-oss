@@ -2,9 +2,9 @@
 // Copyright (C) 2026 Ian Stevenson
 // @vitest-environment jsdom
 
-// rules.md, "Multi-account clarity" — "Tapping an inactive account switches to it instantly, per
-// FLW-21 — the same underlying mechanism SCR-30 uses" and "A Manage accounts row at the bottom
-// opens SCR-30".
+// BEHAVIOUR.md, Navigation shell — tapping an inactive account switches to it instantly, per
+// FLW-21 (the same underlying mechanism SCR-30 uses), and a Manage accounts row at the bottom
+// opens SCR-30.
 
 import { describe, it, expect, afterEach, vi } from 'vitest';
 import { render, screen, cleanup } from '@testing-library/react';

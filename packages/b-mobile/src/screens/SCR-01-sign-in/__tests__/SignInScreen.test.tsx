@@ -4,7 +4,7 @@
 
 // SCR-01 has no server-fetched list, so its "four states" are the form's own: idle (loaded),
 // authenticating (loading/busy), error, and the OAuthCancelledError case that must return to
-// idle rather than surface as an error (rules.md — a cancelled OAuth round is not a failure).
+// idle rather than surface as an error (a cancelled OAuth round is not a failure).
 
 import { describe, it, expect, afterEach, vi } from 'vitest';
 import { render, screen, cleanup, waitFor } from '@testing-library/react';

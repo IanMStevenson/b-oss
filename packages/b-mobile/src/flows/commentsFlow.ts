@@ -3,7 +3,7 @@
 
 // FLW-07 — post/edit/delete a comment or reply. Pure API wrappers; the inline composers on SCR-06
 // (useCommentComposers) own the compose UI and drafts, and SCR-06 owns the inline delete affordance
-// and the "refresh to show it" step on success (rules.md: no client-side comment cache to patch
+// and the "refresh to show it" step on success (no client-side comment cache to patch
 // optimistically into). The old separate SCR-15 compose screen was retired by b-oss#172.
 
 import { getClient } from '../data/client.js';

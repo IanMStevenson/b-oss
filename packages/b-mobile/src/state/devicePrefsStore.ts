@@ -2,8 +2,8 @@
 // Copyright (C) 2026 Ian Stevenson
 
 // Device-level preferences with no per-account scope (except `reminders`, which is keyed *by*
-// account but is itself device-local — rules.md never asks reminder settings to travel with the
-// portable backup folder). Starts small and grows per-phase rather than being rebuilt each time:
+// account but is itself device-local — reminder settings never travel with the portable backup
+// folder). Starts small and grows per-phase rather than being rebuilt each time:
 // `confirmAccountBeforeReaction` (Phase 4, FLW-06/07), `reminders` (Phase 7, FLW-18). Phase 8
 // (SCR-25/29) adds the remaining device-local fields app-architecture.md §6 assigns to this
 // store: `uploadFullSize` (SCR-25 Misc — persisted now; SCR-10/SCR-13's compose path never reads
@@ -29,9 +29,8 @@ export interface ReminderSetting {
 }
 
 interface PersistedShape {
-  /** Off by default (rules.md) — until SCR-25 (Phase 8) adds the toggle, this is permanently off
-   * in practice, so the account-confirm dialog it gates never fires yet. The gating logic itself
-   * is fully implemented now against this flag, ready for Phase 8 to expose it. */
+  /** Off by default; Settings → App (SCR-25) exposes the toggle. Gates the account-confirm
+   * dialog before a star/favourite/comment (flows/useAccountConfirmGate.tsx). */
   confirmAccountBeforeReaction: boolean;
   /** Keyed by accountId. Absent = never configured (never offered/enabled) — distinct from
    * `{enabled: false}`, though nothing currently reads that distinction; kept anyway since a
@@ -40,10 +39,10 @@ interface PersistedShape {
   /** SCR-25 Misc. Default `true` matches actual current behaviour (nothing downscales yet), so
    * turning this "off" is the opt-in, not the other way round. */
   uploadFullSize: boolean;
-  /** SCR-29. Default off per rules.md's "Navigation, deep links & sharing" — the app must not
+  /** SCR-29. Default off (BEHAVIOUR.md, "Errors and network": deep links) — the app must not
    * silently claim blipfoto.com links on install. */
   openBlipfotoLinksInApp: boolean;
-  /** SCR-25 Notifications' Advanced control. Server floor is 5 minutes (notification-service.md);
+  /** SCR-25 Notifications' Advanced control. Server floor is 5 minutes (b-push ARCHITECTURE.md);
    * enforced client-side here too since there's no live service to enforce it yet. */
   notificationPollingIntervalMinutes: number;
   /** SCR-01's first-run explainer (Phase 12.1, OverlayProvider) — shown once above the mode

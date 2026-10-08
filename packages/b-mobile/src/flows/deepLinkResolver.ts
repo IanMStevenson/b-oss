@@ -8,8 +8,8 @@
 //   oauthRound.ts's own, separately-scoped `onAppUrlOpen` listener consumes it while a round is
 //   in progress; both listeners coexist safely since this resolver only ever *ignores* that URL).
 // - `bmobile://entry/:id`, `bmobile://user/:username` — content links, routed directly. Neither
-//   `/entry/:entryId` nor `/user/:username` is account-gated (browsing is anonymous-first per
-//   rules.md), so there is no FLW-01 gate to apply here — unlike the share intent (FLW-12), which
+//   `/entry/:entryId` nor `/user/:username` is account-gated (browsing is anonymous-first),
+//   so there is no FLW-01 gate to apply here — unlike the share intent (FLW-12), which
 //   is a write action.
 // - `https://www.blipfoto.com/…` — the opt-in web link (§16; only ever reaches the app at all
 //   when `devicePrefsStore.openBlipfotoLinksInApp`'s native `<activity-alias>` is enabled,

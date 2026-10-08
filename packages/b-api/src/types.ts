@@ -119,10 +119,10 @@ export interface BlipComment {
   replies: BlipComment[] | null;
   /** Only populated by `messages/comments/recent` (the comments inbox, SCR-24) — absent
    * elsewhere `BlipComment` appears (an entry's own comment list has no notion of "unread").
-   * `1` = unread as of this response; per endpoints.md, fetching that endpoint at all marks
-   * *every* one of the account's unread comments read, so this flag only means anything captured
-   * from the *first* response of a session — see app-architecture.md §11's "first-page-unread-
-   * snapshot" trap. */
+   * `1` = unread as of this response; per docs/api-reference.md, fetching that endpoint at all
+   * marks *every* one of the account's unread comments read, so this flag only means anything
+   * captured from the *first* response of a session — see app-architecture.md §11's
+   * "first-page-unread-snapshot" trap. */
   unread?: 0 | 1;
 }
 

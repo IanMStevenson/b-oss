@@ -14,7 +14,7 @@ export interface StoredAccount {
   username: string;
   avatarUrl: string | null;
   /** null = no app token held (needs reauth). The granted scope, not the requested one, is what
-   * makes useCanWrite() true — see auth.md's "scope must always be sent explicitly". */
+   * makes useCanWrite() true — see b-api docs/api-general.md ("Always send `scope`"). */
   appTokenScope: 'read' | 'read,write' | null;
   hasServiceToken: boolean;
   notificationRegistrationId: string | null;
@@ -109,8 +109,8 @@ export function useActiveAccount(): StoredAccount | null {
   return accounts.find((a) => a.id === activeAccountId) ?? null;
 }
 
-/** The only thing any UI or route guard should consult for write-gating (rules.md: "the gate is
- * live token possession, not a remembered mode label"). */
+/** The only thing any UI or route guard should consult for write-gating (BEHAVIOUR.md: the gate is
+ * live token possession, not a remembered mode label). */
 export function useCanWrite(): boolean {
   const active = useActiveAccount();
   return active?.appTokenScope === 'read,write';

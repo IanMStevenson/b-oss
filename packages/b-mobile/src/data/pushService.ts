@@ -1,13 +1,12 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (C) 2026 Ian Stevenson
 
-// A thin client for b-push's registration contract (notification-service.md "Registration
-// contract"). Deliberately not b-api's BlipfotoClient — this talks to a different service
-// entirely, with its own auth scheme (a shared build-time secret for POST, a per-registration
-// bearer secret for everything else) and no Blipfoto envelope/error-code shape to parse. Uses
-// platform/http.ts's platformFetch, same as data/client.ts, so it goes through the same
-// native-vs-web transport rather than a bare `fetch()` that would be blocked or behave
-// differently on device.
+// A thin client for b-push's registration contract (packages/b-push/ARCHITECTURE.md "Registration
+// contract"). Deliberately not b-api's BlipfotoClient — this talks to a different service entirely,
+// with its own auth scheme (a shared build-time secret for POST, a per-registration bearer secret
+// for everything else) and no Blipfoto envelope/error-code shape to parse. Uses platform/http.ts's
+// platformFetch, same as data/client.ts, so it goes through the same native-vs-web transport rather
+// than a bare `fetch()` that would be blocked or behave differently on device.
 
 import { platformFetch } from '../platform/http.js';
 

@@ -2,9 +2,9 @@
 // Copyright (C) 2026 Ian Stevenson
 
 // FCM HTTP v1, signed with the Worker's native Web Crypto API — no external SDK, per
-// notification-service.md's architecture table ("requires a service-account and OAuth2 JWT
-// signed via the Worker's native Web Crypto API — no external SDK needed"). Two network calls per
-// send: exchange a signed JWT for a short-lived OAuth2 access token, then POST the message.
+// ARCHITECTURE.md's architecture table (a service-account OAuth2 JWT signed with the Worker's
+// Web Crypto API). Two network calls per send: exchange a signed JWT for a short-lived OAuth2
+// access token, then POST the message.
 //
 // Always an ordinary FCM *notification* message (never data-only) — app-architecture.md §11:
 // "No data-only delivery... Android defers data-only messages in Doze and drops them entirely for
@@ -92,7 +92,7 @@ async function exchangeForAccessToken(jwt: string): Promise<string> {
 }
 
 /** The two shapes this service ever pushes — a bare count delta, or the reauth-required system
- * alert (notification-service.md "What the push can and cannot say" / "System alert:
+ * alert (ARCHITECTURE.md "What the push can and cannot say" / "System alert:
  * reauth-required"). No type/target/actor in either case. */
 export type FcmPayload =
   | { kind: 'activity'; stream: 'comments' | 'notifications'; accountId: string; count: number }

@@ -55,7 +55,7 @@ interface UploadQueueState {
   enqueue: (item: UploadQueueItem) => void;
   updateItem: (id: string, patch: Partial<UploadQueueItem>) => void;
   removeItem: (id: string) => void;
-  /** rules.md/§9: in-flight work using a removed account's token is cancelled, not left running. */
+  /** §9: in-flight work using a removed account's token is cancelled, not left running. */
   cancelForAccount: (accountId: string) => UploadQueueItem[];
 }
 

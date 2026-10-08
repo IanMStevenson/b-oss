@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (C) 2026 Ian Stevenson
 
-// SCR-02 — Browse. The five feeds are in-screen tab state, not routes (§5) — Recent loads on
-// open, other tabs lazy-load their first page the first time they're selected, and once loaded
-// stay mounted (hidden, not unmounted) so switching back doesn't re-query (rules.md: "switching
-// back to a tab loaded earlier in the same visit doesn't force a re-query").
+// SCR-02 — Browse. The seven feeds (Recent, Following, Me, Popular, Milestones, New Blippers,
+// Nearby) are in-screen tab state, not routes (§5). Only the active tab is mounted: choosing a
+// tab starts it fresh at page 1 (see handleTabChange), while Back from an entry restores the tab
+// and page you left via data/resumeCache.ts (BEHAVIOUR.md, Screens).
 
 import { Images, MapPin } from 'lucide-react';
 import { EmptyState } from '../../components/EmptyState.js';

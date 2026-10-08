@@ -3,7 +3,7 @@
 b-push is b-mobile's notification service: a Cloudflare Worker with a D1 database. Every minute
 it checks which registered accounts are due (every 5 minutes by default), reads each one's
 unread **counts** from Blipfoto (`messages/totals/unread`, which never marks anything read), and
-sends an FCM push when a count rises. Design: [notification-service.md](../b-mobile/docs/ImplementationSpec/notification-service.md).
+sends an FCM push when a count rises. Design: [ARCHITECTURE.md](ARCHITECTURE.md).
 History of the first deployment: [b-oss#148](https://github.com/IanMStevenson/b-oss/issues/148).
 
 Deploys are manual. No CI job deploys this, and no agent holds the credentials.
@@ -103,11 +103,10 @@ schema (each migration's notes say what the old Worker needs).
 - **`REGISTRATION_SECRET`**: set the new value on the Worker and in `.env.local`, and ship a new
   app build. Existing registrations are unaffected (each has its own per-registration secret),
   but installs of older builds can no longer _create_ a registration.
-- **`READ_TOKEN_ENCRYPTION_KEY`**: **don't rotate it yet.** Every stored token would fail to
-  decrypt, and at the moment that fails silently: the row is retried every minute and the user
-  is never told ([b-oss#252](https://github.com/IanMStevenson/b-oss/issues/252)). Once #252 is
-  fixed, rotating means each user gets one "sign in again" notification. If the key is ever
-  lost, the effect is the same as rotating it.
+- **`READ_TOKEN_ENCRYPTION_KEY`**: rotating it makes every stored read token undecryptable. The
+  poll marks each such row `read-token-invalid` and sends one "sign in again" push
+  ([b-oss#252](https://github.com/IanMStevenson/b-oss/issues/252)), so every user has to
+  re-authorise notifications. If the key is ever lost, the effect is the same as rotating it.
 - **Cloudflare API token**: dashboard → My Profile → API Tokens → Roll. Update 1Password.
 
 ## Free-tier limits

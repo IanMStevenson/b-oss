@@ -120,8 +120,8 @@ export interface LoadedEntry {
   entry: BlipEntry;
   prevEntryId: string | null;
   nextEntryId: string | null;
-  /** Per-viewer action flags (glossary.md) driving the action bar — null only if the server
-   * omitted them, treated as "nothing offered" rather than guessed. */
+  /** Per-viewer action flags (the API's `actions` object) driving the action bar — null only if the
+   * server omitted them, treated as "nothing offered" rather than guessed. */
   actions: BlipEntryActions | null;
   starred: boolean;
   favorited: boolean;
@@ -144,7 +144,7 @@ export async function deleteEntry(entryId: string): Promise<void> {
 
 /** SCR-06's error-state message is whatever `Error.message` this throws (useResource/
  * useLiveEntry display it as-is, with no mapApiError step of their own) — so codes 104/202 get
- * their own copy-deck wording (error-codes.md's own TODO F/G note) by rewriting the error here,
+ * their own copy-deck wording (strings/deck.ts) by rewriting the error here,
  * at the one place SCR-06 fetches an entry, rather than teaching the generic four-state primitive
  * about per-screen copy keys.
  *

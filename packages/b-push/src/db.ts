@@ -93,8 +93,8 @@ export async function updateDeviceToken(
     .run();
 }
 
-/** Server floor of 5 minutes is enforced here, unconditionally — "regardless of what the UI
- * sends" (notification-service.md's PATCH contract). */
+/** Server floor of 5 minutes is enforced here, unconditionally, regardless of what the UI sends
+ * (ARCHITECTURE.md "Data model (D1)" / "Registration contract"). */
 export async function updatePollInterval(db: DbLike, id: string, minutes: number): Promise<void> {
   const floored = Math.max(5, Math.round(minutes));
   await db
@@ -120,8 +120,8 @@ export async function markPolled(
     .run();
 }
 
-/** "Marks that registration's status read-token-invalid and stops polling it" (notification-
- * service.md, "System alert: reauth-required") — `last_polled_at` is still bumped so the row
+/** Marks that registration's status read-token-invalid and stops polling it (ARCHITECTURE.md,
+ * "System alert: reauth-required") — `last_polled_at` is still bumped so the row
  * doesn't sit permanently "most overdue" and get picked first by listDueRegistrations if it were
  * ever reactivated by a bug; it's excluded from that query by status regardless. */
 export async function markReauthRequired(db: DbLike, id: string, polledAt: number): Promise<void> {

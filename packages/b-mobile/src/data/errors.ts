@@ -2,10 +2,9 @@
 // Copyright (C) 2026 Ian Stevenson
 
 // Single error mapper every call site uses (§7). Turns a b-api BlipfotoError/NetworkError into
-// one of a small set of outcomes. The code->outcome table is TODO G's output
-// (api-appendix/error-codes.md's "write/validation codes" row) and the copy-deck keys it returns
-// are TODO F's (docs/AppSpec/TextStrings.csv's "validation" category, whose keys are exactly
-// `ERR.<code>.<name>`) — both now wired via strings/index.ts's `t()`.
+// one of a small set of outcomes. The code->outcome table covers the API's write/validation
+// codes (b-api docs/api-general.md, "Error Codes") and the copy-deck keys it returns are
+// strings/deck.ts's `ERR.<code>.<name>` keys — wired via strings/index.ts's `t()`.
 //
 // Deliberately excluded from VALIDATION_CODES: 221/222 ("already starred/favourited" — not a
 // failure at all, resolved without throwing by flows/reactionsFlow.ts) and 223 (the favourite
@@ -25,9 +24,9 @@ export type ApiErrorOutcome =
   | { kind: 'transport' }
   | { kind: 'message'; message: string };
 
-/** api-appendix/error-codes.md's write/validation codes, mapped to their TextStrings.csv key.
- * 303/304 and the two length-limit pairs (516/517, 525/526, 527/528) share one message each,
- * per the table's own "the message text, not the code, distinguishes the cases" note. */
+/** The API's write/validation codes, mapped to their strings/deck.ts key. 303/304 and the
+ * length-limit pairs (516/517, 525/526, 527/528) share one message each: the message text, not
+ * the code, distinguishes the cases. */
 const VALIDATION_CODES: Record<number, StringKey> = {
   101: 'ERR.101.username_invalid',
   102: 'ERR.102.username_taken',
@@ -72,7 +71,7 @@ export function mapApiError(error: unknown): ApiErrorOutcome {
     }
     if (error.code === 16) {
       // Should be unreachable — a read-only account must never be offered a write affordance.
-      // Reaching this means the write gate has a bug, not a normal path (rules.md).
+      // Reaching this means the write gate has a bug, not a normal path (BEHAVIOUR.md).
       return { kind: 'upgrade-prompt', message: t('UPGRADE.error.scope_16') };
     }
     const copyKey = VALIDATION_CODES[error.code];

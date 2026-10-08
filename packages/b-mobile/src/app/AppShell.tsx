@@ -2,7 +2,8 @@
 // Copyright (C) 2026 Ian Stevenson
 
 // The app shell (§5): IonMenu for primary navigation, a single IonRouterOutlet for the page
-// stack — no router-level tabs, since SCR-02's five feeds are in-screen state, not routes.
+// stack — no router-level tabs, since SCR-02's seven feeds (Recent, Following, Me, Popular,
+// Milestones, New Blippers, Nearby) are in-screen state, not routes.
 
 import { useEffect, useRef } from 'react';
 import {
@@ -59,9 +60,7 @@ function useLatestNavigate(): RefObject<NavigateFunction> {
   return ref;
 }
 
-// Primary nav per 01-information-architecture.md's navigation map. Every target route already
-// exists in AppRoutes (several still as ScreenPlaceholder pending their own phase), so the full
-// item set is wired now rather than growing the menu piecemeal each phase.
+// Primary nav (BEHAVIOUR.md, Navigation shell). Every target route exists in AppRoutes.
 //
 // Laid out like the header switcher (UX review X10, batch G): an account block on top (the same
 // AccountRowBody as the switcher/Accounts screen; tap opens Accounts), the current destination
@@ -336,7 +335,7 @@ export function AppShell() {
     void accountsHydrated.then(() => runLaunchBackstopCheck());
     // Fill in / refresh every account's profile picture (the switcher and header show it).
     void accountsHydrated.then(() => refreshAccountAvatars());
-    // rules.md: "returning from system settings is not assumed to have succeeded" — re-run the
+    // Returning from system settings is not assumed to have succeeded — re-run the
     // same backstop check on every resume, not only at launch, since the OS permission (or the
     // service's registration health) may have changed while the app was backgrounded.
     return onAppStateChange((isActive) => {

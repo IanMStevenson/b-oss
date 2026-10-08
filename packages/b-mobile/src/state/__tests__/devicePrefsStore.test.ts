@@ -36,7 +36,7 @@ describe('devicePrefsStore — Phase 8 fields', () => {
     expect(useDevicePrefsStore.getState().uploadFullSize).toBe(false);
   });
 
-  it('defaults openBlipfotoLinksInApp to off (rules.md: opt-in, never silently claimed)', () => {
+  it('defaults openBlipfotoLinksInApp to off (BEHAVIOUR.md: opt-in, never silently claimed)', () => {
     expect(useDevicePrefsStore.getState().openBlipfotoLinksInApp).toBe(false);
   });
 

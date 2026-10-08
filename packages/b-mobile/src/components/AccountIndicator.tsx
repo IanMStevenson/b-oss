@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (C) 2026 Ian Stevenson
 
-// rules.md, "Multi-account clarity" — a persistent account indicator in the primary nav chrome
-// (Browse, Search, Map, My Profile, Notifications, Comments, Settings, Help), shown only when two
-// or more accounts are stored ("with fewer than two accounts it is absent, and the space it
-// occupied is simply not reserved" — hence returning `null`, not a disabled/hidden element).
+// A persistent account indicator in the primary nav chrome (Browse, Search, Map, My Profile,
+// Notifications, Comments, Settings, Help), shown only when two or more accounts are stored
+// (BEHAVIOUR.md, Navigation shell). With fewer than two accounts it is absent, and the space it
+// occupied is simply not reserved — hence returning `null`, not a disabled/hidden element).
 // Tapping it opens the account switcher (app/AccountSwitcherOverlay.tsx) via the shared overlay
 // mechanism (Phase 12.1). "Informational, not a nudge" — this shows identity (avatar/icon)
 // only, never a mode/upgrade badge, which is why it doesn't read `useCanWrite()` at all.

@@ -6,9 +6,9 @@
 // other account-scoped screens whose only entry point is a nav item that's itself hidden while
 // signed out.
 //
-// Fetching *is* what marks these items read (endpoints.md) — there is no separate call, and the
-// unread badge is cleared locally the moment the fetch starts (FLW-15 step 2), not derived from
-// the response afterward.
+// Fetching *is* what marks these items read (b-api docs/api-reference.md) — there is no separate
+// call, and the unread badge is cleared locally the moment the fetch starts (FLW-15 step 2), not
+// derived from the response afterward.
 //
 // `notification.content` genuinely is BBCode (confirmed against a live response — e.g. a follow
 // notification's own "[url=...]see all requests[/url]"), so it goes through the same BBCodeText

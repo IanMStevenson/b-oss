@@ -89,7 +89,7 @@ function db(env: Env) {
   return env.DB;
 }
 
-/** The 1-minute activity poll, the only cron trigger (wrangler.toml; notification-service.md
+/** The 1-minute activity poll, the only cron trigger (wrangler.toml; ARCHITECTURE.md
  * "Polling design"). There used to be a second, hourly trigger that refreshed a cache of
  * Blipfoto's push settings; it was removed with that cache (b-oss#244), so `event.cron` no
  * longer needs inspecting. If the old hourly trigger were ever still attached, it would just run

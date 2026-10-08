@@ -1,10 +1,10 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 # Copyright (C) 2026 Ian Stevenson
 
-# b-push — Cloudflare Worker config (notification-service.md). Static config only: nothing here
+# b-push — Cloudflare Worker config (ARCHITECTURE.md). Static config only: nothing here
 # is ever run automatically. Deploying this service is a deliberate, manual, one-time-per-change
-# step the user performs themselves — see packages/b-push/README.md and notification-service.md
-# ("no automated deploy on push, at least initially"). No CI job in this repo invokes `wrangler`.
+# step the user performs themselves — see packages/b-push/README.md and ARCHITECTURE.md
+# (deploys are manual). No CI job in this repo invokes `wrangler`.
 #
 # Live setup (b-oss#148): a dedicated Cloudflare account, separate from any personal one. The
 # account_id and database_id below are identifiers, not secrets, so they are committed.
@@ -32,7 +32,7 @@ binding = "DB"
 database_name = "b-push"
 database_id = "a4d5a30b-c9ee-45e0-8b38-fbd3921a295e"
 
-# One cron trigger (notification-service.md "Polling design"): the 1-minute activity poll
+# One cron trigger (ARCHITECTURE.md "Polling design"): the 1-minute activity poll
 # (counts-only, per due registration). The hourly push-prefs refresh trigger was removed along
 # with the cache it refreshed (b-oss#244); `wrangler deploy` replaces the Worker's whole trigger
 # list, so deploying this drops the hourly one.

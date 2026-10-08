@@ -1,14 +1,14 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (C) 2026 Ian Stevenson
 
-// Runs one Blipfoto OAuth (implicit grant) authorization round (§8, auth.md). Not one screen's
-// job in the sense that FLW-20's two-token sign-in runs this twice — SCR-01 orchestrates calling
-// it, this module only knows how to run a single round correctly.
+// Runs one Blipfoto OAuth (implicit grant) authorization round (§8; b-api docs/api-general.md). Not
+// one screen's job in the sense that FLW-20's two-token sign-in runs this twice — SCR-01
+// orchestrates calling it, this module only knows how to run a single round correctly.
 //
-// A fresh `state` is generated per round and verified before the token is trusted (auth.md) — a
-// redirect whose state is missing or doesn't match is discarded silently, not surfaced as an
-// error, since it wasn't this app's sign-in. `GET oauth/token` then confirms the token was
-// issued to this app and reads back its *granted* scope, which is what actually sets
+// A fresh `state` is generated per round and verified before the token is trusted (b-api
+// docs/api-general.md) — a redirect whose state is missing or doesn't match is discarded silently,
+// not surfaced as an error, since it wasn't this app's sign-in. `GET oauth/token` then confirms the
+// token was issued to this app and reads back its *granted* scope, which is what actually sets
 // hasAppToken's read/write value — never the requested scope.
 //
 // Two ways to run a round: the system browser (default — Custom Tabs, shares the OS browser's

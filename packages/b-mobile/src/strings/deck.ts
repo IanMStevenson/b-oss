@@ -1,9 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (C) 2026 Ian Stevenson
 
-// GENERATED FILE — do not edit by hand.
-// Source: docs/AppSpec/TextStrings.csv (TODO F's copy deck). Regenerate with:
-//   node scripts/generate-strings.mjs
+// The copy deck: every user-facing string, keyed by area. Edit by hand.
+// (Originally generated from a spec CSV, since retired — this file is now the source of truth.)
 
 export const STRINGS = {
   'AUTH.account_mismatch.body.browser':

@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (C) 2026 Ian Stevenson
 
-// Unit tests for the account token-lifecycle rules (auth.md) — this is the density §19 asks
-// for, since these are the rules most likely to be got subtly wrong. Mocks every platform/data
-// boundary so this runs as pure logic, no jsdom/native runtime needed.
+// Unit tests for the account token-lifecycle rules (BEHAVIOUR.md, Sign-in and accounts) — this is
+// the density §19 asks for, since these are the rules most likely to be got subtly wrong. Mocks
+// every platform/data boundary so this runs as pure logic, no jsdom/native runtime needed.
 
 import type { StoredAccount } from '../../state/accountsStore.js';
 import { describe, it, expect, beforeEach, vi } from 'vitest';

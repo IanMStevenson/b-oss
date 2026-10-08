@@ -9,8 +9,7 @@
     "licences:generate": "node scripts/licences.mjs",
     "licences:native": "node scripts/native-licences.mjs",
     "typecheck": "tsc --noEmit && tsc -p tsconfig.node.json --noEmit",
-    "test": "vitest run",
-    "strings:generate": "node scripts/generate-strings.mjs"
+    "test": "vitest run"
   },
   "dependencies": {
     "@aparajita/capacitor-secure-storage": "^8.0.1",

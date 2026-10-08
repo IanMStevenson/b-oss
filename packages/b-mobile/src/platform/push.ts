@@ -7,7 +7,7 @@
 // pair is torn down as soon as either fires, so concurrent callers each get their own promise
 // rather than racing a shared one. `onPushTokenChanged()` is separate and long-lived (mounted
 // once from AppShell): the OS can reissue a token at any point *after* the initial register() too
-// (FCM token rotation), and notification-service.md requires every account's registration be
+// (FCM token rotation), and b-push's ARCHITECTURE.md requires every account's registration be
 // PATCHed with the new value then, or pushes silently stop reaching the device.
 //
 // Web has no push transport wired into this build (no FCM web SDK) — every export is a no-op off
@@ -19,8 +19,8 @@ import type { ActionPerformed, PushNotificationSchema } from '@capacitor/push-no
 
 export type PushPermissionState = 'granted' | 'denied' | 'prompt' | 'prompt-with-rationale';
 
-/** The two payload shapes b-push's FCM messages ever carry (notification-service.md, "What the
- * push can and cannot say" / "System alert: reauth-required") — delivered as an ordinary
+/** The two payload shapes b-push's FCM messages ever carry (packages/b-push/ARCHITECTURE.md,
+ * "What the push can and cannot say" / "System alert: reauth-required") — delivered as an ordinary
  * notification message's `data` fields, never a data-only message (§11: Android defers/drops
  * those in Doze / when force-stopped). */
 export type PushPayload =
@@ -82,8 +82,8 @@ export function pushPlatform(): 'android' | 'ios' | null {
 
 /** Registers with the OS push transport and resolves with the device token, or `null` if
  * registration fails (`registrationError`) — treated the same as a permission refusal by callers
- * (rules.md: no separate "blocked" state). Must only be called once permission is confirmed
- * granted (rules.md: never authorize something already known to be undeliverable). */
+ * (no separate "blocked" state). Must only be called once permission is confirmed granted
+ * (never authorize something already known to be undeliverable). */
 export async function registerPush(): Promise<string | null> {
   if (!(await isPushAvailable())) return null;
   return new Promise((resolve) => {

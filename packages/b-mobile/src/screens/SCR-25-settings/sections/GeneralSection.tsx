@@ -5,8 +5,7 @@
 // server-backed load -> edit -> Save/Cancel; Save sends only this section's own fields (the rest
 // of UpdateUserSettingsParams stays undefined so a General save can't clobber Journal/Profile
 // edits in flight elsewhere — see data/settings.ts's own header comment). Read-only accounts see
-// the loaded values with no Save affordance (rules.md: every server-backed section writes to the
-// account).
+// the loaded values with no Save affordance (every server-backed section writes to the account).
 
 import { useEffect, useState } from 'react';
 import { IonList, IonSpinner, IonText, IonAlert } from '@ionic/react';

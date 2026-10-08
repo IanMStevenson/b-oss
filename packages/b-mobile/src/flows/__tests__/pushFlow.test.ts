@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (C) 2026 Ian Stevenson
 
-// Unit tests for the b-push registration lifecycle (notification-service.md's contract, FLW-16/
-//20/22/02). Every platform/data boundary is mocked so this runs as pure logic — same shape as
-// accountsFlow.test.ts.
+// Unit tests for the b-push registration lifecycle (b-push ARCHITECTURE.md's "Registration
+// contract", FLW-16/20/22/02). Every platform/data boundary is mocked so this runs as pure logic —
+// same shape as accountsFlow.test.ts.
 
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import type { StoredAccount } from '../../state/accountsStore.js';

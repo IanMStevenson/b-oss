@@ -2,7 +2,7 @@
 // Copyright (C) 2026 Ian Stevenson
 
 // Adds loadMore()/refresh() over useResource's four states, for pull-to-refresh + infinite
-// scroll (rules.md, Lists, feeds & paging) — real pagination, no fixed page cap. Tracks the
+// scroll — real pagination, no fixed page cap. Tracks the
 // API's page index/"more" pair; a request id supersedes stale in-flight pages the same way
 // useResource does.
 //

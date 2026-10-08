@@ -9,8 +9,8 @@
 // same reason: EntryDetail itself has no host-platform opinions, so anything that needs one is
 // host-injected. b-view's own fullscreen button opens an internal Lightbox overlay by default;
 // onFullscreen redirects it to SCR-07 instead, which stays a real, separately-routed screen (deep-
-// link resilient, back-navigable) — see SCR-06-entry-detail.md/SCR-07-full-screen-photo.md for the
-// corrected trigger description ("dedicated fullscreen button", not a photo tap).
+// link resilient, back-navigable). The trigger is the dedicated fullscreen button (or a
+// double-tap; BEHAVIOUR.md, Screens), not a single photo tap.
 //
 // Follow/Unfollow/Report/Hide don't fit any of EntryDetail's slots (a backup viewer has no
 // "follow/report/hide a member" concept) — rendered as this screen's own strip beneath EntryDetail
@@ -30,13 +30,13 @@
 // pin now navigates to SCR-04 directly via `onLocationClick`, fixing the WebView-external-link gap
 // the old plain `<a target="_blank">` had on native as a side effect of unifying to one affordance.
 //
-// Star/Favourite/Comment carry the account-confirm gate (rules.md, "confirm the account before
-// Star, Favourite, or a comment/reply"); Follow/Report/Hide don't — the setting's scope is
+// Star/Favourite/Comment carry the account-confirm gate (BEHAVIOUR.md, "Confirm account before
+// star, favourite or comment"); Follow/Report/Hide don't — the setting's scope is
 // deliberately narrow. All four write actions hide entirely (not just disable) for a signed-in,
 // read-only account; an anonymous tap routes through FLW-01 first, then resumes.
 //
 // FLW-13 (Phase 7): Edit, owner-only AND only read-write (a read-only owner never sees this —
-// ownership doesn't imply write access, per rules.md). Pushes to SCR-13 (which itself sits behind
+// ownership doesn't imply write access). Pushes to SCR-13 (which itself sits behind
 // WriteGuardRoute as a second, redundant-by-design gate — the same "never trust one call site"
 // posture WriteGuardRoute exists for at all); SCR-13 now owns Replace photo and Delete entry
 // itself, both formerly implemented here.
@@ -102,9 +102,9 @@ interface EntryDetailScreenProps {
   initialReplyToCommentId?: string;
 }
 
-/** Drops a comment (and its whole reply subtree) from what EntryDetail renders once its author
- * is hidden — full suppression, not a placeholder, per rules.md (a different treatment from
- * grids' hidden-tile placeholder, matching the old per-node CommentThread behaviour this
+/** Drops a comment (and its whole reply subtree) from what EntryDetail renders once its author is
+ * hidden — full suppression, not a placeholder (BEHAVIOUR.md, Hidden members; a different treatment
+ * from grids' hidden-tile placeholder, matching the old per-node CommentThread behaviour this
  * replaces). */
 function filterHiddenComments(comments: BlipComment[], hidden: string[]): BlipComment[] {
   return comments

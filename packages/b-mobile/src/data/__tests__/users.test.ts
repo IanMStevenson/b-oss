@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (C) 2026 Ian Stevenson
 
-// §19 layer 1 — error-codes.md is explicit that SCR-18 must read codes 101 (malformed username)
+// §19 layer 1 — SCR-18 must read codes 101 (malformed username)
 // and 103 (user unavailable) identically as "no such user", rather than 101 falling through to a
 // generic error. fetchUserProfile is the one place that rewrite happens.
 

@@ -23,9 +23,9 @@ export interface Coordinates {
 }
 
 /** Resolves once the app holds (or has just been granted) location permission; throws if the
- * user refuses or the platform reports no permission is obtainable (`rules.md`: "requesting the
- * permission can fail without prompting, and that case must be handled"). Reads the *current*
- * permission state on every call rather than remembering a past answer, per rules.md. */
+ * user refuses or the platform reports no permission is obtainable (requesting the permission can
+ * fail without prompting, and that case must be handled). Reads the *current* permission state
+ * on every call rather than remembering a past answer. */
 async function ensurePermission(): Promise<void> {
   const current = await Geolocation.checkPermissions();
   if (current.location === 'granted' || current.coarseLocation === 'granted') return;

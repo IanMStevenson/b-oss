@@ -2,8 +2,8 @@
 // Copyright (C) 2026 Ian Stevenson
 // @vitest-environment jsdom
 
-// rules.md, "Multi-account clarity" — shown only with 2+ stored accounts; "with fewer than two
-// accounts it is absent, and the space it occupied is simply not reserved", hence testing for a
+// BEHAVIOUR.md, Navigation shell — shown only with 2+ stored accounts; with fewer than two
+// accounts it is absent, and the space it occupied is simply not reserved, hence testing for a
 // real `null` render (no hidden/disabled element), not just an invisible one.
 
 import { describe, it, expect, afterEach } from 'vitest';

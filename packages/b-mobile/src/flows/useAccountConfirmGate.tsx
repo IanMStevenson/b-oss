@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (C) 2026 Ian Stevenson
 
-// rules.md, "Optional: confirm the account before Star, Favourite, or a comment/reply" — scoped
+// Optional "confirm the account before Star, Favourite, or a comment/reply" (BEHAVIOUR.md) — scoped
 // to exactly those three actions (FLW-06/FLW-07), never follow/report/hide, which already involve
 // enough of a deliberate step. Off by default and inert with fewer than two accounts stored; the
 // toggle to turn it on doesn't exist until SCR-25 (Phase 8) — this is the gating logic Phase 8's

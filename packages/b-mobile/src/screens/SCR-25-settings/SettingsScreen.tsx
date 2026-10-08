@@ -6,12 +6,12 @@
 // lists rows, each pushing to `/settings/:section` (AppRoutes.tsx), which mounts this same
 // component with `section` set; each section is its own file under `sections/` for size, not a
 // new screen identity. Reached only via AppShell's nav item, which is itself only rendered when
-// an account is active (rules.md: "Account-gated") — no separate guard needed here, matching
+// an account is active — no separate guard needed here, matching
 // every other account-scoped screen in this app (e.g. SCR-20/21's own lack of one).
 //
 // The hub fetches `user/settings` once, for itself: the Refused followers row's visibility
-// ("only for a protected journal") needs to know the *current* privacy value, and rules.md's "no
-// caching for display" means this has to be a fresh fetch on every visit to the hub, not a value
+// ("only for a protected journal") needs to know the *current* privacy value, and "no caching for
+// display" (BEHAVIOUR.md) means this has to be a fresh fetch on every visit to the hub, not a value
 // remembered from whichever section screen last saved it — a direct instance of "screens refetch,
 // never depend on a prior screen's data" (see useAppNavigate.ts's own doc comment).
 //
