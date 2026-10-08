@@ -25,8 +25,8 @@
 // as another account, the mismatch alert explains and offers to retry in the in-app browser.
 //
 // The feed hint under *New notifications*: Blipfoto never creates (or counts) a
-// notification whose `feed_*` type is off, so b-push can't push about it (confirmed from
-// Blipfoto's source on b-oss#244; comments are never gated). The hint is computed from the
+// notification whose `feed_*` type is off, so b-push can't push about it (observed behaviour,
+// b-oss#244; comments are never gated). The hint is computed from the
 // **saved** feed settings, not unsaved edits — it describes what Blipfoto is doing now, and it
 // updates as soon as a Save succeeds.
 

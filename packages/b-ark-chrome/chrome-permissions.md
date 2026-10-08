@@ -59,9 +59,9 @@ removed on capture or 120s timeout.
 **Why `chrome.identity.launchWebAuthFlow` cannot replace this.** The standard MV3
 alternative (`chrome.identity.launchWebAuthFlow`) requires a
 `https://<id>.chromiumapp.org/` redirect URI. This is **architecturally incompatible**
-with Blipfoto's OAuth implementation: Blipfoto's server-side implicit grant handler
-(`ImplicitGrant.php`) explicitly rejects any redirect URI beginning with `http://` or
-`https://`, enforcing that distributed apps must use a custom (non-HTTP) scheme. This
+with Blipfoto's OAuth implementation: Blipfoto's implicit grant flow
+rejects any redirect URI beginning with `http://` or `https://` (observed behaviour),
+so distributed apps must use a custom (non-HTTP) scheme. This
 is not a configuration choice — it is enforced at the protocol-validation layer and
 cannot be overridden by registering an additional redirect URI. Blipfoto is a
 community-owned, volunteer-run platform with no engineering resource available to
