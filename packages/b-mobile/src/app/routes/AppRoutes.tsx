@@ -7,6 +7,7 @@
 // switcher, upgrade prompt, first-run explainer, confirmation dialogs) are deliberately not
 // routes — see OverlayProvider.
 
+import { useAccountsStore } from '../../state/accountsStore.js';
 import { lazy, Suspense } from 'react';
 import { Routes, Route, Navigate, useLocation, useParams } from 'react-router-dom';
 import { IonPage, IonSpinner } from '@ionic/react';
@@ -163,9 +164,14 @@ function HelpSectionRoute() {
   return <HelpInfoScreen section={useParam('section')} />;
 }
 
+// Keyed by the active account: what most screens show depends on who you are (follow state, stars
+// and favourites, your Following feed, inboxes, settings), so switching account rebuilds the
+// current screen and everything refetches. One rule here instead of every screen remembering to
+// list the account in its fetch dependencies (b-oss device feedback, 2026-10-08).
 function AppRouteTable() {
+  const activeAccountId = useAccountsStore((s) => s.activeAccountId);
   return (
-    <Routes>
+    <Routes key={activeAccountId ?? 'anonymous'}>
       <Route path="/browse" element={<BrowseScreen />} />
       <Route path="/search" element={<SearchScreen />} />
       <Route path="/map" element={<MapRoute />} />
