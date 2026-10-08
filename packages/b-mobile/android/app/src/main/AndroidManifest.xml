@@ -94,4 +94,8 @@
     <uses-permission android:name="android.permission.CAMERA" />
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+
+    <!-- Declaring CAMERA implies a required camera, which would hide the app from devices without
+         one. Taking a photo is optional here (the photo picker works without a camera). -->
+    <uses-feature android:name="android.hardware.camera" android:required="false" />
 </manifest>
