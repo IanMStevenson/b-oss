@@ -7,6 +7,7 @@
     "dev": "node ../../scripts/copy-icons.mjs && node ../../scripts/version.mjs && vite",
     "build": "node ../../scripts/copy-icons.mjs && node ../../scripts/version.mjs && node scripts/licences.mjs && vite build",
     "licences:generate": "node scripts/licences.mjs",
+    "licences:native": "node scripts/native-licences.mjs",
     "typecheck": "tsc --noEmit && tsc -p tsconfig.node.json --noEmit",
     "test": "vitest run",
     "strings:generate": "node scripts/generate-strings.mjs"
