@@ -199,6 +199,14 @@ interface LicencesFile {
   texts: string[];
 }
 
+/** native-licences.generated.json's shape (scripts/native-licences.mjs): Android (Gradle)
+ * libraries, each pointing at the licences that apply to it. `text` is null where only the
+ * licence's name and URL are known. */
+interface NativeLicencesFile {
+  licences: Array<{ id: string; name: string; url: string | null; text: string | null }>;
+  artifacts: Array<{ name: string; version: string; licences: number[] }>;
+}
+
 function InlineLink({ url, children }: { url: string; children: ReactNode }) {
   return (
     <button
@@ -231,16 +239,57 @@ function LicenceEntry({ pkg, texts }: { pkg: LicencesFile['packages'][number]; t
   );
 }
 
+function NativeLicenceGroup({
+  licence,
+  artifacts,
+}: {
+  licence: NativeLicencesFile['licences'][number];
+  artifacts: NativeLicencesFile['artifacts'];
+}) {
+  const [open, setOpen] = useState(false);
+  return (
+    <details onToggle={(e) => setOpen(e.currentTarget.open)} style={{ padding: '4px 0' }}>
+      <summary>
+        {licence.name} — {artifacts.length} {artifacts.length === 1 ? 'library' : 'libraries'}
+      </summary>
+      {open && (
+        <>
+          {licence.url && (
+            <p>
+              <InlineLink url={licence.url}>Read the licence online</InlineLink>
+            </p>
+          )}
+          {licence.text && (
+            <pre style={{ whiteSpace: 'pre-wrap', fontSize: '0.75rem', overflowWrap: 'anywhere' }}>
+              {licence.text}
+            </pre>
+          )}
+          <ul style={{ fontSize: '0.75rem', overflowWrap: 'anywhere' }}>
+            {artifacts.map((a) => (
+              <li key={`${a.name}@${a.version}`}>
+                {a.name} {a.version}
+              </li>
+            ))}
+          </ul>
+        </>
+      )}
+    </details>
+  );
+}
+
 function Licences() {
   // Generated at build time from the production dependency tree (scripts/licences.mjs), and
   // loaded only when this page opens so its ~120 KB of text stays out of the main bundle.
   const [data, setData] = useState<LicencesFile | null>(null);
+  const [native, setNative] = useState<NativeLicencesFile | null>(null);
   const [failed, setFailed] = useState(false);
   useEffect(() => {
     let cancelled = false;
-    import('./licences.generated.json')
-      .then((mod) => {
-        if (!cancelled) setData(mod.default);
+    Promise.all([import('./licences.generated.json'), import('./native-licences.generated.json')])
+      .then(([npm, nat]) => {
+        if (cancelled) return;
+        setData(npm.default);
+        setNative(nat.default);
       })
       .catch(() => {
         if (!cancelled) setFailed(true);
@@ -277,6 +326,25 @@ function Licences() {
       {data?.packages.map((pkg) => (
         <LicenceEntry key={`${pkg.name}@${pkg.version}`} pkg={pkg} texts={data.texts} />
       ))}
+
+      {native && (
+        <>
+          <p>
+            <strong>Android libraries</strong>
+          </p>
+          <p>
+            The Android app also includes the following libraries ({native.artifacts.length}),
+            grouped by licence. Tap a licence to see the libraries it covers.
+          </p>
+          {native.licences.map((licence, i) => (
+            <NativeLicenceGroup
+              key={licence.id}
+              licence={licence}
+              artifacts={native.artifacts.filter((a) => a.licences.includes(i))}
+            />
+          ))}
+        </>
+      )}
     </>
   );
 }

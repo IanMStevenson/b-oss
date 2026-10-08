@@ -3,7 +3,7 @@
 // @vitest-environment jsdom
 
 import { describe, it, expect, afterEach, beforeEach, vi } from 'vitest';
-import { render, screen, cleanup, waitFor } from '@testing-library/react';
+import { render, screen, cleanup, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
 import { HelpInfoScreen } from '../HelpInfoScreen.js';
@@ -171,8 +171,11 @@ describe('HelpInfoScreen sections', () => {
       </MemoryRouter>,
     );
     const { default: generated } = await import('../licences.generated.json');
+    const { default: native } = await import('../native-licences.generated.json');
     await waitFor(() =>
-      expect(container.querySelectorAll('details').length).toBe(generated.packages.length),
+      expect(container.querySelectorAll('details').length).toBe(
+        generated.packages.length + native.licences.length,
+      ),
     );
     const zustand = generated.packages.find((p) => p.name === 'zustand')!;
     const summary = screen.getByText(`zustand ${zustand.version} — MIT`);
@@ -185,6 +188,36 @@ describe('HelpInfoScreen sections', () => {
       expect(details.querySelector('pre')?.textContent).toBe(generated.texts[zustand.texts[0]]),
     );
     expect(details.textContent).toContain('Permission is hereby granted');
+  });
+
+  it('lists the native Android libraries grouped by licence, with the Apache text and licence links', async () => {
+    const { container } = render(
+      <MemoryRouter>
+        <HelpInfoScreen section="licences" />
+      </MemoryRouter>,
+    );
+    const { default: native } = await import('../native-licences.generated.json');
+    await screen.findByText('Android libraries');
+    const apacheIndex = native.licences.findIndex((l) => l.id === 'Apache-2.0');
+    const count = native.artifacts.filter((a) => a.licences.includes(apacheIndex)).length;
+    const summary = screen.getByText(`Apache License, Version 2.0 — ${count} libraries`);
+    const details = summary.closest('details')!;
+    details.open = true;
+    details.dispatchEvent(new Event('toggle'));
+    await waitFor(() =>
+      expect(details.querySelector('pre')?.textContent).toContain('TERMS AND CONDITIONS'),
+    );
+    expect(details.textContent).toContain('androidx.core:core ');
+    expect(container.querySelectorAll('li').length).toBeGreaterThan(0);
+
+    // A licence with no bundled text links to the one its POM names instead.
+    const sdk = screen
+      .getByText(/^Android Software Development Kit License — /)
+      .closest('details')!;
+    sdk.open = true;
+    sdk.dispatchEvent(new Event('toggle'));
+    await userEvent.click(await within(sdk).findByText('Read the licence online'));
+    expect(openUrl).toHaveBeenLastCalledWith('https://developer.android.com/studio/terms.html');
   });
 
   it('falls back to the hub for an unrecognised section', () => {
