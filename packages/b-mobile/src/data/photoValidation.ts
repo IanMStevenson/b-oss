@@ -12,8 +12,8 @@
 // - Entry photos: minimum 600px on *at least one* edge (Image.php SIZE_LORES_MIN_EDGE), no
 //   maximum (oversized originals are stored as-is and only derived renditions are downscaled),
 //   1 KB–20 MB file size (S3 upload policy content-length-range).
-// - Avatar photos: minimum 300px on at least one edge, 3 MB max file size, hard-coded
-//   (AvatarUploader.php) — no minimum file size documented for this path, so none is enforced.
+// - Avatar photos: minimum 300px on at least one edge, 3 MB max file size of the upload, hard-coded
+//   (AvatarUploader.php; met by re-encoding, see imageCrop.ts) — no minimum file size documented for this path, so none is enforced.
 // "At least one edge", not both — a thin panorama or a tall crop is valid as long as one
 // dimension clears the floor; this replaced an earlier stricter (both-edges) placeholder check.
 
@@ -29,7 +29,10 @@ interface PhotoLimits {
 
 const LIMITS: Record<PhotoUploadPurpose, PhotoLimits> = {
   entry: { minEdge: 600, maxFileSizeBytes: 20 * 1024 * 1024, minFileSizeBytes: 1024 },
-  avatar: { minEdge: 300, maxFileSizeBytes: 3 * 1024 * 1024, minFileSizeBytes: null },
+  // The 3 MB server cap applies to what is uploaded, and the avatar is always cropped, downscaled
+  // and re-encoded client-side first (imageCrop.ts), so the *picked* file only needs a sanity
+  // bound against decoding something enormous — a 4 MB camera photo is fine (b-oss#318).
+  avatar: { minEdge: 300, maxFileSizeBytes: 40 * 1024 * 1024, minFileSizeBytes: null },
 };
 
 export type PhotoValidationResult = { ok: true } | { ok: false; message: string };

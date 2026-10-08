@@ -90,9 +90,18 @@ describe('validatePickedPhoto', () => {
       expect(result.ok).toBe(false);
     });
 
-    it('rejects an avatar file over the smaller 3MB cap, even though it would fit the entry cap', () => {
+    it('accepts a picked avatar over the 3MB upload cap — it is re-encoded smaller before upload', () => {
+      expect(
+        validatePickedPhoto(
+          { mimeType: 'image/jpeg', width: 4000, height: 3000, sizeBytes: 6 * 1024 * 1024 },
+          'avatar',
+        ),
+      ).toEqual({ ok: true });
+    });
+
+    it('still rejects an absurdly large avatar source', () => {
       const result = validatePickedPhoto(
-        { mimeType: 'image/jpeg', width: 600, height: 600, sizeBytes: 4 * 1024 * 1024 },
+        { mimeType: 'image/jpeg', width: 600, height: 600, sizeBytes: 60 * 1024 * 1024 },
         'avatar',
       );
       expect(result).toEqual({ ok: false, message: 'That photo’s file is too large to upload.' });
