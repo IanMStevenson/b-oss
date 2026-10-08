@@ -9,7 +9,8 @@
 // the active account shows its own on/off + time; a read-only account can't publish, so it gets no
 // Reminders section); they go through flows/reminderFlow.ts's setReminderEnabled(), which also
 // (re)schedules the OS notification. The Misc settings are per device and only matter with two or
-// more accounts stored, so that section is hidden below that.
+// more accounts stored, so that section is hidden below that. Signed out, the page is still
+// reachable (the links toggle must work logged out, rules.md): Reminders shows greyed out.
 
 import { IonList, IonSegment, IonSegmentButton, IonLabel } from '@ionic/react';
 import {
@@ -32,7 +33,17 @@ const MINUTE_OPTIONS = [0, 15, 30, 45].map((m) => ({ code: String(m), title: pad
 function RemindersGroup() {
   const activeAccount = useActiveAccount();
   const reminders = useDevicePrefsStore((s) => s.reminders);
-  if (!activeAccount || activeAccount.appTokenScope !== 'read,write') return null;
+  if (!activeAccount) {
+    // Signed out: reminders are per account, so show the control greyed out rather than hide it.
+    return (
+      <>
+        <SectionHeader>Reminders</SectionHeader>
+        <CaptionRow>Sign in to set a daily reminder to publish.</CaptionRow>
+        <ToggleRow label="Daily reminder" checked={false} disabled onChange={() => {}} />
+      </>
+    );
+  }
+  if (activeAccount.appTokenScope !== 'read,write') return null;
 
   const setting = reminders[activeAccount.id];
   const enabled = setting?.enabled ?? false;

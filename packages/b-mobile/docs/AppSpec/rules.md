@@ -421,8 +421,8 @@ screen that forgets to is a safety defect, not a cosmetic one. The surfaces are:
   site does things the app cannot (see
   [api-appendix/endpoints.md](api-appendix/endpoints.md)) — must not find their links hijacked.
   Offer the choice explicitly, default it **off**, and make it reversible at any time from
-  `SCR-25` Settings → General (moved from Help, b-oss#305; note Settings is account-gated, so a
-  logged-out user can no longer reach it). It is a device setting, not an account one.
+  `SCR-25` Settings → General (moved from Help, b-oss#305). Settings is reachable signed out too,
+  with its account-scoped rows disabled, so this toggle is always usable. It is a device setting, not an account one.
 - **Entry deep links** (web URL, where enabled, and the app's own custom scheme) and **push
   targets** open the specific entry or profile directly, signing in first if the target requires
   it.

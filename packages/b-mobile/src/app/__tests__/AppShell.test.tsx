@@ -105,6 +105,8 @@ describe('AppShell', () => {
       await screen.findAllByText('Help & About');
       expect(screen.queryByLabelText(/^Account:/)).toBeNull();
       expect(screen.getByText('Sign in')).toBeDefined();
+      // Settings stays reachable signed out (the link-handling toggle lives there)
+      expect(document.querySelector('ion-menu')!.textContent).toContain('Settings');
     });
   });
 });

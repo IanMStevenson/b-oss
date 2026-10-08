@@ -37,6 +37,10 @@ function acct(id: string, username: string, scope: 'read' | 'read,write' = 'read
   };
 }
 
+function isDisabled(el: Element): boolean {
+  return (el as Element & { disabled?: boolean }).disabled === true;
+}
+
 function toggleOf(label: string): HTMLElement {
   return screen.getByLabelText(label);
 }
@@ -147,6 +151,27 @@ describe('AppGeneralSection — multiple accounts', () => {
       new CustomEvent('ionChange', { bubbles: true, detail: { value: 'icon' } }),
     );
     expect(useDevicePrefsStore.getState().accountAvatarStyle).toBe('icon');
+  });
+});
+
+describe('AppGeneralSection — signed out', () => {
+  beforeEach(() => {
+    useAccountsStore.setState({ accounts: [], activeAccountId: null, hydrated: true });
+  });
+
+  it('greys out the reminder toggle with a sign-in hint, and shows no multi-account settings', () => {
+    render(<AppGeneralSection />);
+    expect(screen.getByText('Sign in to set a daily reminder to publish.')).toBeDefined();
+    expect(isDisabled(toggleOf('Daily reminder'))).toBe(true);
+    expect(screen.queryByLabelText('Confirm account before Star, Favourite or comment')).toBeNull();
+  });
+
+  it('the links toggle is still usable', () => {
+    render(<AppGeneralSection />);
+    const toggle = toggleOf('Open blipfoto.com links in this app');
+    expect(isDisabled(toggle)).toBe(false);
+    flip(toggle, true);
+    expect(useDevicePrefsStore.getState().openBlipfotoLinksInApp).toBe(true);
   });
 });
 

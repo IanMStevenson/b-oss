@@ -70,6 +70,10 @@ afterEach(() => {
   vi.resetAllMocks();
 });
 
+function isDisabled(el: Element | null): boolean {
+  return el?.disabled === true;
+}
+
 function renderHub() {
   return render(
     <MemoryRouter>
@@ -212,5 +216,37 @@ describe('SettingsScreen section routing', () => {
     );
     await waitFor(() => expect(fetchUserSettings).toHaveBeenCalled());
     expect(screen.getByText('Accounts')).toBeDefined();
+  });
+
+  describe('signed out', () => {
+    beforeEach(() => {
+      useAccountsStore.setState({ accounts: [], activeAccountId: null, hydrated: true });
+    });
+
+    it('does not fetch user/settings, and says the account rows need a sign-in', () => {
+      renderHub();
+      expect(fetchUserSettings).not.toHaveBeenCalled();
+      expect(screen.getByText('Sign in to change these.')).toBeDefined();
+      expect(screen.queryByText(/Could not load/)).toBeNull();
+    });
+
+    it('greys out the Blipfoto account rows and Hidden members', () => {
+      renderHub();
+      const item = (label: string) => screen.getAllByText(label)[0].closest('ion-item')!;
+      for (const label of ['Journal', 'Profile', 'Notifications', 'Hidden members']) {
+        expect(isDisabled(item(label))).toBe(true);
+      }
+      expect(isDisabled(screen.getAllByText('General')[0].closest('ion-item'))).toBe(true);
+    });
+
+    it('keeps Accounts, App General and Browsing enabled and navigable', async () => {
+      renderHub();
+      const [, appGeneral] = screen.getAllByText('General');
+      for (const el of [screen.getByText('Accounts'), appGeneral, screen.getByText('Browsing')]) {
+        expect(isDisabled(el.closest('ion-item'))).toBe(false);
+      }
+      await userEvent.click(appGeneral);
+      expect(push).toHaveBeenCalledWith('/settings/app');
+    });
   });
 });

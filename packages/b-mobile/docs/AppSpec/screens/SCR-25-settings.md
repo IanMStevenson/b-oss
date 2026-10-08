@@ -3,7 +3,7 @@
 **Purpose:** A single settings hub with sections for account, journal, profile, notifications, and
 local preferences. Every setting lives on this one screen rather than in separate sub-screens.
 
-**Reached from:** primary navigation. Account-gated.
+**Reached from:** primary navigation, **signed in or not**. Signed out, the *Blipfoto Account Settings* rows (General, Journal, Profile, Notifications) and Hidden members are greyed out under a "Sign in to change these." caption, the hub makes no `user/settings` call, and the App Settings rows that need no account (Accounts, General, Browsing) stay enabled. On *App Settings → General* signed out, Reminders is greyed out ("Sign in to set a daily reminder to publish.") and the links toggle works.
 **Leads to:** section editors (in-screen or pushed), `SCR-11 Description Editor` (biography),
 `SCR-31 Hidden Members`, `SCR-21 Refused Followers`, `SCR-30 Accounts`. Drives `FLW-17`.
 
@@ -77,8 +77,8 @@ Notifications sub-screen (redesigned in [b-oss#244](https://github.com/IanMSteve
   followers).
 - **The privacy policy is deliberately *not* here.** It lives on `SCR-29 Help & About`, which is not
   account-gated: it must be reachable by someone who has never signed in. The blipfoto.com
-  link-handling toggle moved here (App Settings → General) from Help in b-oss#305, at Ian's
-  request, so a logged-out user can no longer change it.
+  link-handling toggle moved here (App Settings → General) from Help in b-oss#305; Settings is
+  reachable signed out precisely so that toggle stays usable logged out.
 - **Confirm account before Star/Favourite/comment** — off by default; only offered when **two or
   more accounts** are stored (hidden with fewer, since it would have no effect). When on, those
   three actions ask which stored account to act as, before the read-write check, rather than
