@@ -76,6 +76,20 @@ function renderScreen() {
   );
 }
 
+/** The form's Cancel — not the picker modal's, which may still be animating out from an earlier test. */
+function formCancel(): HTMLElement {
+  const [button] = screen
+    .getAllByText('Cancel', { selector: 'ion-button' })
+    .filter((b) => !b.closest('ion-modal'));
+  return button;
+}
+
+/** Cancel the picker and wait for it to go, so it can't leak its portalled content into later tests. */
+async function closePicker(row: HTMLElement, title: string): Promise<void> {
+  await userEvent.click(within(row).getByText('Cancel'));
+  await waitFor(() => expect(screen.queryByText(title)).toBeNull());
+}
+
 describe('GeneralSection', () => {
   it('loads current values into the form', async () => {
     renderScreen();
@@ -120,6 +134,7 @@ describe('GeneralSection', () => {
     expect(items.slice(-2)).toEqual(['France', 'United Kingdom']);
     const current = screen.getAllByText('United Kingdom').map((e) => e.closest('ion-item'));
     expect(current.some((i) => i?.getAttribute('aria-current') === 'true')).toBe(true);
+    await closePicker(row, 'Select country');
   });
 
   it('choosing a country from the list changes the form and saves it', async () => {
@@ -139,7 +154,8 @@ describe('GeneralSection', () => {
     renderScreen();
     await screen.findByDisplayValue('Alice Example');
     await userEvent.click(screen.getByText('English'));
-    expect(await screen.findByText('Select language')).toBeDefined();
+    const title = await screen.findByText('Select language');
+    await closePicker(title.parentElement as HTMLElement, 'Select language');
   });
 
   it('Save stays disabled until something changes', async () => {
@@ -154,7 +170,7 @@ describe('GeneralSection', () => {
   it('Cancel with no edits goes straight back with no confirmation', async () => {
     renderScreen();
     await screen.findByDisplayValue('Alice Example');
-    await userEvent.click(screen.getByText('Cancel', { selector: 'ion-button' }));
+    await userEvent.click(formCancel());
     expect(goBack).toHaveBeenCalled();
   });
 
@@ -162,7 +178,7 @@ describe('GeneralSection', () => {
     renderScreen();
     const input = await screen.findByDisplayValue('Alice Example');
     await userEvent.type(input, '!');
-    await userEvent.click(screen.getByText('Cancel', { selector: 'ion-button' }));
+    await userEvent.click(formCancel());
     expect(await screen.findByText('Discard changes?')).toBeDefined();
     expect(goBack).not.toHaveBeenCalled();
   });
