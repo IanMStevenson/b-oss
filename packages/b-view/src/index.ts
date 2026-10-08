@@ -11,7 +11,7 @@ export { EntryCalendar } from './components/EntryCalendar.js';
 export type { EntryCalendarProps } from './components/EntryCalendar.js';
 export { EntryNavStrip } from './components/EntryNavStrip.js';
 export type { HistoryItem, EntryNavStripProps } from './components/EntryNavStrip.js';
-export { EntryDetail } from './components/EntryDetail.js';
+export { EntryDetail, formatAperture } from './components/EntryDetail.js';
 export { DatePicker } from './components/DatePicker.js';
 export { InfoPopup } from './components/InfoPopup.js';
 export { Pagination } from './components/Pagination.js';

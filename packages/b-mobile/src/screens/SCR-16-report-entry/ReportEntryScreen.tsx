@@ -16,10 +16,10 @@ import {
   IonList,
   IonItem,
   IonCheckbox,
-  IonLabel,
   IonText,
   IonAlert,
 } from '@ionic/react';
+import '../../components/ComposeForm.css';
 import { AppHeader } from '../../components/AppHeader.js';
 import { useAppNavigate } from '../../app/routes/useAppNavigate.js';
 import { reportEntry } from '../../flows/reactionsFlow.js';
@@ -117,9 +117,16 @@ export function ReportEntryScreen({
           </IonText>
         )}
 
+        <p>
+          {reportedComment
+            ? `Reporting: ${reportedComment.username}'s comment`
+            : 'Reporting: this entry'}
+        </p>
+
         <IonList>
           {REASONS.map(({ key, label }) => (
-            <IonItem key={key}>
+            // Zero start/end padding so the checkbox rows share the page's 16px gutter (X7).
+            <IonItem key={key} style={{ '--padding-start': '0', '--inner-padding-end': '0' }}>
               <IonCheckbox
                 checked={selected.has(key)}
                 onIonChange={() => toggleReason(key)}
@@ -132,21 +139,22 @@ export function ReportEntryScreen({
           ))}
         </IonList>
 
-        <p>
-          {reportedComment
-            ? `Reporting: ${reportedComment.username}'s comment`
-            : 'Reporting: this entry'}
-        </p>
+        <label className="compose-field" style={{ marginTop: 16 }}>
+          <span className="compose-field-label">Note (optional)</span>
+          <textarea
+            className="compose-field-textarea"
+            value={note}
+            onChange={(e) => setNote(e.target.value)}
+            rows={4}
+          />
+        </label>
 
-        <IonLabel>Note (optional)</IonLabel>
-        <textarea
-          value={note}
-          onChange={(e) => setNote(e.target.value)}
-          rows={4}
-          style={{ width: '100%', font: 'inherit', padding: 8 }}
-        />
-
-        <IonButton expand="block" disabled={submitting} onClick={() => void handleSend()}>
+        <IonButton
+          expand="block"
+          style={{ marginTop: 16 }}
+          disabled={submitting}
+          onClick={() => void handleSend()}
+        >
           Send
         </IonButton>
       </IonContent>

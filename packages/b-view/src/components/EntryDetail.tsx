@@ -105,13 +105,20 @@ interface EntryDetailProps {
   onLocationClick?: (location: { lat: number; lon: number }) => void;
 }
 
+/** Blipfoto's `FNumber` already arrives as "f/4"; older backups may hold a bare "4". Show "f/4"
+ * either way, never "f/f/4". */
+export function formatAperture(fNumber: string | null | undefined): string | null {
+  if (!fNumber) return null;
+  return /^f\//i.test(fNumber) ? fNumber : `f/${fNumber}`;
+}
+
 function ExifRows({ exif }: { exif: NonNullable<BlipEntry['exif']> }) {
   const rows: { icon: React.ReactNode; value: string | null }[] = [
     { icon: <Camera size={14} strokeWidth={1.5} />, value: exif.camera },
     { icon: <Timer size={14} strokeWidth={1.5} />, value: exif.exposure_time },
     {
       icon: <Aperture size={14} strokeWidth={1.5} />,
-      value: exif.f_number ? `f/${exif.f_number}` : null,
+      value: formatAperture(exif.f_number),
     },
     { icon: <Ruler size={14} strokeWidth={1.5} />, value: exif.focal_length },
     { icon: <SunMedium size={14} strokeWidth={1.5} />, value: exif.iso ? String(exif.iso) : null },

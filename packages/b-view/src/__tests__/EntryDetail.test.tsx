@@ -4,7 +4,7 @@
 
 import { describe, it, expect, afterEach, vi } from 'vitest';
 import { render, screen, cleanup, fireEvent, waitFor } from '@testing-library/react';
-import { EntryDetail } from '../components/EntryDetail.js';
+import { EntryDetail, formatAperture } from '../components/EntryDetail.js';
 import styles from '../components/EntryDetail.module.css';
 import type { BlipEntry, EntryState } from '../types.js';
 
@@ -610,5 +610,18 @@ describe('EntryDetail', () => {
       />,
     );
     expect(screen.getByText('reply-to-c1')).toBeDefined();
+  });
+});
+
+describe('formatAperture', () => {
+  it('shows "f/4" for both the API form ("f/4") and a bare number, never "f/f/4"', () => {
+    expect(formatAperture('f/4')).toBe('f/4');
+    expect(formatAperture('F/2.8')).toBe('F/2.8');
+    expect(formatAperture('4')).toBe('f/4');
+  });
+
+  it('is null for no value', () => {
+    expect(formatAperture(null)).toBeNull();
+    expect(formatAperture('')).toBeNull();
   });
 });

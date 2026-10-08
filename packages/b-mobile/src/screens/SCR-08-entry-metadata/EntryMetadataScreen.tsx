@@ -20,6 +20,7 @@ import {
 } from '@ionic/react';
 import { AppHeader } from '../../components/AppHeader.js';
 import { useLiveEntry } from '../../data/useLiveEntry.js';
+import { formatAperture } from '@b-oss/b-view';
 import type { BlipEntry } from '@b-oss/b-view';
 
 interface EntryMetadataScreenProps {
@@ -31,7 +32,7 @@ function metadataFields(exif: NonNullable<BlipEntry['exif']>): Array<[string, st
   return [
     ['Camera', camera],
     ['Exposure', exif.exposure_time],
-    ['Aperture', exif.f_number],
+    ['Aperture', formatAperture(exif.f_number)],
     ['Focal length', exif.focal_length],
     ['ISO', exif.iso],
   ].filter((entry): entry is [string, string] => Boolean(entry[1]));
@@ -45,7 +46,7 @@ export function EntryMetadataScreen({ entryId }: EntryMetadataScreenProps) {
       <IonHeader>
         <AppHeader title="Camera info" variant="back" backHref={`/entry/${entryId}`} />
       </IonHeader>
-      <IonContent className="ion-padding">
+      <IonContent>
         {entryState.status === 'loading' && (
           <div style={{ display: 'flex', justifyContent: 'center', padding: 32 }}>
             <IonSpinner />
@@ -65,10 +66,10 @@ export function EntryMetadataScreen({ entryId }: EntryMetadataScreenProps) {
           (() => {
             const fields = entryState.data.exif ? metadataFields(entryState.data.exif) : [];
             if (fields.length === 0) {
-              return <p>No camera information.</p>;
+              return <p className="ion-padding">No camera information.</p>;
             }
             return (
-              <IonList inset>
+              <IonList>
                 {fields.map(([label, value]) => (
                   <IonItem key={label}>
                     <IonLabel>{label}</IonLabel>
