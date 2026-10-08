@@ -8,7 +8,7 @@
 //
 // Real limits confirmed by the user 2026-08-05, read from Blipfoto's own server source (not
 // stated anywhere in AppSpec/ImplementationSpec, which is why TODO G left this as a placeholder
-// through Phase 11 — see RESUME.md):
+// through Phase 11):
 // - Entry photos: minimum 600px on *at least one* edge (Image.php SIZE_LORES_MIN_EDGE), no
 //   maximum (oversized originals are stored as-is and only derived renditions are downscaled),
 //   1 KB–20 MB file size (S3 upload policy content-length-range).

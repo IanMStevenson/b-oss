@@ -8,7 +8,7 @@
 // (SCR-25/29) adds the remaining device-local fields app-architecture.md §6 assigns to this
 // store: `uploadFullSize` (SCR-25 Misc — persisted now; SCR-10/SCR-13's compose path never reads
 // it, since no client-side downscaling exists anywhere in this app yet — that's a real gap
-// predating this phase, not something Phase 8 papers over, see AGENT_LOG.md's Phase 8 entry),
+// predating this phase, not something Phase 8 papers over),
 // `openBlipfotoLinksInApp` (SCR-29's link-handling toggle — §16's opt-in `<activity-alias>`,
 // wired to a real native effect in Phase 10 via platform/blipfotoLinks.ts), and
 // `notificationPollingIntervalMinutes` (SCR-25 Notifications' Advanced control — stored locally

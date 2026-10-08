@@ -181,7 +181,7 @@ function FolderApp({ embedded }: { embedded: boolean }) {
   const journalTitle = journal.status === 'loaded' ? journal.data.journal_title : '';
 
   // In-grid search is owned by the caller since ThumbnailGrid moved to @b-oss/b-view and no
-  // longer imports a backup-data hook itself (see PLAN.md's Phase 0.2).
+  // longer imports a backup-data hook itself.
   const [searchQuery, setSearchQuery] = useState('');
   const deferredSearchQuery = useDeferredValue(searchQuery);
   const searchState = useSearchEntries(deferredSearchQuery, entryIndex, resolveEntry);

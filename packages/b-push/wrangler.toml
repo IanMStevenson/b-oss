@@ -3,7 +3,7 @@
 
 # b-push — Cloudflare Worker config (notification-service.md). Static config only: nothing here
 # is ever run automatically. Deploying this service is a deliberate, manual, one-time-per-change
-# step the user performs themselves — see packages/b-mobile/RESUME.md and notification-service.md
+# step the user performs themselves — see packages/b-push/README.md and notification-service.md
 # ("no automated deploy on push, at least initially"). No CI job in this repo invokes `wrangler`.
 #
 # Live setup (b-oss#148): a dedicated Cloudflare account, separate from any personal one. The

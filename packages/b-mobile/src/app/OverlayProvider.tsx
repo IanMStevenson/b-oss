@@ -64,7 +64,7 @@ export function useOverlay(): OverlayContextValue {
 // dismissal"). A plain fixed-position overlay `<div>`, not IonModal — IonModal's `present()`
 // throws "framework delegate is missing" in this jsdom test setup (no established precedent for
 // IonModal anywhere else in this codebase to follow instead), the same class of Ionic-component-
-// vs-jsdom friction RESUME.md already documents for IonLabel. A styled div is simpler, has no
+// vs-jsdom friction documented in app-architecture.md for IonLabel. A styled div is simpler, has no
 // such dependency, and satisfies "short panel/sheet" just as well as a real IonModal would.
 function FirstRunExplainer({ onDismiss }: { onDismiss: () => void }) {
   return (

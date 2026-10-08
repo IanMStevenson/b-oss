@@ -5,9 +5,8 @@
 // — stable enough for this since D1 itself is SQLite under the hood) rather than a hand-rolled
 // object-array fake. This is deliberate: it means src/schema.sql is the thing under test, not a
 // second, parallel re-implementation of what the schema says that could silently drift from it.
-// No miniflare/wrangler local-D1 emulation is needed for this — see the phase's own scope note in
-// packages/b-mobile/RESUME.md ("wrangler dev/local D1 emulation if the test suite needs it, ...
-// or stub/mock it instead" — this is the "stub it, soundly" branch of that choice).
+// No miniflare/wrangler local-D1 emulation is needed for this — this is the "stub it, soundly"
+// branch of the choice between local D1 emulation and a stub.
 
 import { DatabaseSync, type StatementSync } from 'node:sqlite';
 import { readFileSync } from 'node:fs';

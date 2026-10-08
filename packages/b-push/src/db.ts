@@ -9,8 +9,8 @@
 //   - tests (src/__tests__/testDb.ts) can pass a small node:sqlite-backed fake that implements
 //     only `prepare().bind().run()/.first()/.all()`, exercising the *real* SQL in schema.sql
 //     against a real SQLite engine, without needing miniflare/wrangler's local-D1 emulation —
-//     the project's established "mock at the boundary, test the real logic" approach
-//     (packages/b-mobile/RESUME.md), applied to a database boundary instead of a Capacitor one.
+//     the project's established "mock at the boundary, test the real logic" approach,
+//     applied to a database boundary instead of a Capacitor one.
 
 import type { RegistrationRow, RegistrationStatus } from './types.js';
 

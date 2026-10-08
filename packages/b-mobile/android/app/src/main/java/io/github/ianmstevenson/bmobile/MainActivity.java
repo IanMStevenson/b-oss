@@ -49,7 +49,7 @@ public class MainActivity extends BridgeActivity {
   // from within a background push/notification handler. b-push's fcm.ts sets a matching
   // android.notification.channel_id on every message it sends; platform/localNotifications.ts
   // sets 'reminders' on the daily-reminder schedule. No channel is wired to 'uploads' yet — no
-  // app-built upload-progress notification exists (see RESUME.md).
+  // app-built upload-progress notification exists.
   private void createNotificationChannels() {
     if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return;
     NotificationManager manager = getSystemService(NotificationManager.class);

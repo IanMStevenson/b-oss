@@ -14,7 +14,7 @@
 // SCR-numbered screens.
 //
 // External link URLs confirmed by the user 2026-08-04 (were previously the bare root domain,
-// since the spec never states them — see AGENT_LOG.md's Phase 2 entry and RESUME.md's gotchas).
+// since the spec never states them).
 // "Terms & legal"'s wireframe row (docs/AppSpec/screens/SCR-29-help-and-info.md) is one row with
 // one destination — the acceptable-use policy the user also supplied isn't a second link on this
 // row, it's added to the in-app Safety & privacy section below instead, alongside "Be Excellent
@@ -22,7 +22,7 @@
 // which is exactly what that section already covers, and neither forces the wireframe's single
 // external-link-per-row shape to change.
 //
-// Row labels are plain <span>s inside IonItem, not IonLabel — RESUME.md's documented gotcha
+// Row labels are plain <span>s inside IonItem, not IonLabel — the jsdom gotcha in app-architecture.md
 // (IonLabel not reliably rendering its children in this jsdom test setup) reproduced on this
 // screen's own hub; UserRow.tsx made the same choice for the same reason.
 
