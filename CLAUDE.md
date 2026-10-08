@@ -123,6 +123,13 @@ export ANDROID_HOME=$HOME/Android/Sdk && npm run build -w @b-oss/b-mobile && (cd
 `native-licences.generated.json`. Licence texts live in `packages/b-mobile/scripts/licence-texts/`; a new
 non-Apache licence needs a matching entry/file in `scripts/native-licences.mjs`.
 
+## Testing records
+
+- Testing still to do (device checks, verifying something just built) goes in a GitHub issue or the
+  PR description.
+- `packages/b-mobile/docs/DECIDED_NOT_TO_TEST.md` is ONLY for things the owner has explicitly said
+  they are not testing. Never add to it on your own judgement, and don't use it as a testing log.
+
 ## Versioning
 
 Display version format: `{pkg.major}.{pkg.minor}.{pkg.patch}[.{commits}.{build}]`.

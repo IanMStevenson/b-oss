@@ -1,12 +1,16 @@
-# Untested paths
+# Things the owner has EXPLICITLY decided NOT to test
 
-A long-term record of tests the owner has **deliberately chosen not to do** — too much trouble to
-try for real at the time, so the risk was accepted. It is a reference for when one of these comes
-back to bite, or for a quiet moment when someone wants to go looking for trouble.
+> **THIS IS NOT A TESTING LOG, A TO-DO LIST OR A LIST OF UNVERIFIED THINGS.**
+> A row belongs here only when the owner has **explicitly said "I'm not testing this"** — usually
+> because the failure is unlikely **and** a real test is costly. Nobody else may add a row on
+> their own judgement, and agents must not edit this file unprompted.
+>
+> Testing that is still to be done (device checks, verification of something just built) lives in
+> **GitHub issues** or the PR description — never here. When a row here is ever tested, delete the
+> row and say so in the commit.
 
-It is **not** a to-do list, and not a place to log checks that simply haven't happened yet. Device
-checks still to do belong in the PR description. Add a row only when the owner has said "I'll trust
-this / skip testing it"; remove it if it is ever tested (and say so in the commit).
+Purpose: a reminder to the owner, for when one of these comes back to bite, or for a quiet moment
+when going looking for trouble.
 
 | Path                                                                                                                                       | Covered by                                                       | Not exercised                                                          | Why it's low risk / what would break                                                                                                    |
 | ------------------------------------------------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------- | ---------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
