@@ -9,8 +9,9 @@
 // wiring FileTransfer's own progress events through the MultipartImpl seam would be a bigger,
 // separate change to b-api's shared contract for a bar the spec doesn't actually require.
 
-import { IonPage, IonHeader, IonContent, IonProgressBar, IonText } from '@ionic/react';
-import { CircleAlert, CircleCheck, Clock, LoaderCircle } from 'lucide-react';
+import { IonPage, IonHeader, IonContent, IonProgressBar } from '@ionic/react';
+import { CircleAlert, CircleCheck, Clock, CloudUpload, LoaderCircle } from 'lucide-react';
+import { EmptyState } from '../../components/EmptyState.js';
 import type { ReactNode } from 'react';
 import { AppHeader } from '../../components/AppHeader.js';
 import { useAppNavigate } from '../../app/routes/useAppNavigate.js';
@@ -52,11 +53,10 @@ export function UploadProgressScreen() {
       </IonHeader>
       <IonContent>
         {sorted.length === 0 && (
-          <div className="compose-form">
-            <IonText color="medium">
-              <p>Nothing queued or recently uploaded.</p>
-            </IonText>
-          </div>
+          <EmptyState
+            icon={<CloudUpload size={40} strokeWidth={1.5} />}
+            title="Nothing queued or recently uploaded."
+          />
         )}
 
         {sorted.map((item) => (
