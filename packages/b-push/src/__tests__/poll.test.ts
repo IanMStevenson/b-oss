@@ -324,4 +324,72 @@ describe('runActivityPoll', () => {
     expect(summary).toMatchObject({ removed: 0, errors: 1 });
     expect(await getRegistrationById(db, 'reg-1')).not.toBeNull();
   });
+
+  it('keeps the old total when a push fails, so the next poll sends it again', async () => {
+    await seedRow({ last_seen_comments_total: 1, last_seen_notifications_total: 0 });
+    mockUnreadTotals(4, 0);
+    vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    sendFcmMessage.mockRejectedValueOnce(new Error('Too many subrequests'));
+
+    const first = await runActivityPoll(db, env, () => 1_000_000);
+    expect(first).toMatchObject({ polled: 0, pushed: 0, errors: 1 });
+    expect(await getRegistrationById(db, 'reg-1')).toMatchObject({
+      last_polled_at: 1_000_000,
+      last_seen_comments_total: 1,
+    });
+
+    vi.mocked(globalThis.fetch).mockRestore();
+    mockUnreadTotals(4, 0);
+    const second = await runActivityPoll(db, env, () => 1_000_000 + 5 * 60_000);
+    expect(second.pushed).toBe(1);
+    expect(sendFcmMessage).toHaveBeenLastCalledWith(
+      env,
+      'device-1',
+      expect.objectContaining({ stream: 'comments', count: 3 }),
+    );
+    expect((await getRegistrationById(db, 'reg-1'))?.last_seen_comments_total).toBe(4);
+  });
+
+  it('stores a sent stream but not a failed one when only the second push fails', async () => {
+    await seedRow();
+    mockUnreadTotals(2, 5);
+    vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    sendFcmMessage
+      .mockResolvedValueOnce(undefined)
+      .mockRejectedValueOnce(new Error('FCM send failed: 503'));
+
+    const summary = await runActivityPoll(db, env, () => 1_000_000);
+    expect(summary.errors).toBe(1);
+    expect(await getRegistrationById(db, 'reg-1')).toMatchObject({
+      last_seen_comments_total: 2,
+      last_seen_notifications_total: 0,
+    });
+  });
+
+  it('does not try the second push after the first fails, and keeps both totals', async () => {
+    await seedRow();
+    mockUnreadTotals(2, 5);
+    vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    sendFcmMessage.mockRejectedValueOnce(new Error('Too many subrequests'));
+
+    await runActivityPoll(db, env, () => 1_000_000);
+    expect(sendFcmMessage).toHaveBeenCalledTimes(1);
+    expect(await getRegistrationById(db, 'reg-1')).toMatchObject({
+      last_seen_comments_total: 0,
+      last_seen_notifications_total: 0,
+    });
+  });
+
+  it('still stores the total of a switched-off stream when the other push fails', async () => {
+    await seedRow({ push_notifications: 0 });
+    mockUnreadTotals(2, 5);
+    vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    sendFcmMessage.mockRejectedValueOnce(new Error('FCM send failed: 503'));
+
+    await runActivityPoll(db, env, () => 1_000_000);
+    expect(await getRegistrationById(db, 'reg-1')).toMatchObject({
+      last_seen_comments_total: 0,
+      last_seen_notifications_total: 5,
+    });
+  });
 });
