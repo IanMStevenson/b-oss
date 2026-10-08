@@ -20,6 +20,9 @@ const date = new Date().toISOString().slice(0, 10);
 const outDir = process.argv[2] ?? join(homedir(), 'dev/tmp/b-mobile-screenshots', date);
 const base = process.argv[3] ?? 'http://127.0.0.1:5191';
 const stubPort = process.env.STUB_PORT ?? '5192'; // where scripts/stub-api.mjs is listening
+// SAFE_AREA="34,48" (top,bottom px) imitates the system-bar insets Capacitor's SystemBars plugin
+// injects on a real phone, so clearance of bottom controls can be checked in the browser.
+const [insetTop, insetBottom] = (process.env.SAFE_AREA ?? '').split(',');
 mkdirSync(outDir, { recursive: true });
 
 const browser = await chromium.launch();
@@ -29,6 +32,16 @@ const ctx = await browser.newContext({
   isMobile: true,
   hasTouch: true,
 });
+if (insetBottom) {
+  await ctx.addInitScript(
+    ([t, b]) => {
+      const root = document.documentElement;
+      root.style.setProperty('--safe-area-inset-top', `${t}px`);
+      root.style.setProperty('--safe-area-inset-bottom', `${b}px`);
+    },
+    [insetTop || '0', insetBottom],
+  );
+}
 // Two accounts, so the header's account switcher and the Accounts screen show their multi-account
 // states (the switcher is hidden with fewer than two). The dev-token sign-in adds/refreshes the
 // first; the second has no token, as an account needing a sign-in would.
@@ -252,8 +265,15 @@ async function seedDraft(mode, patch = {}) {
   await page.getByRole('button', { name: /^Date:/ }).click();
   await settle(1500);
   await shot('compose-details-date-open');
-  await go('/compose/description');
-  await shot('compose-description-with-text');
+  // Scrolled to the end: Publish must sit clear of the bottom inset.
+  await page.evaluate(async () => {
+    const scroller = document
+      .querySelector('ion-content')
+      ?.shadowRoot?.querySelector('.inner-scroll');
+    scroller?.scrollTo(0, scroller.scrollHeight);
+  });
+  await settle(500);
+  await shot('compose-details-bottom');
   await go('/compose/location');
   await shot('compose-location-with-pin');
 }

@@ -7,6 +7,8 @@ export { ActionPill } from './components/ActionPill.js';
 export type { ActionPillItem } from './components/ActionPill.js';
 export { CommentComposer } from './components/CommentComposer.js';
 export type { CommentComposerProps } from './components/CommentComposer.js';
+export { BBCodeField } from './components/BBCodeField.js';
+export type { BBCodeFieldProps } from './components/BBCodeField.js';
 export { EntryCalendar } from './components/EntryCalendar.js';
 export type { EntryCalendarProps } from './components/EntryCalendar.js';
 export { EntryNavStrip } from './components/EntryNavStrip.js';

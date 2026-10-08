@@ -96,22 +96,32 @@ describe('ComposeEntryScreen', () => {
     await waitFor(() => expect(replace).toHaveBeenCalledWith('/compose'));
   });
 
-  it('enables Upload once the date is confirmed eligible, and enqueues on tap', async () => {
+  it('enables Publish once the date is confirmed eligible, and enqueues on tap', async () => {
     renderScreen();
     await waitFor(() =>
-      expect(screen.getByText('Upload').closest('ion-button')!.hasAttribute('disabled')).toBe(
+      expect(screen.getByText('Publish').closest('ion-button')!.hasAttribute('disabled')).toBe(
         false,
       ),
     );
 
     enqueueDraft.mockResolvedValue('q1');
-    await userEvent.click(screen.getByText('Upload'));
+    await userEvent.click(screen.getByText('Publish'));
     await waitFor(() => expect(enqueueDraft).toHaveBeenCalled());
     expect(useComposeDraftStore.getState().draft).toBeNull();
     expect(replace).toHaveBeenCalledWith('/uploads');
   });
 
-  it('blocks Upload and shows the reason for an ineligible date, with a jump-to-entry affordance', async () => {
+  it('has the description editor inline, with the formatting toolbar, and keeps what is typed in the draft', async () => {
+    renderScreen();
+    expect(screen.getByRole('toolbar', { name: 'Formatting' })).toBeDefined();
+    const box = screen.getByRole('textbox', { name: 'Description' });
+    await userEvent.click(box);
+    await userEvent.keyboard('Hello');
+    await waitFor(() => expect(useComposeDraftStore.getState().draft?.description).toBe('Hello'));
+    expect(push).not.toHaveBeenCalledWith('/compose/description');
+  });
+
+  it('blocks Publish and shows the reason for an ineligible date, with a jump-to-entry affordance', async () => {
     fetchDayEligibility.mockResolvedValue({
       publishable: false,
       message: 'You already have an entry for that day.',
@@ -119,7 +129,7 @@ describe('ComposeEntryScreen', () => {
     });
     renderScreen();
     expect(await screen.findByText('You already have an entry for that day.')).toBeDefined();
-    expect(screen.getByText('Upload').closest('ion-button')!.hasAttribute('disabled')).toBe(true);
+    expect(screen.getByText('Publish').closest('ion-button')!.hasAttribute('disabled')).toBe(true);
 
     await userEvent.click(screen.getByText('View that entry'));
     expect(push).toHaveBeenCalledWith('/entry/e9');
@@ -140,7 +150,7 @@ describe('ComposeEntryScreen', () => {
     });
     renderScreen();
     expect(await screen.findByText(/isn.t supported/)).toBeDefined();
-    expect(screen.getByText('Upload').closest('ion-button')!.hasAttribute('disabled')).toBe(true);
+    expect(screen.getByText('Publish').closest('ion-button')!.hasAttribute('disabled')).toBe(true);
     expect(screen.getByText('Choose another photo')).toBeDefined();
   });
 
@@ -164,7 +174,7 @@ describe('ComposeEntryScreen', () => {
 
   it('navigating to add a location without one first pushes to the location picker', () => {
     renderScreen();
-    const checkbox = screen.getByLabelText('Location');
+    const checkbox = screen.getByLabelText('Add to map');
     checkbox.dispatchEvent(
       new CustomEvent('ionChange', { bubbles: true, detail: { checked: true } }),
     );
