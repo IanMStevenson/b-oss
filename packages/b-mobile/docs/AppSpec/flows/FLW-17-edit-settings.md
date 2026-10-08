@@ -29,7 +29,7 @@ flowchart TD
 4. **Notifications** ([b-oss#244](https://github.com/IanMStevenson/b-oss/issues/244)): two parts. *Notifications from this app* — Push for new
    comments / Push for new notifications, held by the notification service and applied
    immediately (first on enables, a change is a `PATCH`, last off deregisters — `FLW-22`), plus
-   the check interval. *Blipfoto feed settings* — the six `feed_*` toggles, Save/Cancel; only feed
+   the check interval. *Blipfoto notification settings* — the six `feed_*` toggles, Save/Cancel; only feed
    keys are sent, never `push_*`, and no refresh ping follows a save (the service no longer reads
    Blipfoto's settings). A feed type turned off is never created by Blipfoto, so a hint under
    *Push for new notifications* names any saved feed types that are off — see `SCR-25` and

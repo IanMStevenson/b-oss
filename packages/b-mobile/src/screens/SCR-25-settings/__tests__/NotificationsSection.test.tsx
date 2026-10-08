@@ -3,7 +3,7 @@
 // @vitest-environment jsdom
 
 // SCR-25 Notifications (b-oss#244): two per-account push toggles (no master switch), the check
-// interval, and the Blipfoto feed settings. IonAlert is stubbed at the @ionic/react boundary
+// interval, and the Blipfoto notification settings. IonAlert is stubbed at the @ionic/react boundary
 // (b-oss#193 — Ionic's animated overlays drop clicks in jsdom under load).
 
 import { describe, it, expect, afterEach, beforeEach, vi } from 'vitest';
@@ -168,20 +168,20 @@ describe('NotificationsSection — push toggles', () => {
     expect(screen.getByText('Notifications from b-mobile on this device')).toBeDefined();
     expect((toggle('New comments') as HTMLIonToggleElement).checked).toBe(false);
     expect((toggle('New notifications') as HTMLIonToggleElement).checked).toBe(false);
-    await screen.findByText('Blipfoto feed settings');
+    await screen.findByText('Blipfoto notification settings');
   });
 
   it('reflects the stored streams of a registered account', async () => {
     setAccount(registered({ pushComments: true, pushNotifications: false }));
     render(<NotificationsSection />);
-    await screen.findByText('Blipfoto feed settings');
+    await screen.findByText('Blipfoto notification settings');
     expect((toggle('New comments') as HTMLIonToggleElement).checked).toBe(true);
     expect((toggle('New notifications') as HTMLIonToggleElement).checked).toBe(false);
   });
 
   it('first one on from off runs the enable path with just that stream', async () => {
     render(<NotificationsSection />);
-    await screen.findByText('Blipfoto feed settings');
+    await screen.findByText('Blipfoto notification settings');
     flip('New comments', true);
     await waitFor(() =>
       expect(changeAccountMode).toHaveBeenCalledWith(
@@ -200,7 +200,7 @@ describe('NotificationsSection — push toggles', () => {
   it('toggling one while the other stays on PATCHes the new flags', async () => {
     setAccount(registered());
     render(<NotificationsSection />);
-    await screen.findByText('Blipfoto feed settings');
+    await screen.findByText('Blipfoto notification settings');
     flip('New comments', false);
     await waitFor(() =>
       expect(updatePushStreams).toHaveBeenCalledWith('a1', {
@@ -215,7 +215,7 @@ describe('NotificationsSection — push toggles', () => {
     setAccount(registered());
     updatePushStreams.mockRejectedValue(new Error('service down'));
     render(<NotificationsSection />);
-    await screen.findByText('Blipfoto feed settings');
+    await screen.findByText('Blipfoto notification settings');
     flip('New comments', false);
     expect(await screen.findByText('service down')).toBeDefined();
   });
@@ -223,7 +223,7 @@ describe('NotificationsSection — push toggles', () => {
   it('last one off on a read-write account warns, and Keep on changes nothing', async () => {
     setAccount(registered({ pushComments: false, pushNotifications: true }));
     render(<NotificationsSection />);
-    await screen.findByText('Blipfoto feed settings');
+    await screen.findByText('Blipfoto notification settings');
     flip('New notifications', false);
 
     const dialog = await screen.findByRole('dialog', { name: 'Turn off notifications?' });
@@ -241,7 +241,7 @@ describe('NotificationsSection — push toggles', () => {
   it('last one off on a read-write account deregisters only after Turn off', async () => {
     setAccount(registered({ pushComments: false, pushNotifications: true }));
     render(<NotificationsSection />);
-    await screen.findByText('Blipfoto feed settings');
+    await screen.findByText('Blipfoto notification settings');
     flip('New notifications', false);
     await screen.findByRole('dialog', { name: 'Turn off notifications?' });
     expect(changeAccountMode).not.toHaveBeenCalled();
@@ -258,7 +258,7 @@ describe('NotificationsSection — push toggles', () => {
   it('last one off on a read-only account deregisters with no warning', async () => {
     setAccount(registered({ appTokenScope: 'read', pushComments: true, pushNotifications: false }));
     render(<NotificationsSection />);
-    await screen.findByText('Blipfoto feed settings');
+    await screen.findByText('Blipfoto notification settings');
     flip('New comments', false);
     await waitFor(() =>
       expect(changeAccountMode).toHaveBeenCalledWith('a1', {
@@ -279,7 +279,7 @@ describe('NotificationsSection — push toggles', () => {
       }),
     );
     render(<NotificationsSection />);
-    await screen.findByText('Blipfoto feed settings');
+    await screen.findByText('Blipfoto notification settings');
     expect(screen.getByText(/Blipfoto needs you to sign in again/)).toBeDefined();
     expect((toggle('New comments') as HTMLIonToggleElement).checked).toBe(false);
     flip('New notifications', true);
@@ -301,7 +301,7 @@ describe('NotificationsSection — feed settings', () => {
   it('has no Push group from Blipfoto', async () => {
     setAccount(registered());
     render(<NotificationsSection />);
-    await screen.findByText('Blipfoto feed settings');
+    await screen.findByText('Blipfoto notification settings');
     expect(screen.queryByText('Push')).toBeNull();
     expect(fetchNotificationSettings).toHaveBeenCalledTimes(1);
   });
@@ -489,7 +489,7 @@ describe('NotificationsSection — second sign-in and wrong account (b-oss#240)'
       proceeded = (await hooks?.beforeServiceRound?.()) ?? true;
     });
     render(<NotificationsSection />);
-    await screen.findByText('Blipfoto feed settings');
+    await screen.findByText('Blipfoto notification settings');
 
     const before = toggle('New comments') as HTMLIonToggleElement;
     before.checked = true; // what the Ionic toggle does to itself on tap
@@ -511,7 +511,7 @@ describe('NotificationsSection — second sign-in and wrong account (b-oss#240)'
       proceeded = (await hooks?.beforeServiceRound?.()) ?? true;
     });
     render(<NotificationsSection />);
-    await screen.findByText('Blipfoto feed settings');
+    await screen.findByText('Blipfoto notification settings');
     flip('New notifications', true);
     await screen.findByRole('dialog', { name: 'One more sign-in' });
     await userEvent.click(screen.getByRole('button', { name: 'Continue' }));
@@ -522,7 +522,7 @@ describe('NotificationsSection — second sign-in and wrong account (b-oss#240)'
     enableAsksFirst();
     changeAccountMode.mockRejectedValueOnce(new AccountMismatchError('alice', 'bob'));
     render(<NotificationsSection />);
-    await screen.findByText('Blipfoto feed settings');
+    await screen.findByText('Blipfoto notification settings');
     flip('New comments', true);
 
     const dialog = await screen.findByRole('dialog', { name: 'Wrong Blipfoto account' });
@@ -539,7 +539,7 @@ describe('NotificationsSection — second sign-in and wrong account (b-oss#240)'
     isNative = true;
     changeAccountMode.mockRejectedValueOnce(new AccountMismatchError('alice', 'bob'));
     render(<NotificationsSection />);
-    await screen.findByText('Blipfoto feed settings');
+    await screen.findByText('Blipfoto notification settings');
     flip('New notifications', true);
 
     await screen.findByRole('dialog', { name: 'Wrong Blipfoto account' });
@@ -559,7 +559,7 @@ describe('NotificationsSection — second sign-in and wrong account (b-oss#240)'
   it("the service's own 403 (owner unknown) gets the same explanation", async () => {
     changeAccountMode.mockRejectedValueOnce(new AccountMismatchError('alice', null));
     render(<NotificationsSection />);
-    await screen.findByText('Blipfoto feed settings');
+    await screen.findByText('Blipfoto notification settings');
     flip('New comments', true);
     const dialog = await screen.findByRole('dialog', { name: 'Wrong Blipfoto account' });
     expect(dialog.textContent).toContain(

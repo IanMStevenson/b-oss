@@ -236,7 +236,7 @@ export const STRINGS = {
     "Your Blipfoto feed has {types} turned off, so you won't be notified about those.",
   'SCR-25.notifications.feed.caption':
     'These settings apply to both the Blipfoto website and to b-mobile. Only items enabled here can appear as app notifications.',
-  'SCR-25.notifications.feed.title': 'Blipfoto feed settings',
+  'SCR-25.notifications.feed.title': 'Blipfoto notification settings',
   'SCR-25.notifications.interval': 'Check for new activity every',
   'SCR-25.notifications.needs_sign_in':
     'Notifications for {username} stopped because Blipfoto needs you to sign in again. Turn one on to sign in.',

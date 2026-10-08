@@ -14,7 +14,7 @@
 //     deregisters — after a confirm only when turning back on would need a sign-in (read-write
 //     accounts, whose notification read token is a separate credential that gets revoked). These
 //     are token/registration actions, not content writes, so they apply immediately, no Save.
-//   - **Blipfoto feed settings** — the six `feed_*` toggles (`user/settings/notifications`),
+//   - **Blipfoto notification settings** — the six `feed_*` toggles (`user/settings/notifications`),
 //     Save/Cancel like General/Journal. Blipfoto's own `push_*` settings are never read or written
 //     any more; b-push no longer reads them either, so the old refresh-preferences ping is gone.
 //

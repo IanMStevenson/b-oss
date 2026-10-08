@@ -59,7 +59,7 @@ Notifications sub-screen (redesigned in [b-oss#244](https://github.com/IanMSteve
 | **Profile › Username** | Username | Server (`user/settings`) |
 | **Profile › Biography** | Biography (BBCode via `SCR-11`) | Server (`user/settings`) |
 | **Profile › Picture** | Avatar: take / choose / delete | Server (`user/settings`, avatar) |
-| **Notifications** | *Notifications from this app*: Push for new comments, Push for new notifications, check interval; *Blipfoto feed settings*: the six `feed_*` toggles | Push toggles/interval — notification service, per account per device (local copy on the account record); feed toggles — server (`user/settings/notifications`) |
+| **Notifications** | *Notifications from this app*: Push for new comments, Push for new notifications, check interval; *Blipfoto notification settings*: the six `feed_*` toggles | Push toggles/interval — notification service, per account per device (local copy on the account record); feed toggles — server (`user/settings/notifications`) |
 | **Reminders** | Daily reminder on/off + time | Local, **per account**; read-write accounts only (drives `FLW-18`) |
 | **Misc** | Upload full-size toggle; **confirm account before Star/Favourite/comment** toggle (default **off**; shown only with 2+ accounts stored) | Local, **per device** — these describe how this installation behaves, not an account |
 
@@ -106,9 +106,9 @@ Notifications sub-screen (redesigned in [b-oss#244](https://github.com/IanMSteve
     app will never have any notifications to tell you about. It reflects the **saved** feed
     settings, not unsaved edits. Comments are never gated by the feed, so there's no hint for them.
   - **Check interval** — floor of 5 minutes, also enforced by the service.
-  - **Blipfoto feed settings** — the six `feed_*` toggles, Save/Cancel, captioned *"What appears in
-    your activity on blipfoto.com and in every app. A type turned off here is never created, so
-    this app can't notify you about it either."* Blipfoto's own **Push** settings are not shown and
+  - **Blipfoto notification settings** — the six `feed_*` toggles, Save/Cancel, captioned *"These settings
+    apply to both the Blipfoto website and to b-mobile. Only items enabled here can appear as app
+    notifications."* Blipfoto's own **Push** settings are not shown and
     never written by this app; the service no longer reads them.
   See [`../../ImplementationSpec/notification-service.md`](../../ImplementationSpec/notification-service.md).
 
