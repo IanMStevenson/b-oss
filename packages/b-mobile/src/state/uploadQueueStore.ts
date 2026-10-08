@@ -39,6 +39,11 @@ export interface UploadQueueItem {
   createdAt: number;
   /** Set on success — SCR-14's "tap a successful item -> open its entry". */
   resultEntryId: string | null;
+  /** kind: 'publish' only. Set once an earlier attempt ended without a response (a transport
+   * failure, or a process killed mid-upload), so the server may already hold the entry. A later
+   * 252 "already posted" is then checked against that day's entry rather than failing outright.
+   * Optional so items persisted before this field existed still load. */
+  mayHavePublished?: boolean;
 }
 
 const PREFS_KEY = 'b-mobile:upload-queue';
