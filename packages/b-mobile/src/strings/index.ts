@@ -1,10 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (C) 2026 Ian Stevenson
 
-// TODO F's copy deck (app-architecture.md §2/§15), typed. `deck.ts` is generated from
-// docs/AppSpec/TextStrings.csv — see scripts/generate-strings.mjs. This module is the one hand-
-// written piece: a typed key lookup plus `{placeholder}` interpolation for the handful of draft
-// strings that carry one (e.g. `{username}`).
+// The copy deck, typed. `deck.ts` holds the strings; this module adds a typed key lookup plus
+// `{placeholder}` interpolation for the handful of strings that carry one (e.g. `{username}`).
 
 import { STRINGS } from './deck.js';
 
