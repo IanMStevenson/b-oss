@@ -20,9 +20,23 @@ function contentText(content: TagNodeTree | undefined): string {
 }
 
 // [url] behaviour beyond wrapping: a URL with no scheme gets http:// prepended, an email-looking
-// target becomes mailto:, and a bare [url] uses its own target as the label.
-function normalizeUrl(target: string): string {
-  if (/^[a-z][a-z0-9+.-]*:/i.test(target)) return target;
+// target becomes mailto:, and a bare [url] uses its own target as the label. Only http:, https:
+// and mailto: targets become links; any other scheme (javascript:, data:, vbscript:, file:, ...)
+// returns null and the caller renders the label as plain text. Browsers ignore tabs/newlines and
+// leading control chars/spaces when parsing a URL ("java\tscript:" is javascript:), so those are
+// stripped before the scheme is checked.
+const ALLOWED_SCHEMES = ['http', 'https', 'mailto'];
+
+function normalizeUrl(rawTarget: string): string | null {
+  const target = rawTarget.replace(
+    /[\u0000-\u0020\u007f-\u009f\u00ad\u200b-\u200f\u2028-\u202e\u2060\ufeff]/g,
+    '',
+  );
+  if (target === '') return null;
+  const scheme = /^([a-z][a-z0-9+.-]*):/i.exec(target);
+  // "example.com:8080/path" is a host and port, not a scheme.
+  const hostPort = /^[^/?#:@]+:\d+(?:[/?#]|$)/.test(target);
+  if (scheme && !hostPort) return ALLOWED_SCHEMES.includes(scheme[1].toLowerCase()) ? target : null;
   if (/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(target)) return `mailto:${target}`;
   return `http://${target}`;
 }
@@ -33,7 +47,7 @@ function urlTag(node: TagNodeObject): TagNodeObject {
   const rawTarget = isBare ? contentText(node.content) : attrTarget;
   const href = normalizeUrl(rawTarget);
   const label = isBare ? [rawTarget] : toArray(node.content);
-  return TagNode.create('a', { href }, label);
+  return href === null ? TagNode.create('span', {}, label) : TagNode.create('a', { href }, label);
 }
 
 // [email=address]label[/email] (or bare [email]address[/email]) — blipfoto.com's mailto form of

@@ -76,6 +76,57 @@ describe('BBCodeText', () => {
     expect(container.querySelector('a')?.getAttribute('href')).toBe('mailto:person@example.com');
   });
 
+  describe('URL scheme allow-list', () => {
+    const bad = [
+      'javascript:alert(1)',
+      'JavaScript:alert(1)',
+      'JAVASCRIPT:alert(1)',
+      '  javascript:alert(1)',
+      '\n\tjavascript:alert(1)',
+      'java\tscript:alert(1)',
+      'java\nscript:alert(1)',
+      'java\u0000script:alert(1)',
+      'data:text/html,<script>alert(1)</script>',
+      'DATA:text/html;base64,AAAA',
+      'vbscript:msgbox(1)',
+      'VbScript:msgbox(1)',
+      'file:///etc/passwd',
+      'ftp://example.com/x',
+    ];
+
+    it.each(bad)('renders [url=%j] as plain text with no href', (target) => {
+      const { container } = render(<BBCodeText source={`[url=${target}]click me[/url]`} />);
+      expect(container.querySelector('a')).toBeNull();
+      expect(container.querySelector('[href]')).toBeNull();
+      expect(container.textContent).toBe('click me');
+    });
+
+    it('renders a bare [url] with a bad scheme as its target text, with no href', () => {
+      const { container } = render(<BBCodeText source="[url]javascript:alert(1)[/url]" />);
+      expect(container.querySelector('a')).toBeNull();
+      expect(container.textContent).toBe('javascript:alert(1)');
+    });
+
+    it.each([
+      ['http://example.com/a', 'http://example.com/a'],
+      ['HTTPS://example.com', 'HTTPS://example.com'],
+      ['mailto:a@example.com', 'mailto:a@example.com'],
+      ['example.com', 'http://example.com'],
+      ['example.com:8080/x', 'http://example.com:8080/x'],
+      ['a@example.com', 'mailto:a@example.com'],
+    ])('keeps [url=%s] as a link to %s', (target, href) => {
+      const { container } = render(<BBCodeText source={`[url=${target}]x[/url]`} />);
+      expect(container.querySelector('a')?.getAttribute('href')).toBe(href);
+    });
+
+    it('[email] always yields a mailto: href', () => {
+      const { container } = render(<BBCodeText source="[email]javascript:alert(1)[/email]" />);
+      expect(container.querySelector('a')?.getAttribute('href')).toBe('mailto:javascript:alert(1)');
+      const bare = render(<BBCodeText source="[email=a@example.com]mail[/email]" />);
+      expect(bare.container.querySelector('a')?.getAttribute('href')).toBe('mailto:a@example.com');
+    });
+  });
+
   it('calls the default window.open handler on link click when no onLinkClick is given', () => {
     const openSpy = vi.spyOn(window, 'open').mockImplementation(() => null);
     const { container } = render(<BBCodeText source="[url=https://example.com]link[/url]" />);
