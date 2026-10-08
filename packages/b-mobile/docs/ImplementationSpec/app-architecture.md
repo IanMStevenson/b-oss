@@ -992,8 +992,8 @@ to be applied client-side and the cropped JPEG uploaded.
   proportional and therefore survive a resize unchanged.
 - **Validation** (`SCR-10`: unsupported type, too small) happens on the picked file before the
   compose screen accepts it, so the failure surfaces at the point of choosing rather than at
-  publish. **Real limits (confirmed against Blipfoto's own server source — `Image.php`, `JPG.php`,
-  `AvatarUploader.php` — 2026-08-05, closing what TODO G left open):** entry photos need 600px on
+  publish. **Real limits (established by upload testing 2026-08-05, closing what TODO G left
+  open):** entry photos need 600px on
   **at least one** edge (not both — a thin panorama or tall crop is valid as long as one dimension
   clears the floor), no maximum dimension (oversized originals are stored as-is; only derived
   renditions are downscaled), 1 KB–20 MB file size. Avatars (`SCR-25`) need 300px on at least one

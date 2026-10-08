@@ -14,6 +14,7 @@ import {
   markReauthRequired,
   updateStreamToggles,
   listDueRegistrations,
+  POLL_BATCH_LIMIT,
 } from '../db.js';
 import type { RegistrationRow } from '../types.js';
 
@@ -173,5 +174,23 @@ describe('listDueRegistrations', () => {
   it('excludes an inactive (read-token-invalid) row regardless of timing', async () => {
     await insertRegistration(db, row({ status: 'read-token-invalid', last_polled_at: null }));
     expect(await listDueRegistrations(db, 1_000_000)).toHaveLength(0);
+  });
+
+  it('returns the longest-waiting rows first, never-polled ahead of all', async () => {
+    await insertRegistration(db, row({ id: 'recent', last_polled_at: 3_000 }));
+    await insertRegistration(db, row({ id: 'never', last_polled_at: null }));
+    await insertRegistration(db, row({ id: 'oldest', last_polled_at: 1_000 }));
+    await insertRegistration(db, row({ id: 'middle', last_polled_at: 2_000 }));
+    const due = await listDueRegistrations(db, 10_000_000);
+    expect(due.map((r) => r.id)).toEqual(['never', 'oldest', 'middle', 'recent']);
+  });
+
+  it('caps the batch at the limit, defaulting to POLL_BATCH_LIMIT', async () => {
+    for (let i = 0; i < POLL_BATCH_LIMIT + 3; i++) {
+      await insertRegistration(db, row({ id: `reg-${i}`, last_polled_at: i }));
+    }
+    expect(await listDueRegistrations(db, 10_000_000)).toHaveLength(POLL_BATCH_LIMIT);
+    const two = await listDueRegistrations(db, 10_000_000, 2);
+    expect(two.map((r) => r.id)).toEqual(['reg-0', 'reg-1']);
   });
 });

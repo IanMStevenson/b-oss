@@ -154,20 +154,32 @@ export async function updateStreamToggles(
   }
 }
 
+/** Most registrations one tick polls. A registration costs at most five outbound requests (one
+ * totals call, then a token exchange and a send for each of two pushes), so nine stays inside the
+ * Workers free plan's 50 per run. The rest are picked up oldest-first on the next tick. */
+export const POLL_BATCH_LIMIT = 9;
+
 /** The 1-minute activity-poll tick's selection: active registrations whose interval has elapsed.
  * `poll_interval_minutes` is stored in minutes; comparison is done in the same unit as
  * `last_polled_at`/`nowMs` (epoch milliseconds) by converting the interval once per row via SQL,
  * rather than pulling every active row into JS to filter — this is exactly the query the
  * `idx_registrations_poll` index (schema.sql) exists for. A never-polled row (`last_polled_at`
- * IS NULL) is always due. */
-export async function listDueRegistrations(db: DbLike, nowMs: number): Promise<RegistrationRow[]> {
+ * IS NULL) is always due. Longest-waiting first (SQLite sorts NULL first), capped at `limit`, so
+ * the same rows can't starve when more are due than one tick can poll. */
+export async function listDueRegistrations(
+  db: DbLike,
+  nowMs: number,
+  limit: number = POLL_BATCH_LIMIT,
+): Promise<RegistrationRow[]> {
   const result = await db
     .prepare(
       `SELECT * FROM registrations
        WHERE status = 'active'
-         AND (last_polled_at IS NULL OR ? - last_polled_at >= poll_interval_minutes * 60000)`,
+         AND (last_polled_at IS NULL OR ? - last_polled_at >= poll_interval_minutes * 60000)
+       ORDER BY last_polled_at ASC
+       LIMIT ?`,
     )
-    .bind(nowMs)
+    .bind(nowMs, limit)
     .all<RegistrationRow>();
   return result.results;
 }
