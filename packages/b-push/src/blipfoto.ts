@@ -28,9 +28,8 @@ export class ReadTokenInvalidError extends Error {
   }
 }
 
-/** Whether Blipfoto has rejected the read token itself: 50/51, b-api's `isTokenInvalid`. The
- * Blipfoto source (checked 2026-10-06, b-oss#148) confirms a revoked or deleted user token comes
- * back as **51**, so this is the only signal that a *stored* token has died and the user needs to
+/** Whether Blipfoto has rejected the read token itself: 50/51, b-api's `isTokenInvalid`. Observed
+ * behaviour (b-oss#148 on-device testing): a revoked or deleted user token comes back as **51**, so this is the only signal that a *stored* token has died and the user needs to
  * re-authorise. Only this throws ReadTokenInvalidError, which is what makes the activity poll
  * mark a row `read-token-invalid` and send the reauth-required push. */
 function isReadTokenRejected(err: unknown): boolean {
@@ -38,8 +37,8 @@ function isReadTokenRejected(err: unknown): boolean {
 }
 
 /** Blipfoto code 52, "The client is invalid.": the bearer isn't recognised as a user token at
- * all, so Blipfoto falls back to reading it as a client id and rejects that. Per the Blipfoto
- * source this is *not* what a revoked user token returns (that's 51, above). So its meaning
+ * all, so Blipfoto falls back to reading it as a client id and rejects that. In observed
+ * behaviour this is *not* what a revoked user token returns (that's 51, above). So its meaning
  * depends on where it turns up (b-oss#238):
  *   - At registration, on a token the app has only just sent, it means the token is junk: invalid
  *     input, so `createRegistration` answers 400.

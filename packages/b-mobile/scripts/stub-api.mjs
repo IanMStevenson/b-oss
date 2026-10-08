@@ -378,7 +378,7 @@ createServer((req, res) => {
         return send(
           500,
           'text/html',
-          '<html><body>Internal Server Error: AvatarUploader</body></html>',
+          '<html><body>Internal Server Error</body></html>',
         );
       if (part && avatarFail === 'blipfoto-240')
         return send(
