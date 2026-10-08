@@ -312,7 +312,19 @@ export async function changeAccountMode(
   if (account.appTokenScope !== target.scope) {
     const oldToken = await getToken(accountId, 'app');
     const result = await runRoundForAccount(account.username, target.scope, round);
-    if (oldToken) {
+    // A read-only account with notifications on uses ONE read token for both jobs (the app token
+    // and the b-push service token). Upgrading to read-write while keeping notifications: that
+    // read token is exactly the separate service token the new mode needs, and b-push holds it,
+    // so keep it rather than revoke it — otherwise the user is asked to sign in a second time
+    // just to get back a read token (b-oss device feedback, 2026-10-08).
+    const keepAsServiceToken =
+      account.appTokenScope === 'read' &&
+      result.grantedScope === 'read,write' &&
+      account.hasServiceToken &&
+      target.notifications;
+    if (oldToken && keepAsServiceToken) {
+      await setToken(accountId, 'service', oldToken);
+    } else if (oldToken) {
       await getClientForToken(oldToken)
         .revokeToken()
         .catch(() => {});

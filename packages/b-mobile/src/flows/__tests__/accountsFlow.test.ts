@@ -370,6 +370,71 @@ describe('changeAccountMode (FLW-22)', () => {
     expect(useAccountsStore.getState().accounts[0]?.appTokenScope).toBe('read,write');
   });
 
+  it('read-only+notifications -> read-write+notifications: one sign-in, the read token is kept as the service token', async () => {
+    tokenStore.set('alice:app', 'shared-read-token');
+    tokenStore.set('alice:service', 'shared-read-token');
+    useAccountsStore.setState({
+      accounts: [
+        {
+          id: 'alice',
+          username: 'alice',
+          avatarUrl: null,
+          appTokenScope: 'read',
+          hasServiceToken: true,
+          notificationRegistrationId: 'reg-1',
+          notificationStatus: 'active',
+        },
+      ],
+      activeAccountId: 'alice',
+      hydrated: true,
+    });
+    runOAuthRound.mockResolvedValueOnce({
+      accessToken: 'new-write-token',
+      grantedScope: 'read,write',
+      username: 'alice',
+    });
+
+    await changeAccountMode('alice', { scope: 'read,write', notifications: true });
+
+    expect(runOAuthRound).toHaveBeenCalledTimes(1);
+    expect(revokeToken).not.toHaveBeenCalled();
+    expect(await getToken('alice', 'app')).toBe('new-write-token');
+    expect(await getToken('alice', 'service')).toBe('shared-read-token');
+    expect(useAccountsStore.getState().accounts[0]?.hasServiceToken).toBe(true);
+    expect(registerAccountForPush).not.toHaveBeenCalled();
+  });
+
+  it('read-only+notifications -> read-write with notifications OFF still revokes the old token', async () => {
+    tokenStore.set('alice:app', 'shared-read-token');
+    tokenStore.set('alice:service', 'shared-read-token');
+    useAccountsStore.setState({
+      accounts: [
+        {
+          id: 'alice',
+          username: 'alice',
+          avatarUrl: null,
+          appTokenScope: 'read',
+          hasServiceToken: true,
+          notificationRegistrationId: 'reg-1',
+          notificationStatus: 'active',
+        },
+      ],
+      activeAccountId: 'alice',
+      hydrated: true,
+    });
+    runOAuthRound.mockResolvedValueOnce({
+      accessToken: 'new-write-token',
+      grantedScope: 'read,write',
+      username: 'alice',
+    });
+
+    await changeAccountMode('alice', { scope: 'read,write', notifications: false });
+
+    expect(revokeToken).toHaveBeenCalled();
+    expect(tokenStore.has('alice:service')).toBe(false);
+    expect(useAccountsStore.getState().accounts[0]?.hasServiceToken).toBe(false);
+  });
+
   it('a transition to the same scope with no token change makes no OAuth call', async () => {
     tokenStore.set('alice:app', 'existing-token');
     useAccountsStore.setState({
