@@ -3,7 +3,7 @@
 
 // Pure Web Crypto helpers — no Cloudflare-specific API, so directly unit-testable in plain
 // Node/Vitest (Node's global `crypto.subtle` is the same Web Crypto API the Worker runtime
-// provides). Two independent jobs, both from notification-service.md's "Security notes":
+// provides). Two independent jobs, both from ARCHITECTURE.md's "Security notes":
 //   - `read_token` at rest: AES-256-GCM under one static Worker secret, random nonce per row.
 //   - the per-registration bearer `registrationSecret`: generated once, never stored — only its
 //     SHA-256 hash is persisted, and PATCH/GET/DELETE compare against that hash.

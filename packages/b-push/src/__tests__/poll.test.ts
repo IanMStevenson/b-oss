@@ -263,7 +263,7 @@ describe('runActivityPoll', () => {
   });
 
   it('treats code 52 on a stored token as an ordinary error: row stays active, no reauth push (b-oss#238)', async () => {
-    // A revoked user token is 51 (Blipfoto source). A 52 on a token that was accepted at
+    // A revoked user token is 51 (observed, b-oss#148). A 52 on a token that was accepted at
     // registration would point at something wider (e.g. the client being rejected) and would hit
     // every row at once, so it must not mark rows dead or tell every user to sign in again.
     await seedRow({ last_seen_comments_total: 0 });

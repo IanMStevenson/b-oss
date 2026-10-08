@@ -12,8 +12,8 @@ import androidx.activity.OnBackPressedCallback;
 import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
 
-// Launched by EmbeddedAuthPlugin for a "force new sign-in" OAuth round (auth.md's system-vs-
-// embedded browser choice — the Android equivalent of b-ark's startOAuthFlowEmbedded()). Unlike
+// Launched by EmbeddedAuthPlugin for a "force new sign-in" OAuth round (the system-vs-embedded
+// browser choice; BEHAVIOUR.md, Sign-in and accounts — the Android equivalent of b-ark's startOAuthFlowEmbedded()). Unlike
 // the ordinary system-browser round (Custom Tabs via @capacitor/browser / platform/browser.ts),
 // which shares Chrome's own cookies so an already-logged-in session carries straight over, this
 // Activity owns its own WebView and clears its cookies before loading — the whole point is to

@@ -38,7 +38,7 @@ export interface UserProfile {
   latestEntry: BlipEntryStub | null;
 }
 
-/** error-codes.md: 101 (malformed username) and 103 (user unavailable) must read identically on
+/** API codes 101 (malformed username) and 103 (user unavailable) must read identically on
  * SCR-18 ("no such user"), rather than 101 falling through to a generic error — same rewrite-at-
  * the-fetcher approach as entries.ts's fetchEntry, so useResource's generic error state shows the
  * right text with no per-screen mapApiError step of its own. */

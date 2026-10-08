@@ -1,7 +1,7 @@
 -- SPDX-License-Identifier: GPL-3.0-or-later
 -- Copyright (C) 2026 Ian Stevenson
 
--- b-push D1 schema (notification-service.md "Data model (D1)"). One table, one row per
+-- b-push D1 schema (ARCHITECTURE.md "Data model (D1)"). One table, one row per
 -- (account, device) registration. This file is always the *current* full schema, for a fresh
 -- database; the live database is brought up to it by the numbered files in ../migrations/
 -- (this file counts as 0001). Both are applied by hand in the D1 dashboard console, never

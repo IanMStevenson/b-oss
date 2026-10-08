@@ -16,9 +16,9 @@ export interface UnreadTotals {
   notifications: number;
 }
 
-/** The one side-effect-free read on either stream (endpoints.md) — safe to call any time,
- * including to snapshot "how many were unread" *before* triggering a fetch that would mark them
- * read (app-architecture.md §11's first-page-unread-snapshot trap, and FLW-15 step 2's "unread
+/** The one side-effect-free read on either stream (b-api docs/api-reference.md) — safe to call any
+ * time, including to snapshot "how many were unread" *before* triggering a fetch that would mark
+ * them read (app-architecture.md §11's first-page-unread-snapshot trap, and FLW-15 step 2's "unread
  * total is a server figure"). */
 export async function fetchUnreadTotals(): Promise<UnreadTotals> {
   const client = await getClient();
@@ -26,9 +26,9 @@ export async function fetchUnreadTotals(): Promise<UnreadTotals> {
   return { comments: result.comments ?? 0, notifications: result.notifications ?? 0 };
 }
 
-/** SCR-23 — fetching this *is* what marks the returned items read (endpoints.md); there is no
- * separate call. `sinceId` drives pull-to-refresh (FLW-15 step 1's "use a real cursor so only new
- * items are fetched"). */
+/** SCR-23 — fetching this *is* what marks the returned items read (b-api docs/api-reference.md);
+ * there is no separate call. `sinceId` drives pull-to-refresh (FLW-15 step 1's "use a real cursor
+ * so only new items are fetched"). */
 export async function fetchRecentNotifications(sinceId?: string): Promise<BlipNotification[]> {
   const client = await getClient();
   const result = await client.getRecentNotifications({ sinceId });
@@ -36,7 +36,7 @@ export async function fetchRecentNotifications(sinceId?: string): Promise<BlipNo
 }
 
 /** SCR-24 — fetching this marks *every* unread comment read, not only what's returned
- * (endpoints.md's "Comments — fetching clears every unread comment for the account"). */
+ * (b-api docs/api-reference.md, GET messages/comments/recent). */
 export async function fetchRecentComments(sinceId?: string): Promise<BlipComment[]> {
   const client = await getClient();
   const result = await client.getRecentComments({ sinceId });

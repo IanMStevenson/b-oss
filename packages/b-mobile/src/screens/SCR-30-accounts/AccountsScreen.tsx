@@ -4,8 +4,9 @@
 // SCR-30 — Accounts. List + switch + add, with a per-row three-dot menu (left of the avatar) for
 // the rarely-used actions: switch read-only/read-write, Disconnect account (remove from the app),
 // Delete account (opens blipfoto.com; no delete API) (FLW-21, FLW-20, FLW-22, b-oss#306). The old
-// separate account detail view is gone — its mode line and notification status are on the row. The lighter-weight account-switcher popover (rules.md, Multi-account
-// clarity) that mirrors "switch" from anywhere in the nav chrome is built separately
+// separate account detail view is gone — its mode line and notification status are on the row.
+// The lighter-weight account-switcher popover (BEHAVIOUR.md, Navigation shell) that mirrors
+// "switch" from anywhere in the nav chrome is built separately
 // (app/AccountSwitcherOverlay.tsx, Phase 12.2) — this is the full management screen; `modeLabel`
 // is exported so that popover doesn't duplicate the mode-label logic.
 //

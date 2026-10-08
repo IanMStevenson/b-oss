@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (C) 2026 Ian Stevenson
 
-// The write-gate, implemented once (§5): a read-only account must never reach a write screen —
-// "a dedicated write screen ... never opens in the first place; the prompt is shown instead of
-// navigating to it" (rules.md). This is what makes the deep-link and share-intent bypass paths
-// impossible to forget, since all three arrive through the router.
+// The write-gate, implemented once (§5): a read-only account must never reach a write screen — a
+// dedicated write screen never opens in the first place; the prompt is shown instead of navigating
+// to it (BEHAVIOUR.md, Read-only mode and write gating). This is what makes the deep-link and
+// share-intent bypass paths impossible to forget, since all three arrive through the router.
 //
-// Two distinct cases, per FLW-01/rules.md's "read first, gate late": **anonymous** always goes
+// Two distinct cases, per FLW-01's "read first, gate late": **anonymous** always goes
 // straight to a read-write sign-in round (never the upgrade prompt, which offers to repair an
 // account that doesn't exist) and resumes here on success; **signed in but read-only** gets the
 // upgrade prompt instead. Getting these branches right matters beyond SCR-06's affordances being
@@ -17,7 +17,7 @@
 // `showUpgradePrompt()` (§5, app/OverlayProvider.tsx) — this one's decline action must return the
 // user to where they came from (`navigate(-1)`), which the shared overlay has no per-caller
 // hook for yet (its own `dismiss()` only ever clears the overlay, with no side effect). Same copy
-// (TextStrings.csv's UPGRADE.* keys) either way, so the two don't drift even though they aren't
+// (strings/deck.ts's UPGRADE.* keys) either way, so the two don't drift even though they aren't
 // (yet) the same component instance. TODO: give OverlayState an optional on-decline callback and
 // retire this local copy in favour of the shared one.
 

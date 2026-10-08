@@ -16,7 +16,7 @@ export function formatLocalDate(date: Date): string {
   return `${y}-${m}-${d}`;
 }
 
-/** Blipfoto's gmt_offset field (undocumented in AppSpec beyond its presence in PublishEntryParams)
+/** Blipfoto's gmt_offset field (undocumented beyond its presence in PublishEntryParams)
  * — minutes east of UTC, the standard convention (JS's own getTimezoneOffset() is minutes *west*,
  * hence the negation). Best-effort: the field is optional, and an implementer who later finds the
  * API's own documented convention should fix this in one place. */

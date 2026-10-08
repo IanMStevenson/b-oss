@@ -2,8 +2,7 @@
 // Copyright (C) 2026 Ian Stevenson
 
 // The route table (§5). Routes are lowercase and hyphenated; params are always the string form
-// of an id (rules.md, Identifiers). Every route currently points at ScreenPlaceholder — each is
-// replaced by its own screens/SCR-NN-*/ component in the phase that builds it. Overlays (account
+// of an id. Each route renders its own screens/SCR-NN-*/ component. Overlays (account
 // switcher, upgrade prompt, first-run explainer, confirmation dialogs) are deliberately not
 // routes — see OverlayProvider.
 

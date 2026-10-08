@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (C) 2026 Ian Stevenson
 
-// SCR-25's General section: country/locale picker options. rules.md calls these out as the one
-// deliberate exception to "no data is cached for display" — "static reference data for form
-// pickers, not user content" — so, unlike every other data/*.ts fetcher in this app, these two
+// SCR-25's General section: country/locale picker options. These are the one deliberate
+// exception to "no data is cached for display" (BEHAVIOUR.md): static reference data for form
+// pickers, not user content — so, unlike every other data/*.ts fetcher in this app, these two
 // are cached in memory for the life of the app rather than refetched on every visit. Verified
 // against b-api's actual client.ts (not assumed from the method name): both `getCountries()`/
 // `getLocales()` already exist, hit `config/countries`/`config/locales`, and need no auth — an

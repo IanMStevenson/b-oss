@@ -3,7 +3,8 @@
 
 // SCR-03 — Search (FLW-04). Two in-screen tabs; only the active one is mounted, and choosing a tab
 // starts it fresh at page 1 (device feedback 2026-10-05, same rule as Browse and Profile — this
-// supersedes rules.md's earlier "switching back to a tab loaded earlier doesn't re-query"). Entries reuses EntryGrid/
+// replaced an earlier rule that switching back to a loaded tab didn't re-query). Entries reuses
+// EntryGrid/
 // usePagedResource exactly like every other feed; People is new territory but `users/search`
 // returns the same BlipUser shape the paged-people-list screens already use, so it reuses UserRow
 // directly (checked in data/users.ts's fetchSearchUsersPage doc comment).

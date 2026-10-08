@@ -6,8 +6,8 @@
 // since SCR-11/SCR-12 write their results directly into it and it must outlive SCR-10 itself
 // being (conceptually) mid-navigation. Not persisted to prefs: a Capacitor WebView's JS context
 // survives rotation/resize without a reload, so in-memory is enough, and a draft has no business
-// surviving an app restart (rules.md's discard-guard framing is about leaving the screen, not
-// about resuming after the process dies).
+// surviving an app restart (the discard guard is about leaving the screen, not about resuming
+// after the process dies).
 //
 // Reused for SCR-13 (edit) as well as SCR-10 (publish) — same shape, `mode` distinguishes them.
 // SCR-13's "Edit details" mode never touches `photo`; "Replace photo" mode sets it.

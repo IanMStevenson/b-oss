@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (C) 2026 Ian Stevenson
 
-// The client factory (§7). Exposes getClient() rather than a singleton, because the correct
-// bearer changes with the active account and, for the notification service's read token, with
-// the purpose. Reads the right token from secure storage (§8), falling back to the app's
-// registered client id when there is no active account or its token is missing (needs-reauth) —
-// auth.md's anonymous rule, and never a credential-less request. Injects platform/http.ts and
-// platform/upload.ts so nothing above this module knows about Capacitor.
+// The client factory (§7). Exposes getClient() rather than a singleton, because the correct bearer
+// changes with the active account and, for the notification service's read token, with the purpose.
+// Reads the right token from secure storage (§8), falling back to the app's registered client id
+// when there is no active account or its token is missing (needs-reauth) — the API's anonymous (app
+// auth) rule, and never a credential-less request. Injects platform/http.ts and platform/upload.ts
+// so nothing above this module knows about Capacitor.
 
 import { BlipfotoClient, BlipfotoError } from '@b-oss/b-api';
 import { isNativePlatform } from '../platform/appState.js';
@@ -121,8 +121,9 @@ export async function withRateLimitFallback<T>(
 }
 
 /** A client bearing an explicit token — for verifying a just-obtained OAuth token (before it's
- * stored against any account) and for revoking a specific token, which auth.md requires be
- * authenticated with itself, not whichever token is currently active. */
+ * stored against any account) and for revoking a specific token, which the API requires be
+ * authenticated with itself, not whichever token is currently active (b-api
+ * docs/api-reference.md, DELETE oauth/token). */
 export function getClientForToken(accessToken: string): BlipfotoClient {
   return new BlipfotoClient(accessToken, resolveBaseUrl(), platformFetch, getMultipartImpl());
 }

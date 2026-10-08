@@ -1,26 +1,26 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (C) 2026 Ian Stevenson
 
-// A grid of entry thumbnails, backed by b-view's ThumbnailGrid (rules.md, Lists, feeds & paging —
-// real pagination, no fixed page cap: every server page fetched via usePagedResource accumulates
-// into one array, then ThumbnailGrid windows it client-side into pages sized to fit the screen,
-// the same way b-view-backup's local journal browser does). ThumbnailGrid's onNearEnd fires
-// exactly when the user reaches the last currently-loaded display page — that's the one moment
-// this calls the host's onLoadMore, staying one server page ahead of wherever the user actually
-// is. (An earlier version of this called onLoadMore on every entries.length change instead,
-// which chains: each successful fetch immediately triggered another until hasMore went false —
-// on a large journal that's hundreds of sequential API calls fired back-to-back just from
-// opening the screen, found live exhausting a real rate-limit allowance during testing,
-// regardless of how few tiles were actually on screen. b-oss#138.)
-// usePagedResource's own loadMore() already no-ops while a fetch is in flight or hasMore is
-// false, so calling it from onNearEnd even when there's genuinely nothing more costs nothing.
+// A grid of entry thumbnails, backed by b-view's ThumbnailGrid (real pagination, no fixed page cap:
+// every server page fetched via usePagedResource accumulates into one array, then ThumbnailGrid
+// windows it client-side into pages sized to fit the screen, the same way b-view-backup's local
+// journal browser does). ThumbnailGrid's onNearEnd fires exactly when the user reaches the last
+// currently-loaded display page — that's the one moment this calls the host's onLoadMore, staying
+// one server page ahead of wherever the user actually is. (An earlier version of this called
+// onLoadMore on every entries.length change instead, which chains: each successful fetch
+// immediately triggered another until hasMore went false — on a large journal that's hundreds of
+// sequential API calls fired back-to-back just from opening the screen, found live exhausting a
+// real rate-limit allowance during testing, regardless of how few tiles were actually on screen.
+// b-oss#138.) usePagedResource's own loadMore() already no-ops while a fetch is in flight or
+// hasMore is false, so calling it from onNearEnd even when there's genuinely nothing more costs
+// nothing.
 //
 // A hidden member's entries render as b-view's own "couldn't load" placeholder tile — no
-// thumbnail, no title (rules.md, Hiding: what suppression means) — via a resolveAsset that
+// thumbnail, no title (BEHAVIOUR.md, Hidden members) — via a resolveAsset that
 // deliberately rejects for the sentinel thumbnail_path substituted in below, rather than ever
 // calling platform/imageCache.ts for it. The tile stays tappable: the entry still opens on SCR-06,
-// which shows its own "you've hidden this member" state with Unhide, per rules.md's "opening a
-// hidden member's entry deliberately" rule.
+// which shows its own "you've hidden this member" state with Unhide, since opening a hidden
+// member's entry deliberately is allowed.
 
 import { useCallback, useMemo, useState } from 'react';
 import { IonRefresher, IonRefresherContent } from '@ionic/react';

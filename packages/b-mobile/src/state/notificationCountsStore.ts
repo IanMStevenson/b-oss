@@ -3,7 +3,7 @@
 
 // The unread-count badges SCR-23/SCR-24's nav entry points show (FLW-15: "An unread count, shown
 // as a badge on the inbox entry point"). In-memory only, scoped to whichever account is active —
-// not persisted (rules.md's "no caching for display": a badge is a live server figure, not
+// not persisted ("no caching for display": a badge is a live server figure, not
 // content worth remembering across launches). Refreshed on app launch, on account switch, and
 // whenever a push arrives (FLW-16 point 4); cleared optimistically the moment an inbox opens
 // (FLW-15 step 2 — "clear the badge locally at the same time" as the fetch that does the real

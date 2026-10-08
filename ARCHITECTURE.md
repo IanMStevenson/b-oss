@@ -67,14 +67,16 @@ CapacitorHttp, camera, filesystem and image cache, upload, local notifications, 
 registration, geolocation, deep links). Only that directory may import `@capacitor/*` (ESLint
 enforces this); screens and data hooks use the wrappers, which makes the rest of the app testable
 under jsdom with the wrappers mocked. Shared components such as `b-view` take host behaviour as
-props/callbacks instead of importing Capacitor. See
-`packages/b-mobile/docs/ImplementationSpec/app-architecture.md`.
+props/callbacks instead of importing Capacitor. Design:
+`packages/b-mobile/docs/ImplementationSpec/app-architecture.md`; current behaviour:
+`packages/b-mobile/docs/BEHAVIOUR.md`.
 
 ### 4. b-push (notification service)
 
 `b-push` polls Blipfoto for registered `b-mobile` accounts' unread counts and sends FCM pushes
 when a count rises. It talks to `b-mobile` only over HTTP (a registration contract); there is no
-code dependency in either direction. Deployed manually; see `packages/b-push/README.md`.
+code dependency in either direction. Design: `packages/b-push/ARCHITECTURE.md`. Deployed
+manually; see `packages/b-push/README.md`.
 
 ## IPC security rules
 

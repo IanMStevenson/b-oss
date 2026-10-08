@@ -5,10 +5,11 @@
 // reasoning as SCR-23 (reachable from a tapped push while signed out, FLW-16 step 3).
 //
 // Fetching *is* what marks every one of the account's unread comments read — not just the page
-// returned (endpoints.md). `newIdsRef` captures which ids were unread from the **first** response
-// only (`data/notifications.ts#unreadCommentIds`, app-architecture.md §11's "first-page-unread-
-// snapshot" trap) — a `useRef` seeded once, deliberately not derived reactively from `items` on
-// every render, since any later response (pull-to-refresh) will show every row as already read.
+// returned (b-api docs/api-reference.md). `newIdsRef` captures which ids were unread from the
+// **first** response only (`data/notifications.ts#unreadCommentIds`, app-architecture.md §11's
+// "first-page-unread- snapshot" trap) — a `useRef` seeded once, deliberately not derived reactively
+// from `items` on every render, since any later response (pull-to-refresh) will show every row as
+// already read.
 //
 // Hidden-member suppression here is exact, unlike SCR-23's best-effort heuristic — a comment
 // states who wrote it structurally (`commenter.username`), no text-parsing needed.

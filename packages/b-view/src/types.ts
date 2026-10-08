@@ -72,7 +72,7 @@ export interface EntryIndex {
   json_path: string;
   /** Optional: backup-engine's own equivalent shape (single-journal, so redundant per entry)
    * never carries this. Populated by b-mobile's live adapter, where it drives the
-   * hidden-member-suppression grid check (rules.md) — a concept with no backup-viewer
+   * hidden-member-suppression grid check — a concept with no backup-viewer
    * counterpart, so ThumbnailGrid itself never reads it. */
   username?: string;
   /** Optional: the entry's journal title, used by ThumbnailGrid's `'journal'` caption mode. Absent

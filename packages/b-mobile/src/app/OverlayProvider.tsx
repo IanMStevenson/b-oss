@@ -3,7 +3,7 @@
 
 // Owns every overlay (upgrade prompt, first-run explainer, account switcher) as overlays opened
 // imperatively, kept out of the router (§5) — dismissing a dialog is not a navigation, and
-// rules.md is explicit the account switcher "is not a new screen ID". `<OverlayHost />` is the
+// the account switcher is not a new screen ID. `<OverlayHost />` is the
 // one render site (mounted once from `AppShell.tsx`, inside the router since the upgrade prompt
 // and the account switcher both navigate) — callers only ever import `useOverlay()`, never render
 // their own copy of these overlays.
@@ -31,11 +31,11 @@ export type OverlayState =
 
 interface OverlayContextValue {
   overlay: OverlayState;
-  /** rules.md: reached whenever a read-only account hits a write affordance it can't use. */
+  /** Reached whenever a read-only account hits a write affordance it can't use. */
   showUpgradePrompt: () => void;
   /** SCR-01's one-time explainer, shown above the mode choice on first deliberate visit. */
   showFirstRunExplainer: () => void;
-  /** rules.md, "Multi-account clarity" — tapping the persistent account indicator. */
+  /** Tapping the persistent account indicator (BEHAVIOUR.md, Navigation shell). */
   showAccountSwitcher: () => void;
   dismiss: () => void;
 }
@@ -60,8 +60,8 @@ export function useOverlay(): OverlayContextValue {
   return ctx;
 }
 
-// TextStrings.csv's SCR-01.explainer.first_run.* rows ("Short panel/sheet; single 'Got it'
-// dismissal"). A plain fixed-position overlay `<div>`, not IonModal — IonModal's `present()`
+// strings/deck.ts's SCR-01.explainer.first_run.* keys (a short panel with a single "Got it"
+// dismissal). A plain fixed-position overlay `<div>`, not IonModal — IonModal's `present()`
 // throws "framework delegate is missing" in this jsdom test setup (no established precedent for
 // IonModal anywhere else in this codebase to follow instead), the same class of Ionic-component-
 // vs-jsdom friction documented in app-architecture.md for IonLabel. A styled div is simpler, has no

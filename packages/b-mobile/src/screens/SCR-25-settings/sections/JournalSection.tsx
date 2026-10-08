@@ -5,7 +5,7 @@
 // comments. Privacy is "significant" per the spec — enabling it surfaces SCR-20 (pending-request
 // approval) and SCR-21 (Refused followers) elsewhere on the hub; this section itself just saves
 // the flag and returns, and the hub re-fetches its own privacy-derived row visibility on every
-// visit anyway (rules.md: no caching for display), so no extra plumbing is needed here to make
+// visit anyway (no caching for display), so no extra plumbing is needed here to make
 // that "refresh" happen.
 
 import { useEffect, useState } from 'react';

@@ -13,8 +13,8 @@
 // longer the newest — CapacitorHttp can't abort in flight, so a superseded request still
 // completes on the wire but its result is simply never rendered.
 //
-// Entries by a hidden member get no marker at all (rules.md: "a placeholder pin would be
-// noise") — filtered out before markers are ever created, never rendered and then hidden.
+// Entries by a hidden member get no marker at all (a placeholder pin would be noise; BEHAVIOUR.md,
+// Hidden members) — filtered out before markers are ever created, never rendered and then hidden.
 //
 // Entry markers use b-oss's own green (tokens.green800), not blipfoto.com's red — deliberate,
 // for consistency with the rest of this app's own branding rather than mirroring the website's

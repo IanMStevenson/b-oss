@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (C) 2026 Ian Stevenson
 
-// The hidden-members list (FLW-10, rules.md "Hiding: what suppression means"). Entirely
+// The hidden-members list (FLW-10, BEHAVIOUR.md "Hidden members"). Entirely
 // device-local — nothing here is ever sent to Blipfoto or the notification service — and per
 // account, since it describes this account's relationship to each member: switching the active
 // account switches which list is in force. Keyed by username (the platform's only stable

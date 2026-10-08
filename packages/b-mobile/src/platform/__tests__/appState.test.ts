@@ -3,7 +3,7 @@
 
 // Phase 12.4's resume hook — direct test, same reasoning as platform/deepLinks.test.ts.
 // onAppStateChange is the thing AppShell.tsx wires to re-run pushFlow.ts's launch backstop check
-// on resume (rules.md's "re-check the permission when the app resumes").
+// on resume (BEHAVIOUR.md, Notifications: the permission is re-checked on every resume).
 
 import { afterEach, describe, expect, it, vi } from 'vitest';
 

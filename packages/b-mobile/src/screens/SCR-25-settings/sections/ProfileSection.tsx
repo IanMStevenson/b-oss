@@ -65,8 +65,8 @@ export function ProfileSection() {
   const [avatarError, setAvatarError] = useState<string | null>(null);
   const [confirmDeleteAvatar, setConfirmDeleteAvatar] = useState(false);
 
-  // Shared by the initial load and by both avatar actions (rules.md: a successful settings write
-  // must "refresh any locally cached account state ... other screens depend on" — here that's both
+  // Shared by the initial load and by both avatar actions (a successful settings write must
+  // refresh any locally cached account state other screens depend on — here that's both
   // this section's own displayed avatarUrl and accountsStore's copy, which the PUT response itself
   // doesn't return, so re-fetching is the only source of the fresh URL).
   async function refreshFromServer(): Promise<void> {

@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (C) 2026 Ian Stevenson
 
-// data/config.ts is the one deliberate exception to "no caching for display" (rules.md) — worth a
-// direct test of the cache-once behaviour itself, since every other data/*.ts fetcher in this app
+// data/config.ts is the one deliberate exception to "no caching for display" (BEHAVIOUR.md) — worth
+// a direct test of the cache-once behaviour itself, since every other data/*.ts fetcher in this app
 // is a thin uncached pass-through with no such logic to get wrong.
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (C) 2026 Ian Stevenson
 
-// Cloud-notification-service registration lifecycle (notification-service.md's "Registration
+// Cloud-notification-service registration lifecycle (b-push ARCHITECTURE.md's "Registration
 // contract", FLW-16/20/22/02). Owns the calls flows/accountsFlow.ts's Phase 2 `TODO(Phase 9)`
 // markers were left waiting for — kept in its own module rather than folded into accountsFlow.ts
 // because it has a genuinely different job (talking to b-push, not to Blipfoto/secure storage for
@@ -27,12 +27,11 @@ import { AccountMismatchError } from './accountMismatch.js';
 import type { PushPayload } from '../platform/push.js';
 import { authReady } from '../state/authReady.js';
 
-/** Checked/requested *before* any read-token authorization round for notifications (rules.md:
- * "never make the user authorize something already known to be undeliverable" — app-
- * architecture.md §11 restates this as "Check it before starting the read-token authorization
- * round"). Returns whether permission is held after this call; a refusal is not remembered as a
- * distinct "blocked" state — the caller just doesn't proceed to registration, same as turning the
- * feature off (rules.md's no-remembered-blocked-state rule). */
+/** Checked/requested *before* any read-token authorization round for notifications: never make
+ * the user authorize something already known to be undeliverable (app-architecture.md §11).
+ * Returns whether permission is held after this call; a refusal is not remembered as a distinct
+ * "blocked" state — the caller just doesn't proceed to registration, same as turning the feature
+ * off. */
 export async function ensurePushPermission(): Promise<boolean> {
   // A build without Firebase credentials can never deliver, so don't even prompt for permission
   // (same "never authorize something already known to be undeliverable" rule as above).
@@ -104,8 +103,8 @@ export async function registerAccountForPush(
 }
 
 /** FLW-22/FLW-02 — the one deregistration call, used identically whether the user turned the
- * last push stream off, removed the account, or the OS reports permission denied (notification-
- * service.md's `DELETE`: "the app treats them as the same event, not three different ones").
+ * last push stream off, removed the account, or the OS reports permission denied (b-push
+ * ARCHITECTURE.md's `DELETE`: the app treats them as the same event, not three different ones).
  * Best-effort against the service (the row is stale either way once the local secret is gone);
  * always clears local state regardless of whether the network call succeeds. */
 export async function deregisterAccountFromPush(accountId: string): Promise<void> {
@@ -184,10 +183,10 @@ export async function handleDeviceTokenRotated(newToken: string): Promise<void> 
 }
 
 /** FLW-16 step 8 — every app launch *and* every resume (AppShell.tsx wires both via
- * platform/appState.ts's `onAppStateChange`, per rules.md's "re-check the permission when the app
- * resumes and act on what it now says") — for each account with notifications nominally on: the OS
- * permission and the service's own registration health, "handled exactly as if the corresponding
- * push/decision had already happened." A permission refusal is treated as the user having turned
+ * platform/appState.ts's `onAppStateChange`; BEHAVIOUR.md, Notifications) — for each account with
+ * notifications nominally on, re-check the OS permission and the service's own registration
+ * health and act on what they now say, exactly as if the corresponding push/decision had already
+ * happened. A permission refusal is treated as the user having turned
  * notifications off (full `DELETE`); a `read-token-invalid` registration status is fed into the
  * same `handleForcedLogout('service')` path FLW-02's background-token handling already uses for
  * the reauth-required push. */

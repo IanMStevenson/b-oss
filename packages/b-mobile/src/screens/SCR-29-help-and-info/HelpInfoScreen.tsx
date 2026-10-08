@@ -15,7 +15,7 @@
 //
 // External link URLs confirmed by the user 2026-08-04 (were previously the bare root domain,
 // since the spec never states them).
-// "Terms & legal"'s wireframe row (docs/AppSpec/screens/SCR-29-help-and-info.md) is one row with
+// "Terms & legal"'s original wireframe row is one row with
 // one destination — the acceptable-use policy the user also supplied isn't a second link on this
 // row, it's added to the in-app Safety & privacy section below instead, alongside "Be Excellent
 // to Each Other" (also user-supplied, not in the original spec): both are about community conduct,

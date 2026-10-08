@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (C) 2026 Ian Stevenson
 
-// The 1-minute activity-poll cron tick (notification-service.md "Polling design"): for every due
+// The 1-minute activity-poll cron tick (ARCHITECTURE.md "Polling design"): for every due
 // registration, one `messages/totals/unread` call, compare against the last-seen totals, push on
 // a rise (for each stream the user has left switched on, b-oss#244), store the new totals either
 // way. Also the reauth-required path ("System alert:

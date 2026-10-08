@@ -8,12 +8,11 @@
 //
 // Phase 9: every place below that registers/deregisters with the notification service now calls
 // flows/pushFlow.ts for real (b-push exists as of this phase). The token lifecycle (which tokens
-// are held, in secure storage, reflected in accountsStore) was already fully implemented in
-// Phase 2 regardless — registration is a separate concern layered on top, per notification-
-// service.md, and a failed/refused registration (permission denied, OS registration failure, a
-// service-call failure) simply leaves `hasServiceToken` false rather than being surfaced as a
-// hard error — the same "no separate blocked state" posture rules.md already establishes for push
-// permission generally.
+// are held, in secure storage, reflected in accountsStore) was already fully implemented in Phase 2
+// regardless — registration is a separate concern layered on top (b-push ARCHITECTURE.md), and a
+// failed/refused registration (permission denied, OS registration failure, a service-call failure)
+// simply leaves `hasServiceToken` false rather than being surfaced as a hard error — the same "no
+// separate blocked state" posture the app takes for push permission generally.
 
 import { getToken, setToken, deleteToken } from '../platform/secureStorage.js';
 import { BlipfotoError } from '@b-oss/b-api';
@@ -174,11 +173,12 @@ export interface SignInModeChoice {
 }
 
 /** FLW-20 — deliberate sign-in with the full mode choice. Read-write + notifications runs two
- * sequential, separately-visible OAuth rounds (auth.md); a failed/cancelled second round keeps
- * the first token — the account signs in read-write, just without notifications.
+ * sequential, separately-visible OAuth rounds (BEHAVIOUR.md, Sign-in and accounts); a
+ * failed/cancelled second round keeps the first token — the account signs in read-write, just
+ * without notifications.
  *
- * Push permission is checked *before* either round runs for notifications (rules.md: never
- * authorize something already known to be undeliverable) — a refusal skips the whole
+ * Push permission is checked *before* either round runs for notifications (never authorize
+ * something already known to be undeliverable) — a refusal skips the whole
  * notifications branch, including the second interactive OAuth round for read-write, rather than
  * asking the user through a sign-in step for a feature that can't be delivered. */
 export interface SignInHooks {
@@ -283,15 +283,15 @@ async function cancelQueuedUploadsForAccount(accountId: string): Promise<void> {
   await Promise.all(cancelled.filter((i) => i.filePath).map((i) => deleteQueuedFile(i.filePath!)));
 }
 
-/** FLW-22 — change mode. Applies auth.md's token-lifecycle table via general rules rather than
- * the 16 individual cells: get a fresh app-token authorization only when the target scope
+/** FLW-22 — change mode. Applies the token-lifecycle rules generally rather than as 16
+ * individual mode-to-mode cases: get a fresh app-token authorization only when the target scope
  * differs from what's held; revoke the superseded app token first (a token the target mode no
  * longer needs is revoked immediately, never left dangling); then reconcile the service token
  * against the target notifications setting, reusing the app token directly in read-only mode
  * (where they're the same credential) rather than a second round.
  *
  * Known deviation: Read-only+notifications -> Read-write+notifications should reuse the
- * already-held read token as the service token (auth.md: "new auth (write); keep read token").
+ * already-held read token as the service token (new write authorization; keep the read token).
  * Because the app-token replacement above already revokes the account's prior token, this path
  * requests a fresh second read authorization instead — one extra sign-in step versus the spec's
  * ideal, but the account still ends up in the correct final state. Worth tightening later,

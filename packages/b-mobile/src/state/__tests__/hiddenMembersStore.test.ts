@@ -2,8 +2,8 @@
 // Copyright (C) 2026 Ian Stevenson
 // @vitest-environment jsdom
 
-// rules.md, "Hiding: what suppression means" — the list is per account and device-local. One
-// test per rule actually stated there, same density approach as accountsFlow.test.ts.
+// BEHAVIOUR.md, "Hidden members" — the list is per account and device-local. One test per rule
+// stated there, same density approach as accountsFlow.test.ts.
 
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { renderHook } from '@testing-library/react';

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (C) 2026 Ian Stevenson
 
-// The four-state fetch primitive every data-loading screen uses (§6, rules.md's
+// The four-state fetch primitive every data-loading screen uses (§6's
 // loading/loaded/empty/error requirement). `empty` is distinguished from `loaded` by the
 // fetcher's own result via `isEmpty`, not guessed at the call site. Supersedes rather than
 // aborts in-flight requests (§7) — CapacitorHttp can't abort natively, so each call holds a

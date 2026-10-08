@@ -66,7 +66,7 @@ export function entryResponseToViewEntry(response: EntryResponse): BlipEntry {
       : null,
     images: {
       thumbnail: entry.thumbnail_url,
-      // Standard resolution is this app's ceiling (rules.md) — hi-res/original are always null
+      // Standard resolution is this app's ceiling — hi-res/original are always null
       // for an independently-registered app, so there's nothing to populate them from.
       image: image_urls?.stdres ?? entry.image_url,
     },

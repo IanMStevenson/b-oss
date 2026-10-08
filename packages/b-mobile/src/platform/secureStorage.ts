@@ -3,8 +3,8 @@
 
 // Wraps @aparajita/capacitor-secure-storage (Android Keystore / iOS Keychain — falls back to
 // localStorage in a desktop browser, adequate for dev since there are no real secrets there).
-// Key scheme: `token:<accountId>:<purpose>` — one entry per (account, purpose), matching
-// auth.md's "each attached to the account and purpose it was obtained for" (§8). This is the
+// Key scheme: `token:<accountId>:<purpose>` — one entry per (account, purpose), so each
+// token stays attached to the account and purpose it was obtained for (§8). This is the
 // only module that may touch it — tokens must never reach a Zustand store, React state, prefs,
 // or a log line.
 
@@ -32,10 +32,11 @@ export async function deleteToken(accountId: string, purpose: TokenPurpose): Pro
   await SecureStorage.removeItem(tokenKey(accountId, purpose));
 }
 
-// The per-registration bearer secret notification-service.md's POST /v1/registrations returns
-// (distinct from either Blipfoto token above — it authenticates the app to *b-push*, never to
-// Blipfoto itself). Same secure-storage treatment: never a Zustand store, React state, prefs, or
-// log line. One secret per account, since an account has at most one live registration at a time.
+// The per-registration bearer secret b-push's POST /v1/registrations returns (b-push
+// ARCHITECTURE.md) (distinct from either Blipfoto token above — it authenticates the app to
+// *b-push*, never to Blipfoto itself). Same secure-storage treatment: never a Zustand store, React
+// state, prefs, or log line. One secret per account, since an account has at most one live
+// registration at a time.
 function registrationSecretKey(accountId: string): string {
   return `push-registration-secret:${accountId}`;
 }

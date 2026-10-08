@@ -1,19 +1,19 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (C) 2026 Ian Stevenson
 
-// rules.md, "Multi-account clarity" — "a popover/sheet listing every stored account (avatar,
-// username, mode, needs-reauth badge where relevant)... Tapping an inactive account switches to
-// it instantly, per FLW-21 — the same underlying mechanism SCR-30 uses, just reachable from
-// anywhere. A Manage accounts row at the bottom opens SCR-30... This popover is not a new screen
-// ID; it's a transient overlay over whatever screen is currently showing."
+// The account switcher (BEHAVIOUR.md, Navigation shell): a popover listing every stored account
+// (avatar, username, mode, needs-reauth badge where relevant). Tapping an inactive account
+// switches to it instantly, per FLW-21 — the same underlying mechanism SCR-30 uses, just
+// reachable from anywhere. A Manage accounts row at the bottom opens SCR-30. This popover is not
+// a new screen ID; it's a transient overlay over whatever screen is currently showing.
 //
 // A plain fixed-position panel + backdrop, not IonPopover — the same choice OverlayProvider's
 // first-run explainer made (IonModal threw "framework delegate is missing" in this jsdom setup;
 // IonPopover's own overlay-controller plumbing is the same family of component, untested here,
 // and not worth the risk given a plain div already works). "Anchored where it was tapped" is
 // satisfied loosely (top-right, near where the indicator itself sits in every toolbar it appears
-// in per rules.md), not via pixel-tracking the tap coordinates — the spec's point is "doesn't
-// navigate away", not literal cursor-following.
+// in), not via pixel-tracking the tap coordinates — the point is "doesn't navigate away", not
+// literal cursor-following.
 //
 // A needs-reauth account (its app token died) is shown in red, "Needs sign-in" (b-oss#263).
 // Picking it — or a NeedsReauthError from switchAccount(), FLW-21's existing case — closes the
