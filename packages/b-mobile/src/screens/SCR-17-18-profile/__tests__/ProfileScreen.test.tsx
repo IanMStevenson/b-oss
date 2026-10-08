@@ -17,6 +17,8 @@ vi.mock('../../../data/users.js', () => ({
   fetchAwards: vi.fn().mockResolvedValue([{}, {}, {}]),
   fetchJournalEntriesFor: vi.fn().mockResolvedValue({ items: [], more: false }),
   fetchFavoriteEntriesFor: vi.fn().mockResolvedValue({ items: [], more: false }),
+  fetchFollowers: vi.fn(),
+  fetchFollowing: vi.fn(),
   PAGE_SIZE: 30,
   JOURNAL_PAGE_SIZE: 100,
 }));
@@ -110,8 +112,9 @@ describe('ProfileScreen', () => {
     expect(screen.getByText('Profile')).toBeDefined();
     expect(screen.getByRole('navigation', { name: 'Journal statistics' })).toBeDefined();
     expect(screen.getByText('42')).toBeDefined();
-    expect(screen.getByRole('button', { name: 'Followers' })).toBeDefined();
-    expect(screen.getByRole('button', { name: 'Following' })).toBeDefined();
+    for (const name of ['About', 'Entries', 'Faves', 'Followers', 'Following']) {
+      expect(screen.getByText(name, { selector: 'ion-label' })).toBeDefined();
+    }
     await waitFor(() => expect(screen.getByRole('button', { name: /3\s*Awards/ })).toBeDefined());
     expect(screen.getByText('Follow')).toBeDefined();
   });
@@ -162,5 +165,43 @@ describe('ProfileScreen', () => {
     renderScreen();
     expect(await screen.findByText('My profile')).toBeDefined();
     expect(screen.queryByText('Follow')).toBeNull();
+  });
+
+  it('shows the Follow action in the stat row between Entries and Awards', async () => {
+    const { fetchUserProfile } = await import('../../../data/users.js');
+    vi.mocked(fetchUserProfile).mockResolvedValue(aliceProfile);
+    renderScreen('alice');
+    const stats = await screen.findByRole('navigation', { name: 'Journal statistics' });
+    expect(stats.contains(screen.getByText('Follow'))).toBe(true);
+    const text = stats.textContent ?? '';
+    expect(text.indexOf('Entries')).toBeLessThan(text.indexOf('Follow'));
+    expect(text.indexOf('Follow')).toBeLessThan(text.indexOf('Awards'));
+  });
+
+  it('shows a Pending requests button on your own protected profile', async () => {
+    const { fetchUserProfile } = await import('../../../data/users.js');
+    vi.mocked(fetchUserProfile).mockResolvedValue({
+      ...aliceProfile,
+      user: { ...aliceProfile.user, username: 'me' },
+      details: { ...aliceProfile.details!, privacy: 1 },
+    });
+    renderScreen();
+    expect(await screen.findByText('Pending requests')).toBeDefined();
+  });
+
+  it('lists followers inline when the Followers tab is chosen', async () => {
+    const { fetchUserProfile, fetchFollowers } = await import('../../../data/users.js');
+    vi.mocked(fetchUserProfile).mockResolvedValue(aliceProfile);
+    vi.mocked(fetchFollowers).mockResolvedValue({
+      items: [{ username: 'bob', avatar_url: '', icons: [] }],
+      more: false,
+    } as never);
+    renderScreen('alice');
+    await screen.findByText("Alice's journal");
+    document
+      .querySelector('ion-segment')!
+      .dispatchEvent(new CustomEvent('ionChange', { detail: { value: 'followers' } }));
+    expect(await screen.findByText('bob')).toBeDefined();
+    expect(fetchFollowers).toHaveBeenCalledWith('alice', 0);
   });
 });

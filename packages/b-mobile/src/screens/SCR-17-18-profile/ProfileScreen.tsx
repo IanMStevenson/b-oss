@@ -7,9 +7,10 @@
 // (header, About/Entries/Faves tabs, Followers/Following/Awards links). What differs is gated on
 // `isOwn` below: the Follow/Unfollow button and Hide never apply to your own profile.
 //
-// Followers/Following/Awards are not in-screen tab content (unlike About/Entries/Faves) — per the
-// spec they're navigation shortcuts straight to SCR-19/SCR-22, so they're plain nav buttons, not
-// IonSegment tabs.
+// Followers/Following are tabs after About/Entries/Faves (the same scrolling segment bar as
+// Browse) showing the SCR-19 people list inline; their own routes stay for deep links. Awards is a
+// navigation shortcut to SCR-22. The stat row is Entries (left), the Follow action or, on your own
+// profile, Pending requests (middle), and Awards (right).
 //
 // TODO(Phase 5+): "Remove follower" (SCR-18's overflow, for someone who currently follows you)
 // needs to know whether *they* follow *you* — getUserProfile's friendship object is viewer-
@@ -28,6 +29,7 @@ import {
   IonText,
   IonSegment,
   IonSegmentButton,
+  IonLabel,
   IonAlert,
   IonActionSheet,
 } from '@ionic/react';
@@ -54,6 +56,8 @@ import { useHiddenMembersStore, useIsHidden } from '../../state/hiddenMembersSto
 import { CachedImage } from '../../components/CachedImage.js';
 import { UserBadges } from '../../components/UserBadges.js';
 import { EntryGrid } from '../../components/EntryGrid.js';
+import { PeopleList } from '../../components/PeopleList.js';
+import { ScrollEdgeHint } from '../../components/ScrollEdgeHint.js';
 import { openUrl } from '../../platform/browser.js';
 import type { Page } from '../../data/usePagedResource.js';
 import { BBCodeText } from '@b-oss/b-view';
@@ -63,48 +67,25 @@ interface ProfileScreenProps {
   username?: string;
 }
 
-type Tab = 'about' | 'entries' | 'faves';
+type Tab = 'about' | 'entries' | 'faves' | 'followers' | 'following';
+
+const TABS: [Tab, string][] = [
+  ['about', 'About'],
+  ['entries', 'Entries'],
+  ['faves', 'Faves'],
+  ['followers', 'Followers'],
+  ['following', 'Following'],
+];
 
 const statCellStyle = {
-  flex: 1,
   display: 'flex',
   flexDirection: 'column',
   alignItems: 'center',
   padding: '6px 4px',
-  minHeight: 44,
-  justifyContent: 'center',
+  minWidth: 64,
 } as const;
 const statCountStyle = { fontSize: '1rem', color: 'var(--ink)' } as const;
 const statLabelStyle = { fontSize: '0.8125rem', color: 'var(--muted)' } as const;
-
-/** A tappable stat (Followers/Following/Awards/Requests): a link to the list, with a count when
- * one is known. The API returns no totals for followers/following, so those show the label only. */
-function StatLink({
-  label,
-  count,
-  onClick,
-}: {
-  label: string;
-  count?: number | null;
-  onClick: () => void;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      style={{
-        ...statCellStyle,
-        background: 'none',
-        border: 0,
-        font: 'inherit',
-        cursor: 'pointer',
-      }}
-    >
-      {count != null && <strong style={statCountStyle}>{count}</strong>}
-      <span style={{ ...statLabelStyle, color: 'var(--green-800)' }}>{label}</span>
-    </button>
-  );
-}
 
 function GridTab({
   fetchPage,
@@ -157,19 +138,21 @@ function GridTab({
     );
   }
   return (
-    <EntryGrid
-      entries={resource.items}
-      onSelectEntry={onSelectEntry}
-      hasMore={resource.hasMore}
-      onLoadMore={resource.loadMore}
-      onRefresh={resource.refresh}
-      entriesOffset={resource.windowStart}
-      onSeek={resource.seekTo}
-      onLoadBefore={resource.loadBefore}
-      resumeKey={resumeKey}
-      showCalendar={showCalendar}
-      overlayContent={showCalendar ? 'date-title' : 'journal'}
-    />
+    <div style={{ flex: 1, minHeight: 0, paddingBottom: 8 }}>
+      <EntryGrid
+        entries={resource.items}
+        onSelectEntry={onSelectEntry}
+        hasMore={resource.hasMore}
+        onLoadMore={resource.loadMore}
+        onRefresh={resource.refresh}
+        entriesOffset={resource.windowStart}
+        onSeek={resource.seekTo}
+        onLoadBefore={resource.loadBefore}
+        resumeKey={resumeKey}
+        showCalendar={showCalendar}
+        overlayContent={showCalendar ? 'date-title' : 'journal'}
+      />
+    </div>
   );
 }
 
@@ -210,6 +193,9 @@ export function ProfileScreen({ username }: ProfileScreenProps) {
   const [confirmHide, setConfirmHide] = useState(false);
   const [overflowOpen, setOverflowOpen] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
+  const fillsHeight =
+    (tab === 'entries' || tab === 'faves') && state.status === 'loaded' && state.data.visible;
 
   const friendship =
     state.status === 'loaded' ? (friendshipState ?? state.data.friendship?.state ?? 0) : 0;
@@ -318,7 +304,13 @@ export function ProfileScreen({ username }: ProfileScreenProps) {
         )}
 
         {state.status === 'loaded' && !isHidden && (
-          <>
+          // Grid tabs fill exactly the room left under the header block (the grid fits whole
+          // rows to its measured height); the other tabs flow and scroll with the content.
+          <div
+            style={
+              fillsHeight ? { height: '100%', display: 'flex', flexDirection: 'column' } : undefined
+            }
+          >
             <div
               style={{
                 display: 'flex',
@@ -360,62 +352,82 @@ export function ProfileScreen({ username }: ProfileScreenProps) {
                   </p>
                 )}
               </div>
-              {!isOwn && friendship === 1 && (
-                <IonButton fill="outline" size="small" onClick={() => setConfirmUnfollow(true)}>
-                  Following
-                </IonButton>
-              )}
-              {!isOwn && friendship === 2 && (
-                <IonButton fill="outline" size="small" disabled>
-                  Request sent
-                </IonButton>
-              )}
-              {!isOwn && (friendship === 0 || friendship === 3) && (
-                <IonButton size="small" onClick={() => void handleFollow()}>
-                  Follow
-                </IonButton>
-              )}
             </div>
 
-            <nav aria-label="Journal statistics" style={{ display: 'flex', padding: '0 8px' }}>
-              {state.data.details && (
+            <nav
+              aria-label="Journal statistics"
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                padding: '0 16px',
+                minHeight: 48,
+              }}
+            >
+              {state.data.details ? (
                 <div style={statCellStyle}>
                   <strong style={statCountStyle}>{state.data.details.entry_total}</strong>
                   <span style={statLabelStyle}>Entries</span>
                 </div>
+              ) : (
+                <span />
               )}
-              <StatLink
-                label="Followers"
-                onClick={() =>
-                  navigate.push(`/user/${encodeURIComponent(effectiveUsername!)}/followers`)
-                }
-              />
-              <StatLink
-                label="Following"
-                onClick={() =>
-                  navigate.push(`/user/${encodeURIComponent(effectiveUsername!)}/following`)
-                }
-              />
-              <StatLink
-                label="Awards"
-                count={awardCount}
+              <div style={{ display: 'flex', gap: 8 }}>
+                {!isOwn && friendship === 1 && (
+                  <IonButton fill="outline" size="small" onClick={() => setConfirmUnfollow(true)}>
+                    Following
+                  </IonButton>
+                )}
+                {!isOwn && friendship === 2 && (
+                  <IonButton fill="outline" size="small" disabled>
+                    Request sent
+                  </IonButton>
+                )}
+                {!isOwn && (friendship === 0 || friendship === 3) && (
+                  <IonButton size="small" onClick={() => void handleFollow()}>
+                    Follow
+                  </IonButton>
+                )}
+                {isOwn && state.data.details?.privacy === 1 && (
+                  <IonButton size="small" onClick={() => navigate.push('/me/requests')}>
+                    Pending requests
+                  </IonButton>
+                )}
+              </div>
+              <button
+                type="button"
                 onClick={() =>
                   navigate.push(
                     isOwn ? '/me/awards' : `/user/${encodeURIComponent(effectiveUsername!)}/awards`,
                   )
                 }
-              />
-              {isOwn && state.data.details?.privacy === 1 && (
-                <StatLink label="Requests" onClick={() => navigate.push('/me/requests')} />
-              )}
+                style={{
+                  ...statCellStyle,
+                  background: 'none',
+                  border: 0,
+                  font: 'inherit',
+                  cursor: 'pointer',
+                }}
+              >
+                {awardCount != null && <strong style={statCountStyle}>{awardCount}</strong>}
+                <span style={{ ...statLabelStyle, color: 'var(--green-800)' }}>Awards</span>
+              </button>
             </nav>
 
             <IonToolbar>
-              <IonSegment value={tab} onIonChange={(e) => handleTabChange(e.detail.value as Tab)}>
-                <IonSegmentButton value="about">About</IonSegmentButton>
-                <IonSegmentButton value="entries">Entries</IonSegmentButton>
-                <IonSegmentButton value="faves">Faves</IonSegmentButton>
-              </IonSegment>
+              <ScrollEdgeHint>
+                <IonSegment
+                  value={tab}
+                  scrollable
+                  onIonChange={(e) => handleTabChange(e.detail.value as Tab)}
+                >
+                  {TABS.map(([value, label]) => (
+                    <IonSegmentButton key={value} value={value}>
+                      <IonLabel>{label}</IonLabel>
+                    </IonSegmentButton>
+                  ))}
+                </IonSegment>
+              </ScrollEdgeHint>
             </IonToolbar>
 
             {!state.data.visible ? (
@@ -443,6 +455,12 @@ export function ProfileScreen({ username }: ProfileScreenProps) {
                     )}
                   </section>
                 )}
+                {tab === 'followers' && (
+                  <PeopleList username={effectiveUsername!} mode="followers" />
+                )}
+                {tab === 'following' && (
+                  <PeopleList username={effectiveUsername!} mode="following" />
+                )}
                 {tab === 'entries' && (
                   <GridTab
                     fetchPage={(pageIndex) => fetchJournalEntriesFor(effectiveUsername, pageIndex)}
@@ -464,7 +482,7 @@ export function ProfileScreen({ username }: ProfileScreenProps) {
                 )}
               </>
             )}
-          </>
+          </div>
         )}
       </IonContent>
 

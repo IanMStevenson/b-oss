@@ -7,32 +7,11 @@
 // `/user/:username/following`) are distinct paths per §5, so AppRoutes.tsx passes it as a prop.
 
 import { useState } from 'react';
-import {
-  IonPage,
-  IonHeader,
-  IonContent,
-  IonSpinner,
-  IonText,
-  IonButton,
-  IonAlert,
-  IonRefresher,
-  IonRefresherContent,
-  IonInfiniteScroll,
-  IonInfiniteScrollContent,
-} from '@ionic/react';
-import type { RefresherEventDetail } from '@ionic/core';
-import { X } from 'lucide-react';
+import { IonPage, IonHeader, IonContent } from '@ionic/react';
 import { AppHeader } from '../../components/AppHeader.js';
-import { usePagedResource } from '../../data/usePagedResource.js';
+import { PeopleList } from '../../components/PeopleList.js';
 import { useScrollResume } from '../../data/useScrollResume.js';
-import { fetchFollowers, fetchFollowing } from '../../data/users.js';
-import { removeFollower } from '../../flows/connectionsFlow.js';
-import { describeError, mapApiError } from '../../data/errors.js';
-import { useAppNavigate } from '../../app/routes/useAppNavigate.js';
-import { useOverlay } from '../../app/OverlayProvider.js';
-import { useActiveAccount, useCanWrite } from '../../state/accountsStore.js';
-import { UserRow } from '../../components/UserRow.js';
-import type { BlipUser } from '@b-oss/b-api';
+import { useActiveAccount } from '../../state/accountsStore.js';
 
 interface FollowersFollowingScreenProps {
   username: string;
@@ -40,60 +19,12 @@ interface FollowersFollowingScreenProps {
 }
 
 export function FollowersFollowingScreen({ username, mode }: FollowersFollowingScreenProps) {
-  const navigate = useAppNavigate();
-  const { showUpgradePrompt } = useOverlay();
   const activeAccount = useActiveAccount();
-  const canWrite = useCanWrite();
-  const isOwnFollowers = mode === 'followers' && activeAccount?.username === username;
-
-  // Opening someone from the list and coming Back keeps what was loaded and where you'd scrolled
-  // to, instead of restarting at the top of page 1 (b-oss#190). Scoped to the signed-in account.
-  const resumeKey = `people:${activeAccount?.id ?? 'anon'}:${mode}:${username}`;
-  const resource = usePagedResource(
-    (pageIndex) =>
-      mode === 'followers'
-        ? fetchFollowers(username, pageIndex)
-        : fetchFollowing(username, pageIndex),
-    [username, mode, activeAccount?.id],
-    30,
-    resumeKey,
+  const [ready, setReady] = useState(false);
+  const scroll = useScrollResume(
+    `people:${activeAccount?.id ?? 'anon'}:${mode}:${username}`,
+    ready,
   );
-  const scroll = useScrollResume(resumeKey, resource.status === 'loaded');
-
-  const [removeTarget, setRemoveTarget] = useState<BlipUser | null>(null);
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
-
-  function requestRemove(user: BlipUser): void {
-    if (!canWrite) {
-      showUpgradePrompt();
-      return;
-    }
-    setRemoveTarget(user);
-  }
-
-  async function confirmRemove(): Promise<void> {
-    if (!removeTarget) return;
-    const target = removeTarget;
-    setRemoveTarget(null);
-    try {
-      await removeFollower(target.username);
-      resource.refresh();
-    } catch (err) {
-      const outcome = mapApiError(err);
-      setErrorMessage(describeError(outcome, 'Could not remove this follower.'));
-    }
-  }
-
-  function handleRefresh(event: CustomEvent<RefresherEventDetail>): void {
-    resource.refresh();
-    event.detail.complete();
-  }
-
-  function handleInfinite(event: Event): void {
-    resource.loadMore();
-    void (event.target as HTMLIonInfiniteScrollElement).complete();
-  }
-
   return (
     <IonPage>
       <IonHeader>
@@ -105,70 +36,8 @@ export function FollowersFollowingScreen({ username, mode }: FollowersFollowingS
         />
       </IonHeader>
       <IonContent {...scroll}>
-        {resource.status === 'loading' && (
-          <div className="ion-padding" style={{ display: 'flex', justifyContent: 'center' }}>
-            <IonSpinner />
-          </div>
-        )}
-        {resource.status === 'error' && (
-          <div className="ion-padding">
-            <IonText color="danger">
-              <p>{resource.errorMessage}</p>
-            </IonText>
-            <IonButton onClick={resource.refresh}>Retry</IonButton>
-          </div>
-        )}
-        {resource.status === 'empty' && (
-          <div className="ion-padding">
-            <p>{mode === 'followers' ? 'No followers yet.' : 'Not following anyone yet.'}</p>
-          </div>
-        )}
-        {(resource.status === 'loaded' || resource.status === 'empty') && (
-          <>
-            <IonRefresher slot="fixed" onIonRefresh={handleRefresh}>
-              <IonRefresherContent />
-            </IonRefresher>
-            {resource.items.map((user) => (
-              <UserRow
-                key={user.username}
-                user={user}
-                onTap={() => navigate.push(`/user/${encodeURIComponent(user.username)}`)}
-              >
-                {isOwnFollowers && (
-                  <button
-                    onClick={() => requestRemove(user)}
-                    aria-label={`Remove ${user.username}`}
-                  >
-                    <X size={18} strokeWidth={1.6} color="var(--muted)" />
-                  </button>
-                )}
-              </UserRow>
-            ))}
-            <IonInfiniteScroll disabled={!resource.hasMore} onIonInfinite={handleInfinite}>
-              <IonInfiniteScrollContent />
-            </IonInfiniteScroll>
-          </>
-        )}
+        <PeopleList username={username} mode={mode} onReady={setReady} />
       </IonContent>
-
-      <IonAlert
-        isOpen={!!removeTarget}
-        header={`Remove ${removeTarget?.username ?? ''}?`}
-        message="This ends the follow relationship. On a protected journal they lose access but may ask to follow again, and that request can be refused. On a public journal it doesn't stop them seeing your journal — they can simply follow again."
-        onDidDismiss={() => setRemoveTarget(null)}
-        buttons={[
-          { text: 'Cancel', role: 'cancel' },
-          { text: 'Remove', role: 'destructive', handler: () => void confirmRemove() },
-        ]}
-      />
-
-      <IonAlert
-        isOpen={!!errorMessage}
-        header="Something went wrong"
-        message={errorMessage ?? ''}
-        onDidDismiss={() => setErrorMessage(null)}
-        buttons={['OK']}
-      />
     </IonPage>
   );
 }
