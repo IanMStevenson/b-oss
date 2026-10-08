@@ -14,6 +14,8 @@ import {
   startUploadQueueRunner,
   wakeUploadQueueRunner,
   nextBackoffMs,
+  retryUploadItem,
+  removeUploadItem,
 } from '../uploadQueueRunner.js';
 
 const client = { publishEntry: vi.fn(), updateEntry: vi.fn(), getJournalDay: vi.fn() };
@@ -79,6 +81,61 @@ describe('nextBackoffMs', () => {
     expect(nextBackoffMs(5)).toBe(300_000);
     expect(nextBackoffMs(6)).toBe(300_000);
     expect(nextBackoffMs(99)).toBe(300_000);
+  });
+});
+
+// Before the uploadQueueRunner block: its last two (startup) tests leave a drain in flight.
+describe('retry and remove (SCR-14)', () => {
+  it('retry puts a failed item back in the queue with a fresh attempt budget and uploads it', async () => {
+    client.publishEntry.mockResolvedValue({ entry: { entry_id_str: 'e7' } });
+    setQueue([
+      baseItem({
+        status: 'failed',
+        attempts: 6,
+        error: 'Could not connect',
+        mayHavePublished: true,
+      }),
+    ]);
+
+    retryUploadItem('q1');
+
+    await vi.waitFor(() => expect(getItem('q1').status).toBe('uploaded'));
+    expect(getItem('q1').error).toBeNull();
+    expect(client.publishEntry).toHaveBeenCalledTimes(1);
+  });
+
+  it('retry keeps the "may have published" flag, so a 252 still resolves to that day\'s entry', async () => {
+    client.publishEntry.mockRejectedValue(new BlipfotoError(252, 'Already posted'));
+    client.getJournalDay.mockResolvedValue({ day: { entry: { entry_id_str: 'e8' } } });
+    setQueue([baseItem({ status: 'failed', attempts: 6, mayHavePublished: true })]);
+
+    retryUploadItem('q1');
+
+    await vi.waitFor(() => expect(getItem('q1').status).toBe('uploaded'));
+    expect(getItem('q1').resultEntryId).toBe('e8');
+  });
+
+  it('retry ignores an item that is not failed', () => {
+    setQueue([baseItem({ status: 'uploaded', resultEntryId: 'e1' })]);
+    retryUploadItem('q1');
+    expect(getItem('q1').status).toBe('uploaded');
+    expect(client.publishEntry).not.toHaveBeenCalled();
+  });
+
+  it('remove drops a failed item and deletes its copied photo', async () => {
+    setQueue([baseItem({ status: 'failed' }), baseItem({ id: 'q2', status: 'uploaded' })]);
+
+    await removeUploadItem('q1');
+
+    expect(useUploadQueueStore.getState().items.map((i) => i.id)).toEqual(['q2']);
+    const { deleteQueuedFile } = await import('../../platform/upload.js');
+    expect(deleteQueuedFile).toHaveBeenCalledWith('uploads/q1.jpg');
+  });
+
+  it('remove ignores an item that is not failed', async () => {
+    setQueue([baseItem({ status: 'waiting' })]);
+    await removeUploadItem('q1');
+    expect(useUploadQueueStore.getState().items).toHaveLength(1);
   });
 });
 

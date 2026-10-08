@@ -3,10 +3,10 @@
 // @vitest-environment jsdom
 
 import { describe, it, expect, afterEach, beforeEach, vi } from 'vitest';
-import { render, screen, cleanup } from '@testing-library/react';
+import { render, screen, cleanup, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
-import { OverlayProvider } from '../../../app/OverlayProvider.js';
+import { OverlayProvider, OverlayHost } from '../../../app/OverlayProvider.js';
 import { UploadProgressScreen } from '../UploadProgressScreen.js';
 import { useUploadQueueStore } from '../../../state/uploadQueueStore.js';
 import type { UploadQueueItem } from '../../../state/uploadQueueStore.js';
@@ -16,6 +16,12 @@ vi.mock('../../../platform/prefs.js', () => ({
   setPref: vi.fn().mockResolvedValue(undefined),
   deletePref: vi.fn().mockResolvedValue(undefined),
 }));
+
+const { retryUploadItem, removeUploadItem } = vi.hoisted(() => ({
+  retryUploadItem: vi.fn(),
+  removeUploadItem: vi.fn(),
+}));
+vi.mock('../../../flows/uploadQueueRunner.js', () => ({ retryUploadItem, removeUploadItem }));
 
 const push = vi.fn();
 vi.mock('../../../app/routes/useAppNavigate.js', () => ({
@@ -54,6 +60,7 @@ function renderScreen() {
   return render(
     <MemoryRouter>
       <OverlayProvider>
+        <OverlayHost />
         <UploadProgressScreen />
       </OverlayProvider>
     </MemoryRouter>,
@@ -113,5 +120,51 @@ describe('UploadProgressScreen', () => {
     useUploadQueueStore.getState().updateItem('w', { status: 'uploaded', resultEntryId: 'e9' });
     renderScreen();
     expect(screen.getByText(/Uploaded/)).toBeDefined();
+  });
+
+  describe('failed items (b-oss#342)', () => {
+    beforeEach(() => {
+      useUploadQueueStore.setState({
+        hydrated: true,
+        items: [
+          item({ id: 'f', status: 'failed', displayTitle: 'Blurry', error: 'Too dark' }),
+          item({ id: 'w', status: 'waiting', displayTitle: 'Cat' }),
+          item({ id: 'd', status: 'uploaded', displayTitle: 'Sunrise', resultEntryId: 'e1' }),
+        ],
+      });
+    });
+
+    it('only a failed item offers Retry and Remove', () => {
+      renderScreen();
+      expect(screen.getAllByText('Retry', { selector: 'ion-button' })).toHaveLength(1);
+      expect(screen.getAllByText('Remove', { selector: 'ion-button' })).toHaveLength(1);
+    });
+
+    it('Retry puts the item back in the queue', async () => {
+      renderScreen();
+      await userEvent.click(screen.getByText('Retry', { selector: 'ion-button' }));
+      expect(retryUploadItem).toHaveBeenCalledWith('f');
+    });
+
+    it('Remove asks first, and only removes once confirmed', async () => {
+      renderScreen();
+      await userEvent.click(screen.getByText('Remove', { selector: 'ion-button' }));
+      expect(await screen.findByText('Remove this upload?')).toBeDefined();
+      expect(removeUploadItem).not.toHaveBeenCalled();
+      await userEvent.click(
+        document.querySelector<HTMLButtonElement>('button.alert-button-role-destructive')!,
+      );
+      await waitFor(() => expect(removeUploadItem).toHaveBeenCalledWith('f'));
+    });
+
+    it('cancelling the Remove prompt keeps the item', async () => {
+      renderScreen();
+      await userEvent.click(screen.getByText('Remove', { selector: 'ion-button' }));
+      await screen.findByText('Remove this upload?');
+      await userEvent.click(
+        document.querySelector<HTMLButtonElement>('button.alert-button-role-cancel')!,
+      );
+      expect(removeUploadItem).not.toHaveBeenCalled();
+    });
   });
 });

@@ -35,8 +35,16 @@ export type DeepLinkTarget =
 function resolveBmobilePath(parsed: URL): DeepLinkTarget {
   const segment = parsed.pathname.replace(/^\/+|\/+$/g, '');
   if (!segment) return { kind: 'ignore' };
-  if (parsed.host === 'entry') return { kind: 'entry', entryId: decodeURIComponent(segment) };
-  if (parsed.host === 'user') return { kind: 'profile', username: decodeURIComponent(segment) };
+  // Any app can send a VIEW intent, so a malformed percent-escape (`%E0%A4%A`, a bare `%`) must
+  // resolve to `ignore` rather than let decodeURIComponent's URIError escape to the listener.
+  let decoded: string;
+  try {
+    decoded = decodeURIComponent(segment);
+  } catch {
+    return { kind: 'ignore' };
+  }
+  if (parsed.host === 'entry') return { kind: 'entry', entryId: decoded };
+  if (parsed.host === 'user') return { kind: 'profile', username: decoded };
   return { kind: 'ignore' };
 }
 

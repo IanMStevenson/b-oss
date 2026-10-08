@@ -43,7 +43,8 @@ Known Blipfoto API limits: [AppLimitations.md](AppLimitations.md). Paths are rel
   location, replace photo, Delete entry; no date field; Save enqueues and returns to the entry.
 - **Biography editor** (`/compose/description`, despite the path): from Settings → Profile.
 - **Uploads**: Waiting / Uploading… / Uploaded / Failed (+ error); indeterminate bar while
-  uploading; tap an uploaded item to open it. No retry or remove buttons.
+  uploading; tap an uploaded item to open it. A failed item has Retry (back to Waiting, fresh
+  attempt count) and Remove (asks first; drops it and its copied photo).
 - **Report**: five reasons (at least one required) plus note. A comment report uses the same
   endpoint with a prefilled note `<user>'s comment: "<excerpt>"`. Afterwards offers to hide.
 - **Profile** (`/me`, `/user/:u`, one component): tabs About, Entries, Faves, Followers, Following.
@@ -100,9 +101,8 @@ Known Blipfoto API limits: [AppLimitations.md](AppLimitations.md). Paths are rel
   own account token. Transport errors retry after 5s, 15s, 45s, 2m, 5m and fail after 6 attempts;
   token invalid → app-token forced logout, item failed "Signed out — please sign in again and
   retry."; other errors fail with the mapped message. Success deletes the copy and reschedules the
-  account's reminder. Items stuck `uploading` reset to `waiting` when the runner starts.
-- Gap: the queue is saved to prefs but `useUploadQueueStore.hydrate()` is never called, so it
-  starts empty after a process restart.
+  account's reminder. The queue is saved to prefs; at launch `AppShell` loads it, then starts the
+  runner, which resets items stuck `uploading` to `waiting` and resumes them.
 - Share intent (`platform/shareIntent.ts`): `AppShell` reads the shared image once, caches it and
   opens `/compose`; New entry starts a draft from it once the write gate has passed.
 
