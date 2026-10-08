@@ -64,6 +64,7 @@ import { useLiveEntry } from '../../data/useLiveEntry.js';
 import { deleteEntry } from '../../data/entries.js';
 import { fetchAuthorAvatar } from '../../data/users.js';
 import { useCommentComposers } from './useCommentComposers.js';
+import { useRevealReplyComposer } from './useRevealReplyComposer.js';
 import { useScrollResume } from '../../data/useScrollResume.js';
 import { EntryAuthorBlock, type FollowControl } from '../../components/EntryAuthorBlock.js';
 import { UserBadges } from '../../components/UserBadges.js';
@@ -207,6 +208,11 @@ export function EntryDetailScreen({ entryId, initialReplyToCommentId }: EntryDet
     composers.openReply(target.comment_id_str, target.comment_id_str);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [initialReplyToCommentId, commentActionsMap]);
+
+  useRevealReplyComposer(
+    scroll.ref,
+    composers.target?.kind === 'reply' ? composers.target.viewId : null,
+  );
 
   // EntryDetail renders stars_total/favorites_total straight from entryState.data itself — it
   // has no separate hook for an optimistic count the way the reactions slot does for the starred/

@@ -68,3 +68,61 @@ export const bbcodePreset = createPreset({
   url: urlTag,
   email: emailTag,
 });
+
+// Tags blipfoto.com or other BBCode dialects commonly emit that we don't render. They're stripped
+// (keeping their inner text) so a reader never sees raw brackets for markup — see normalizeBBCode.
+const KNOWN_UNRENDERED_TAGS = [
+  'img', 'quote', 'color', 'colour', 'size', 'font', 'center', 'centre', 'left', 'right', 'justify',
+  'code', 'pre', 'list', 'ul', 'ol', 'li', 'table', 'tr', 'td', 'th', 'youtube', 'video', 'spoiler',
+  'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'sup', 'sub', 'strike', 'br', 'hr', 'p',
+]; // prettier-ignore
+
+const HTML_ENTITIES: Record<string, string> = {
+  '&amp;': '&',
+  '&lt;': '<',
+  '&gt;': '>',
+  '&quot;': '"',
+  '&#39;': "'",
+  '&#x27;': "'",
+  '&apos;': "'",
+  '&nbsp;': ' ',
+};
+
+function escapeRegExp(s: string): string {
+  return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+/**
+ * Makes comment/description/notification text safe for the single BBCode renderer: tag names are
+ * lower-cased (`[B]`, `[URL=...]`), the five common HTML entities some API payloads carry are
+ * decoded (the renderer escapes on output), and tags we don't render are removed leaving their
+ * inner text — `[quote]hi[/quote]` reads "hi", `[img]http://…[/img]` reads as the URL — instead of
+ * showing raw brackets. Square brackets that aren't a tag at all (`[sic]`, `[1]`) are left alone:
+ * an unknown open tag is only stripped when it has a matching close, or is a known BBCode name.
+ */
+export function normalizeBBCode(source: string): string {
+  let text = source.replace(
+    /&(?:amp|lt|gt|quot|apos|nbsp|#39|#x27);/gi,
+    (m) => HTML_ENTITIES[m.toLowerCase()] ?? m,
+  );
+  const rendered = RENDERED_BBCODE_TAGS.join('|');
+  text = text.replace(
+    new RegExp(`\\[(/?)(${rendered})(?=[\\]=\\s])`, 'gi'),
+    (_m, slash: string, name: string) => `[${slash}${name.toLowerCase()}`,
+  );
+  // Generic unknown tags: strip pairs, then stray known-dialect tags.
+  const openRe = /\[([a-z][a-z0-9]*)(?:[= ][^\]]*)?\]/gi;
+  const names = new Set<string>();
+  for (const m of text.matchAll(openRe)) names.add(m[1].toLowerCase());
+  for (const name of names) {
+    if ((RENDERED_BBCODE_TAGS as readonly string[]).includes(name)) continue;
+    const known = KNOWN_UNRENDERED_TAGS.includes(name);
+    const n = escapeRegExp(name);
+    const closeRe = new RegExp(`\\[/${n}\\]`, 'i');
+    if (!known && !closeRe.test(text)) continue;
+    text = text
+      .replace(new RegExp(`\\[${n}(?:[= ][^\\]]*)?\\]`, 'gi'), '')
+      .replace(new RegExp(`\\[/${n}\\]`, 'gi'), '');
+  }
+  return text.replace(/\[\*\]/g, '• ');
+}
