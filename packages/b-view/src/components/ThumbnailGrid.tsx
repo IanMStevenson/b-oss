@@ -61,7 +61,11 @@ function useContainerSize(ref: RefObject<HTMLElement | null>) {
   return size;
 }
 
-function formatDate(iso: string): string {
+// Tiles narrower than this get the short caption ("3 Oct 2026", smaller type) so the date isn't
+// cut off with an ellipsis; wider tiles keep the website's "3rd Oct 2026".
+const COMPACT_CAPTION_BELOW = 120;
+
+function formatDate(iso: string, compact = false): string {
   const [y, m, d] = iso.split('-').map(Number);
   const sfx =
     d === 1 || d === 21 || d === 31
@@ -85,7 +89,7 @@ function formatDate(iso: string): string {
     'Nov',
     'Dec',
   ];
-  return `${d}${sfx} ${months[m - 1]} ${y}`;
+  return `${d}${compact ? '' : sfx} ${months[m - 1]} ${y}`;
 }
 
 type ResolveAsset = (path: string) => Promise<string> | string;
@@ -314,7 +318,13 @@ function ThumbnailItem({
       )}
       {showInfoOverlay && overlayContent !== 'journal' && (
         <div className={styles.thumbOverlay}>
-          <div className={styles.thumbOverlayDate}>{formatDate(entry.date)}</div>
+          <div
+            className={`${styles.thumbOverlayDate} ${
+              tileSize < COMPACT_CAPTION_BELOW ? styles.thumbOverlayCompact : ''
+            }`}
+          >
+            {formatDate(entry.date, tileSize < COMPACT_CAPTION_BELOW)}
+          </div>
           {tileSize >= 80 && <div className={styles.thumbOverlayTitle}>{entry.title}</div>}
         </div>
       )}

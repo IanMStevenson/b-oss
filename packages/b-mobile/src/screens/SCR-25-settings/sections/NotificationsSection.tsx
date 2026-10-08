@@ -4,7 +4,7 @@
 // SCR-25 Notifications section, for the active account (b-oss#244). Two clearly separate parts,
 // each with its own persistence model:
 //
-//   - **Notifications from this app** — two toggles, *Push for new comments* and *Push for new
+//   - **Notifications from this app** — two toggles, *New comments* and *New
 //     notifications*, held by b-push per account per device (a local copy lives on the account
 //     record so this renders without a network call), plus the check interval. There is no master
 //     switch: "notifications on" means at least one toggle is on. Turning the first one on from
@@ -14,7 +14,7 @@
 //     deregisters — after a confirm only when turning back on would need a sign-in (read-write
 //     accounts, whose notification read token is a separate credential that gets revoked). These
 //     are token/registration actions, not content writes, so they apply immediately, no Save.
-//   - **Blipfoto feed settings** — the six `feed_*` toggles (`user/settings/notifications`),
+//   - **Blipfoto notification settings** — the six `feed_*` toggles (`user/settings/notifications`),
 //     Save/Cancel like General/Journal. Blipfoto's own `push_*` settings are never read or written
 //     any more; b-push no longer reads them either, so the old refresh-preferences ping is gone.
 //
@@ -24,7 +24,7 @@
 // runs in the clean in-app browser (accountsFlow's tokenChangeUsesEmbedded); if it still comes back
 // as another account, the mismatch alert explains and offers to retry in the in-app browser.
 //
-// The feed hint under *Push for new notifications*: Blipfoto never creates (or counts) a
+// The feed hint under *New notifications*: Blipfoto never creates (or counts) a
 // notification whose `feed_*` type is off, so b-push can't push about it (confirmed from
 // Blipfoto's source on b-oss#244; comments are never gated). The hint is computed from the
 // **saved** feed settings, not unsaved edits — it describes what Blipfoto is doing now, and it
@@ -34,6 +34,7 @@ import { useEffect, useState } from 'react';
 import {
   IonAlert,
   IonButton,
+  IonInput,
   IonItem,
   IonList,
   IonListHeader,
@@ -65,6 +66,11 @@ import { t, type StringKey } from '../../../strings/index.js';
 
 type Stream = keyof PushStreams;
 
+/** The "Check for new activity every N min" control is hidden for now (b-oss#304). Ian will bring
+ * it back: flip this to true. The stored preference (default 5 minutes) and the PATCH path stay
+ * live either way, so hiding the control changes nothing about how often b-push checks. */
+export const SHOW_POLLING_INTERVAL = false;
+
 const FEED_TYPE_LABELS: Record<string, StringKey> = {
   feed_friends: 'SCR-25.feed_type.feed_friends',
   feed_entry_favorite_received: 'SCR-25.feed_type.feed_entry_favorite_received',
@@ -91,7 +97,7 @@ function joinList(items: string[]): string {
   return `${items.slice(0, -1).join(', ')} and ${items[items.length - 1]}`;
 }
 
-/** The note under *Push for new notifications*, or null when every feed type is on. */
+/** The note under *New notifications*, or null when every feed type is on. */
 export function feedHint(saved: Record<string, 0 | 1>): string | null {
   const keys = Object.keys(saved);
   const off = keys.filter((k) => saved[k] === 0);
@@ -107,9 +113,11 @@ export function feedHint(saved: Record<string, 0 | 1>): string | null {
 function PushSection({
   account,
   savedFeed,
+  showPollingInterval,
 }: {
   account: StoredAccount;
   savedFeed: Record<string, 0 | 1> | null;
+  showPollingInterval: boolean;
 }) {
   const state = notificationStateOf(account);
   const on = state === 'on';
@@ -233,9 +241,7 @@ function PushSection({
       </IonListHeader>
       <IonItem lines="none">
         <IonText color="medium" className="ion-text-wrap">
-          <p style={{ margin: '0 0 4px', fontSize: 14 }}>
-            {t('SCR-25.notifications.app.caption', { username: account.username })}
-          </p>
+          <p style={{ margin: '0 0 4px', fontSize: 14 }}>{t('SCR-25.notifications.app.caption')}</p>
         </IonText>
       </IonItem>
       {state === 'needs-sign-in' && (
@@ -290,35 +296,39 @@ function PushSection({
         </IonItem>
       )}
 
-      <IonItem>
-        <span>{t('SCR-25.notifications.interval')}</span>
-        <input
-          slot="end"
-          type="number"
-          min={5}
-          step={5}
-          inputMode="numeric"
-          aria-label={t('SCR-25.notifications.interval')}
-          value={intervalDraft}
-          onChange={(e) => setIntervalDraft(e.target.value)}
-          onBlur={() => {
-            const minutes = Number(intervalDraft);
-            if (!Number.isFinite(minutes) || minutes < 5) {
-              setIntervalDraft(String(pollingInterval));
-              return;
-            }
-            if (minutes !== pollingInterval) void handlePollingIntervalChange(minutes);
-          }}
-          style={{ font: 'inherit', width: 56, textAlign: 'end' }}
-        />
-        <IonNote slot="end">min</IonNote>
-      </IonItem>
-      {intervalError && (
-        <IonItem lines="none">
-          <IonText color="danger">
-            <p>{intervalError}</p>
-          </IonText>
-        </IonItem>
+      {showPollingInterval && (
+        <>
+          <IonItem>
+            <IonInput
+              label={t('SCR-25.notifications.interval')}
+              aria-label={t('SCR-25.notifications.interval')}
+              labelPlacement="start"
+              type="number"
+              min={5}
+              step="5"
+              inputmode="numeric"
+              value={intervalDraft}
+              onIonInput={(e) => setIntervalDraft(String(e.detail.value ?? ''))}
+              onIonBlur={() => {
+                const minutes = Number(intervalDraft);
+                if (!Number.isFinite(minutes) || minutes < 5) {
+                  setIntervalDraft(String(pollingInterval));
+                  return;
+                }
+                if (minutes !== pollingInterval) void handlePollingIntervalChange(minutes);
+              }}
+              style={{ textAlign: 'end' }}
+            />
+            <IonNote slot="end">min</IonNote>
+          </IonItem>
+          {intervalError && (
+            <IonItem lines="none">
+              <IonText color="danger">
+                <p>{intervalError}</p>
+              </IonText>
+            </IonItem>
+          )}
+        </>
       )}
 
       <IonAlert
@@ -442,7 +452,12 @@ function FeedSection({
   );
 }
 
-export function NotificationsSection() {
+/** `showPollingInterval` exists so tests can exercise the hidden check-interval control. */
+export function NotificationsSection({
+  showPollingInterval = SHOW_POLLING_INTERVAL,
+}: {
+  showPollingInterval?: boolean;
+} = {}) {
   const activeAccount = useActiveAccount();
   const accountId = activeAccount?.id;
 
@@ -474,7 +489,13 @@ export function NotificationsSection() {
 
   return (
     <div>
-      {activeAccount && <PushSection account={activeAccount} savedFeed={savedFeed} />}
+      {activeAccount && (
+        <PushSection
+          account={activeAccount}
+          savedFeed={savedFeed}
+          showPollingInterval={showPollingInterval}
+        />
+      )}
 
       {loading ? (
         <div className="ion-padding" style={{ display: 'flex', justifyContent: 'center' }}>

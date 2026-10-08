@@ -9,7 +9,7 @@
 
 import type { ReactNode } from 'react';
 import { IonItem, IonToggle } from '@ionic/react';
-import { ChevronRight } from 'lucide-react';
+import { BBCodeField } from '@b-oss/b-view';
 import './ComposeForm.css';
 
 interface FieldProps {
@@ -38,24 +38,24 @@ export function TextField({ label, value, maxLength, caption, onChange }: FieldP
   );
 }
 
-interface FormRowProps {
-  label: string;
-  /** Right-aligned secondary text / preview shown under the label. */
-  summary?: string;
-  onClick: () => void;
+interface DescriptionFieldProps {
+  value: string;
+  onChange: (value: string) => void;
 }
 
-/** A tappable field that opens another screen (e.g. the description editor): label, one-line
- * preview, chevron. */
-export function LinkRow({ label, summary, onClick }: FormRowProps) {
+/** The entry description, inline: b-view's rich-text box (B / I / U / S / link toolbar) under a
+ * label, as on blipfoto.com's Add new entry page. The value is BBCode. */
+export function DescriptionField({ value, onChange }: DescriptionFieldProps) {
   return (
-    <button type="button" className="compose-link-row" onClick={onClick}>
-      <span className="compose-link-text">
-        <span className="compose-field-label">{label}</span>
-        <span className="compose-link-summary">{summary}</span>
-      </span>
-      <ChevronRight size={20} aria-hidden="true" className="compose-link-chevron" />
-    </button>
+    <div className="compose-field">
+      <span className="compose-field-label">Description</span>
+      <BBCodeField
+        value={value}
+        onChange={onChange}
+        ariaLabel="Description"
+        placeholder="Describe this entry…"
+      />
+    </div>
   );
 }
 

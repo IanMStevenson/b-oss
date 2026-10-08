@@ -13,6 +13,8 @@
 // the API itself clears `secret` once an award is earned, so showing "Secret" only when the flag
 // is actually set is correct without this screen needing its own earned/secret interaction logic.
 
+import { Award } from 'lucide-react';
+import { EmptyState } from '../../components/EmptyState.js';
 import { IonPage, IonHeader, IonContent, IonSpinner, IonText, IonButton } from '@ionic/react';
 import { AppHeader } from '../../components/AppHeader.js';
 import { useResource } from '../../data/useResource.js';
@@ -86,7 +88,9 @@ export function AwardsScreen({ username }: AwardsScreenProps) {
             <IonButton onClick={reload}>Retry</IonButton>
           </div>
         )}
-        {state.status === 'empty' && <p className="ion-padding">No awards yet.</p>}
+        {state.status === 'empty' && (
+          <EmptyState icon={<Award size={40} strokeWidth={1.5} />} title="No awards yet." />
+        )}
         {state.status === 'loaded' && (
           <div>
             {[...state.data]

@@ -8,6 +8,7 @@ import { describe, it, expect } from 'vitest';
 import {
   candidateActorsFromNotification,
   isNotificationFromHiddenMember,
+  leadingActor,
   resolveNotificationTarget,
   unreadCommentIds,
 } from '../notifications.js';
@@ -140,6 +141,44 @@ function comment(overrides: Partial<BlipComment> = {}): BlipComment {
     ...overrides,
   };
 }
+
+describe('leadingActor', () => {
+  const n = (content: string, content_html: string) => ({
+    notification_id_str: '1',
+    content,
+    content_html,
+    image_url: '',
+    link_url: '',
+  });
+
+  it('reads a leading profile link whose text opens the content', () => {
+    expect(
+      leadingActor(
+        n(
+          'alice started following you',
+          '<a href="https://www.blipfoto.com/alice">alice</a> started following you',
+        ),
+      ),
+    ).toEqual({ username: 'alice', rest: ' started following you' });
+  });
+
+  it('also handles the name as a [url] tag in the content', () => {
+    expect(
+      leadingActor(
+        n(
+          '[url=https://www.blipfoto.com/alice]alice[/url] liked it',
+          '<a href="/alice">alice</a> liked it',
+        ),
+      ),
+    ).toEqual({ username: 'alice', rest: ' liked it' });
+  });
+
+  it('gives up on a non-profile link, a mismatch, or no leading link', () => {
+    expect(leadingActor(n('x', '<a href="/entry/123">x</a>'))).toBeNull();
+    expect(leadingActor(n('bob did it', '<a href="/alice">alice</a> did it'))).toBeNull();
+    expect(leadingActor(n('hello', '<p>hello</p>'))).toBeNull();
+  });
+});
 
 describe('unreadCommentIds', () => {
   it('captures ids flagged unread in the given response', () => {

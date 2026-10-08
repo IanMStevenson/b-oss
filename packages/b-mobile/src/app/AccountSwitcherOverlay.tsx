@@ -21,6 +21,7 @@
 // in again" dialog every entry point shares; not duplicated here for a lightweight overlay.
 
 import { IonButton } from '@ionic/react';
+import { ACTIVE_ACCOUNT_BACKGROUND } from '../components/accountPresentation.js';
 import { AccountRowBody } from '../components/AccountRowBody.js';
 import { useAccountsStore } from '../state/accountsStore.js';
 import type { StoredAccount } from '../state/accountsStore.js';
@@ -104,7 +105,7 @@ export function AccountSwitcherOverlay({ onDismiss }: { onDismiss: () => void })
                 width: '100%',
                 // The active account is a whole-row pale-green highlight plus a tick at the end
                 // (single-select), not a badge.
-                background: active ? 'var(--green-100, #eef2ee)' : 'none',
+                background: active ? ACTIVE_ACCOUNT_BACKGROUND : 'none',
                 border: 'none',
                 borderRadius: 8,
                 padding: '8px 10px',

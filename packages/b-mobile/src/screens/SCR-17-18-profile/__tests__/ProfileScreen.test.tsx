@@ -195,7 +195,7 @@ describe('ProfileScreen', () => {
     vi.mocked(fetchFollowers).mockResolvedValue({
       items: [{ username: 'bob', avatar_url: '', icons: [] }],
       more: false,
-    } as never);
+    });
     renderScreen('alice');
     await screen.findByText("Alice's journal");
     document

@@ -3,7 +3,7 @@
 // @vitest-environment jsdom
 
 import { describe, it, expect, afterEach, vi } from 'vitest';
-import { render, screen, cleanup, waitFor } from '@testing-library/react';
+import { render, screen, cleanup, waitFor, fireEvent } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { BrowseScreen } from '../BrowseScreen.js';
 import { OverlayProvider, OverlayHost } from '../../../app/OverlayProvider.js';
@@ -200,7 +200,7 @@ describe('BrowseScreen', () => {
   // Before this test existed, resolving null left NearbyTab's `!coords` branch stuck on its
   // spinner forever, since only the reject path set `locationDenied`.
   it('Nearby tab shows the location-needed message rather than spinning forever when a fix is unavailable', async () => {
-    const { fetchRecentPage } = await import('../../../data/entries.js');
+    const { fetchRecentPage, fetchNearbyPage } = await import('../../../data/entries.js');
     const { useActiveAccount } = await import('../../../state/accountsStore.js');
     const { getCurrentPosition } = await import('../../../platform/geolocation.js');
     vi.mocked(useActiveAccount).mockReturnValue(null);
@@ -212,9 +212,14 @@ describe('BrowseScreen', () => {
     const segment = document.querySelector('ion-segment')!;
     segment.dispatchEvent(new CustomEvent('ionChange', { detail: { value: 'nearby' } }));
 
-    expect(
-      await screen.findByText('This tab needs location access to show entries near you.'),
-    ).toBeDefined();
+    expect(await screen.findByText('Nearby needs your location.')).toBeDefined();
+
+    // The "Allow location" button re-runs the permission flow, and shows the grid on success.
+    vi.mocked(fetchNearbyPage).mockResolvedValue({ items: [], more: false });
+    vi.mocked(getCurrentPosition).mockResolvedValue({ lat: 1, lon: 2 });
+    fireEvent.click(screen.getByText('Allow location'));
+    await waitFor(() => expect(getCurrentPosition).toHaveBeenCalledTimes(2));
+    await waitFor(() => expect(fetchNearbyPage).toHaveBeenCalled());
   });
 
   describe('keeps your place when you leave for an entry and come Back (b-oss#182)', () => {

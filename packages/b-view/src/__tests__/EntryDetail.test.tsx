@@ -88,6 +88,49 @@ describe('EntryDetail', () => {
     expect(container.querySelector('[role="dialog"]')).toBeNull();
   });
 
+  describe('double-tap on the photo (onPhotoDoubleTap)', () => {
+    function setup() {
+      const onNavigate = vi.fn();
+      const onPhotoDoubleTap = vi.fn();
+      const { container } = render(
+        <EntryDetail
+          entryState={loadedState(makeEntry())}
+          prevEntryId="0"
+          nextEntryId="2"
+          onNavigate={onNavigate}
+          onPhotoDoubleTap={onPhotoDoubleTap}
+        />,
+      );
+      return {
+        onNavigate,
+        onPhotoDoubleTap,
+        half: container.querySelector(`.${styles.photoHalfRight}`)!,
+      };
+    }
+
+    it('two quick taps open the photo and do not navigate', () => {
+      vi.useFakeTimers();
+      const { onNavigate, onPhotoDoubleTap, half } = setup();
+      fireEvent.click(half);
+      fireEvent.click(half);
+      vi.advanceTimersByTime(1000);
+      expect(onPhotoDoubleTap).toHaveBeenCalledTimes(1);
+      expect(onNavigate).not.toHaveBeenCalled();
+      vi.useRealTimers();
+    });
+
+    it('a single tap still navigates once the double-tap window passes', () => {
+      vi.useFakeTimers();
+      const { onNavigate, onPhotoDoubleTap, half } = setup();
+      fireEvent.click(half);
+      expect(onNavigate).not.toHaveBeenCalled();
+      vi.advanceTimersByTime(1000);
+      expect(onNavigate).toHaveBeenCalledWith('2');
+      expect(onPhotoDoubleTap).not.toHaveBeenCalled();
+      vi.useRealTimers();
+    });
+  });
+
   describe('top bar and photo frame (b-oss#169/#170)', () => {
     it('shows the date tile and nav strip, not the old chevron row with a long-date heading', () => {
       render(

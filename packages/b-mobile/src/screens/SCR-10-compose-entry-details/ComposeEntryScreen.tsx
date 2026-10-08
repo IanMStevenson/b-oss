@@ -10,7 +10,7 @@
 // fetched once on mount; there's no cheaper source (accountsStore doesn't carry membership).
 // Publish-eligibility: journal/month drives MonthDatePicker's greyed-out days (one request per
 // visited month, never per date change); journal/day separately confirms the *currently selected*
-// date and is what actually gates Upload — both endpoints are listed in SCR-10's own API
+// date and is what actually gates Publish — both endpoints are listed in SCR-10's own API
 // touchpoints for exactly this division of labour.
 
 import { useEffect, useState } from 'react';
@@ -33,7 +33,7 @@ import { fetchUserProfile } from '../../data/users.js';
 import { enqueueDraft } from '../../flows/composeFlow.js';
 import { describeError, mapApiError } from '../../data/errors.js';
 import { DateField } from '../../components/DateField.js';
-import { LinkRow, TextField, ToggleRow } from '../../components/ComposeForm.js';
+import { DescriptionField, TextField, ToggleRow } from '../../components/ComposeForm.js';
 import { PhotoCropper } from '../../components/PhotoCropper.js';
 import { cropToProportions } from '../../data/imageCrop.js';
 import type { Area } from 'react-easy-crop';
@@ -117,7 +117,7 @@ export function ComposeEntryScreen() {
     patchDraft({ thumbnailCrop: cropToProportions(percent) });
   }
 
-  async function handleUpload(): Promise<void> {
+  async function handlePublish(): Promise<void> {
     if (!draft || !eligibility?.publishable || unusablePhoto || submitting) return;
     setSubmitting(true);
     setSubmitError(null);
@@ -142,7 +142,7 @@ export function ComposeEntryScreen() {
     );
   }
 
-  const canUpload = !unusablePhoto && eligibility?.publishable === true && !submitting;
+  const canPublish = !unusablePhoto && eligibility?.publishable === true && !submitting;
 
   return (
     <IonPage>
@@ -221,17 +221,16 @@ export function ComposeEntryScreen() {
                 onChange={(title) => patchDraft({ title })}
               />
 
+              <DescriptionField
+                value={draft.description}
+                onChange={(description) => patchDraft({ description })}
+              />
+
               <TextField
                 label="Tags (comma-separated)"
                 value={draft.tags}
                 maxLength={TAGS_LIMIT}
                 onChange={(tags) => patchDraft({ tags })}
-              />
-
-              <LinkRow
-                label="Description"
-                summary={draft.description ? draft.description.slice(0, 80) : 'No description'}
-                onClick={() => navigate.push('/compose/description')}
               />
 
               <div>
@@ -257,7 +256,7 @@ export function ComposeEntryScreen() {
               </div>
 
               <ToggleRow
-                label="Location"
+                label="Add to map"
                 checked={draft.location != null}
                 onChange={(checked) => {
                   if (checked && !draft.location) {
@@ -282,8 +281,8 @@ export function ComposeEntryScreen() {
         )}
 
         <div className="compose-form">
-          <IonButton expand="block" disabled={!canUpload} onClick={() => void handleUpload()}>
-            {submitting ? <IonSpinner name="dots" /> : 'Upload'}
+          <IonButton expand="block" disabled={!canPublish} onClick={() => void handlePublish()}>
+            {submitting ? <IonSpinner name="dots" /> : 'Publish'}
           </IonButton>
         </div>
       </IonContent>

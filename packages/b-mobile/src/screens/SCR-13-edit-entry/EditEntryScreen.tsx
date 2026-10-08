@@ -28,7 +28,7 @@ import {
 } from '@ionic/react';
 import { AppHeader } from '../../components/AppHeader.js';
 import { CachedImage } from '../../components/CachedImage.js';
-import { LinkRow, TextField, ToggleRow } from '../../components/ComposeForm.js';
+import { DescriptionField, TextField, ToggleRow } from '../../components/ComposeForm.js';
 import { useAppNavigate } from '../../app/routes/useAppNavigate.js';
 import { useComposeDraftStore } from '../../state/composeDraftStore.js';
 import { useActiveAccount } from '../../state/accountsStore.js';
@@ -227,6 +227,11 @@ export function EditEntryScreen({ entryId }: EditEntryScreenProps) {
             onChange={(title) => patchDraft({ title })}
           />
 
+          <DescriptionField
+            value={draft.description}
+            onChange={(description) => patchDraft({ description })}
+          />
+
           <TextField
             label="Tags (comma-separated)"
             value={draft.tags}
@@ -234,14 +239,8 @@ export function EditEntryScreen({ entryId }: EditEntryScreenProps) {
             onChange={(tags) => patchDraft({ tags })}
           />
 
-          <LinkRow
-            label="Description"
-            summary={draft.description ? draft.description.slice(0, 80) : 'No description'}
-            onClick={() => navigate.push('/compose/description')}
-          />
-
           <ToggleRow
-            label="Location"
+            label="Add to map"
             checked={draft.location != null}
             onChange={(checked) => {
               if (checked && !draft.location) {

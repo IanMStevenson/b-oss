@@ -69,7 +69,7 @@ const comment = (i, entryId = null) => ({
 const notification = (i) => ({
   notification_id_str: String(9000 + i),
   content: `${people[i % people.length]} starred your entry`,
-  content_html: `<b>${people[i % people.length]}</b> starred your entry "${titles[i]}"`,
+  content_html: `<a href="https://www.blipfoto.com/${people[i % people.length]}">${people[i % people.length]}</a> starred your entry "${titles[i]}"`,
   image_url: img(i, 'thumb'),
   link_url: `https://www.blipfoto.com/entry/${5000000000 + i}`,
 });
@@ -262,8 +262,39 @@ function handle(path, q) {
     case 'config/countries':
       return {
         countries: [
+          // Deliberately unsorted and long enough to scroll, so the picker's sort and
+          // scroll-to-selection are visible.
           { country_code: 'GB', title: 'United Kingdom' },
-          { country_code: 'IE', title: 'Ireland' },
+          ...[
+            ['IE', 'Ireland'],
+            ['US', 'United States'],
+            ['FR', 'France'],
+            ['DE', 'Germany'],
+            ['ES', 'Spain'],
+            ['IT', 'Italy'],
+            ['NL', 'Netherlands'],
+            ['SE', 'Sweden'],
+            ['NO', 'Norway'],
+            ['DK', 'Denmark'],
+            ['PL', 'Poland'],
+            ['PT', 'Portugal'],
+            ['AU', 'Australia'],
+            ['CA', 'Canada'],
+            ['NZ', 'New Zealand'],
+            ['JP', 'Japan'],
+            ['IN', 'India'],
+            ['BR', 'Brazil'],
+            ['AR', 'Argentina'],
+            ['ZA', 'South Africa'],
+            ['CH', 'Switzerland'],
+            ['AT', 'Austria'],
+            ['BE', 'Belgium'],
+            ['GR', 'Greece'],
+            ['FI', 'Finland'],
+            ['MX', 'Mexico'],
+            ['TR', 'Turkey'],
+            ['EG', 'Egypt'],
+          ].map(([country_code, title]) => ({ country_code, title })),
         ],
       };
     case 'config/locales':
@@ -280,7 +311,16 @@ function svg(seed, kind) {
     ? [...String(seed)].reduce((a, c) => a + c.charCodeAt(0), 0)
     : Number(seed);
   const h = hues[n % hues.length];
-  const [w, hgt] = kind === 'avatar' ? [128, 128] : kind === 'thumb' ? [300, 300] : [1200, 800];
+  // Every third photo is portrait, so lightbox fit/zoom is exercised in both orientations.
+  const portrait = !Number.isNaN(Number(seed)) && Number(seed) % 3 === 2;
+  const [w, hgt] =
+    kind === 'avatar'
+      ? [128, 128]
+      : kind === 'thumb'
+        ? [300, 300]
+        : portrait
+          ? [800, 1200]
+          : [1200, 800];
   return `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${hgt}" viewBox="0 0 ${w} ${hgt}"><defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="hsl(${h},55%,62%)"/><stop offset="1" stop-color="hsl(${(h + 50) % 360},60%,28%)"/></linearGradient></defs><rect width="100%" height="100%" fill="url(#g)"/><circle cx="${w * 0.7}" cy="${hgt * 0.3}" r="${hgt * 0.12}" fill="rgba(255,255,255,.55)"/></svg>`;
 }
 
