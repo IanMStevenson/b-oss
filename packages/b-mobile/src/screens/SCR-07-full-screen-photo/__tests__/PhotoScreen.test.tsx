@@ -102,8 +102,10 @@ describe('PhotoScreen', () => {
       ...reactionFields,
     });
     const { container } = renderScreen();
-    const img = await screen.findByRole('dialog').then(() => container.querySelector('img'));
-    img!.dispatchEvent(new Event('error'));
+    await screen.findByRole('dialog');
+    // The dialog can be up a beat before its <img> is, so wait for the image itself.
+    await waitFor(() => expect(container.querySelector('img')).not.toBeNull());
+    container.querySelector('img')!.dispatchEvent(new Event('error'));
     expect(await screen.findByText(/couldn't be loaded/)).toBeDefined();
     const retryButton = screen.getByText('Retry');
     expect(retryButton).toBeDefined();
