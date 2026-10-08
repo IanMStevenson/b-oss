@@ -483,7 +483,7 @@ Vitest + Testing Library under jsdom, run from the repo root. Pure logic (error 
 queue, BBCode preset, deep links, notification suppression/routing, crop maths) carries most of the
 tests; screens render with `src/platform/` mocked and `b-api` stubbed, using
 `app/routes/test-router.tsx`. On-device checks are manual; there is no device or emulator on the dev
-VM, and unverified paths are listed in [`../DECIDED_NOT_TO_TEST.md`](../DECIDED_NOT_TO_TEST.md).
+VM, and paths the owner has decided not to test are listed in [`../DECIDED_NOT_TO_TEST.md`](../DECIDED_NOT_TO_TEST.md).
 
 `vite.config.ts`'s `test` block aliases `@lit/react` to its browser build and inlines it; otherwise
 Vitest resolves Ionic 9's wrappers to an SSR build and components render as inert tags.
