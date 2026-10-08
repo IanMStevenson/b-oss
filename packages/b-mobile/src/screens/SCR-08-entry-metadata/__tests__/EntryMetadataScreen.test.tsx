@@ -5,6 +5,7 @@
 import { describe, it, expect, afterEach, vi } from 'vitest';
 import { render, screen, cleanup } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
+import { OverlayProvider } from '../../../app/OverlayProvider.js';
 import { EntryMetadataScreen } from '../EntryMetadataScreen.js';
 import type { BlipEntry } from '@b-oss/b-view';
 
@@ -46,7 +47,9 @@ afterEach(() => {
 function renderScreen() {
   return render(
     <MemoryRouter>
-      <EntryMetadataScreen entryId="1" />
+      <OverlayProvider>
+        <EntryMetadataScreen entryId="1" />
+      </OverlayProvider>
     </MemoryRouter>,
   );
 }

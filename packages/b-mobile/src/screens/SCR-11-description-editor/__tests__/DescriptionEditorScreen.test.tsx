@@ -6,6 +6,7 @@ import { describe, it, expect, afterEach, beforeEach, vi } from 'vitest';
 import { render, screen, cleanup, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
+import { OverlayProvider } from '../../../app/OverlayProvider.js';
 import { DescriptionEditorScreen } from '../DescriptionEditorScreen.js';
 
 const goBack = vi.fn();
@@ -32,7 +33,9 @@ afterEach(() => {
 function renderScreen() {
   return render(
     <MemoryRouter>
-      <DescriptionEditorScreen />
+      <OverlayProvider>
+        <DescriptionEditorScreen />
+      </OverlayProvider>
     </MemoryRouter>,
   );
 }

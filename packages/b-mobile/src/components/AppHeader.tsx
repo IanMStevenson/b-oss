@@ -34,11 +34,17 @@ interface AppHeaderProps {
   /** Extra content after the title (e.g. AccountIndicator) — kept optional rather than every
    * screen reimplementing the same IonButtons/slot="end" wrapper. */
   end?: ReactNode;
-  /** Mount the account switcher avatar after `end`. Defaults to on for variant="menu" (the
-   * spec's primary-chrome screens: Browse, Search, Map, My profile, Notifications, Comments,
-   * Settings, Help, Uploads) and off for back screens; pass explicitly to override either way
-   * (e.g. false on a drawer destination the spec doesn't list, true on a drill-in that has it).
-   * The indicator itself renders nothing with fewer than two accounts. */
+  /** Mount the account switcher avatar after `end`. The rule (b-oss#320): show it wherever an
+   * action or the displayed content depends on which account is active — browsing/search/map,
+   * entries and everything that acts on them (compose, edit, report, comment), profiles (own AND
+   * others': following acts as the active account), inboxes, uploads, follower/hidden lists, and
+   * Settings screens that are per account (Blipfoto account sections, App > General's
+   * Reminders). Do NOT show it where nothing depends on the account: Accounts (it is the list),
+   * Sign in, Help & About, and device-wide settings (Browsing). The default is on for
+   * variant="menu" and off for back screens, so a back screen that meets the rule — most of
+   * them — must pass `accountIndicator` explicitly, and a menu screen that doesn't must pass
+   * `accountIndicator={false}`. The indicator itself renders nothing with fewer than two
+   * accounts. */
   accountIndicator?: boolean;
 }
 

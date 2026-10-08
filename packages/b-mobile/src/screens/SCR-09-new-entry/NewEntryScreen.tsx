@@ -122,7 +122,7 @@ export function NewEntryScreen() {
   return (
     <IonPage>
       <IonHeader>
-        <AppHeader title="New entry" accountIndicator={false} />
+        <AppHeader title="New entry" accountIndicator />
       </IonHeader>
       <IonContent>
         <div className="new-entry-tiles">

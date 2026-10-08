@@ -147,7 +147,7 @@ export function ComposeEntryScreen() {
   return (
     <IonPage>
       <IonHeader>
-        <AppHeader title="New entry" variant="back" onBack={handleBack} />
+        <AppHeader title="New entry" variant="back" onBack={handleBack} accountIndicator />
       </IonHeader>
       <IonContent>
         {unusablePhoto ? (

@@ -205,7 +205,7 @@ export function EditEntryScreen({ entryId }: EditEntryScreenProps) {
   return (
     <IonPage>
       <IonHeader>
-        <AppHeader title="Edit entry" variant="back" onBack={handleBack} />
+        <AppHeader title="Edit entry" variant="back" onBack={handleBack} accountIndicator />
       </IonHeader>
       <IonContent>
         <div className="compose-form">

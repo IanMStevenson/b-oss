@@ -155,6 +155,44 @@ describe('ProfileScreen', () => {
     expect(screen.queryByText('Follow')).toBeNull();
   });
 
+  it('hides a member via an icon button beside the name, with confirmation, and has no overflow menu', async () => {
+    const { fetchUserProfile } = await import('../../../data/users.js');
+    vi.mocked(fetchUserProfile).mockResolvedValue(aliceProfile);
+    renderScreen('alice');
+    await screen.findByText("Alice's journal");
+    expect(screen.queryByLabelText('More')).toBeNull();
+    await userEvent.click(screen.getByLabelText('Hide alice'));
+    await userEvent.click(await screen.findByText('Hide', { selector: '.alert-button-inner' }));
+    await waitFor(() =>
+      expect(useHiddenMembersStore.getState().hiddenByAccount['a1']).toEqual(['alice']),
+    );
+  });
+
+  it("shows the account indicator on another member's profile when there are two accounts", async () => {
+    useAccountsStore.setState({
+      accounts: [meAccount, { ...meAccount, id: 'a2', username: 'other' }],
+      activeAccountId: 'a1',
+      hydrated: true,
+    });
+    const { fetchUserProfile } = await import('../../../data/users.js');
+    vi.mocked(fetchUserProfile).mockResolvedValue(aliceProfile);
+    renderScreen('alice');
+    await screen.findByText("Alice's journal");
+    expect(screen.getByLabelText('Switch account (currently me)')).toBeDefined();
+  });
+
+  it('does not show a Hide button on your own profile', async () => {
+    const { fetchUserProfile } = await import('../../../data/users.js');
+    vi.mocked(fetchUserProfile).mockResolvedValue({
+      ...aliceProfile,
+      user: { ...aliceProfile.user, username: 'me' },
+      friendship: null,
+    });
+    renderScreen();
+    await screen.findByText('My profile');
+    expect(screen.queryByLabelText(/^Hide \w+$/)).toBeNull();
+  });
+
   it('does not show a Follow button on your own profile', async () => {
     const { fetchUserProfile } = await import('../../../data/users.js');
     vi.mocked(fetchUserProfile).mockResolvedValue({

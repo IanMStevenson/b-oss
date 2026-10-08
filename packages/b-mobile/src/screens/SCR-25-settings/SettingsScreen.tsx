@@ -73,7 +73,14 @@ function SectionScreen({ section }: { section: SettingsSection }) {
   return (
     <IonPage>
       <IonHeader>
-        <AppHeader title={SECTION_TITLES[section]} variant="back" backHref="/settings" />
+        <AppHeader
+          title={SECTION_TITLES[section]}
+          variant="back"
+          backHref="/settings"
+          // Per-account sections (and App > General, which holds per-account Reminders) show the
+          // indicator; Browsing is device-wide, so it doesn't.
+          accountIndicator={section !== 'browsing'}
+        />
       </IonHeader>
       <IonContent>
         {section === 'general' && <GeneralSection />}

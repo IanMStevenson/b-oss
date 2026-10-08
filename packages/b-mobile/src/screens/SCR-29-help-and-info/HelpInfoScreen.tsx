@@ -230,7 +230,7 @@ function HelpInfoHub() {
   return (
     <IonPage>
       <IonHeader>
-        <AppHeader title="Help & About" />
+        <AppHeader title="Help & About" accountIndicator={false} />
       </IonHeader>
       <IonContent>
         <IonList>
