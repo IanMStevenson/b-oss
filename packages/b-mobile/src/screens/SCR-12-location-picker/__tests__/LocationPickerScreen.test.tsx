@@ -49,7 +49,13 @@ const { MockMap, MockMarker, mapInstances, markerInstances } = vi.hoisted(() => 
   class MockMapImpl {
     handlers: Record<string, Array<(e: unknown) => void>> = {};
     jumpToCalls: Array<{ center: [number, number]; zoom: number }> = [];
-    constructor(public options: { center: [number, number]; zoom: number }) {
+    constructor(
+      public options: {
+        center: [number, number];
+        zoom: number;
+        attributionControl?: { customAttribution?: string[] };
+      },
+    ) {
       mapInstances.push(this);
     }
     on(event: string, handler: (e: unknown) => void) {
@@ -71,7 +77,10 @@ const { MockMap, MockMarker, mapInstances, markerInstances } = vi.hoisted(() => 
 vi.mock('maplibre-gl', () => ({ Map: MockMap, Marker: MockMarker }));
 
 const { getMapStyleUrl } = vi.hoisted(() => ({ getMapStyleUrl: vi.fn() }));
-vi.mock('../../../platform/mapTiles.js', () => ({ getMapStyleUrl }));
+vi.mock('../../../platform/mapTiles.js', () => ({
+  getMapStyleUrl,
+  MAP_ATTRIBUTION: ['mock credit'],
+}));
 
 const { getCurrentPosition } = vi.hoisted(() => ({ getCurrentPosition: vi.fn() }));
 vi.mock('../../../platform/geolocation.js', () => ({ getCurrentPosition }));
@@ -135,6 +144,14 @@ describe('LocationPickerScreen', () => {
     expect(mapInstances[0].options.center).toEqual([-0.1, 51.5]);
     mapInstances[0].trigger('load');
     await waitFor(() => expect(markerInstances.length).toBe(1));
+  });
+
+  it('credits the map tiles and OpenStreetMap explicitly', async () => {
+    renderScreen();
+    await waitFor(() => expect(mapInstances.length).toBe(1));
+    expect(mapInstances[0].options.attributionControl).toEqual({
+      customAttribution: ['mock credit'],
+    });
   });
 
   it('a map tap places a single marker', async () => {
