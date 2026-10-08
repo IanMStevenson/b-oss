@@ -6,6 +6,8 @@
 // stay mounted (hidden, not unmounted) so switching back doesn't re-query (rules.md: "switching
 // back to a tab loaded earlier in the same visit doesn't force a re-query").
 
+import { Images, MapPin } from 'lucide-react';
+import { EmptyState } from '../../components/EmptyState.js';
 import { useEffect, useState } from 'react';
 import { resumeClear, resumeGet, resumeSet } from '../../data/resumeCache.js';
 import {
@@ -56,17 +58,22 @@ function NearbyTab() {
   const navigate = useAppNavigate();
   const [coords, setCoords] = useState<{ lat: number; lon: number } | null>(null);
   const [locationDenied, setLocationDenied] = useState(false);
+  const [asked, setAsked] = useState(false);
 
-  useEffect(() => {
-    // A `null` resolution (permission granted, no fix available) is folded into the same
-    // "can't show this tab" state as a rejection (permission refused) — Phase 6 made
-    // getCurrentPosition() real, and both cases need the same treatment here or a device with
-    // no GPS fix but granted permission would spin forever instead of showing the message.
+  // A `null` resolution (permission granted, no fix available) is folded into the same
+  // "can't show this tab" state as a rejection (permission refused) — Phase 6 made
+  // getCurrentPosition() real, and both cases need the same treatment here or a device with
+  // no GPS fix but granted permission would spin forever instead of showing the message.
+  // Also the "Allow location" button's handler: it re-runs the same permission flow.
+  function locate(): void {
+    setLocationDenied(false);
     getCurrentPosition().then(
       (result) => (result ? setCoords(result) : setLocationDenied(true)),
       () => setLocationDenied(true),
     );
-  }, []);
+  }
+
+  useEffect(locate, []);
 
   const resource = usePagedResource<EntryIndex>(
     (pageIndex) =>
@@ -79,13 +86,33 @@ function NearbyTab() {
 
   if (!coords) {
     return (
-      <div className="ion-padding">
+      <>
         {locationDenied ? (
-          <p>This tab needs location access to show entries near you.</p>
+          <>
+            <EmptyState
+              icon={<MapPin size={40} strokeWidth={1.5} />}
+              title="Nearby needs your location."
+              hint={
+                asked ? 'If nothing happens, allow location in your phone settings.' : undefined
+              }
+            />
+            <div style={{ display: 'flex', justifyContent: 'center' }}>
+              <IonButton
+                onClick={() => {
+                  setAsked(true);
+                  locate();
+                }}
+              >
+                Allow location
+              </IonButton>
+            </div>
+          </>
         ) : (
-          <IonSpinner />
+          <div className="ion-padding" style={{ display: 'flex', justifyContent: 'center' }}>
+            <IonSpinner />
+          </div>
         )}
-      </div>
+      </>
     );
   }
 
@@ -128,11 +155,7 @@ function ResourceGrid({
     );
   }
   if (resource.status === 'empty') {
-    return (
-      <div className="ion-padding">
-        <p>Nothing here yet.</p>
-      </div>
-    );
+    return <EmptyState icon={<Images size={40} strokeWidth={1.5} />} title="Nothing here yet." />;
   }
   return (
     <EntryGrid

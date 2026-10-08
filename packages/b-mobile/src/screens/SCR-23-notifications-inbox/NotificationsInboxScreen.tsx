@@ -25,6 +25,8 @@
 // reference (blipfoto.com's own web client) groups by date, but must derive it from something
 // this endpoint doesn't expose to us.
 
+import { Bell } from 'lucide-react';
+import { EmptyState } from '../../components/EmptyState.js';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   IonPage,
@@ -150,9 +152,7 @@ export function NotificationsInboxScreen() {
           </div>
         )}
         {status === 'empty' && (
-          <div className="ion-padding">
-            <p>No notifications yet.</p>
-          </div>
+          <EmptyState icon={<Bell size={40} strokeWidth={1.5} />} title="No notifications yet." />
         )}
         {(status === 'loaded' || status === 'empty') && (
           <>

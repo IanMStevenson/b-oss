@@ -3,6 +3,8 @@
 
 // SCR-05 — Tag Entries. A single infinite-scroll grid, same paging shape as SCR-02's feed tabs.
 
+import { Tag } from 'lucide-react';
+import { EmptyState } from '../../components/EmptyState.js';
 import { IonPage, IonHeader, IonContent, IonSpinner, IonText, IonButton } from '@ionic/react';
 import { AppHeader } from '../../components/AppHeader.js';
 import { usePagedResource } from '../../data/usePagedResource.js';
@@ -47,9 +49,10 @@ export function TagEntriesScreen({ tag }: TagEntriesScreenProps) {
           </div>
         )}
         {resource.status === 'empty' && (
-          <div className="ion-padding">
-            <p>No entries tagged &lsquo;{tag}&rsquo;.</p>
-          </div>
+          <EmptyState
+            icon={<Tag size={40} strokeWidth={1.5} />}
+            title={`No entries tagged ‘${tag}’.`}
+          />
         )}
         {resource.status === 'loaded' && (
           <EntryGrid

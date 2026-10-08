@@ -4,6 +4,8 @@
 // SCR-20 — Pending Requests (FLW-09). Approve/Refuse are writes gated on read-write; the list
 // itself and viewing a requester's profile stay available read-only.
 
+import { UserRoundCheck } from 'lucide-react';
+import { EmptyState } from '../../components/EmptyState.js';
 import { useState } from 'react';
 import {
   IonPage,
@@ -116,9 +118,10 @@ export function PendingRequestsScreen() {
           </div>
         )}
         {resource.status === 'empty' && (
-          <div className="ion-padding">
-            <p>No pending requests.</p>
-          </div>
+          <EmptyState
+            icon={<UserRoundCheck size={40} strokeWidth={1.5} />}
+            title="No pending requests."
+          />
         )}
         {(resource.status === 'loaded' || resource.status === 'empty') && (
           <>
