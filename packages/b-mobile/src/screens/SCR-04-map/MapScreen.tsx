@@ -49,7 +49,7 @@ setWorkerUrl(maplibreWorkerUrl);
 import { createPin } from '../../components/mapPin.js';
 import { LocateFixed } from 'lucide-react';
 import { AppHeader } from '../../components/AppHeader.js';
-import { getMapStyleUrl } from '../../platform/mapTiles.js';
+import { getMapStyleUrl, MAP_ATTRIBUTION } from '../../platform/mapTiles.js';
 import { getCurrentPosition } from '../../platform/geolocation.js';
 import { resolveImage } from '../../platform/imageCache.js';
 import { fetchEntriesInBounds } from '../../data/map.js';
@@ -209,7 +209,13 @@ export function MapScreen({ focusedEntryId }: MapScreenProps) {
       }
       if (cancelled || !containerRef.current) return;
 
-      map = new MapLibreMap({ container: containerRef.current, style: url, center, zoom });
+      map = new MapLibreMap({
+        container: containerRef.current,
+        style: url,
+        center,
+        zoom,
+        attributionControl: { customAttribution: MAP_ATTRIBUTION },
+      });
       mapRef.current = map;
 
       // Focused mode (reached from a specific entry): show only that one pin, not a general

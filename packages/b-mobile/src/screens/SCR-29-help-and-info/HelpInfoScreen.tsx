@@ -26,6 +26,8 @@
 // (IonLabel not reliably rendering its children in this jsdom test setup) reproduced on this
 // screen's own hub; UserRow.tsx made the same choice for the same reason.
 
+import { useEffect, useState } from 'react';
+import type { ReactNode } from 'react';
 import { IonPage, IonHeader, IonContent, IonList, IonItem, IonNote, IonButton } from '@ionic/react';
 import { NavRow, SectionHeader } from '../../components/SettingsForm.js';
 import { AppHeader } from '../../components/AppHeader.js';
@@ -180,44 +182,169 @@ function SafetyPrivacy() {
   );
 }
 
-// Runtime dependencies shipped in the app, derived by hand from packages/b-mobile/package.json
-// plus the runtime dependencies of the workspace packages it bundles (b-view's ProseMirror
-// editor packages, b-api, b-visual). Re-check when a runtime dependency is added.
-const THIRD_PARTY_LIBRARIES = [
-  '@ionic/react and @ionic/react-router',
-  '@capacitor/core and its plugins',
-  '@aparajita/capacitor-secure-storage',
-  'react and react-dom',
-  'react-router and react-router-dom',
-  'zustand',
-  'react-easy-crop',
-  'react-zoom-pan-pinch',
-  'maplibre-gl',
-  'lucide-react',
-  '@bbob/react and its plugins',
-  'ProseMirror (prosemirror-model, -state, -view, -commands, -history, -keymap)',
-];
+const OSM_COPYRIGHT_URL = 'https://www.openstreetmap.org/copyright';
+const MAPTILER_COPYRIGHT_URL = 'https://www.maptiler.com/copyright/';
+const GPL_URL = 'https://www.gnu.org/licenses/gpl-3.0.html';
+
+/** licences.generated.json's shape (scripts/licences.mjs). `texts` holds each distinct licence
+ * text once; a package's `texts` are indexes into it. */
+interface LicencesFile {
+  packages: Array<{
+    name: string;
+    version: string;
+    license: string;
+    repository: string | null;
+    texts: number[];
+  }>;
+  texts: string[];
+}
+
+/** native-licences.generated.json's shape (scripts/native-licences.mjs): Android (Gradle)
+ * libraries, each pointing at the licences that apply to it. `text` is null where only the
+ * licence's name and URL are known. */
+interface NativeLicencesFile {
+  licences: Array<{ id: string; name: string; url: string | null; text: string | null }>;
+  artifacts: Array<{ name: string; version: string; licences: number[] }>;
+}
+
+function InlineLink({ url, children }: { url: string; children: ReactNode }) {
+  return (
+    <button
+      onClick={() => void openUrl(url)}
+      style={{ color: 'var(--green-700)', textDecoration: 'underline', font: 'inherit' }}
+    >
+      {children}
+    </button>
+  );
+}
+
+function LicenceEntry({ pkg, texts }: { pkg: LicencesFile['packages'][number]; texts: string[] }) {
+  // Texts are only rendered once opened: there are about a hundred packages.
+  const [open, setOpen] = useState(false);
+  return (
+    <details onToggle={(e) => setOpen(e.currentTarget.open)} style={{ padding: '4px 0' }}>
+      <summary>
+        {pkg.name} {pkg.version} — {pkg.license}
+      </summary>
+      {open &&
+        pkg.texts.map((i) => (
+          <pre
+            key={i}
+            style={{ whiteSpace: 'pre-wrap', fontSize: '0.75rem', overflowWrap: 'anywhere' }}
+          >
+            {texts[i]}
+          </pre>
+        ))}
+    </details>
+  );
+}
+
+function NativeLicenceGroup({
+  licence,
+  artifacts,
+}: {
+  licence: NativeLicencesFile['licences'][number];
+  artifacts: NativeLicencesFile['artifacts'];
+}) {
+  const [open, setOpen] = useState(false);
+  return (
+    <details onToggle={(e) => setOpen(e.currentTarget.open)} style={{ padding: '4px 0' }}>
+      <summary>
+        {licence.name} — {artifacts.length} {artifacts.length === 1 ? 'library' : 'libraries'}
+      </summary>
+      {open && (
+        <>
+          {licence.url && (
+            <p>
+              <InlineLink url={licence.url}>Read the licence online</InlineLink>
+            </p>
+          )}
+          {licence.text && (
+            <pre style={{ whiteSpace: 'pre-wrap', fontSize: '0.75rem', overflowWrap: 'anywhere' }}>
+              {licence.text}
+            </pre>
+          )}
+          <ul style={{ fontSize: '0.75rem', overflowWrap: 'anywhere' }}>
+            {artifacts.map((a) => (
+              <li key={`${a.name}@${a.version}`}>
+                {a.name} {a.version}
+              </li>
+            ))}
+          </ul>
+        </>
+      )}
+    </details>
+  );
+}
 
 function Licences() {
+  // Generated at build time from the production dependency tree (scripts/licences.mjs), and
+  // loaded only when this page opens so its ~120 KB of text stays out of the main bundle.
+  const [data, setData] = useState<LicencesFile | null>(null);
+  const [native, setNative] = useState<NativeLicencesFile | null>(null);
+  const [failed, setFailed] = useState(false);
+  useEffect(() => {
+    let cancelled = false;
+    Promise.all([import('./licences.generated.json'), import('./native-licences.generated.json')])
+      .then(([npm, nat]) => {
+        if (cancelled) return;
+        setData(npm.default);
+        setNative(nat.default);
+      })
+      .catch(() => {
+        if (!cancelled) setFailed(true);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   return (
     <>
       <p>
-        Visit the{' '}
-        <button
-          onClick={() => void openUrl(SOURCE_URL)}
-          style={{ color: 'var(--green-700)', textDecoration: 'underline', font: 'inherit' }}
-        >
-          b-oss website
-        </button>{' '}
-        to find links to the source code and full licence and dependency information.
+        b-mobile is free software, licensed under the{' '}
+        <InlineLink url={GPL_URL}>GNU General Public License, version 3 or later</InlineLink>{' '}
+        (GPL-3.0-or-later). Visit the <InlineLink url={SOURCE_URL}>b-oss website</InlineLink> for
+        the source code.
       </p>
-      <p>This app is built with these open-source libraries, among others:</p>
-      <ul>
-        {THIRD_PARTY_LIBRARIES.map((name) => (
-          <li key={name}>{name}</li>
-        ))}
-      </ul>
-      <p>Each project&rsquo;s own repository holds its full licence text.</p>
+
+      <p>
+        <strong>Maps</strong>
+      </p>
+      <p>
+        Map tiles &copy; <InlineLink url={MAPTILER_COPYRIGHT_URL}>MapTiler</InlineLink>. Map data
+        &copy; <InlineLink url={OSM_COPYRIGHT_URL}>OpenStreetMap contributors</InlineLink>,
+        available under the Open Database License (ODbL).
+      </p>
+
+      <p>
+        <strong>Open-source libraries</strong>
+      </p>
+      <p>This app includes the following libraries. Tap one to read its licence.</p>
+      {failed && <p>The licence list couldn&rsquo;t be loaded.</p>}
+      {!data && !failed && <p>Loading…</p>}
+      {data?.packages.map((pkg) => (
+        <LicenceEntry key={`${pkg.name}@${pkg.version}`} pkg={pkg} texts={data.texts} />
+      ))}
+
+      {native && (
+        <>
+          <p>
+            <strong>Android libraries</strong>
+          </p>
+          <p>
+            The Android app also includes the following libraries ({native.artifacts.length}),
+            grouped by licence. Tap a licence to see the libraries it covers.
+          </p>
+          {native.licences.map((licence, i) => (
+            <NativeLicenceGroup
+              key={licence.id}
+              licence={licence}
+              artifacts={native.artifacts.filter((a) => a.licences.includes(i))}
+            />
+          ))}
+        </>
+      )}
     </>
   );
 }

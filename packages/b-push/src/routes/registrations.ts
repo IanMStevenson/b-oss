@@ -122,6 +122,16 @@ function requireOptionalBooleans(body: { pushComments?: unknown; pushNotificatio
   }
 }
 
+/** If present, `pollIntervalMinutes` must be a finite number. Anything else would be stored as
+ * NaN by updatePollInterval's floor, and a NaN interval never falls due, so the row would stop
+ * polling with no error. */
+function requireOptionalInterval(body: { pollIntervalMinutes?: unknown }) {
+  const value = body.pollIntervalMinutes;
+  if (value !== undefined && (typeof value !== 'number' || !Number.isFinite(value))) {
+    throw new HttpError(400, 'pollIntervalMinutes must be a finite number');
+  }
+}
+
 /** `POST /v1/registrations` — also seeds `last_seen_*_total` from a real, immediate
  * `messages/totals/unread` call using the just-provided read token, rather than leaving both at
  * 0. Without this, an account with pre-existing unread items at registration time would see the
@@ -195,6 +205,7 @@ export async function patchRegistration(
 ): Promise<void> {
   const row = await authenticate(db, id, authHeader);
   requireOptionalBooleans(body);
+  requireOptionalInterval(body);
 
   if (body.readToken !== undefined) {
     // A re-authorised token must belong to the same account as the row. Checked before any field

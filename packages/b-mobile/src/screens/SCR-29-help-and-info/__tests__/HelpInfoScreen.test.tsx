@@ -3,7 +3,7 @@
 // @vitest-environment jsdom
 
 import { describe, it, expect, afterEach, beforeEach, vi } from 'vitest';
-import { render, screen, cleanup, waitFor } from '@testing-library/react';
+import { render, screen, cleanup, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
 import { HelpInfoScreen } from '../HelpInfoScreen.js';
@@ -138,15 +138,86 @@ describe('HelpInfoScreen sections', () => {
     expect(openUrl).toHaveBeenLastCalledWith('https://www.blipfoto.com/be-excellent');
   });
 
-  it('renders open-source licences', () => {
+  it('names the app licence as GPL-3.0-or-later and links to it and the source', async () => {
     render(
       <MemoryRouter>
         <HelpInfoScreen section="licences" />
       </MemoryRouter>,
     );
-    expect(screen.getByText('@ionic/react and @ionic/react-router')).toBeDefined();
-    // the rich-text comment editor's ProseMirror packages are shipped, so must be listed
-    expect(screen.getByText(/^ProseMirror/)).toBeDefined();
+    expect(screen.getByText(/\(GPL-3\.0-or-later\)/)).toBeDefined();
+    await userEvent.click(screen.getByText('GNU General Public License, version 3 or later'));
+    expect(openUrl).toHaveBeenLastCalledWith('https://www.gnu.org/licenses/gpl-3.0.html');
+    await userEvent.click(screen.getByText('b-oss website'));
+    expect(openUrl).toHaveBeenLastCalledWith('https://ianmstevenson.github.io/b-oss/');
+  });
+
+  it('credits MapTiler and OpenStreetMap (ODbL) for the maps', async () => {
+    render(
+      <MemoryRouter>
+        <HelpInfoScreen section="licences" />
+      </MemoryRouter>,
+    );
+    expect(screen.getByText(/Open Database License \(ODbL\)/)).toBeDefined();
+    await userEvent.click(screen.getByText('OpenStreetMap contributors'));
+    expect(openUrl).toHaveBeenLastCalledWith('https://www.openstreetmap.org/copyright');
+    await userEvent.click(screen.getByText('MapTiler'));
+    expect(openUrl).toHaveBeenLastCalledWith('https://www.maptiler.com/copyright/');
+  });
+
+  it('lists every generated library with its licence, and shows the text when one is opened', async () => {
+    const { container } = render(
+      <MemoryRouter>
+        <HelpInfoScreen section="licences" />
+      </MemoryRouter>,
+    );
+    const { default: generated } = await import('../licences.generated.json');
+    const { default: native } = await import('../native-licences.generated.json');
+    await waitFor(() =>
+      expect(container.querySelectorAll('details').length).toBe(
+        generated.packages.length + native.licences.length,
+      ),
+    );
+    const zustand = generated.packages.find((p) => p.name === 'zustand')!;
+    const summary = screen.getByText(`zustand ${zustand.version} — MIT`);
+    expect(container.querySelector('pre')).toBeNull();
+
+    const details = summary.closest('details')!;
+    details.open = true;
+    details.dispatchEvent(new Event('toggle'));
+    await waitFor(() =>
+      expect(details.querySelector('pre')?.textContent).toBe(generated.texts[zustand.texts[0]]),
+    );
+    expect(details.textContent).toContain('Permission is hereby granted');
+  });
+
+  it('lists the native Android libraries grouped by licence, with the Apache text and licence links', async () => {
+    const { container } = render(
+      <MemoryRouter>
+        <HelpInfoScreen section="licences" />
+      </MemoryRouter>,
+    );
+    const { default: native } = await import('../native-licences.generated.json');
+    await screen.findByText('Android libraries');
+    const apacheIndex = native.licences.findIndex((l) => l.id === 'Apache-2.0');
+    const count = native.artifacts.filter((a) => a.licences.includes(apacheIndex)).length;
+    const summary = screen.getByText(`Apache License, Version 2.0 — ${count} libraries`);
+    const details = summary.closest('details')!;
+    details.open = true;
+    details.dispatchEvent(new Event('toggle'));
+    await waitFor(() =>
+      expect(details.querySelector('pre')?.textContent).toContain('TERMS AND CONDITIONS'),
+    );
+    expect(details.textContent).toContain('androidx.core:core ');
+    expect(container.querySelectorAll('li').length).toBeGreaterThan(0);
+
+    // A licence with no bundled text links to the one its POM names instead.
+    const sdk = screen
+      .getByText(/^Android Software Development Kit License — /)
+      .closest('details')!;
+    sdk.open = true;
+    sdk.dispatchEvent(new Event('toggle'));
+    await userEvent.click(await within(sdk).findByText('Read the licence online'));
+    expect(openUrl).toHaveBeenLastCalledWith('https://developer.android.com/studio/terms.html');
   });
 
   it('falls back to the hub for an unrecognised section', () => {

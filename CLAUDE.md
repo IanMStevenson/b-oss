@@ -94,6 +94,23 @@ npm run build          # Build all packages (also bumps the local build counter)
 npm run build:release  # Build with RELEASE=1 — version shown as bare 1.0.0
 ```
 
+### Local Android build + lint check (b-mobile; no CI)
+
+Run before merging anything that touches `packages/b-mobile/android/**`, the manifest, or a Capacitor
+plugin/SDK version — it catches manifest, SDK and plugin breakage that vitest can't:
+
+```bash
+export ANDROID_HOME=$HOME/Android/Sdk && npm run build -w @b-oss/b-mobile && (cd packages/b-mobile && npx cap sync android) && (cd packages/b-mobile/android && ./gradlew assembleRelease lintRelease)
+```
+
+Takes ~2 min cold; produces an unsigned APK (`app-release-unsigned.apk`), nothing is uploaded. Gradle's JVM
+ignores `HTTP(S)_PROXY`, so on the dev VMs egress goes through the squid proxy set in
+`~/.gradle/gradle.properties` (`systemProp.http(s).proxyHost=localhost`, port `3128`) — if downloads hang or
+fail with connection errors, check that file first. Verified on ims-dev-o1 on 2026-10-08:
+`assembleRelease` passes; `lintRelease` currently fails on one error (`PermissionImpliesUnsupportedChromeOsHardware`:
+the CAMERA permission lacks a `<uses-feature android:name="android.hardware.camera" android:required="false"/>`),
+tracked on b-oss#330.
+
 ## Versioning
 
 Display version format: `{pkg.major}.{pkg.minor}.{pkg.patch}[.{commits}.{build}]`.

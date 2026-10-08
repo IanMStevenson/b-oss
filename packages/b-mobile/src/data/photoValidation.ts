@@ -6,14 +6,12 @@
 // own, smaller limits — Blipfoto enforces these per upload purpose, not per account tier. Pure
 // logic — no Capacitor/platform dependency, directly testable.
 //
-// Real limits confirmed by the user 2026-08-05 from Blipfoto's observed upload behaviour (not in
-// Blipfoto's API documentation, which is why this was a placeholder through Phase 11):
+// Limits observed by testing uploads against the API 2026-08-05 (they are not stated in the public
+// API docs):
 // - Entry photos: minimum 600px on *at least one* edge, no maximum (oversized originals are
-//   kept; only derived renditions are downscaled), 1 KB–20 MB file size (S3 upload policy
-//   content-length-range).
-// - Avatar photos: minimum 300px on at least one edge, 3 MB max file size of the upload, met by
-//   re-encoding (see imageCrop.ts) — no minimum file size documented for this path, so none is
-//   enforced.
+//   stored as-is and only derived renditions are downscaled), 1 KB–20 MB file size.
+// - Avatar photos: minimum 300px on at least one edge, 3 MB max file size of the upload (met by
+//   re-encoding, see imageCrop.ts) — no minimum file size observed for this path, so none is enforced.
 // "At least one edge", not both — a thin panorama or a tall crop is valid as long as one
 // dimension clears the floor; this replaced an earlier stricter (both-edges) placeholder check.
 

@@ -300,6 +300,22 @@ describe('patchRegistration', () => {
     expect(row?.device_token).toBe('device-1'); // untouched
   });
 
+  it.each([['10'], [Number.NaN], [Number.POSITIVE_INFINITY], [null], [{}]])(
+    'rejects pollIntervalMinutes %j with a 400 and leaves the row unchanged',
+    async (value) => {
+      const { id, secret } = await seedRegistration();
+      await expect(
+        patchRegistration(db, env, id, `Bearer ${secret}`, {
+          pollIntervalMinutes: value as number,
+          deviceToken: 'device-2',
+        }),
+      ).rejects.toMatchObject({ status: 400 });
+      const row = await getRegistrationById(db, id);
+      expect(row?.poll_interval_minutes).toBe(5);
+      expect(row?.device_token).toBe('device-1');
+    },
+  );
+
   it('re-encrypts a new read token and resets status to active', async () => {
     const { id, secret } = await seedRegistration();
     // Simulate the row having gone dead first.

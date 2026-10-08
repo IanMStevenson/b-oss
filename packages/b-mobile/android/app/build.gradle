@@ -52,3 +52,61 @@ try {
 } catch(Exception e) {
     logger.info("google-services.json not found, google-services plugin not applied. Push Notifications won't work")
 }
+
+// Writes build/native-licences.json: every external artifact on the release runtime classpath
+// with the licence(s) its POM declares (falling back to parent POMs). Consumed by
+// scripts/native-licences.mjs, which produces the in-app list. Run via `npm run licences:native`.
+import groovy.json.JsonOutput
+import org.gradle.maven.MavenModule
+import org.gradle.maven.MavenPomArtifact
+
+tasks.register('nativeLicencesReport') {
+    def outFile = layout.buildDirectory.file('native-licences.json')
+    outputs.file(outFile)
+    outputs.upToDateWhen { false }
+    doLast {
+        def ids = configurations.releaseRuntimeClasspath.incoming.resolutionResult.allComponents
+            .collect { it.id }
+            .findAll { it instanceof ModuleComponentIdentifier }
+            .unique { it.displayName }
+        def poms = dependencies.createArtifactResolutionQuery()
+            .forComponents(ids)
+            .withArtifacts(MavenModule, MavenPomArtifact)
+            .execute()
+        def pomFiles = [:]
+        poms.resolvedComponents.each { c ->
+            c.getArtifacts(MavenPomArtifact).each { a ->
+                if (a instanceof ResolvedArtifactResult) pomFiles[c.id.displayName] = a.file
+            }
+        }
+        def parser = new XmlSlurper(false, false)
+        // Licences declared by the POM, or by the nearest ancestor POM that declares any.
+        def licencesOf
+        licencesOf = { File pom, int depth ->
+            def xml = parser.parse(pom)
+            def found = xml.licenses.license.collect {
+                [name: it.name.text().trim(), url: it.url.text().trim()]
+            }
+            if (found || depth > 5 || !xml.parent.artifactId.text()) return found
+            def p = xml.parent
+            def parentId = "${p.groupId.text()}:${p.artifactId.text()}:${p.version.text()}".toString()
+            def parentPom = pomFiles[parentId] ?: resolveParentPom(p.groupId.text(), p.artifactId.text(), p.version.text())
+            parentPom ? licencesOf(parentPom, depth + 1) : found
+        }
+        def entries = ids.collect { id ->
+            def pom = pomFiles[id.displayName]
+            [group: id.group, name: id.module, version: id.version,
+             licences: pom ? licencesOf(pom, 0) : []]
+        }.sort { a, b -> a.group <=> b.group ?: a.name <=> b.name }
+        outFile.get().asFile.text = JsonOutput.prettyPrint(JsonOutput.toJson(entries))
+    }
+}
+
+// A parent POM that isn't itself on the classpath (e.g. a company-wide parent) still has to be
+// fetched through the same repositories to read its licence.
+def resolveParentPom(String group, String artifact, String version) {
+    def detached = configurations.detachedConfiguration(
+        dependencies.create("${group}:${artifact}:${version}@pom"))
+    detached.transitive = false
+    try { return detached.singleFile } catch (Exception ignored) { return null }
+}

@@ -19,7 +19,7 @@ import 'maplibre-gl/dist/maplibre-gl.css';
 import { AppHeader } from '../../components/AppHeader.js';
 import { createPin } from '../../components/mapPin.js';
 import '../../components/ComposeForm.css';
-import { getMapStyleUrl } from '../../platform/mapTiles.js';
+import { getMapStyleUrl, MAP_ATTRIBUTION } from '../../platform/mapTiles.js';
 import { getCurrentPosition } from '../../platform/geolocation.js';
 import { useAppNavigate } from '../../app/routes/useAppNavigate.js';
 import { useComposeDraftStore } from '../../state/composeDraftStore.js';
@@ -72,6 +72,7 @@ export function LocationPickerScreen() {
       style: url,
       center: initialCenter,
       zoom: initialZoom,
+      attributionControl: { customAttribution: MAP_ATTRIBUTION },
     });
     mapRef.current = map;
 

@@ -2,7 +2,7 @@
 // Copyright (C) 2026 Ian Stevenson
 
 // The only two Blipfoto calls this service is allowed to make, both side-effect-free reads
-// (ARCHITECTURE.md "The service must never mark anything read" / "Polling design"):
+// (notification-service.md "The service must never mark anything read" / "Polling design"):
 // `messages/totals/unread` for the poll, and `user/profile` to check who a token belongs to at
 // registration. Reuses @b-oss/b-api rather
 // than hand-rolling a second HTTP client: b-api has zero Node/Electron/browser-specific
@@ -28,18 +28,17 @@ export class ReadTokenInvalidError extends Error {
   }
 }
 
-/** Whether Blipfoto has rejected the read token itself: 50/51, b-api's `isTokenInvalid`.
- * Observed (b-oss#148): a revoked or deleted user token comes back as **51**, so this is the only
- * signal that a *stored* token has died and the user needs to re-authorise. Only this
- * throws ReadTokenInvalidError, which is what makes the activity poll mark a row
- * `read-token-invalid` and send the reauth-required push. */
+/** Whether Blipfoto has rejected the read token itself: 50/51, b-api's `isTokenInvalid`. Observed
+ * behaviour (b-oss#148 on-device testing): a revoked or deleted user token comes back as **51**, so this is the only signal that a *stored* token has died and the user needs to
+ * re-authorise. Only this throws ReadTokenInvalidError, which is what makes the activity poll
+ * mark a row `read-token-invalid` and send the reauth-required push. */
 function isReadTokenRejected(err: unknown): boolean {
   return err instanceof BlipfotoError && err.isTokenInvalid;
 }
 
 /** Blipfoto code 52, "The client is invalid.": the bearer isn't recognised as a user token at
- * all, so Blipfoto falls back to reading it as a client id and rejects that. As observed, this
- * is *not* what a revoked user token returns (that's 51, above). So its meaning
+ * all, so Blipfoto falls back to reading it as a client id and rejects that. In observed
+ * behaviour this is *not* what a revoked user token returns (that's 51, above). So its meaning
  * depends on where it turns up (b-oss#238):
  *   - At registration, on a token the app has only just sent, it means the token is junk: invalid
  *     input, so `createRegistration` answers 400.
@@ -58,9 +57,10 @@ export interface UnreadTotals {
   notifications: number;
 }
 
-/** The one call the 1-minute activity poll makes per due registration — the only one observed
- * to be side-effect-free. Never call `messages/notifications/unread/Total` instead — it reports
- * the notification count under both keys (ARCHITECTURE.md, "Polling design"). */
+/** The one call the 1-minute activity poll makes per due registration — side-effect-free, per
+ * the doc: "Only `messages/totals/unread` is side-effect-free." Never call
+ * `messages/notifications/unread/Total` instead — it reports the notification count under both
+ * keys (notification-service.md, "Polling design"). */
 export async function fetchUnreadTotals(readToken: string): Promise<UnreadTotals> {
   const client = new BlipfotoClient(readToken);
   try {

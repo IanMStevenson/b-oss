@@ -10,6 +10,12 @@ function litReactBrowserBuild(): string {
   return resolve(dirname(createRequire(import.meta.url).resolve('@lit/react')), '../index.js');
 }
 
+// The shared UI kits' (and, for the Chrome shell, b-api/backup-engine's) package `main` points at
+// compiled dist/, which a fresh checkout hasn't built.
+// The shell smoke tests (b-ark-ui-electron, b-ark-chrome) must run against live src, like
+// packages/b-ark-chrome/vite.config.ts already does for the extension build.
+const uiKitSrc = (name: string) => resolve(__dirname, `packages/${name}/src/index.ts`);
+
 export default defineConfig({
   // Mirror the build-time defines the chrome packages rely on (normally injected by their
   // vite config) so their modules can be imported directly in tests.
@@ -27,7 +33,13 @@ export default defineConfig({
     hookTimeout: 30_000,
     exclude: ['**/node_modules/**', '**/dist/**'],
     server: { deps: { inline: [/@lit\/react/, /@stencil\/react-output-target/] } },
-    alias: { '@lit/react': litReactBrowserBuild() },
+    alias: [
+      { find: '@lit/react', replacement: litReactBrowserBuild() },
+      { find: /^@b-oss\/b-ark-ui-components$/, replacement: uiKitSrc('b-ark-ui-components') },
+      { find: /^@b-oss\/b-ark-ui-chrome$/, replacement: uiKitSrc('b-ark-ui-chrome') },
+      { find: /^@b-oss\/b-api$/, replacement: uiKitSrc('b-api') },
+      { find: /^@b-oss\/backup-engine$/, replacement: uiKitSrc('backup-engine') },
+    ],
     // jsdom has no scroll implementation; Ionic components (b-mobile only, so far) that scroll
     // their active item into view throw without this. Guarded so it's a no-op for every other
     // package's test files, which don't touch the DOM at all.
