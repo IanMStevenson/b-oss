@@ -71,7 +71,7 @@ afterEach(() => {
 });
 
 function isDisabled(el: Element | null): boolean {
-  return el?.disabled === true;
+  return el !== null && (el as { disabled?: boolean }).disabled === true;
 }
 
 function renderHub() {
