@@ -14,6 +14,14 @@
 
 const STYLE = 'streets-v2';
 
+/** Credit the tile provider and the OpenStreetMap data (ODbL) on every map explicitly, rather than
+ * relying on the style happening to carry its own attribution. MapLibre drops a custom entry that
+ * the style's attribution already contains, so this doesn't show twice. */
+export const MAP_ATTRIBUTION = [
+  '<a href="https://www.maptiler.com/copyright/" target="_blank">&copy; MapTiler</a>',
+  '<a href="https://www.openstreetmap.org/copyright" target="_blank">&copy; OpenStreetMap contributors</a>',
+];
+
 export function getMapStyleUrl(): string | null {
   const key = import.meta.env.VITE_MAP_TILES_KEY;
   if (!key) return null;

@@ -62,16 +62,17 @@ const { MockMap, MockMarker, MockPopup, mapInstances, markerInstances } = vi.hoi
   }
 
   class MockMapImpl {
-    options: { container: HTMLElement; style: string; center: [number, number]; zoom: number };
-    handlers: Record<string, Array<() => void>> = {};
-    removed = false;
-    jumpToCalls: Array<{ center: [number, number]; zoom: number }> = [];
-    constructor(options: {
+    options: {
       container: HTMLElement;
       style: string;
       center: [number, number];
       zoom: number;
-    }) {
+      attributionControl?: { customAttribution?: string[] };
+    };
+    handlers: Record<string, Array<() => void>> = {};
+    removed = false;
+    jumpToCalls: Array<{ center: [number, number]; zoom: number }> = [];
+    constructor(options: MockMapImpl['options']) {
       this.options = options;
       mapInstances.push(this);
     }
@@ -124,6 +125,7 @@ vi.mock('maplibre-gl/dist/maplibre-gl-worker.mjs?worker&url', () => ({
 
 vi.mock('../../../platform/mapTiles.js', () => ({
   getMapStyleUrl: vi.fn(),
+  MAP_ATTRIBUTION: ['mock credit'],
 }));
 
 vi.mock('../../../platform/geolocation.js', () => ({
@@ -187,6 +189,18 @@ describe('MapScreen', () => {
     renderScreen();
     expect(screen.getByText('The map isn’t available right now.')).toBeDefined();
     expect(mapInstances.length).toBe(0);
+  });
+
+  it('credits the map tiles and OpenStreetMap explicitly', async () => {
+    const { getMapStyleUrl } = await import('../../../platform/mapTiles.js');
+    const { fetchEntriesInBounds } = await import('../../../data/map.js');
+    vi.mocked(getMapStyleUrl).mockReturnValue('https://example.com/style.json');
+    vi.mocked(fetchEntriesInBounds).mockResolvedValue([]);
+    renderScreen();
+    await waitFor(() => expect(mapInstances.length).toBe(1));
+    expect(mapInstances[0].options.attributionControl).toEqual({
+      customAttribution: ['mock credit'],
+    });
   });
 
   it('remembers where you panned to, and reopens there after Back from an entry (b-oss#190)', async () => {
