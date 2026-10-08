@@ -6,9 +6,8 @@
 // own, smaller limits — Blipfoto enforces these per upload purpose, not per account tier. Pure
 // logic — no Capacitor/platform dependency, directly testable.
 //
-// Limits observed by testing uploads against the API 2026-08-05 (not stated anywhere in
-// AppSpec/ImplementationSpec, which is why TODO G left this as a placeholder through Phase 11 —
-// see RESUME.md):
+// Limits observed by testing uploads against the API 2026-08-05 (they are not stated in the public
+// API docs):
 // - Entry photos: minimum 600px on *at least one* edge, no maximum (oversized originals are
 //   stored as-is and only derived renditions are downscaled), 1 KB–20 MB file size.
 // - Avatar photos: minimum 300px on at least one edge, 3 MB max file size of the upload (met by

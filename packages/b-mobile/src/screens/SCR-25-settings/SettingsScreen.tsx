@@ -15,9 +15,8 @@
 // remembered from whichever section screen last saved it — a direct instance of "screens refetch,
 // never depend on a prior screen's data" (see useAppNavigate.ts's own doc comment).
 //
-// Row labels are plain <span>s inside IonItem, not IonLabel — reproduced RESUME.md's documented
-// IonLabel-children jsdom gotcha directly while testing this screen (see AGENT_LOG.md's Phase 8
-// entry); UserRow.tsx made the same choice for the same reason.
+// Row labels are plain <span>s inside IonItem, not IonLabel — for the jsdom IonLabel-children
+// gotcha (see app-architecture.md's "Gotchas" section); UserRow.tsx made the same choice for the same reason.
 
 import {
   IonPage,

@@ -7,6 +7,14 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- b-mobile: new Capacitor/Ionic Android app for browsing a Blipfoto journal and posting entries
+  (multi-account, browse/search/map, comments and notifications, photo upload queue, offline
+  image cache, hidden members). Not yet released; work is tracked on the `b-mobile-initial`
+  branch and the b-mobile issues.
+- b-push: new Cloudflare Worker + D1 service that sends push notifications to b-mobile.
+- b-view-backup: backup-folder data hooks and standalone viewer SPA, split out so the shells
+  share one backup-to-viewer adapter.
+- b-visual: shared design tokens and visual style guide, used by b-view and b-mobile.
 - b-ark-chrome: back up Original and Extra images alongside the standard entry images,
   with a lightbox viewer (b-view `Lightbox`/`EntryDetail`) for browsing them.
 

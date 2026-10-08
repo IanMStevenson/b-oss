@@ -6,7 +6,7 @@
 // endpoint, same one-function-per-call shape as data/users.ts — each SCR-25 section calls only the
 // fields it owns, leaving the rest of `UpdateUserSettingsParams` undefined so a save from one
 // section never clobbers another's in-flight edits (mutateMultipart already skips undefined
-// fields, per b-api's own `Object.entries(fields)` loop — see AGENT_LOG.md's Phase 0.3 entry).
+// fields, per b-api's own `Object.entries(fields)` loop).
 //
 // `NotificationSettingsResponse.feed` settings are a server-defined `Record<string, 0|1>`
 // (b-api's own types.ts, confirmed against client.test.ts's mock fixtures) — the app has no fixed

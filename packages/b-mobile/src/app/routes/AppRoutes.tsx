@@ -50,7 +50,7 @@ const LocationPickerScreen = lazy(() =>
 );
 // react-easy-crop (§15) is the other notably-sized Phase 7 dependency, pulled in by
 // components/PhotoCropper.tsx, which only SCR-10 (compose) uses — checked against npm run
-// build's own chunk output (see AGENT_LOG.md's Phase 7 entry) before lazy-loading this route too.
+// build's own chunk output before lazy-loading this route too.
 const ComposeEntryScreen = lazy(() =>
   import('../../screens/SCR-10-compose-entry-details/ComposeEntryScreen.js').then((m) => ({
     default: m.ComposeEntryScreen,

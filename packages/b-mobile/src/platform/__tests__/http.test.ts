@@ -3,7 +3,7 @@
 
 // Direct unit tests for platformFetch's native path (§19 layer 1) — unlike most platform/*.ts
 // modules, this one is exercised directly rather than only through a mocked consumer, because
-// RESUME.md flagged it as a real, previously-unimplemented gap: everything b-api/data/pushService
+// it was previously an unimplemented gap: everything b-api/data/pushService
 // send through it is read back as `response.text()`, so the CapacitorHttp round-trip (data →
 // Response.text(), headers → a real Headers instance, status → Response.ok) is exactly the logic
 // most likely to be got subtly wrong.

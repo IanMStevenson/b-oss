@@ -118,7 +118,7 @@ Using only `curl` (no real tokens):
   channel ids). Each fix is its own PR with a regression test where the fake could have caught it.
 - Add `packages/b-push/README.md` / a runbook: deploy, rotate secrets (re-encrypt script), read logs
   with `wrangler tail`, roll back (`wrangler rollback`), and what the free-tier limits are.
-- Update `RESUME.md`/`AGENT_LOG.md`, close #148, and record in `AppLimitations.md` anything the
+- Close #148, and record in `AppLimitations.md` anything the
   service can't do (it reports *counts*, so a push says "3 new comments", not who/what).
 
 ## Risks to watch

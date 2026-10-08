@@ -3,7 +3,7 @@
 
 // b-view's own view-model types — source-agnostic, prop-driven. Previously re-exported from
 // @b-oss/backup-engine; now defined here so backup data and live b-api data can be interchangeable
-// sources behind the same components (see PLAN.md's Phase 0.2 for the split this came from).
+// sources behind the same components.
 // Structurally close to backup-engine's shapes (any consumer whose data has these fields works,
 // including backup-engine's own, unmodified) minus fields that are backup-pipeline bookkeeping
 // with no display role: schema_version, backed_up_at, backup_app_version, images.web_scraped.

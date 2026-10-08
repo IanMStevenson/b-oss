@@ -3,7 +3,7 @@
 // @vitest-environment jsdom
 
 // jsdom has no WebGL/canvas support, so maplibre-gl itself can't run here (same class of gap as
-// "no headless browser available in this sandbox" — see RESUME.md's gotchas). `maplibre-gl` is
+// "no headless browser available in this sandbox"). `maplibre-gl` is
 // mocked wholesale with a minimal fake Map/Marker/Popup that records what the component asked of
 // it, which is enough to test MapScreen's own logic (bounds -> fetch -> markers, focused-mode
 // centring, hidden-member filtering, my-location) without needing a real renderer — the same

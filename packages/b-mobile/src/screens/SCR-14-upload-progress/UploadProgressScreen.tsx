@@ -4,7 +4,7 @@
 // SCR-14 — Upload Progress. Reads uploadQueueStore directly (§9) — a plain Zustand hook, so it's
 // always correct after navigating away and back (the list *is* the durable queue, not a snapshot
 // of it) and updates live as flows/uploadQueueRunner.ts mutates items. No percentage progress bar
-// — a deliberate scope reduction (see AGENT_LOG.md's Phase 7 entry): SCR-14's own acceptance
+// — a deliberate scope reduction: SCR-14's own acceptance
 // criteria only require the four statuses to display and update live, which this gives in full;
 // wiring FileTransfer's own progress events through the MultipartImpl seam would be a bigger,
 // separate change to b-api's shared contract for a bar the spec doesn't actually require.

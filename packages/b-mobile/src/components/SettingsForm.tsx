@@ -4,7 +4,7 @@
 // Shared form building blocks for Settings (SCR-25) and Help & info (SCR-29), modelled on
 // Settings > Notifications: IonItem rows, right-aligned toggles, a grey caption above each group,
 // 16px gutters. UX review X5/X6/X9 (b-oss#272, #278). Label spans are plain <span>s rather than
-// IonLabel for the same jsdom reason as the rest of the settings screens (RESUME.md).
+// IonLabel for the same jsdom reason as the rest of the settings screens (see app-architecture.md's "Gotchas" section).
 
 import { useMemo, useRef, useState, type ReactNode } from 'react';
 import {

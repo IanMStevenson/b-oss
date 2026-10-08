@@ -13,7 +13,7 @@
 // GPS coordinates are not exposed structurally by MediaMetadata (only a raw, unparsed `exif`
 // string), so SCR-10/SCR-12's "location pre-filled from EXIF... when available" is satisfied via
 // platform/geolocation.ts's device-location path instead — a deliberate, documented scope
-// reduction rather than a hand-rolled EXIF GPS parser (see AGENT_LOG.md's Phase 7 entry).
+// reduction rather than a hand-rolled EXIF GPS parser.
 
 import { Capacitor } from '@capacitor/core';
 import { Camera, CameraDirection } from '@capacitor/camera';
