@@ -111,6 +111,18 @@ fail with connection errors, check that file first. Verified on ims-dev-o1 on 20
 the CAMERA permission lacks a `<uses-feature android:name="android.hardware.camera" android:required="false"/>`),
 tracked on b-oss#330.
 
+### Regenerating the b-mobile native Android licence list
+
+After a Capacitor/plugin/native dependency change, with an Android SDK and the proxy set up as above:
+
+```bash
+export ANDROID_HOME=$HOME/Android/Sdk && npm run build -w @b-oss/b-mobile && (cd packages/b-mobile && npx cap sync android) && npm run licences:native -w @b-oss/b-mobile
+```
+
+(The build + `cap sync` first are needed on a fresh checkout so Gradle can configure.) Commit the updated
+`native-licences.generated.json`. Licence texts live in `packages/b-mobile/scripts/licence-texts/`; a new
+non-Apache licence needs a matching entry/file in `scripts/native-licences.mjs`.
+
 ## Versioning
 
 Display version format: `{pkg.major}.{pkg.minor}.{pkg.patch}[.{commits}.{build}]`.

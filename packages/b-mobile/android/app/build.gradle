@@ -54,7 +54,7 @@ try {
 }
 
 // Writes build/native-licences.json: every external artifact on the release runtime classpath
-// with the licence(s) its POM declares (falling back to parent POMs). Consumed by
+// with the licence(s) its POM declares (falling back to parent POMs) and any NOTICE file it ships. Consumed by
 // scripts/native-licences.mjs, which produces the in-app list. Run via `npm run licences:native`.
 import groovy.json.JsonOutput
 import org.gradle.maven.MavenModule
@@ -93,10 +93,37 @@ tasks.register('nativeLicencesReport') {
             def parentPom = pomFiles[parentId] ?: resolveParentPom(p.groupId.text(), p.artifactId.text(), p.version.text())
             parentPom ? licencesOf(parentPom, depth + 1) : found
         }
+        // NOTICE files shipped inside the artifacts (jar or aar). Apache-2.0 section 4(d) asks that
+        // they're reproduced. Keyed by component, one { path, text } per file found.
+        def noticeRe = ~/(?i)^(META-INF\/)?(NOTICE|NOTICE\.txt|NOTICE\.md)$/
+        def notices = [:].withDefault { [] }
+        ['aar', 'jar'].each { type ->
+            configurations.releaseRuntimeClasspath.incoming.artifactView {
+                lenient = true
+                attributes { attribute(Attribute.of('artifactType', String), type) }
+            }.artifacts.each { a ->
+                def cid = a.id.componentIdentifier
+                if (!(cid instanceof ModuleComponentIdentifier)) return
+                def visit
+                visit = { InputStream stream ->
+                    def zin = new java.util.zip.ZipInputStream(stream)
+                    def e
+                    while ((e = zin.nextEntry) != null) {
+                        if (noticeRe.matcher(e.name).matches()) {
+                            notices[cid.displayName] << [path: e.name, text: new String(zin.readAllBytes(), 'UTF-8').trim()]
+                        } else if (type == 'aar' && e.name == 'classes.jar') {
+                            visit(new ByteArrayInputStream(zin.readAllBytes()))
+                        }
+                    }
+                }
+                a.file.withInputStream { visit(it) }
+            }
+        }
         def entries = ids.collect { id ->
             def pom = pomFiles[id.displayName]
             [group: id.group, name: id.module, version: id.version,
-             licences: pom ? licencesOf(pom, 0) : []]
+             licences: pom ? licencesOf(pom, 0) : [],
+             notices: notices.containsKey(id.displayName) ? notices[id.displayName].unique() : []]
         }.sort { a, b -> a.group <=> b.group ?: a.name <=> b.name }
         outFile.get().asFile.text = JsonOutput.prettyPrint(JsonOutput.toJson(entries))
     }
