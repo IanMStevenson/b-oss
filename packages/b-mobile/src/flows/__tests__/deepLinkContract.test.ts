@@ -115,12 +115,12 @@ describe('resolveDeepLink contract table', () => {
     expect(pushed('bmobile://user/a%2Fb%3Fc')).toEqual(['/user/a%2Fb%3Fc']);
   });
 
-  // Genuine bug found by this table (reported on b-oss#330): a malformed percent-escape makes
-  // decodeURIComponent throw, so resolveDeepLink throws instead of returning `ignore`. Any app
-  // can send such a VIEW intent; on cold start the throw is an unhandled rejection in
-  // AppShell's DeepLinkListener. Flip `it.fails` to `it` when fixed.
-  it.fails('ignores a malformed percent-escape instead of throwing', () => {
+  // Regression (b-oss#349): a malformed percent-escape made decodeURIComponent throw, so
+  // resolveDeepLink threw instead of returning `ignore`. Any app can send such a VIEW intent; on
+  // cold start the throw was an unhandled rejection in AppShell's DeepLinkListener.
+  it('ignores a malformed percent-escape instead of throwing', () => {
     expect(resolveDeepLink('bmobile://entry/%E0%A4%A')).toEqual({ kind: 'ignore' });
     expect(resolveDeepLink('bmobile://user/%')).toEqual({ kind: 'ignore' });
+    expect(pushed('bmobile://entry/%E0%A4%A')).toEqual([]);
   });
 });
