@@ -37,8 +37,7 @@ Known Blipfoto API limits: [AppLimitations.md](AppLimitations.md). Paths are rel
   and Hide. Own entries: Download photo (read-only too; own journal only, `flows/downloadFlow.ts`),
   Edit and Delete (read-write). Tags → `/tag`, location → `/map?entry=`, fullscreen button or
   double-tap → `/photo`. Calendar and ±1-year history need a signed-in account.
-- **Photo**: b-view Lightbox, zoom/pan, retry on image error. **Entry metadata**: EXIF list; nothing
-  links to it now (EXIF is inline on Entry). **New entry**: Take / Choose photo, or a shared photo.
+- **Photo**: b-view Lightbox, zoom/pan, retry on image error. **New entry**: Take / Choose photo, or a shared photo.
 - **Compose details**, **Location picker**: see Compose. **Edit entry**: title, description, tags,
   location, replace photo, Delete entry; no date field; Save enqueues and returns to the entry.
 - **Biography editor** (`/compose/description`, despite the path): from Settings → Profile.
@@ -170,22 +169,22 @@ Known Blipfoto API limits: [AppLimitations.md](AppLimitations.md). Paths are rel
 
 Source comments cite these ids; the AppSpec that defined them has been removed.
 
-| SCR | Screen, route                           | SCR   | Screen, route                                          |
-| --- | --------------------------------------- | ----- | ------------------------------------------------------ |
-| 01  | Sign in `/sign-in`                      | 16    | Report entry/comment `/entry/:id/report`               |
-| 02  | Browse `/browse`                        | 17/18 | My / user profile `/me`, `/user/:username`             |
-| 03  | Search `/search`                        | 19    | Followers/Following `/user/:u/followers`, `/following` |
-| 04  | Map `/map`                              | 20    | Pending requests `/me/requests`                        |
-| 05  | Tag entries `/tag/:tag`                 | 21    | Refused followers `/me/refused`                        |
-| 06  | Entry detail `/entry/:id`               | 22    | Awards `/me/awards`, `/user/:u/awards`                 |
-| 07  | Full-screen photo `/entry/:id/photo`    | 23    | Notifications inbox `/notifications`                   |
-| 08  | Entry metadata `/entry/:id/metadata`    | 24    | Comments inbox `/comments`                             |
-| 09  | New entry `/compose`                    | 25    | Settings `/settings[/:section]`                        |
-| 10  | Compose details `/compose/details`      | 29    | Help & about `/help[/:section]`                        |
-| 11  | Biography editor `/compose/description` | 30    | Accounts `/accounts`                                   |
-| 12  | Location picker `/compose/location`     | 31    | Hidden members `/hidden`                               |
-| 13  | Edit entry `/entry/:id/edit`            | 15    | Retired (was New comment; now inline on SCR-06)        |
-| 14  | Upload progress `/uploads`              | 26–28 | Do not exist                                           |
+| SCR | Screen, route                                          | SCR   | Screen, route                                          |
+| --- | ------------------------------------------------------ | ----- | ------------------------------------------------------ |
+| 01  | Sign in `/sign-in`                                     | 16    | Report entry/comment `/entry/:id/report`               |
+| 02  | Browse `/browse`                                       | 17/18 | My / user profile `/me`, `/user/:username`             |
+| 03  | Search `/search`                                       | 19    | Followers/Following `/user/:u/followers`, `/following` |
+| 04  | Map `/map`                                             | 20    | Pending requests `/me/requests`                        |
+| 05  | Tag entries `/tag/:tag`                                | 21    | Refused followers `/me/refused`                        |
+| 06  | Entry detail `/entry/:id`                              | 22    | Awards `/me/awards`, `/user/:u/awards`                 |
+| 07  | Full-screen photo `/entry/:id/photo`                   | 23    | Notifications inbox `/notifications`                   |
+| 08  | Retired (was Entry metadata; EXIF is inline on SCR-06) | 24    | Comments inbox `/comments`                             |
+| 09  | New entry `/compose`                                   | 25    | Settings `/settings[/:section]`                        |
+| 10  | Compose details `/compose/details`                     | 29    | Help & about `/help[/:section]`                        |
+| 11  | Biography editor `/compose/description`                | 30    | Accounts `/accounts`                                   |
+| 12  | Location picker `/compose/location`                    | 31    | Hidden members `/hidden`                               |
+| 13  | Edit entry `/entry/:id/edit`                           | 15    | Retired (was New comment; now inline on SCR-06)        |
+| 14  | Upload progress `/uploads`                             | 26–28 | Do not exist                                           |
 
 | FLW | Flow — main code                                                            | FLW | Flow — main code                                                     |
 | --- | --------------------------------------------------------------------------- | --- | -------------------------------------------------------------------- |

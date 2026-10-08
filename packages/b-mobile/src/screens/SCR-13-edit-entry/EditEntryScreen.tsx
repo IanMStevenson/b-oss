@@ -10,7 +10,7 @@
 // implementation.
 //
 // Loads the entry once (there's no cheaper source — SCR-06 deliberately doesn't hand its own
-// loaded entry down, same deep-link-resilience reasoning as SCR-07/SCR-08/SCR-15/SCR-16) and
+// loaded entry down, same deep-link-resilience reasoning as SCR-07/SCR-15/SCR-16) and
 // seeds composeDraftStore in 'edit' mode; reuses SCR-10's shared draft/SCR-11/SCR-12 machinery
 // rather than a parallel form. Save enqueues the same durable background upload as compose (§9).
 // Delete is immediate (no draft involved) — same confirm-then-delete-then-navigate-to-Browse

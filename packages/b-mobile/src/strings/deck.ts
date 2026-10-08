@@ -179,7 +179,6 @@ export const STRINGS = {
     "This entry is protected. You'll need to be an approved follower to see it.",
   'SCR-06.error.unavailable': 'This entry is no longer available.',
   'SCR-07.error.load': "This photo couldn't be loaded.",
-  'SCR-08.empty': 'No camera information',
   'SCR-09.error.unusable_photo': "That photo can't be used. Please choose a different one.",
   'SCR-09.permission.camera_blocked':
     'Camera access is turned off in system settings. Turn it on there to take photos.',

@@ -111,7 +111,6 @@ const routes = [
     ? [
         ['entry', `/entry/${entryId}`],
         ['entry-photo', `/entry/${entryId}/photo`],
-        ['entry-metadata', `/entry/${entryId}/metadata`],
         ['entry-edit', `/entry/${entryId}/edit`],
         ['entry-report', `/entry/${entryId}/report`],
       ]
