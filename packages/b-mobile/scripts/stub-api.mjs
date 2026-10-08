@@ -280,7 +280,16 @@ function svg(seed, kind) {
     ? [...String(seed)].reduce((a, c) => a + c.charCodeAt(0), 0)
     : Number(seed);
   const h = hues[n % hues.length];
-  const [w, hgt] = kind === 'avatar' ? [128, 128] : kind === 'thumb' ? [300, 300] : [1200, 800];
+  // Every third photo is portrait, so lightbox fit/zoom is exercised in both orientations.
+  const portrait = !Number.isNaN(Number(seed)) && Number(seed) % 3 === 2;
+  const [w, hgt] =
+    kind === 'avatar'
+      ? [128, 128]
+      : kind === 'thumb'
+        ? [300, 300]
+        : portrait
+          ? [800, 1200]
+          : [1200, 800];
   return `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${hgt}" viewBox="0 0 ${w} ${hgt}"><defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="hsl(${h},55%,62%)"/><stop offset="1" stop-color="hsl(${(h + 50) % 360},60%,28%)"/></linearGradient></defs><rect width="100%" height="100%" fill="url(#g)"/><circle cx="${w * 0.7}" cy="${hgt * 0.3}" r="${hgt * 0.12}" fill="rgba(255,255,255,.55)"/></svg>`;
 }
 
