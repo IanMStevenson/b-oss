@@ -12,23 +12,19 @@
 // more accounts stored, so that section is hidden below that. Signed out, the page is still
 // reachable (the links toggle must work logged out, rules.md): Reminders shows greyed out.
 
-import { IonList, IonSegment, IonSegmentButton, IonLabel } from '@ionic/react';
+import { IonList } from '@ionic/react';
 import {
   CaptionRow,
   SectionHeader,
-  SelectRow,
+  SegmentRow,
+  TimeRow,
   ToggleRow,
 } from '../../../components/SettingsForm.js';
 import { useDevicePrefsStore } from '../../../state/devicePrefsStore.js';
 import { useAccountsStore, useActiveAccount } from '../../../state/accountsStore.js';
 import { setReminderEnabled } from '../../../flows/reminderFlow.js';
 
-function pad(n: number): string {
-  return String(n).padStart(2, '0');
-}
-
-const HOUR_OPTIONS = Array.from({ length: 24 }, (_, h) => ({ code: String(h), title: pad(h) }));
-const MINUTE_OPTIONS = [0, 15, 30, 45].map((m) => ({ code: String(m), title: pad(m) }));
+const REMINDER_MINUTES = [0, 15, 30, 45];
 
 function RemindersGroup() {
   const activeAccount = useActiveAccount();
@@ -73,19 +69,13 @@ function RemindersGroup() {
       />
       {enabled && (
         <>
-          <SelectRow
-            label="Reminder hour"
-            pickerTitle="Reminder hour"
-            value={String(hour)}
-            options={HOUR_OPTIONS}
-            onChange={(v) => apply({ enabled, hour: Number(v), minute })}
-          />
-          <SelectRow
-            label="Reminder minute"
-            pickerTitle="Reminder minute"
-            value={String(minute)}
-            options={MINUTE_OPTIONS}
-            onChange={(v) => apply({ enabled, hour, minute: Number(v) })}
+          <TimeRow
+            label="Reminder time"
+            pickerTitle="Reminder time"
+            hour={hour}
+            minute={minute}
+            minuteValues={REMINDER_MINUTES}
+            onChange={(t) => apply({ enabled, hour: t.hour, minute: t.minute })}
           />
         </>
       )}
@@ -107,28 +97,21 @@ function MultiAccountGroup() {
     <>
       <SectionHeader>Multiple accounts</SectionHeader>
       <ToggleRow
-        label="Confirm account before Star, Favourite or comment"
+        label="Confirm account before star, favourite or comment"
         caption="Ask which account to act as before each of these actions, instead of silently using whichever is active."
         checked={confirmAccountBeforeReaction}
         onChange={setConfirmAccountBeforeReaction}
       />
-      <CaptionRow>
-        Account picture: how each account is shown in the switcher and header.
-      </CaptionRow>
-      <div className="ion-padding-horizontal ion-padding-bottom">
-        <IonSegment
-          aria-label="Account picture"
-          value={accountAvatarStyle}
-          onIonChange={(e) => setAccountAvatarStyle(e.detail.value as 'picture' | 'icon')}
-        >
-          <IonSegmentButton value="picture">
-            <IonLabel>Profile picture</IonLabel>
-          </IonSegmentButton>
-          <IonSegmentButton value="icon">
-            <IonLabel>Icon</IonLabel>
-          </IonSegmentButton>
-        </IonSegment>
-      </div>
+      <SegmentRow
+        label="Account picture"
+        value={accountAvatarStyle}
+        options={[
+          { value: 'picture', label: 'Profile picture' },
+          { value: 'icon', label: 'Icon' },
+        ]}
+        onChange={setAccountAvatarStyle}
+      />
+      <CaptionRow>How each account is shown in the switcher and header.</CaptionRow>
     </>
   );
 }

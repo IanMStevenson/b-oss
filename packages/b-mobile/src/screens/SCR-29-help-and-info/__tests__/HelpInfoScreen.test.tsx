@@ -49,16 +49,16 @@ describe('HelpInfoScreen hub — works with no account signed in (SCR-29 is not 
     for (const label of [
       'Help',
       'About',
-      'Icon Guide',
-      'Safety & Privacy',
-      'Blipfoto Terms & Legal',
-      'Blipfoto Privacy Policy',
-      'App Version',
-      'Open Source Licenses',
+      'Icon guide',
+      'Safety & privacy',
+      'Blipfoto terms & legal',
+      'Blipfoto privacy policy',
+      'App version',
+      'Open source licences',
     ]) {
       expect(screen.getAllByText(label).length).toBeGreaterThan(0);
     }
-    expect(screen.getByText('App Version').closest('ion-item')!.textContent).toMatch(/\d+\.\d+/);
+    expect(screen.getByText('App version').closest('ion-item')!.textContent).toMatch(/\d+\.\d+/);
   });
 
   it('no longer carries Delete my account or the link-handling toggle', () => {
@@ -70,8 +70,8 @@ describe('HelpInfoScreen hub — works with no account signed in (SCR-29 is not 
   it('Help/Terms/Privacy rows each open their own real Blipfoto page directly', async () => {
     renderHub();
     const expected: Record<string, string> = {
-      'Blipfoto Terms & Legal': 'https://www.blipfoto.com/legal/terms',
-      'Blipfoto Privacy Policy': 'https://www.blipfoto.com/legal/privacy',
+      'Blipfoto terms & legal': 'https://www.blipfoto.com/legal/terms',
+      'Blipfoto privacy policy': 'https://www.blipfoto.com/legal/privacy',
     };
     for (const [label, url] of Object.entries(expected)) {
       await userEvent.click(screen.getByText(label));
@@ -84,11 +84,11 @@ describe('HelpInfoScreen hub — works with no account signed in (SCR-29 is not 
     expect(openUrl).toHaveBeenCalledTimes(3);
   });
 
-  it('Icon Guide / Safety & Privacy / Open Source Licenses navigate in-app, not to the browser', async () => {
+  it('Icon guide / Safety & privacy / Open source licences navigate in-app, not to the browser', async () => {
     renderHub();
-    await userEvent.click(screen.getByText('Icon Guide'));
-    await userEvent.click(screen.getByText('Safety & Privacy'));
-    await userEvent.click(screen.getByText('Open Source Licenses'));
+    await userEvent.click(screen.getByText('Icon guide'));
+    await userEvent.click(screen.getByText('Safety & privacy'));
+    await userEvent.click(screen.getByText('Open source licences'));
     expect(push).toHaveBeenCalledWith('/help/icon-guide');
     expect(push).toHaveBeenCalledWith('/help/safety-privacy');
     expect(push).toHaveBeenCalledWith('/help/licences');
@@ -158,6 +158,6 @@ describe('HelpInfoScreen sections', () => {
         </OverlayProvider>
       </MemoryRouter>,
     );
-    expect(screen.getByText('Icon Guide')).toBeDefined();
+    expect(screen.getByText('Icon guide')).toBeDefined();
   });
 });

@@ -140,14 +140,14 @@ function NavMenu() {
         <NavAccountBlock />
         <IonList lines="none" style={{ padding: 0 }}>
           {activeAccount && <NavDivider />}
-          {canWrite && <NavItem to="/compose" label="New Entry" currentPath={pathname} />}
+          {canWrite && <NavItem to="/compose" label="New entry" currentPath={pathname} />}
           <NavItem to="/browse" label="Browse" currentPath={pathname} />
           <NavItem to="/search" label="Search" currentPath={pathname} />
           <NavItem to="/map" label="Map" currentPath={pathname} />
           {activeAccount && (
             <>
               <NavDivider />
-              <NavItem to="/me" label="My Profile" currentPath={pathname} />
+              <NavItem to="/me" label="My profile" currentPath={pathname} />
               <NavItem
                 to="/notifications"
                 label="Notifications"
@@ -164,7 +164,7 @@ function NavMenu() {
           )}
           <NavDivider />
           <NavItem to="/settings" label="Settings" currentPath={pathname} />
-          <NavItem to="/help" label="Help & About" currentPath={pathname} />
+          <NavItem to="/help" label="Help & about" currentPath={pathname} />
           <NavItem to="/accounts" label="Accounts" currentPath={pathname} />
           {activeAccount && <NavItem to="/hidden" label="Hidden members" currentPath={pathname} />}
           {!activeAccount && <NavItem to="/sign-in" label="Sign in" currentPath={pathname} />}

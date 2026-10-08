@@ -7,10 +7,15 @@
 // (`settings-pill-segment`, globals.css) so they read as a choice rather than as tab navigation;
 // a one-line caption says there is no Save because changes apply immediately (UX review X5/X6).
 
-import { IonItem, IonLabel, IonList, IonSegment, IonSegmentButton } from '@ionic/react';
+import { IonList } from '@ionic/react';
 import { useDevicePrefsStore } from '../../../state/devicePrefsStore.js';
 import { t } from '../../../strings/index.js';
-import { CaptionRow, SectionHeader, ToggleRow } from '../../../components/SettingsForm.js';
+import {
+  CaptionRow,
+  SectionHeader,
+  SegmentRow,
+  ToggleRow,
+} from '../../../components/SettingsForm.js';
 
 export function BrowsingSection() {
   const showZoomBar = useDevicePrefsStore((s) => s.showZoomBar);
@@ -39,44 +44,28 @@ export function BrowsingSection() {
         checked={showPagination}
         onChange={setShowPagination}
       />
-      <IonItem lines="none" style={{ '--min-height': '36px' }}>
-        <span>{t('SCR-25.browsing.margins')}</span>
-      </IonItem>
-      <IonSegment
-        className="settings-pill-segment"
-        aria-label={t('SCR-25.browsing.margins')}
+      <SegmentRow
+        label={t('SCR-25.browsing.margins')}
         value={thumbnailMargins}
-        onIonChange={(e) => setThumbnailMargins(e.detail.value as 'none' | 'narrow' | 'normal')}
-      >
-        <IonSegmentButton value="normal">
-          <IonLabel>Normal</IonLabel>
-        </IonSegmentButton>
-        <IonSegmentButton value="narrow">
-          <IonLabel>Narrow</IonLabel>
-        </IonSegmentButton>
-        <IonSegmentButton value="none">
-          <IonLabel>None</IonLabel>
-        </IonSegmentButton>
-      </IonSegment>
+        options={[
+          { value: 'normal', label: 'Normal' },
+          { value: 'narrow', label: 'Narrow' },
+          { value: 'none', label: 'None' },
+        ]}
+        onChange={setThumbnailMargins}
+      />
       <CaptionRow>{t('SCR-25.browsing.margins.caption')}</CaptionRow>
 
       <SectionHeader>{t('SCR-25.browsing.photo.title')}</SectionHeader>
-      <IonItem lines="none" style={{ '--min-height': '36px' }}>
-        <span>{t('SCR-25.browsing.photo_size')}</span>
-      </IonItem>
-      <IonSegment
-        className="settings-pill-segment"
-        aria-label={t('SCR-25.browsing.photo_size')}
+      <SegmentRow
+        label={t('SCR-25.browsing.photo_size')}
         value={photoFit}
-        onIonChange={(e) => setPhotoFit(e.detail.value as 'full-width' | 'capped')}
-      >
-        <IonSegmentButton value="full-width">
-          <IonLabel>Full width</IonLabel>
-        </IonSegmentButton>
-        <IonSegmentButton value="capped">
-          <IonLabel>Fit to screen</IonLabel>
-        </IonSegmentButton>
-      </IonSegment>
+        options={[
+          { value: 'full-width', label: 'Full width' },
+          { value: 'capped', label: 'Fit to screen' },
+        ]}
+        onChange={setPhotoFit}
+      />
       <CaptionRow>{t('SCR-25.browsing.photo_size.caption')}</CaptionRow>
     </IonList>
   );
