@@ -1357,3 +1357,90 @@ shows. Failures log `[imgcache]` warnings (grep logcat). `invalidateImage` drops
 - `entries/journal` clamps `page_index` to 200; journal pages are 100 entries (b-oss#153).
   `usePagedResource` detects the clamp (`wasClamped`).
 - `actions.comment === 0` means comments are off for that journal.
+
+## Gotchas
+
+Things that are not obvious from the code and have caused real time loss.
+
+**Build and tooling**
+
+- Cross-package `.tsx` source imports: do not add a package-local `declare module '*.module.css'`
+  to b-mobile unless it has its own CSS Modules. The root `types/globals.d.ts` already covers it.
+- Single-workspace test runs from inside a package directory (`cd packages/b-push && npx vitest
+  run`) break the root `vitest.config.ts` `setupFiles` path, which resolves against the shell's
+  cwd. Run tests from the repo root (`npm test` or `npx vitest run <path>`).
+- A JSDoc block comment containing a literal `*/` closes early. Describe such patterns in words.
+- `@capacitor/assets` defaults the adaptive-icon/splash background to white. Pass
+  `--iconBackgroundColor`/`--splashBackgroundColor` and check the rendered output.
+- A large dependency pulled in by one screen needs a lazy-loading check against `npm run build`'s
+  chunk output (`maplibre-gl` and `@ionic/react` are the known >500 KB chunks).
+- The manifest permission list in `android/` is deliberately redundant with what plugin manifests
+  merge in, so the §17 table stays satisfied if a plugin changes.
+- No Android device or emulator is available on the dev VM. Compilation (`./gradlew
+  assembleDebug`), jsdom tests and a headless-browser pass (Playwright, see the `run-b-view`
+  skill) do not verify on-device behaviour. Do not claim device behaviour is verified from them;
+  see `docs/UNTESTED_PATHS.md`.
+
+**Testing under jsdom**
+
+- `ion-segment` calls `Element.scrollTo`, which jsdom lacks. `src/test-setup.ts` shims it and is
+  wired into both `vite.config.ts` and the root `vitest.config.ts`.
+- `IonLabel` does not reliably render its children in the jsdom setup; use plain
+  `<span>`/`<strong>` inside `IonItem`. `IonButton`'s `aria-label` does not reach the DOM; query
+  with `screen.getByText('label', { selector: 'ion-button' })`.
+- `IonAlert` renders its buttons unconditionally, regardless of `isOpen`. Scope queries with
+  `{ selector: 'ion-button' }`, or through the alert's `header` attribute when a screen has
+  several.
+- `IonModal`/`IonPopover` `present()` throws "framework delegate is missing" under jsdom. Use a
+  styled `<div role="dialog">` for sheet/panel overlays that need tests (see `OverlayProvider`).
+- Give `vi.fn<...>()` an explicit function-type generic; `ReturnType<typeof vi.fn()>` infers
+  `any` and trips `no-unsafe-return`. For single-object-argument mocks, type the mock and the
+  `vi.mock()` factory to take that one argument.
+- A `Response` body can be read once; build a fresh `new Response(...)` per mocked `fetch` call.
+- A bare `vi.fn()` keeps its call history across `vi.restoreAllMocks()`; call `.mockReset()` or
+  `.mockClear()` explicitly.
+- Give every mocked async method in a call chain an explicit `mockResolvedValue`/
+  `mockRejectedValue`. An unconfigured `vi.fn()` returns `undefined`, and `.then()` on that throws
+  a TypeError that an enclosing `try/catch` silently swallows, which looks like a wrong-branch bug.
+- Use `await userEvent.click(...)` rather than `element.click()` when the handler chains several
+  `await`s before its first `setState`.
+
+**State and data**
+
+- Zustand selectors must not return newly allocated values (breaks `useSyncExternalStore`
+  reference equality). An effect that depends on a value its own success path clears can
+  re-trigger; seed a `useRef` once at mount instead.
+- Anything reading `accountsStore` on mount must await `state/authReady.ts`. Hydration (and the
+  dev `VITE_DEV_TOKEN` seed) is async, and an unset `activeAccountId` looks identical to signed
+  out. `getClient()` already awaits it; code that reads the store directly must too.
+- Existing `b-api` methods and types are not necessarily complete just because a name matches.
+  Check what a method returns before building on it (`verifyToken()` does not return `scope`;
+  `BlipComment` has no `unread` field; the notification-settings update takes flat, un-namespaced
+  keys). Defensive code with no caller yet usually points at a gap still to come.
+- `user/awards.json` returns the full award catalogue, not only earned awards; unearned ones have
+  `added_stamp: null`. Award names come from a slug table in `AwardsScreen.tsx`; no endpoint
+  returns them. `awardLabel()` shows "Secret" from each award's `secret` flag.
+- Screens SCR-07/08/15/16 refetch via `useLiveEntry`/router state rather than depending on a
+  prior screen's in-memory data, for deep-link resilience. SCR-10–13 (compose) deliberately share
+  `composeDraftStore`.
+- `devicePrefsStore.uploadFullSize` has no consumer yet (no client-side downscaling exists), so
+  the Settings checkbox is disabled. Tracked in b-oss#334.
+
+**Native (Android)**
+
+- `CapacitorHttp` on Android ignores `responseType: 'text'` when the response `Content-Type` is
+  `application/json` and returns an already-parsed object. `platformFetch` re-stringifies when
+  the result is not a string; do not assume `responseType` is honoured on native.
+- `@capacitor/app`'s `appUrlOpen`/`getLaunchUrl()` only see VIEW-action launch URLs, never an
+  `ACTION_SEND` share intent's binary extras. Share-target work needs native code reading
+  `Activity.getIntent()`; `ShareIntentPlugin.java` is the precedent.
+- `IonHeader`/`IonToolbar` add safe-area padding automatically; nothing else does. Areas with no
+  header above (e.g. `IonMenu` content) or no footer below scrollable content need explicit
+  safe-area padding. Check live device insets rather than reusing fixed numbers.
+- The multipart upload path in `platform/upload.ts` (§7) has not been exercised on a real device
+  against the live API; see b-oss#336.
+
+**Process**
+
+- Several agent sessions can share a worktree. If a file you did not touch shows as modified,
+  check for other `claude`/`hapi` processes and `git diff` it before reverting or committing it.
