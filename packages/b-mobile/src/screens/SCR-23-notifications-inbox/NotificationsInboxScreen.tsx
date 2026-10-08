@@ -44,6 +44,7 @@ import { AppHeader } from '../../components/AppHeader.js';
 import {
   fetchRecentNotifications,
   isNotificationFromHiddenMember,
+  leadingActor,
   resolveNotificationTarget,
 } from '../../data/notifications.js';
 import { describeError, mapApiError } from '../../data/errors.js';
@@ -71,11 +72,16 @@ export function NotificationsInboxScreen() {
   // endpoint returns newest first, so the first N rows of the first response are the new ones.
   // Snapshotted once, before the optimistic clear below zeroes it (same trap as SCR-24's ref).
   const newIdsRef = useRef<Set<string> | null>(null);
+  // The count itself is also kept once: load() runs more than once (a Retry, or a dev double
+  // effect) and by then the badge is already zeroed, which would otherwise make the first
+  // response to land mark nothing as new.
+  const unreadCountRef = useRef<number | null>(null);
 
   const load = useCallback(() => {
     // Optimistic local clear, at the same moment the fetch (the real, server-side clear) starts
     // — FLW-15 step 2.
-    const unreadCount = useNotificationCountsStore.getState().notifications;
+    unreadCountRef.current ??= useNotificationCountsStore.getState().notifications;
+    const unreadCount = unreadCountRef.current;
     clearNotifications();
     setStatus('loading');
     setErrorMessage(null);
@@ -162,6 +168,7 @@ export function NotificationsInboxScreen() {
             {visibleItems.map((notification) => (
               <InboxRow
                 key={notification.notification_id_str}
+                align="top"
                 unread={newIdsRef.current?.has(notification.notification_id_str) ?? false}
                 leading={
                   <button
@@ -173,9 +180,11 @@ export function NotificationsInboxScreen() {
                   </button>
                 }
               >
-                <BBCodeText
-                  source={notification.content}
-                  onLinkClick={(href) => void openUrl(href)}
+                <NotificationBody
+                  notification={notification}
+                  onOpenProfile={(username) =>
+                    navigate.push(`/user/${encodeURIComponent(username)}`)
+                  }
                 />
               </InboxRow>
             ))}
@@ -183,5 +192,28 @@ export function NotificationsInboxScreen() {
         )}
       </IonContent>
     </IonPage>
+  );
+}
+
+/** Bold green member name (the same control as the Comments rows) when the actor can be read off
+ * the payload reliably, then the rest of the BBCode; otherwise the content as sent. */
+function NotificationBody({
+  notification,
+  onOpenProfile,
+}: {
+  notification: BlipNotification;
+  onOpenProfile: (username: string) => void;
+}) {
+  const actor = leadingActor(notification);
+  if (!actor) {
+    return <BBCodeText source={notification.content} onLinkClick={(href) => void openUrl(href)} />;
+  }
+  return (
+    <div>
+      <button onClick={() => onOpenProfile(actor.username)} className="inbox-row-name">
+        {actor.username}
+      </button>
+      <BBCodeText source={actor.rest} onLinkClick={(href) => void openUrl(href)} />
+    </div>
   );
 }
