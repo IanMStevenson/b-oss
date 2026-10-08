@@ -120,7 +120,7 @@ function SettingsHub() {
             notified about from my Blipfoto account", even though its Advanced polling interval
             happens to be stored locally (data/settings.ts's own header comment). */}
         <IonList>
-          <SectionHeader>Blipfoto Account Settings</SectionHeader>
+          <SectionHeader>Blipfoto account settings</SectionHeader>
           {!signedIn && <CaptionRow>Sign in to change these.</CaptionRow>}
           <IonItem
             button
@@ -168,7 +168,7 @@ function SettingsHub() {
             reachable at all) — the row here is just a discoverable shortcut alongside its
             siblings, not the only path to it. */}
         <IonList>
-          <SectionHeader>App Settings</SectionHeader>
+          <SectionHeader>App settings</SectionHeader>
           <IonItem button detail onClick={() => navigate.push('/accounts', { drilledIn: true })}>
             <span>Accounts</span>
             {activeAccount && <IonNote slot="end">{activeAccount.username}</IonNote>}

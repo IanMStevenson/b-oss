@@ -788,6 +788,24 @@ describe('EntryDetailScreen', () => {
       expect(await findBox('Reply to bob')).toBeDefined();
     });
 
+    it('scrolls the reply composer into view when sent here from the comments inbox', async () => {
+      const scrolled: HTMLElement[] = [];
+      const original = Object.getOwnPropertyDescriptor(Element.prototype, 'scrollIntoView');
+      Element.prototype.scrollIntoView = function (this: HTMLElement) {
+        scrolled.push(this);
+      };
+      try {
+        await load(withComment({ reply: 1, edit: 0, delete: 0 }));
+        renderScreen({ initialReplyToCommentId: 'c1' });
+        await screen.findByText('First!');
+        const form = (await findBox('Reply to bob')).closest('form');
+        await waitFor(() => expect(scrolled).toContain(form));
+      } finally {
+        if (original) Object.defineProperty(Element.prototype, 'scrollIntoView', original);
+        else delete (Element.prototype as { scrollIntoView?: unknown }).scrollIntoView;
+      }
+    });
+
     it('ignores an inbox hand-off for a comment you cannot reply to', async () => {
       await load(withComment(noActions));
       renderScreen({ initialReplyToCommentId: 'c1' });

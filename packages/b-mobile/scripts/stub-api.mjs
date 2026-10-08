@@ -53,13 +53,24 @@ function entry(i, username = people[i % people.length]) {
 const entries = (n, offset = 0) => Array.from({ length: n }, (_, i) => entry(i + offset));
 const page = (index, size, more) => ({ index, size, more });
 
+// Real-looking comment bodies, some with BBCode (in `content`, as the real API sends it) and some
+// with tags the app doesn't render, to exercise the shared BBCode renderer.
+const commentBodies = [
+  'Lovely light on this one — the colours really work.',
+  '[b]Stunning[/b] shot, love the [i]colours[/i]! More at [url=https://example.com/photos]my page[/url]',
+  '[quote=cyclopstest]Out before work[/quote] Worth the early start. [IMG]https://example.com/a.jpg[/IMG]',
+  '[B]Great[/B] composition &amp; tones — [email]hello@example.com[/email]',
+  'Brilliant!\n\n[u]Second paragraph[/u] with [color=red]colour[/color] and [url]www.example.com[/url]',
+];
+const commentBody = (i) => commentBodies[i % commentBodies.length];
+
 const comment = (i, entryId = null) => ({
   comment_id_str: String(7000 + i),
   parent_id_str: null,
   entry_id_str: entryId,
   thumbnail_url: img(i, 'thumb'),
-  content: 'Lovely light on this one — the colours really work.',
-  content_html: 'Lovely light on this one — the <b>colours</b> really work.',
+  content: commentBody(i),
+  content_html: commentBody(i).replace(/\[(\/?)b\]/gi, '<$1b>'),
   commenter: user(people[i % people.length]),
   actions: { reply: 1, edit: 0, delete: 0 },
   replies: null,
@@ -206,12 +217,10 @@ function handle(path, q) {
           camera: 'Fujifilm X100V',
         },
         comments: {
-          total: 3,
-          list: [
-            comment(0, e.entry_id_str),
-            comment(1, e.entry_id_str),
-            comment(2, e.entry_id_str),
-          ],
+          // Entry 3 (the one comment 3 of the Comments inbox points at) has a long thread, to
+          // check that Reply scrolls a long page to the composer.
+          total: id === 3 ? 30 : 3,
+          list: Array.from({ length: id === 3 ? 30 : 3 }, (_, n) => comment(n, e.entry_id_str)),
         },
         related: {
           previous: entry(id + 1),

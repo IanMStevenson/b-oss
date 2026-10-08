@@ -42,6 +42,8 @@ import { useAppNavigate } from '../../app/routes/useAppNavigate.js';
 import { useAccountsStore } from '../../state/accountsStore.js';
 import { useHiddenMembers, useHiddenMembersStore } from '../../state/hiddenMembersStore.js';
 import { useNotificationCountsStore } from '../../state/notificationCountsStore.js';
+import { BBCodeText } from '@b-oss/b-view';
+import { openUrl } from '../../platform/browser.js';
 import { InboxRow, RowThumb } from '../../components/InboxRow.js';
 import type { BlipComment } from '@b-oss/b-api';
 
@@ -215,7 +217,9 @@ export function CommentsInboxScreen() {
                   </button>
                   <UserBadges icons={comment.commenter.icons} />
                 </div>
-                <div style={{ marginTop: 2 }}>{comment.content}</div>
+                <div style={{ marginTop: 2 }}>
+                  <BBCodeText source={comment.content} onLinkClick={(href) => void openUrl(href)} />
+                </div>
               </InboxRow>
             ))}
           </>

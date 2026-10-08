@@ -43,9 +43,9 @@ const SOURCE_URL = 'https://ianmstevenson.github.io/b-oss/';
 export type HelpInfoSection = 'icon-guide' | 'safety-privacy' | 'licences';
 
 const SECTION_TITLES: Record<HelpInfoSection, string> = {
-  'icon-guide': 'Icon Guide',
-  'safety-privacy': 'Safety & Privacy',
-  licences: 'Open Source Licenses',
+  'icon-guide': 'Icon guide',
+  'safety-privacy': 'Safety & privacy',
+  licences: 'Open source licences',
 };
 
 interface HelpInfoScreenProps {
@@ -230,40 +230,40 @@ function HelpInfoHub() {
   return (
     <IonPage>
       <IonHeader>
-        <AppHeader title="Help & About" accountIndicator={false} />
+        <AppHeader title="Help & about" accountIndicator={false} />
       </IonHeader>
       <IonContent>
         <IonList>
           <SectionHeader>Help</SectionHeader>
           <NavRow label="Help" kind="external" onClick={() => void openUrl(HELP_URL)} />
           <NavRow
-            label="Icon Guide"
+            label="Icon guide"
             kind="push"
             onClick={() => navigate.push('/help/icon-guide')}
           />
           <NavRow
-            label="Safety & Privacy"
+            label="Safety & privacy"
             kind="push"
             onClick={() => navigate.push('/help/safety-privacy')}
           />
           <NavRow
-            label="Blipfoto Terms & Legal"
+            label="Blipfoto terms & legal"
             kind="external"
             onClick={() => void openUrl(TERMS_URL)}
           />
           <NavRow
-            label="Blipfoto Privacy Policy"
+            label="Blipfoto privacy policy"
             kind="external"
             onClick={() => void openUrl(PRIVACY_URL)}
           />
 
           <SectionHeader>About</SectionHeader>
           <IonItem lines="full">
-            <span>App Version</span>
+            <span>App version</span>
             <IonNote slot="end">{version}</IonNote>
           </IonItem>
           <NavRow
-            label="Open Source Licenses"
+            label="Open source licences"
             kind="push"
             onClick={() => navigate.push('/help/licences')}
           />

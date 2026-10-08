@@ -176,6 +176,19 @@ describe('CommentsInboxScreen', () => {
     expect(screen.getByText('Hide this member')).toBeDefined();
   });
 
+  it('renders BBCode in comment text instead of showing raw tags', async () => {
+    fetchRecentComments.mockResolvedValue([
+      comment({
+        content: '[b]Stunning[/b] see [url=https://example.com/p]my page[/url] [quote]x[/quote]',
+      }),
+    ]);
+    renderScreen();
+    const link = await screen.findByRole('link', { name: 'my page' });
+    expect(link.getAttribute('href')).toBe('https://example.com/p');
+    expect(screen.getByText('Stunning').tagName).toBe('B');
+    expect(document.body.textContent).not.toMatch(/\[(\/)?(b|url|quote)/);
+  });
+
   it('does not offer Delete when the delete action flag is off', async () => {
     fetchRecentComments.mockResolvedValue([comment({ actions: { reply: 1, edit: 0, delete: 0 } })]);
     renderScreen();

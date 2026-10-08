@@ -3,7 +3,7 @@
 // @vitest-environment jsdom
 
 import { describe, it, expect, afterEach, vi } from 'vitest';
-import { render, screen, cleanup, fireEvent } from '@testing-library/react';
+import { render, cleanup, fireEvent } from '@testing-library/react';
 import { BBCodeText } from '../components/BBCodeText.js';
 
 afterEach(cleanup);
@@ -15,9 +15,37 @@ describe('BBCodeText', () => {
     expect(container.querySelector('i')?.textContent).toBe('italic');
   });
 
-  it('leaves disallowed tags as literal source text instead of dropping or executing them', () => {
-    render(<BBCodeText source="[script]alert(1)[/script] plain text" />);
-    expect(screen.getByText(/\[script\]alert\(1\)\[\/script\]/)).toBeDefined();
+  it('strips unrendered tags but keeps their inner text, never executing them', () => {
+    const { container } = render(<BBCodeText source="[script]alert(1)[/script] plain text" />);
+    expect(container.textContent).toBe('alert(1) plain text');
+    expect(container.querySelector('script')).toBeNull();
+  });
+
+  describe('real-looking comment corpus', () => {
+    const cases: Array<[string, string]> = [
+      ['[B]Great[/B] shot', 'Great shot'],
+      ['[quote=sam]nice light[/quote] agreed', 'nice light agreed'],
+      ['[quote]hi [b]there[/b][/quote]', 'hi there'],
+      ['look: [img]http://x.test/a.jpg[/img]', 'look: http://x.test/a.jpg'],
+      ['[color=red]red[/color] and [size=5]big[/size]', 'red and big'],
+      ['[center][b][i]nested[/i][/b][/center]', 'nested'],
+      ['Tom &amp; Jerry &lt;3 &quot;cats&quot;', 'Tom & Jerry <3 "cats"'],
+      ['see [URL=http://example.com]Here[/URL] too', 'see Here too'],
+      ['mail [EMAIL]a@b.co[/EMAIL]', 'mail a@b.co'],
+      ['[list][*]one[*]two[/list]', '• one• two'],
+      ['a [sic] remark and [1] ref', 'a [sic] remark and [1] ref'],
+      ['[b]never closed', 'never closed'],
+    ];
+    it.each(cases)('%s', (source, text) => {
+      const { container } = render(<BBCodeText source={source} />);
+      expect(container.textContent).toBe(text);
+    });
+
+    it('renders upper-case known tags as real elements', () => {
+      const { container } = render(<BBCodeText source="[B]b[/B] [URL=http://e.com]l[/URL]" />);
+      expect(container.querySelector('b')?.textContent).toBe('b');
+      expect(container.querySelector('a')?.getAttribute('href')).toBe('http://e.com');
+    });
   });
 
   it('renders [email] as a mailto: link, in both forms', () => {

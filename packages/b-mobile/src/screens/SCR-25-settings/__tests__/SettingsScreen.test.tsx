@@ -99,13 +99,13 @@ describe('SettingsScreen hub', () => {
     ]) {
       expect(screen.getByText(label)).toBeDefined();
     }
-    // two 'General' rows: the Blipfoto account's own, and App Settings'
+    // two 'General' rows: the Blipfoto account's own, and App settings'
     expect(screen.getAllByText('General')).toHaveLength(2);
     expect(screen.queryByText('Misc')).toBeNull();
     expect(screen.queryByText('Reminders')).toBeNull();
   });
 
-  it('puts App Settings General straight after Accounts', async () => {
+  it('puts App settings General straight after Accounts', async () => {
     renderHub();
     await waitFor(() => expect(fetchUserSettings).toHaveBeenCalled());
     const rows = Array.from(document.querySelectorAll('ion-item')).map((i) => i.textContent);
@@ -113,11 +113,11 @@ describe('SettingsScreen hub', () => {
     expect(rows[accounts + 1]).toBe('General');
   });
 
-  it('groups rows under Blipfoto Account Settings and App Settings headers', async () => {
+  it('groups rows under Blipfoto account settings and App Settings headers', async () => {
     renderHub();
     await waitFor(() => expect(fetchUserSettings).toHaveBeenCalled());
-    expect(screen.getByText('Blipfoto Account Settings')).toBeDefined();
-    expect(screen.getByText('App Settings')).toBeDefined();
+    expect(screen.getByText('Blipfoto account settings')).toBeDefined();
+    expect(screen.getByText('App settings')).toBeDefined();
   });
 
   it('tapping Browsing navigates to /settings/browsing', async () => {

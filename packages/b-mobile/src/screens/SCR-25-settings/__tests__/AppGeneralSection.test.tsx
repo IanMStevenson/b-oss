@@ -3,6 +3,7 @@
 // @vitest-environment jsdom
 
 import { describe, it, expect, afterEach, beforeEach, vi } from 'vitest';
+import userEvent from '@testing-library/user-event';
 import { render, screen, cleanup, waitFor } from '@testing-library/react';
 import { AppGeneralSection } from '../sections/AppGeneralSection.js';
 import { useAccountsStore } from '../../../state/accountsStore.js';
@@ -85,7 +86,7 @@ describe('AppGeneralSection — reminders', () => {
   it('starts off, with no time pickers shown', () => {
     render(<AppGeneralSection />);
     expect(toggleOf('Daily reminder').getAttribute('checked')).not.toBe('true');
-    expect(screen.queryByText('Reminder hour')).toBeNull();
+    expect(screen.queryByText('Reminder time')).toBeNull();
   });
 
   it('enabling schedules the reminder and reveals the time pickers', async () => {
@@ -94,16 +95,45 @@ describe('AppGeneralSection — reminders', () => {
     await waitFor(() =>
       expect(scheduleReminder).toHaveBeenCalledWith('a1', { hour: 20, minute: 0 }),
     );
-    expect(screen.getByText('Reminder hour')).toBeDefined();
-    expect(screen.getByText('Reminder minute')).toBeDefined();
+    expect(screen.getByText('Reminder time').parentElement?.textContent).toContain('20:00');
+    expect(screen.queryByText('Reminder hour')).toBeNull();
+    expect(screen.queryByText('Reminder minute')).toBeNull();
   });
 
   it('shows the active account’s own already-configured time', () => {
     useDevicePrefsStore.getState().setReminder('a1', { enabled: true, hour: 7, minute: 30 });
     render(<AppGeneralSection />);
-    // SelectRow shows the label with the current choice beneath it.
-    expect(screen.getByText('Reminder hour').parentElement?.textContent).toContain('07');
-    expect(screen.getByText('Reminder minute').parentElement?.textContent).toContain('30');
+    // One row: the label with the current time beneath it.
+    expect(screen.getByText('Reminder time').parentElement?.textContent).toContain('07:30');
+  });
+
+  it('choosing a time in the picker saves it and reschedules', async () => {
+    useDevicePrefsStore.getState().setReminder('a1', { enabled: true, hour: 7, minute: 30 });
+    render(<AppGeneralSection />);
+    await userEvent.click(screen.getByText('Reminder time'));
+    const picker = await waitFor(() => {
+      const el = document.querySelector<HTMLElement>('ion-datetime');
+      if (!el) throw new Error('picker not open');
+      return el;
+    });
+    expect((picker as HTMLElement & { presentation: string }).presentation).toBe('time');
+    picker.dispatchEvent(
+      new CustomEvent('ionChange', { bubbles: true, detail: { value: '2026-01-01T18:45:00' } }),
+    );
+    await userEvent.click(await screen.findByText('Done'));
+    await waitFor(() =>
+      expect(scheduleReminder).toHaveBeenCalledWith('a1', { hour: 18, minute: 45 }),
+    );
+    expect(useDevicePrefsStore.getState().reminders['a1']).toMatchObject({ hour: 18, minute: 45 });
+  });
+
+  it('Cancel in the time picker leaves the reminder alone', async () => {
+    useDevicePrefsStore.getState().setReminder('a1', { enabled: true, hour: 7, minute: 30 });
+    render(<AppGeneralSection />);
+    await userEvent.click(screen.getByText('Reminder time'));
+    await userEvent.click(await screen.findByText('Cancel'));
+    expect(scheduleReminder).not.toHaveBeenCalled();
+    expect(useDevicePrefsStore.getState().reminders['a1']).toMatchObject({ hour: 7, minute: 30 });
   });
 
   it('disabling cancels the reminder', async () => {
@@ -124,14 +154,14 @@ describe('AppGeneralSection — reminders', () => {
 describe('AppGeneralSection — multiple accounts', () => {
   it('hides the confirm-account and account-picture settings with fewer than two accounts', () => {
     render(<AppGeneralSection />);
-    expect(screen.queryByLabelText('Confirm account before Star, Favourite or comment')).toBeNull();
+    expect(screen.queryByLabelText('Confirm account before star, favourite or comment')).toBeNull();
     expect(document.querySelector('ion-segment[aria-label="Account picture"]')).toBeNull();
   });
 
   it('shows the confirm-account toggle (off by default) with two or more accounts, and persists it', () => {
     useAccountsStore.setState({ accounts: [acct('a1', 'alice'), acct('a2', 'bob')] });
     render(<AppGeneralSection />);
-    const toggle = toggleOf('Confirm account before Star, Favourite or comment');
+    const toggle = toggleOf('Confirm account before star, favourite or comment');
     expect(toggle.getAttribute('checked')).not.toBe('true');
     flip(toggle, true);
     expect(useDevicePrefsStore.getState().confirmAccountBeforeReaction).toBe(true);
@@ -143,6 +173,7 @@ describe('AppGeneralSection — multiple accounts', () => {
     const segment = document.querySelector<HTMLElement & { value: string }>(
       'ion-segment[aria-label="Account picture"]',
     )!;
+    expect(segment.classList.contains('settings-pill-segment')).toBe(true);
     expect(segment.value).toBe('picture');
     segment.dispatchEvent(
       new CustomEvent('ionChange', { bubbles: true, detail: { value: 'icon' } }),
@@ -160,7 +191,7 @@ describe('AppGeneralSection — signed out', () => {
     render(<AppGeneralSection />);
     expect(screen.getByText('Sign in to set a daily reminder to publish.')).toBeDefined();
     expect(isDisabled(toggleOf('Daily reminder'))).toBe(true);
-    expect(screen.queryByLabelText('Confirm account before Star, Favourite or comment')).toBeNull();
+    expect(screen.queryByLabelText('Confirm account before star, favourite or comment')).toBeNull();
   });
 
   it('the links toggle is still usable', () => {
