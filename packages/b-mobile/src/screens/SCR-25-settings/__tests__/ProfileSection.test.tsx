@@ -178,6 +178,26 @@ describe('ProfileSection', () => {
     await waitFor(() => expect(fetchUserSettings).toHaveBeenCalledTimes(2));
   });
 
+  it('shows the real reason when the avatar upload fails (b-oss#318)', async () => {
+    takePhoto.mockResolvedValue({
+      webPath: 'blob:photo',
+      mimeType: 'image/jpeg',
+      width: 400,
+      height: 400,
+      createdAt: null,
+    });
+    cropToJpegBlob.mockResolvedValue(new Blob(['x'], { type: 'image/jpeg' }));
+    saveUserSettings.mockRejectedValueOnce(new Error('boom'));
+
+    renderScreen();
+    await screen.findByText('No avatar set.');
+    await userEvent.click(screen.getByText('Take photo'));
+    await userEvent.click(await screen.findByText('mock-crop-area'));
+    await userEvent.click(screen.getByText('Use this photo'));
+
+    expect(await screen.findByText('Could not upload that avatar. (boom)')).toBeDefined();
+  });
+
   it('shows a specific message when camera permission is refused, and leaves choose usable', async () => {
     takePhoto.mockRejectedValue(new CameraPermissionDeniedError(true));
     renderScreen();

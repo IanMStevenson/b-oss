@@ -22,7 +22,8 @@
 import { useEffect, useState } from 'react';
 import { IonButton, IonItem, IonList, IonSpinner, IonText, IonAlert } from '@ionic/react';
 import { fetchUserSettings, saveUserSettings } from '../../../data/settings.js';
-import { describeError, mapApiError } from '../../../data/errors.js';
+import { describeError, describeUploadError, mapApiError } from '../../../data/errors.js';
+import { recordFailure } from '../../../data/httpFailureLog.js';
 import { useCanWrite, useActiveAccount, useAccountsStore } from '../../../state/accountsStore.js';
 import { useAppNavigate } from '../../../app/routes/useAppNavigate.js';
 import { takePhoto, pickPhoto, CameraPermissionDeniedError } from '../../../platform/camera.js';
@@ -164,8 +165,17 @@ export function ProfileSection() {
       setCropPixels(null);
       await refreshFromServer();
     } catch (err) {
-      const outcome = mapApiError(err);
-      setAvatarError(describeError(outcome, 'Could not upload that avatar.'));
+      await recordFailure(err, {
+        action: 'avatar-upload',
+        picked: {
+          mimeType: pickedPhoto.mimeType,
+          width: pickedPhoto.width,
+          height: pickedPhoto.height,
+          sizeBytes: pickedPhoto.sizeBytes,
+        },
+        crop: cropPixels,
+      });
+      setAvatarError(describeUploadError(err, 'Could not upload that avatar.'));
     } finally {
       setAvatarBusy(null);
     }

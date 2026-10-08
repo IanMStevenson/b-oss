@@ -8,6 +8,11 @@
 // mock at the data layer) and not meant to be faithful beyond what the UI renders.
 //
 //   node scripts/stub-api.mjs [port]            # default 5192
+// Avatar upload (PUT user/settings): accepted, the multipart avatar part is checked (field name
+// `avatar`, a JPEG, under 3 MB) and logged. Simulate failures with GET /__avatar-fail?mode=
+// 413 | 500 | 500-body | blipfoto-240 | none — 413/500 answer like a proxy/crash (non-envelope),
+// 500-body with HTML, blipfoto-240 with the API's own invalid-JPEG error envelope.
+//
 //   B_API_PROXY_TARGET=http://127.0.0.1:5192 npx vite --port 5191 --host 127.0.0.1
 
 import { createServer } from 'node:http';
@@ -324,6 +329,8 @@ function svg(seed, kind) {
   return `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${hgt}" viewBox="0 0 ${w} ${hgt}"><defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="hsl(${h},55%,62%)"/><stop offset="1" stop-color="hsl(${(h + 50) % 360},60%,28%)"/></linearGradient></defs><rect width="100%" height="100%" fill="url(#g)"/><circle cx="${w * 0.7}" cy="${hgt * 0.3}" r="${hgt * 0.12}" fill="rgba(255,255,255,.55)"/></svg>`;
 }
 
+let avatarFail = 'none';
+
 createServer((req, res) => {
   const url = new URL(req.url, HOST);
   const send = (status, type, body) => {
@@ -336,6 +343,48 @@ createServer((req, res) => {
     });
     res.end(body);
   };
+  if (url.pathname === '/__avatar-fail') {
+    avatarFail = url.searchParams.get('mode') ?? 'none';
+    return send(200, 'text/plain', `avatar failure mode: ${avatarFail}`);
+  }
+  if (req.method === 'PUT' && /^\/4\/user\/settings(\.json)?$/.test(url.pathname)) {
+    if (req.method === 'OPTIONS') return send(204, 'text/plain', '');
+    const chunks = [];
+    req.on('data', (c) => chunks.push(c));
+    req.on('end', () => {
+      const body = Buffer.concat(chunks);
+      const head = body.toString('latin1');
+      const part = head.match(/name="avatar"; filename="([^"]*)"\r\nContent-Type: ([^\r]*)/);
+      if (part) {
+        console.log(
+          `avatar upload: ${body.length} bytes body, filename=${part[1]}, type=${part[2]}, content-type header=${req.headers['content-type']?.split(';')[0]}`,
+        );
+        if (part[2] !== 'image/jpeg') console.log('  !! avatar part is not image/jpeg');
+        if (body.length > 3 * 1024 * 1024) console.log('  !! over the 3 MB avatar cap');
+      }
+      if (part && avatarFail === '413')
+        return send(413, 'text/html', '<h1>413 Request Entity Too Large</h1>');
+      if (part && avatarFail === '500') return send(500, 'text/plain', '');
+      if (part && avatarFail === '500-body')
+        return send(
+          500,
+          'text/html',
+          '<html><body>Internal Server Error: AvatarUploader</body></html>',
+        );
+      if (part && avatarFail === 'blipfoto-240')
+        return send(
+          200,
+          'application/json',
+          JSON.stringify({ version: 4, error: { code: 240, message: 'Invalid JPEG' }, data: null }),
+        );
+      send(
+        200,
+        'application/json',
+        JSON.stringify({ version: 4, error: null, data: { success: 1 } }),
+      );
+    });
+    return;
+  }
   const img = url.pathname.match(/^\/img\/([^/]+)\/(\w+)\.jpg$/);
   if (img) return send(200, 'image/svg+xml', svg(img[1], img[2]));
   // The proxy rewrites /api/blipfoto/4/x.json -> /4/x.json.

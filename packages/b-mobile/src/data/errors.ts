@@ -102,3 +102,42 @@ export function describeError(outcome: ApiErrorOutcome, fallback: string): strin
       return fallback;
   }
 }
+
+/** A readable line from whatever a transport layer rejected with — an Error, or a plugin's plain
+ * `{code, message}` object (FileTransferError is not an Error subclass). */
+export function causeMessage(cause: unknown): string {
+  if (cause instanceof Error) return cause.message;
+  if (cause && typeof cause === 'object') {
+    const { code, message } = cause as { code?: unknown; message?: unknown };
+    const parts = [code, message].filter((p) => typeof p === 'string' && p);
+    if (parts.length) return parts.join(' ');
+    return JSON.stringify(cause).slice(0, 200);
+  }
+  return typeof cause === 'string' ? cause : '';
+}
+
+/** For a failed upload, where the generic "Could not upload…" hid the real reason (b-oss#318):
+ * the fallback plus whatever the failure says — HTTP status and the start of the response body,
+ * Blipfoto's own error message, the transport cause, or our own error's message. Validation
+ * errors keep their copy-deck text. */
+export function describeUploadError(err: unknown, fallback: string): string {
+  const outcome = mapApiError(err);
+  if (outcome.kind === 'validation' || outcome.kind === 'rate-limited') {
+    return describeError(outcome, fallback);
+  }
+  if (err instanceof HttpError) {
+    const body = err.exchange.responseBody.trim().replace(/\s+/g, ' ').slice(0, 120);
+    const reason =
+      err.status === 413 ? 'the file is too large for Blipfoto' : `Blipfoto answered ${err.status}`;
+    return `${fallback} (${reason}${body ? `: ${body}` : ''})`;
+  }
+  if (err instanceof NetworkError) {
+    const cause = causeMessage(err.cause);
+    return `${fallback} (network problem${cause ? `: ${cause}` : ''})`;
+  }
+  if (err instanceof BlipfotoError) {
+    return outcome.kind === 'message' ? `${fallback} (${outcome.message})` : fallback;
+  }
+  if (err instanceof Error && err.message) return `${fallback} (${err.message})`;
+  return fallback;
+}

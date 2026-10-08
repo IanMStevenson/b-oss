@@ -6,7 +6,7 @@
 
 import { describe, it, expect } from 'vitest';
 import { BlipfotoError, HttpError, NetworkError } from '@b-oss/b-api';
-import { describeError, mapApiError } from '../errors.js';
+import { describeError, describeUploadError, mapApiError } from '../errors.js';
 import { t } from '../../strings/index.js';
 
 function httpError(status: number): HttpError {
@@ -139,5 +139,47 @@ describe('describeError', () => {
     expect(describeError({ kind: 'forced-logout' }, 'Could not save this.')).toBe(
       'Could not save this.',
     );
+  });
+});
+
+describe('describeUploadError (b-oss#318)', () => {
+  const fallback = 'Could not upload that avatar.';
+
+  it('shows the HTTP status and the start of the body', () => {
+    const err = new HttpError({
+      method: 'PUT',
+      url: 'u',
+      status: 500,
+      statusText: '',
+      responseHeaders: {},
+      responseBody: '  <html>\n boom </html>',
+    });
+    expect(describeUploadError(err, fallback)).toBe(
+      `${fallback} (Blipfoto answered 500: <html> boom </html>)`,
+    );
+  });
+
+  it('says so for a 413', () => {
+    expect(describeUploadError(httpError(413), fallback)).toContain('too large');
+  });
+
+  it('keeps the copy-deck text for a validation code', () => {
+    expect(describeUploadError(new BlipfotoError(240, 'x'), fallback)).toBe(
+      t('ERR.240.invalid_jpg'),
+    );
+  });
+
+  it('surfaces the transport cause, including a plugin’s non-Error object', () => {
+    const err = new NetworkError('Network request failed', {
+      code: 'OS-PLUG-FTRN-0010',
+      message: 'bad file',
+    });
+    expect(describeUploadError(err, fallback)).toBe(
+      `${fallback} (network problem: OS-PLUG-FTRN-0010 bad file)`,
+    );
+  });
+
+  it('shows an unexpected error’s own message instead of hiding it', () => {
+    expect(describeUploadError(new Error('boom'), fallback)).toBe(`${fallback} (boom)`);
   });
 });

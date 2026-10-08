@@ -124,28 +124,37 @@ export async function deleteQueuedFile(relativePath: string): Promise<void> {
   });
 }
 
+/** The bytes of a multipart file part from either FileSource form. A path is read from the
+ * filesystem; a Blob (the avatar, which is cropped to a Blob in JS) is read directly — rejecting
+ * it here was what made every native avatar upload fail with the generic message (b-oss#318). */
+export async function resolveFilePart(
+  file: { fieldName: string; filename: string; source: FileSource },
+  readPath: (path: string) => Promise<string> = async (path) =>
+    (await Filesystem.readFile({ path })).data as string,
+): Promise<{ fieldName: string; filename: string; contentType: string; bytes: Uint8Array }> {
+  if ('blob' in file.source) {
+    return {
+      fieldName: file.fieldName,
+      filename: file.filename,
+      contentType: file.source.blob.type || 'image/jpeg',
+      bytes: new Uint8Array(await file.source.blob.arrayBuffer()),
+    };
+  }
+  return {
+    fieldName: file.fieldName,
+    filename: file.filename,
+    contentType: file.source.mimeType,
+    bytes: base64ToBytes(await readPath(file.source.path)),
+  };
+}
+
 /** Returns the native multipart transport when running on-device, undefined on web (falls back
  * to b-api's default FormData/Blob path, which only ever sees blob-sourced files there anyway). */
 export function getMultipartImpl(): MultipartImpl | undefined {
   if (!Capacitor.isNativePlatform()) return undefined;
 
   return async ({ url, method, headers, fields, file }) => {
-    let filePart:
-      { fieldName: string; filename: string; contentType: string; bytes: Uint8Array } | undefined;
-    if (file) {
-      if (!('path' in file.source)) {
-        throw new Error(
-          'platform/upload.ts: native multipart received a Blob-sourced file — expected a path (see app-architecture.md §7).',
-        );
-      }
-      const { data } = await Filesystem.readFile({ path: file.source.path });
-      filePart = {
-        fieldName: file.fieldName,
-        filename: file.filename,
-        contentType: file.source.mimeType,
-        bytes: base64ToBytes(data as string),
-      };
-    }
+    const filePart = file ? await resolveFilePart(file) : undefined;
 
     const boundary = `b-mobile-${randomId(8)}`;
     const body = buildMultipartBody(fields, filePart, boundary);
