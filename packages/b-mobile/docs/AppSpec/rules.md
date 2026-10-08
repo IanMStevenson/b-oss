@@ -421,8 +421,8 @@ screen that forgets to is a safety defect, not a cosmetic one. The surfaces are:
   site does things the app cannot (see
   [api-appendix/endpoints.md](api-appendix/endpoints.md)) — must not find their links hijacked.
   Offer the choice explicitly, default it **off**, and make it reversible at any time from
-  `SCR-29 Help & Info` — **not** from Settings, which is account-gated and therefore unreachable to
-  the logged-out users this choice also applies to. It is a device setting, not an account one.
+  `SCR-25` Settings → General (moved from Help, b-oss#305). Settings is reachable signed out too,
+  with its account-scoped rows disabled, so this toggle is always usable. It is a device setting, not an account one.
 - **Entry deep links** (web URL, where enabled, and the app's own custom scheme) and **push
   targets** open the specific entry or profile directly, signing in first if the target requires
   it.
@@ -524,7 +524,7 @@ implementer would silently pick all of these — they're recorded here as decide
   reporting (available to any Play-published app, no extra integration needed) is relied on
   instead.
 - **Analytics.** None. No usage or event tracking of any kind.
-- **Privacy policy & data handling.** `SCR-29 Help & Info` links to a privacy policy — **not**
+- **Privacy policy & data handling.** `SCR-29 Help & About` links to a privacy policy — **not**
   Settings, which is account-gated: the policy must be reachable by someone who has never signed
   in, since anonymous browsing is a supported state and the policy covers it. It must
   disclose, at minimum: what's stored on-device (accounts, tokens, cached images, reminders);
@@ -539,7 +539,7 @@ implementer would silently pick all of these — they're recorded here as decide
 - **Account deletion.** Play policy requires a clear, reachable path to delete an account and its
   data alongside the privacy policy that discloses what's stored. Since account *creation* is
   already browser-based (`SCR-01`'s Create account link), deletion follows the same shape rather
-  than inventing an in-app flow: `SCR-29 Help & Info` carries a **Delete my account** link, opening
+  than inventing an in-app flow: `SCR-30 Accounts` carries a **Delete my account** link (moved from Help, b-oss#305/#306), opening
   Blipfoto's own account-deletion page in the browser — same reachable-when-signed-out placement as
   the privacy policy, for the same reason.
   - **This is a device-level link, not scoped to any stored account** — like Create account, it

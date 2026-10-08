@@ -1,11 +1,13 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (C) 2026 Ian Stevenson
 
-// SCR-29 — Help & Info. Not account-gated (AppShell.tsx's nav item is shown unconditionally,
+// SCR-29 — Help & About. Not account-gated (AppShell.tsx's nav item is shown unconditionally,
 // unlike Settings) — this is "the only settings-bearing screen a logged-out user can reach," and
-// every action on it (including the link-handling toggle, privacy policy, and account-deletion
-// link) must work with no account signed in. Nothing here reads or writes an account, so unlike
+// every action on it (including the privacy policy) must work with no account signed in. Nothing here reads or writes an account, so unlike
 // SCR-25 there's no server fetch anywhere on this screen at all.
+//
+// The link-handling toggle now lives in Settings → General, and Delete my account on the Accounts
+// page (b-oss#305, #306); neither is here any more.
 //
 // Same "one component, sub-sections via an optional route param" shape as SCR-25's SettingsScreen
 // — Icon guide/Safety & privacy/Open-source licences are in-app static pushes, not separate
@@ -24,43 +26,26 @@
 // (IonLabel not reliably rendering its children in this jsdom test setup) reproduced on this
 // screen's own hub; UserRow.tsx made the same choice for the same reason.
 
-import { useState } from 'react';
-import {
-  IonPage,
-  IonHeader,
-  IonContent,
-  IonList,
-  IonItem,
-  IonButton,
-  IonAlert,
-} from '@ionic/react';
-import {
-  ActionRow,
-  CaptionRow,
-  NavRow,
-  SectionHeader,
-  ToggleRow,
-} from '../../components/SettingsForm.js';
+import { IonPage, IonHeader, IonContent, IonList, IonItem, IonNote, IonButton } from '@ionic/react';
+import { NavRow, SectionHeader } from '../../components/SettingsForm.js';
 import { AppHeader } from '../../components/AppHeader.js';
 import { CachedImage } from '../../components/CachedImage.js';
 import { useAppNavigate } from '../../app/routes/useAppNavigate.js';
-import { useDevicePrefsStore } from '../../state/devicePrefsStore.js';
 import { openUrl } from '../../platform/browser.js';
 
 const HELP_URL = 'https://www.blipfoto.com/help';
 const TERMS_URL = 'https://www.blipfoto.com/legal/terms';
 const ACCEPTABLE_USE_URL = 'https://www.blipfoto.com/legal/acceptable-use';
 const PRIVACY_URL = 'https://www.blipfoto.com/legal/privacy';
-const DELETE_ACCOUNT_URL = 'https://www.blipfoto.com/settings/profile#sidebar';
 const BE_EXCELLENT_URL = 'https://www.blipfoto.com/be-excellent';
 const SOURCE_URL = 'https://ianmstevenson.github.io/b-oss/';
 
 export type HelpInfoSection = 'icon-guide' | 'safety-privacy' | 'licences';
 
 const SECTION_TITLES: Record<HelpInfoSection, string> = {
-  'icon-guide': 'Icon guide',
-  'safety-privacy': 'Safety & privacy',
-  licences: 'Open-source licences',
+  'icon-guide': 'Icon Guide',
+  'safety-privacy': 'Safety & Privacy',
+  licences: 'Open Source Licenses',
 };
 
 interface HelpInfoScreenProps {
@@ -195,15 +180,22 @@ function SafetyPrivacy() {
   );
 }
 
+// Runtime dependencies shipped in the app, derived by hand from packages/b-mobile/package.json
+// plus the runtime dependencies of the workspace packages it bundles (b-view's ProseMirror
+// editor packages, b-api, b-visual). Re-check when a runtime dependency is added.
 const THIRD_PARTY_LIBRARIES = [
-  '@ionic/react',
+  '@ionic/react and @ionic/react-router',
   '@capacitor/core and its plugins',
+  '@aparajita/capacitor-secure-storage',
   'react and react-dom',
   'react-router and react-router-dom',
   'zustand',
   'react-easy-crop',
+  'react-zoom-pan-pinch',
   'maplibre-gl',
+  'lucide-react',
   '@bbob/react and its plugins',
+  'ProseMirror (prosemirror-model, -state, -view, -commands, -history, -keymap)',
 ];
 
 function Licences() {
@@ -232,79 +224,51 @@ function Licences() {
 
 function HelpInfoHub() {
   const navigate = useAppNavigate();
-  const openLinksInApp = useDevicePrefsStore((s) => s.openBlipfotoLinksInApp);
-  const setOpenLinksInApp = useDevicePrefsStore((s) => s.setOpenBlipfotoLinksInApp);
-  const [confirmDeleteAccount, setConfirmDeleteAccount] = useState(false);
-  // __APP_VERSION__ (root CLAUDE.md's Versioning section, env.d.ts's ambient declaration) — this
-  // is the first screen in b-mobile to actually display it.
+  // __APP_VERSION__ (root CLAUDE.md's Versioning section, env.d.ts's ambient declaration).
   const version = typeof __APP_VERSION__ === 'string' ? __APP_VERSION__ : '1.0.0';
 
   return (
     <IonPage>
       <IonHeader>
-        <AppHeader title="Help & info" />
+        <AppHeader title="Help & About" />
       </IonHeader>
       <IonContent>
         <IonList>
+          <SectionHeader>Help</SectionHeader>
+          <NavRow label="Help" kind="external" onClick={() => void openUrl(HELP_URL)} />
           <NavRow
-            label="Icon guide"
+            label="Icon Guide"
             kind="push"
             onClick={() => navigate.push('/help/icon-guide')}
           />
           <NavRow
-            label="Safety & privacy"
+            label="Safety & Privacy"
             kind="push"
             onClick={() => navigate.push('/help/safety-privacy')}
           />
           <NavRow
-            label="Open-source licences"
-            kind="push"
-            onClick={() => navigate.push('/help/licences')}
+            label="Blipfoto Terms & Legal"
+            kind="external"
+            onClick={() => void openUrl(TERMS_URL)}
           />
-
-          <SectionHeader>On blipfoto.com</SectionHeader>
-          <NavRow label="Help" kind="external" onClick={() => void openUrl(HELP_URL)} />
-          <NavRow label="Terms & legal" kind="external" onClick={() => void openUrl(TERMS_URL)} />
           <NavRow
-            label="Privacy policy"
+            label="Blipfoto Privacy Policy"
             kind="external"
             onClick={() => void openUrl(PRIVACY_URL)}
           />
 
-          <SectionHeader>This device</SectionHeader>
-          <ToggleRow
-            label="Open blipfoto.com links in this app"
-            checked={openLinksInApp}
-            onChange={setOpenLinksInApp}
-          />
-
-          <SectionHeader>Account</SectionHeader>
-          <ActionRow
-            label="Delete my account"
-            danger
-            onClick={() => setConfirmDeleteAccount(true)}
-          />
-          <CaptionRow>Opens Blipfoto in your browser to delete your account.</CaptionRow>
-
-          <IonItem lines="none">
-            <span style={{ color: 'var(--muted)' }}>App version {version}</span>
+          <SectionHeader>About</SectionHeader>
+          <IonItem lines="full">
+            <span>App Version</span>
+            <IonNote slot="end">{version}</IonNote>
           </IonItem>
+          <NavRow
+            label="Open Source Licenses"
+            kind="push"
+            onClick={() => navigate.push('/help/licences')}
+          />
         </IonList>
       </IonContent>
-
-      <IonAlert
-        isOpen={confirmDeleteAccount}
-        header="Delete your account"
-        message="This opens Blipfoto's own website, not this app — account deletion isn't something b-mobile can do itself. Make sure you're signed in there to the account you want to delete before continuing."
-        onDidDismiss={() => setConfirmDeleteAccount(false)}
-        buttons={[
-          { text: 'Cancel', role: 'cancel' },
-          {
-            text: 'Continue',
-            handler: () => void openUrl(DELETE_ACCOUNT_URL),
-          },
-        ]}
-      />
     </IonPage>
   );
 }

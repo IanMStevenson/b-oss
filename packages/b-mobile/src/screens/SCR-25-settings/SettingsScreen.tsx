@@ -29,30 +29,28 @@ import {
   IonSpinner,
   IonText,
 } from '@ionic/react';
-import { SectionHeader } from '../../components/SettingsForm.js';
+import { CaptionRow, SectionHeader } from '../../components/SettingsForm.js';
 import { AppHeader } from '../../components/AppHeader.js';
 import { useResource } from '../../data/useResource.js';
 import { fetchUserSettings } from '../../data/settings.js';
 import { useAppNavigate } from '../../app/routes/useAppNavigate.js';
-import { useAccountsStore, useActiveAccount } from '../../state/accountsStore.js';
+import { useActiveAccount } from '../../state/accountsStore.js';
 import { GeneralSection } from './sections/GeneralSection.js';
 import { JournalSection } from './sections/JournalSection.js';
 import { ProfileSection } from './sections/ProfileSection.js';
 import { NotificationsSection } from './sections/NotificationsSection.js';
-import { RemindersSection } from './sections/RemindersSection.js';
-import { MiscSection } from './sections/MiscSection.js';
+import { AppGeneralSection } from './sections/AppGeneralSection.js';
 import { BrowsingSection } from './sections/BrowsingSection.js';
 
 export type SettingsSection =
-  'general' | 'journal' | 'profile' | 'notifications' | 'reminders' | 'misc' | 'browsing';
+  'general' | 'journal' | 'profile' | 'notifications' | 'app' | 'browsing';
 
 const SECTION_TITLES: Record<SettingsSection, string> = {
   general: 'General',
   journal: 'Journal',
   profile: 'Profile',
   notifications: 'Notifications',
-  reminders: 'Reminders',
-  misc: 'Misc',
+  app: 'General',
   browsing: 'Browsing',
 };
 
@@ -82,8 +80,7 @@ function SectionScreen({ section }: { section: SettingsSection }) {
         {section === 'journal' && <JournalSection />}
         {section === 'profile' && <ProfileSection />}
         {section === 'notifications' && <NotificationsSection />}
-        {section === 'reminders' && <RemindersSection />}
-        {section === 'misc' && <MiscSection />}
+        {section === 'app' && <AppGeneralSection />}
         {section === 'browsing' && <BrowsingSection />}
       </IonContent>
     </IonPage>
@@ -93,11 +90,16 @@ function SectionScreen({ section }: { section: SettingsSection }) {
 function SettingsHub() {
   const navigate = useAppNavigate();
   const activeAccount = useActiveAccount();
-  const accountCount = useAccountsStore((s) => s.accounts.length);
-  const canWrite = activeAccount?.appTokenScope === 'read,write';
-  const { state } = useResource(() => fetchUserSettings(), [activeAccount?.id]);
+  // Signed out there is no account to ask: skip the fetch (null result) and show the account-scoped
+  // rows greyed out instead.
+  const signedIn = activeAccount !== null;
+  const { state } = useResource(
+    () => (signedIn ? fetchUserSettings() : Promise.resolve(null)),
+    [activeAccount?.id],
+  );
 
-  const privacyProtected = state.status === 'loaded' ? state.data.privacy === 1 : null;
+  const privacyProtected =
+    state.status === 'loaded' && state.data ? state.data.privacy === 1 : null;
 
   return (
     <IonPage>
@@ -112,16 +114,37 @@ function SettingsHub() {
             happens to be stored locally (data/settings.ts's own header comment). */}
         <IonList>
           <SectionHeader>Blipfoto Account Settings</SectionHeader>
-          <IonItem button detail onClick={() => navigate.push('/settings/general')}>
+          {!signedIn && <CaptionRow>Sign in to change these.</CaptionRow>}
+          <IonItem
+            button
+            detail
+            disabled={!signedIn}
+            onClick={() => navigate.push('/settings/general')}
+          >
             <span>General</span>
           </IonItem>
-          <IonItem button detail onClick={() => navigate.push('/settings/journal')}>
+          <IonItem
+            button
+            detail
+            disabled={!signedIn}
+            onClick={() => navigate.push('/settings/journal')}
+          >
             <span>Journal</span>
           </IonItem>
-          <IonItem button detail onClick={() => navigate.push('/settings/profile')}>
+          <IonItem
+            button
+            detail
+            disabled={!signedIn}
+            onClick={() => navigate.push('/settings/profile')}
+          >
             <span>Profile</span>
           </IonItem>
-          <IonItem button detail onClick={() => navigate.push('/settings/notifications')}>
+          <IonItem
+            button
+            detail
+            disabled={!signedIn}
+            onClick={() => navigate.push('/settings/notifications')}
+          >
             <span>Notifications</span>
           </IonItem>
           {privacyProtected && (
@@ -141,32 +164,30 @@ function SettingsHub() {
           <SectionHeader>App Settings</SectionHeader>
           <IonItem button detail onClick={() => navigate.push('/accounts', { drilledIn: true })}>
             <span>Accounts</span>
-            <IonNote slot="end">{activeAccount?.username}</IonNote>
+            {activeAccount && <IonNote slot="end">{activeAccount.username}</IonNote>}
           </IonItem>
-          {canWrite && (
-            <IonItem button detail onClick={() => navigate.push('/settings/reminders')}>
-              <span>Reminders</span>
-            </IonItem>
-          )}
-          <IonItem button detail onClick={() => navigate.push('/hidden', { drilledIn: true })}>
+          <IonItem button detail onClick={() => navigate.push('/settings/app')}>
+            <span>General</span>
+          </IonItem>
+          <IonItem
+            button
+            detail
+            disabled={!signedIn}
+            onClick={() => navigate.push('/hidden', { drilledIn: true })}
+          >
             <span>Hidden members</span>
           </IonItem>
           <IonItem button detail onClick={() => navigate.push('/settings/browsing')}>
             <span>Browsing</span>
           </IonItem>
-          {accountCount >= 2 && (
-            <IonItem button detail onClick={() => navigate.push('/settings/misc')}>
-              <span>Misc</span>
-            </IonItem>
-          )}
         </IonList>
 
-        {state.status === 'loading' && (
+        {signedIn && state.status === 'loading' && (
           <div className="ion-padding" style={{ display: 'flex', justifyContent: 'center' }}>
             <IonSpinner />
           </div>
         )}
-        {state.status === 'error' && (
+        {signedIn && state.status === 'error' && (
           <div className="ion-padding">
             <IonText color="medium">
               <p>Could not load your privacy setting — Refused followers may be hidden for now.</p>

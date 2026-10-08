@@ -325,7 +325,7 @@ load-bearing, easy-to-get-subtly-wrong work in exchange for a dependency version
 quick actions, and the five feeds are a **tab strip inside the Browse screen**, not five routes.
 
 - **`IonMenu`** holds primary navigation (Browse, Search, Map, My Profile, Notifications, Comments,
-  Settings, Help & Info, plus New Entry and Sign In), with its contents varying by sign-in state as
+  Settings, Help & About, plus New Entry and Sign In), with its contents varying by sign-in state as
   `01-information-architecture.md` describes.
 - **A single `IonRouterOutlet`** holds the page stack. There are no router-level tabs, so no
   `IonTabs`.

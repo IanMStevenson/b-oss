@@ -70,6 +70,10 @@ afterEach(() => {
   vi.resetAllMocks();
 });
 
+function isDisabled(el: Element | null): boolean {
+  return el !== null && (el as { disabled?: boolean }).disabled === true;
+}
+
 function renderHub() {
   return render(
     <MemoryRouter>
@@ -87,30 +91,26 @@ describe('SettingsScreen hub', () => {
     await waitFor(() => expect(fetchUserSettings).toHaveBeenCalled());
     for (const label of [
       'Accounts',
-      'General',
       'Journal',
       'Profile',
       'Notifications',
-      'Reminders',
       'Browsing',
       'Hidden members',
     ]) {
       expect(screen.getByText(label)).toBeDefined();
     }
+    // two 'General' rows: the Blipfoto account's own, and App Settings'
+    expect(screen.getAllByText('General')).toHaveLength(2);
+    expect(screen.queryByText('Misc')).toBeNull();
+    expect(screen.queryByText('Reminders')).toBeNull();
   });
 
-  it('shows the Misc row only with two or more accounts (its settings are multi-account ones)', async () => {
+  it('puts App Settings General straight after Accounts', async () => {
     renderHub();
     await waitFor(() => expect(fetchUserSettings).toHaveBeenCalled());
-    expect(screen.queryByText('Misc')).toBeNull();
-    cleanup();
-    useAccountsStore.setState({
-      accounts: [account(), account({ id: 'a2', username: 'bob' })],
-      activeAccountId: 'a1',
-      hydrated: true,
-    });
-    renderHub();
-    await waitFor(() => expect(screen.getByText('Misc')).toBeDefined());
+    const rows = Array.from(document.querySelectorAll('ion-item')).map((i) => i.textContent);
+    const accounts = rows.findIndex((t) => t?.startsWith('Accounts'));
+    expect(rows[accounts + 1]).toBe('General');
   });
 
   it('groups rows under Blipfoto Account Settings and App Settings headers', async () => {
@@ -139,35 +139,28 @@ describe('SettingsScreen hub', () => {
     expect(await screen.findByText('Refused followers')).toBeDefined();
   });
 
-  it('hides Reminders for a read-only account', async () => {
-    useAccountsStore.setState({
-      accounts: [account({ appTokenScope: 'read' })],
-      activeAccountId: 'a1',
-    });
+  it('tapping each General row navigates to its own page', async () => {
     renderHub();
     await waitFor(() => expect(fetchUserSettings).toHaveBeenCalled());
-    expect(screen.queryByText('Reminders')).toBeNull();
-  });
-
-  it('tapping General navigates to /settings/general', async () => {
-    renderHub();
-    await waitFor(() => expect(fetchUserSettings).toHaveBeenCalled());
-    await userEvent.click(screen.getByText('General'));
+    const [accountGeneral, appGeneral] = screen.getAllByText('General');
+    await userEvent.click(accountGeneral);
     expect(push).toHaveBeenCalledWith('/settings/general');
+    await userEvent.click(appGeneral);
+    expect(push).toHaveBeenCalledWith('/settings/app');
   });
 
   it('loading: shows a spinner while the privacy fetch is in flight, without blocking the hub rows', () => {
     fetchUserSettings.mockReturnValue(new Promise(() => {}));
     renderHub();
     expect(document.querySelector('ion-spinner')).not.toBeNull();
-    expect(screen.getByText('General')).toBeDefined();
+    expect(screen.getAllByText('General').length).toBeGreaterThan(0);
   });
 
   it('still shows the hub rows when the privacy fetch fails', async () => {
     fetchUserSettings.mockRejectedValue(new Error('down'));
     renderHub();
     expect(await screen.findByText(/Could not load your privacy setting/)).toBeDefined();
-    expect(screen.getByText('General')).toBeDefined();
+    expect(screen.getAllByText('General').length).toBeGreaterThan(0);
   });
 });
 
@@ -223,5 +216,37 @@ describe('SettingsScreen section routing', () => {
     );
     await waitFor(() => expect(fetchUserSettings).toHaveBeenCalled());
     expect(screen.getByText('Accounts')).toBeDefined();
+  });
+
+  describe('signed out', () => {
+    beforeEach(() => {
+      useAccountsStore.setState({ accounts: [], activeAccountId: null, hydrated: true });
+    });
+
+    it('does not fetch user/settings, and says the account rows need a sign-in', () => {
+      renderHub();
+      expect(fetchUserSettings).not.toHaveBeenCalled();
+      expect(screen.getByText('Sign in to change these.')).toBeDefined();
+      expect(screen.queryByText(/Could not load/)).toBeNull();
+    });
+
+    it('greys out the Blipfoto account rows and Hidden members', () => {
+      renderHub();
+      const item = (label: string) => screen.getAllByText(label)[0].closest('ion-item')!;
+      for (const label of ['Journal', 'Profile', 'Notifications', 'Hidden members']) {
+        expect(isDisabled(item(label))).toBe(true);
+      }
+      expect(isDisabled(screen.getAllByText('General')[0].closest('ion-item'))).toBe(true);
+    });
+
+    it('keeps Accounts, App General and Browsing enabled and navigable', async () => {
+      renderHub();
+      const [, appGeneral] = screen.getAllByText('General');
+      for (const el of [screen.getByText('Accounts'), appGeneral, screen.getByText('Browsing')]) {
+        expect(isDisabled(el.closest('ion-item'))).toBe(false);
+      }
+      await userEvent.click(appGeneral);
+      expect(push).toHaveBeenCalledWith('/settings/app');
+    });
   });
 });
