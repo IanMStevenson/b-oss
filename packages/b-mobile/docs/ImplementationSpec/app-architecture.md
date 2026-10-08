@@ -1,1362 +1,510 @@
-# Application architecture
+# b-mobile application architecture
 
-How the app itself is built. The counterpart to
-[`notification-service.md`](notification-service.md), which specifies the one backend component the
-app depends on, and the continuation of [`platform-and-reuse.md`](platform-and-reuse.md), which
-settles the platform (Capacitor) and the reuse plan and then deliberately stops.
-
-**Status:** v1.3, 2026-08-03 — **no open questions.** Reviewed three times; the naming, multipart,
-push, BBCode, cropping, link-gating and deep-link-scheme questions are all resolved and folded in,
-and the last of them ([Q5](#q5), hidden-member filtering) closed once it was established that the
-notification API cannot supply an actor at all. Every decision below is made rather than deferred,
-and each carries its reasoning so it can be argued with. The remaining work is the `b-oss` code
-changes in [§21](#21-what-this-changes-elsewhere), none of which is a question.
-
-**Scope.** This document specifies _how the app is built_: package layout, runtime stack,
-navigation, state, networking, storage, and every native capability the spec relies on. It does not
-restate behaviour — [`AppSpec/`](../AppSpec/) owns that, and this document cross-references it
-rather than paraphrasing. Where an architectural choice constrains behaviour (there are three such
-places, all flagged), that is called out explicitly rather than quietly resolved.
-
-**Library versions** are as checked on **2026-08-03** and stated so the implementer starts from a
-known-good set rather than whatever `@latest` resolves to on the day.
-
----
-
-## Contents
-
-1. [What makes this app's architecture unusual](#1-what-makes-this-apps-architecture-unusual)
-2. [Repository and package layout](#2-repository-and-package-layout)
-3. [Runtime stack](#3-runtime-stack)
-4. [The platform boundary](#4-the-platform-boundary)
-5. [Navigation and routing](#5-navigation-and-routing)
-6. [State management](#6-state-management)
-7. [Networking and the `b-api` seams](#7-networking-and-the-b-api-seams)
-8. [Authentication and secure token storage](#8-authentication-and-secure-token-storage)
-9. [The durable upload queue](#9-the-durable-upload-queue)
-10. [The image cache](#10-the-image-cache)
-11. [Push notifications, client side](#11-push-notifications-client-side)
-12. [Local notifications and background scheduling](#12-local-notifications-and-background-scheduling)
-13. [Maps and location](#13-maps-and-location)
-14. [BBCode](#14-bbcode)
-15. [Camera, photo picking and cropping](#15-camera-photo-picking-and-cropping)
-16. [Deep links, the OAuth redirect, and share intents](#16-deep-links-the-oauth-redirect-and-share-intents)
-17. [Android project configuration](#17-android-project-configuration)
-18. [Configuration and secrets](#18-configuration-and-secrets)
-19. [Testing](#19-testing)
-20. [Accessibility, responsiveness and performance](#20-accessibility-responsiveness-and-performance)
-21. [What this changes elsewhere](#21-what-this-changes-elsewhere)
-22. [Decisions taken](#decisions-taken)
-23. [Cross-references](#cross-references)
-
----
-
-## 1. What makes this app's architecture unusual
-
-Five requirements from `AppSpec/` shape almost every decision below, and are worth stating up front
-because each one rules out an otherwise-obvious choice:
-
-1. **No data caching, anywhere** (`rules.md`, Caching — images only). Feeds, entries, profiles and
-   search results are fetched fresh on every visit. This removes the usual reason to reach for a
-   server-cache library, and replaces it with a much smaller need: a four-state
-   (loading/loaded/empty/error) fetch primitive.
-2. **Images _are_ cached, to a specific contract** — 15 minutes, disk-persisted, URL-keyed, app-wide,
-   no size cap. That is a bespoke component; nothing off the shelf implements exactly it.
-3. **Up to two tokens per account, several accounts, and write-gating keyed on live token
-   possession** (`api-appendix/auth.md`; `rules.md`, Authentication & session). Token possession is
-   observable application state, not a hidden detail of an HTTP layer, because the UI reads it on
-   every write affordance.
-4. **The hidden-member list is device-local and never leaves the device** (`rules.md`, Hiding
-   members). This is what forces the push-notification design in §11 to be more than "install the
-   FCM plugin".
-5. **English-only v1, no localisation layer** (`rules.md`, Non-functional requirements). Strings are
-   a first-class module, not scattered literals — see §2 and TODO F.
-
----
+How the b-mobile Capacitor/Ionic Android app is built, for agents fixing or maintaining it.
+Verified against the code on 2026-10-08; where this document and the code disagree, the code wins.
+What the app does (screens `SCR-NN`, flows `FLW-NN`, rules) is in [`../BEHAVIOUR.md`](../BEHAVIOUR.md).
+Section numbers are stable because source comments cite them; gaps are deliberate.
 
 ## 2. Repository and package layout
 
-### Where the app sits
+b-mobile is an npm workspace in the b-oss monorepo, inheriting the root TypeScript, ESLint,
+Prettier, Vitest and versioning setup. It depends on three workspace packages only, and nothing
+depends on it:
 
-The app is a **new package in the existing `b-oss` monorepo**, alongside the packages it reuses.
-`notification-service.md` already settles that the cloud service lives there too, as a peer package.
-
-Two existing packages also have to move, and they are listed here rather than treated as someone
-else's problem: **the app is the forcing function for both**, and §2's layout is incomplete without
-them.
-
-```
-b-oss/
-  packages/
-    b-tokens/         NEW — shared design tokens + written style guidance
-    b-api/            existing — HTTP client (+ two new seams, §7)
-    b-view/           existing — CHANGED: presentational components + view-model types only
-    b-view-backup/    NEW — b-view's backup data layer, split out of it
-    b-mobile/         NEW — the Capacitor app
-    b-push/           NEW — the cloud notification service (Cloudflare Worker)
-    …                 b-ark, b-ark-chrome, backup-engine, b-ark-ui-* otherwise unchanged
-```
-
-`b-mobile` and `b-push` are npm workspaces like every other package, and inherit the root's
-TypeScript, ESLint, Prettier, Vitest, husky and versioning setup unchanged. Nothing about the
-monorepo's tooling needs restructuring to accept them.
-
-### The `b-view` backup/live split
-
-`platform-and-reuse.md` requires `b-view` to stop being typed against backup data, and requires
-`@b-oss/backup-engine` not to be a dependency of the app. Today the coupling is small but real:
-`b-view/src/types.ts` re-exports `BlipEntry`, `BlipComment`, `JournalMetadata` and `EntryIndex`
-straight from `@b-oss/backup-engine`, which `b-view/package.json` declares as a runtime dependency,
-and the package's hooks read only from a local backup.
-
-**Split it by data source, keeping the name where the consumers already point:**
-
-| Package             | Holds                                                                                                                                                | Depends on                |
-| ------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------- |
-| **`b-view`**        | `ThumbnailGrid`, `EntryDetail`, `Lightbox`, `DatePicker`, `Pagination`, `InfoPopup`, and **its own view-model types** — source-agnostic, prop-driven | React, `b-tokens`         |
-| **`b-view-backup`** | the backup data layer (`useJournal`, `useEntry`, `useFolder*`, `useSearchEntries`, the File System Access typings) and the standalone viewer SPA     | `b-view`, `backup-engine` |
-
-This keeps `b-view`'s package name pointing at what every consumer actually imports from it —
-`b-ark-ui-chrome` and `b-ark-ui-electron` both take `ThumbnailGrid`/`EntryDetail` plus types — so
-only `b-ark-ui-electron` (which also uses `useJournal`/`useEntry`) and the two build scripts that
-build the SPA need repointing at `b-view-backup`.
-
-**The live adapter — mapping `b-api` responses into `b-view`'s view models — lives in
-`b-mobile/src/data/` for now, not in a package.** There is exactly one consumer, and promoting it to
-a `b-view-live` package is a single move if a second ever appears. Creating it up front would be
-three packages where two are earning their keep.
-
-> This is `b-oss` work rather than app work, and it should land **before** the app starts consuming
-> `b-view`, since building against the un-split package would bake in the coupling the split exists
-> to remove.
-
-### Shared design tokens: `b-tokens`
-
-`platform-and-reuse.md` raised extracting `tokens.css` into a shared package and deferred it. It
-should be done now, because the app is the second real consumer and duplicating the values is how
-two products drift apart.
-
-- **`b-tokens` holds the base layer only** — palette, typography, spacing, radii — as `tokens.css`
-  plus a TypeScript export of the same values for the places that need them in JS.
-- **App-specific tokens stay with their app.** `tokens.css` currently mixes the base palette with
-  `--rag-green` / `--rag-amber` / `--rag-red`, which describe backup status and mean nothing to a
-  mobile client. Those stay in `b-ark`'s layer; the app adds its own layer for the Ionic
-  variable mapping (§5).
-- **The written style guidance lives in the same package**, not in a wiki or a comment — the
-  colour/spacing/interaction conventions `b-ark` established, which `00-product.md` already names as
-  the app's visual starting point. Guidance and values drift apart the moment they live apart.
-
-### The app is one package, not two
-
-The desktop and extension sides of `b-oss` each split into a platform shell and a
-platform-free UI kit (`b-ark` / `b-ark-ui-electron`, `b-ark-chrome` / `b-ark-ui-chrome`). **The app
-does not split that way, and shouldn't.** That split exists because there are two shells over one
-UI; here Capacitor _is_ the cross-platform layer, so Android and iOS are one shell, and a
-`b-mobile-ui` package would be a boundary with only one thing on each side.
-
-What the split actually buys — testability, and a rule that platform APIs stay in one place — is
-kept, as an **internal** boundary instead. See §4.
-
-### Internal structure
+- **`b-api`**: the Blipfoto HTTP client ([docs](../../../b-api/docs/)). Aliased to its
+  `src/index.ts` in `vite.config.ts`, because its `main` is a compiled `dist/` that a workspace
+  build would not recompile.
+- **`b-view`**: source-agnostic, prop-driven components (`ThumbnailGrid`, `EntryDetail`,
+  `Lightbox`, `BBCodeText`, `BBCodeEditor`/`BBCodeField`, `CommentComposer`…), consumed from source.
+- **`b-visual`**: design tokens (`tokens.css`, `tokens.ts`, fonts) and `docs/style-guide.md`.
+- The notification service is the separate `b-push` package (§11). The app is one package, not a
+  shell plus UI kit as on desktop/Chrome; the platform boundary is an internal rule instead (§4).
 
 ```
 packages/b-mobile/
-  android/                  native project (checked in, see §17)
-  ios/                      later; not created for v1
-  src/
-    app/                    AppShell, providers, route table, menu, error boundary
-    screens/                one folder per SCR-NN, named for the spec ID
-    flows/                  cross-screen orchestration (FLW-NN) that isn't one screen's job
-    components/             app-specific presentational components
-    state/                  Zustand stores (§6)
-    data/                   client factory, resource hooks, error mapping (§7)
-    platform/               THE ONLY PLACE @capacitor/* MAY BE IMPORTED (§4)
-    strings/                the copy deck (TODO F output), typed keys
-    styles/                 tokens + globals
-  capacitor.config.ts
-  vite.config.ts
-  index.html
-  package.json
+  android/   native project, checked in (§17); no ios/ yet
+  scripts/   screenshot helpers, stub-api.mjs (stub Blipfoto API for the dev proxy)
+  src/  app/ (AppShell, OverlayProvider, hardwareBack, routes/)  screens/SCR-NN-name/
+        components/  flows/ (plain modules named by job)  state/ (§6)  data/ (§7)
+        platform/ (§4)  strings/ (deck.ts, t())  styles/ (theme.css, globals.css)
+        diagnostics/ (feedProbe.ts, inert unless VITE_FEED_PROBE=1)
 ```
 
-Two naming rules, both worth enforcing because they make the spec and the code navigable from each
-other: **screen folders are named for their spec ID** (`screens/SCR-06-entry-detail/`), and **flow
-modules likewise** (`flows/FLW-12-compose-publish.ts`). An implementer reading `SCR-19` in the spec
-should not have to guess which file implements it, and a reviewer should be able to check coverage
-by listing a directory.
-
-### Build tooling
-
-**Vite 8 + React 19 + TypeScript strict**, matching `b-view` exactly — same bundler, same React
-major, same `tsconfig.base.json`, same CSS Modules convention. This is not merely tidiness: `b-view`
-components are consumed from source (`"main": "src/index.ts"`), so a divergent build setup would
-mean compiling them twice under different rules.
-
-- **Styling: CSS Modules + `tokens.css`.** No Tailwind, no CSS-in-JS. `b-view` already establishes
-  the pattern and the token values, and mixing systems would defeat the "one visual language" goal
-  in `00-product.md`.
-- **`npm run typecheck` / `lint` / `test`** at the root pick the package up via the existing
-  workspace globs; `typecheck` needs `packages/b-mobile` adding to the root script's project list.
-- **Capacitor CLI** (`npx cap sync`, `npx cap run android`) drives the native build; Gradle and
-  Android Studio are only needed for signing and release.
-
----
+**Build:** Vite + React 19 + TypeScript strict, as in `b-view`. Plain global CSS over b-visual
+tokens (no CSS Modules of its own, no Tailwind or CSS-in-JS). The `dev`/`build` scripts run the root
+`scripts/copy-icons.mjs` and `scripts/version.mjs` first; `__APP_VERSION__`/`__RELEASE__` come from
+`version.generated.json`. `envDir` is the repo root (§18). The Capacitor CLI (`npx cap sync`,
+`npx cap run android`) drives the native build.
 
 ## 3. Runtime stack
 
-| Concern                | Choice                                | Version (2026-08-03) | Why                                                                       |
-| ---------------------- | ------------------------------------- | -------------------- | ------------------------------------------------------------------------- |
-| Native container       | Capacitor                             | `8.5.0`              | Settled in `platform-and-reuse.md`. Sets minSdk 24, compile/target SDK 36 |
-| UI framework           | React                                 | `19.x`               | Matches `b-view` and the monorepo's `overrides`                           |
-| App shell / navigation | Ionic React + `@ionic/react-router`   | `9.0.6`              | §5                                                                        |
-| Routing                | `react-router` / `react-router-dom`   | `6.30.x`             | Pinned by Ionic 9 (peer `>=6.4 <7`) — §5                                  |
-| Client state           | Zustand                               | `5.0.x`              | §6                                                                        |
-| Build                  | Vite                                  | `8.x`                | Matches `b-view`                                                          |
-| Maps                   | MapLibre GL JS                        | `6.1.0`              | §13                                                                       |
-| BBCode                 | `@bbob/react`                         | `4.4.1`              | §14                                                                       |
-| Cropping               | `react-easy-crop`                     | `6.2.3`              | §15                                                                       |
-| Secure storage         | `@aparajita/capacitor-secure-storage` | `8.0.0`              | §8                                                                        |
-| Native uploads         | `@capacitor/file-transfer`            | `2.0.4`              | §7, §9                                                                    |
-| Tests                  | Vitest + Testing Library              | root versions        | §19                                                                       |
-
-**Capacitor plugins** (all `8.x` first-party unless noted): `app`, `browser`, `camera`,
-`clipboard`, `device`, `dialog`, `filesystem`, `file-transfer`, `geolocation`, `haptics`,
-`keyboard`, `local-notifications`, `network`, `preferences`, `push-notifications`, `share`,
-`splash-screen`, `status-bar`, plus `@aparajita/capacitor-secure-storage`.
-
-**`@capacitor/preferences` is for non-sensitive data only** — never tokens. See §8.
-
----
+Capacitor 8 · React 19 · Ionic React 9 + `@ionic/react-router` 9 · `react-router(-dom)` **6**
+(Ionic 9 requires `>=6.4 <7`; don't move to 7 until Ionic supports it) · Zustand 5 · MapLibre GL JS
+(§13) · `@bbob/react` and ProseMirror via b-view (§14) · `react-easy-crop` (§15) ·
+`react-zoom-pan-pinch` (full-screen photo) · `lucide-react` icons · Vitest + Testing Library + jsdom.
+Capacitor plugins: `app`, `browser`, `camera`, `filesystem`, `file-transfer`, `geolocation`,
+`local-notifications`, `preferences`, `push-notifications`, `@aparajita/capacitor-secure-storage`;
+`CapacitorHttp` and `SystemBars` come from `@capacitor/core`. Six local Java plugins (§17).
+`@capacitor/preferences` is for non-sensitive data only, never tokens.
 
 ## 4. The platform boundary
 
-**Rule: `@capacitor/*` and every other native-capability import live in `src/platform/` and nowhere
-else.** Screens, flows, state and components import from `src/platform/…`, never from a plugin
-directly.
+**`@capacitor/*` imports live in `src/platform/` only**, enforced by `no-restricted-imports` in the
+root `eslint.config.cjs`. Screens, flows and state stay testable in jsdom with platform mocked,
+`vite dev` stays usable (modules have web fallbacks or are no-ops off native), and plugin churn is
+confined to one file.
 
-This is the same idea as `BackendContext` in `b-ark-ui-components`, applied inside one package
-instead of across two. It buys three things that matter here:
-
-- **Tests run in jsdom** with platform modules mocked, so screen logic is testable without a device
-  or a Capacitor runtime (§19).
-- **`vite dev` in a desktop browser stays usable** for most of the app, because each platform module
-  can carry a web fallback (§19). This is the single biggest lever on iteration speed for a 28-screen
-  app.
-- **Plugin churn is contained.** Capacitor plugins are the least stable dependency in the stack;
-  replacing one should touch one file.
-
-Enforce it with an ESLint `no-restricted-imports` rule scoped to everything outside
-`src/platform/**` — the same style of guard the root repo already uses for its "never import
-electron / chrome" rules.
-
-One module per capability, each exposing an app-shaped API rather than the plugin's:
-
-| Module                           | Wraps                                   | Exposes                                                          |
-| -------------------------------- | --------------------------------------- | ---------------------------------------------------------------- |
-| `platform/secureStorage.ts`      | secure-storage plugin                   | `getToken`/`setToken`/`deleteToken` keyed by account + purpose   |
-| `platform/http.ts`               | `CapacitorHttp`                         | a `fetch`-shaped function for `b-api` (§7)                       |
-| `platform/upload.ts`             | `@capacitor/file-transfer`              | multipart upload from a file path (§7, §9)                       |
-| `platform/imageCache.ts`         | `@capacitor/filesystem` + file-transfer | `resolve(url) → displayable src` (§10)                           |
-| `platform/push.ts`               | `@capacitor/push-notifications`         | permission state, device token, received-push events (§11)       |
-| `platform/localNotifications.ts` | `@capacitor/local-notifications`        | schedule/cancel a reminder, post a local notification (§11, §12) |
-| `platform/camera.ts`             | `@capacitor/camera`                     | capture / pick, returning a file path (§15)                      |
-| `platform/geolocation.ts`        | `@capacitor/geolocation`                | current position, permission state (§13)                         |
-| `platform/browser.ts`            | `@capacitor/browser`                    | open an external URL / an OAuth round (§8, §16)                  |
-| `platform/deepLinks.ts`          | `@capacitor/app`                        | inbound URL and share-intent events (§16)                        |
-| `platform/prefs.ts`              | `@capacitor/preferences`                | non-sensitive persisted key/value                                |
-| `platform/appState.ts`           | `@capacitor/app`, `network`, `device`   | foreground/background, connectivity, device facts                |
-
----
+One module per capability, exposing an app-shaped API: `secureStorage` (§8), `http` and `upload`
+(§7, §9), `imageCache` + `imageIntegrity` (§10), `push` (§11), `localNotifications` (§12),
+`camera` (§15), `geolocation` + `mapTiles` (§13), `browser` + `embeddedAuth` (§8), `deepLinks` +
+`shareIntent` + `blipfotoLinks` (§16), `mediaSave` (save to gallery), `accessibility` (§20),
+`systemBars`, `prefs`, `appState`. Pure Web-API helpers (`data/binary.ts`, `data/multipartBody.ts`, `data/imageCrop.ts`) live in
+`data/`. MapLibre is not a Capacitor plugin, so `MapScreen` imports it directly.
 
 ## 5. Navigation and routing
 
-### Decision: Ionic React 8, with `react-router` 5 confined to the route table
+**Ionic shell; React Router confined.** `IonApp`, `IonMenu`, one `IonRouterOutlet`, `IonPage`,
+`IonAlert`, `IonActionSheet` supply hardware back, safe areas, keyboard handling and accessible
+dialogs; b-view and app components render inside pages.
 
-The app has 28 screens, a swipeable in-screen tab strip, deep links, push targets, a hardware back
-button, an anchored account-switcher popover, a bottom-sheet upgrade prompt, and roughly a dozen
-confirmation dialogs. Every one of those is a solved problem in Ionic and a fiddly one without it.
+- `react-router` may be imported only in `src/app/routes/**` and `app/AppShell.tsx` (ESLint; tests
+  exempt). Screens use `useAppNavigate()`; flows take an injected `push` callback.
+- `styles/theme.css` maps b-visual tokens onto Ionic's `--ion-*` variables.
+- `IonMenu` (`AppShell.tsx`): New entry (write accounts), Browse, Search, Map, My profile /
+  Notifications / Comments (signed in), Settings, Help & about, Accounts, Hidden members (signed
+  in), Sign in (signed out). No `IonTabs`.
+- `components/AppHeader.tsx`: title bar, menu button, quick actions, and `AccountIndicator` (only
+  with two or more stored accounts).
+- `app/hardwareBack.ts`: Android Back does nothing on Browse; elsewhere Ionic's default applies.
 
-**Use `@ionic/react` + `@ionic/react-router` (8.8.16) for the shell: `IonApp`, `IonMenu`,
-`IonRouterOutlet`, `IonPage`, `IonHeader`/`IonContent`, `IonModal`, `IonPopover`, `IonActionSheet`,
-`IonAlert`.** Use `b-view` components and app components for everything _inside_ a page.
+### Navigation model: no view stack, resume cache instead
 
-Why, concretely — each of these is an `AppSpec/` requirement rather than a nicety:
+The route table sits inside one catch-all `<Route path="/*">` in the outlet (`renderAppRoutes()`,
+`app/routes/AppRoutes.tsx`), so Ionic sees one view item and **a screen unmounts when you navigate
+away**. Ionic 9's outlet would otherwise keep one mounted view per route it can see among its
+direct children; don't expose the real routes to it. Back is made to feel right by remembering state.
 
-- **Page stack with native transitions and a working Android hardware back button.** `rules.md`
-  (Navigation) requires conventional back behaviour across a graph where entries reach entries
-  (prev/next), profiles reach profiles, and pushes open screens cold. `IonRouterOutlet` maintains a
-  real stack; a plain `react-router` `<Routes>` maintains none.
-- **Anchored popover for the account switcher.** `rules.md` (Multi-account clarity) specifies a
-  popover "anchored where it was tapped rather than navigating away". `IonPopover` does exactly
-  this, including focus management and dismissal.
-- **Sheets and dialogs.** The read-only upgrade prompt, the first-run mode explainer, and the
-  confirmation dialogs for hide/unhide/unfollow/refuse/remove/delete/discard are `IonModal`
-  (with `breakpoints` for sheet presentation), `IonAlert` and `IonActionSheet`.
-- **Accessibility baseline.** `rules.md` requires TalkBack labelling, 48×48dp targets and survival
-  at 200% font scale. Ionic's components ship that behaviour; hand-rolled equivalents would each
-  need it re-establishing and re-testing.
-- **Safe areas, status bar and keyboard avoidance**, which otherwise become 28 separate bugs.
+- **The inner `<Routes>` is keyed by `activeAccountId`**: switching account rebuilds the screen.
+- **Back = history.** `IonBackButton` pops; `backHref` is only the fallback with no history (deep
+  link, notification tap). Sign In shows Back instead of the menu button when an account exists.
+- **Entry pages never stack**: swiping between entries uses `replace`.
+- **Settings chains**: Accounts, Hidden members and each section go Back to Settings.
+- **In-screen tabs are state, not routes.** Browse (`SCR-02`) has an `IonSegment` of seven feeds:
+  Recent, Following and Me (signed in), Popular, Milestones, New Blippers, Nearby. Only the active
+  tab is mounted, keyed by account + tab; choosing a tab starts it at page 1. Search, Tag entries
+  and Profile work the same way.
+- **Resume cache** (`data/resumeCache.ts`): in memory, 10-minute TTL, per-account keys where the
+  data is.
 
-**Costs, stated plainly rather than buried:**
+| Screen                                                             | Remembered on return                                | Mechanism                                                       |
+| ------------------------------------------------------------------ | --------------------------------------------------- | --------------------------------------------------------------- |
+| Browse                                                             | tab, page, grid position                            | `usePagedResource` `resumeKey` + `ThumbnailGrid` top-left index |
+| Tag entries, Profile                                               | tab, visited tabs, grid pages                       | same                                                            |
+| Search                                                             | scope, mode, query, results, scroll                 | `search:${scope}:ui` + per-tab keys, `useScrollResume`          |
+| Map                                                                | camera centre + zoom                                | `map:view`                                                      |
+| Followers / Following                                              | loaded window + page                                | `people:${acct}:${mode}:${username}`                            |
+| Entry                                                              | scroll position                                     | `useScrollResume('entry:<id>')`                                 |
+| Inboxes, Pending/Refused, Awards, Settings, Accounts, Hidden, Help | nothing: refetch (opening inboxes marks items read) | —                                                               |
+| Compose / Edit / Description / Location                            | own unsaved-changes guards                          | —                                                               |
 
-- **Ionic pins `react-router`.** Ionic 8 required React Router 5; Ionic 9 requires React Router 6
-  (`@ionic/react-router@9` peers on `react-router(-dom) >=6.4.0 <7`), and React Router 7+ is
-  unsupported until Ionic adds it. The app moved to Ionic 9.0.6 + React Router 6.30.x in b-oss#235.
-  React 19 itself is supported (Ionic 8.5 onward).
-  - **Hard rule:** `react-router` may be imported **only** in `src/app/routes/`. Screens navigate
-    through a thin `useNavigate()`-style wrapper of our own (`useAppNavigate`), which is what kept
-    the 5 → 6 migration to one directory instead of 28.
-  - Ionic 9's `IonRouterOutlet` reads its routes from its own children and keeps one view per
-    route, holding earlier pages mounted behind a pushed one. See "Navigation model" below for how
-    the app keeps its no-view-stack behaviour.
-- **Two style systems in the tree.** Import Ionic's core CSS only, and map `tokens.css` values onto
-  Ionic's CSS custom properties (`--ion-color-*`, `--ion-background-color`, …) in one theme file, so
-  the shell inherits `b-view`'s palette rather than Ionic's default.
+### Routes
 
-**Alternative considered and rejected:** `react-router` 7 (or TanStack Router) plus a hand-rolled
-stack. It avoids the version pin and is the more modern dependency — but it means writing page-stack
-semantics, transitions, hardware-back integration, anchored popovers and dialog accessibility by
-hand, and getting the deep-link-into-the-middle-of-a-stack case right. That is a large amount of
-load-bearing, easy-to-get-subtly-wrong work in exchange for a dependency version.
+`app/routes/AppRoutes.tsx` is the table (lowercase, hyphenated; params are the string form of an
+id; `/` redirects to `/browse`). Not obvious from the paths:
 
-### Navigation model
+- **Write-gated** (`WriteGuardRoute`): `/compose`, `/entry/:id/edit`, `/entry/:id/report`.
+  **Account-gated** (`AccountGuardRoute`): `/notifications`, `/comments` (push targets).
+- **Lazy-loaded:** `/map`, `/compose/location` (MapLibre), `/compose/details` (react-easy-crop).
+- **Query/state:** `/map?entry=<id>` (focused mode); `/accounts?reauth=<accountId>` (opens that
+  account's sign-in-again dialog); `/entry/:id` takes router state `replyToCommentId`; `/report`
+  takes the target user/comment via router state.
+- Comments are composed inline on `/entry/:id` (there is no `SCR-15` route).
+  `/compose/description` (`SCR-11`) is now the Biography editor only. Settings sections:
+  `general`, `journal`, `profile`, `notifications`, `app`, `browsing`; Help also has `/help/:section`.
 
-`AppSpec/` already fixes the shape: `SCR-02`'s wireframe shows a **side menu** (`=`) plus in-bar
-quick actions, and the five feeds are a **tab strip inside the Browse screen**, not five routes.
+**Overlays are not routes.** The upgrade prompt, first-run explainer and account switcher belong
+to `app/OverlayProvider.tsx` (`useOverlay()`); per-screen confirmations are local `IonAlert`s.
 
-- **`IonMenu`** holds primary navigation (Browse, Search, Map, My Profile, Notifications, Comments,
-  Settings, Help & About, plus New Entry and Sign In), with its contents varying by sign-in state as
-  `01-information-architecture.md` describes.
-- **A single `IonRouterOutlet`** holds the page stack. There are no router-level tabs, so no
-  `IonTabs`.
-- **`SCR-02`'s five feeds are in-screen state**, held by the Browse screen: a header
-  `IonSegment`. Only the active tab is mounted, keyed by account + tab, and **choosing a tab
-  starts it at page 1** (this supersedes `rules.md`'s earlier "switching back to a tab loaded
-  earlier in the same visit doesn't force a re-query", by device feedback 2026-10-05); switching
-  account rebuilds the feed. Coming Back from an entry restores the tab and page via the resume
-  cache (see "Navigation model" below). `SCR-03` Search and `SCR-17/18` Profile work the same way.
-- **A persistent `AppHeader` component** renders the title bar, the menu button, the quick actions,
-  and the `(av)` account indicator (shown only with two or more stored accounts, per `rules.md`).
-  Every `IonPage` renders it rather than each screen rebuilding a header.
+**Gating** is done once, in the router:
 
-### Route table
-
-Routes are lowercase and hyphenated. Parameters are always the **string** form of an id (see
-`rules.md`, Identifiers).
-
-| Route                                     | Screen   | Notes                                                                              |
-| ----------------------------------------- | -------- | ---------------------------------------------------------------------------------- |
-| `/browse`                                 | `SCR-02` | Launch destination in every case (`rules.md`, App launch)                          |
-| `/search`                                 | `SCR-03` | Two in-screen tabs                                                                 |
-| `/map`                                    | `SCR-04` | `?entry=<id>` for focused mode                                                     |
-| `/tag/:tag`                               | `SCR-05` |                                                                                    |
-| `/entry/:entryId`                         | `SCR-06` | The content hub                                                                    |
-| `/entry/:entryId/photo`                   | `SCR-07` | Full-screen viewer                                                                 |
-| `/entry/:entryId/metadata`                | `SCR-08` |                                                                                    |
-| `/entry/:entryId/edit`                    | `SCR-13` | Write-gated                                                                        |
-| ~~`/entry/:entryId/comment`~~                 | ~~`SCR-15`~~ | Removed (b-oss#172): comments are composed inline on the entry page |
-| `/entry/:entryId/report`                  | `SCR-16` | Write-gated                                                                        |
-| `/compose`                                | `SCR-09` | Write-gated                                                                        |
-| `/compose/details`                        | `SCR-10` | Holds the in-progress draft                                                        |
-| `/compose/description`                    | `SCR-11` | Also reached from `SCR-13` and Settings → Biography                                |
-| `/compose/location`                       | `SCR-12` | Returns a result to its caller                                                     |
-| `/uploads`                                | `SCR-14` | Reads the durable queue (§9)                                                       |
-| `/me`                                     | `SCR-17` |                                                                                    |
-| `/user/:username`                         | `SCR-18` |                                                                                    |
-| `/user/:username/followers`, `/following` | `SCR-19` |                                                                                    |
-| `/me/requests`                            | `SCR-20` |                                                                                    |
-| `/me/refused`                             | `SCR-21` |                                                                                    |
-| `/user/:username/awards`                  | `SCR-22` | `/me/awards` for own                                                               |
-| `/notifications`                          | `SCR-23` | Push target                                                                        |
-| `/comments`                               | `SCR-24` |                                                                                    |
-| `/settings`, `/settings/:section`         | `SCR-25` | Sections are `general`, `journal`, `profile`, `notifications`, `reminders`, `misc` |
-| `/help`                                   | `SCR-29` | Not account-gated                                                                  |
-| `/accounts`                               | `SCR-30` | Push target for `reauth-required`                                                  |
-| `/hidden`                                 | `SCR-31` |                                                                                    |
-| `/sign-in`                                | `SCR-01` | Modal presentation; carries the pending action                                     |
-
-**Overlays are not routes.** The account switcher, upgrade prompt, first-run explainer and every
-confirmation dialog are Ionic overlays owned by an `OverlayProvider` in `src/app/`, opened
-imperatively. `rules.md` is explicit that the switcher "is not a new screen ID"; keeping overlays
-out of the router keeps the back stack honest, since dismissing a dialog should not be a navigation.
-
-### Write-gating in the router
-
-`rules.md` requires that a write screen "never opens in the first place" for a read-only account —
-the upgrade prompt is shown instead. Implement this **once**, as a route guard on the write-gated
-routes above, reading `useCanWrite()` (§6). Screens do not each re-check. This is what makes the
-deep-link and share-intent bypass paths impossible to forget, since all three arrive through the
-router.
-
----
+- **`WriteGuardRoute`** reads `useCanWrite()` (§6). Anonymous → `signInGated()` (read-write round),
+  resuming on success, back on failure. Read-only → an `IonAlert` upgrade prompt (decline goes
+  back, confirm goes to `/accounts`). This covers deep links and share intents too.
+- **`AccountGuardRoute`** wraps the inboxes, which a push tap can reach while signed out:
+  `signInGated()`, else redirect to `/browse`.
 
 ## 6. State management
 
-### Decision: Zustand for cross-cutting state; local component state for everything else; no server-cache library
+**No server-cache library**: displayed data is never cached (only images, §10). `src/data/` has:
 
-**No server-cache library** (TanStack Query, RTK Query, SWR). Their central value is caching, and
-`rules.md` forbids caching displayed data. Configuring one to never cache is fighting the tool for
-its remaining features, which are cheaper to write than to suppress.
+- **`useResource`**: `loading | loaded | empty | error` with `retry()`.
+- **`usePagedResource`**: adds `loadMore`, `refresh`, `seekTo`/`loadBefore`, an optional
+  `resumeKey` (§5), and detects the API's page-index clamp (`wasClamped`, §7).
+- Both supersede rather than abort in-flight requests (request-id ref, §7).
 
-Instead, `src/data/` provides two primitives that encode the spec's own contract:
+**Zustand** because the upload runner, push handlers, deep links and reminders are not React and
+use `getState()`/`setState()`.
 
-- **`useResource(fetcher, deps)`** — returns exactly the four states `rules.md` mandates:
-  `loading | loaded | empty | error`, with `empty` distinguished from `loaded` by the fetcher rather
-  than guessed at the call site, and a `retry()` for the error state. Every data-loading screen uses
-  it, so all 28 loading/empty/error surfaces behave identically and TODO F's copy deck has exactly
-  one shape to write against.
-- **`usePagedResource(fetcher, deps)`** — adds `loadMore()` and `refresh()` for
-  pull-to-refresh + infinite scroll (`rules.md`, Lists, feeds & paging), tracking the API's page
-  index/size/`more` triple.
+| Store                     | Holds                                                                                                                                                         | Persisted             |
+| ------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------- |
+| `accountsStore`           | accounts (id, username, avatar, `appTokenScope`, `hasServiceToken`, b-push registration id/status, push stream flags, `lastAppTokenScope`), `activeAccountId` | `prefs`, never tokens |
+| `hiddenMembersStore`      | per-account hidden usernames, device-local                                                                                                                    | `prefs`               |
+| `uploadQueueStore`        | the upload queue (§9)                                                                                                                                         | `prefs` + files       |
+| `devicePrefsStore`        | reactions confirm, per-account reminders, `uploadFullSize`, `openBlipfotoLinksInApp`, polling interval, explainer seen, grid/display prefs                    | `prefs`               |
+| `composeDraftStore`       | the publish/edit draft (`mode`), surviving `SCR-11`/`SCR-12` and rotation                                                                                     | memory                |
+| `notificationCountsStore` | inbox badge counts for the active account                                                                                                                     | memory                |
 
-Both **supersede rather than abort** in-flight requests — see §7 on why cancellation can't be done at
-the transport layer.
-
-**Zustand 5** holds the cross-cutting state, in small separate stores. The reason to prefer it over
-the Context+reducer pattern `b-ark-ui-electron` uses is specific, not fashion: several consumers of
-this state are **not React** — the upload-queue runner, the push handler, the deep-link handler and
-the reminder scheduler all need to read and write it. Zustand stores are plain modules with
-`getState()`/`setState()` outside React and a hook inside it; a Context reducer is only reachable
-from the tree.
-
-| Store                | Holds                                                                                                                                                                | Persisted to                                       |
-| -------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------- |
-| `accountsStore`      | stored accounts (id, username, avatar), the active account id, per-account **token possession** flags, notification-registration id and status, needs-reauth reasons | `prefs` (identity + flags only — **never tokens**) |
-| `hiddenMembersStore` | per-account device-local hidden list (`rules.md`, `SCR-31`)                                                                                                          | `prefs`                                            |
-| `uploadQueueStore`   | the durable queue (§9)                                                                                                                                               | `prefs` + files in app storage                     |
-| `devicePrefsStore`   | link-handling toggle (`SCR-29`), first-run-explainer seen, per-account reminder settings, confirm-before-star toggle, polling interval                               | `prefs`                                            |
-| `overlayStore`       | which overlay is open, and its subject                                                                                                                               | not persisted                                      |
-
-### Token possession is state, not a storage detail
-
-`rules.md` is emphatic that write-gating asks _"does this account currently hold a valid write
-token?"_, not _"what mode was it signed in as?"_. So:
-
-- `accountsStore` carries `hasAppToken` and `hasServiceToken` **booleans per account**. The tokens
-  themselves stay in secure storage and are read on demand at request time (§8) — they are never
-  copied into the store, never into React state, and never into `prefs`.
-- A single derived selector, **`useCanWrite()`**, is the only thing any UI or route guard consults.
-  It returns true when the active account holds an app token whose granted scope is `read,write`.
-- A forced logout (§7's error mapping) clears the token _and_ flips the flag in the same
-  transaction, so the UI narrows to read-only immediately and everywhere, which is precisely the
-  behaviour `rules.md` describes for an account that loses only its write token.
-
-### Draft state
-
-The compose draft (`SCR-10`) survives navigation to `SCR-11`/`SCR-12` and rotation, and is the
-subject of the discard-confirmation guard. Hold it in a **`composeDraftStore`** scoped to the
-compose flow rather than in `SCR-10`'s component state, since `SCR-11` and `SCR-12` return values
-into it and `rules.md` (Screen sizes & orientation) requires it to survive rotation and window
-resizing. It is cleared when the draft is enqueued for upload or explicitly discarded.
-
----
+`state/authReady.ts` resolves once the active account is settled for this launch (hydration plus
+the dev `VITE_DEV_TOKEN` seed); `getClient()` awaits it. Unsent comment text is kept by
+`data/commentDrafts.ts`. **Token possession is state.** `appTokenScope` is `'read' | 'read,write' | null` (null = no app
+token, needs re-auth). Tokens stay in secure storage (§8). **`useCanWrite()`** (active account's
+`appTokenScope === 'read,write'`) is the only write gate. `accountsFlow.handleForcedLogout(id, purpose)` clears a token and its flag together.
 
 ## 7. Networking and the `b-api` seams
 
-### Two seams, not one
+`new BlipfotoClient(token, baseUrl, fetchImpl?, multipartImpl?)` has two seams:
 
-`platform-and-reuse.md` identifies one required change to `b-api` — an injectable
-`fetch`-shaped transport. **A second is needed**, and it is the more important of the two:
+1. **`fetchImpl`**: b-mobile passes `platform/http.ts#platformFetch` (`CapacitorHttp.request()`).
+   Required on device: Blipfoto serves no CORS headers, so WebView `fetch()` is blocked. Off native
+   it is plain `fetch` through the dev proxy (§19).
+2. **`multipartImpl`**: used by `mutateMultipart()` (publish, edit, avatar). Files are a
+   `FileSource`, `{ blob }` or `{ path, mimeType }`. Off native `getMultipartImpl()` is `undefined`
+   and b-api's `FormData` path runs.
 
-1. **Transport seam.** `BlipfotoClient`'s constructor takes an optional `fetchImpl`, defaulting to
-   `globalThis.fetch`. `request()` and `mutate()` route through it. This is what
-   `platform-and-reuse.md` already specifies.
-2. **Multipart seam (new).** `mutateMultipart()` builds a `FormData` containing a `Blob`. Native
-   HTTP bridges handle that badly:
-   [CapacitorHttp intercepts `fetch`/`XMLHttpRequest` and mishandles `FormData`](https://github.com/ionic-team/capacitor/issues/7538),
-   with a long tail of related reports. Rather than fight it, `BlipfotoClient` should accept an
-   optional **`multipartImpl`** — given the target URL, the plain fields, and a _file reference_
-   rather than a `Blob`, it performs the upload and returns the parsed envelope. Web callers keep
-   today's `FormData` behaviour as the default; Capacitor supplies a native implementation.
+**Native multipart** (`platform/upload.ts`). `CapacitorHttp` mishandles `FormData`, and
+`FileTransfer.uploadFile()` sends a single part (`params` is the query string, and the API ignores
+entry fields there on a multipart `POST`/`PUT`). So the app builds the whole body
+(`data/multipartBody.ts`) into a temp file in `Directory.Cache` and uploads that with an
+**explicit** `Content-Type: multipart/form-data; boundary=…`, which makes the plugin stream it
+unchanged. `uploadFile()` rejects on HTTP error statuses; a rejection carrying `httpStatus` and
+`body` is returned as a normal response so b-api can parse Blipfoto's error envelope. Don't move
+fields to `params`: iOS also never puts them in a multipart body. Not yet exercised on a device
+against the live API (b-oss#336).
 
-### The Capacitor implementations
+**Cancellation.** `CapacitorHttp` cannot abort. Hooks and `MapScreen` keep a request id and ignore
+stale responses; superseded requests still complete and still use rate-limit allowance, so the map
+(450 ms) and search are debounced (`data/useDebounce.ts`).
 
-**`platform/http.ts`** wraps `CapacitorHttp.request()` in a `fetch`-shaped function. This is required
-regardless of preference: Blipfoto serves no CORS headers, so a WebView `fetch()` to
-`api.blipfoto.com` is blocked on device.
+### The client factory (`data/client.ts`)
 
-**`platform/upload.ts`** uses **`@capacitor/file-transfer`** (`2.0.4`) — the first-party Ionic plugin
-whose `uploadFile()` uploads natively from a **file path**, with custom headers, an HTTP method
-(`PUT` as well as `POST` — both are needed) and progress events. The photo never becomes a `Blob` in
-the WebView, which is what removes the `FormData` problem.
+- **`getClient(purpose = 'app')`** awaits `authReady`, then uses the active account's token, or
+  the anonymous client (bearer = `VITE_BLIPFOTO_CLIENT_ID`) if there is no account or token.
+  Never a credential-less request.
+- **`withRateLimitFallback(fn)`**: identity-independent reads (Recent/Popular/Nearby, tags, search,
+  entries, map) retry once anonymously when the account's token is rate limited (limits are per
+  token). Never for identity-bound calls or writes.
+- **`getClientForToken(token)`**: verifying a fresh token; revoking a specific token.
+- **`getClientForAccount(id, purpose)`**: the upload runner (keeps its account across switches;
+  throws if there is no token).
+- App-token responses with error code 50/51 call `accountsFlow`'s registered handler
+  (`setAppTokenRejectedHandler`), putting the account into needs-reauth.
+- Base URL: `${origin}/api/blipfoto/4/` in desktop dev, else `https://api.blipfoto.com/4/`.
 
-**But it does not do multipart with extra fields, and this app needs that.** The three affected
-calls each send a substantial set of ordinary fields alongside the one file:
+### Error mapping (`data/errors.ts`)
 
-| Call                                    | File field          | Other fields                                               |
-| --------------------------------------- | ------------------- | ---------------------------------------------------------- |
-| Publish entry (`POST entry`)            | `image`             | ~19 — date, title, description, tags, lat/lon, crop, EXIF… |
-| Edit entry (`PUT entry`)                | `image` (optional)  | ~15                                                        |
-| Avatar / settings (`PUT user/settings`) | `avatar` (optional) | ~10                                                        |
+`mapApiError(error)` → `forced-logout` (`isTokenInvalid`), `rate-limited`, `upgrade-prompt` (code
+16; should be unreachable, so it signals a write-gate bug), `validation` (a `VALIDATION_CODES`
+copy key `ERR.<code>.<name>`; the screen keeps the input), `transport` (`NetworkError`; the only
+retried outcome, §9) or `message` (`HttpError` and everything else). Codes 221–223 (already
+starred/favourited, favourite quota) are handled in `flows/reactionsFlow.ts` first.
+`describeError()` renders an outcome; `describeUploadError()` adds status, body excerpt or cause.
 
-`uploadFile()`'s options are `url`, `path`, `blob`, `chunkedMode`, `mimeType`, `fileKey`,
-`progress`, `method`, `params` and `headers`. **There is no option for additional multipart fields** —
-`params` is documented as _"URL parameters to append to the request"_, i.e. the query string, not the
-body. Left as-is it can send exactly one part.
+### Blipfoto API facts learned on-device (observed behaviour)
 
-**Passing the fields as query-string parameters is not an option.** It would have been the cheap
-answer — `params` appends to the URL and the file goes in the body — but **the API does not read
-entry fields from the query string on a multipart `POST`/`PUT`; they must be in the body.**
-Confirmed, not assumed: it needs no spike time, and an implementer who rediscovers `params` should
-find this line rather than repeat the experiment.
-
-**So the multipart body is assembled by the app.** Write a complete `multipart/form-data` body — all
-fields, then the file bytes — to a temp file, then call `uploadFile()` with an **explicit**
-`Content-Type: multipart/form-data; boundary=…` header.
-
-**Confirmed by reading the plugin's native source (`ionfiletransfer-android` 1.0.3,
-`ion-ios-filetransfer`), not inferred from an unconfirmed issue report.** On Android,
-`IONFLTRConnectionHelper.useMultipartFormData()` treats a caller-supplied `Content-Type` as an
-opt-out of the plugin's own multipart handling, and `IONFLTRController.handleDirectUpload` then
-streams the file at `path` onto the connection byte-for-byte. On iOS,
-`IONFLTRURLRequestHelper.configureRequestForUpload` makes the identical check, and when it's true
-the upload task reads the file at `path` unmodified. Both platforms pass a hand-built body straight
-through with no rewriting. This closes the question TODO H was written to answer, in the same
-direction its preference order already pointed — hand-build the body, executed through
-`file-transfer` rather than `CapacitorHttp`, with the "recent Capacitor HTTP handles it natively"
-hope closed off and the CORS-proxy fallback no longer needed. It just closes it by reading the two
-files that implement the behaviour, at the pinned version, rather than by running a device test:
-there's nothing left to prove, only ordinary implementation.
-
-**A trap for later, on the route this document already rejects for a different reason.** Skip the
-explicit `Content-Type` and pass fields via `uploadFile()`'s `params` option instead, and
-**Android** will build a correct multipart body from them on its own
-(`IONFLTRController.createMultipartData` merges `options.formParams` and `httpOptions.params` into
-the body) — but **iOS never does**: `IONFLTRURLRequestHelper.createMultipartBody` only reads
-`uploadOptions.formParams`, which the Capacitor iOS plugin never populates from `params`. Fields
-would silently vanish from the body on iOS while looking correct in Android testing. `params` was
-already ruled out above because the API needs fields in the body, not the query string; this is a
-second, independent reason not to backtrack toward it once b-oss adds iOS.
-
-`platform/upload.ts` hides all of this behind `b-api`'s multipart seam, so nothing above it knows.
-
-> **TODO H's multipart question is closed, not spiked.** The original task was to test three
-> candidate transports on-device and record which survived. Reading the plugin's actual source
-> settled it without needing a device at all. What remains is ordinary build-then-test: write
-> `platform/upload.ts` before the rest of compose depends on it, and let its first real publish
-> against Blipfoto's API be that module's own test — not a dedicated pre-build gate.
-
-**One progress caveat.** `uploadFile()`'s progress events have been reported to give
-`contentLength: -1`, which breaks percentage calculation. It doesn't matter here: the queue writes
-the upload file itself (§9) and therefore already knows its size, so `SCR-14`'s progress bar should
-compute from `bytes / knownTotal` rather than trusting the event's total.
-
-### Request cancellation
-
-**`CapacitorHttp` cannot abort a request.** `AbortSignal` is honoured only in the web
-implementation; [native abort support is an open feature request](https://github.com/ionic-team/capacitor/issues/5978).
-`SCR-04` says to "cancel any in-flight fetch" when the map region changes, and `SCR-03`'s debounced
-search implies the same.
-
-**Cancellation is therefore implemented at the application layer, not the transport layer:** each
-resource hook holds a monotonically increasing request id and discards the response of any request
-that is no longer the newest. The user-visible behaviour is identical; the difference is that the
-superseded request still completes on the wire and still costs a rate-limit slot. That makes
-`SCR-04`'s existing instruction to **debounce** region fetches load-bearing rather than merely
-polite — it is now the only thing actually reducing request volume, so debounce generously
-(~400–500ms after the gesture settles) and skip fetches whose new bounds are contained by the
-previous ones.
-
-### The client factory
-
-`src/data/client.ts` exposes `getClient(purpose)` rather than a singleton, because the correct
-bearer changes with the active account and, for the notification service's read token, with the
-purpose. It:
-
-- reads the right token from secure storage (§8), falling back to the **app's registered client id**
-  when there is no active account, per `auth.md`'s anonymous rule — and never issues a
-  credential-less request;
-- injects `platform/http.ts` and `platform/upload.ts`;
-- surfaces `rateLimitInfo` from the response headers `b-api` already parses;
-- funnels every `BlipfotoError` through the error mapper below.
-
-### Error mapping, in one place
-
-`src/data/errors.ts` exposes a single `mapApiError(error, context)` that every call site uses. It
-turns a `b-api` `BlipfotoError` code into one of a small set of outcomes:
-
-| Outcome          | Trigger                       | Effect                                                                                                                      |
-| ---------------- | ----------------------------- | --------------------------------------------------------------------------------------------------------------------------- |
-| `forced-logout`  | invalid-session codes         | Clear **that token only**, flip its possession flag, run `FLW-02`'s per-token handling                                      |
-| `upgrade-prompt` | insufficient-scope (error 16) | Should be unreachable; surface a plain visible message, since reaching it means the gate has a bug (`rules.md`)             |
-| `rate-limited`   | rate-limit codes              | Back off; show the rate-limit message                                                                                       |
-| `validation`     | write/validation codes        | Return a copy-deck key to the calling screen, which keeps the user's input (`rules.md`, Surface errors without losing work) |
-| `transport`      | `NetworkError`                | Retriable — the only class the upload queue retries (§9)                                                                    |
-| `message`        | everything else               | Show the mapped string                                                                                                      |
-
-The code→outcome table is **TODO G's output**, and the copy-deck keys it returns are **TODO F's**.
-Until those land, implement the mapper with the codes `api-appendix/error-codes.md` already defines
-and a clearly-marked default branch, so the gaps are visible rather than silently swallowed.
-
----
+- Errors come inside a normal 200 envelope; the HTTP status says nothing.
+- `journal/month` accepts `username`; the response is nested `{ month: { days } }` (b-oss#169).
+- `entries/journal` clamps `page_index` to 200; journal pages are 100 entries (b-oss#153).
+- `actions.comment === 0` means comments are off for that journal.
+- `user/awards.json` returns the whole catalogue; unearned awards have `added_stamp: null`.
+- Fetching the comments list marks **all** unread comments read; fetching notifications marks the
+  returned rows read (§11).
 
 ## 8. Authentication and secure token storage
 
-### The OAuth round
+**The OAuth round** (`flows/oauthRound.ts`): implicit grant, redirect `bmobile://oauth/` (§16).
 
-`auth.md` specifies implicit grant with a custom-scheme redirect. Implementation:
+1. `buildImplicitGrantUrl()` with `scope` typed `'read' | 'read,write'`; never built from config or
+   input. A fresh random `state` per round, in memory only.
+2. Opened in the system browser (Custom Tabs, `platform/browser.ts`) so an existing Blipfoto session
+   and password manager work, **or** with `useEmbedded` in `EmbeddedAuthActivity`, a WebView with
+   cookies cleared to force a fresh login. `accountsFlow` uses the embedded one when more than one
+   account is stored.
+3. The round's own `onAppUrlOpen` listener catches the redirect, closes the browser, and
+   `parseImplicitGrantCallback()` extracts token, `state` and username. Closing the browser rejects
+   with `OAuthCancelledError`.
+4. **A `state` mismatch is discarded silently**, never shown as an error.
+5. `verifyToken()` (`GET oauth/token`) returns the owner and **granted** scope, which (not the
+   requested scope) sets `appTokenScope`.
+6. `accountsFlow` owner-checks: a token for the wrong account is revoked (unless already held) and
+   `AccountMismatchError` says whose it was.
 
-1. `b-api`'s existing `buildImplicitGrantUrl()` builds the URL, with `scope` passed as the
-   union type `'read' | 'read,write'` — which is already how `b-api` types it, and is exactly the
-   "make the two values the only representable options" that `auth.md` asks for. **No code path may
-   construct the scope string from configuration or user input.**
-2. A fresh `state` is generated per round via `crypto.getRandomValues()` and held in memory (not
-   persisted — a round that doesn't complete before the app dies should fail closed).
-3. **`platform/browser.ts` opens the URL with `@capacitor/browser`**, which uses Android Custom Tabs
-   / iOS `SFSafariViewController` — _not_ an in-app WebView. This is both the OAuth best practice
-   for native apps and the practical choice: the user's existing Blipfoto session and password
-   manager work.
-4. The redirect to `bmobile://oauth/` is caught by `platform/deepLinks.ts`
-   (`App.addListener('appUrlOpen')`), the browser is closed, and `b-api`'s
-   `parseImplicitGrantCallback()` extracts the token, `state` and any username. It already handles
-   the token arriving in either the fragment or the query.
-5. **`state` is verified before the token is trusted or stored.** A mismatch is discarded silently,
-   per `auth.md` — not surfaced as a sign-in error.
-6. `GET oauth/token` confirms the token was issued to this app and reads back its granted scope.
-   **The granted scope, not the requested one, is what sets `hasAppToken`'s read/write value.**
-7. The two-token mode (`read,write` + notifications) runs steps 1–6 **twice, visibly**, as two
-   distinct named actions, per `auth.md`. Two rounds means two distinct `state` values.
+Read-write accounts wanting notifications run a second, read-only round for the `service` token
+b-push uses, after push permission is confirmed (§11). For a read-only account the app and service
+tokens are the same credential.
 
-> **The fragment (`#access_token=…`) surviving a custom-scheme redirect into an Android intent is
-> standard, production-proven behaviour, not a novel unknown** — the identical pattern is shipped by
-> Spotify's Android SDK and by `capacitor-community/generic-oauth2`, which lists implicit ("token")
-> grant as tested/working on Android. What's actually unverified is narrower: whether
-> `@capacitor/app`'s `appUrlOpen` fires reliably for _this app's_ manifest/intent-filter wiring — a
-> config-correctness check made during normal development of the deep-link handler (§16), not a
-> dedicated spike. See [Decisions](#closed) (Q3.2).
+**Secure storage** (`platform/secureStorage.ts`, Keystore; `localStorage` fallback in a desktop
+browser). Keys `token:<accountId>:app`, `token:<accountId>:service`,
+`push-registration-secret:<accountId>`. Tokens are read at request time and never reach a store,
+React state, `prefs`, logs or error messages. Treat a failed read as "no token" (re-auth).
+`capacitor.config.ts` sets `loggingBehavior: 'none'` because the default logs every bridge call's
+arguments, including `Authorization` headers and secrets, to logcat (b-oss#241).
 
-### Secure storage
-
-**`@aparajita/capacitor-secure-storage` (8.0.0)** — Android Keystore / iOS Keychain, actively
-tracking Capacitor 8, TypeScript API. `capacitor-secure-storage-plugin` is the better-known
-alternative but is markedly less current.
-
-- **Key scheme:** `token:<accountId>:app` and `token:<accountId>:service`. One entry per
-  (account, purpose), matching `auth.md`'s "each attached to the account and purpose it was obtained
-  for".
-- **`platform/secureStorage.ts` is the only module that touches it.** Tokens are read at request
-  time and not retained: no token ever reaches a Zustand store, React state, `@capacitor/preferences`,
-  `localStorage`, a log line, or an error message.
-- **iOS (later):** set accessibility to _when-unlocked, this-device-only_ so tokens never sync to
-  iCloud Keychain.
-
-### Backup exclusion
-
-`auth.md` and `rules.md` both require tokens to be excluded from OS-level device backup. The
-simplest correct answer is also the one that matches the rest of the spec:
-
-**Set `android:allowBackup="false"` in the manifest.** The app has essentially nothing worth backing
-up — no cached data (§1), an image cache that is by definition disposable, and a hidden-member list
-that `rules.md` already says "does not travel to another device or survive reinstalling the app".
-Turning backup off wholesale satisfies the token requirement in one line and introduces no
-behavioural surprise.
-
-_(If device backup is ever wanted for the non-sensitive parts, the alternative is
-`android:dataExtractionRules` plus `android:fullBackupContent` excluding the secure-storage
-preferences file. Note that even without exclusion a restored token would be undecryptable, since
-Keystore keys are non-exportable — but that yields a confusing decryption error rather than a clean
-"signed out", which is why explicit exclusion is preferred either way. Any implementation must treat
-a failed token read as "no token held" and route to re-authorization, never as a crash.)_
-
-### Revocation
-
-`DELETE oauth/token` is authenticated with **the specific token being revoked**, not the active
-one (`api-appendix/endpoints.md`). `getClient()` must therefore accept an explicit token for this
-call, and `FLW-22`'s mode changes must revoke each surplus token individually.
-
----
+**Backup:** `android:allowBackup="false"`; nothing on the device is worth backing up.
+**Revocation:** `DELETE oauth/token` must be authenticated with the token being revoked
+(`getClientForToken`); mode changes revoke each surplus token.
 
 ## 9. The durable upload queue
 
-`rules.md` requires uploads to continue after leaving the compose screen, to queue, to show
-progress, to retry network failures with capped backoff, and to stop on an application error.
-`SCR-14` requires the list to be correct after navigating away and back.
+`state/uploadQueueStore.ts` + `flows/uploadQueueRunner.ts` (a plain module).
 
-### Design
+- **Enqueue copies the photo** to `Directory.Data/uploads/`; picker URIs are temporary grants.
+- **Item** (`UploadQueueItem`): account, `kind: 'publish' | 'edit'`, optional `entryId`, copied
+  `filePath` (none for a details-only edit), `fields`, `status`, `attempts`, `nextAttemptAt`,
+  `error`. Status is `waiting | uploading | uploaded | failed` (`SCR-14`'s four states).
+- **Serial**, one item at a time, via `getClientForAccount()` and `publishEntry()`/`updateEntry()`.
+- **Retry** only `transport`: backoff 5 s, 15 s, 45 s, 2 min, then 5 min; `failed` after 6
+  attempts. `forced-logout` runs `handleForcedLogout` and fails the item; anything else fails at once.
+- **Account removal** cancels its items. **Success** deletes the copied file and reschedules that
+  account's reminder to skip today (§12).
+- **Wakes** on launch, on enqueue, and on a timer for the next retry; no connectivity listener.
 
-- **On enqueue, the photo is copied into app-private storage** (`Directory.Data`) and the queue item
-  references that path. This is not optional: a photo-picker URI is a temporary grant that can
-  expire or be revoked before the upload runs.
-- **A queue item** is `{ id, accountId, kind: 'publish' | 'edit', filePath, fields, status, attempts,
-nextAttemptAt, error }`, persisted in `prefs` and mirrored in `uploadQueueStore`. Statuses are
-  `waiting | uploading | uploaded | failed`, matching `SCR-14`'s four displayed states exactly.
-- **One runner, one item at a time.** A module in `src/flows/` (not a React component) drains the
-  queue. Serial rather than parallel: it keeps progress reporting honest and avoids several large
-  uploads competing on a phone connection.
-- **The upload itself is `platform/upload.ts`** — a native multipart `POST`/`PUT` via
-  `@capacitor/file-transfer` (§7), with its progress events feeding `uploadQueueStore`. Because the
-  queue writes the upload file, it knows the byte total and reports progress against that rather
-  than against the event's own (unreliable) total.
-- **Retry policy:** only `transport` outcomes retry, with capped exponential backoff (e.g. 5s, 15s,
-  45s, 2m, 5m, capped at 5m, giving up after ~6 attempts and moving to `failed`). Every other
-  outcome from `mapApiError` moves straight to `failed` with its message — `rules.md`'s "an
-  application error stops that upload and surfaces a message; it is not retried blindly".
-- **Account removal cancels that account's items** (`rules.md`: in-flight work using a removed
-  account's token is cancelled, not left running).
-- **On success**, the item goes to `uploaded`, its copied file is deleted, and — see §12 — that
-  account's reminder for today is cancelled.
-
-### The honest limitation
-
-**A Capacitor app cannot upload while its process is dead.** A native `file-transfer` upload
-continues while the app is merely backgrounded, which covers the common case (the user leaves
-compose, locks the phone, comes back). If Android kills the process mid-upload, the item is found in
-`uploading` on next launch, reset to `waiting`, and resumed.
-
-This satisfies "durable" as `rules.md` uses it — the queue survives leaving the screen and is
-correct on return — but it is not a background-transfer service, and it should not be described to
-users as one. Two mitigations are worth taking: post an **ongoing local notification while an upload
-is active** (which also gives `SCR-14`'s "persistent indicator" for free, and makes the app less
-attractive to kill), and reset stale `uploading` items on launch. Whether to go further and add a
-foreground-service plugin was considered and [declined for v1](#closed) (Q4).
-
----
+**Limitation:** nothing uploads while the process is dead. On launch, `uploading` items reset to
+`waiting`. No foreground service, no ongoing upload notification (the `uploads` channel is unused),
+no byte-level progress.
 
 ## 10. The image cache
 
-The contract from `rules.md` is precise: **15 minutes, keyed by URL, app-wide, persisted to disk so
-it survives a restart, bounded by the TTL alone, no metered-connection exception, and explicitly not
-an offline mode.**
+The rule: images only, **15 minutes, keyed by URL, app-wide, on disk, bounded by TTL alone, no
+size cap, not an offline mode.** `platform/imageCache.ts` + `components/CachedImage.tsx`:
 
-Nothing off the shelf implements that, and the WebView's own HTTP cache can't be made to — its
-behaviour depends on whatever cache headers the image host sends.
-
-### Design
-
-**`platform/imageCache.ts` + a `<CachedImage>` component.**
-
-- **Key:** a hash (SHA-256, truncated) of the full image URL → a filename in `Directory.Cache`.
-- **Fetch:** `@capacitor/file-transfer`'s `downloadFile()` — native, so it neither hits CORS nor
-  competes with the WebView's own loading.
-- **TTL:** file mtime + 15 minutes. `resolve(url)` returns the cached path when fresh, otherwise
-  downloads and replaces. A sweep on app launch (and on resume after a long background) deletes
-  expired files.
-- **Display:** `Capacitor.convertFileSrc(path)` yields a WebView-loadable `src`. `<CachedImage>`
-  renders a placeholder while resolving and falls back to the remote URL if the cache layer fails —
-  a cache miss must never become a broken image.
-- **No size cap**, per spec. `Directory.Cache` is OS-evictable, which is the correct behaviour for a
-  cache and means "no cap" cannot become a disk-space problem.
-- **On the web fallback** (`vite dev` in a browser), `resolve()` returns the URL unchanged.
-
-The URL-keyed design also gives `rules.md`'s invalidation story for free: a replaced photo has a new
-URL and simply stops being referenced, and the 15-minute TTL bounds the in-place-overwrite case.
-
----
+- **Key:** SHA-256 of the URL (32 hex chars) under `Directory.Cache/image-cache/`, which the OS can
+  evict, so no size cap is needed. Fresh = mtime within 15 minutes.
+- **Download:** `FileTransfer.downloadFile()` (native, no CORS) to `<path>.tmp`, checked by
+  `imageIntegrity.ts` (JPEG SOI…EOI, PNG IEND, GIF trailer, WebP RIFF length), then renamed in,
+  so readers never see a partial file (b-oss#185). Concurrent callers share one download per URL.
+- **Failure:** an incomplete download is retried once, then the remote URL is shown uncached; a
+  download error also falls back to the remote URL. A cache failure never becomes a broken image.
+  Rejections log `[imgcache]` (grep logcat). `invalidateImage(url)` drops a bad entry.
+- **No expiry sweep yet** (TODO in the file): stale files are replaced on next request or evicted
+  by the OS. **Web:** `resolveImage()` returns the URL unchanged.
+- `CachedImage`: placeholder while resolving, `loading="lazy"` by default, one invalidate-and-retry
+  on load error, then b-view's image-glyph placeholder. `ThumbnailGrid`/`EntryDetail` call
+  `resolveImage` through their `resolveAsset` prop.
 
 ## 11. Push notifications, client side
 
-`@capacitor/push-notifications` (`8.1.2`) over FCM, with `google-services.json` in the Android
-project. The straightforward parts:
+Server side (polling, FCM sending, registration API):
+[`../../../b-push/ARCHITECTURE.md`](../../../b-push/ARCHITECTURE.md). This is the app's half:
+`@capacitor/push-notifications` over FCM. **`google-services.json` is gitignored**; without it the
+Gradle google-services plugin is skipped and push is unavailable.
 
-- **Permission.** `checkPermissions()` / `requestPermissions()` return `prompt`, `prompt-with-rationale`,
-  `granted` or `denied` — which maps **exactly** onto `rules.md`'s required distinction between
-  _"not asked yet"_ (request it) and _"asked and refused"_ (don't request into silence; explain and
-  offer to open system settings). Read the current state every time; never remember a past answer.
-  Check it **before** starting the read-token authorization round, per `rules.md`.
-- **Device token.** `register()` then the `registration` listener. **The same listener fires on
-  token rotation**, and its handler must call the service's `PATCH /v1/registrations/:id` — the
-  requirement `FLW-16` and `notification-service.md` both state.
-- **Tap routing.** `pushNotificationActionPerformed` carries the payload; route to the entry,
-  profile, pending-requests or accounts screen per `FLW-16`, through the same deep-link resolver as
-  §16 so cold-start and warm-start behave identically.
-- **Launch backstop.** On every launch, for each account with notifications nominally on: read the
-  live permission state and call `GET /v1/registrations/:id`. Either failing is handled as
-  `FLW-16` step 8 specifies.
+- **Availability first.** `register()` kills the process natively on a build without Firebase
+  credentials. `push.ts#isPushAvailable()` (via `PushAvailabilityPlugin`) gates every entry point.
+- **Permission:** `prompt | prompt-with-rationale | granted | denied`, read live every time; a
+  refusal is not remembered as a state. `pushFlow.ensurePushPermission()` runs **before** any
+  read-token sign-in round.
+- **Registration** (`flows/pushFlow.ts`, `data/pushService.ts`): `POST /v1/registrations` with the
+  read token and chosen streams (comments, notifications); the returned secret goes to secure
+  storage. Stream changes `PATCH`; both off `DELETE`.
+- **Token rotation:** the `registration` event fires again; `handleDeviceTokenRotated()` PATCHes
+  every registered account.
+- **Backstop** on launch and every resume (`runLaunchBackstopCheck()`): lost OS permission clears
+  the service token; a registration reporting `read-token-invalid` runs
+  `handleForcedLogout(id, 'service')`.
+- Blipfoto's own `push_*` notification settings are not available to our app type; the app never
+  reads or writes them. Settings → Notifications edits the `feed_*` settings and b-push's streams.
 
-### Pushes are contentless, and why
+**Pushes are contentless.** Every endpoint returning notification/comment content marks it read,
+so b-push polls counts only. `PushPayload` is
+`{ kind: 'activity', stream: 'comments' | 'notifications', accountId }` or `{ kind: 'reauth-required', accountId }`, sent as ordinary FCM
+notification messages (data-only ones are deferred in Doze and dropped when force-stopped), so
+there is no custom `FirebaseMessagingService`.
 
-**The service can only tell the app that a count went up.** This is settled in
-`notification-service.md` and repeated here because it shapes the client: every Blipfoto endpoint
-that returns notification or comment _content_ also marks it read, so a polling service that read
-content would silently clear the user's badges in this app, on blipfoto.com, and everywhere else,
-every cycle. Only the counts endpoint is side-effect-free.
+**Tap routing** (`pushFlow.routeForPushTap`, awaits `authReady` since a cold-start tap arrives
+before accounts load): `reauth-required` → forced logout of the service token,
+`/accounts?reauth=<id>`; `activity` → switch to that account, then `/comments` or
+`/notifications`; unknown account or needing re-auth → `/accounts`. A received push refreshes the
+badge counts. **Hidden-member suppression on push is impossible** (no actor); nothing leaks, and
+the inboxes filter what they fetch. The hidden list never leaves the device.
 
-So a push carries **which stream moved and by how much** — nothing else. No type, no target, no
-actor.
+### The two inboxes (`data/notifications.ts`)
 
-- **Pushes stay ordinary FCM notification messages.** No data-only delivery and no custom native
-  `FirebaseMessagingService`, which matters for reliability: Android defers data-only messages in
-  Doze and drops them entirely for a force-stopped app.
-- **Tapping opens the corresponding inbox** — `SCR-23` or `SCR-24` — which fetches the items and,
-  in doing so, clears the badge. That is the one moment at which clearing is correct.
-- **Hidden-member suppression on push is not possible**, for any activity type, because there is no
-  actor in the payload. `FLW-16` records this as an accepted limitation. Nothing leaks: a push that
-  names nobody cannot reveal a hidden member's identity, and both inboxes filter the content they
-  fetch. The cost is a notification the user didn't need.
-- **The hidden list therefore never leaves the device**, and `rules.md`'s promise about hiding
-  stands unqualified.
-
-> An earlier draft of this section proposed uploading salted digests of the hidden list so the
-> service could filter, under an opt-in. That is moot: the service never obtains an actor to
-> compare against, so there is nothing to filter. Recorded because the reasoning may look worth
-> revisiting, and it isn't.
-
-### Filtering and routing in the inboxes
-
-The app _does_ fetch content for `SCR-23` and `SCR-24`, so this is where hiding and routing are
-actually implemented. The two streams are very differently shaped, and the asymmetry is
-load-bearing.
-
-**`SCR-24` comments — fully structured, everything works.** Each row carries the commenter as a
-structured object (with `username`), an `unread` flag, a comment/reply type discriminator, and the
-entry id. Hidden-member filtering and routing are both exact.
-
-- **One trap:** the first fetch clears **all** the user's unread comment rows, not just the page
-  returned. So `unread` must be **snapshotted from the first response** — on any subsequent page,
-  every row will already read as read.
-
-**`SCR-23` notifications — a rendered blob.** A row carries only an id, server-rendered text
-(BBCode plus its HTML rendering), an image URL, a link URL, and a has-more-content flag. **No
-actor, no type, no unread flag, no timestamp.** Consequences:
-
-- **Hidden-member suppression is best-effort, not guaranteed.** The actor's username appears in the
-  rendered `content_html` as an anchor, so the app parses the hrefs, keeps those matching
-  `blipfoto.com/<single-segment>` excluding reserved prefixes (`entry`, `me`, `store`, `_assets`),
-  treats them as candidate actors, and suppresses the row if any is hidden. ~20 lines, and it works
-  in the ordinary case.
-  - **Stated plainly because it is a safety feature:** this is a heuristic over server-rendered,
-    localised text. If the wording or link structure changes server-side it degrades silently, and
-    nothing in the app would detect that. It was preferred over doing nothing because the leak it
-    prevents is real and the alternative — hiding working on every surface except one inbox — is a
-    worse inconsistency. See `rules.md` and `SCR-23`.
-- **Route from `link_url`.** `/entry/{id}` and `/{username}` are reliable and distinct.
-- **Follow-requests are the exception**, and must be special-cased: `link_url` points at the
-  requester's profile, not the requests screen. The fixed internal path `me/followers/requests`
-  appears as a link inside `content_html` instead, so detect _that_ and route to `SCR-20`. It is a
-  hardcoded server-side path, which makes it a far more robust signal than username parsing.
-- **Unrecognised targets open the web URL in the system browser** via `@capacitor/browser`, rather
-  than no-op. A tapped notification that does nothing reads as broken. Awards and bulk-communication
-  links are opaque server-supplied URLs, so this is their path.
-- **No timestamps in either stream**, so neither inbox can show relative times; ordering is by
-  descending opaque id.
-- **Blipfoto's own bulk/promotional messages arrive in the same stream with no discriminator.** They
-  render like any other notification. There is no reliable signal to filter or restyle them, and
-  attempting it on heuristics would be worse than accepting it.
-- **Both streams retain ~14 days**, so neither inbox pages back further.
-
-**Hiding is keyed by username**, because that is the only identifier the comment payload and the
-notification links expose — no numeric user id is available. Usernames are editable (`SCR-25`), so
-a hidden member who renames themselves escapes the hide until re-hidden. A platform limitation, not
-a design choice.
-
-**Do not call `PUT messages/notifications/unread`.** Fetching the notifications list already marks
-exactly the returned rows read, so the explicit call is redundant.
+- **`SCR-24` comments are structured** (commenter `username`, `unread`, type, entry id), so
+  filtering and routing are exact. **Trap:** the first fetch clears all unread comments, so
+  `unread` is snapshotted from the first response (`unreadCommentIds()`).
+- **`SCR-23` notifications are rendered text**: id, BBCode content, image URL, link URL, has-more
+  flag; no actor, type, unread flag or timestamp.
+  - **Hidden suppression is best-effort**: `candidateActorsFromNotification()` treats the
+    content's `blipfoto.com/<single-segment>` links (excluding `entry`, `me`, `store`, `_assets`)
+    as candidate usernames. It degrades silently if Blipfoto changes wording or links.
+  - **Routing** (`resolveNotificationTarget`): `/entry/{id}` → entry, `/{username}` → profile. A
+    follow request links to the requester's profile, so the path `me/followers/requests` in the
+    content is detected instead → `SCR-20`. Anything else opens in the system browser.
+- No timestamps in either stream (order by descending id); Blipfoto's bulk/promotional messages
+  arrive undistinguished; both keep about 14 days. Hiding is keyed by username (no user id is
+  exposed), so a renamed member escapes until re-hidden.
+- **Don't call `PUT messages/notifications/unread`**: fetching already marks rows read.
+- Badges (`notificationCountsStore`) refresh on launch, account switch and push arrival, and clear
+  optimistically when an inbox opens.
 
 ## 12. Local notifications and background scheduling
 
-`@capacitor/local-notifications` (`8.2.1`) serves two jobs: `FLW-18`'s daily reminder, and (per §11)
-posting notifications the app builds itself.
+`platform/localNotifications.ts` + `flows/reminderFlow.ts`: `FLW-18`'s daily reminder.
 
-### `FLW-18` — daily reminder
+- **One per account** (stable id from the account), channel `reminders`, scheduled
+  `{ at: <next occurrence>, every: 'day' }`, not `on: { hour, minute }`: a repeating `on` pattern
+  can't skip just today.
+- **Suppression by cancellation:** a successful upload calls `rescheduleReminderSkippingToday()`,
+  re-anchoring at tomorrow. Nothing runs at fire time.
+- **Inexact only**: never `allowWhileIdle` or exact-alarm permissions (Play reserves those for
+  alarm-clock-type apps; a few minutes' drift is fine).
+- **`POST_NOTIFICATIONS` is shared with push**; a refusal turns the reminder off, no third state.
+- Tapping a reminder switches to that account and opens compose. All exports no-op off native.
 
-- **One scheduled notification per read-write account**, with a stable id derived from the account,
-  scheduled `on: { hour, minute }` with `repeats: true`. Cancelled when the account is removed or
-  changes to read-only, per `FLW-18`.
-- **Inexact scheduling. Do not request exact-alarm permission.** From Android 14,
-  `SCHEDULE_EXACT_ALARM` is [not pre-granted](https://capacitorjs.com/docs/apis/local-notifications),
-  and `USE_EXACT_ALARM` is reserved for apps where exact timing is the core function — alarm clocks
-  and calendars. A "post your blip" nudge is not that, and a Play review would be right to say so. A
-  reminder arriving within a few minutes of the chosen time is entirely adequate; the doc should say
-  so rather than leave an implementer to discover the policy the hard way.
-- **Suppression is implemented by cancellation, not by a check at fire time.** `FLW-18` requires the
-  reminder to be suppressed if the account has already published through the app that day, and is
-  explicit that no network call may happen at fire time. A scheduled local notification cannot run
-  app code before firing at all — so instead: **when an upload for account A completes successfully,
-  cancel A's reminder occurrence for today and schedule the next one for tomorrow.** Same observable
-  behaviour, no fire-time logic, and it works with no connectivity.
-- **`POST_NOTIFICATIONS` is shared with push.** On Android 13+, reminders need the same runtime
-  permission as pushes. Request it when reminders are first enabled, using the same
-  not-asked/refused distinction as §11. Note that `rules.md`'s "no remembered blocked state" rule is
-  written about push; the same treatment should apply to reminders — a refusal turns the reminder
-  setting off rather than creating a third state. Confirmed — see [Decisions](#closed) (Q6).
-
-### Nothing else runs in the background
-
-There is no background sync, no periodic work manager, and no background fetch. The app polls
-nothing — that is the notification service's entire reason to exist.
-
----
+**Nothing else runs in the background**: no sync, work manager or background fetch.
 
 ## 13. Maps and location
 
-Two screens need maps: `SCR-04` (browse geotagged entries by viewport) and `SCR-12` (place a single
-marker).
+`SCR-04` (entries by viewport) and `SCR-12` (place a marker) use **MapLibre GL JS in the WebView**,
+not a native plugin: no billing account, works in `vite dev`, one implementation, DOM overlays work.
 
-### Decision: MapLibre GL JS in the WebView
-
-**MapLibre GL JS `6.1.0`**, rendered in the WebView, rather than a native maps plugin.
-
-- **No billing account, no Google Maps Platform dependency.** Google Maps Platform's pricing has
-  moved to tiered plans with a much smaller free allowance than the old universal credit; for a free
-  personal project, requiring a card on file to render two screens is the wrong trade.
-- **It runs in `vite dev` in a desktop browser**, so both map screens stay iterable without a device
-  — a large practical benefit given §4's whole approach.
-- **One implementation for Android and iOS**, with no native-plugin behaviour to reconcile.
-- **It avoids the native-map-under-a-transparent-WebView pattern** that `@capacitor/google-maps`
-  uses, which is awkward wherever map and DOM content overlap — and `SCR-04`'s marker info window
-  and `SCR-12`'s toolbar both overlap.
-
-**Tile provider is a separate decision from the renderer**, and should stay that way: put it behind
-`src/platform/mapTiles.ts` returning a style URL, so the provider can be swapped without touching
-either screen. The recommendation is **MapTiler's free tier** (attribution required,
-non-commercial — which fits a GPLv3 personal project), with the key in build configuration (§18).
-Stadia Maps and a self-hosted Protomaps basemap are the credible alternatives. See
-[Decisions](#closed) (Q7).
-
-**Location** uses `@capacitor/geolocation` for the my-location control on `SCR-04`/`SCR-12` and for
-`SCR-02`'s Nearby feed, requesting permission at the point of use, never on screen entry.
-
-**Marker volume** on `SCR-04` is bounded by what `entries/search` returns per bounding-box query, so
-no clustering is specified for v1. If a dense region ever produces enough markers to matter,
-MapLibre's built-in GeoJSON clustering covers it without a new dependency.
-
----
+- **Tiles:** `platform/mapTiles.ts#getMapStyleUrl()`, MapTiler `streets-v2` with
+  `VITE_MAP_TILES_KEY`; no key → `null` → the "map unavailable" state.
+- **Worker:** `MapScreen` imports `maplibre-gl/dist/maplibre-gl-worker.mjs?worker&url` and calls
+  `setWorkerUrl()`. Without it the production build never emits the worker and tiles silently fail.
+- **Fetching:** bounds debounced 450 ms, request-id supersession, one `entries/search` page per
+  bounds change, no clustering; hidden members' entries get no marker.
+- **Location** (`platform/geolocation.ts`, coarse) for my-location on `SCR-04`/`SCR-12` and
+  Browse's Nearby tab, requested at point of use. Both map screens are lazy routes.
 
 ## 14. BBCode
 
-`SCR-06` and `SCR-18` render BBCode with working links; `SCR-11` and `SCR-15` edit it.
+Rendering and the rich editor are in **b-view**; b-mobile injects host behaviour via props.
 
-- **Rendering: `@bbob/react` (`4.4.1`)** — parses BBCode to React elements rather than to an HTML
-  string, so there is **no `dangerouslySetInnerHTML` anywhere in the app**. Given the content is
-  written by other members, that is the security-relevant property, not a stylistic one.
-- **The supported tag set is exactly five**, and the preset should allow-list precisely these and
-  nothing else:
-
-  | Tag           | Syntax                                      | Renders as |
-  | ------------- | ------------------------------------------- | ---------- |
-  | Bold          | `[b]…[/b]`                                  | `<b>`      |
-  | Italic        | `[i]…[/i]`                                  | `<i>`      |
-  | Underline     | `[u]…[/u]`                                  | `<u>`      |
-  | Strikethrough | `[s]…[/s]`                                  | `<s>`      |
-  | Link          | `[url=…]Label[/url]` or bare `[url]…[/url]` | `<a href>` |
-
-- **Unknown tags render as their literal text** rather than being dropped, so nothing silently
-  disappears from someone's description.
-- **`[url]` has behaviour beyond wrapping**, and the app must match it or links will render
-  differently here than on the website: a URL with no scheme gets `http://` prepended, an
-  email-looking target becomes `mailto:`, and the label is optional (a bare `[url]` uses the target
-  as its own label).
-- **Link _creation_ is gated per account server-side, and the app cannot know it.** Accounts that
-  haven't cleared the platform's anti-spam threshold have their links ignored on save. **The API
-  exposes no capability flag for this**, so there is no way for the app to detect it — checked, not
-  assumed.
-  - **So the link button is always shown, and the app does nothing special.** This is a deliberate
-    exception to the usual hide-don't-disable rule (`rules.md`), made because the alternative is
-    inventing a detection mechanism that doesn't exist. For a new or unverified account the markup
-    is simply not honoured; nothing errors, nothing is lost, and the condition clears itself as the
-    account ages.
-  - Worth stating so an implementer doesn't go looking: this is an API limitation, and the correct
-    response is to leave it alone rather than build around it.
-- **Link targets open per destination, not per `target` attribute.** The website marks off-site
-  links `target="_blank"`, which is meaningless in an app. Instead: a `blipfoto.com` link that maps
-  to a screen opens in-app through the deep-link resolver (§16); everything else opens in the system
-  browser via `@capacitor/browser`. Never navigate the WebView itself away from the app.
-- **Editing is plain text plus a toolbar**, per `SCR-11` — not a WYSIWYG surface. The toolbar wraps
-  the current selection or inserts at the caret, operating on the raw string in a `<textarea>`.
-  BBCode remains the storage format, as `SCR-11` decides. Five tags means five buttons, one of them
-  conditional.
-
----
+- **`BBCodeText`** renders via `@bbob/react` to React elements: **no `dangerouslySetInnerHTML`**
+  anywhere, since content comes from other members.
+- **Tags** (`b-view/src/bbcode.ts`, parser `onlyAllowTags`): `[b]`, `[i]`, `[u]`, `[s]`, `[url]`
+  (`[url=…]label[/url]` or bare) and `[email]` (no toolbar button). Unknown tags stay literal text.
+  `[url]`: no scheme → `http://`; email-like → `mailto:`; bare uses the target as label.
+- **Links open in the system browser** (`onLinkClick={(href) => openUrl(href)}`); the WebView never
+  navigates away. blipfoto.com links return to the app only via the opt-in alias (§16).
+- **Link creation is gated per account by Blipfoto** (anti-spam threshold; links ignored on
+  save) and the API exposes no flag, so the link button is always shown and the app does nothing.
+- **Editing:** entry description (`ComposeForm`'s `DescriptionField`) and comments
+  (`CommentComposer`) use b-view's ProseMirror **`BBCodeEditor`**, BBCode in and out. The biography
+  (`SCR-11`) is a `<textarea>` with `components/BBCodeToolbar.tsx` editing the raw string.
 
 ## 15. Camera, photo picking and cropping
 
-- **`@capacitor/camera`** covers both of `SCR-09`'s paths. Use `CameraSource.Camera` for capture and
-  `CameraSource.Photos` for the picker, returning a **file URI** (`resultType: Uri`) rather than
-  base64 — a full-resolution photo as a base64 string is a reliable way to exhaust WebView memory,
-  and §9 wants a path anyway.
-- **Permissions match `SCR-09` exactly**: the camera permission is requested only when _Take a
-  photo_ is tapped, and a refusal leaves _Choose from device_ fully usable. The system picker needs
-  no permission and no broad storage access, which is what `SCR-09` asks for.
-- **Cropping: `react-easy-crop` (`6.2.3`) in the WebView**, not `@capacitor/camera`'s `allowEditing`.
-  `allowEditing` delegates to whatever crop activity the device happens to have, which varies by OEM
-  and is absent on some devices — unacceptable for a feature `SCR-10` gates on membership and
-  `SCR-25` uses for avatars. A JS cropper is consistent everywhere.
-
-**The two crops are not the same operation, and conflating them would be a real bug.**
-
-|                    | `SCR-10` entry thumbnail                                                                                                   | `SCR-25` avatar                                                                                   |
-| ------------------ | -------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------- |
-| What is sent       | **Coordinates** — `thumbnail_crop` as `x,y,w` floats in 0.0–1.0 of the image's dimensions (one width, because it's square) | **A cropped JPEG** — the `avatar` field takes an image, and there is no crop-coordinate parameter |
-| The uploaded image | The **full, uncropped** photo                                                                                              | The cropped result                                                                                |
-| Client-side pixels | None — the crop is metadata                                                                                                | Canvas crop and re-encode                                                                         |
-
-So for an entry, `react-easy-crop` is a **coordinate picker with a live preview**: it shows the
-default crop, the user adjusts it, and the app sends the resulting `x,y,w` triple alongside the
-untouched photo. Nothing is re-encoded, and the server keeps the original — which is what lets the
-crop be changed later without quality loss. For the avatar there is no such field, so the crop has
-to be applied client-side and the cropped JPEG uploaded.
-
-- **Downscaling is separate from either crop.** `SCR-10` says to respect the "upload full size"
-  preference (`SCR-25` Misc), so a canvas resize may still happen on the entry path — but that is a
-  resolution decision, not a crop, and it must not alter the `thumbnail_crop` values, which are
-  proportional and therefore survive a resize unchanged.
-- **Validation** (`SCR-10`: unsupported type, too small) happens on the picked file before the
-  compose screen accepts it, so the failure surfaces at the point of choosing rather than at
-  publish. **Real limits (confirmed against Blipfoto's own server source — `Image.php`, `JPG.php`,
-  `AvatarUploader.php` — 2026-08-05, closing what TODO G left open):** entry photos need 600px on
-  **at least one** edge (not both — a thin panorama or tall crop is valid as long as one dimension
-  clears the floor), no maximum dimension (oversized originals are stored as-is; only derived
-  renditions are downscaled), 1 KB–20 MB file size. Avatars (`SCR-25`) need 300px on at least one
-  edge and a 3 MB file-size cap, with no minimum file size or maximum dimension documented for that
-  path. Implemented as `data/photoValidation.ts#validatePickedPhoto()`, taking a
-  `purpose: 'entry' | 'avatar'` parameter since the two limits genuinely differ.
-
----
+- **`platform/camera.ts`** uses the plugin's current `takePhoto()`/`chooseFromGallery()` (not the
+  deprecated `getPhoto`/`pickImages`), returning a file path, never base64 (exhausts WebView
+  memory). Camera permission only when _Take a photo_ is tapped; a refusal
+  (`CameraPermissionDeniedError`) leaves the picker usable, which needs no permission.
+- **Cropping:** `react-easy-crop` in `components/PhotoCropper.tsx` (square), not `allowEditing`,
+  which depends on an OEM crop activity some devices lack.
+- **The two crops differ** (`data/imageCrop.ts`). Entry thumbnail (`SCR-10`): `cropToProportions`
+  sends `thumbnail_crop` as `x,y,w` in 0.0–1.0 alongside the **untouched** photo. Avatar
+  (`SCR-25`): `avatar` takes an image and has no crop parameter, so `cropToJpegBlob` re-encodes
+  the crop and uploads it as a `Blob` `FileSource`.
+- **No downscaling** exists. `devicePrefsStore.uploadFullSize` is stored but unread and has no
+  Settings control (b-oss#334). Any future resize must not alter the proportional `thumbnail_crop`.
+- **Validation** (`data/photoValidation.ts#validatePickedPhoto(photo, purpose)`) at pick time, with
+  limits observed from Blipfoto's API: entry ≥ 600 px on **one** edge, no maximum dimension,
+  1 KB–20 MB; avatar ≥ 300 px on one edge, with Blipfoto's 3 MB cap met by the cropped JPEG, so the
+  picked file is only bounded at 40 MB.
 
 ## 16. Deep links, the OAuth redirect, and share intents
 
-Three inbound paths, all arriving through `@capacitor/app`'s `appUrlOpen` and Android intents, and
-all resolved by **one** module, `src/flows/deepLinkResolver.ts`, so cold start and warm start cannot
-diverge:
+- **OAuth redirect** `bmobile://oauth/…`: consumed by `oauthRound`'s own listener (§8).
+- **Content links** `bmobile://entry/:id`, `bmobile://user/:username`: `flows/deepLinkResolver.ts`
+  → `/entry/…`, `/user/…` (not gated).
+- **Blipfoto web links** `https://www.blipfoto.com/…` (opt-in, below): resolver →
+  `resolveWebPathTarget` (entry, profile, follow requests).
+- **Share an image** (`ACTION_SEND` `image/*`): `ShareIntentPlugin` + `platform/shareIntent.ts` →
+  `/compose` with the photo, through the write gate.
+- **Push / reminder taps**: `pushFlow.routeForPushTap` (§11), `onReminderTapped` (§12).
 
-| Input                | Scheme / intent                                   | Handling                                                                                                            |
-| -------------------- | ------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------- |
-| OAuth redirect       | `bmobile://oauth/`                                | Consumed by the in-progress auth round (§8); never routed                                                           |
-| Entry / profile link | `bmobile://entry/:id`, `bmobile://user/:username` | Resolve to a route; gate via `FLW-01` if the target needs an account                                                |
-| Blipfoto web link    | `https://www.blipfoto.com/…`                      | **Opt-in only** — see below                                                                                         |
-| Share-to-Blipfoto    | `ACTION_SEND` with an image                       | Enter compose at `SCR-10` with the photo pre-loaded, through the same write gate as `SCR-09` (`rules.md`, `FLW-12`) |
+`resolveDeepLink()` serves cold start (`getLaunchUrl()`) and warm start (`onAppUrlOpen`) alike;
+navigation is injected (`routeDeepLink(target, push)`). `appUrlOpen` never carries `ACTION_SEND`
+extras, hence the share plugin, which copies the stream into the cache dir and strips
+`EXTRA_STREAM` so a resume doesn't re-import it.
 
-### Why not `blipfoto://`
+**`bmobile://`** serves redirect and content, distinguished by host. Not `blipfoto://` (custom
+schemes have no ownership check, and this is an unofficial app); unhyphenated to dodge strict
+validators. **The redirect needs its trailing slash**: Blipfoto's registration rejects
+`bmobile://oauth`, and matching is exact-string, so every use is `bmobile://oauth/`.
 
-**There is no technical reason to use the brand in the scheme, and three reasons not to.** A custom
-scheme is private between the app and whatever wants to link into it; it maps to nothing on the
-website, and the real site URLs are handled separately by the opt-in `https` path below. So the
-choice is free — which makes the arguments against `blipfoto://` decisive:
-
-- **Custom schemes are first-come-first-served with no ownership check.** Whichever app the OS
-  resolves first wins, and there is no arbitration. `blipfoto://` invites a collision with the old
-  app if it is ever installed alongside, and with any other third-party client.
-- **This is an unofficial app**, and baking a brand it doesn't own into its URL namespace is a claim
-  it shouldn't make.
-- **It would be awkward to change later**, because the OAuth redirect URI is registered with
-  Blipfoto and only one may exist per registration.
-
-**Use `bmobile://` for both**, distinguished by path: `bmobile://oauth/` for the redirect,
-`bmobile://entry/…` and `bmobile://user/…` for content. Two schemes buy nothing — both are equally
-squattable, and `state` verification (§8) is what actually defends the redirect, not scheme
-separation. One scheme with two path namespaces is simpler and removes a class of
-which-scheme-was-that confusion.
-
-**Trailing slash on the redirect is required, not stylistic.** Blipfoto's registration form
-rejects `bmobile://oauth` without one (a bare path segment with no trailing `/`, unless suffixed
-with a wildcard `*`). The redirect URI comparison at the OAuth server is exact-string, so every
-place that builds or checks this value — the authorize-URL builder, the deep-link resolver's
-match, `VITE_OAUTH_REDIRECT_URI` — must use `bmobile://oauth/` consistently, including the slash.
-
-_Unhyphenated deliberately._ `b-mobile://` is legal per RFC 3986, which permits hyphens after the
-first character, but scheme validators are a common place to meet an over-strict regex — including,
-potentially, Blipfoto's own redirect-URI check at registration. There is nothing to gain by finding
-out.
-
-> **This supersedes the root task list**, which currently specifies `blipfoto-app://oauth` and
-> requires it be kept distinct from a `blipfoto://` content scheme. That guidance was about avoiding
-> brand reuse _for the redirect_; the reasoning applies equally to the content scheme. **Settle this
-> before registering the app with Blipfoto** — the registration takes one redirect URI, and it is
-> editable but only at the cost of doing the job twice.
-
-**Opt-in web-link handling** (`rules.md`, `SCR-29`) needs a mechanism, since an intent filter in the
-manifest is static. The workable approach on Android: declare the `https` intent filter on an
-**`<activity-alias>`** that is **disabled by default**, and toggle it at runtime with
-`PackageManager.setComponentEnabledSetting()` from a small custom plugin. Two properties make this
-the right shape: with the alias disabled the app does not appear in the chooser at all, and because
-the filter is **not** `autoVerify` (App Links would need `assetlinks.json` hosted on blipfoto.com,
-which isn't ours to place), enabling it adds the app to the chooser rather than hijacking links
-silently — which is exactly the behaviour `rules.md` asks for.
-
----
+**Opt-in web links:** the `https://www.blipfoto.com` filter is on `<activity-alias
+.BlipfotoWebLinkAlias>`, **disabled by default** and **not** `autoVerify` (App Links would need
+`assetlinks.json` on blipfoto.com). `BlipfotoLinksPlugin` toggles it with
+`PackageManager.setComponentEnabledSetting()` from `devicePrefsStore.openBlipfotoLinksInApp`, adding
+the app to the chooser rather than hijacking links.
 
 ## 17. Android project configuration
 
-The `android/` project is **checked into the repo**, not generated at build time — it holds the
-manifest edits, backup rules, the custom messaging service (§11), the activity-alias (§16) and
-`google-services.json`.
+`android/` is checked in; `google-services.json` is gitignored (§11). SDK levels
+(`variables.gradle`): **minSdk 24, compileSdk 36, targetSdk 36**, Capacitor 8's defaults; re-check on
+a Capacitor major upgrade.
 
-### SDK levels
+**Permissions**, each requested at point of use: `INTERNET`; `POST_NOTIFICATIONS` (push, reminders);
+`CAMERA` (_Take a photo_ only); `ACCESS_COARSE_LOCATION`/`ACCESS_FINE_LOCATION` (Nearby,
+my-location). No storage permissions (the picker grants per item; `MediaSavePlugin` uses MediaStore
+on Android 10+, the app's own Pictures folder below). No exact-alarm permissions (§12).
 
-|                     | Value                | Source                                                           |
-| ------------------- | -------------------- | ---------------------------------------------------------------- |
-| `minSdkVersion`     | **24** (Android 7.0) | Capacitor 8's floor                                              |
-| `compileSdkVersion` | **36**               | Capacitor 8 default                                              |
-| `targetSdkVersion`  | **36**               | Capacitor 8 default; also what Play requires for new submissions |
+**Manifest and native code:**
 
-**This closes the item `rules.md` left open** — "whatever floor the chosen build framework imposes"
-is minSdk 24, and it should not be narrowed further. Re-check on any Capacitor major upgrade, since
-this floor moves.
-
-### Permissions
-
-Request exactly these, nothing more. Every one is requested at point of use, never at launch.
-
-| Permission                                        | Why                              | Screen                       |
-| ------------------------------------------------- | -------------------------------- | ---------------------------- |
-| `INTERNET`                                        | —                                | everywhere                   |
-| `POST_NOTIFICATIONS`                              | Push and reminders (Android 13+) | `FLW-20`, `SCR-25`           |
-| `CAMERA`                                          | _Take a photo_ only              | `SCR-09`                     |
-| `ACCESS_COARSE_LOCATION` / `ACCESS_FINE_LOCATION` | Nearby feed, my-location         | `SCR-02`, `SCR-04`, `SCR-12` |
-
-**No storage permissions** — the system photo picker grants per-item access (`SCR-09`).
-**No `SCHEDULE_EXACT_ALARM` / `USE_EXACT_ALARM`** (§12).
-
-### Manifest and resources
-
-- `android:allowBackup="false"` (§8).
-- An intent filter for `bmobile://` (both the OAuth redirect and content links, §16), plus the
-  **disabled** `<activity-alias>` carrying the non-`autoVerify` filter for
-  `https://www.blipfoto.com` (§16).
-- A notification channel per category (activity, system alerts, reminders, uploads) so users can
-  tune them in system settings. **No custom `FirebaseMessagingService`** — §11's decision keeps
-  pushes as ordinary notification messages, which is what removes the need for one.
-- Adaptive launcher icon and splash screen from `assets/`, via the existing
-  `scripts/copy-icons.mjs` conventions where they apply.
-- **Application ID: `io.github.ianmstevenson.bmobile`** — a reverse-domain form of a namespace the
-  project demonstrably controls. Adequate for development and review; revisit before a first Play
-  submission, since it is permanent from that point on.
-
-### Release
-
-Manual, matching `notification-service.md`'s stance that app publication and service deployment are
-both deliberate manual steps. Signing keys live outside the repo. The root `version.generated.json`
-mechanism can feed the app's displayed version the same way it feeds `b-view` and `b-ark`, and
-should, so all four surfaces report versions the same way.
-
----
+- `android:allowBackup="false"`; `MainActivity` is `singleTask` with `bmobile://` VIEW and
+  `ACTION_SEND image/*` filters; the disabled `BlipfotoWebLinkAlias` (§16); a `FileProvider`.
+- **Channels** created by `MainActivity` at every launch: `activity`, `system_alerts`, `reminders`,
+  `uploads` (unused). b-push sets the channel on each message; FCM's default is `activity`.
+- **Local plugins** registered in `MainActivity`, each with a `src/platform/` wrapper:
+  `BlipfotoLinksPlugin`, `AccessibilityPlugin`, `ShareIntentPlugin`, `EmbeddedAuthPlugin` (+
+  non-exported `EmbeddedAuthActivity`), `PushAvailabilityPlugin`, `MediaSavePlugin`.
+- **Application ID** `io.github.ianmstevenson.bmobile`; revisit before a first Play submission,
+  after which it is permanent. Release is manual; signing keys live outside the repo.
 
 ## 18. Configuration and secrets
 
-Build-time configuration via Vite env vars (`import.meta.env.VITE_*`), with a committed
-`.env.example` and a gitignored `.env.local` — the pattern `b-oss` already uses.
+Vite env vars from the **repo root** (`envDir`): committed `.env.example`, gitignored `.env.local`;
+typed in `src/env.d.ts`.
 
-| Variable                          | Contains                                                                                                                                                                                      | Secret?                        |
-| --------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------ |
-| `VITE_BLIPFOTO_CLIENT_ID`         | The app's registered client id                                                                                                                                                                | No — also the anonymous bearer |
-| `VITE_OAUTH_REDIRECT_URI`         | `bmobile://oauth/`                                                                                                                                                                            | No                             |
-| `VITE_NOTIFY_SERVICE_URL`         | `b-push` base URL                                                                                                                                                                             | No                             |
-| `VITE_NOTIFY_REGISTRATION_SECRET` | Shared registration secret                                                                                                                                                                    | **Not in git**                 |
-| `VITE_MAP_TILES_KEY`              | Tile provider key                                                                                                                                                                             | **Not in git**                 |
-| `VITE_DEV_TOKEN`                  | Dev-only: a token obtained outside the app, auto-signs-in at launch (`accountsFlow.ts`'s `devSignInWithToken`) — desktop-browser testing has no way to complete a real OAuth round (§16, §19) | **Not in git**                 |
+Not secret: `VITE_BLIPFOTO_CLIENT_ID` (also the anonymous bearer), `VITE_OAUTH_REDIRECT_URI`
+(`bmobile://oauth/`, the default if unset), `VITE_NOTIFY_SERVICE_URL` (b-push base URL),
+`VITE_FEED_PROBE` (`1` builds the feed-depth probe, b-oss#196; unset for releases). Never commit a
+real value: `VITE_NOTIFY_REGISTRATION_SECRET`, `VITE_MAP_TILES_KEY`, `VITE_DEV_TOKEN` (dev only,
+auto-applied at launch in development mode, §19).
 
-**Anything in the bundle is extractable**, and the architecture must not pretend otherwise.
-`notification-service.md` already accepts this for the registration secret, describing it as a
-coarse gate rather than a credential; the same honesty applies to the tile key, which is why the
-provider choice in §13 should favour one whose free tier tolerates a public key.
-
-`google-services.json` is not secret (it contains no server key) but is environment-specific;
-commit it for the single production Firebase project.
-
----
+Anything in the bundle is extractable: the registration secret is a coarse gate, not a credential,
+and the tile key must be one a provider tolerates being public.
 
 ## 19. Testing
 
-**Vitest + Testing Library**, same as the rest of the monorepo. Three layers, deliberately
-lightweight:
+Vitest + Testing Library under jsdom, run from the repo root. Pure logic (error mapping, write gate,
+queue, BBCode preset, deep links, notification suppression/routing, crop maths) carries most of the
+tests; screens render with `src/platform/` mocked and `b-api` stubbed, using
+`app/routes/test-router.tsx`. On-device checks are manual; there is no device or emulator on the dev
+VM, and unverified paths are listed in [`../UNTESTED_PATHS.md`](../UNTESTED_PATHS.md).
 
-1. **Pure logic** — error mapping, the write-gate selector, upload-queue state transitions, BBCode
-   preset, image-cache TTL arithmetic, deep-link resolution. Plain unit tests; this is where the
-   density should be, because these are the rules most likely to be got subtly wrong.
-2. **Screens** — rendered in jsdom with `src/platform/` mocked and `b-api` stubbed (`msw` is already
-   a `b-api` dev dependency). The target is one test per screen asserting its four
-   loading/empty/error/loaded states, since `rules.md` mandates them uniformly and they are the
-   easiest thing to skip.
-3. **On-device** — manual for v1. No Appium or Detox; the ratio of setup cost to value is wrong for
-   a project this size, and the things that genuinely need a device (OAuth redirect, multipart
-   upload, push delivery, exact-alarm-free reminder timing) are better covered by a short manual
-   checklist, run once as each is built, than by dedicated device automation. Neither the OAuth
-   redirect nor the multipart upload needs a pre-build spike — both are closed by source-reading
-   (§7, §8); the checklist is the same first-run verification every new module gets.
+`vite.config.ts`'s `test` block aliases `@lit/react` to its browser build and inlines it; otherwise
+Vitest resolves Ionic 9's wrappers to an SSR build and components render as inert tags.
 
-**Browser-mode development.** `vite dev` should run the app in a desktop browser with web fallbacks
-for the platform modules, which requires one extra thing: Blipfoto serves no CORS headers, so
-`vite.config.ts` needs a `server.proxy` entry for `api.blipfoto.com`. That is a dev-only convenience
-and must not have a production counterpart — on device, everything goes through native HTTP (§7).
-
-The one thing browser-mode genuinely can't do is sign in — there is no `bmobile://` redirect
-capture outside a native shell (§16). `VITE_DEV_TOKEN` (§18) closes that gap for local testing
-only: set it to a token obtained outside the app (e.g. Blipfoto's own app-admin pages) and
-`AppShell`'s launch effect verifies and applies it via `accountsFlow.ts`'s `devSignInWithToken`,
-the same account-creation path a real OAuth round uses — there is no second, divergent "dev
-account" shape. Unset by default, gitignored, no production counterpart.
-
----
+**Browser-mode development.** `vite dev` proxies `/api/blipfoto` to `https://api.blipfoto.com` (or
+`B_API_PROXY_TARGET`, e.g. `scripts/stub-api.mjs`); dev only. A desktop browser can't capture the
+OAuth redirect, so in development mode `AppShell` verifies and applies `VITE_DEV_TOKEN` via
+`accountsFlow.devSignInWithToken()`, the same account-creation path a real round uses.
 
 ## 20. Accessibility, responsiveness and performance
 
-These are `rules.md` requirements; what follows is only how they land in this stack.
-
-- **Accessibility.** Ionic components carry roles, labels and focus management; the work is on
-  app-specific components (thumbnail grids, the BBCode editor toolbar, map controls). Enforce
-  48×48dp minimum targets in `tokens.css` rather than per-component. **`rules.md` flags system font
-  scaling as an open risk for a WebView app, and it is a real one**: the WebView does not
-  automatically apply the Android font-scale setting to CSS. It must be read explicitly
-  (`window.devicePixelRatio` is not it — read the OS setting and set a root font-size multiplier),
-  and layouts must be built in relative units so a 200% scale reflows rather than clips. Test this
-  early; retrofitting it across 28 screens is far worse than building with it.
-- **Responsiveness.** One navigation model at every size, per `rules.md` — no two-pane tablet
-  layout. Grids derive column count from available width via CSS grid `auto-fill` with a minimum
-  track size; nothing is portrait-locked; state survives rotation because it lives in stores and
-  route params rather than in view controllers.
-- **Performance.** Request appropriately-sized thumbnails in feeds and full-size only on
-  `SCR-06`/`SCR-07` (`rules.md`); lazy-load off-screen images (`loading="lazy"` plus an
-  `IntersectionObserver` in `<CachedImage>`); virtualise only if a real device shows a problem —
-  the grids are image-bound, not DOM-bound. Route-level code splitting keeps first paint fast, with
-  MapLibre in particular loaded lazily since it is by far the largest dependency (~19MB unpacked,
-  much less shipped) and two screens use it.
-
----
-
-## 21. What this changes elsewhere
-
-Work these decisions create elsewhere. The `ImplementationSpec/` and `AppSpec/` items below **have
-now been applied**; the `b-oss` code items have not, and are the outstanding work.
-
-### Code, in `b-oss`
-
-1. **`b-api` — two seams, not one** (§7). `platform-and-reuse.md` records the transport seam; the
-   **multipart seam** is new and the more consequential of the two. Its signature must take a file
-   _reference_ rather than a `Blob`, or a native implementation cannot be expressed at all.
-2. **`b-view` — the backup/live split**, and **`b-view-backup`** as a new package (§2). Should land
-   _before_ the app starts consuming `b-view`.
-3. **`b-tokens` — a new package** for the shared token values and the written style guidance (§2).
-
-### `ImplementationSpec/` — **applied 2026-08-03**
-
-4. **`notification-service.md`** — polling rebuilt around counts only, the mis-scoped
-   comment-polling issue closed, hidden-member filtering explicitly _not_ a service responsibility,
-   and a prohibition list on the endpoints that clear on read. **Done.**
-5. **`platform-and-reuse.md`** — its "What this document does not cover" section is now covered
-   here; its multipart-spike preference order is superseded by §7; and its "deferred, not decided
-   now" note on a shared token package is superseded by §2. **Not applied** — the document reads
-   correctly as a decision record, and `ImplementationSpec/README.md` states the precedence.
-6. **`b-api-updates.md`** — two additions, both docs-vs-reality of the kind that file collects: the
-   published docs describe `[s]` as rendering `<strike>` where the platform emits `<s>` (§14), and
-   a notification row carries a `has_full_content` flag the client model omits. **Deferred with the
-   rest of `b-api`.**
-
-### `AppSpec/` — **applied 2026-08-03**
-
-7. **`rules.md`** — hiding's promise stands **unqualified** (the digest/opt-in design is moot), but
-   three things were added: notification-stream suppression is best-effort, hiding is keyed by
-   username and doesn't survive a rename, and the redundant explicit mark-read call is removed.
-8. **`FLW-16`** — tap targets degrade to inbox-level, the push payload is a count, hidden-member
-   suppression on push is recorded as an accepted limitation, and the follow-request routing
-   special case is captured.
-9. **`SCR-23` / `SCR-24`** — the two streams' very different shapes: no timestamps or per-item
-   unread on notifications, the best-effort href heuristic, bulk/promo messages arriving
-   indistinguishably, and `SCR-24`'s first-fetch-clears-everything trap.
-10. **`SCR-06`** — opening one's own entry with comments clears comment-unread. Previously
-    unrecorded, and it isn't only `SCR-24` that does this.
-11. **`data-model.md`** — the Notification entity asserted a type, a target and an actor. It has
-    none of them; corrected.
-12. **`endpoints.md`** — the two clear-on-read side effects stated precisely, the redundant
-    mark-read call removed, and a warning not to switch to the near-identical unread-totals
-    resource that reports the wrong count.
-13. **`SCR-11`** — its toolbar names _"bold, italic, link, quote"_. **`quote` is not a supported
-    tag**, and underline and strikethrough are missing; the real set is the five in §14.
-14. **`rules.md`, smaller items** — pin **minSdk 24** where it defers to "whatever floor the chosen
-    build framework imposes" (§17), and extend the no-remembered-blocked-state rule to cover
-    **reminders** as well as push (§12, Q6).
-
-### Root `README.md`
-
-12. The prerequisites section specifies `blipfoto-app://oauth` as the redirect and requires it be
-    kept distinct from a `blipfoto://` content scheme. §16 supersedes both. **This needs settling
-    before the app is registered with Blipfoto**, since the registration takes one redirect URI.
-
----
-
-## Decisions taken
-
-Every question this document raised has been answered, and the reasoning is kept here so it isn't
-lost. **Nothing is open.**
-
-### Closed
-
-|          | Question                                        | Answer                                                                                                                                                                                                                                                                                                                                          |
-| -------- | ----------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Q1**   | App package name                                | **`b-mobile`**. `b-app` was too generic; `b-droid` reads better but wrongly implies Android-only, which the cross-platform requirement in `rules.md` rules out. `b-push` confirmed for the service — deliberately named for the capability, not the app, so a second client can register with the same service rather than needing a second one |
-| **Q2**   | Android application ID                          | **`io.github.ianmstevenson.bmobile`** for now; revisit before a first Play submission, after which it is permanent (§17)                                                                                                                                                                                                                        |
-| **Q3.1** | Multipart via query-string params               | **Closed as a non-option.** The API does not accept entry fields from the query string on a multipart `POST`/`PUT`. The body is assembled by the app (§7). No spike time to be spent here                                                                                                                                                       |
-| **Q3.2** | OAuth fragment through a custom-scheme redirect | **Not a real unknown — standard, production-proven behaviour (§8).** Dropped from TODO H; the only remaining check is that `appUrlOpen` fires for this app's manifest wiring, done as ordinary first-pass dev on the deep-link handler, not a spike                                                                                             |
-| **Q4**   | Foreground service for uploads                  | **No for v1.** Ongoing local notification plus resume-on-launch; revisit only if real use shows uploads being killed (§9)                                                                                                                                                                                                                       |
-| **Q6**   | Reminders and the notification permission       | **Yes — identical treatment to push.** A refusal turns the reminder setting off; no third state (§12)                                                                                                                                                                                                                                           |
-| **Q7**   | Map tile provider                               | **MapTiler to start**, behind the adapter that makes it cheap to change (§13)                                                                                                                                                                                                                                                                   |
-| **Q8**   | BBCode tag set                                  | **Five tags**, now specified exactly in §14                                                                                                                                                                                                                                                                                                     |
-| **Q9**   | Reading the per-account link capability         | **Not possible — closed as an accepted API limitation.** No flag is exposed. The link button is always shown; links are ignored server-side for accounts below the anti-spam threshold, and the app does nothing about it (§14)                                                                                                                 |
-
-### Also closed — Q5
-
-<a id="q5"></a>
-**Q5 — Hidden members and push.** Closed 2026-08-03, and not by choosing between the options on the
-table. **Every** Blipfoto endpoint returning notification or comment content marks it read, so the
-service can poll counts only (§11) — which means it never
-obtains an actor for _any_ activity type, and there is nothing for any filtering mechanism to act
-on. The digest-and-consent design is moot; hiding's device-local promise stands unqualified; and
-`FLW-16` records suppression-on-push as an accepted platform limitation.
-
-The same analysis closed **TODO I item 2**, which framed this as a comments-only problem. It never
-was.
-
-**Nothing in this document is now open.** The remaining work is the `b-oss` code changes in §21 —
-`b-api`'s two seams, the `b-view` split, and `b-tokens` — none of which is a question.
-
----
-
-## Cross-references
-
-- [`platform-and-reuse.md`](platform-and-reuse.md) — the platform decision and reuse plan this
-  continues; §7 and §21 amend it.
-- [`notification-service.md`](notification-service.md) — the service contract §11 implements
-  against; §21 lists the one addition it needs.
-- [`b-api-updates.md`](b-api-updates.md) — separate from §7's seams: that file is about `b-api`'s
-  _docs_, this is about its _code_.
-- [`AppSpec/rules.md`](../AppSpec/rules.md) — the cross-cutting behaviour almost every section here
-  implements.
-- [`AppSpec/api-appendix/auth.md`](../AppSpec/api-appendix/auth.md) — the token model §6 and §8
-  realise.
-- [`AppSpec/01-information-architecture.md`](../AppSpec/01-information-architecture.md) — the screen
-  and flow inventory §5's route table maps.
-
-## Navigation model and screen-state resume (b-oss#182, #183, #190)
-
-The route table sits inside one catch-all `<Route path="/*">` in the `IonRouterOutlet`
-(`renderAppRoutes`, `app/routes/AppRoutes.tsx`), so Ionic sees one view item and **unmounts a
-screen when you navigate away** — there is no view stack. (Ionic 9's outlet needs `<Routes>`/`Route`
-as its direct children; exposing the real routes there would adopt a view stack, so don't.) Decision (b-oss#183
-deferred): keep that, and make Back feel right by remembering state instead.
-
-- **Back = history.** `IonBackButton` pops to where you came from; `backHref` is only the fallback
-  when there is no history (deep link, notification tap). Sign In (SCR-01) shows Back instead of the
-  menu button when an account already exists (it was drilled into from Accounts, b-oss#195).
-- **Entry pages never stack.** Swiping between entries uses `replace`, so Back returns to where the
-  journal was entered.
-- **Settings chains.** Accounts, Hidden members and each section go Back to Settings; Settings goes
-  back to wherever it was opened from — plain history does this.
-- **Resume cache** (`data/resumeCache.ts`): in-memory, 10-minute TTL, cleared per test. Keys are
-  per-account where the data is.
-
-| Screen | Remembered on return | Mechanism |
-|---|---|---|
-| Browse | tab, page, grid position | `usePagedResource` resumeKey + `ThumbnailGrid` top-left index |
-| Tag entries, Profile | tab, visited tabs, grid pages | same |
-| Search | scope, mode, query, results, scroll | `search:${scope}:ui` + per-tab keys, `useScrollResume` |
-| Map | camera centre + zoom | `map:view` |
-| Followers / Following | loaded window + page | `people:${acct}:${mode}:${username}` |
-| Entry | scroll position | `useScrollResume('entry:<id>')` |
-| Comments / Notifications inboxes, Pending / Refused, Awards, Settings, Accounts, Hidden members, Help | nothing — **refetch** (freshness beats position; opening the inboxes marks items read) | — |
-| Compose / Edit / Description / Location | own unsaved-changes guards | unchanged |
-
-## Image cache (b-oss#185, #186)
-
-`platform/imageCache.ts`: one download per URL (concurrent callers share the promise); bytes go to a
-temp file, are integrity-checked (`imageIntegrity.ts`: JPEG SOI…EOI, PNG IEND, GIF trailer, WebP
-RIFF length), then renamed into place. One retry, then an uncached fallback so the picture still
-shows. Failures log `[imgcache]` warnings (grep logcat). `invalidateImage` drops a bad entry.
-
-## Blipfoto API facts learned on-device
-
-- `journal/month` accepts `username`; the response is nested `{ month: { days } }` (b-oss#169).
-- `entries/journal` clamps `page_index` to 200; journal pages are 100 entries (b-oss#153).
-  `usePagedResource` detects the clamp (`wasClamped`).
-- `actions.comment === 0` means comments are off for that journal.
+- **Font scaling.** The WebView ignores Android's font scale and `devicePixelRatio` isn't it.
+  `platform/accessibility.ts#applyFontScale()` reads it via `AccessibilityPlugin` at launch and sets
+  the root font size; layouts use `rem`, so 200% reflows. No-op off native.
+- **Targets and labels.** Ionic components carry roles and focus handling; app-specific controls
+  need their own (48 px rows/targets in `globals.css`).
+- **Responsiveness.** One navigation model at every size; grids size columns from available width;
+  nothing is portrait-locked, and state in stores and route params survives rotation.
+- **Performance.** Thumbnails in grids, full size only on entry/photo screens; `CachedImage`
+  lazy-loads; MapLibre (the largest dependency) and react-easy-crop sit behind lazy routes; no list
+  virtualisation (grids are image-bound).
 
 ## Gotchas
 
@@ -1367,7 +515,7 @@ Things that are not obvious from the code and have caused real time loss.
 - Cross-package `.tsx` source imports: do not add a package-local `declare module '*.module.css'`
   to b-mobile unless it has its own CSS Modules. The root `types/globals.d.ts` already covers it.
 - Single-workspace test runs from inside a package directory (`cd packages/b-push && npx vitest
-  run`) break the root `vitest.config.ts` `setupFiles` path, which resolves against the shell's
+run`) break the root `vitest.config.ts` `setupFiles` path, which resolves against the shell's
   cwd. Run tests from the repo root (`npm test` or `npx vitest run <path>`).
 - A JSDoc block comment containing a literal `*/` closes early. Describe such patterns in words.
 - `@capacitor/assets` defaults the adaptive-icon/splash background to white. Pass
@@ -1377,7 +525,7 @@ Things that are not obvious from the code and have caused real time loss.
 - The manifest permission list in `android/` is deliberately redundant with what plugin manifests
   merge in, so the §17 table stays satisfied if a plugin changes.
 - No Android device or emulator is available on the dev VM. Compilation (`./gradlew
-  assembleDebug`), jsdom tests and a headless-browser pass (Playwright, see the `run-b-view`
+assembleDebug`), jsdom tests and a headless-browser pass (Playwright, see the `run-b-view`
   skill) do not verify on-device behaviour. Do not claim device behaviour is verified from them;
   see `docs/UNTESTED_PATHS.md`.
 
@@ -1414,26 +562,30 @@ Things that are not obvious from the code and have caused real time loss.
   dev `VITE_DEV_TOKEN` seed) is async, and an unset `activeAccountId` looks identical to signed
   out. `getClient()` already awaits it; code that reads the store directly must too.
 - Existing `b-api` methods and types are not necessarily complete just because a name matches.
-  Check what a method returns before building on it (`verifyToken()` does not return `scope`;
-  `BlipComment` has no `unread` field; the notification-settings update takes flat, un-namespaced
-  keys). Defensive code with no caller yet usually points at a gap still to come.
+  Check what a method actually returns and sends before building on it (the notification-settings
+  update takes flat, un-namespaced keys; `BlipComment.unread` exists only on the comments-inbox
+  response). Defensive code with no caller yet usually points at a gap still to come.
 - `user/awards.json` returns the full award catalogue, not only earned awards; unearned ones have
   `added_stamp: null`. Award names come from a slug table in `AwardsScreen.tsx`; no endpoint
   returns them. `awardLabel()` shows "Secret" from each award's `secret` flag.
-- Screens SCR-07/08/15/16 refetch via `useLiveEntry`/router state rather than depending on a
-  prior screen's in-memory data, for deep-link resilience. SCR-10–13 (compose) deliberately share
-  `composeDraftStore`.
-- `devicePrefsStore.uploadFullSize` has no consumer yet (no client-side downscaling exists), so
-  the Settings checkbox is disabled. Tracked in b-oss#334.
+- `SCR-06`/`07`/`08` refetch via `useLiveEntry` and `SCR-16` takes its context from router state,
+  rather than depending on a prior screen's in-memory data, for deep-link resilience. Compose and
+  edit (`SCR-10`–`13`) deliberately share `composeDraftStore`.
+- `devicePrefsStore.uploadFullSize` has no consumer (no client-side downscaling exists) and no
+  Settings control. Tracked in b-oss#334.
 
 **Native (Android)**
 
 - `CapacitorHttp` on Android ignores `responseType: 'text'` when the response `Content-Type` is
   `application/json` and returns an already-parsed object. `platformFetch` re-stringifies when
   the result is not a string; do not assume `responseType` is honoured on native.
+- `platformFetch` must build a `Response` with a `null` body for 101/103/204/205/304: the
+  constructor throws on any body for those, and b-push answers PATCH/DELETE with 204 (b-oss#148).
 - `@capacitor/app`'s `appUrlOpen`/`getLaunchUrl()` only see VIEW-action launch URLs, never an
   `ACTION_SEND` share intent's binary extras. Share-target work needs native code reading
   `Activity.getIntent()`; `ShareIntentPlugin.java` is the precedent.
+- `PushNotifications.register()` on a build without `google-services.json` kills the process
+  natively; always gate on `isPushAvailable()`.
 - `IonHeader`/`IonToolbar` add safe-area padding automatically; nothing else does. Areas with no
   header above (e.g. `IonMenu` content) or no footer below scrollable content need explicit
   safe-area padding. Check live device insets rather than reusing fixed numbers.
