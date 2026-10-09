@@ -3,6 +3,7 @@
 
 import { describe, expect, it } from 'vitest';
 import {
+  FLUSH_RESERVE,
   RequestBudget,
   RUN_REQUEST_BUDGET,
   SUBREQUEST_LIMIT,
@@ -21,19 +22,13 @@ describe('RequestBudget', () => {
     expect(budget.remaining).toBe(6);
   });
 
-  it('allows a registration only while a worst-case one still fits, with the pending flush', () => {
-    const need = WORST_CASE_REGISTRATION_COST + 1; // nothing pending: just the row's own possible write
+  it('allows a registration only while a worst-case one, plus the final flush, still fits', () => {
+    const need = WORST_CASE_REGISTRATION_COST + FLUSH_RESERVE;
     const budget = new RequestBudget(need + 1);
-    expect(budget.canStartRegistration(0)).toBe(true);
+    expect(budget.canStartRegistration()).toBe(true);
     budget.spend(1);
-    expect(budget.canStartRegistration(0)).toBe(true);
+    expect(budget.canStartRegistration()).toBe(true);
     budget.spend(1);
-    expect(budget.canStartRegistration(0)).toBe(false);
-  });
-
-  it('reserves one query per queued quiet poll', () => {
-    const budget = new RequestBudget(WORST_CASE_REGISTRATION_COST + 4);
-    expect(budget.canStartRegistration(3)).toBe(true);
-    expect(budget.canStartRegistration(4)).toBe(false);
+    expect(budget.canStartRegistration()).toBe(false);
   });
 });

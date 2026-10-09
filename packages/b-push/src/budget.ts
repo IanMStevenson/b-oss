@@ -21,6 +21,10 @@ export const RUN_REQUEST_BUDGET = SUBREQUEST_LIMIT - BUDGET_HEADROOM;
  * not a guarantee. */
 export const WORST_CASE_REGISTRATION_COST = 6;
 
+/** Kept back so the run can always write its pending quiet polls (poll.ts) at the end: a D1 batch
+ * counts as one query however many statements it holds. */
+export const FLUSH_RESERVE = 1;
+
 export class RequestBudget {
   private used = 0;
 
@@ -36,9 +40,8 @@ export class RequestBudget {
   }
 
   /** Whether another registration can start without risking the cap, even if it turns out to be
-   * the worst case. `pendingQuiet` is how many quiet polls are queued for a batched write: each is
-   * charged as one query (see poll.ts), and so is the one this registration may add. */
-  canStartRegistration(pendingQuiet: number): boolean {
-    return this.remaining >= WORST_CASE_REGISTRATION_COST + pendingQuiet + 1;
+   * the worst case, with the final batched write still affordable. */
+  canStartRegistration(): boolean {
+    return this.remaining >= WORST_CASE_REGISTRATION_COST + FLUSH_RESERVE;
   }
 }

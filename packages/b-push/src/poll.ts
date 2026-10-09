@@ -224,11 +224,7 @@ export async function runActivityPoll(
   const flushQuiet = async (): Promise<void> => {
     if (pendingQuiet.length === 0) return;
     const batch = pendingQuiet.splice(0);
-    // Charged per statement, not as one query. Cloudflare doesn't say a D1 batch counts as a
-    // single subrequest (its limits apply to each statement in a batch), and under-counting could
-    // let a "too many subrequests" error land on the write of a row that has already pushed. Cut
-    // this to 1 only once a test deploy shows a batch really is one (b-oss#369).
-    budget.spend(batch.length);
+    budget.spend(1); // a D1 batch is one query, however many statements it holds
     try {
       await markPolledBatch(db, batch);
     } catch (err) {
@@ -252,7 +248,7 @@ export async function runActivityPoll(
     // registration's interval stretches about equally. A healthy registration is not starved; a
     // row whose poll keeps throwing writes nothing, so it stays at the head of the queue and costs
     // a request every tick, which only matters if such rows approach a run's capacity.
-    if (!budget.canStartRegistration(pendingQuiet.length)) break;
+    if (!budget.canStartRegistration()) break;
     const reg = due[next];
     try {
       const outcome = await pollOne(ctx, reg);

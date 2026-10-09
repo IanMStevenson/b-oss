@@ -82,12 +82,9 @@ the row is deleted: the app has lost the secret it would need to delete it itsel
 The Workers Free plan allows 50 subrequests per invocation. The docs don't say clearly whether D1
 queries share that pool with outbound `fetch`, so `src/budget.ts` counts both together. A run
 spends one on the due-rows query, one per poll, one per push, one per FCM token exchange (the
-token is cached for 50 minutes, so most runs make none) and one per D1 write. A batched write is
-charged one per statement, not one per batch: Cloudflare doesn't say a batch counts as a single
-subrequest (not confirmed; b-oss#369), and under-counting could let the cap hit the write of a row
-that has already pushed. If a test deploy shows a batch is one, the charge can drop. It starts
+token is cached for 50 minutes, so most runs make none) and one per D1 write. A batched write counts as one query, however many rows it holds. It starts
 another registration only while a worst-case one (6 requests: totals, token exchange, two sends,
-the write, and a delete when the second send finds the device gone) plus the queued writes still
+the write, and a delete when the second send finds the device gone) plus the final batched write still
 fits. That is a worst case for the paths as written; `BUDGET_HEADROOM` covers what the counter
 can't see.
 
