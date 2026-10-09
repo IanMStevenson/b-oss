@@ -82,19 +82,28 @@ the row is deleted: the app has lost the secret it would need to delete it itsel
 The Workers Free plan allows 50 subrequests per invocation. The docs don't say clearly whether D1
 queries share that pool with outbound `fetch`, so `src/budget.ts` counts both together. A run
 spends one on the due-rows query, one per poll, one per push, one per FCM token exchange (the
-token is cached for 50 minutes, so most runs make none) and one per D1 write. It starts another
-registration only while a worst-case one (5 requests) plus the final write still fits.
+token is cached for 50 minutes, so most runs make none) and one per D1 write. A batched write is
+charged one per statement, not one per batch: Cloudflare doesn't say a batch counts as a single
+subrequest (not confirmed; b-oss#369), and under-counting could let the cap hit the write of a row
+that has already pushed. If a test deploy shows a batch is one, the charge can drop. It starts
+another registration only while a worst-case one (6 requests: totals, token exchange, two sends,
+the write, and a delete when the second send finds the device gone) plus the queued writes still
+fits. That is a worst case for the paths as written; `BUDGET_HEADROOM` covers what the counter
+can't see.
 
 State is written in two tiers (`src/poll.ts`):
 
 - A registration that **pushed** (or tried to) is written immediately. If a later failure ended
   the run before a batched write, the next tick would send that push again, every minute for as
-  long as the run kept dying.
+  long as the run kept dying. A duplicate is still possible if that immediate write itself fails,
+  or the isolate dies between the FCM response and the write.
 - **Quiet** polls are queued and written with one D1 batch per `MARK_POLLED_CHUNK` rows and once
   at the end. A lost batch only means those rows are polled again.
 
 Rows are taken oldest-first, so over capacity every registration's interval stretches about
-equally and none is starved. The leftover count is `deferred` in the poll log line, with
+equally and no healthy registration is starved. A row whose poll keeps throwing writes nothing, so
+it stays at the head of the queue and costs a request every tick; that only matters if such rows
+approach a run's capacity. The leftover count is `deferred` in the poll log line, with
 `maxWaitMin` for the longest-waiting one.
 
 ### What the push can and cannot say

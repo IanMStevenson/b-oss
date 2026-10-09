@@ -415,23 +415,34 @@ describe('runActivityPoll', () => {
       }
     });
 
+    it('charges a batched write once per statement, not once per batch', async () => {
+      for (let i = 0; i < 4; i++) await seedRow({ id: `reg-${i}` });
+      mockUnreadTotals(0, 0);
+      const budget = new RequestBudget(50);
+      await runActivityPoll(db, env, () => 1_000_000, budget);
+      expect(budget.remaining).toBe(50 - 1 - 4 - 4); // due query, 4 polls, 4 statements written
+    });
+
     it('stops starting registrations when the budget is spent, oldest-first, and reports it', async () => {
       for (let i = 0; i < 10; i++) await seedRow({ id: `reg-${i}`, last_polled_at: i * 1000 });
       mockUnreadTotals(0, 0);
       const now = 3_605_000;
 
-      // 1 (due list) + 5 polls + 1 (batched write) leaves too little for a worst-case registration.
-      const summary = await runActivityPoll(db, env, () => now, new RequestBudget(12));
+      // After the due query 11 remain. Each quiet poll costs 1 now and 1 more when its batch is
+      // written, and a worst-case registration (6) must still fit: three rows start, a fourth cannot.
+      const budget = new RequestBudget(12);
+      const summary = await runActivityPoll(db, env, () => now, budget);
 
-      expect(summary).toMatchObject({ due: 10, polled: 5, deferred: 5, errors: 0 });
-      // reg-5 is the oldest left waiting: (3_605_000 - 5_000) ms = 60 minutes.
+      expect(summary).toMatchObject({ due: 10, polled: 3, deferred: 7, errors: 0 });
+      // reg-3 is the oldest left waiting: (3_605_000 - 3_000) ms = 60 minutes.
       expect(summary.maxWaitMin).toBe(60);
-      expect((await getRegistrationById(db, 'reg-4'))?.last_polled_at).toBe(now);
-      expect((await getRegistrationById(db, 'reg-5'))?.last_polled_at).toBe(5000);
+      expect(budget.remaining).toBe(12 - 1 - 3 - 3); // due query, 3 polls, 3 batched writes
+      expect((await getRegistrationById(db, 'reg-2'))?.last_polled_at).toBe(now);
+      expect((await getRegistrationById(db, 'reg-3'))?.last_polled_at).toBe(3000);
 
       // The deferred rows are the ones due next tick, and nothing was lost.
       const next = await runActivityPoll(db, env, () => now + 60_000);
-      expect(next).toMatchObject({ due: 5, polled: 5, deferred: 0, maxWaitMin: null });
+      expect(next).toMatchObject({ due: 7, polled: 7, deferred: 0, maxWaitMin: null });
     });
 
     it('never re-sends a push after a run loses its batched writes', async () => {
