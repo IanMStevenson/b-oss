@@ -59,6 +59,18 @@ export class TestDb implements DbLike {
     return new FakeStatement(this.raw.prepare(query));
   }
 
+  async batch(statements: D1PreparedStatementLike[]): Promise<unknown> {
+    this.raw.exec('BEGIN');
+    try {
+      for (const stmt of statements) await stmt.run();
+      this.raw.exec('COMMIT');
+    } catch (err) {
+      this.raw.exec('ROLLBACK');
+      throw err;
+    }
+    return [];
+  }
+
   close(): void {
     this.raw.close();
   }

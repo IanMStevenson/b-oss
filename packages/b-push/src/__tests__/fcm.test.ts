@@ -7,9 +7,10 @@
 // file so the JWT signing step itself is exercised for real (crypto.subtle.sign against a real
 // PKCS8 key), not mocked away — only the two HTTP calls are faked.
 
-import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { generateKeyPairSync } from 'node:crypto';
-import { DeviceUnregisteredError, sendFcmMessage } from '../fcm.js';
+import { DeviceUnregisteredError, resetFcmTokenCache, sendFcmMessage } from '../fcm.js';
+import { RequestBudget } from '../budget.js';
 import type { Env } from '../types.js';
 
 let privateKeyPem: string;
@@ -35,6 +36,10 @@ function testEnv(): Env {
     }),
   };
 }
+
+beforeEach(() => {
+  resetFcmTokenCache();
+});
 
 afterEach(() => {
   vi.restoreAllMocks();
@@ -95,7 +100,6 @@ describe('sendFcmMessage', () => {
     mockFetchSequence(
       new Response(JSON.stringify({ access_token: 't' }), { status: 200 }),
       new Response(JSON.stringify({}), { status: 200 }),
-      new Response(JSON.stringify({ access_token: 't' }), { status: 200 }),
       new Response(JSON.stringify({}), { status: 200 }),
     );
     const fetchSpy = vi.mocked(globalThis.fetch);
@@ -113,7 +117,7 @@ describe('sendFcmMessage', () => {
 
     type SentBody = { message: { android: { notification: { channel_id: string } } } };
     const activityBody = JSON.parse(fetchSpy.mock.calls[1][1]!.body as string) as SentBody;
-    const reauthBody = JSON.parse(fetchSpy.mock.calls[3][1]!.body as string) as SentBody;
+    const reauthBody = JSON.parse(fetchSpy.mock.calls[2][1]!.body as string) as SentBody;
     expect(activityBody.message.android.notification.channel_id).toBe('activity');
     expect(reauthBody.message.android.notification.channel_id).toBe('system_alerts');
   });
@@ -211,5 +215,57 @@ describe('sendFcmMessage', () => {
     const err: unknown = await sendFcmMessage(testEnv(), 'x', activity).catch((e: unknown) => e);
     expect(err).not.toBeInstanceOf(DeviceUnregisteredError);
     expect(String(err)).toMatch(/FCM send failed: 400/);
+  });
+
+  describe('access token cache', () => {
+    const tokenResponse = (t: string) =>
+      new Response(JSON.stringify({ access_token: t }), { status: 200 });
+    const sendOk = () => new Response('{}', { status: 200 });
+
+    it('exchanges once and reuses the token for later sends', async () => {
+      mockFetchSequence(tokenResponse('t1'), sendOk(), sendOk(), sendOk());
+      const fetchSpy = vi.mocked(globalThis.fetch);
+      for (let i = 0; i < 3; i++) await sendFcmMessage(testEnv(), `d${i}`, activity);
+
+      expect(fetchSpy).toHaveBeenCalledTimes(4);
+      const urls = fetchSpy.mock.calls.map((c) => c[0] as string);
+      expect(urls.filter((u) => u.includes('oauth2.googleapis.com'))).toHaveLength(1);
+      const sendInit = fetchSpy.mock.calls[3][1] as RequestInit;
+      expect((sendInit.headers as Record<string, string>).Authorization).toBe('Bearer t1');
+    });
+
+    it('exchanges again once the cached token is due to expire', async () => {
+      mockFetchSequence(tokenResponse('t1'), sendOk(), tokenResponse('t2'), sendOk());
+      const now = vi.spyOn(Date, 'now').mockReturnValue(1_000_000);
+      await sendFcmMessage(testEnv(), 'd', activity);
+      now.mockReturnValue(1_000_000 + 51 * 60_000);
+      await sendFcmMessage(testEnv(), 'd', activity);
+
+      const fetchSpy = vi.mocked(globalThis.fetch);
+      expect(fetchSpy).toHaveBeenCalledTimes(4);
+      const sendInit = fetchSpy.mock.calls[3][1] as RequestInit;
+      expect((sendInit.headers as Record<string, string>).Authorization).toBe('Bearer t2');
+    });
+
+    it('drops the cached token when FCM refuses it, so the next send exchanges afresh', async () => {
+      mockFetchSequence(
+        tokenResponse('t1'),
+        new Response('unauthenticated', { status: 401 }),
+        tokenResponse('t2'),
+        sendOk(),
+      );
+      await expect(sendFcmMessage(testEnv(), 'd', activity)).rejects.toThrow(/401/);
+      await sendFcmMessage(testEnv(), 'd', activity);
+      expect(vi.mocked(globalThis.fetch)).toHaveBeenCalledTimes(4);
+    });
+
+    it('spends budget only for requests actually made', async () => {
+      mockFetchSequence(tokenResponse('t1'), sendOk(), sendOk());
+      const budget = new RequestBudget(10);
+      await sendFcmMessage(testEnv(), 'd', activity, budget);
+      expect(budget.remaining).toBe(8); // exchange + send
+      await sendFcmMessage(testEnv(), 'd', activity, budget);
+      expect(budget.remaining).toBe(7); // send only
+    });
   });
 });

@@ -8,15 +8,34 @@
 // reauth-required") — an auth failure marks the row dead and sends exactly one distinct push.
 
 import type { DbLike } from './db.js';
-import { deleteRegistration, listDueRegistrations, markPolled, markReauthRequired } from './db.js';
+import {
+  deleteRegistration,
+  listDueRegistrations,
+  markPolled,
+  markPolledBatch,
+  markReauthRequired,
+  type PolledState,
+} from './db.js';
+import { RequestBudget } from './budget.js';
 import { decryptReadToken, importEncryptionKey } from './crypto.js';
 import { fetchUnreadTotals, ReadTokenInvalidError } from './blipfoto.js';
 import { DeviceUnregisteredError, sendFcmMessage } from './fcm.js';
 import { describeError } from './log.js';
 import type { Env, RegistrationRow } from './types.js';
 
+/** Quiet polls (no push attempted) written per D1 batch. Re-polling a quiet row is harmless, so a
+ * lost batch only wastes budget; a smaller number loses less per failure, a larger one spends
+ * fewer queries. Tune from the `activity poll` log lines. */
+export const MARK_POLLED_CHUNK = 5;
+
 export interface PollSummary {
+  /** Due registrations read this tick (capped at DUE_FETCH_LIMIT). */
   due: number;
+  /** Due registrations left for a later tick because the request budget ran out. A lower bound
+   * once `due` reaches DUE_FETCH_LIMIT. Anything above 0 means the service is at capacity. */
+  deferred: number;
+  /** Minutes since the longest-waiting deferred registration was last polled; null if none. */
+  maxWaitMin: number | null;
   polled: number;
   pushed: number;
   reauthRequired: number;
@@ -25,25 +44,38 @@ export interface PollSummary {
   errors: number;
 }
 
+interface PollContext {
+  db: DbLike;
+  env: Env;
+  encryptionKey: CryptoKey;
+  budget: RequestBudget;
+  nowMs: number;
+  /** Queue a quiet poll's state for the next batched write. */
+  queueQuiet: (state: PolledState) => void;
+}
+
 interface PollOneOutcome {
   kind: 'reauth' | 'polled';
   pushed: number;
 }
 
 /** Marks the row dead and sends the one distinct reauth-required push. */
-async function reauthRequired(
-  db: DbLike,
-  env: Env,
-  reg: RegistrationRow,
-  nowMs: number,
-): Promise<void> {
+async function reauthRequired(ctx: PollContext, reg: RegistrationRow): Promise<void> {
+  const { db, env, budget, nowMs } = ctx;
+  budget.spend(1);
   await markReauthRequired(db, reg.id, nowMs);
-  await sendFcmMessage(env, reg.device_token, {
-    kind: 'reauth-required',
-    accountId: reg.blipfoto_user_id,
-  }).catch(async (sendErr: unknown) => {
+  await sendFcmMessage(
+    env,
+    reg.device_token,
+    {
+      kind: 'reauth-required',
+      accountId: reg.blipfoto_user_id,
+    },
+    budget,
+  ).catch(async (sendErr: unknown) => {
     // The device is gone, so nobody can act on the reauth push: drop the row and its token.
     if (sendErr instanceof DeviceUnregisteredError) {
+      budget.spend(1);
       await deleteRegistration(db, reg.id);
       console.log(`[b-push] removed ${reg.id}: device unregistered`);
       return;
@@ -55,13 +87,8 @@ async function reauthRequired(
   });
 }
 
-async function pollOne(
-  db: DbLike,
-  env: Env,
-  encryptionKey: CryptoKey,
-  reg: RegistrationRow,
-  nowMs: number,
-): Promise<PollOneOutcome> {
+async function pollOne(ctx: PollContext, reg: RegistrationRow): Promise<PollOneOutcome> {
+  const { db, env, encryptionKey, budget, nowMs } = ctx;
   let readToken;
   try {
     readToken = await decryptReadToken(
@@ -73,11 +100,12 @@ async function pollOne(
     // a rejected token. Marking it reauth-required stops the every-minute retry, and the user's
     // "Sign in again" PATCHes a fresh token encrypted under the current key (b-oss#252).
     console.error(`[b-push] cannot decrypt read token for ${reg.id}: ${describeError(err)}`);
-    await reauthRequired(db, env, reg, nowMs);
+    await reauthRequired(ctx, reg);
     return { kind: 'reauth', pushed: 0 };
   }
 
   let totals;
+  budget.spend(1);
   try {
     totals = await fetchUnreadTotals(readToken);
   } catch (err) {
@@ -85,7 +113,7 @@ async function pollOne(
     // and lands in runActivityPoll's catch as an ordinary error, leaving the row active
     // (b-oss#238; see isBearerUnrecognised in blipfoto.ts for why).
     if (err instanceof ReadTokenInvalidError) {
-      await reauthRequired(db, env, reg, nowMs);
+      await reauthRequired(ctx, reg);
       return { kind: 'reauth', pushed: 0 };
     }
     throw err;
@@ -105,14 +133,21 @@ async function pollOne(
   let notificationsSeen = totals.notifications;
   let sendError: Error | null = null;
   let pushed = 0;
+  let pushAttempted = false;
   if (reg.push_comments && commentsDelta > 0) {
     try {
-      await sendFcmMessage(env, reg.device_token, {
-        kind: 'activity',
-        stream: 'comments',
-        accountId: reg.blipfoto_user_id,
-        count: commentsDelta,
-      });
+      pushAttempted = true;
+      await sendFcmMessage(
+        env,
+        reg.device_token,
+        {
+          kind: 'activity',
+          stream: 'comments',
+          accountId: reg.blipfoto_user_id,
+          count: commentsDelta,
+        },
+        budget,
+      );
       pushed++;
     } catch (err) {
       sendError = err instanceof Error ? err : new Error(String(err));
@@ -122,12 +157,18 @@ async function pollOne(
   if (reg.push_notifications && notificationsDelta > 0) {
     if (sendError === null) {
       try {
-        await sendFcmMessage(env, reg.device_token, {
-          kind: 'activity',
-          stream: 'notifications',
-          accountId: reg.blipfoto_user_id,
-          count: notificationsDelta,
-        });
+        pushAttempted = true;
+        await sendFcmMessage(
+          env,
+          reg.device_token,
+          {
+            kind: 'activity',
+            stream: 'notifications',
+            accountId: reg.blipfoto_user_id,
+            count: notificationsDelta,
+          },
+          budget,
+        );
         pushed++;
       } catch (err) {
         sendError = err instanceof Error ? err : new Error(String(err));
@@ -138,7 +179,20 @@ async function pollOne(
     }
   }
 
-  await markPolled(db, reg.id, nowMs, commentsSeen, notificationsSeen);
+  if (pushAttempted) {
+    // Written on its own, straight away: if the run died before a batched write, the next tick
+    // would send this push again, and again every minute for as long as the run kept dying.
+    budget.spend(1);
+    await markPolled(db, reg.id, nowMs, commentsSeen, notificationsSeen);
+  } else {
+    // Nothing was sent, so losing this write only means polling the row again.
+    ctx.queueQuiet({
+      id: reg.id,
+      polledAt: nowMs,
+      commentsTotal: commentsSeen,
+      notificationsTotal: notificationsSeen,
+    });
+  }
   if (sendError !== null) throw sendError;
 
   return { kind: 'polled', pushed };
@@ -148,13 +202,17 @@ export async function runActivityPoll(
   db: DbLike,
   env: Env,
   now: () => number = Date.now,
+  budget: RequestBudget = new RequestBudget(),
 ): Promise<PollSummary> {
   const nowMs = now();
+  budget.spend(1);
   const due = await listDueRegistrations(db, nowMs);
   const encryptionKey = await importEncryptionKey(env.READ_TOKEN_ENCRYPTION_KEY);
 
   const summary: PollSummary = {
     due: due.length,
+    deferred: 0,
+    maxWaitMin: null,
     polled: 0,
     pushed: 0,
     reauthRequired: 0,
@@ -162,9 +220,36 @@ export async function runActivityPoll(
     errors: 0,
   };
 
-  for (const reg of due) {
+  const pendingQuiet: PolledState[] = [];
+  const flushQuiet = async (): Promise<void> => {
+    if (pendingQuiet.length === 0) return;
+    const batch = pendingQuiet.splice(0);
+    budget.spend(1);
     try {
-      const outcome = await pollOne(db, env, encryptionKey, reg, nowMs);
+      await markPolledBatch(db, batch);
+    } catch (err) {
+      console.error(`[b-push] could not store ${batch.length} polls: ${describeError(err)}`);
+      summary.errors++;
+    }
+  };
+
+  const ctx: PollContext = {
+    db,
+    env,
+    encryptionKey,
+    budget,
+    nowMs,
+    queueQuiet: (state) => pendingQuiet.push(state),
+  };
+
+  let next = 0;
+  for (; next < due.length; next++) {
+    // Oldest-first, so stopping here defers the most recently polled rows, and over capacity every
+    // registration's interval stretches about equally. Nobody is starved.
+    if (!budget.canStartRegistration()) break;
+    const reg = due[next];
+    try {
+      const outcome = await pollOne(ctx, reg);
       if (outcome.kind === 'reauth') summary.reauthRequired++;
       else summary.polled++;
       summary.pushed += outcome.pushed;
@@ -172,6 +257,7 @@ export async function runActivityPoll(
       if (err instanceof DeviceUnregisteredError) {
         // Uninstalled, data cleared or phone replaced: the app lost the secret it would need to
         // DELETE this itself, so remove it here rather than poll with its read token forever.
+        budget.spend(1);
         await deleteRegistration(db, reg.id);
         console.log(`[b-push] removed ${reg.id}: device unregistered`);
         summary.removed++;
@@ -182,6 +268,16 @@ export async function runActivityPoll(
       // are handled inside pollOne) must not abort the rest of the tick's batch.
       summary.errors++;
     }
+    if (pendingQuiet.length >= MARK_POLLED_CHUNK) await flushQuiet();
+  }
+  await flushQuiet();
+
+  summary.deferred = due.length - next;
+  if (summary.deferred > 0) {
+    const oldest = due[next];
+    summary.maxWaitMin = Math.round(
+      (nowMs - (oldest.last_polled_at ?? oldest.created_at)) / 60_000,
+    );
   }
 
   return summary;
