@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (C) 2026 Ian Stevenson
 
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createTestDb, type TestDb } from './testDb.js';
 import {
   insertRegistration,
@@ -14,7 +14,8 @@ import {
   markReauthRequired,
   updateStreamToggles,
   listDueRegistrations,
-  POLL_BATCH_LIMIT,
+  DUE_FETCH_LIMIT,
+  markPolledBatch,
 } from '../db.js';
 import type { RegistrationRow } from '../types.js';
 
@@ -185,12 +186,41 @@ describe('listDueRegistrations', () => {
     expect(due.map((r) => r.id)).toEqual(['never', 'oldest', 'middle', 'recent']);
   });
 
-  it('caps the batch at the limit, defaulting to POLL_BATCH_LIMIT', async () => {
-    for (let i = 0; i < POLL_BATCH_LIMIT + 3; i++) {
+  it('caps the batch at the limit, defaulting to DUE_FETCH_LIMIT', async () => {
+    for (let i = 0; i < DUE_FETCH_LIMIT + 3; i++) {
       await insertRegistration(db, row({ id: `reg-${i}`, last_polled_at: i }));
     }
-    expect(await listDueRegistrations(db, 10_000_000)).toHaveLength(POLL_BATCH_LIMIT);
+    expect(await listDueRegistrations(db, 10_000_000)).toHaveLength(DUE_FETCH_LIMIT);
     const two = await listDueRegistrations(db, 10_000_000, 2);
     expect(two.map((r) => r.id)).toEqual(['reg-0', 'reg-1']);
+  });
+});
+
+describe('markPolledBatch', () => {
+  it("stores each row's state in one batch", async () => {
+    await insertRegistration(db, row({ id: 'a' }));
+    await insertRegistration(db, row({ id: 'b' }));
+    const batch = vi.spyOn(db, 'batch');
+    await markPolledBatch(db, [
+      { id: 'a', polledAt: 10, commentsTotal: 1, notificationsTotal: 2 },
+      { id: 'b', polledAt: 20, commentsTotal: 3, notificationsTotal: 4 },
+    ]);
+    expect(batch).toHaveBeenCalledTimes(1);
+    expect(await getRegistrationById(db, 'a')).toMatchObject({
+      last_polled_at: 10,
+      last_seen_comments_total: 1,
+      last_seen_notifications_total: 2,
+    });
+    expect(await getRegistrationById(db, 'b')).toMatchObject({
+      last_polled_at: 20,
+      last_seen_comments_total: 3,
+      last_seen_notifications_total: 4,
+    });
+  });
+
+  it('does not touch the database for an empty batch', async () => {
+    const batch = vi.spyOn(db, 'batch');
+    await markPolledBatch(db, []);
+    expect(batch).not.toHaveBeenCalled();
   });
 });

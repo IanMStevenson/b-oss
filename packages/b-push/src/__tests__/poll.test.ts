@@ -8,14 +8,16 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createTestDb, type TestDb } from './testDb.js';
 import { insertRegistration, getRegistrationById } from '../db.js';
-import { runActivityPoll } from '../poll.js';
+import { MARK_POLLED_CHUNK, runActivityPoll } from '../poll.js';
+import { RequestBudget } from '../budget.js';
 import { DeviceUnregisteredError } from '../fcm.js';
 import type { Env, RegistrationRow } from '../types.js';
 
 const sendFcmMessage = vi.fn<(...args: unknown[]) => Promise<void>>().mockResolvedValue(undefined);
 vi.mock('../fcm.js', async () => ({
   ...(await vi.importActual<typeof import('../fcm.js')>('../fcm.js')),
-  sendFcmMessage: (...args: unknown[]) => sendFcmMessage(...args),
+  // The request budget (4th argument) is fcm.test.ts's concern, not these tests'.
+  sendFcmMessage: (...args: unknown[]) => sendFcmMessage(...args.slice(0, 3)),
 }));
 
 function testKeyBase64(): string {
@@ -62,10 +64,13 @@ async function seedRow(overrides: Partial<RegistrationRow> = {}): Promise<void> 
 }
 
 function mockUnreadTotals(comments: number, notifications: number): void {
-  vi.spyOn(globalThis, 'fetch').mockResolvedValue(
-    new Response(JSON.stringify({ data: { comments, notifications }, error: null }), {
-      status: 200,
-    }),
+  // A fresh Response per call: a body can only be read once, and some tests poll several rows.
+  vi.spyOn(globalThis, 'fetch').mockImplementation(() =>
+    Promise.resolve(
+      new Response(JSON.stringify({ data: { comments, notifications }, error: null }), {
+        status: 200,
+      }),
+    ),
   );
 }
 
@@ -93,6 +98,8 @@ describe('runActivityPoll', () => {
     const summary = await runActivityPoll(db, env, () => 1_000_000);
     expect(summary).toEqual({
       due: 0,
+      deferred: 0,
+      maxWaitMin: null,
       polled: 0,
       pushed: 0,
       reauthRequired: 0,
@@ -390,6 +397,75 @@ describe('runActivityPoll', () => {
     expect(await getRegistrationById(db, 'reg-1')).toMatchObject({
       last_seen_comments_total: 0,
       last_seen_notifications_total: 5,
+    });
+  });
+
+  describe('capacity', () => {
+    it('writes quiet polls in batches, not one query per row', async () => {
+      for (let i = 0; i < MARK_POLLED_CHUNK + 2; i++) await seedRow({ id: `reg-${i}` });
+      mockUnreadTotals(0, 0);
+      const batch = vi.spyOn(db, 'batch');
+
+      const summary = await runActivityPoll(db, env, () => 1_000_000);
+
+      expect(summary).toMatchObject({ polled: MARK_POLLED_CHUNK + 2, deferred: 0, errors: 0 });
+      expect(batch).toHaveBeenCalledTimes(2); // a full chunk, then the remainder at the end
+      for (let i = 0; i < MARK_POLLED_CHUNK + 2; i++) {
+        expect((await getRegistrationById(db, `reg-${i}`))?.last_polled_at).toBe(1_000_000);
+      }
+    });
+
+    it('charges a batched write as one query, however many rows it holds', async () => {
+      for (let i = 0; i < 4; i++) await seedRow({ id: `reg-${i}` });
+      mockUnreadTotals(0, 0);
+      const budget = new RequestBudget(50);
+      await runActivityPoll(db, env, () => 1_000_000, budget);
+      expect(budget.remaining).toBe(50 - 1 - 4 - 1); // due query, 4 polls, one batch
+    });
+
+    it('stops starting registrations when the budget is spent, oldest-first, and reports it', async () => {
+      for (let i = 0; i < 10; i++) await seedRow({ id: `reg-${i}`, last_polled_at: i * 1000 });
+      mockUnreadTotals(0, 0);
+      const now = 3_605_000;
+
+      // After the due query 11 remain. A worst-case registration (6) plus the final flush (1) must
+      // fit, and each quiet poll costs 1: five rows start (remaining 11..7), a sixth cannot.
+      const budget = new RequestBudget(12);
+      const summary = await runActivityPoll(db, env, () => now, budget);
+
+      expect(summary).toMatchObject({ due: 10, polled: 5, deferred: 5, errors: 0 });
+      // reg-5 is the oldest left waiting: (3_605_000 - 5_000) ms = 60 minutes.
+      expect(summary.maxWaitMin).toBe(60);
+      expect(budget.remaining).toBe(12 - 1 - 5 - 1); // due query, 5 polls, one batch
+      expect((await getRegistrationById(db, 'reg-4'))?.last_polled_at).toBe(now);
+      expect((await getRegistrationById(db, 'reg-5'))?.last_polled_at).toBe(5000);
+
+      // The deferred rows are the ones due next tick, and nothing was lost.
+      const next = await runActivityPoll(db, env, () => now + 60_000);
+      expect(next).toMatchObject({ due: 5, polled: 5, deferred: 0, maxWaitMin: null });
+    });
+
+    it('never re-sends a push after a run loses its batched writes', async () => {
+      await seedRow({ id: 'pusher' });
+      await seedRow({ id: 'quiet', last_seen_comments_total: 2 });
+      mockUnreadTotals(2, 0); // pusher: 0 -> 2 (push); quiet: 2 -> 2 (nothing)
+      vi.spyOn(console, 'error').mockImplementation(() => undefined);
+      vi.spyOn(db, 'batch').mockRejectedValue(new Error('D1 unavailable'));
+
+      const first = await runActivityPoll(db, env, () => 1_000_000);
+
+      expect(first).toMatchObject({ pushed: 1, errors: 1 });
+      // The push was recorded at once; the quiet row's write was lost and it will simply be polled again.
+      expect(await getRegistrationById(db, 'pusher')).toMatchObject({
+        last_polled_at: 1_000_000,
+        last_seen_comments_total: 2,
+      });
+      expect((await getRegistrationById(db, 'quiet'))?.last_polled_at).toBeNull();
+
+      sendFcmMessage.mockClear();
+      const second = await runActivityPoll(db, env, () => 1_000_000 + 60_000);
+      expect(second.due).toBe(1); // only the quiet row
+      expect(sendFcmMessage).not.toHaveBeenCalled();
     });
   });
 });

@@ -7,8 +7,9 @@ in the runbook, [README.md](README.md); schema changes are in
 [migrations/README.md](migrations/README.md).
 
 It lives in b-oss as a peer package to b-mobile and depends only on `@b-oss/b-api` (no Node-only
-APIs; it runs on Workers). Deploys are manual. Sized for 2–20 registrations: beyond that, revisit
-the outbound-request budget first (see the runbook's free-tier table).
+APIs; it runs on Workers). Deploys are manual. Sized for 2–20 registrations, with room to grow: the
+per-run request budget (below) decides how many are polled, and the poll log reports when it runs
+out (see the runbook's free-tier table).
 
 ## Architecture
 
@@ -75,6 +76,32 @@ the last toggle goes off, so that state is transient.
 If FCM answers `404 UNREGISTERED` for a device token (app uninstalled, data cleared, new phone),
 the row is deleted: the app has lost the secret it would need to delete it itself. Only
 `UNREGISTERED` counts; a `400 INVALID_ARGUMENT` could be a malformed payload of ours.
+
+### Request budget
+
+The Workers Free plan allows 50 subrequests per invocation. The docs don't say clearly whether D1
+queries share that pool with outbound `fetch`, so `src/budget.ts` counts both together. A run
+spends one on the due-rows query, one per poll, one per push, one per FCM token exchange (the
+token is cached for 50 minutes, so most runs make none) and one per D1 write. A batched write counts as one query, however many rows it holds. It starts
+another registration only while a worst-case one (6 requests: totals, token exchange, two sends,
+the write, and a delete when the second send finds the device gone) plus the final batched write still
+fits. That is a worst case for the paths as written; `BUDGET_HEADROOM` covers what the counter
+can't see.
+
+State is written in two tiers (`src/poll.ts`):
+
+- A registration that **pushed** (or tried to) is written immediately. If a later failure ended
+  the run before a batched write, the next tick would send that push again, every minute for as
+  long as the run kept dying. A duplicate is still possible if that immediate write itself fails,
+  or the isolate dies between the FCM response and the write.
+- **Quiet** polls are queued and written with one D1 batch per `MARK_POLLED_CHUNK` rows and once
+  at the end. A lost batch only means those rows are polled again.
+
+Rows are taken oldest-first, so over capacity every registration's interval stretches about
+equally and no healthy registration is starved. A row whose poll keeps throwing writes nothing, so
+it stays at the head of the queue and costs a request every tick; that only matters if such rows
+approach a run's capacity. The leftover count is `deferred` in the poll log line, with
+`maxWaitMin` for the longest-waiting one.
 
 ### What the push can and cannot say
 

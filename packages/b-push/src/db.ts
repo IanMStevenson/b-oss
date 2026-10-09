@@ -23,6 +23,8 @@ export interface D1PreparedStatementLike {
 
 export interface DbLike {
   prepare(query: string): D1PreparedStatementLike;
+  /** Runs the statements in one round trip (one query against the per-invocation cap). */
+  batch(statements: D1PreparedStatementLike[]): Promise<unknown>;
 }
 
 export async function insertRegistration(db: DbLike, row: RegistrationRow): Promise<void> {
@@ -120,6 +122,31 @@ export async function markPolled(
     .run();
 }
 
+export interface PolledState {
+  id: string;
+  polledAt: number;
+  commentsTotal: number;
+  notificationsTotal: number;
+}
+
+/** `markPolled` for several registrations as one D1 batch, which counts as one query against the
+ * per-invocation cap. Only for polls that sent no push: losing a batch just means those rows are
+ * polled again, which is harmless. A poll that pushed is written on its own, straight away. */
+export async function markPolledBatch(db: DbLike, rows: PolledState[]): Promise<void> {
+  if (rows.length === 0) return;
+  await db.batch(
+    rows.map((r) =>
+      db
+        .prepare(
+          `UPDATE registrations
+           SET last_polled_at = ?, last_seen_comments_total = ?, last_seen_notifications_total = ?
+           WHERE id = ?`,
+        )
+        .bind(r.polledAt, r.commentsTotal, r.notificationsTotal, r.id),
+    ),
+  );
+}
+
 /** Marks that registration's status read-token-invalid and stops polling it (ARCHITECTURE.md,
  * "System alert: reauth-required") — `last_polled_at` is still bumped so the row
  * doesn't sit permanently "most overdue" and get picked first by listDueRegistrations if it were
@@ -154,10 +181,10 @@ export async function updateStreamToggles(
   }
 }
 
-/** Most registrations one tick polls. A registration costs at most five outbound requests (one
- * totals call, then a token exchange and a send for each of two pushes), so nine stays inside the
- * Workers free plan's 50 per run. The rest are picked up oldest-first on the next tick. */
-export const POLL_BATCH_LIMIT = 9;
+/** Most due rows one tick reads. This is not how many it polls: that is decided by the request
+ * budget (budget.ts). It only bounds the size of the read, and lets the poll log how many due
+ * registrations it had to leave for the next tick. */
+export const DUE_FETCH_LIMIT = 100;
 
 /** The 1-minute activity-poll tick's selection: active registrations whose interval has elapsed.
  * `poll_interval_minutes` is stored in minutes; comparison is done in the same unit as
@@ -169,7 +196,7 @@ export const POLL_BATCH_LIMIT = 9;
 export async function listDueRegistrations(
   db: DbLike,
   nowMs: number,
-  limit: number = POLL_BATCH_LIMIT,
+  limit: number = DUE_FETCH_LIMIT,
 ): Promise<RegistrationRow[]> {
   const result = await db
     .prepare(

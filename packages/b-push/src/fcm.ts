@@ -3,8 +3,8 @@
 
 // FCM HTTP v1, signed with the Worker's native Web Crypto API — no external SDK, per
 // ARCHITECTURE.md's architecture table (a service-account OAuth2 JWT signed with the Worker's
-// Web Crypto API). Two network calls per send: exchange a signed JWT for a short-lived OAuth2
-// access token, then POST the message.
+// Web Crypto API). One network call per send (POST the message), plus an exchange of a signed JWT for a
+// short-lived OAuth2 access token when no unexpired one is cached.
 //
 // Always an ordinary FCM *notification* message (never data-only) — app-architecture.md §11:
 // "No data-only delivery... Android defers data-only messages in Doze and drops them entirely for
@@ -12,6 +12,7 @@
 // have to re-derive it from the display text (platform/push.ts on the app side reads `data`).
 
 import { toBase64Url, fromBase64 } from './crypto.js';
+import type { RequestBudget } from './budget.js';
 import type { Env } from './types.js';
 
 interface ServiceAccount {
@@ -71,6 +72,20 @@ async function signJwt(account: ServiceAccount): Promise<string> {
 
 interface AccessTokenResponse {
   access_token: string;
+  expires_in?: number;
+}
+
+/** Google's access tokens last an hour; reuse one for slightly less. A fresh exchange costs a
+ * signed JWT (the most CPU-hungry thing the Worker does) and an outbound request, so a run that
+ * sends several pushes, or an isolate that serves several runs, pays for it once. Module state is
+ * safe here: an isolate that is thrown away just starts with an empty cache. */
+const TOKEN_REUSE_MS = 50 * 60_000;
+
+let cachedToken: { clientEmail: string; accessToken: string; expiresAt: number } | null = null;
+
+/** Tests only: forget any cached access token. */
+export function resetFcmTokenCache(): void {
+  cachedToken = null;
 }
 
 async function exchangeForAccessToken(jwt: string): Promise<string> {
@@ -89,6 +104,29 @@ async function exchangeForAccessToken(jwt: string): Promise<string> {
   }
   const body = await response.json<AccessTokenResponse>();
   return body.access_token;
+}
+
+/** A usable access token, from the cache if there is one. Only a real exchange spends budget. */
+async function getAccessToken(
+  account: ServiceAccount,
+  budget: RequestBudget | undefined,
+): Promise<string> {
+  const now = Date.now();
+  if (
+    cachedToken &&
+    cachedToken.clientEmail === account.client_email &&
+    now < cachedToken.expiresAt
+  ) {
+    return cachedToken.accessToken;
+  }
+  budget?.spend(1);
+  const accessToken = await exchangeForAccessToken(await signJwt(account));
+  cachedToken = {
+    clientEmail: account.client_email,
+    accessToken,
+    expiresAt: now + TOKEN_REUSE_MS,
+  };
+  return accessToken;
 }
 
 /** The two shapes this service ever pushes — a bare count delta, or the reauth-required system
@@ -132,11 +170,12 @@ export async function sendFcmMessage(
   env: Env,
   deviceToken: string,
   payload: FcmPayload,
+  budget?: RequestBudget,
 ): Promise<void> {
   const account = parseServiceAccount(env.FCM_SERVICE_ACCOUNT_JSON);
-  const jwt = await signJwt(account);
-  const accessToken = await exchangeForAccessToken(jwt);
+  const accessToken = await getAccessToken(account, budget);
   const { title, body } = notificationFor(payload);
+  budget?.spend(1);
 
   const response = await fetch(
     `https://fcm.googleapis.com/v1/projects/${account.project_id}/messages:send`,
@@ -158,6 +197,9 @@ export async function sendFcmMessage(
   );
   if (!response.ok) {
     const text = await response.text();
+    // The cached token was refused (revoked early, or the key was rotated): drop it so the next
+    // send exchanges a fresh one rather than failing until it would have expired.
+    if (response.status === 401) cachedToken = null;
     if (response.status === 404 && fcmErrorCode(text) === 'UNREGISTERED') {
       throw new DeviceUnregisteredError();
     }
