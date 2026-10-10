@@ -116,7 +116,8 @@ Known Blipfoto API limits: [AppLimitations.md](AppLimitations.md). Paths are rel
   or cancelling leaves the account signed in without notifications. Read-only reuses one token.
 - Every round for an existing account must return the same username (case-insensitive). Otherwise
   the token is revoked (unless already held), nothing is stored, and a mismatch alert offers a retry
-  in the in-app browser. With 2+ accounts these rounds default to the in-app browser.
+  in the in-app browser. Later rounds for an account default to the in-app browser if it has ever
+  signed in through it (`usesInAppBrowser`, b-oss#375), or if there are 2+ accounts.
 - Switching is local and instant; an account without an app token goes to reauth instead.
   Disconnect revokes tokens, deregisters push, cancels its reminder and queued uploads; the first
   remaining account (or anonymous) becomes active.

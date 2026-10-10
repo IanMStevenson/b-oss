@@ -63,6 +63,7 @@ async function storeAppToken(result: OAuthResult): Promise<StoredAccount> {
     hasServiceToken: existing?.hasServiceToken ?? false,
     notificationRegistrationId: existing?.notificationRegistrationId ?? null,
     notificationStatus: existing?.notificationStatus ?? null,
+    ...(existing?.usesInAppBrowser ? { usesInAppBrowser: true } : {}),
   };
   useAccountsStore.getState().upsertAccount(account);
   void refreshAccountAvatar(account.id); // so the switcher shows their picture straight away
@@ -74,8 +75,16 @@ async function storeAppToken(result: OAuthResult): Promise<StoredAccount> {
  * account on this device the system browser is quite likely logged in to Blipfoto as a different
  * one of them, so the clean in-app browser is forced; with a single account the system browser is
  * fine (and saves typing a password). The owner check in runRoundForAccount() applies either way. */
-export function tokenChangeUsesEmbedded(): boolean {
-  return isNativePlatform() && useAccountsStore.getState().accounts.length > 1;
+export function tokenChangeUsesEmbedded(account?: StoredAccount): boolean {
+  if (!isNativePlatform()) return false;
+  // b-oss#375: an account that signed in through the in-app browser stays there.
+  if (account?.usesInAppBrowser) return true;
+  return useAccountsStore.getState().accounts.length > 1;
+}
+
+/** Records that `accountId` has signed in through the in-app browser (b-oss#375). */
+function rememberInAppBrowser(accountId: string, useEmbedded: boolean | undefined): void {
+  if (useEmbedded) useAccountsStore.getState().updateAccount(accountId, { usesInAppBrowser: true });
 }
 
 /** Best-effort revoke of a token this app has no use for — unless the same string is already held
@@ -197,6 +206,7 @@ export async function signInDeliberate(
   const embedded = { useEmbedded: choice.useEmbedded };
   const result = await runOAuthRound(choice.scope, embedded);
   const account = await storeAppToken(result);
+  rememberInAppBrowser(account.id, embedded.useEmbedded);
   useAccountsStore.getState().setActiveAccountId(account.id);
 
   if (choice.notifications && (await ensurePushPermission())) {
@@ -307,11 +317,12 @@ export async function changeAccountMode(
   // b-oss#240: every round below is for this existing account, so each is owner-checked, and the
   // browser defaults by account count unless the caller chose (e.g. the mismatch retry forces the
   // clean in-app browser).
-  const round = { useEmbedded: target.useEmbedded ?? tokenChangeUsesEmbedded() };
+  const round = { useEmbedded: target.useEmbedded ?? tokenChangeUsesEmbedded(account) };
 
   if (account.appTokenScope !== target.scope) {
     const oldToken = await getToken(accountId, 'app');
     const result = await runRoundForAccount(account.username, target.scope, round);
+    rememberInAppBrowser(accountId, round.useEmbedded);
     // A read-only account with notifications on uses ONE read token for both jobs (the app token
     // and the b-push service token). Upgrading to read-write while keeping notifications: that
     // read token is exactly the separate service token the new mode needs, and b-push holds it,
@@ -352,6 +363,7 @@ export async function changeAccountMode(
     } else if (!hooks.beforeServiceRound || (await hooks.beforeServiceRound())) {
       // The hook is SCR-25's "One more sign-in" explainer; declining it changes nothing.
       const serviceResult = await runRoundForAccount(refreshed.username, 'read', round);
+      rememberInAppBrowser(accountId, round.useEmbedded);
       await registerServiceToken(accountId, serviceResult.accessToken, streams);
     }
   } else if (!target.notifications && refreshed.hasServiceToken) {
@@ -460,7 +472,7 @@ export async function reauthorizeAccount(
   const find = () => useAccountsStore.getState().accounts.find((a) => a.id === accountId);
   const initial = find();
   if (!initial) throw new Error(`Unknown account: ${accountId}`);
-  const useEmbedded = options.useEmbedded ?? tokenChangeUsesEmbedded();
+  const useEmbedded = options.useEmbedded ?? tokenChangeUsesEmbedded(initial);
 
   if (initial.appTokenScope !== null) await checkAppToken(accountId);
 

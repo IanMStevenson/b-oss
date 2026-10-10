@@ -210,6 +210,8 @@ describe('signInDeliberate (FLW-20)', () => {
     await signInDeliberate({ scope: 'read,write', notifications: true, useEmbedded: true });
     expect(runOAuthRound).toHaveBeenNthCalledWith(1, 'read,write', { useEmbedded: true });
     expect(runOAuthRound).toHaveBeenNthCalledWith(2, 'read', { useEmbedded: true });
+    const carol = useAccountsStore.getState().accounts.find((a) => a.id === 'carol');
+    expect(carol?.usesInAppBrowser).toBe(true);
   });
 
   it('a failed/cancelled second round keeps the first token — signed in read-write, no notifications', async () => {
@@ -906,6 +908,36 @@ describe('token-change browser default (b-oss#240)', () => {
     useAccountsStore.setState({ accounts: [rw('alice')], activeAccountId: 'alice' });
     await changeAccountMode('alice', { scope: 'read,write', notifications: true });
     expect(runOAuthRound).toHaveBeenCalledWith('read', { useEmbedded: false });
+  });
+
+  it('a single account that signed in through the in-app browser stays there (b-oss#375)', async () => {
+    isNative = true;
+    useAccountsStore.setState({
+      accounts: [{ ...rw('alice'), usesInAppBrowser: true }],
+      activeAccountId: 'alice',
+    });
+    await changeAccountMode('alice', { scope: 'read,write', notifications: true });
+    expect(runOAuthRound).toHaveBeenCalledWith('read', { useEmbedded: true });
+  });
+
+  it('a successful in-app round is remembered on the account (b-oss#375)', async () => {
+    isNative = true;
+    useAccountsStore.setState({ accounts: [rw('alice')], activeAccountId: 'alice' });
+    await changeAccountMode('alice', {
+      scope: 'read,write',
+      notifications: true,
+      useEmbedded: true,
+    });
+    const alice = useAccountsStore.getState().accounts.find((a) => a.id === 'alice');
+    expect(alice?.usesInAppBrowser).toBe(true);
+  });
+
+  it('a system-browser round is not remembered as in-app (b-oss#375)', async () => {
+    isNative = true;
+    useAccountsStore.setState({ accounts: [rw('alice')], activeAccountId: 'alice' });
+    await changeAccountMode('alice', { scope: 'read,write', notifications: true });
+    const alice = useAccountsStore.getState().accounts.find((a) => a.id === 'alice');
+    expect(alice?.usesInAppBrowser).toBeUndefined();
   });
 
   it("off native there's no in-app browser, whatever the count", async () => {
