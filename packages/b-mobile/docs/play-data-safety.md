@@ -38,6 +38,11 @@ unverified), so wording of options below is from memory of the form; confirm aga
 | Crash logs / diagnostics       | No        |        |          |                   | None of ours. Play may add Android vitals independently               |
 | Financial, health, contacts    | No        |        |          |                   |                                                                       |
 
+Firebase Cloud Messaging (Google's SDK in the app) also creates a Firebase installation ID and push
+token on the device and may log delivery data itself. Only the push token reaches the developer
+(the b-push record); the rest is Google's. The Device or other IDs row covers this, and the
+answer should stay Yes while push is in the app.
+
 The Blipfoto read token stored by b-push is a credential, not a listed data type; it is encrypted
 at rest and covered under User IDs in the policy.
 
