@@ -1,4 +1,4 @@
-package io.github.ianmstevenson.bmobile;
+package uk.co.salientpoint.bmobile;
 
 import android.app.NotificationChannel;
 import android.app.NotificationManager;

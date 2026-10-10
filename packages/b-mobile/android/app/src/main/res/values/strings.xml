@@ -2,7 +2,7 @@
 <resources>
     <string name="app_name">b-mobile</string>
     <string name="title_activity_main">b-mobile</string>
-    <string name="package_name">io.github.ianmstevenson.bmobile</string>
-    <string name="custom_url_scheme">io.github.ianmstevenson.bmobile</string>
+    <string name="package_name">uk.co.salientpoint.bmobile</string>
+    <string name="custom_url_scheme">uk.co.salientpoint.bmobile</string>
     <string name="embedded_auth_title">Sign in to Blipfoto</string>
 </resources>

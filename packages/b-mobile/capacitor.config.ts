@@ -3,10 +3,9 @@
 
 import type { CapacitorConfig } from '@capacitor/cli';
 
-// Application ID is adequate for development and review; revisit before a first Play
-// submission, since it is permanent from that point on (app-architecture.md §17, Q2).
+// Application ID is permanent once first uploaded to Play (app-architecture.md §17).
 const config: CapacitorConfig = {
-  appId: 'io.github.ianmstevenson.bmobile',
+  appId: 'uk.co.salientpoint.bmobile',
   appName: 'b-mobile',
   webDir: 'dist',
   // Capacitor's default ('debug') logs every native bridge call with its arguments in debug

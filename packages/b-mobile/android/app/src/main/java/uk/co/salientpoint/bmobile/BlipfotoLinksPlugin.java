@@ -1,4 +1,4 @@
-package io.github.ianmstevenson.bmobile;
+package uk.co.salientpoint.bmobile;
 
 import android.content.ComponentName;
 import android.content.pm.PackageManager;
@@ -20,7 +20,7 @@ public class BlipfotoLinksPlugin extends Plugin {
   @PluginMethod
   public void setEnabled(PluginCall call) {
     boolean enabled = call.getBoolean("enabled", false);
-    ComponentName alias = new ComponentName(getContext(), "io.github.ianmstevenson.bmobile.BlipfotoWebLinkAlias");
+    ComponentName alias = new ComponentName(getContext(), "uk.co.salientpoint.bmobile.BlipfotoWebLinkAlias");
     getContext()
         .getPackageManager()
         .setComponentEnabledSetting(

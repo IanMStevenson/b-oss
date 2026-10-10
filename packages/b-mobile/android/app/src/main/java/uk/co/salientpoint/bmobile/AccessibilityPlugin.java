@@ -1,4 +1,4 @@
-package io.github.ianmstevenson.bmobile;
+package uk.co.salientpoint.bmobile;
 
 import com.getcapacitor.JSObject;
 import com.getcapacitor.Plugin;
