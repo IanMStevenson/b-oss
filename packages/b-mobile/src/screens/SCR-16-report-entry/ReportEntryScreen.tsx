@@ -1,11 +1,12 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (C) 2026 Ian Stevenson
 
-// SCR-16 — Report Entry (FLW-11). Reports a comment through the same endpoint as an entry —
-// there is no separate comment-report call — with the comment identified in the note, which is
-// why `reportedComment` (author + excerpt) travels via router location.state, same reasoning as
-// SCR-15's reply/edit context: this screen is only ever reached by an in-app tap, never a deep
-// link.
+// SCR-16 — Report Entry (FLW-11). Reports a comment, or a member (from their profile, against
+// their latest entry — b-oss#362), through the same endpoint as an entry — there is no separate
+// comment- or member-report call — with the comment or member identified in the note, which is
+// why `reportedComment` / `reportedMember` travel via router location.state, same reasoning as
+// SCR-15's reply/edit context: this screen is only ever reached by an in-app tap (flows/useReport,
+// read-write accounts only), never a deep link.
 
 import { useState } from 'react';
 import {
@@ -34,6 +35,7 @@ interface ReportEntryScreenProps {
    * the caller couldn't determine it, in which case the post-report Hide offer is simply skipped. */
   targetUsername?: string;
   reportedComment?: { username: string; excerpt: string };
+  reportedMember?: string;
 }
 
 const REASONS: Array<{ key: keyof ReportReasons; label: string }> = [
@@ -48,11 +50,16 @@ export function ReportEntryScreen({
   entryId,
   targetUsername,
   reportedComment,
+  reportedMember,
 }: ReportEntryScreenProps) {
   const navigate = useAppNavigate();
   const [selected, setSelected] = useState<Set<keyof ReportReasons>>(new Set());
   const [note, setNote] = useState(
-    reportedComment ? `${reportedComment.username}'s comment: "${reportedComment.excerpt}"` : '',
+    reportedComment
+      ? `${reportedComment.username}'s comment: "${reportedComment.excerpt}"`
+      : reportedMember
+        ? `Reporting the member ${reportedMember}, not just this entry: `
+        : '',
   );
   const [needsReason, setNeedsReason] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -98,7 +105,9 @@ export function ReportEntryScreen({
     <IonPage>
       <IonHeader>
         <AppHeader
-          title={reportedComment ? 'Report comment' : 'Report entry'}
+          title={
+            reportedComment ? 'Report comment' : reportedMember ? 'Report member' : 'Report entry'
+          }
           variant="back"
           backHref={`/entry/${entryId}`}
           accountIndicator
@@ -119,7 +128,9 @@ export function ReportEntryScreen({
         <p>
           {reportedComment
             ? `Reporting: ${reportedComment.username}'s comment`
-            : 'Reporting: this entry'}
+            : reportedMember
+              ? `Reporting: ${reportedMember} (sent against their latest entry)`
+              : 'Reporting: this entry'}
         </p>
 
         <IonList>

@@ -18,6 +18,8 @@ import {
   Aperture,
   Ruler,
   SunMedium,
+  Flag,
+  UserX,
 } from 'lucide-react';
 import type { BlipEntry, BlipComment, EntryIndex, EntryState } from '../types.js';
 import { EntryNavStrip, type HistoryItem } from './EntryNavStrip.js';
@@ -38,6 +40,13 @@ interface EntryDetailReactions {
   onToggleFavorite: () => void;
 }
 
+/** Report / hide-the-author for someone else's entry, offered alongside star and favourite. */
+interface EntryDetailModeration {
+  onReport: () => void;
+  /** Omitted: no Hide segment (e.g. the author is unknown). */
+  onHide?: () => void;
+}
+
 interface EntryDetailProps {
   entryState: EntryState;
   prevEntryId: string | null;
@@ -52,6 +61,9 @@ interface EntryDetailProps {
   entries?: EntryIndex[];
   /** Undefined: stars/hearts render as today's static counts. Provided: they become tappable. */
   reactions?: EntryDetailReactions;
+  /** Undefined: no report/hide segments. A host that knows nothing of members (the backup viewer)
+   * leaves it out; b-mobile passes it for other people's entries (b-oss#362). */
+  moderation?: EntryDetailModeration;
   /** Rendered immediately after the comment list — the host owns the whole compose UI/behaviour. */
   commentComposer?: ReactNode;
   /** Rendered beside the nav strip — the host supplies edit/delete triggers for entries it owns. */
@@ -252,6 +264,7 @@ export function EntryDetail({
   invalidateAsset,
   entries,
   reactions,
+  moderation,
   commentComposer,
   entryActions,
   ownerActions,
@@ -543,6 +556,24 @@ export function EntryDetail({
                       aria-label="View photo full-screen"
                     >
                       <Maximize2 size={14} strokeWidth={1.5} />
+                    </button>
+                  )}
+                  {moderation && (
+                    <button
+                      className={`${styles.pillSeg} ${styles.pillBtn}`}
+                      onClick={moderation.onReport}
+                      aria-label="Report"
+                    >
+                      <Flag size={14} strokeWidth={1.5} />
+                    </button>
+                  )}
+                  {moderation?.onHide && (
+                    <button
+                      className={`${styles.pillSeg} ${styles.pillBtn}`}
+                      onClick={moderation.onHide}
+                      aria-label="Hide user"
+                    >
+                      <UserX size={14} strokeWidth={1.5} />
                     </button>
                   )}
                 </div>

@@ -81,6 +81,7 @@ interface EntryRouteState {
 interface ReportRouteState {
   targetUsername?: string;
   reportedComment?: { username: string; excerpt: string };
+  reportedMember?: string;
 }
 
 // Route params are always defined for the paths they're mounted on.
@@ -130,6 +131,7 @@ function ReportEntryRoute() {
       entryId={useParam('entryId')}
       targetUsername={state.targetUsername}
       reportedComment={state.reportedComment}
+      reportedMember={state.reportedMember}
     />
   );
 }

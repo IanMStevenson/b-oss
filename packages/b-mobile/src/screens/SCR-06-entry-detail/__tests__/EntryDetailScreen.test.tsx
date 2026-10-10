@@ -15,6 +15,7 @@ import { useDevicePrefsStore } from '../../../state/devicePrefsStore.js';
 import type { LoadedEntry } from '../../../data/entries.js';
 import type { StoredAccount } from '../../../state/accountsStore.js';
 import { clearAllDrafts } from '../../../data/commentDrafts.js';
+import { REPORT_REQUEST_URL } from '../../../flows/useReport.js';
 
 const { fetchAuthorAvatar } = vi.hoisted(() => ({ fetchAuthorAvatar: vi.fn() }));
 vi.mock('../../../data/users.js', () => ({ fetchAuthorAvatar }));
@@ -64,6 +65,8 @@ vi.mock('../../../flows/downloadFlow.js', () => ({
     downloadOwnEntryImage(entry, username),
 }));
 
+const openUrl = vi.hoisted(() => vi.fn());
+vi.mock('../../../platform/browser.js', () => ({ openUrl }));
 vi.mock('../../../app/routes/useAppNavigate.js', () => ({
   useAppNavigate: () => ({ push: navPush, replace: navReplace, goBack: vi.fn() }),
 }));
@@ -835,12 +838,36 @@ describe('EntryDetailScreen', () => {
       expect(navPush).toHaveBeenCalledWith('/entry/1/report', { targetUsername: 'alice' });
     });
 
-    it('offers Hide for another member’s entry, not the viewer’s own', async () => {
+    it('Report sends a signed-out or read-only viewer to Blipfoto’s support form instead', async () => {
+      const { fetchEntry } = await import('../../../data/entries.js');
+      vi.mocked(fetchEntry).mockResolvedValue(baseLoadedEntry);
+      useAccountsStore.setState({
+        accounts: [{ ...readWriteAccount, appTokenScope: 'read' }],
+        activeAccountId: 'a1',
+      });
+      renderScreen();
+      await screen.findByText('A day out');
+      await userEvent.click(screen.getByLabelText('Report'));
+      expect(openUrl).toHaveBeenCalledWith(REPORT_REQUEST_URL);
+
+      cleanup();
+      useAccountsStore.setState({ accounts: [], activeAccountId: null });
+      renderScreen();
+      await screen.findByText('A day out');
+      await userEvent.click(screen.getByText('Report'));
+      expect(openUrl).toHaveBeenCalledTimes(2);
+      expect(navPush).not.toHaveBeenCalled();
+    });
+
+    it('offers Report and Hide user as footer links too, only on another member’s entry', async () => {
       const { fetchEntry } = await import('../../../data/entries.js');
       vi.mocked(fetchEntry).mockResolvedValue(baseLoadedEntry); // username: 'alice'
       renderScreen();
       await screen.findByText('A day out');
-      expect(screen.getByLabelText('Hide alice')).toBeDefined();
+      expect(screen.getByLabelText('Hide user')).toBeDefined();
+      await userEvent.click(screen.getByText('Report'));
+      expect(navPush).toHaveBeenCalledWith('/entry/1/report', { targetUsername: 'alice' });
+      expect(screen.getByText('Hide user')).toBeDefined();
 
       const ownEntry: LoadedEntry = {
         ...baseLoadedEntry,
@@ -850,15 +877,17 @@ describe('EntryDetailScreen', () => {
       vi.mocked(fetchEntry).mockResolvedValue(ownEntry);
       renderScreen();
       await screen.findByText('A day out');
-      expect(screen.queryByLabelText('Hide me')).toBeNull();
+      expect(screen.queryByLabelText('Hide user')).toBeNull();
+      expect(screen.queryByText('Hide user')).toBeNull();
     });
 
-    it('Hide confirms, then hides the author locally', async () => {
+    it('Hide confirms, then hides the author — signed out too', async () => {
       const { fetchEntry } = await import('../../../data/entries.js');
       vi.mocked(fetchEntry).mockResolvedValue(baseLoadedEntry);
+      useAccountsStore.setState({ accounts: [], activeAccountId: null });
       renderScreen();
       await screen.findByText('A day out');
-      await userEvent.click(screen.getByLabelText('Hide alice'));
+      await userEvent.click(screen.getByText('Hide user'));
       expect(await screen.findByText('Hide alice?')).toBeDefined();
       const confirmButton = document.querySelector(
         'ion-alert[header="Hide alice?"] button.alert-button-role-destructive',

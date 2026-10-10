@@ -32,7 +32,8 @@ import {
   IonLabel,
   IonAlert,
 } from '@ionic/react';
-import { UserX } from 'lucide-react';
+import { Flag, UserX } from 'lucide-react';
+import { useReport } from '../../flows/useReport.js';
 import { AppHeader } from '../../components/AppHeader.js';
 import { useResource } from '../../data/useResource.js';
 import { usePagedResource } from '../../data/usePagedResource.js';
@@ -157,6 +158,7 @@ function GridTab({
 
 export function ProfileScreen({ username }: ProfileScreenProps) {
   const navigate = useAppNavigate();
+  const report = useReport();
   const { showUpgradePrompt } = useOverlay();
   const activeAccount = useActiveAccount();
   const isOwn = username === undefined || username === activeAccount?.username;
@@ -342,6 +344,32 @@ export function ProfileScreen({ username }: ProfileScreenProps) {
                   </p>
                 )}
               </div>
+              {/* Reporting a member is an entry report against their latest entry, with the
+                  member named in the note (no other report resource exists), so it's only offered
+                  when there is an entry this viewer can see (b-oss#362). */}
+              {!isOwn && state.data.latestEntry && (
+                <button
+                  aria-label={`Report ${state.data.user.username}`}
+                  onClick={() =>
+                    state.data.latestEntry &&
+                    report({
+                      entryId: state.data.latestEntry.entry_id_str,
+                      targetUsername: state.data.user.username,
+                      reportedMember: state.data.user.username,
+                    })
+                  }
+                  style={{
+                    flex: 'none',
+                    background: 'none',
+                    border: 'none',
+                    padding: 8,
+                    cursor: 'pointer',
+                    color: 'var(--muted)',
+                  }}
+                >
+                  <Flag size={20} strokeWidth={1.6} aria-hidden="true" />
+                </button>
+              )}
               {!isOwn && (
                 <button
                   aria-label={`Hide ${state.data.user.username}`}

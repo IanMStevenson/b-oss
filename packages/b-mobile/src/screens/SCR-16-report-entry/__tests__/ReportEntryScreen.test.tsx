@@ -66,6 +66,14 @@ function checkReason(label: string): void {
 }
 
 describe('ReportEntryScreen', () => {
+  it('reporting a member says so in the title and prefills a note naming them', () => {
+    renderScreen({ reportedMember: 'alice', targetUsername: 'alice' });
+    expect(screen.getByText('Report member')).toBeDefined();
+    expect(screen.getByText('Reporting: alice (sent against their latest entry)')).toBeDefined();
+    const note = document.querySelector('textarea')!;
+    expect(note.value).toBe('Reporting the member alice, not just this entry: ');
+  });
+
   it('blocks Send with no reason selected', async () => {
     renderScreen();
     await userEvent.click(screen.getByText('Send'));

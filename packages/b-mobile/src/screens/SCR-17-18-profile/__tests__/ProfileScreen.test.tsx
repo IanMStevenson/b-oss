@@ -29,6 +29,9 @@ const { followUser, unfollowUser } = vi.hoisted(() => ({
 }));
 vi.mock('../../../flows/reactionsFlow.js', () => ({ followUser, unfollowUser }));
 
+const report = vi.hoisted(() => vi.fn());
+vi.mock('../../../flows/useReport.js', () => ({ useReport: () => report }));
+
 vi.mock('../../../platform/prefs.js', () => ({
   getPref: vi.fn().mockResolvedValue(null),
   setPref: vi.fn().mockResolvedValue(undefined),
@@ -163,9 +166,7 @@ describe('ProfileScreen', () => {
     expect(screen.queryByLabelText('More')).toBeNull();
     await userEvent.click(screen.getByLabelText('Hide alice'));
     await userEvent.click(await screen.findByText('Hide', { selector: '.alert-button-inner' }));
-    await waitFor(() =>
-      expect(useHiddenMembersStore.getState().hidden).toEqual(['alice']),
-    );
+    await waitFor(() => expect(useHiddenMembersStore.getState().hidden).toEqual(['alice']));
   });
 
   it("shows the account indicator on another member's profile when there are two accounts", async () => {
@@ -179,6 +180,30 @@ describe('ProfileScreen', () => {
     renderScreen('alice');
     await screen.findByText("Alice's journal");
     expect(screen.getByLabelText('Switch account (currently me)')).toBeDefined();
+  });
+
+  it('reports a member against their latest entry, naming them in the report', async () => {
+    const { fetchUserProfile } = await import('../../../data/users.js');
+    vi.mocked(fetchUserProfile).mockResolvedValue({
+      ...aliceProfile,
+      latestEntry: { entry_id_str: '77' } as UserProfile['latestEntry'],
+    });
+    renderScreen('alice');
+    await screen.findByText("Alice's journal");
+    await userEvent.click(screen.getByLabelText('Report alice'));
+    expect(report).toHaveBeenCalledWith({
+      entryId: '77',
+      targetUsername: 'alice',
+      reportedMember: 'alice',
+    });
+  });
+
+  it('offers no member Report when there is no entry to report against', async () => {
+    const { fetchUserProfile } = await import('../../../data/users.js');
+    vi.mocked(fetchUserProfile).mockResolvedValue(aliceProfile); // latestEntry: null
+    renderScreen('alice');
+    await screen.findByText("Alice's journal");
+    expect(screen.queryByLabelText('Report alice')).toBeNull();
   });
 
   it('does not show a Hide button on your own profile', async () => {
