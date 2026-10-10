@@ -29,6 +29,10 @@ export interface StoredAccount {
    * uses the same mode without asking. Optional: accounts persisted before #263 have none, and
    * re-sign-in then falls back to read-write (the gated sign-in's default). */
   lastAppTokenScope?: 'read' | 'read,write';
+  /** True once a sign-in round for this account succeeded in the in-app browser (b-oss#375), so
+   * its later rounds (notifications, mode change, Sign in again) use it too rather than a system
+   * browser that may be logged in as someone else. Absent/false: the account-count rule decides. */
+  usesInAppBrowser?: boolean;
 }
 
 interface PersistedShape {

@@ -237,6 +237,8 @@ starred/favourited, favourite quota) are handled in `flows/reactionsFlow.ts` fir
    requested scope) sets `appTokenScope`.
 6. `accountsFlow` owner-checks: a token for the wrong account is revoked (unless already held) and
    `AccountMismatchError` says whose it was.
+   Later rounds for an account reuse the in-app browser if it has signed in through it
+   (`StoredAccount.usesInAppBrowser`, b-oss#375); otherwise the 2+ accounts rule applies.
 
 Read-write accounts wanting notifications run a second, read-only round for the `service` token
 b-push uses, after push permission is confirmed (§11). For a read-only account the app and service
