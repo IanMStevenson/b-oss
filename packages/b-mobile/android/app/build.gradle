@@ -1,5 +1,22 @@
 apply plugin: 'com.android.application'
 
+import groovy.json.JsonSlurper
+
+// Release versioning (docs/RELEASING-android.md). versionName is the b-mobile package.json version;
+// versionCode must rise on every Play upload, so it is the commit count (monotonic on the
+// integration branch, no manual bump). BMOBILE_VERSION_CODE overrides it, e.g. to re-upload a
+// build of an already-used commit.
+def appVersionName = new JsonSlurper().parse(file('../../package.json')).version
+def appVersionCode = (System.getenv('BMOBILE_VERSION_CODE') ?: providers.exec {
+    commandLine 'git', 'rev-list', '--count', 'HEAD'
+    workingDir = rootDir
+}.standardOutput.asText.get().trim()).toInteger()
+
+// Upload-key signing. Values come from the environment or ~/.gradle/gradle.properties, never from
+// the repo. Absent, `bundleRelease` still builds, unsigned, so CI and other machines don't break.
+def uploadProp = { String name -> System.getenv(name) ?: project.findProperty(name) }
+def uploadStoreFile = uploadProp('BMOBILE_UPLOAD_STORE_FILE')
+
 android {
     namespace = "uk.co.salientpoint.bmobile"
     compileSdk = rootProject.ext.compileSdkVersion
@@ -7,8 +24,8 @@ android {
         applicationId "uk.co.salientpoint.bmobile"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 1
-        versionName "1.0"
+        versionCode appVersionCode
+        versionName appVersionName
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         aaptOptions {
              // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.
@@ -16,8 +33,19 @@ android {
             ignoreAssetsPattern = '!.svn:!.git:!.ds_store:!*.scc:.*:!CVS:!thumbs.db:!picasa.ini:!*~'
         }
     }
+    signingConfigs {
+        if (uploadStoreFile) {
+            release {
+                storeFile file(uploadStoreFile)
+                storePassword uploadProp('BMOBILE_UPLOAD_STORE_PASSWORD')
+                keyAlias uploadProp('BMOBILE_UPLOAD_KEY_ALIAS')
+                keyPassword uploadProp('BMOBILE_UPLOAD_KEY_PASSWORD')
+            }
+        }
+    }
     buildTypes {
         release {
+            if (uploadStoreFile) signingConfig signingConfigs.release
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
         }
