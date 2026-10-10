@@ -26,6 +26,15 @@ beforeEach(() => {
   });
 });
 
+describe('devicePrefsStore — shipped defaults', () => {
+  it('starts with no thumbnail margins and the account confirm on', async () => {
+    vi.resetModules();
+    const { useDevicePrefsStore: fresh } = await import('../devicePrefsStore.js');
+    expect(fresh.getState().thumbnailMargins).toBe('none');
+    expect(fresh.getState().confirmAccountBeforeReaction).toBe(true);
+  });
+});
+
 describe('devicePrefsStore — Phase 8 fields', () => {
   it('defaults uploadFullSize to true (current behaviour: nothing downscales)', () => {
     expect(useDevicePrefsStore.getState().uploadFullSize).toBe(true);

@@ -158,7 +158,7 @@ describe('AppGeneralSection — multiple accounts', () => {
     expect(document.querySelector('ion-segment[aria-label="Account picture"]')).toBeNull();
   });
 
-  it('shows the confirm-account toggle (off by default) with two or more accounts, and persists it', () => {
+  it('shows the confirm-account toggle with two or more accounts, and persists it', () => {
     useAccountsStore.setState({ accounts: [acct('a1', 'alice'), acct('a2', 'bob')] });
     render(<AppGeneralSection />);
     const toggle = toggleOf('Confirm account before star, favourite or comment');

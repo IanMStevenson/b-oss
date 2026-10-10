@@ -74,7 +74,7 @@ Known Blipfoto API limits: [AppLimitations.md](AppLimitations.md). Paths are rel
 - Profile Follow, request/refused actions and Remove follower show for read-only accounts but
   open the upgrade prompt. Settings sections show values disabled: "This account is read-only."
 - `/compose/details`, `/compose/location`, `/compose/description` are not route-guarded.
-- Optional "Confirm account before star, favourite or comment" (off by default; needs 2+
+- Optional "Confirm account before star, favourite or comment" (on by default; needs 2+
   accounts) shows an account picker before those three actions (`flows/useAccountConfirmGate.tsx`).
 - Comments off on a journal (`actions.comment === 0`): "Comments are turned off for this journal."
 
