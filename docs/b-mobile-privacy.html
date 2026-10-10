@@ -1,0 +1,181 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Privacy Policy · b-mobile for Blipfoto · b-oss</title>
+    <meta
+      name="description"
+      content="Privacy policy for b-mobile for Blipfoto — the Android app for browsing and posting to your Blipfoto journal."
+    />
+    <link rel="icon" href="assets/favicon.ico" sizes="any" />
+    <link rel="icon" type="image/png" sizes="32x32" href="assets/favicon-32.png" />
+    <link rel="icon" type="image/png" sizes="16x16" href="assets/favicon-16.png" />
+    <link rel="apple-touch-icon" sizes="180x180" href="assets/apple-touch-icon.png" />
+    <link rel="manifest" href="assets/site.webmanifest" />
+    <meta name="theme-color" content="#1f4d3a" />
+    <link rel="stylesheet" href="site.css" />
+  </head>
+  <body>
+    <header class="topbar">
+      <div class="topbar-inner">
+        <a class="brand" href="index.html">b-oss</a>
+        <nav class="nav" aria-label="Primary">
+          <a href="index.html">Home</a>
+          <a href="b-ark.html">b-ark</a>
+          <a href="b-api.html">b-api</a>
+          <a href="contact.html">Contact</a>
+        </nav>
+      </div>
+    </header>
+
+    <main class="page narrow">
+      <section class="hero" data-screen-label="Privacy hero">
+        <h1>Privacy Policy — b-mobile for Blipfoto</h1>
+        <p class="lead">
+          b-mobile for Blipfoto is an Android app for browsing, posting to and getting notifications
+          from your Blipfoto journal. This policy explains what data the app handles, where it goes,
+          and how to have it removed.
+        </p>
+      </section>
+
+      <section
+        class="block"
+        style="border-top: none; padding-top: 0"
+        data-screen-label="Privacy body"
+      >
+        <p><em>Last updated: October 2026</em></p>
+
+        <h2>Who is responsible</h2>
+        <p>
+          b-mobile for Blipfoto is published by Salient Point and developed by Ian Stevenson as part
+          of b-oss. It is an independent app built on Blipfoto's public API. Questions about this
+          policy can be sent through the <a href="contact.html">contact page</a>.
+        </p>
+
+        <h2>What stays on your device</h2>
+        <ul>
+          <li>
+            Your Blipfoto access tokens, held in Android's secure storage (the Keystore). They are
+            used to talk to Blipfoto and are never shown or logged.
+          </li>
+          <li>
+            Your app settings, the list of members you have hidden, drafts, and photos queued for
+            upload.
+          </li>
+          <li>
+            A temporary cache of pictures you have looked at, which expires after 15 minutes and
+            which Android can clear at any time.
+          </li>
+        </ul>
+        <p>None of this is sent to the developer. Uninstalling the app removes it.</p>
+
+        <h2>What is sent to Blipfoto</h2>
+        <p>
+          The app is a client for Blipfoto, so everything you do in it goes to Blipfoto's servers
+          under Blipfoto's own privacy policy: signing in, browsing, posting and editing entries,
+          uploading photos, comments, stars, favourites, follows and reports. If you add a location
+          to an entry, or use the Nearby tab, the coordinates are sent to Blipfoto as part of that
+          request. The developer does not receive a copy.
+        </p>
+
+        <h2>Permissions the app asks for</h2>
+        <ul>
+          <li><strong>Camera</strong> — only when you choose to take a photo for an entry.</li>
+          <li>
+            <strong>Location</strong> (approximate or precise) — only when you tap my-location on a
+            map or open Nearby. Your position is used for that request and is not stored by the app.
+          </li>
+          <li>
+            <strong>Notifications</strong> — optional; to alert you to new comments and activity,
+            and to remind you to post.
+          </li>
+          <li><strong>Internet</strong> — to reach Blipfoto and the services below.</li>
+        </ul>
+        <p>
+          The app does not ask for access to your photo library; you pick photos with Android's own
+          photo picker, which shares only the ones you choose.
+        </p>
+
+        <h2>Maps</h2>
+        <p>
+          Map screens load map tiles from MapTiler. When you open a map, MapTiler receives your
+          device's IP address and the map area you are viewing, under
+          <a href="https://www.maptiler.com/privacy-policy/">MapTiler's privacy policy</a>. Nothing
+          is sent to MapTiler until you open a map.
+        </p>
+
+        <h2>Notifications (optional)</h2>
+        <p>
+          If you turn notifications on, the app registers with b-push, a small service run by the
+          developer on Cloudflare Workers. To check for new activity it stores:
+        </p>
+        <ul>
+          <li>your Blipfoto user ID;</li>
+          <li>
+            a read-only Blipfoto access token, encrypted at rest (it can read, but not post, change
+            or delete anything);
+          </li>
+          <li>
+            your device's push token and platform, which Google's Firebase Cloud Messaging issues so
+            a message can reach your phone;
+          </li>
+          <li>
+            which kinds of notification you chose, how often to check, and the last counts of unread
+            comments and notifications.
+          </li>
+        </ul>
+        <p>
+          b-push only reads <em>counts</em> of unread items from Blipfoto, never their content, and
+          never writes to Blipfoto. The push messages it sends are delivered via Google's Firebase
+          Cloud Messaging and contain no comment or notification text, only which kind of activity
+          occurred and your Blipfoto username. Server logs contain no tokens or request bodies. As
+          hosts, Cloudflare and Google process technical data such as IP addresses under their own
+          policies.
+        </p>
+        <p>
+          <strong>Deleting it:</strong> turning notifications off for an account, or disconnecting
+          the account in the app, deletes its b-push record immediately. If you uninstall the app or
+          clear its data, the record is deleted automatically the next time b-push tries to reach
+          your device and Google reports it gone. To have a record removed sooner, contact me and
+          quote your Blipfoto username.
+        </p>
+
+        <h2>What the app does not do</h2>
+        <p>
+          No advertising, no analytics, no tracking, and no crash-reporting service of its own.
+          Google Play may report crash and performance data (Android vitals) to the developer for
+          devices where you have allowed that, under Google's policies. The developer does not sell
+          or share your data. Apart from the optional notification service above, the app has no
+          server of its own.
+        </p>
+
+        <h2>Children</h2>
+        <p>
+          The app is not directed at children. Use of Blipfoto is subject to Blipfoto's own terms
+          and age requirements.
+        </p>
+
+        <h2>Your rights</h2>
+        <p>
+          Everything the app holds is on your device and under your control, apart from the optional
+          b-push record described above, which you can delete yourself by turning notifications off
+          or by asking me. Data held by Blipfoto is managed through Blipfoto.
+        </p>
+
+        <h2>Changes to this policy</h2>
+        <p>
+          If this policy changes materially, the updated version will be published at this URL with
+          a revised date at the top.
+        </p>
+      </section>
+    </main>
+
+    <footer class="footer">
+      <div class="page footer-inner">
+        <div>&copy; b-oss : blipfoto open source software</div>
+        <div><a href="contact.html">Contact</a></div>
+      </div>
+    </footer>
+  </body>
+</html>
