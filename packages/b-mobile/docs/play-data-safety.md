@@ -12,7 +12,7 @@ unverified), so wording of options below is from memory of the form; confirm aga
 - The app is a client for Blipfoto. Requests the user triggers to the service they signed in to
   (post, comment, upload, nearby search) are treated as user-initiated transfers, not
   "sharing". **This is a judgement call to confirm**: if Google's reading is stricter, the
-  "Shared" answers below flip to yes for the items marked ⚠.
+  "Shared" answers marked ⚠ below flip to Yes.
 
 ## Answers
 
@@ -31,9 +31,9 @@ unverified), so wording of options below is from memory of the form; confirm aga
 | ------------------------------ | --------- | ------ | -------- | ----------------- | --------------------------------------------------------------------- |
 | Personal info: **User IDs**    | Yes       | No     | Yes      | App functionality | Blipfoto user ID in the b-push record; only if notifications are on   |
 | Device or other IDs            | Yes       | No     | Yes      | App functionality | FCM push token in the b-push record; only if notifications are on     |
-| Location: approximate/precise  | ⚠ Yes     | ⚠ Yes  | Yes      | App functionality | Nearby search and entry location go to Blipfoto; map area to MapTiler |
-| Photos and videos              | ⚠ Yes     | ⚠ Yes  | Yes      | App functionality | Photos the user posts, uploaded to Blipfoto; nothing to the developer |
-| Messages / user content        | ⚠ Yes     | ⚠ Yes  | Yes      | App functionality | Comments, journal text posted to Blipfoto                             |
+| Location: approximate/precise  | Yes       | No ⚠   | Yes      | App functionality | Nearby search and entry location go to Blipfoto; map area to MapTiler |
+| Photos and videos              | Yes       | No ⚠   | Yes      | App functionality | Photos the user posts, uploaded to Blipfoto; nothing to the developer |
+| Messages / user content        | Yes       | No ⚠   | Yes      | App functionality | Comments, journal text posted to Blipfoto                             |
 | App activity, web history etc. | No        | No     |          |                   | No analytics                                                          |
 | Crash logs / diagnostics       | No        |        |          |                   | None of ours. Play may add Android vitals independently               |
 | Financial, health, contacts    | No        |        |          |                   |                                                                       |
