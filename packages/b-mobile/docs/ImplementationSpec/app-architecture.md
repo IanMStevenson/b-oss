@@ -477,6 +477,14 @@ auto-applied at launch in development mode, §19).
 Anything in the bundle is extractable: the registration secret is a coarse gate, not a credential,
 and the tile key must be one a provider tolerates being public.
 
+**App identity:** `VITE_BLIPFOTO_CLIENT_ID` must be the distributed app registered on the
+project's own (Cyclops) Blipfoto account, redirect exactly `bmobile://oauth/`: its owner and name
+are what users see when authorising. Never build a release, or a build that leaves the dev box,
+with an identity from a test account (b-oss#371). The ID is baked in at build time, so changing it
+needs a rebuild, and tokens issued under the old identity stay tied to it: every account (and its
+b-push service token) must sign in again, and `VITE_DEV_TOKEN` must be re-issued for the new
+identity or left blank.
+
 ## 19. Testing
 
 Vitest + Testing Library under jsdom, run from the repo root. Pure logic (error mapping, write gate,
