@@ -132,6 +132,11 @@ afterEach(() => {
   vi.resetAllMocks();
 });
 
+/** The muted "Report" / "Hide user" links at the foot of someone else's entry. */
+function footerLinks(): HTMLElement {
+  return document.querySelector('.quiet-links-row') as HTMLElement;
+}
+
 function renderScreen(props: { initialReplyToCommentId?: string } = {}) {
   return render(
     <MemoryRouter>
@@ -476,7 +481,7 @@ describe('EntryDetailScreen', () => {
         await screen.findByText('A day out');
         expect(screen.getByText('By me')).toBeDefined();
         expect(screen.queryByLabelText('Follow me')).toBeNull();
-        expect(screen.queryByLabelText('Report')).toBeNull();
+        expect(screen.queryByLabelText('Report', { selector: 'button' })).toBeNull();
         expect(screen.queryByLabelText('Hide me')).toBeNull();
         await userEvent.click(screen.getByLabelText('me’s profile'));
         expect(navPush).toHaveBeenLastCalledWith('/me');
@@ -826,7 +831,7 @@ describe('EntryDetailScreen', () => {
       });
       renderScreen();
       await screen.findByText('A day out');
-      expect(screen.queryByLabelText('Report')).toBeNull();
+      expect(screen.queryByLabelText('Report', { selector: 'button' })).toBeNull();
     });
 
     it('Report is offered on another member’s entry, and navigates scoped to its author', async () => {
@@ -834,7 +839,7 @@ describe('EntryDetailScreen', () => {
       vi.mocked(fetchEntry).mockResolvedValue(baseLoadedEntry);
       renderScreen();
       await screen.findByText('A day out');
-      await userEvent.click(screen.getByLabelText('Report'));
+      await userEvent.click(screen.getByLabelText('Report', { selector: 'button' }));
       expect(navPush).toHaveBeenCalledWith('/entry/1/report', { targetUsername: 'alice' });
     });
 
@@ -842,7 +847,7 @@ describe('EntryDetailScreen', () => {
       const { fetchEntry } = await import('../../../data/entries.js');
       vi.mocked(fetchEntry).mockResolvedValue(baseLoadedEntry);
       const alertButton = (text: string) =>
-        [...document.querySelectorAll('ion-alert.report-via-support button')].find(
+        [...document.querySelectorAll('ion-alert[header="Report"] button')].find(
           (b) => b.textContent === text,
         ) as HTMLElement;
       useAccountsStore.setState({
@@ -851,7 +856,7 @@ describe('EntryDetailScreen', () => {
       });
       renderScreen();
       await screen.findByText('A day out');
-      await userEvent.click(screen.getByLabelText('Report'));
+      await userEvent.click(screen.getByLabelText('Report', { selector: 'button' }));
       expect(await screen.findByText(REPORT_VIA_SUPPORT_MESSAGE)).toBeDefined();
       expect(openUrl).not.toHaveBeenCalled();
       await userEvent.click(alertButton('Continue'));
@@ -861,7 +866,7 @@ describe('EntryDetailScreen', () => {
       useAccountsStore.setState({ accounts: [], activeAccountId: null });
       renderScreen();
       await screen.findByText('A day out');
-      await userEvent.click(screen.getByText('Report'));
+      await userEvent.click(within(footerLinks()).getByText('Report'));
       await screen.findByText(REPORT_VIA_SUPPORT_MESSAGE);
       await userEvent.click(alertButton('Cancel'));
       expect(openUrl).toHaveBeenCalledTimes(1);
@@ -874,7 +879,7 @@ describe('EntryDetailScreen', () => {
       renderScreen();
       await screen.findByText('A day out');
       expect(screen.getByLabelText('Hide user')).toBeDefined();
-      await userEvent.click(screen.getByText('Report'));
+      await userEvent.click(within(footerLinks()).getByText('Report'));
       expect(navPush).toHaveBeenCalledWith('/entry/1/report', { targetUsername: 'alice' });
       expect(screen.getByText('Hide user')).toBeDefined();
 

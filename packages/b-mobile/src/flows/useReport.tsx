@@ -52,7 +52,7 @@ export function useReport(): {
   const reportDialog = (
     <IonAlert
       isOpen={explaining}
-      cssClass="report-via-support"
+      header="Report"
       message={REPORT_VIA_SUPPORT_MESSAGE}
       onDidDismiss={() => setExplaining(false)}
       buttons={[
