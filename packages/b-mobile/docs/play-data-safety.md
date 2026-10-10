@@ -16,14 +16,14 @@ unverified), so wording of options below is from memory of the form; confirm aga
 
 ## Answers
 
-| Question                                       | Answer                                                          |
-| ---------------------------------------------- | --------------------------------------------------------------- |
-| Does the app collect or share user data?       | Yes                                                             |
-| Is all data encrypted in transit?              | Yes (HTTPS to Blipfoto, MapTiler, b-push, FCM)                  |
-| Can users request data deletion?               | Yes: turn notifications off or disconnect (instant), or contact |
-| Account creation / sign-in inside the app?     | Sign-in with a Blipfoto account (OAuth); no account of ours     |
-| Independent security review                    | No                                                              |
-| Follows Families policy / directed at children | No                                                              |
+| Question                                       | Answer                                                      |
+| ---------------------------------------------- | ----------------------------------------------------------- |
+| Does the app collect or share user data?       | Yes                                                         |
+| Is all data encrypted in transit?              | Yes (HTTPS to Blipfoto, MapTiler, b-push, FCM)              |
+| Can users request data deletion?               | Yes: turn notifications off or disconnect (instant)         |
+| Account creation / sign-in inside the app?     | Sign-in with a Blipfoto account (OAuth); no account of ours |
+| Independent security review                    | No                                                          |
+| Follows Families policy / directed at children | No                                                          |
 
 ## Data types
 
