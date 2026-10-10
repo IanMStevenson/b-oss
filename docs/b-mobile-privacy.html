@@ -130,8 +130,12 @@
           b-push only reads <em>counts</em> of unread items from Blipfoto, never their content, and
           never writes to Blipfoto. The push messages it sends are delivered via Google's Firebase
           Cloud Messaging and contain no comment or notification text, only which kind of activity
-          occurred and your Blipfoto username. Cloudflare and Google, as hosts, process technical
-          data such as IP addresses under their own policies.
+          occurred and your Blipfoto username. Push delivery relies on Google's Firebase Cloud
+          Messaging. The Firebase code in the app gives your device a Firebase installation ID and
+          push token, and Google may log technical data about the device, its IP address and message
+          delivery, under Google's own policies and outside the developer's control. Cloudflare, as
+          host of b-push, likewise processes technical data such as IP addresses under its own
+          policy.
         </p>
         <p>
           <strong>Deleting it:</strong> turning notifications off for an account, or disconnecting
@@ -164,7 +168,8 @@
           a user, but it identifies nothing else about you, and it stops meaning anything once the
           record is deleted. Cloudflare may also keep its own standard request data (such as time,
           URL and IP address) for the Worker, under Cloudflare's policy and for a period set by its
-          plan. Logs are not shared with anyone else.
+          plan. The developer does not share b-push logs with anyone else, and cannot see what
+          Google keeps.
         </p>
 
         <h2>What the app does not do</h2>
