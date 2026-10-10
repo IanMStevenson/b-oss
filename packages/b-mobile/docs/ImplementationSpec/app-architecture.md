@@ -113,7 +113,7 @@ direct children; don't expose the real routes to it. Back is made to feel right 
 id; `/` redirects to `/browse`). Not obvious from the paths:
 
 - **Write-gated** (`WriteGuardRoute`): `/compose`, `/entry/:id/edit`, `/entry/:id/report`. Report
-  affordances go through `flows/useReport.ts`, which only routes to `/report` with write access and
+  affordances go through `flows/useReport.tsx`, which only routes to `/report` with write access and
   otherwise opens Blipfoto's support request form.
   **Account-gated** (`AccountGuardRoute`): `/notifications`, `/comments` (push targets).
 - **Lazy-loaded:** `/map`, `/compose/location` (MapLibre), `/compose/details` (react-easy-crop).

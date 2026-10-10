@@ -15,7 +15,7 @@ import { useDevicePrefsStore } from '../../../state/devicePrefsStore.js';
 import type { LoadedEntry } from '../../../data/entries.js';
 import type { StoredAccount } from '../../../state/accountsStore.js';
 import { clearAllDrafts } from '../../../data/commentDrafts.js';
-import { REPORT_REQUEST_URL } from '../../../flows/useReport.js';
+import { REPORT_REQUEST_URL, REPORT_VIA_SUPPORT_MESSAGE } from '../../../flows/useReport.js';
 
 const { fetchAuthorAvatar } = vi.hoisted(() => ({ fetchAuthorAvatar: vi.fn() }));
 vi.mock('../../../data/users.js', () => ({ fetchAuthorAvatar }));
@@ -838,9 +838,13 @@ describe('EntryDetailScreen', () => {
       expect(navPush).toHaveBeenCalledWith('/entry/1/report', { targetUsername: 'alice' });
     });
 
-    it('Report sends a signed-out or read-only viewer to Blipfoto’s support form instead', async () => {
+    it('Report explains, then sends a signed-out or read-only viewer to Blipfoto’s support form on Continue', async () => {
       const { fetchEntry } = await import('../../../data/entries.js');
       vi.mocked(fetchEntry).mockResolvedValue(baseLoadedEntry);
+      const alertButton = (text: string) =>
+        [...document.querySelectorAll('ion-alert.report-via-support button')].find(
+          (b) => b.textContent === text,
+        ) as HTMLElement;
       useAccountsStore.setState({
         accounts: [{ ...readWriteAccount, appTokenScope: 'read' }],
         activeAccountId: 'a1',
@@ -848,6 +852,9 @@ describe('EntryDetailScreen', () => {
       renderScreen();
       await screen.findByText('A day out');
       await userEvent.click(screen.getByLabelText('Report'));
+      expect(await screen.findByText(REPORT_VIA_SUPPORT_MESSAGE)).toBeDefined();
+      expect(openUrl).not.toHaveBeenCalled();
+      await userEvent.click(alertButton('Continue'));
       expect(openUrl).toHaveBeenCalledWith(REPORT_REQUEST_URL);
 
       cleanup();
@@ -855,7 +862,9 @@ describe('EntryDetailScreen', () => {
       renderScreen();
       await screen.findByText('A day out');
       await userEvent.click(screen.getByText('Report'));
-      expect(openUrl).toHaveBeenCalledTimes(2);
+      await screen.findByText(REPORT_VIA_SUPPORT_MESSAGE);
+      await userEvent.click(alertButton('Cancel'));
+      expect(openUrl).toHaveBeenCalledTimes(1);
       expect(navPush).not.toHaveBeenCalled();
     });
 

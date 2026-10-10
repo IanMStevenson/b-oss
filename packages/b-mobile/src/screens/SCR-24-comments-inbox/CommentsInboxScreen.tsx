@@ -53,7 +53,7 @@ type Status = 'loading' | 'loaded' | 'empty' | 'error';
 
 export function CommentsInboxScreen() {
   const navigate = useAppNavigate();
-  const report = useReport();
+  const { report, reportDialog } = useReport();
   const hiddenUsernames = useHiddenMembers();
   const activeAccountId = useAccountsStore((s) => s.activeAccountId);
   const clearComments = useNotificationCountsStore((s) => s.clearComments);
@@ -277,6 +277,7 @@ export function CommentsInboxScreen() {
         onDidDismiss={() => setActionError(null)}
         buttons={['OK']}
       />
+      {reportDialog}
     </IonPage>
   );
 }

@@ -127,7 +127,7 @@ function flattenComments(comments: ApiComment[], map: Map<string, ApiComment>): 
 export function EntryDetailScreen({ entryId, initialReplyToCommentId }: EntryDetailScreenProps) {
   const photoFit = useDevicePrefsStore((s) => s.photoFit);
   const navigate = useAppNavigate();
-  const report = useReport();
+  const { report, reportDialog } = useReport();
   const { showUpgradePrompt } = useOverlay();
   const activeAccount = useActiveAccount();
   const canWrite = useCanWrite();
@@ -738,6 +738,7 @@ export function EntryDetailScreen({ entryId, initialReplyToCommentId }: EntryDet
           { text: 'Delete', role: 'destructive', handler: () => void handleConfirmedDelete() },
         ]}
       />
+      {reportDialog}
     </IonPage>
   );
 }

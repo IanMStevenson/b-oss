@@ -30,7 +30,9 @@ const { followUser, unfollowUser } = vi.hoisted(() => ({
 vi.mock('../../../flows/reactionsFlow.js', () => ({ followUser, unfollowUser }));
 
 const report = vi.hoisted(() => vi.fn());
-vi.mock('../../../flows/useReport.js', () => ({ useReport: () => report }));
+vi.mock('../../../flows/useReport.js', () => ({
+  useReport: () => ({ report, reportDialog: null }),
+}));
 
 vi.mock('../../../platform/prefs.js', () => ({
   getPref: vi.fn().mockResolvedValue(null),

@@ -158,7 +158,7 @@ function GridTab({
 
 export function ProfileScreen({ username }: ProfileScreenProps) {
   const navigate = useAppNavigate();
-  const report = useReport();
+  const { report, reportDialog } = useReport();
   const { showUpgradePrompt } = useOverlay();
   const activeAccount = useActiveAccount();
   const isOwn = username === undefined || username === activeAccount?.username;
@@ -548,6 +548,7 @@ export function ProfileScreen({ username }: ProfileScreenProps) {
         onDidDismiss={() => setErrorMessage(null)}
         buttons={['OK']}
       />
+      {reportDialog}
     </IonPage>
   );
 }

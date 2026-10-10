@@ -47,8 +47,9 @@ Known Blipfoto API limits: [AppLimitations.md](AppLimitations.md). Paths are rel
   attempt count) and Remove (asks first; drops it and its copied photo).
 - **Report** (entry, comment, member): read-write accounts get the in-app form: five reasons (at
   least one required) plus note. The API accepts reports only with a read-write user token, so
-  signed out or read-only, Report opens Blipfoto's support request form
-  (`blipfoto.zendesk.com/hc/en-gb/requests/new`) instead (`flows/useReport.ts`). A comment report
+  signed out or read-only, Report shows "Blipfoto requires reports via Zendesk unless you are
+  signed in using Read/Write mode" (Cancel / Continue), and Continue opens Blipfoto's support
+  request form (`blipfoto.zendesk.com/hc/en-gb/requests/new`) (`flows/useReport.tsx`). A comment report
   uses the entry endpoint with a prefilled note `<user>'s comment: "<excerpt>"`; a member report
   (profile Flag, only when they have a visible latest entry) is sent against their latest entry with
   `Reporting the member <user>, not just this entry: `. Afterwards offers to hide.
@@ -89,7 +90,7 @@ Known Blipfoto API limits: [AppLimitations.md](AppLimitations.md). Paths are rel
 
 - Device-local and installation-wide (one list whichever account is active, signed out too), keyed
   by username; never sent anywhere. A list stored per account by an earlier build is merged on load.
-- Grids: mid-grey tile with a white image glyph, labelled "blocked user" (no title or image). Entry: "You've hidden this member." + Unhide.
+- Grids: mid-grey tile with a white image glyph, labelled "hidden user" (no title or image). Entry: "You've hidden this member." + Unhide.
   Their comments and reply subtrees are removed. Comments inbox: exact filter. Notifications inbox:
   best-effort, from profile links in `content_html`. Map: no marker. People lists: "(Hidden)".
 

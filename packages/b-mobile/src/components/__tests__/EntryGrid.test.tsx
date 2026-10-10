@@ -239,7 +239,7 @@ describe('EntryGrid — caption mode (b-oss#259)', () => {
 });
 
 describe('EntryGrid — hidden members', () => {
-  it('draws a hidden member’s tile as the grey "blocked user" tile without fetching their image', async () => {
+  it('draws a hidden member’s tile as the grey "hidden user" tile without fetching their image', async () => {
     resolveImage.mockResolvedValue('blob:thumb');
     hiddenMembers.list = ['alice'];
     const [mine, theirs] = makeEntries(2);
