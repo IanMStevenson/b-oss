@@ -24,7 +24,6 @@ import { AppHeader } from '../../components/AppHeader.js';
 import { useAppNavigate } from '../../app/routes/useAppNavigate.js';
 import { reportEntry } from '../../flows/reactionsFlow.js';
 import { describeError, mapApiError } from '../../data/errors.js';
-import { useAccountsStore } from '../../state/accountsStore.js';
 import { useHiddenMembersStore } from '../../state/hiddenMembersStore.js';
 import type { ReportReasons } from '@b-oss/b-api';
 
@@ -61,9 +60,8 @@ export function ReportEntryScreen({
   const [reportedOk, setReportedOk] = useState(false);
 
   function handleHide(): void {
-    const account = useAccountsStore.getState();
-    if (!targetUsername || !account.activeAccountId) return;
-    useHiddenMembersStore.getState().hide(account.activeAccountId, targetUsername);
+    if (!targetUsername) return;
+    useHiddenMembersStore.getState().hide(targetUsername);
     navigate.goBack();
   }
 

@@ -65,7 +65,7 @@ beforeEach(async () => {
   const users = await import('../../../data/users.js');
   vi.mocked(users.fetchAwards).mockResolvedValue([{}, {}, {}] as never);
   useAccountsStore.setState({ accounts: [meAccount], activeAccountId: 'a1', hydrated: true });
-  useHiddenMembersStore.setState({ hiddenByAccount: {}, hydrated: true });
+  useHiddenMembersStore.setState({ hidden: [], hydrated: true });
 });
 
 afterEach(() => {
@@ -147,7 +147,7 @@ describe('ProfileScreen', () => {
   });
 
   it("shows the hidden-member state instead of a hidden member's profile", async () => {
-    useHiddenMembersStore.setState({ hiddenByAccount: { a1: ['alice'] }, hydrated: true });
+    useHiddenMembersStore.setState({ hidden: ['alice'], hydrated: true });
     const { fetchUserProfile } = await import('../../../data/users.js');
     vi.mocked(fetchUserProfile).mockResolvedValue(aliceProfile);
     renderScreen('alice');
@@ -164,7 +164,7 @@ describe('ProfileScreen', () => {
     await userEvent.click(screen.getByLabelText('Hide alice'));
     await userEvent.click(await screen.findByText('Hide', { selector: '.alert-button-inner' }));
     await waitFor(() =>
-      expect(useHiddenMembersStore.getState().hiddenByAccount['a1']).toEqual(['alice']),
+      expect(useHiddenMembersStore.getState().hidden).toEqual(['alice']),
     );
   });
 

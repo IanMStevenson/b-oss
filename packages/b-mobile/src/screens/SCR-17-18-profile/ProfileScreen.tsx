@@ -248,15 +248,13 @@ export function ProfileScreen({ username }: ProfileScreenProps) {
 
   function handleConfirmedHide(): void {
     setConfirmHide(false);
-    const account = useAccountsStore.getState();
-    if (!effectiveUsername || !account.activeAccountId) return;
-    useHiddenMembersStore.getState().hide(account.activeAccountId, effectiveUsername);
+    if (!effectiveUsername) return;
+    useHiddenMembersStore.getState().hide(effectiveUsername);
   }
 
   function handleUnhide(): void {
-    const account = useAccountsStore.getState();
-    if (!effectiveUsername || !account.activeAccountId) return;
-    useHiddenMembersStore.getState().unhide(account.activeAccountId, effectiveUsername);
+    if (!effectiveUsername) return;
+    useHiddenMembersStore.getState().unhide(effectiveUsername);
   }
 
   return (

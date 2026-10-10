@@ -108,7 +108,7 @@ const meAccount = {
 
 beforeEach(() => {
   useAccountsStore.setState({ accounts: [meAccount], activeAccountId: 'me', hydrated: true });
-  useHiddenMembersStore.setState({ hiddenByAccount: {}, hydrated: true });
+  useHiddenMembersStore.setState({ hidden: [], hydrated: true });
   useNotificationCountsStore.setState({ comments: 4, notifications: 0 });
 });
 
@@ -199,7 +199,7 @@ describe('CommentsInboxScreen', () => {
   });
 
   it('comments from a hidden member are excluded entirely, not just marked', async () => {
-    useHiddenMembersStore.setState({ hiddenByAccount: { me: ['alice'] }, hydrated: true });
+    useHiddenMembersStore.setState({ hidden: ['alice'], hydrated: true });
     fetchRecentComments.mockResolvedValue([
       comment({
         comment_id_str: '1',

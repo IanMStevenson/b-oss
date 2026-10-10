@@ -115,7 +115,7 @@ beforeEach(() => {
     activeAccountId: 'a1',
     hydrated: true,
   });
-  useHiddenMembersStore.setState({ hiddenByAccount: {}, hydrated: true });
+  useHiddenMembersStore.setState({ hidden: [], hydrated: true });
   useDevicePrefsStore.setState({ confirmAccountBeforeReaction: false, hydrated: true });
 });
 
@@ -218,7 +218,7 @@ describe('EntryDetailScreen', () => {
   });
 
   it("shows a hidden-member state instead of a hidden author's entry", async () => {
-    useHiddenMembersStore.setState({ hiddenByAccount: { a1: ['alice'] }, hydrated: true });
+    useHiddenMembersStore.setState({ hidden: ['alice'], hydrated: true });
     const { fetchEntry } = await import('../../../data/entries.js');
     vi.mocked(fetchEntry).mockResolvedValue(baseLoadedEntry);
     renderScreen();
@@ -864,7 +864,7 @@ describe('EntryDetailScreen', () => {
         'ion-alert[header="Hide alice?"] button.alert-button-role-destructive',
       ) as HTMLElement;
       await userEvent.click(confirmButton);
-      expect(useHiddenMembersStore.getState().hiddenByAccount.a1).toContain('alice');
+      expect(useHiddenMembersStore.getState().hidden).toContain('alice');
     });
   });
 

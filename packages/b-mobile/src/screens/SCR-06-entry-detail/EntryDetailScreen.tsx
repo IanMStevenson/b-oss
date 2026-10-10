@@ -398,9 +398,8 @@ export function EntryDetailScreen({ entryId, initialReplyToCommentId }: EntryDet
 
   function handleConfirmedHide(): void {
     setConfirmHide(false);
-    const account = useAccountsStore.getState();
-    if (!authorUsername || !account.activeAccountId) return;
-    useHiddenMembersStore.getState().hide(account.activeAccountId, authorUsername);
+    if (!authorUsername) return;
+    useHiddenMembersStore.getState().hide(authorUsername);
   }
 
   // Own journal only — the flow refuses anything else, and the button is only offered for it.
@@ -419,9 +418,8 @@ export function EntryDetailScreen({ entryId, initialReplyToCommentId }: EntryDet
   }
 
   function handleUnhideAuthor(): void {
-    const account = useAccountsStore.getState();
-    if (!authorUsername || !account.activeAccountId) return;
-    useHiddenMembersStore.getState().unhide(account.activeAccountId, authorUsername);
+    if (!authorUsername) return;
+    useHiddenMembersStore.getState().unhide(authorUsername);
   }
 
   function renderCommentActions(comment: BlipComment): ReactNode {

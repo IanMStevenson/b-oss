@@ -42,7 +42,7 @@ beforeEach(() => {
     activeAccountId: 'a1',
     hydrated: true,
   });
-  useHiddenMembersStore.setState({ hiddenByAccount: {}, hydrated: true });
+  useHiddenMembersStore.setState({ hidden: [], hydrated: true });
 });
 
 afterEach(() => {
@@ -99,9 +99,9 @@ describe('ReportEntryScreen', () => {
     checkReason('Promotional / spam');
     await userEvent.click(screen.getByText('Send'));
     expect(await screen.findByText('Also hide alice')).toBeDefined();
-    expect(useHiddenMembersStore.getState().hiddenByAccount.a1).toBeUndefined();
+    expect(useHiddenMembersStore.getState().hidden).toEqual([]);
 
     await userEvent.click(screen.getByText('Also hide alice'));
-    expect(useHiddenMembersStore.getState().hiddenByAccount.a1).toEqual(['alice']);
+    expect(useHiddenMembersStore.getState().hidden).toEqual(['alice']);
   });
 });

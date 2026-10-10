@@ -108,8 +108,7 @@ export function CommentsInboxScreen() {
   }
 
   function handleHide(username: string): void {
-    if (!activeAccountId) return;
-    useHiddenMembersStore.getState().hide(activeAccountId, username);
+    useHiddenMembersStore.getState().hide(username);
   }
 
   async function handleConfirmedDelete(): Promise<void> {

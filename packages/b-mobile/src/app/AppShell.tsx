@@ -166,7 +166,7 @@ function NavMenu() {
           <NavItem to="/settings" label="Settings" currentPath={pathname} />
           <NavItem to="/help" label="Help & about" currentPath={pathname} />
           <NavItem to="/accounts" label="Accounts" currentPath={pathname} />
-          {activeAccount && <NavItem to="/hidden" label="Hidden members" currentPath={pathname} />}
+          <NavItem to="/hidden" label="Hidden members" currentPath={pathname} />
           {!activeAccount && <NavItem to="/sign-in" label="Sign in" currentPath={pathname} />}
         </IonList>
       </IonContent>

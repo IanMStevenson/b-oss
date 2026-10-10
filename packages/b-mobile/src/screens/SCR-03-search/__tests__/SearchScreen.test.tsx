@@ -38,7 +38,7 @@ const entry: EntryIndex = {
 const user: BlipUser = { username: 'alice', avatar_url: '', icons: [] };
 
 beforeEach(() => {
-  useHiddenMembersStore.setState({ hiddenByAccount: {}, hydrated: true });
+  useHiddenMembersStore.setState({ hidden: [], hydrated: true });
   useAccountsStore.setState({ accounts: [], activeAccountId: null, hydrated: true });
 });
 
@@ -214,7 +214,7 @@ describe('SearchScreen', () => {
       activeAccountId: 'a1',
       hydrated: true,
     });
-    useHiddenMembersStore.setState({ hiddenByAccount: { a1: ['alice'] }, hydrated: true });
+    useHiddenMembersStore.setState({ hidden: ['alice'], hydrated: true });
     const { fetchSearchUsersPage } = await import('../../../data/users.js');
     vi.mocked(fetchSearchUsersPage).mockResolvedValue({ items: [user], more: false });
     renderScreen();
