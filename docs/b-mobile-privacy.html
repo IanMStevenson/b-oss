@@ -48,9 +48,10 @@
 
         <h2>Who is responsible</h2>
         <p>
-          b-mobile for Blipfoto is published by Salient Point and developed by Ian Stevenson as part
-          of b-oss. It is an independent app built on Blipfoto's public API. Questions about this
-          policy can be sent through the <a href="contact.html">contact page</a>.
+          b-mobile for Blipfoto is developed mostly as an open-source project, part of b-oss and led
+          by Ian Stevenson, and is published on the Google Play Store by Salient Point Consulting
+          Ltd. It is an independent app built on Blipfoto's public API. Questions about this policy
+          can be sent through the <a href="contact.html">contact page</a>.
         </p>
 
         <h2>What stays on your device</h2>
@@ -129,16 +130,41 @@
           b-push only reads <em>counts</em> of unread items from Blipfoto, never their content, and
           never writes to Blipfoto. The push messages it sends are delivered via Google's Firebase
           Cloud Messaging and contain no comment or notification text, only which kind of activity
-          occurred and your Blipfoto username. Server logs contain no tokens or request bodies. As
-          hosts, Cloudflare and Google process technical data such as IP addresses under their own
-          policies.
+          occurred and your Blipfoto username. Cloudflare and Google, as hosts, process technical
+          data such as IP addresses under their own policies.
         </p>
         <p>
           <strong>Deleting it:</strong> turning notifications off for an account, or disconnecting
           the account in the app, deletes its b-push record immediately. If you uninstall the app or
-          clear its data, the record is deleted automatically the next time b-push tries to reach
-          your device and Google reports it gone. To have a record removed sooner, contact me and
-          quote your Blipfoto username.
+          clear its data without first turning notifications off or disconnecting your account, the
+          record is deleted automatically the next time b-push tries to reach your device and Google
+          reports it gone.
+        </p>
+
+        <h3>Logs and monitoring</h3>
+        <p>
+          b-push writes operational logs, kept in Cloudflare's Workers Logs, which the developer
+          reads for fault-finding and performance monitoring. They record:
+        </p>
+        <ul>
+          <li>
+            a summary of each check (how many registrations were checked, how many notifications
+            were sent, how many errors);
+          </li>
+          <li>
+            when a check for a registration fails, or a registration is removed: a random
+            registration ID that b-push generated, plus an error code and message;
+          </li>
+          <li>the method and path of requests that failed.</li>
+        </ul>
+        <p>
+          They never contain access tokens, request bodies, your Blipfoto username or user ID, or
+          the text of any notification. A registration ID is a pseudonym: the developer can match it
+          to your b-push record while that record exists, so in that sense a log line can be tied to
+          a user, but it identifies nothing else about you, and it stops meaning anything once the
+          record is deleted. Cloudflare may also keep its own standard request data (such as time,
+          URL and IP address) for the Worker, under Cloudflare's policy and for a period set by its
+          plan. Logs are not shared with anyone else.
         </p>
 
         <h2>What the app does not do</h2>
@@ -159,8 +185,9 @@
         <h2>Your rights</h2>
         <p>
           Everything the app holds is on your device and under your control, apart from the optional
-          b-push record described above, which you can delete yourself by turning notifications off
-          or by asking me. Data held by Blipfoto is managed through Blipfoto.
+          b-push record described above, which you can delete yourself at any time by turning
+          notifications off or disconnecting the account. Data held by Blipfoto is managed through
+          Blipfoto.
         </p>
 
         <h2>Changes to this policy</h2>
