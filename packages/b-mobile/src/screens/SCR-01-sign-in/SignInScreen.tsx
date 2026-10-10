@@ -57,6 +57,7 @@ import { useActiveAccount, useAccountsStore } from '../../state/accountsStore.js
 import { t } from '../../strings/index.js';
 
 const SIGNUP_URL = 'https://www.blipfoto.com/account/signup';
+const TERMS_URL = 'https://www.blipfoto.com/legal/terms';
 
 type Status = 'idle' | 'authenticating' | 'error';
 
@@ -255,6 +256,14 @@ export function SignInScreen() {
         <IonButton expand="block" fill="clear" onClick={() => void openUrl(SIGNUP_URL)}>
           New to Blipfoto? Create account
         </IonButton>
+
+        {/* Everything posted through the app is posted to Blipfoto, under its terms (b-oss#362). */}
+        <p className="quiet-links">
+          Reminder &ndash; Use of Blipfoto is governed by Blipfoto&rsquo;s{' '}
+          <button type="button" onClick={() => void openUrl(TERMS_URL)}>
+            terms of service
+          </button>
+        </p>
       </IonContent>
 
       {explainer.element}

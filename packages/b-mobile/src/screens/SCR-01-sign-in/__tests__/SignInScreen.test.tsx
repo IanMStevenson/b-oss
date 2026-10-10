@@ -398,6 +398,13 @@ describe('SignInScreen', () => {
     expect(openUrl).toHaveBeenCalledWith('https://www.blipfoto.com/account/signup');
   });
 
+  it('reminds that Blipfoto’s terms of service apply, linking to them', async () => {
+    renderScreen();
+    expect(screen.getByText(/Use of Blipfoto is governed by Blipfoto’s/)).toBeDefined();
+    await userEvent.click(screen.getByText('terms of service'));
+    expect(openUrl).toHaveBeenCalledWith('https://www.blipfoto.com/legal/terms');
+  });
+
   it('shows the first-run explainer once, on the first hydrated visit, and marks it seen', async () => {
     useDevicePrefsStore.setState({ hydrated: true, seenFirstRunExplainer: false });
     renderScreen();
