@@ -255,7 +255,7 @@ export const STRINGS = {
   'SCR-29.safety_privacy.delete_comment':
     'Delete a comment - on your own entries, you can remove any comment, from anyone, straight away. No need to wait for a report.',
   'SCR-29.safety_privacy.hide':
-    "Hide a member - you stop seeing their entries, comments and notifications. It's personal, immediate and reversible, and they're never told. It doesn't stop them seeing your journal or commenting on your entries.",
+    "Hide a member - this app's block. You stop seeing their entries, comments and notifications on this device, whichever account you're using and even signed out. It's personal, immediate and reversible, and they're never told. It doesn't stop them seeing your journal or commenting on your entries.",
   'SCR-29.safety_privacy.intro':
     "A few different tools handle unwanted attention, and they do different jobs - here's what each one actually does.",
   'SCR-29.safety_privacy.refuse':
@@ -263,7 +263,7 @@ export const STRINGS = {
   'SCR-29.safety_privacy.remove_follower':
     'Remove a follower - ends the relationship. On a private journal they lose access, but they can ask to follow again; on a public journal your entries were never hidden from them anyway.',
   'SCR-29.safety_privacy.report':
-    "Report - sends an entry or a comment to Blipfoto's moderators, who can act for everyone, not just you. Use this for anything that should be looked at more widely.",
+    "Report - sends an entry, a comment or a member to Blipfoto's moderators, who can act for everyone, not just you. Use this for anything that should be looked at more widely. Reporting from inside the app needs a read-write sign-in; signed out or read-only, Report opens Blipfoto's support request form instead.",
   'SCR-30.button.remove': 'Remove',
   'SCR-30.button.sign_in_again': 'Sign in again',
   'SCR-30.detail.mode': 'Mode',

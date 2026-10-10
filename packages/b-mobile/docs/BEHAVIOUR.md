@@ -12,7 +12,7 @@ Known Blipfoto API limits: [AppLimitations.md](AppLimitations.md). Paths are rel
   link, share or push tap routes elsewhere.
 - Menu: account block (→ Accounts) · New entry (read-write only) · Browse · Search · Map · My
   profile, Notifications, Comments (signed in; inboxes show unread badges) · Settings · Help &
-  about · Accounts · Hidden members (signed in) · Sign in (signed out).
+  about · Accounts · Hidden members · Sign in (signed out).
 - No view stack: leaving a screen unmounts it and Back rebuilds it. `data/resumeCache.ts` (memory,
   10-minute TTL) restores Browse's tab and grid page; `useScrollResume` restores entry scroll.
 - The route table is keyed by the active account id: switching account rebuilds the current screen.
@@ -34,7 +34,8 @@ Known Blipfoto API limits: [AppLimitations.md](AppLimitations.md). Paths are rel
   are one-way (no unstar). Inline comment/reply/edit composers, with unsent text kept in memory per
   target (`data/commentDrafts.ts`). Reply/Edit/Delete per comment follow the API's `actions` flags;
   Report on others' comments. Author block with Follow/Following/Requested. Others' entries: Report
-  and Hide. Own entries: Download photo (read-only too; own journal only, `flows/downloadFlow.ts`),
+  and Hide user in the star/favourite pill, and again as muted underlined "Report" / "Hide user"
+  text links at the foot of the page. Own entries: Download photo (read-only too; own journal only, `flows/downloadFlow.ts`),
   Edit and Delete (read-write). Tags → `/tag`, location → `/map?entry=`, fullscreen button or
   double-tap → `/photo`. Calendar and ±1-year history need a signed-in account.
 - **Photo**: b-view Lightbox, zoom/pan, retry on image error. **New entry**: Take / Choose photo, or a shared photo.
@@ -44,18 +45,23 @@ Known Blipfoto API limits: [AppLimitations.md](AppLimitations.md). Paths are rel
 - **Uploads**: Waiting / Uploading… / Uploaded / Failed (+ error); indeterminate bar while
   uploading; tap an uploaded item to open it. A failed item has Retry (back to Waiting, fresh
   attempt count) and Remove (asks first; drops it and its copied photo).
-- **Report**: five reasons (at least one required) plus note. A comment report uses the same
-  endpoint with a prefilled note `<user>'s comment: "<excerpt>"`. Afterwards offers to hide.
+- **Report** (entry, comment, member): read-write accounts get the in-app form: five reasons (at
+  least one required) plus note. The API accepts reports only with a read-write user token, so
+  signed out or read-only, Report opens Blipfoto's support request form
+  (`blipfoto.zendesk.com/hc/en-gb/requests/new`) instead (`flows/useReport.ts`). A comment report
+  uses the entry endpoint with a prefilled note `<user>'s comment: "<excerpt>"`; a member report
+  (profile Flag, only when they have a visible latest entry) is sent against their latest entry with
+  `Reporting the member <user>, not just this entry: `. Afterwards offers to hide.
 - **Profile** (`/me`, `/user/:u`, one component): tabs About, Entries, Faves, Followers, Following.
   Stat row: entries; Follow/Following/Request sent (others) or Pending requests (own, protected
-  journal); Awards. Hide/Unhide for others.
+  journal); Awards. Report (when they have a visible entry) and Hide/Unhide for others.
 - **Followers/Following**: people list; Remove follower on your own followers. **Pending
   requests**: Approve/Refuse, then offers to hide. **Refused followers**: Allow, immediate.
 - **Awards**: whole catalogue from the API; earned = `added_stamp !== null`; `secret` → "Secret".
 - **Settings**: hub reachable signed out. Blipfoto account settings: General, Journal, Profile,
   Notifications (all disabled signed out), Refused followers (protected journal only). App
   settings: Accounts, General (daily reminder, confirm-account toggle, account picture style, open
-  blipfoto.com links in app), Hidden members, Browsing (zoom bar, pagination, margins, photo size).
+  blipfoto.com links in app), Hidden members (always enabled), Browsing (zoom bar, pagination, margins, photo size).
   Server-backed sections use Save/Cancel; device settings apply at once.
 - **Help & about**: static (icon guide, safety & privacy, licences). **Hidden members**: Unhide.
 - **Accounts**: list, tap to switch, Add account (→ `/sign-in`); row menu: switch read-only/
@@ -66,7 +72,8 @@ Known Blipfoto API limits: [AppLimitations.md](AppLimitations.md). Paths are rel
 
 - The only write test is `useCanWrite()`: the active account's granted scope is `read,write`
   (`state/accountsStore.ts`). The scope comes from `GET oauth/token`, never the requested scope.
-- `WriteGuardRoute` wraps `/compose`, `/entry/:id/edit`, `/entry/:id/report`. Signed out: runs a
+- `WriteGuardRoute` wraps `/compose`, `/entry/:id/edit`, `/entry/:id/report` (Report itself never
+  routes there without write access; see Report above). Signed out: runs a
   read-write sign-in, then shows the screen (cancel → Back). Read-only: upgrade prompt "This
   account is read-only" — Switch to read-write goes to `/accounts`, Not now goes Back.
 - Entry page: star, favourite, comment, follow, Edit and Delete are hidden for a read-only
@@ -80,8 +87,9 @@ Known Blipfoto API limits: [AppLimitations.md](AppLimitations.md). Paths are rel
 
 ## Hidden members (`state/hiddenMembersStore.ts`)
 
-- Device-local, per account, keyed by username; never sent anywhere; none when signed out.
-- Grids: placeholder tile (no title, user or image). Entry: "You've hidden this member." + Unhide.
+- Device-local and installation-wide (one list whichever account is active, signed out too), keyed
+  by username; never sent anywhere. A list stored per account by an earlier build is merged on load.
+- Grids: mid-grey tile with a white image glyph, labelled "blocked user" (no title or image). Entry: "You've hidden this member." + Unhide.
   Their comments and reply subtrees are removed. Comments inbox: exact filter. Notifications inbox:
   best-effort, from profile links in `content_html`. Map: no marker. People lists: "(Hidden)".
 
