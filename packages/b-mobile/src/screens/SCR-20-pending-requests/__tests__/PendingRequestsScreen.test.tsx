@@ -40,7 +40,7 @@ const readWrite = {
 
 beforeEach(() => {
   useAccountsStore.setState({ accounts: [readWrite], activeAccountId: 'a1', hydrated: true });
-  useHiddenMembersStore.setState({ hiddenByAccount: {}, hydrated: true });
+  useHiddenMembersStore.setState({ hidden: [], hydrated: true });
 });
 
 afterEach(() => {
@@ -122,7 +122,7 @@ describe('PendingRequestsScreen', () => {
 
     expect(await screen.findByText('Also hide alice')).toBeDefined();
     await userEvent.click(screen.getByText('Also hide alice'));
-    expect(useHiddenMembersStore.getState().hiddenByAccount.a1).toEqual(['alice']);
+    expect(useHiddenMembersStore.getState().hidden).toEqual(['alice']);
   });
 
   it('shows the upgrade prompt instead of acting for a read-only account', async () => {

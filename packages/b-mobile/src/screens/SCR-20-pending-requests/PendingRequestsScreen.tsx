@@ -81,10 +81,7 @@ export function PendingRequestsScreen() {
   }
 
   function hideRefused(): void {
-    const account = useAccountsStore.getState();
-    if (refusedOk && account.activeAccountId) {
-      useHiddenMembersStore.getState().hide(account.activeAccountId, refusedOk.username);
-    }
+    if (refusedOk) useHiddenMembersStore.getState().hide(refusedOk.username);
     setRefusedOk(null);
   }
 

@@ -71,8 +71,8 @@ dialogs; b-view and app components render inside pages.
   exempt). Screens use `useAppNavigate()`; flows take an injected `push` callback.
 - `styles/theme.css` maps b-visual tokens onto Ionic's `--ion-*` variables.
 - `IonMenu` (`AppShell.tsx`): New entry (write accounts), Browse, Search, Map, My profile /
-  Notifications / Comments (signed in), Settings, Help & about, Accounts, Hidden members (signed
-  in), Sign in (signed out). No `IonTabs`.
+  Notifications / Comments (signed in), Settings, Help & about, Accounts, Hidden members, Sign in
+  (signed out). No `IonTabs`.
 - `components/AppHeader.tsx`: title bar, menu button, quick actions, and `AccountIndicator` (only
   with two or more stored accounts).
 - `app/hardwareBack.ts`: Android Back does nothing on Browse; elsewhere Ionic's default applies.
@@ -112,12 +112,14 @@ direct children; don't expose the real routes to it. Back is made to feel right 
 `app/routes/AppRoutes.tsx` is the table (lowercase, hyphenated; params are the string form of an
 id; `/` redirects to `/browse`). Not obvious from the paths:
 
-- **Write-gated** (`WriteGuardRoute`): `/compose`, `/entry/:id/edit`, `/entry/:id/report`.
+- **Write-gated** (`WriteGuardRoute`): `/compose`, `/entry/:id/edit`, `/entry/:id/report`. Report
+  affordances go through `flows/useReport.tsx`, which only routes to `/report` with write access and
+  otherwise opens Blipfoto's support request form.
   **Account-gated** (`AccountGuardRoute`): `/notifications`, `/comments` (push targets).
 - **Lazy-loaded:** `/map`, `/compose/location` (MapLibre), `/compose/details` (react-easy-crop).
 - **Query/state:** `/map?entry=<id>` (focused mode); `/accounts?reauth=<accountId>` (opens that
   account's sign-in-again dialog); `/entry/:id` takes router state `replyToCommentId`; `/report`
-  takes the target user/comment via router state.
+  takes the target user/comment/member via router state.
 - Comments are composed inline on `/entry/:id` (there is no `SCR-15` route).
   `/compose/description` (`SCR-11`) is now the Biography editor only. Settings sections:
   `general`, `journal`, `profile`, `notifications`, `app`, `browsing`; Help also has `/help/:section`.
@@ -148,7 +150,7 @@ use `getState()`/`setState()`.
 | Store                     | Holds                                                                                                                                                         | Persisted             |
 | ------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------- |
 | `accountsStore`           | accounts (id, username, avatar, `appTokenScope`, `hasServiceToken`, b-push registration id/status, push stream flags, `lastAppTokenScope`), `activeAccountId` | `prefs`, never tokens |
-| `hiddenMembersStore`      | per-account hidden usernames, device-local                                                                                                                    | `prefs`               |
+| `hiddenMembersStore`      | installation-wide hidden usernames, device-local                                                                                                              | `prefs`               |
 | `uploadQueueStore`        | the upload queue (§9)                                                                                                                                         | `prefs` + files       |
 | `devicePrefsStore`        | reactions confirm, per-account reminders, `uploadFullSize`, `openBlipfotoLinksInApp`, polling interval, explainer seen, grid/display prefs                    | `prefs`               |
 | `composeDraftStore`       | the publish/edit draft (`mode`), surviving `SCR-11`/`SCR-12` and rotation                                                                                     | memory                |

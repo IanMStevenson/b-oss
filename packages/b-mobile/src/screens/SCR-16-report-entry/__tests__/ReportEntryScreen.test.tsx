@@ -42,7 +42,7 @@ beforeEach(() => {
     activeAccountId: 'a1',
     hydrated: true,
   });
-  useHiddenMembersStore.setState({ hiddenByAccount: {}, hydrated: true });
+  useHiddenMembersStore.setState({ hidden: [], hydrated: true });
 });
 
 afterEach(() => {
@@ -66,6 +66,14 @@ function checkReason(label: string): void {
 }
 
 describe('ReportEntryScreen', () => {
+  it('reporting a member says so in the title and prefills a note naming them', () => {
+    renderScreen({ reportedMember: 'alice', targetUsername: 'alice' });
+    expect(screen.getByText('Report member')).toBeDefined();
+    expect(screen.getByText('Reporting: alice (sent against their latest entry)')).toBeDefined();
+    const note = document.querySelector('textarea')!;
+    expect(note.value).toBe('Reporting the member alice, not just this entry: ');
+  });
+
   it('blocks Send with no reason selected', async () => {
     renderScreen();
     await userEvent.click(screen.getByText('Send'));
@@ -99,9 +107,9 @@ describe('ReportEntryScreen', () => {
     checkReason('Promotional / spam');
     await userEvent.click(screen.getByText('Send'));
     expect(await screen.findByText('Also hide alice')).toBeDefined();
-    expect(useHiddenMembersStore.getState().hiddenByAccount.a1).toBeUndefined();
+    expect(useHiddenMembersStore.getState().hidden).toEqual([]);
 
     await userEvent.click(screen.getByText('Also hide alice'));
-    expect(useHiddenMembersStore.getState().hiddenByAccount.a1).toEqual(['alice']);
+    expect(useHiddenMembersStore.getState().hidden).toEqual(['alice']);
   });
 });

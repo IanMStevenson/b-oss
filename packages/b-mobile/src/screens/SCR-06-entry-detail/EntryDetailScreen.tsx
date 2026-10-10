@@ -12,9 +12,10 @@
 // link resilient, back-navigable). The trigger is the dedicated fullscreen button (or a
 // double-tap; BEHAVIOUR.md, Screens), not a single photo tap.
 //
-// Follow/Unfollow/Report/Hide don't fit any of EntryDetail's slots (a backup viewer has no
-// "follow/report/hide a member" concept) — rendered as this screen's own strip beneath EntryDetail
-// instead. Star/Favourite share EntryDetail's one `reactions` slot, which can't independently hide
+// Report/Hide on other people's entries sit in EntryDetail's reactions pill (its `moderation`
+// prop) beside star and favourite, and again as quiet "Report" / "Hide user" text links at the foot
+// of the page (b-oss#362: findable without being prominent). Report goes through flows/useReport,
+// which opens Blipfoto's support form instead when signed out or read-only. Star/Favourite share EntryDetail's one `reactions` slot, which can't independently hide
 // just one of the two the way the old hand-built action row could — offered only when both
 // actions.star and actions.favorite agree (both permitted or the viewer is anonymous, matching
 // the old per-button "!activeAccount || actions?.x !== 0" rule combined across both flags); the
@@ -56,7 +57,7 @@ import {
   IonAlert,
   IonToast,
 } from '@ionic/react';
-import { Flag, UserX, CornerUpLeft, Pencil, Trash2 } from 'lucide-react';
+import { Flag, CornerUpLeft, Pencil, Trash2 } from 'lucide-react';
 import { AppHeader } from '../../components/AppHeader.js';
 import { EntryDetail, CommentComposer, ActionPill } from '@b-oss/b-view';
 import type { BlipComment, EntryState, ActionPillItem } from '@b-oss/b-view';
@@ -77,6 +78,7 @@ import { useOverlay } from '../../app/OverlayProvider.js';
 import { useAccountsStore, useActiveAccount, useCanWrite } from '../../state/accountsStore.js';
 import { signInGated } from '../../flows/accountsFlow.js';
 import { useAccountConfirmGate } from '../../flows/useAccountConfirmGate.js';
+import { useReport } from '../../flows/useReport.js';
 import {
   starEntry,
   favoriteEntry,
@@ -125,6 +127,7 @@ function flattenComments(comments: ApiComment[], map: Map<string, ApiComment>): 
 export function EntryDetailScreen({ entryId, initialReplyToCommentId }: EntryDetailScreenProps) {
   const photoFit = useDevicePrefsStore((s) => s.photoFit);
   const navigate = useAppNavigate();
+  const { report, reportDialog } = useReport();
   const { showUpgradePrompt } = useOverlay();
   const activeAccount = useActiveAccount();
   const canWrite = useCanWrite();
@@ -364,7 +367,8 @@ export function EntryDetailScreen({ entryId, initialReplyToCommentId }: EntryDet
   }
 
   function handleReportComment(comment: ApiComment): void {
-    navigate.push(`/entry/${entryId}/report`, {
+    report({
+      entryId,
       targetUsername: comment.commenter.username,
       reportedComment: {
         username: comment.commenter.username,
@@ -398,9 +402,8 @@ export function EntryDetailScreen({ entryId, initialReplyToCommentId }: EntryDet
 
   function handleConfirmedHide(): void {
     setConfirmHide(false);
-    const account = useAccountsStore.getState();
-    if (!authorUsername || !account.activeAccountId) return;
-    useHiddenMembersStore.getState().hide(account.activeAccountId, authorUsername);
+    if (!authorUsername) return;
+    useHiddenMembersStore.getState().hide(authorUsername);
   }
 
   // Own journal only — the flow refuses anything else, and the button is only offered for it.
@@ -415,13 +418,12 @@ export function EntryDetailScreen({ entryId, initialReplyToCommentId }: EntryDet
   }
 
   function handleReportEntry(): void {
-    navigate.push(`/entry/${entryId}/report`, { targetUsername: authorUsername ?? undefined });
+    report({ entryId, targetUsername: authorUsername ?? undefined });
   }
 
   function handleUnhideAuthor(): void {
-    const account = useAccountsStore.getState();
-    if (!authorUsername || !account.activeAccountId) return;
-    useHiddenMembersStore.getState().unhide(account.activeAccountId, authorUsername);
+    if (!authorUsername) return;
+    useHiddenMembersStore.getState().unhide(authorUsername);
   }
 
   function renderCommentActions(comment: BlipComment): ReactNode {
@@ -550,6 +552,14 @@ export function EntryDetailScreen({ entryId, initialReplyToCommentId }: EntryDet
                     }
                   : undefined
               }
+              moderation={
+                isOwnEntry
+                  ? undefined
+                  : {
+                      onReport: handleReportEntry,
+                      onHide: authorUsername ? () => setConfirmHide(true) : undefined,
+                    }
+              }
               commentComposer={
                 commentsOff ? (
                   <p
@@ -653,33 +663,16 @@ export function EntryDetailScreen({ entryId, initialReplyToCommentId }: EntryDet
               renderCommentActions={renderCommentActions}
             />
 
-            {/* Report/Hide only exist for other people's entries (follow now lives in the author
-                block above), so on your own there is nothing to render here. */}
+            {/* The same two actions as the pill's Flag/UserX, as quiet text links at the foot of
+                other people's entries. */}
             {!isOwnEntry && (
-              <div
-                className="ion-padding"
-                style={{
-                  paddingTop: 0,
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 8,
-                  flexWrap: 'wrap',
-                }}
-              >
-                <button
-                  aria-label="Report"
-                  onClick={handleReportEntry}
-                  style={{ background: 'none', border: 'none', padding: 8, cursor: 'pointer' }}
-                >
-                  <Flag size={16} strokeWidth={1.6} />
+              <div className="ion-padding quiet-links quiet-links-row">
+                <button type="button" onClick={handleReportEntry}>
+                  Report
                 </button>
                 {authorUsername && (
-                  <button
-                    aria-label={`Hide ${authorUsername}`}
-                    onClick={() => setConfirmHide(true)}
-                    style={{ background: 'none', border: 'none', padding: 8, cursor: 'pointer' }}
-                  >
-                    <UserX size={16} strokeWidth={1.6} />
+                  <button type="button" onClick={() => setConfirmHide(true)}>
+                    Hide user
                   </button>
                 )}
               </div>
@@ -745,6 +738,7 @@ export function EntryDetailScreen({ entryId, initialReplyToCommentId }: EntryDet
           { text: 'Delete', role: 'destructive', handler: () => void handleConfirmedDelete() },
         ]}
       />
+      {reportDialog}
     </IonPage>
   );
 }

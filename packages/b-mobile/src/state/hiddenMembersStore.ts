@@ -2,41 +2,53 @@
 // Copyright (C) 2026 Ian Stevenson
 
 // The hidden-members list (FLW-10, BEHAVIOUR.md "Hidden members"). Entirely
-// device-local — nothing here is ever sent to Blipfoto or the notification service — and per
-// account, since it describes this account's relationship to each member: switching the active
-// account switches which list is in force. Keyed by username (the platform's only stable
+// device-local — nothing here is ever sent to Blipfoto or the notification service — and
+// installation-wide: one list for this install of the app, whichever account is active and
+// whether or not anyone is signed in at all (#362: hiding is "I don't want to see this person on
+// this phone", not a property of an account). Keyed by username (the platform's only stable
 // cross-context identifier for a member — a hidden member who renames stops being recognised
 // until hidden again, a documented platform limitation, not a bug here).
 
 import { create } from 'zustand';
 import { getPref, setPref } from '../platform/prefs.js';
-import { useAccountsStore } from './accountsStore.js';
 
 const PREFS_KEY = 'b-mobile:hidden-members';
 
-type HiddenByAccount = Record<string, string[]>;
-
 interface HiddenMembersState {
   hydrated: boolean;
-  hiddenByAccount: HiddenByAccount;
+  hidden: string[];
   hydrate: () => Promise<void>;
-  hide: (accountId: string, username: string) => void;
-  unhide: (accountId: string, username: string) => void;
+  hide: (username: string) => void;
+  unhide: (username: string) => void;
 }
 
-function persist(hiddenByAccount: HiddenByAccount): void {
-  void setPref(PREFS_KEY, JSON.stringify(hiddenByAccount));
+function persist(hidden: string[]): void {
+  void setPref(PREFS_KEY, JSON.stringify(hidden));
+}
+
+/** The stored value is a plain array. Earlier builds kept one list per account
+ * (`Record<accountId, string[]>`); those lists are merged into one rather than dropped. */
+function parseStored(raw: string): string[] {
+  const parsed: unknown = JSON.parse(raw);
+  const values: unknown[] = Array.isArray(parsed)
+    ? parsed
+    : parsed !== null && typeof parsed === 'object'
+      ? Object.values(parsed).flatMap((list: unknown): unknown[] =>
+          Array.isArray(list) ? list : [],
+        )
+      : [];
+  return [...new Set(values.filter((u): u is string => typeof u === 'string'))];
 }
 
 export const useHiddenMembersStore = create<HiddenMembersState>((set, get) => ({
   hydrated: false,
-  hiddenByAccount: {},
+  hidden: [],
 
   hydrate: async () => {
     const raw = await getPref(PREFS_KEY);
     if (raw) {
       try {
-        set({ hiddenByAccount: JSON.parse(raw) as HiddenByAccount, hydrated: true });
+        set({ hidden: parseStored(raw), hydrated: true });
         return;
       } catch {
         // Corrupt prefs — fall through to an empty, hydrated state rather than crash launch.
@@ -45,40 +57,24 @@ export const useHiddenMembersStore = create<HiddenMembersState>((set, get) => ({
     set({ hydrated: true });
   },
 
-  hide: (accountId, username) => {
-    const existing = get().hiddenByAccount[accountId] ?? [];
-    if (existing.includes(username)) return;
-    const hiddenByAccount = { ...get().hiddenByAccount, [accountId]: [...existing, username] };
-    persist(hiddenByAccount);
-    set({ hiddenByAccount });
+  hide: (username) => {
+    if (get().hidden.includes(username)) return;
+    const hidden = [...get().hidden, username];
+    persist(hidden);
+    set({ hidden });
   },
 
-  unhide: (accountId, username) => {
-    const existing = get().hiddenByAccount[accountId] ?? [];
-    if (!existing.includes(username)) return;
-    const hiddenByAccount = {
-      ...get().hiddenByAccount,
-      [accountId]: existing.filter((u) => u !== username),
-    };
-    persist(hiddenByAccount);
-    set({ hiddenByAccount });
+  unhide: (username) => {
+    if (!get().hidden.includes(username)) return;
+    const hidden = get().hidden.filter((u) => u !== username);
+    persist(hidden);
+    set({ hidden });
   },
 }));
 
-// A stable empty-array reference: useSyncExternalStore (which Zustand's hook is built on) treats
-// each selector call as returning a new snapshot if the reference differs, even for two
-// "equally empty" arrays — returning a fresh `[]` on every call is exactly the "getSnapshot
-// should be cached" infinite-loop trap. Falling back to this one shared instance instead keeps
-// the snapshot referentially stable across renders when there's genuinely nothing hidden.
-const EMPTY_HIDDEN: string[] = [];
-
-/** The active account's hidden list. Empty (never hidden) when signed out — hiding is account-
- * scoped and an anonymous session has no account to scope it to. */
+/** The installation's hidden list. */
 export function useHiddenMembers(): string[] {
-  const activeAccountId = useAccountsStore((s) => s.activeAccountId);
-  return useHiddenMembersStore((s) =>
-    activeAccountId ? (s.hiddenByAccount[activeAccountId] ?? EMPTY_HIDDEN) : EMPTY_HIDDEN,
-  );
+  return useHiddenMembersStore((s) => s.hidden);
 }
 
 export function useIsHidden(username: string | null | undefined): boolean {

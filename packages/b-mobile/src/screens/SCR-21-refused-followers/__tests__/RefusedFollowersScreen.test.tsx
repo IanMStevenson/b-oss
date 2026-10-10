@@ -37,7 +37,7 @@ const readWrite = {
 
 beforeEach(() => {
   useAccountsStore.setState({ accounts: [readWrite], activeAccountId: 'a1', hydrated: true });
-  useHiddenMembersStore.setState({ hiddenByAccount: {}, hydrated: true });
+  useHiddenMembersStore.setState({ hidden: [], hydrated: true });
 });
 
 afterEach(() => {
@@ -100,7 +100,7 @@ describe('RefusedFollowersScreen', () => {
   });
 
   it('marks a member who is also hidden, without merging the two states', async () => {
-    useHiddenMembersStore.setState({ hiddenByAccount: { a1: ['spammer1'] }, hydrated: true });
+    useHiddenMembersStore.setState({ hidden: ['spammer1'], hydrated: true });
     const { fetchBlockedUsers } = await import('../../../data/users.js');
     vi.mocked(fetchBlockedUsers).mockResolvedValue({
       items: [{ username: 'spammer1', avatar_url: '', icons: [] }],

@@ -10,7 +10,6 @@ import { IonPage, IonHeader, IonButton, IonContent, IonList, IonItem } from '@io
 import { EyeOff } from 'lucide-react';
 import { AppHeader } from '../../components/AppHeader.js';
 import { useAppNavigate, useIsDrilledIn } from '../../app/routes/useAppNavigate.js';
-import { useAccountsStore } from '../../state/accountsStore.js';
 import { useHiddenMembersStore, useHiddenMembers } from '../../state/hiddenMembersStore.js';
 
 // Hiding is device-local and one-way (they can still see you); said once, muted, rather than as
@@ -25,9 +24,7 @@ export function HiddenMembersScreen() {
   const hidden = useHiddenMembers();
 
   function handleUnhide(username: string): void {
-    const account = useAccountsStore.getState();
-    if (!account.activeAccountId) return;
-    useHiddenMembersStore.getState().unhide(account.activeAccountId, username);
+    useHiddenMembersStore.getState().unhide(username);
   }
 
   return (
@@ -37,7 +34,7 @@ export function HiddenMembersScreen() {
           title="Hidden members"
           variant={drilledIn ? 'back' : 'menu'}
           backHref="/settings"
-          accountIndicator
+          accountIndicator={false}
         />
       </IonHeader>
       <IonContent className="ion-padding">

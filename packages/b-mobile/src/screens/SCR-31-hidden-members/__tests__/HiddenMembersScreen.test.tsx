@@ -33,7 +33,7 @@ beforeEach(() => {
     activeAccountId: 'a1',
     hydrated: true,
   });
-  useHiddenMembersStore.setState({ hiddenByAccount: {}, hydrated: true });
+  useHiddenMembersStore.setState({ hidden: [], hydrated: true });
 });
 
 afterEach(() => {
@@ -72,7 +72,7 @@ describe('HiddenMembersScreen', () => {
   });
 
   it('lists hidden members and unhides one immediately, with no confirmation', async () => {
-    useHiddenMembersStore.setState({ hiddenByAccount: { a1: ['bob', 'carol'] }, hydrated: true });
+    useHiddenMembersStore.setState({ hidden: ['bob', 'carol'], hydrated: true });
     renderScreen();
     expect(screen.getByText('bob')).toBeDefined();
     expect(screen.getByText('carol')).toBeDefined();
@@ -80,19 +80,15 @@ describe('HiddenMembersScreen', () => {
     const unhideButtons = screen.getAllByText('Unhide');
     await userEvent.click(unhideButtons[0]);
 
-    expect(useHiddenMembersStore.getState().hiddenByAccount.a1).toEqual(['carol']);
+    expect(useHiddenMembersStore.getState().hidden).toEqual(['carol']);
   });
 
-  it('switches the list shown when the active account switches', () => {
-    useHiddenMembersStore.setState({
-      hiddenByAccount: { a1: ['bob'], a2: ['dave'] },
-      hydrated: true,
-    });
+  it('shows the same installation-wide list whichever account is active, or none', () => {
+    useHiddenMembersStore.setState({ hidden: ['bob'], hydrated: true });
     const { rerender } = renderScreen();
     expect(screen.getByText('bob')).toBeDefined();
-    expect(screen.queryByText('dave')).toBeNull();
 
-    useAccountsStore.setState({ activeAccountId: 'a2' });
+    useAccountsStore.setState({ activeAccountId: null });
     rerender(
       <MemoryRouter>
         <OverlayProvider>
@@ -100,7 +96,6 @@ describe('HiddenMembersScreen', () => {
         </OverlayProvider>
       </MemoryRouter>,
     );
-    expect(screen.getByText('dave')).toBeDefined();
-    expect(screen.queryByText('bob')).toBeNull();
+    expect(screen.getByText('bob')).toBeDefined();
   });
 });

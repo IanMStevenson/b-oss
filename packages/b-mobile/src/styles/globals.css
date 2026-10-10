@@ -342,3 +342,34 @@ ion-segment.settings-pill-segment ion-segment-button::part(native) {
   z-index: 10000;
   pointer-events: none;
 }
+
+/* Discreet but clearly-a-link text (b-oss#362): muted grey, underlined, centred. The sign-in
+   screen's terms reminder; with .quiet-links-row, the entry page's "Report" / "Hide user" footer. */
+.quiet-links {
+  margin: 8px 0;
+  font-size: 0.875rem;
+  color: var(--muted);
+  text-align: center;
+}
+
+.quiet-links button {
+  background: none;
+  border: none;
+  padding: 0;
+  font: inherit;
+  color: inherit;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  cursor: pointer;
+}
+
+.quiet-links-row {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 4px 24px;
+}
+
+.quiet-links-row button {
+  padding: 8px 4px;
+}

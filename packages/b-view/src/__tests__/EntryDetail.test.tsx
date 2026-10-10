@@ -627,6 +627,33 @@ describe('EntryDetail', () => {
     expect(onToggleFavorite).toHaveBeenCalled();
   });
 
+  it('offers Report and Hide in the reactions pill only when moderation is provided', () => {
+    const onReport = vi.fn();
+    const onHide = vi.fn();
+    const { rerender } = render(
+      <EntryDetail
+        entryState={loadedState(makeEntry())}
+        prevEntryId={null}
+        nextEntryId={null}
+        onNavigate={() => {}}
+      />,
+    );
+    expect(screen.queryByLabelText('Report')).toBeNull();
+    rerender(
+      <EntryDetail
+        entryState={loadedState(makeEntry())}
+        prevEntryId={null}
+        nextEntryId={null}
+        onNavigate={() => {}}
+        moderation={{ onReport, onHide }}
+      />,
+    );
+    fireEvent.click(screen.getByLabelText('Report'));
+    expect(onReport).toHaveBeenCalled();
+    fireEvent.click(screen.getByLabelText('Hide user'));
+    expect(onHide).toHaveBeenCalled();
+  });
+
   it('renders the commentComposer and entryActions slots when provided', () => {
     render(
       <EntryDetail
