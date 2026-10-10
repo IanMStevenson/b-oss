@@ -16,7 +16,7 @@ Deploys are manual. No CI job deploys this, and no agent holds the credentials.
 | Worker             | `b-push`, at `https://b-push.b-oss.workers.dev`                                        |
 | Database           | D1 `b-push`. `database_id` is in `wrangler.toml`                                       |
 | Cron               | `*/1 * * * *`, the activity poll (the only trigger)                                    |
-| Firebase           | Project `b-oss-mobile`, Android app `io.github.ianmstevenson.bmobile`                  |
+| Firebase           | Project `b-oss-mobile`, Android app `uk.co.salientpoint.bmobile`                       |
 
 ## Credentials and secrets
 

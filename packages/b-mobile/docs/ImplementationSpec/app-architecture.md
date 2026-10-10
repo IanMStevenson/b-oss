@@ -460,8 +460,9 @@ on Android 10+, the app's own Pictures folder below). No exact-alarm permissions
 - **Local plugins** registered in `MainActivity`, each with a `src/platform/` wrapper:
   `BlipfotoLinksPlugin`, `AccessibilityPlugin`, `ShareIntentPlugin`, `EmbeddedAuthPlugin` (+
   non-exported `EmbeddedAuthActivity`), `PushAvailabilityPlugin`, `MediaSavePlugin`.
-- **Application ID** `io.github.ianmstevenson.bmobile`; revisit before a first Play submission,
-  after which it is permanent. Release is manual; signing keys live outside the repo.
+- **Application ID** `uk.co.salientpoint.bmobile` (Salient Point is the Play publisher; decided in
+  b-oss#359, 2026-10-10). Permanent once first uploaded to Play. Java package and manifest
+  namespace match it. Release is manual; signing keys live outside the repo.
 
 ## 18. Configuration and secrets
 

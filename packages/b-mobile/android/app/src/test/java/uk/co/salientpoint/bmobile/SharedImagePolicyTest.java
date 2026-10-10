@@ -1,4 +1,4 @@
-package io.github.ianmstevenson.bmobile;
+package uk.co.salientpoint.bmobile;
 
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
@@ -13,7 +13,7 @@ import org.junit.Test;
 
 public class SharedImagePolicyTest {
 
-  private static final String PKG = "io.github.ianmstevenson.bmobile";
+  private static final String PKG = "uk.co.salientpoint.bmobile";
 
   @Test
   public void acceptsAnotherAppsContentUri() {

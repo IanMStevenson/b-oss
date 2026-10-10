@@ -1,4 +1,4 @@
-package io.github.ianmstevenson.bmobile;
+package uk.co.salientpoint.bmobile;
 
 import android.content.Intent;
 import android.graphics.BitmapFactory;
