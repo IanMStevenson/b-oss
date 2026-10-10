@@ -29,7 +29,7 @@ export interface ReminderSetting {
 }
 
 interface PersistedShape {
-  /** Off by default; Settings → App (SCR-25) exposes the toggle. Gates the account-confirm
+  /** On by default; Settings → App (SCR-25) exposes the toggle. Gates the account-confirm
    * dialog before a star/favourite/comment (flows/useAccountConfirmGate.tsx). */
   confirmAccountBeforeReaction: boolean;
   /** Keyed by accountId. Absent = never configured (never offered/enabled) — distinct from
@@ -89,7 +89,7 @@ interface DevicePrefsState extends PersistedShape {
 }
 
 const defaults: PersistedShape = {
-  confirmAccountBeforeReaction: false,
+  confirmAccountBeforeReaction: true,
   reminders: {},
   uploadFullSize: true,
   openBlipfotoLinksInApp: false,
@@ -97,7 +97,7 @@ const defaults: PersistedShape = {
   seenFirstRunExplainer: false,
   showZoomBar: true,
   showPagination: true,
-  thumbnailMargins: 'normal',
+  thumbnailMargins: 'none',
   thumbnailZoomPercent: 100,
   photoFit: 'full-width',
   accountAvatarStyle: 'picture',
