@@ -24,15 +24,27 @@ function triggerBackup(reason: string): void {
   void chrome.runtime.sendMessage({ type: 'publish_detected' }).catch(() => {});
 }
 
-// New entries: /publish is one URL for upload -> edit -> success, and the publish itself is
-// a form POST whose response is a full page load. Trigger only once the server has rendered
-// the success page (`.publish-success`), never on the button click: a click can race the
-// publish request, fires even if the publish then fails, and may start before the entry
-// exists. The settings cache above is read async, so wait for it before deciding.
-if (document.querySelector('.publish-success')) {
+// New entries: /publish is one URL for upload -> edit -> success, so the success screen may be
+// swapped in by the page without a navigation (a one-shot check at load would miss it) or
+// arrive as a fresh page load. Watch for the success marker (`.publish-success`) appearing and
+// trigger on that — never on the button click: a click can race the publish request, fires
+// even if the publish then fails, and may start before the entry exists. The marker going
+// absent -> present is the edge that counts, so "Add another" then a second publish re-fires.
+let successShowing = false;
+function checkPublishSuccess(): void {
+  const showing = document.querySelector('.publish-success') !== null;
+  if (showing && !successShowing) triggerBackup('Entry published');
+  successShowing = showing;
+}
+if (location.pathname === '/publish') {
+  // The settings cache above is read async; make sure it has landed before the first check.
   chrome.storage.local.get('backup_on_publish', (r) => {
     backupOnPublish = r['backup_on_publish'] === true;
-    triggerBackup('Entry published');
+    checkPublishSuccess();
+    new MutationObserver(checkPublishSuccess).observe(document.documentElement, {
+      childList: true,
+      subtree: true,
+    });
   });
 }
 
