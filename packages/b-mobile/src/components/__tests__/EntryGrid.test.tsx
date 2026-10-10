@@ -21,8 +21,9 @@ const { resolveImage, invalidateImage } = vi.hoisted(() => ({
 }));
 vi.mock('../../platform/imageCache.js', () => ({ resolveImage, invalidateImage }));
 
+const hiddenMembers = vi.hoisted(() => ({ list: [] as string[] }));
 vi.mock('../../state/hiddenMembersStore.js', () => ({
-  useHiddenMembers: () => [],
+  useHiddenMembers: () => hiddenMembers.list,
 }));
 
 function makeEntries(count: number): EntryIndex[] {
@@ -44,6 +45,7 @@ beforeEach(() => {
 });
 
 afterEach(() => {
+  hiddenMembers.list = [];
   cleanup();
   vi.resetAllMocks();
 });
@@ -233,5 +235,24 @@ describe('EntryGrid — caption mode (b-oss#259)', () => {
     );
     expect(screen.getByText('Entry 1')).toBeDefined();
     expect(screen.queryByText('alice')).toBeNull();
+  });
+});
+
+describe('EntryGrid — hidden members', () => {
+  it('draws a hidden member’s tile as the grey "blocked user" tile without fetching their image', async () => {
+    resolveImage.mockResolvedValue('blob:thumb');
+    hiddenMembers.list = ['alice'];
+    const [mine, theirs] = makeEntries(2);
+    const { container } = renderGrid([
+      { ...mine, username: 'bob' },
+      { ...theirs, username: 'alice' },
+    ]);
+    await waitFor(() => expect(container.querySelectorAll('img')).toHaveLength(2));
+    const srcs = [...container.querySelectorAll('img')].map((img) => img.getAttribute('src'));
+    expect(srcs[1]).toMatch(/^data:image\/svg\+xml,/);
+    expect(decodeURIComponent(srcs[1]!)).toContain('#9e9e9e');
+    expect(resolveImage).not.toHaveBeenCalledWith('thumb-2.jpg');
+    expect(resolveImage).toHaveBeenCalledWith('thumb-1.jpg');
+    expect(screen.queryByText('Entry 2')).toBeNull();
   });
 });
