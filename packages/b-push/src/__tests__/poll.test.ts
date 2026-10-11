@@ -203,7 +203,7 @@ describe('runActivityPoll', () => {
     expect(sendFcmMessage).not.toHaveBeenCalled();
   });
 
-  it('on a dead read token: marks read-token-invalid, sends exactly one reauth-required push, and excludes the row from the next tick', async () => {
+  it('on a dead read token: sends exactly one reauth-required push, then deletes the row (b-oss#394)', async () => {
     await seedRow();
     mockTokenInvalid();
     const summary = await runActivityPoll(db, env, () => 1_000_000);
@@ -216,8 +216,7 @@ describe('runActivityPoll', () => {
       expect.objectContaining({ kind: 'reauth-required', accountId: 'gbradley' }),
     );
 
-    const row = await getRegistrationById(db, 'reg-1');
-    expect(row?.status).toBe('read-token-invalid');
+    expect(await getRegistrationById(db, 'reg-1')).toBeNull();
 
     sendFcmMessage.mockClear();
     const nextTick = await runActivityPoll(db, env, () => 2_000_000);
@@ -225,7 +224,7 @@ describe('runActivityPoll', () => {
     expect(sendFcmMessage).not.toHaveBeenCalled();
   });
 
-  it('a read token encrypted under another key ends up reauth-required with exactly one push (b-oss#252)', async () => {
+  it('a read token encrypted under another key gets exactly one reauth push, then the row is deleted (b-oss#252, b-oss#394)', async () => {
     await seedRow();
     const rotated = {
       ...env,
@@ -244,7 +243,7 @@ describe('runActivityPoll', () => {
       'device-1',
       expect.objectContaining({ kind: 'reauth-required', accountId: 'gbradley' }),
     );
-    expect((await getRegistrationById(db, 'reg-1'))?.status).toBe('read-token-invalid');
+    expect(await getRegistrationById(db, 'reg-1')).toBeNull();
 
     sendFcmMessage.mockClear();
     expect((await runActivityPoll(db, rotated, () => 2_000_000)).due).toBe(0);
@@ -312,6 +311,24 @@ describe('runActivityPoll', () => {
     const summary = await runActivityPoll(db, env, () => 5_000_000);
     expect(summary).toMatchObject({ due: 1, removed: 1, errors: 0 });
     expect(await getRegistrationById(db, 'reg-1')).toBeNull();
+  });
+
+  it('still deletes the row when the reauth push fails for another reason (b-oss#394)', async () => {
+    await seedRow();
+    mockTokenInvalid();
+    vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    sendFcmMessage.mockRejectedValueOnce(new Error('FCM send failed: 500'));
+    await runActivityPoll(db, env, () => 5_000_000);
+    expect(await getRegistrationById(db, 'reg-1')).toBeNull();
+  });
+
+  it('keeps the row on a network error (b-oss#394)', async () => {
+    await seedRow();
+    vi.spyOn(globalThis, 'fetch').mockRejectedValue(new Error('network down'));
+    vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    await runActivityPoll(db, env, () => 5_000_000);
+    expect(sendFcmMessage).not.toHaveBeenCalled();
+    expect((await getRegistrationById(db, 'reg-1'))?.status).toBe('active');
   });
 
   it('also deletes it when the reauth push finds the device gone (b-oss#265)', async () => {
