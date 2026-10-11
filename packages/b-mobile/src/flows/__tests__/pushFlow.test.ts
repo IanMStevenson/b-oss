@@ -455,6 +455,19 @@ describe('runLaunchBackstopCheck', () => {
     expect(handleForcedLogout).toHaveBeenCalledWith('alice', 'service');
   });
 
+  it('treats a registration the service no longer has like a dead read token (b-oss#394)', async () => {
+    secretStore.set('alice', 'sec-1');
+    setAccounts([
+      account({ id: 'alice', hasServiceToken: true, notificationRegistrationId: 'reg-1' }),
+    ]);
+    checkPushPermission.mockResolvedValue('granted');
+    getRegistrationStatus.mockResolvedValue({ status: 'not-found', lastPolledAt: null });
+
+    await runLaunchBackstopCheck();
+
+    expect(handleForcedLogout).toHaveBeenCalledWith('alice', 'service');
+  });
+
   it('a transient failure reaching b-push is not itself treated as a signal', async () => {
     secretStore.set('alice', 'sec-1');
     setAccounts([

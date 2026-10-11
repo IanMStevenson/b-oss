@@ -106,7 +106,7 @@ export function patchRegistration(
 }
 
 export interface RegistrationStatusResult {
-  status: 'active' | 'read-token-invalid';
+  status: 'active' | 'read-token-invalid' | 'not-found';
   lastPolledAt: number | null;
   /** Optional: a service deployed before b-oss#244 doesn't return them. */
   pushComments?: boolean;
@@ -114,15 +114,24 @@ export interface RegistrationStatusResult {
 }
 
 /** The launch-time backstop's `GET` (FLW-16 step 8) — a fallback for a missed push, not polled
- * in normal operation. */
-export function getRegistrationStatus(
+ * in normal operation. A 404 comes back as `not-found` rather than an error: b-push deletes a
+ * registration once its read token is found revoked (b-oss#394), so a missing one means the same
+ * as `read-token-invalid` to the caller. */
+export async function getRegistrationStatus(
   registrationId: string,
   registrationSecret: string,
 ): Promise<RegistrationStatusResult> {
-  return request<RegistrationStatusResult>(
-    `/v1/registrations/${encodeURIComponent(registrationId)}`,
-    { bearer: registrationSecret },
-  );
+  try {
+    return await request<RegistrationStatusResult>(
+      `/v1/registrations/${encodeURIComponent(registrationId)}`,
+      { bearer: registrationSecret },
+    );
+  } catch (err) {
+    if (err instanceof PushServiceError && err.status === 404) {
+      return { status: 'not-found', lastPolledAt: null };
+    }
+    throw err;
+  }
 }
 
 export function deleteRegistration(
