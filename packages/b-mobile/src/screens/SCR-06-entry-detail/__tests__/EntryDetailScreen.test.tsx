@@ -715,6 +715,22 @@ describe('EntryDetailScreen', () => {
       await screen.findByText('First!');
       expect(screen.getByLabelText('Edit comment')).toBeDefined();
       expect(screen.queryByLabelText('Report comment')).toBeNull();
+      expect(screen.queryByLabelText('Hide member')).toBeNull();
+    });
+
+    it('Hide member on another member’s comment confirms, then hides them and their comments', async () => {
+      await load(withComment(noActions));
+      renderScreen();
+      await screen.findByText('First!');
+      await userEvent.click(screen.getByLabelText('Hide member'));
+      expect(await screen.findByText('Hide bob?')).toBeDefined();
+      expect(useHiddenMembersStore.getState().hidden).not.toContain('bob');
+      const confirmButton = document.querySelector(
+        'ion-alert[header="Hide bob?"] button.alert-button-role-destructive',
+      ) as HTMLElement;
+      await userEvent.click(confirmButton);
+      expect(useHiddenMembersStore.getState().hidden).toContain('bob');
+      await waitFor(() => expect(screen.queryByText('First!')).toBeNull());
     });
 
     it('has the formatting toolbar in the composers (new comment, reply and edit)', async () => {

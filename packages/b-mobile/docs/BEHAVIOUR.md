@@ -33,7 +33,7 @@ Known Blipfoto API limits: [AppLimitations.md](AppLimitations.md). Paths are rel
 - **Entry**: b-view `EntryDetail` plus app slots. Prev/next replaces the route. Star and Favourite
   are one-way (no unstar). Inline comment/reply/edit composers, with unsent text kept in memory per
   target (`data/commentDrafts.ts`). Reply/Edit/Delete per comment follow the API's `actions` flags;
-  Report on others' comments. Author block with Follow/Following/Requested. Others' entries: Report
+  Report and Hide member (same confirmation as Hide user) on others' comments. Author block with Follow/Following/Requested. Others' entries: Report
   and Hide user in the star/favourite pill, and again as muted underlined "Report" / "Hide user"
   text links at the foot of the page. Own entries: Download photo (read-only too; own journal only, `flows/downloadFlow.ts`),
   Edit and Delete (read-write). Tags → `/tag`, location → `/map?entry=`, fullscreen button or
