@@ -2,7 +2,8 @@
 
 Source of truth for the text fields in the Play Console (b-oss#364). Keep in sync with what is
 published. Image assets are listed at the end; they are uploaded in the Console, not hosted.
-Matches the privacy policy (`docs/b-mobile-privacy.html`) and the Pages site (`docs/b-mobile.html`).
+Matches the privacy policy (`docs/b-mobile-privacy.html`), the data deletion page
+(`docs/b-mobile-data-deletion.html`) and the Pages site (`docs/b-mobile.html`).
 
 ## App name (≤ 30 characters)
 
@@ -56,18 +57,19 @@ PRIVACY
 GOOD TO KNOW
 • Images are shown at standard size. Extra images and full-size (original) downloads are not available to apps using Blipfoto's API, so b-mobile can't show or save them. You can download the display-size photo of your own entries.
 
-b-mobile is an open-source project led by Ian Stevenson, published on Google Play on behalf of the development team by Salient Point Consulting Ltd. It is an independent app built on Blipfoto's public
-API. Use of Blipfoto is governed by Blipfoto's terms of service.
+b-mobile is an open-source project led by Ian Stevenson, published on Google Play on behalf of the development team by Salient Point Consulting Ltd. It is an independent app built on Blipfoto's public API, and is not affiliated with or endorsed by Blipfoto. Use of Blipfoto is governed by Blipfoto's terms of service.
 
 Source code: https://github.com/IanMStevenson/b-oss
 Privacy policy: https://ianmstevenson.github.io/b-oss/b-mobile-privacy.html
 
 ## Other store fields
 
-- **Category:** Social. **Tags:** photography, journal, social.
+- **Category:** Photography. **Tags:** photography, journal, social.
 - **Contact email:** b-oss@salientpoint.co.uk (public on the listing; also the trader contact, b-oss#365).
 - **Website:** `https://ianmstevenson.github.io/b-oss/b-mobile.html`.
 - **Privacy policy URL:** `https://ianmstevenson.github.io/b-oss/b-mobile-privacy.html`.
+- **Data deletion URL** (Data safety → Data deletion):
+  `https://ianmstevenson.github.io/b-oss/b-mobile-data-deletion.html`.
 - **Price / monetisation:** Free; contains ads: No; in-app purchases: No.
 - **Default language:** English (United Kingdom).
 
