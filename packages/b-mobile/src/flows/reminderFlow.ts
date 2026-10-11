@@ -15,20 +15,38 @@ import {
   rescheduleReminderSkippingToday,
 } from '../platform/localNotifications.js';
 
+/** What setReminderEnabled() did: `'refused'` means the notification permission was refused, so
+ * the reminder was stored as off instead (§12: a refusal turns it off, no third state). */
+export type ReminderResult = 'ok' | 'refused';
+
 /** FLW-18 step 1/2: reminders are per read-write account, each with its own on/off + time.
- * Cancels immediately when disabled — never leaves a stale schedule running. */
+ * Cancels immediately when disabled — never leaves a stale schedule running. When enabling, a
+ * refused permission or a scheduling error leaves the reminder stored as off (time kept), so the
+ * toggle never claims a reminder that won't fire; an error is rethrown for the caller to show. */
 export async function setReminderEnabled(
   accountId: string,
   enabled: boolean,
   time: { hour: number; minute: number },
-): Promise<void> {
+): Promise<ReminderResult> {
   const setting: ReminderSetting = { enabled, hour: time.hour, minute: time.minute };
-  useDevicePrefsStore.getState().setReminder(accountId, setting);
-  if (enabled) {
-    await scheduleReminder(accountId, time);
-  } else {
+  const { setReminder } = useDevicePrefsStore.getState();
+  setReminder(accountId, setting);
+  if (!enabled) {
     await cancelReminder(accountId);
+    return 'ok';
   }
+  let scheduled: boolean;
+  try {
+    scheduled = await scheduleReminder(accountId, time);
+  } catch (err) {
+    setReminder(accountId, { ...setting, enabled: false });
+    // A time change on an already-scheduled reminder may have left the old one in place.
+    void cancelReminder(accountId).catch(() => {});
+    throw err;
+  }
+  if (scheduled) return 'ok';
+  setReminder(accountId, { ...setting, enabled: false });
+  return 'refused';
 }
 
 /** FLW-18 step 3 / §12: called by flows/uploadQueueRunner.ts whenever a publish (new entry or
