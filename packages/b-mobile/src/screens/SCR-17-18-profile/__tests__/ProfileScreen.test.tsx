@@ -11,6 +11,7 @@ import { OverlayProvider, OverlayHost } from '../../../app/OverlayProvider.js';
 import { useAccountsStore } from '../../../state/accountsStore.js';
 import { useHiddenMembersStore } from '../../../state/hiddenMembersStore.js';
 import type { UserProfile } from '../../../data/users.js';
+import { t } from '../../../strings/index.js';
 
 vi.mock('../../../data/users.js', () => ({
   fetchUserProfile: vi.fn(),
@@ -142,6 +143,22 @@ describe('ProfileScreen', () => {
       expect(screen.getByText('Following', { selector: 'ion-button' })).toBeDefined(),
     );
     expect(followUser).toHaveBeenCalledWith('alice');
+  });
+
+  it('signed out, Follow asks the user to sign in and follows nobody (b-oss#397)', async () => {
+    useAccountsStore.setState({ accounts: [], activeAccountId: null, hydrated: true });
+    const { fetchUserProfile } = await import('../../../data/users.js');
+    vi.mocked(fetchUserProfile).mockResolvedValue(aliceProfile);
+    renderScreen('alice');
+    await userEvent.click(await screen.findByText('Follow', { selector: 'ion-button' }));
+    await waitFor(() =>
+      expect(
+        Array.from(document.querySelectorAll('ion-alert')).some(
+          (a) => a.getAttribute('header') === t('SIGN_IN_REQUIRED.title') && a.isOpen,
+        ),
+      ).toBe(true),
+    );
+    expect(followUser).not.toHaveBeenCalled();
   });
 
   it('shows a protected message instead of entries when the journal is not visible to the viewer', async () => {

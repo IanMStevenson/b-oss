@@ -15,6 +15,7 @@ import { useDevicePrefsStore } from '../../../state/devicePrefsStore.js';
 import type { LoadedEntry } from '../../../data/entries.js';
 import type { StoredAccount } from '../../../state/accountsStore.js';
 import { clearAllDrafts } from '../../../data/commentDrafts.js';
+import { t } from '../../../strings/index.js';
 import { REPORT_REQUEST_URL, REPORT_VIA_SUPPORT_MESSAGE } from '../../../flows/useReport.js';
 
 const { fetchAuthorAvatar } = vi.hoisted(() => ({ fetchAuthorAvatar: vi.fn() }));
@@ -34,8 +35,9 @@ vi.mock('../../../platform/prefs.js', () => ({
   deletePref: vi.fn().mockResolvedValue(undefined),
 }));
 
-const { signInGated } = vi.hoisted(() => ({ signInGated: vi.fn() }));
-vi.mock('../../../flows/accountsFlow.js', () => ({ signInGated }));
+// Signed out, a gated action must never start a Blipfoto sign-in itself (b-oss#397).
+const { signInDeliberate } = vi.hoisted(() => ({ signInDeliberate: vi.fn() }));
+vi.mock('../../../flows/accountsFlow.js', () => ({ signInDeliberate }));
 
 const { starEntry, favoriteEntry, followUser, unfollowUser } = vi.hoisted(() => ({
   starEntry: vi.fn(),
@@ -137,6 +139,13 @@ function footerLinks(): HTMLElement {
   return document.querySelector('.quiet-links-row') as HTMLElement;
 }
 
+// The real IonAlert keeps every dialog in the DOM, so "shown" means the open one.
+function signInAlertOpen(): boolean {
+  return Array.from(document.querySelectorAll('ion-alert')).some(
+    (a) => a.getAttribute('header') === t('SIGN_IN_REQUIRED.title') && a.isOpen,
+  );
+}
+
 function renderScreen(props: { initialReplyToCommentId?: string } = {}) {
   return render(
     <MemoryRouter>
@@ -213,16 +222,18 @@ describe('EntryDetailScreen', () => {
     expect(screen.queryByLabelText('Remove star')).toBeNull();
   });
 
-  it('routes an anonymous tap through sign-in rather than calling the API directly', async () => {
+  it('asks an anonymous user to sign in rather than starting a sign-in or calling the API', async () => {
     useAccountsStore.setState({ accounts: [], activeAccountId: null, hydrated: true });
     const { fetchEntry } = await import('../../../data/entries.js');
     vi.mocked(fetchEntry).mockResolvedValue(baseLoadedEntry);
-    signInGated.mockReturnValue(new Promise(() => {}));
     renderScreen();
     const starButton = await screen.findByLabelText('Star this entry');
+    expect(signInAlertOpen()).toBe(false);
     starButton.click();
-    await waitFor(() => expect(signInGated).toHaveBeenCalledOnce());
+    await waitFor(() => expect(signInAlertOpen()).toBe(true));
+    expect(signInDeliberate).not.toHaveBeenCalled();
     expect(starEntry).not.toHaveBeenCalled();
+    expect(navReplace).not.toHaveBeenCalled();
   });
 
   it("shows a hidden-member state instead of a hidden author's entry", async () => {
@@ -667,13 +678,13 @@ describe('EntryDetailScreen', () => {
     it('asks a signed-out user to sign in when they try to post, and posts nothing if they decline', async () => {
       const { postComment } = await flows();
       useAccountsStore.setState({ accounts: [], activeAccountId: null, hydrated: true });
-      signInGated.mockRejectedValue(new Error('cancelled'));
       await load();
       renderScreen();
       await screen.findByText('A day out');
       await userEvent.type(await findBox(), 'Lovely');
       await userEvent.click(screen.getByText('Add comment'));
-      await waitFor(() => expect(signInGated).toHaveBeenCalled());
+      await waitFor(() => expect(signInAlertOpen()).toBe(true));
+      expect(signInDeliberate).not.toHaveBeenCalled();
       expect(postComment).not.toHaveBeenCalled();
       expect(box().textContent).toBe('Lovely'); // nothing lost
     });

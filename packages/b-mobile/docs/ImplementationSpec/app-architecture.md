@@ -129,11 +129,19 @@ to `app/OverlayProvider.tsx` (`useOverlay()`); per-screen confirmations are loca
 
 **Gating** is done once, in the router:
 
-- **`WriteGuardRoute`** reads `useCanWrite()` (§6). Anonymous → `signInGated()` (read-write round),
-  resuming on success, back on failure. Read-only → an `IonAlert` upgrade prompt (decline goes
-  back, confirm goes to `/accounts`). This covers deep links and share intents too.
-- **`AccountGuardRoute`** wraps the inboxes, which a push tap can reach while signed out:
-  `signInGated()`, else redirect to `/browse`.
+- **`WriteGuardRoute`** reads `useCanWrite()` (§6). Anonymous → `SignInRequiredAlert` ("You must
+  be signed in to do this"): Sign in now replaces the route with `/sign-in?return=<route>`, Cancel
+  goes back. Read-only → an `IonAlert` upgrade prompt (decline goes back, confirm goes to
+  `/accounts`). This covers deep links and share intents too.
+- **`AccountGuardRoute`** wraps the inboxes, which a push tap can reach while signed out: the
+  same alert, Cancel → `/browse`.
+- **Screen actions** (Star, Favourite, Comment, Follow) use `useSignInPrompt()` when signed out:
+  the same alert and the same `/sign-in?return=` navigation, Cancel does nothing. The action is
+  not replayed after sign-in.
+- **Return target:** `/sign-in` reads `return` via `parseReturnTo()` (`signInReturn.ts`): a path
+  with a single leading `/`, not `/sign-in` itself; anything else is dropped. `SignInScreen` gets
+  it as `returnTo` and replaces itself with it after sign-in, and on Back, instead of going to
+  `/accounts`. The gate uses `replace`, so there is no duplicate history entry for that screen.
 
 ## 6. State management
 

@@ -34,7 +34,8 @@
 // Star/Favourite/Comment carry the account-confirm gate (BEHAVIOUR.md, "Confirm account before
 // star, favourite or comment"); Follow/Report/Hide don't — the setting's scope is
 // deliberately narrow. All four write actions hide entirely (not just disable) for a signed-in,
-// read-only account; an anonymous tap routes through FLW-01 first, then resumes.
+// read-only account; an anonymous tap asks the user to sign in first (FLW-01) and does nothing
+// else — once signed in they come back to this entry and tap again.
 //
 // FLW-13 (Phase 7): Edit, owner-only AND only read-write (a read-only owner never sees this —
 // ownership doesn't imply write access). Pushes to SCR-13 (which itself sits behind
@@ -74,9 +75,9 @@ import { fetchCalendarMonth, fetchHistoryItems } from '../../data/journalDays.js
 import { openUrl } from '../../platform/browser.js';
 import { resolveImage, invalidateImage } from '../../platform/imageCache.js';
 import { useAppNavigate } from '../../app/routes/useAppNavigate.js';
+import { useSignInPrompt } from '../../app/routes/useSignInPrompt.js';
 import { useOverlay } from '../../app/OverlayProvider.js';
 import { useAccountsStore, useActiveAccount, useCanWrite } from '../../state/accountsStore.js';
-import { signInGated } from '../../flows/accountsFlow.js';
 import { useAccountConfirmGate } from '../../flows/useAccountConfirmGate.js';
 import { useReport } from '../../flows/useReport.js';
 import {
@@ -133,6 +134,7 @@ export function EntryDetailScreen({ entryId, initialReplyToCommentId }: EntryDet
   const canWrite = useCanWrite();
   const hiddenMembers = useHiddenMembers();
   const { confirmAccount, dialog: accountConfirmDialog } = useAccountConfirmGate();
+  const signInPrompt = useSignInPrompt();
   const {
     entryState,
     prevEntryId,
@@ -257,16 +259,14 @@ export function EntryDetailScreen({ entryId, initialReplyToCommentId }: EntryDet
 
   const hideForReadOnly = activeAccount !== null && activeAccount.appTokenScope !== 'read,write';
 
-  /** Shared FLW-06/07 gate: anonymous signs in first; with the confirm-account setting on and
-   * 2+ accounts, the account picker runs before the read-write check; a read-only result (of
-   * whichever account ends up active) shows the upgrade prompt instead of proceeding. */
+  /** Shared FLW-06/07 gate: anonymous gets the sign-in prompt and stops there; with the
+   * confirm-account setting on and 2+ accounts, the account picker runs before the read-write
+   * check; a read-only result (of whichever account ends up active) shows the upgrade prompt
+   * instead of proceeding. */
   async function gateReaction(confirmStep: boolean): Promise<boolean> {
     if (!useAccountsStore.getState().activeAccountId) {
-      try {
-        await signInGated();
-      } catch {
-        return false;
-      }
+      signInPrompt.prompt();
+      return false;
     }
     if (confirmStep) {
       const proceed = await confirmAccount();
@@ -695,6 +695,7 @@ export function EntryDetailScreen({ entryId, initialReplyToCommentId }: EntryDet
       </IonContent>
 
       {accountConfirmDialog}
+      {signInPrompt.element}
 
       <IonAlert
         isOpen={confirmDeleteEntry}

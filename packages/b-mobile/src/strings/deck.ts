@@ -144,13 +144,6 @@ export const STRINGS = {
   'SCR-01.mode.read_write.subtitle': 'Post, react, comment, follow',
   'SCR-01.mode.read_write.title': 'Read-write',
   'SCR-01.notifications_toggle': 'Get notifications',
-  'SCR-01.reason.comment': 'Sign in to comment',
-  'SCR-01.reason.favourite': 'Sign in to favourite this entry',
-  'SCR-01.reason.follow': 'Sign in to follow {username}',
-  'SCR-01.reason.generic': 'Sign in to continue',
-  'SCR-01.reason.publish': 'Sign in to post your photo',
-  'SCR-01.reason.report': 'Sign in to report this',
-  'SCR-01.reason.star': 'Sign in to star this entry',
   'SCR-01.second_auth.button_continue': 'Sign in again',
   'SCR-01.second_auth.button_skip': 'Skip notifications',
   'SCR-01.tooltip.read_only':
@@ -290,6 +283,9 @@ export const STRINGS = {
     "You won't see their entries, comments or notifications. This doesn't stop them seeing your journal or commenting on it.",
   'SCR-31.public_journal_warning':
     'Your journal is public, so hidden members can still see your entries.',
+  'SIGN_IN_REQUIRED.button.cancel': 'Cancel',
+  'SIGN_IN_REQUIRED.button.sign_in': 'Sign in now',
+  'SIGN_IN_REQUIRED.title': 'You must be signed in to do this',
   'UPGRADE.body':
     "{username} is signed in read-only, so it can't do that. Switch to read-write to continue - you'll be asked to sign in again for write access.",
   'UPGRADE.button.confirm': 'Switch to read-write',

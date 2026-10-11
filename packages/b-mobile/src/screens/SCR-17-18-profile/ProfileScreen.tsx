@@ -46,9 +46,9 @@ import {
   JOURNAL_PAGE_SIZE,
 } from '../../data/users.js';
 import { followUser, unfollowUser } from '../../flows/reactionsFlow.js';
-import { signInGated } from '../../flows/accountsFlow.js';
 import { describeError, mapApiError } from '../../data/errors.js';
 import { useAppNavigate } from '../../app/routes/useAppNavigate.js';
+import { useSignInPrompt } from '../../app/routes/useSignInPrompt.js';
 import { useOverlay } from '../../app/OverlayProvider.js';
 import { useAccountsStore, useActiveAccount } from '../../state/accountsStore.js';
 import { resumeClear, resumeGet, resumeSet } from '../../data/resumeCache.js';
@@ -160,6 +160,7 @@ export function ProfileScreen({ username }: ProfileScreenProps) {
   const navigate = useAppNavigate();
   const { report, reportDialog } = useReport();
   const { showUpgradePrompt } = useOverlay();
+  const signInPrompt = useSignInPrompt();
   const activeAccount = useActiveAccount();
   const isOwn = username === undefined || username === activeAccount?.username;
   const effectiveUsername = username ?? activeAccount?.username;
@@ -212,11 +213,8 @@ export function ProfileScreen({ username }: ProfileScreenProps) {
   async function handleFollow(): Promise<void> {
     if (!effectiveUsername) return;
     if (!useAccountsStore.getState().activeAccountId) {
-      try {
-        await signInGated();
-      } catch {
-        return;
-      }
+      signInPrompt.prompt();
+      return;
     }
     const fresh = useAccountsStore.getState();
     const active = fresh.accounts.find((a) => a.id === fresh.activeAccountId);
@@ -549,6 +547,7 @@ export function ProfileScreen({ username }: ProfileScreenProps) {
         buttons={['OK']}
       />
       {reportDialog}
+      {signInPrompt.element}
     </IonPage>
   );
 }

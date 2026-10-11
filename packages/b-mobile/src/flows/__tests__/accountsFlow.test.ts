@@ -84,7 +84,6 @@ const { useAccountsStore } = await import('../../state/accountsStore.js');
 const { getToken } = await import('../../platform/secureStorage.js');
 const { AccountMismatchError } = await import('../accountMismatch.js');
 const {
-  signInGated,
   signInDeliberate,
   switchAccount,
   removeAccount,
@@ -107,23 +106,6 @@ function resetStore() {
 }
 
 beforeEach(resetStore);
-
-describe('signInGated (FLW-01)', () => {
-  it('always signs in read-write, notifications off, and makes the account active', async () => {
-    runOAuthRound.mockResolvedValueOnce({
-      accessToken: 'tok-rw',
-      grantedScope: 'read,write',
-      username: 'alice',
-    });
-    const id = await signInGated();
-    expect(runOAuthRound).toHaveBeenCalledWith('read,write');
-    expect(id).toBe('alice');
-    const account = useAccountsStore.getState().accounts.find((a) => a.id === 'alice');
-    expect(account?.appTokenScope).toBe('read,write');
-    expect(account?.hasServiceToken).toBe(false);
-    expect(useAccountsStore.getState().activeAccountId).toBe('alice');
-  });
-});
 
 describe('signInDeliberate (FLW-20)', () => {
   it('read-only + notifications: reuses the single token for both purposes, no second round', async () => {
