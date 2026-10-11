@@ -40,7 +40,10 @@ Known Blipfoto API limits: [AppLimitations.md](AppLimitations.md). Paths are rel
   double-tap → `/photo`. Calendar and ±1-year history need a signed-in account.
 - **Photo**: b-view Lightbox, zoom/pan, retry on image error. **New entry**: Take / Choose photo, or a shared photo.
 - **Compose details**, **Location picker**: see Compose. **Edit entry**: title, description, tags,
-  location, replace photo, Delete entry; no date field; Save enqueues and returns to the entry.
+  location, replace photo, Delete entry; no date field; Save enqueues and returns to the entry,
+  which shows the new title, description, tags and location with "Saving your changes…" until the
+  edit goes through, then reloads. If it fails, the entry as saved, "Your changes to this entry
+  weren't saved" with the error, and View uploads (b-oss#412).
 - **Biography editor** (`/compose/description`, despite the path): from Settings → Profile.
 - **Uploads**: Waiting / Uploading… / Uploaded / Failed (+ error); indeterminate bar while
   uploading; tap an uploaded item to open it. A failed item has Retry (back to Waiting, fresh
