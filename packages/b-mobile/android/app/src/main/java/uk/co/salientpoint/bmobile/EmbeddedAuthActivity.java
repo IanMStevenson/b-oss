@@ -50,6 +50,10 @@ public class EmbeddedAuthActivity extends AppCompatActivity {
     WebView webView = new WebView(this);
     webView.getSettings().setJavaScriptEnabled(true);
     webView.getSettings().setDomStorageEnabled(true);
+    // The sign-in page never needs local files or content:// URIs. File access is already off by
+    // default from API 30, but minSdk is 24.
+    webView.getSettings().setAllowFileAccess(false);
+    webView.getSettings().setAllowContentAccess(false);
     webView.setWebViewClient(
         new WebViewClient() {
           @Override

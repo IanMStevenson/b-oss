@@ -45,7 +45,10 @@
         <!-- EmbeddedAuthPlugin's "force new sign-in" WebView screen (FLW-20). Not exported — only
              ever launched internally via startActivityForResult from within this app, never by
              another app or a deep link. -->
+        <!-- configChanges as for MainActivity: without it a rotation recreates the Activity, which
+             clears cookies and reloads the sign-in page, losing whatever was typed. -->
         <activity
+            android:configChanges="orientation|keyboardHidden|keyboard|screenSize|locale|smallestScreenSize|screenLayout|uiMode|navigation|density"
             android:name=".EmbeddedAuthActivity"
             android:theme="@style/AppTheme"
             android:exported="false" />
