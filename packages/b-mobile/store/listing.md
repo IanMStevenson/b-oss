@@ -49,10 +49,9 @@ IN CONTROL
 PRIVACY
 • No ads, no analytics, no tracking
 • Your sign-in is kept in your phone's secure storage
-• Notifications are optional, and turning them off deletes their record at once
+• Optional notifications service under your own control
 
-b-mobile is developed mostly as an open-source project, led by Ian Stevenson, and published on
-Google Play by Salient Point Consulting Ltd. It is an independent app built on Blipfoto's public
+b-mobile is an open-source project led by Ian Stevenson, published on Google Play on behalf of the development team by Salient Point Consulting Ltd. It is an independent app built on Blipfoto's public
 API. Use of Blipfoto is governed by Blipfoto's terms of service.
 
 Source code: https://github.com/IanMStevenson/b-oss
