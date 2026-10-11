@@ -16,7 +16,9 @@ Browse, post and get notified on your Blipfoto journal from your phone.
 
 b-mobile is an Android app for Blipfoto, the photo journal where you post one picture a day.
 
-Sign in with your existing Blipfoto account and you can:
+b-mobile is completely free to use, with no ads and no in-app purchases. It works with your existing Blipfoto account, whatever kind it is; any paid Blipfoto features are between you and Blipfoto, and are separate from this app.
+
+Sign in with your Blipfoto account and you can:
 
 BROWSE
 • Recent, Following, Popular, Milestones, New Blippers and Nearby, all in one place
@@ -51,6 +53,9 @@ PRIVACY
 • Your sign-in is kept in your phone's secure storage
 • Optional notifications service under your own control
 
+GOOD TO KNOW
+• Images are shown at standard size. Extra images and full-size (original) downloads are not available to apps using Blipfoto's API, so b-mobile can't show or save them. You can download the display-size photo of your own entries.
+
 b-mobile is an open-source project led by Ian Stevenson, published on Google Play on behalf of the development team by Salient Point Consulting Ltd. It is an independent app built on Blipfoto's public
 API. Use of Blipfoto is governed by Blipfoto's terms of service.
 
@@ -63,6 +68,7 @@ Privacy policy: https://ianmstevenson.github.io/b-oss/b-mobile-privacy.html
 - **Contact email / website:** to decide with the trader-details item (b-oss#365); website
   `https://ianmstevenson.github.io/b-oss/b-mobile.html`.
 - **Privacy policy URL:** `https://ianmstevenson.github.io/b-oss/b-mobile-privacy.html`.
+- **Price / monetisation:** Free; contains ads: No; in-app purchases: No.
 - **Default language:** English (United Kingdom).
 
 ## Graphics
