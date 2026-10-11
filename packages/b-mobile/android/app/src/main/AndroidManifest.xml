@@ -97,6 +97,9 @@
     <uses-permission android:name="android.permission.CAMERA" />
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+    <!-- @capacitor/local-notifications declares SCHEDULE_EXACT_ALARM in its own manifest; strip it
+         from the merge so the comment above stays true. Reminders are scheduled inexact. -->
+    <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" tools:node="remove" />
 
     <!-- Declaring CAMERA implies a required camera, which would hide the app from devices without
          one. Taking a photo is optional here (the photo picker works without a camera). -->

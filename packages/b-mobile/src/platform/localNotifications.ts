@@ -93,6 +93,10 @@ async function scheduleAt(
         // Must match the channel id android/'s MainActivity creates at launch
         // (app-architecture.md §17's "notification channel per category").
         channelId: 'reminders',
+        // The plugin defaults to an exact alarm and, on Android 12+ without exact-alarm access,
+        // opens the "Alarms & reminders" settings screen before scheduling. Inexact is the
+        // intent here (see the header), so ask for it explicitly.
+        isExactNotification: false,
       },
     ],
   });
