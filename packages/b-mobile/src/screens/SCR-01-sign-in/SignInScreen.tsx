@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (C) 2026 Ian Stevenson
 
-// SCR-01 — Sign In. This is the *deliberate* shape (full mode choice) — reached from nav
-// "Sign in" and SCR-30's "Add account" (FLW-20). The *gated* shape (no mode choice, always
-// read-write, names the pending action) has no caller yet — no write action exists before
-// Phase 4 to gate — so it isn't built here; signInGated() (FLW-01) already exists in
-// flows/accountsFlow.ts for whichever phase adds the first gated action.
+// SCR-01 — Sign In, with the full mode choice — reached from nav "Sign in", SCR-30's "Add
+// account" (FLW-20) and, for a gated action, from "You must be signed in to do this" (FLW-01,
+// b-oss#397). The gated way in passes `returnTo` (the screen the user was on, already validated by
+// app/routes/signInReturn.ts): a successful sign-in replaces this screen with it instead of going
+// to Accounts, and Back returns to it too.
 //
 // Registration URL confirmed by the user 2026-08-04 (was previously the bare root domain, since
 // the spec never states it).
@@ -61,12 +61,14 @@ const TERMS_URL = 'https://www.blipfoto.com/legal/terms';
 
 type Status = 'idle' | 'authenticating' | 'error';
 
-export function SignInScreen() {
+export function SignInScreen({ returnTo }: { returnTo?: string } = {}) {
   const navigate = useAppNavigate();
   // With an account already signed in this screen was reached by drilling in (Accounts → Add
   // account), so it gets Back like every other drilled-into screen. The signed-out landing page has
-  // nothing to go back to and keeps the menu button (b-oss#195).
-  const drilledIn = useActiveAccount() !== null;
+  // nothing to go back to and keeps the menu button (b-oss#195), unless a gated action sent the
+  // user here, in which case Back returns to that screen.
+  const drilledIn = useActiveAccount() !== null || returnTo !== undefined;
+  const done = returnTo ?? '/accounts';
   const { showFirstRunExplainer } = useOverlay();
   const hydrated = useDevicePrefsStore((s) => s.hydrated);
   const seenFirstRunExplainer = useDevicePrefsStore((s) => s.seenFirstRunExplainer);
@@ -132,7 +134,7 @@ export function SignInScreen() {
         },
         { beforeServiceRound: explainer.ask },
       );
-      navigate.replace('/accounts');
+      navigate.replace(done);
     } catch (err) {
       if (err instanceof OAuthCancelledError) {
         setStatus('idle');
@@ -147,7 +149,7 @@ export function SignInScreen() {
   async function handleMismatchClosed(err: AccountMismatchError, retry: boolean) {
     setMismatch(null);
     if (!retry) {
-      navigate.replace('/accounts');
+      navigate.replace(done);
       return;
     }
     setError(null);
@@ -159,10 +161,10 @@ export function SignInScreen() {
         notifications: true,
         useEmbedded: true,
       });
-      navigate.replace('/accounts');
+      navigate.replace(done);
     } catch (retryErr) {
       if (retryErr instanceof OAuthCancelledError) {
-        navigate.replace('/accounts');
+        navigate.replace(done);
         return;
       }
       fail(retryErr);
@@ -183,6 +185,7 @@ export function SignInScreen() {
           title="Sign in"
           variant={drilledIn ? 'back' : 'menu'}
           backHref="/accounts"
+          onBack={returnTo !== undefined ? () => navigate.replace(returnTo) : undefined}
           accountIndicator={false}
         />
       </IonHeader>

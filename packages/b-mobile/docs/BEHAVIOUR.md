@@ -74,11 +74,13 @@ Known Blipfoto API limits: [AppLimitations.md](AppLimitations.md). Paths are rel
 - The only write test is `useCanWrite()`: the active account's granted scope is `read,write`
   (`state/accountsStore.ts`). The scope comes from `GET oauth/token`, never the requested scope.
 - `WriteGuardRoute` wraps `/compose`, `/entry/:id/edit`, `/entry/:id/report` (Report itself never
-  routes there without write access; see Report above). Signed out: runs a
-  read-write sign-in, then shows the screen (cancel → Back). Read-only: upgrade prompt "This
-  account is read-only" — Switch to read-write goes to `/accounts`, Not now goes Back.
+  routes there without write access; see Report above). Signed out: the sign-in prompt (see Sign-in
+  and accounts) — Sign in now goes to `/sign-in` and back to the screen afterwards, Cancel goes
+  Back. Read-only: upgrade prompt "This account is read-only" — Switch to read-write goes to
+  `/accounts`, Not now goes Back.
 - Entry page: star, favourite, comment, follow, Edit and Delete are hidden for a read-only
-  account. Signed out, tapping one signs in read-write and then completes the action.
+  account. Signed out, tapping star, favourite, comment or follow (also Follow on a profile) shows
+  the sign-in prompt; nothing else happens until the user is signed in and taps again.
 - Profile Follow, request/refused actions and Remove follower show for read-only accounts but
   open the upgrade prompt. Settings sections show values disabled: "This account is read-only."
 - `/compose/details`, `/compose/location`, `/compose/description` are not route-guarded.
@@ -117,7 +119,14 @@ Known Blipfoto API limits: [AppLimitations.md](AppLimitations.md). Paths are rel
 ## Sign-in and accounts (`flows/accountsFlow.ts`, `flows/oauthRound.ts`)
 
 - OAuth implicit grant to `bmobile://oauth/`, fresh `state` per round (mismatch = silent cancel).
-- Gated sign-in: read-write, no notifications, system browser. `/sign-in`: Read-write (default)
+- Gated sign-in (FLW-01, `useSignInPrompt`, `SignInRequiredAlert`): a signed-out user who taps a
+  gated action or reaches a write- or account-gated route sees "You must be signed in to do this"
+  with Sign in now and Cancel. No sign-in starts until they choose Sign in now, which replaces the
+  current screen with `/sign-in?return=<that screen>`. After a successful sign-in (and Back from
+  that screen) they go to the return target instead of `/accounts`; only in-app paths are accepted
+  (`app/routes/signInReturn.ts`), anything else is ignored. A shared photo stays cached, so New entry
+  picks it up afterwards. Cancel: nothing on the entry and profile screens, Back on write routes,
+  Browse on the inboxes. `/sign-in`: Read-write (default)
   or Read-only; Get notifications (disabled without push support); Use browser to sign in (on for
   the first account, off once one exists; off = in-app WebView with cookies cleared, which always
   asks for a password). First-run explainer shown once.
@@ -198,7 +207,7 @@ Source comments cite these ids; the AppSpec that defined them has been removed.
 
 | FLW | Flow — main code                                                            | FLW | Flow — main code                                                     |
 | --- | --------------------------------------------------------------------------- | --- | -------------------------------------------------------------------- |
-| 01  | Gated sign-in — `signInGated`, `WriteGuardRoute`                            | 12  | Compose/publish — `composeFlow.ts`, `uploadQueueRunner.ts`           |
+| 01  | Gated sign-in — `useSignInPrompt`, `WriteGuardRoute`                        | 12  | Compose/publish — `composeFlow.ts`, `uploadQueueRunner.ts`           |
 | 02  | Remove account / forced logout — `handleForcedLogout`, `reauthorizeAccount` | 13  | Edit/delete entry — `SCR-13-edit-entry`, `entries.ts` `deleteEntry`  |
 | 04  | Search — `SCR-03-search`                                                    | 14  | Browse map — `SCR-04-map`, `data/map.ts`                             |
 | 05  | View entry — `SCR-06-entry-detail`                                          | 15  | Inboxes — `SCR-23`, `SCR-24`, `data/notifications.ts`                |
