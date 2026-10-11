@@ -64,18 +64,18 @@ Privacy policy: https://ianmstevenson.github.io/b-oss/b-mobile-privacy.html
 
 ## Other store fields
 
-- **Category:** Social (alternative: Photography). **Tags:** photography, journal, social.
-- **Contact email / website:** to decide with the trader-details item (b-oss#365); website
-  `https://ianmstevenson.github.io/b-oss/b-mobile.html`.
+- **Category:** Social. **Tags:** photography, journal, social.
+- **Contact email:** b-oss@salientpoint.co.uk (public on the listing; also the trader contact, b-oss#365).
+- **Website:** `https://ianmstevenson.github.io/b-oss/b-mobile.html`.
 - **Privacy policy URL:** `https://ianmstevenson.github.io/b-oss/b-mobile-privacy.html`.
 - **Price / monetisation:** Free; contains ads: No; in-app purchases: No.
 - **Default language:** English (United Kingdom).
 
 ## Graphics
 
-| Asset               | Spec                         | Status                                                   |
-| ------------------- | ---------------------------- | -------------------------------------------------------- |
-| App icon            | 512×512 PNG, ≤ 1 MB          | To do: compose from the adaptive-icon layers             |
-| Feature graphic     | 1024×500 JPG/PNG             | To do                                                    |
-| Phone screenshots   | 2–8, 9:16, ≥ 1080 px         | To do: from the demo account (b-oss#363) or stub fixture |
-| Themed (monochrome) | Optional adaptive-icon layer | To do                                                    |
+| Asset               | Spec                         | Status                                                                     |
+| ------------------- | ---------------------------- | -------------------------------------------------------------------------- |
+| App icon            | 512×512 PNG, ≤ 1 MB          | To do: compose from the adaptive-icon layers                               |
+| Feature graphic     | 1024×500 JPG/PNG             | To do                                                                      |
+| Phone screenshots   | 2–8, 9:16, ≥ 1080 px         | To do: from the Blipfoto demo account (b-oss#363); blocked until it exists |
+| Themed (monochrome) | Optional adaptive-icon layer | To do                                                                      |
