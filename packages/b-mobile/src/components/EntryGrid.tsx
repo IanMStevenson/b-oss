@@ -31,7 +31,7 @@ import { resolveImage, invalidateImage } from '../platform/imageCache.js';
 import { useHiddenMembers } from '../state/hiddenMembersStore.js';
 import { useAppNavigate } from '../app/routes/useAppNavigate.js';
 import { useDevicePrefsStore } from '../state/devicePrefsStore.js';
-import { resumeGet, resumeSet } from '../data/resumeCache.js';
+import { resumeClear, resumeGet, resumeSet } from '../data/resumeCache.js';
 
 const HIDDEN_THUMBNAIL = '__hidden__';
 
@@ -157,7 +157,11 @@ export function EntryGrid({
     [],
   );
 
+  // Pull-down reloads from page 1, so the remembered grid page goes too — otherwise the rebuilt
+  // grid would restore the old page over the fresh data. (The feed's own resume entry is simply
+  // overwritten when the reload lands.)
   function handleRefresh(event: CustomEvent<RefresherEventDetail>): void {
+    if (topKey) resumeClear(topKey);
     onRefresh();
     event.detail.complete();
   }

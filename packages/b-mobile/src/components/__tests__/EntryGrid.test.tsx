@@ -8,6 +8,7 @@ import { MemoryRouter } from 'react-router-dom';
 import { EntryGrid } from '../EntryGrid.js';
 import { useDevicePrefsStore } from '../../state/devicePrefsStore.js';
 import type { EntryIndex } from '@b-oss/b-view';
+import { resumeGet, resumeSet } from '../../data/resumeCache.js';
 
 vi.mock('../../platform/prefs.js', () => ({
   getPref: vi.fn().mockResolvedValue(null),
@@ -254,5 +255,31 @@ describe('EntryGrid — hidden members', () => {
     expect(resolveImage).not.toHaveBeenCalledWith('thumb-2.jpg');
     expect(resolveImage).toHaveBeenCalledWith('thumb-1.jpg');
     expect(screen.queryByText('Entry 2')).toBeNull();
+  });
+});
+
+describe('EntryGrid — pull to refresh', () => {
+  it('reloads, forgets the remembered grid page, and completes the gesture', () => {
+    resumeSet('feed:x:top', 3);
+    const onRefresh = vi.fn();
+    const complete = vi.fn();
+    render(
+      <MemoryRouter>
+        <EntryGrid
+          entries={makeEntries(4)}
+          onSelectEntry={() => {}}
+          hasMore={false}
+          onLoadMore={() => {}}
+          onRefresh={onRefresh}
+          resumeKey="feed:x"
+        />
+      </MemoryRouter>,
+    );
+    document
+      .querySelector('ion-refresher')!
+      .dispatchEvent(new CustomEvent('ionRefresh', { detail: { complete } }));
+    expect(onRefresh).toHaveBeenCalledTimes(1);
+    expect(resumeGet('feed:x:top')).toBeUndefined();
+    expect(complete).toHaveBeenCalledTimes(1);
   });
 });

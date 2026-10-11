@@ -162,7 +162,7 @@ describe('EntryDetailScreen', () => {
     const { fetchEntry } = await import('../../../data/entries.js');
     vi.mocked(fetchEntry).mockReturnValue(new Promise(() => {}));
     renderScreen();
-    expect(document.querySelector('ion-spinner')).not.toBeNull();
+    expect(document.querySelector('ion-spinner:not(ion-refresher *)')).not.toBeNull();
   });
 
   it('shows an error with retry on failure', async () => {
@@ -575,6 +575,23 @@ describe('EntryDetailScreen', () => {
       expect(navPush).not.toHaveBeenCalled();
     });
 
+    it('pull-to-refresh refetches the entry in place and completes the gesture', async () => {
+      const fetchEntry = await load();
+      renderScreen();
+      await screen.findByText('A day out');
+      const callsBefore = vi.mocked(fetchEntry).mock.calls.length;
+
+      const complete = vi.fn();
+      document
+        .querySelector('ion-refresher')!
+        .dispatchEvent(new CustomEvent('ionRefresh', { detail: { complete } }));
+
+      await waitFor(() => expect(complete).toHaveBeenCalledTimes(1));
+      expect(vi.mocked(fetchEntry).mock.calls.length).toBe(callsBefore + 1);
+      expect(screen.getByText('A day out')).toBeDefined();
+      expect(document.querySelector('ion-spinner:not(ion-refresher *)')).toBeNull();
+    });
+
     it('posts a new comment, clears the box, and refreshes in place without a spinner', async () => {
       const { postComment } = await flows();
       vi.mocked(postComment).mockResolvedValue({} as never);
@@ -595,7 +612,7 @@ describe('EntryDetailScreen', () => {
 
       // Refresh in flight: the entry is still on screen and no spinner replaced the page.
       expect(screen.getByText('A day out')).toBeDefined();
-      expect(document.querySelector('ion-spinner')).toBeNull();
+      expect(document.querySelector('ion-spinner:not(ion-refresher *)')).toBeNull();
 
       finishRefresh(
         withComment(noActions, {
