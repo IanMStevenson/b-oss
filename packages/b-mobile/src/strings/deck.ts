@@ -66,6 +66,8 @@ export const STRINGS = {
   'ERR.101.username_invalid': "That username isn't valid.",
   'ERR.102.username_taken': 'That username is already taken.',
   'ERR.104.protected': 'Protected',
+  'ERR.network.offline': "You're offline. Check your connection and try again.",
+  'ERR.network.timeout': 'The request timed out. Try again.',
   'ERR.11.rate_limited': 'Please wait a moment and try again.',
   'ERR.202.entry_unavailable': 'This entry is no longer available.',
   'ERR.205.comments_disabled': 'Comments are turned off for this journal.',
@@ -188,6 +190,7 @@ export const STRINGS = {
   'SCR-13.error.generic': "Couldn't save your changes. Check your connection and try again.",
   'SCR-14.empty':
     "No uploads yet. Entries you publish will show up here while they're on their way.",
+  'SCR-15.error.text_kept': 'Your text is still here.',
   'SCR-15.error.post_failed': "Couldn't post your comment. Your text is still here - try again.",
   'SCR-16.error.no_reason': 'Select a reason',
   'SCR-17.empty.awards': 'No awards yet.',

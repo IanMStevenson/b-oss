@@ -36,8 +36,23 @@ describe('mapApiError', () => {
   });
 
   it('maps a NetworkError to transport, the only class the upload queue retries', () => {
-    expect(mapApiError(new NetworkError('offline'))).toEqual({ kind: 'transport' });
+    expect(mapApiError(new NetworkError('offline'))).toEqual({
+      kind: 'transport',
+      timedOut: false,
+      message: "You're offline. Check your connection and try again.",
+    });
   });
+
+  it.each(['Read timed out', 'timeout', 'SocketTimeoutException: connect timed out'])(
+    'maps a NetworkError caused by "%s" to the timeout message',
+    (cause) => {
+      expect(mapApiError(new NetworkError('Network request failed', new Error(cause)))).toEqual({
+        kind: 'transport',
+        timedOut: true,
+        message: 'The request timed out. Try again.',
+      });
+    },
+  );
 
   it('maps an invalid-session BlipfotoError (code 50/51) to forced-logout', () => {
     expect(mapApiError(new BlipfotoError(50, 'invalid session'))).toEqual({
@@ -132,10 +147,19 @@ describe('describeError', () => {
     );
   });
 
-  it('falls back to the caller-supplied text for transport/forced-logout, which are handled as distinct states', () => {
-    expect(describeError({ kind: 'transport' }, 'Could not save this.')).toBe(
-      'Could not save this.',
+  it('describes a transport failure as offline or timed out, not the raw network error', () => {
+    expect(describeError(mapApiError(new NetworkError('x')), 'Could not save this.')).toBe(
+      "You're offline. Check your connection and try again.",
     );
+    expect(
+      describeError(
+        mapApiError(new NetworkError('x', new Error('Read timed out'))),
+        'Could not save this.',
+      ),
+    ).toBe('The request timed out. Try again.');
+  });
+
+  it('falls back to the caller-supplied text for forced-logout, which is handled as a distinct state', () => {
     expect(describeError({ kind: 'forced-logout' }, 'Could not save this.')).toBe(
       'Could not save this.',
     );
