@@ -88,6 +88,14 @@
             android:name="com.google.firebase.messaging.default_notification_channel_id"
             android:value="activity"
         />
+
+        <!-- Firebase Messaging otherwise creates an installation ID and push token at first launch,
+             before notifications are turned on. @capacitor/push-notifications' register() switches
+             auto-init on when the user enables notifications, and unregister() switches it off. -->
+        <meta-data
+            android:name="firebase_messaging_auto_init_enabled"
+            android:value="false"
+        />
     </application>
 
     <!-- Permissions (app-architecture.md §17) — exactly these, nothing more. No storage
