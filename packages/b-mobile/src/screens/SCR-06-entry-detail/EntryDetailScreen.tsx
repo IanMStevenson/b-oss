@@ -57,7 +57,7 @@ import {
   IonAlert,
   IonToast,
 } from '@ionic/react';
-import { Flag, CornerUpLeft, Pencil, Trash2 } from 'lucide-react';
+import { Flag, CornerUpLeft, EyeOff, Pencil, Trash2 } from 'lucide-react';
 import { AppHeader } from '../../components/AppHeader.js';
 import { EntryDetail, CommentComposer, ActionPill } from '@b-oss/b-view';
 import type { BlipComment, EntryState, ActionPillItem } from '@b-oss/b-view';
@@ -156,6 +156,7 @@ export function EntryDetailScreen({ entryId, initialReplyToCommentId }: EntryDet
   const [confirmDeleteEntry, setConfirmDeleteEntry] = useState(false);
   const [downloadToast, setDownloadToast] = useState<string | null>(null);
   const [confirmHide, setConfirmHide] = useState(false);
+  const [hideCommenterTarget, setHideCommenterTarget] = useState<string | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<ApiComment | null>(null);
 
   const authorUsername = entryState.status === 'loaded' ? entryState.data.username : null;
@@ -406,6 +407,12 @@ export function EntryDetailScreen({ entryId, initialReplyToCommentId }: EntryDet
     useHiddenMembersStore.getState().hide(authorUsername);
   }
 
+  function handleConfirmedHideCommenter(): void {
+    const username = hideCommenterTarget;
+    setHideCommenterTarget(null);
+    if (username) useHiddenMembersStore.getState().hide(username);
+  }
+
   // Own journal only — the flow refuses anything else, and the button is only offered for it.
   async function handleDownloadPhoto(): Promise<void> {
     if (entryState.status !== 'loaded') return;
@@ -430,7 +437,7 @@ export function EntryDetailScreen({ entryId, initialReplyToCommentId }: EntryDet
     const apiComment = commentActionsMap.get(comment.comment_id);
     if (!apiComment) return null;
     // Icon buttons in one small pill (Blipfoto's idiom) rather than a row of text buttons. You
-    // can't report your own comment, so Report only shows on other people's.
+    // can't report or hide your own comment, so Report and Hide member only show on other people's.
     const items: ActionPillItem[] = [];
     if (apiComment.actions.reply === 1) {
       items.push({
@@ -464,6 +471,12 @@ export function EntryDetailScreen({ entryId, initialReplyToCommentId }: EntryDet
         label: 'Report comment',
         icon: <Flag size={15} strokeWidth={1.6} />,
         onClick: () => handleReportComment(apiComment),
+      });
+      items.push({
+        key: 'hide',
+        label: 'Hide member',
+        icon: <EyeOff size={15} strokeWidth={1.6} />,
+        onClick: () => setHideCommenterTarget(apiComment.commenter.username),
       });
     }
     return <ActionPill items={items} />;
@@ -726,6 +739,17 @@ export function EntryDetailScreen({ entryId, initialReplyToCommentId }: EntryDet
         buttons={[
           { text: 'Cancel', role: 'cancel' },
           { text: 'Hide', role: 'destructive', handler: handleConfirmedHide },
+        ]}
+      />
+
+      <IonAlert
+        isOpen={hideCommenterTarget !== null}
+        header={`Hide ${hideCommenterTarget ?? ''}?`}
+        message="You won't see their entries, comments or notifications. This doesn't stop them seeing your journal or commenting on your entries."
+        onDidDismiss={() => setHideCommenterTarget(null)}
+        buttons={[
+          { text: 'Cancel', role: 'cancel' },
+          { text: 'Hide', role: 'destructive', handler: handleConfirmedHideCommenter },
         ]}
       />
 
