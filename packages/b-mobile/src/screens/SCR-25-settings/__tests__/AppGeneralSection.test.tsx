@@ -51,7 +51,7 @@ function flip(el: HTMLElement, checked: boolean) {
 }
 
 beforeEach(() => {
-  scheduleReminder.mockResolvedValue(undefined);
+  scheduleReminder.mockResolvedValue(true);
   cancelReminder.mockResolvedValue(undefined);
   rescheduleReminderSkippingToday.mockResolvedValue(undefined);
   useAccountsStore.setState({
@@ -141,6 +141,32 @@ describe('AppGeneralSection — reminders', () => {
     render(<AppGeneralSection />);
     flip(toggleOf('Daily reminder'), false);
     await waitFor(() => expect(cancelReminder).toHaveBeenCalledWith('a1'));
+  });
+
+  it('a refused notification permission turns the toggle back off and says why', async () => {
+    scheduleReminder.mockResolvedValue(false);
+    render(<AppGeneralSection />);
+    flip(toggleOf('Daily reminder'), true);
+    expect(await screen.findByText(/Notifications are off for b-mobile/)).toBeDefined();
+    expect(screen.getByText(/allow them in your phone’s Settings/)).toBeDefined();
+    expect(useDevicePrefsStore.getState().reminders['a1']).toEqual({
+      enabled: false,
+      hour: 20,
+      minute: 0,
+    });
+    expect(toggleOf('Daily reminder').getAttribute('checked')).not.toBe('true');
+    expect(screen.queryByText('Reminder time')).toBeNull();
+  });
+
+  it('a scheduling error turns the toggle back off with a generic message', async () => {
+    scheduleReminder.mockRejectedValue(new Error('boom'));
+    render(<AppGeneralSection />);
+    flip(toggleOf('Daily reminder'), true);
+    expect(
+      await screen.findByText('Could not change the reminder. Please try again.'),
+    ).toBeDefined();
+    expect(useDevicePrefsStore.getState().reminders['a1']?.enabled).toBe(false);
+    expect(toggleOf('Daily reminder').getAttribute('checked')).not.toBe('true');
   });
 
   it('has no Reminders section for a read-only account', () => {
