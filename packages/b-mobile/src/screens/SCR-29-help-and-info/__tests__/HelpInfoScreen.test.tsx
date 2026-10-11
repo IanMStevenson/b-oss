@@ -54,6 +54,7 @@ describe('HelpInfoScreen hub — works with no account signed in (SCR-29 is not 
       'Blipfoto terms & legal',
       'Blipfoto privacy policy',
       'App version',
+      'b-mobile privacy policy',
       'Open source licences',
     ]) {
       expect(screen.getAllByText(label).length).toBeGreaterThan(0);
@@ -67,11 +68,12 @@ describe('HelpInfoScreen hub — works with no account signed in (SCR-29 is not 
     expect(screen.queryByText('Open blipfoto.com links in this app')).toBeNull();
   });
 
-  it('Help/Terms/Privacy rows each open their own real Blipfoto page directly', async () => {
+  it('Help/Terms/Privacy rows each open their own page directly', async () => {
     renderHub();
     const expected: Record<string, string> = {
       'Blipfoto terms & legal': 'https://www.blipfoto.com/legal/terms',
       'Blipfoto privacy policy': 'https://www.blipfoto.com/legal/privacy',
+      'b-mobile privacy policy': 'https://ianmstevenson.github.io/b-oss/b-mobile-privacy.html',
     };
     for (const [label, url] of Object.entries(expected)) {
       await userEvent.click(screen.getByText(label));
@@ -81,7 +83,7 @@ describe('HelpInfoScreen hub — works with no account signed in (SCR-29 is not 
     const helpRow = screen.getAllByText('Help')[1];
     await userEvent.click(helpRow);
     expect(openUrl).toHaveBeenLastCalledWith('https://www.blipfoto.com/help');
-    expect(openUrl).toHaveBeenCalledTimes(3);
+    expect(openUrl).toHaveBeenCalledTimes(4);
   });
 
   it('Icon guide / Safety & privacy / Open source licences navigate in-app, not to the browser', async () => {

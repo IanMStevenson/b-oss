@@ -41,6 +41,8 @@ const ACCEPTABLE_USE_URL = 'https://www.blipfoto.com/legal/acceptable-use';
 const PRIVACY_URL = 'https://www.blipfoto.com/legal/privacy';
 const BE_EXCELLENT_URL = 'https://www.blipfoto.com/be-excellent';
 const SOURCE_URL = 'https://ianmstevenson.github.io/b-oss/';
+// This app's own policy (what b-mobile and its push service handle), as given in the Play listing.
+const APP_PRIVACY_URL = 'https://ianmstevenson.github.io/b-oss/b-mobile-privacy.html';
 
 export type HelpInfoSection = 'icon-guide' | 'safety-privacy' | 'licences';
 
@@ -400,6 +402,11 @@ function HelpInfoHub() {
             <span>App version</span>
             <IonNote slot="end">{version}</IonNote>
           </IonItem>
+          <NavRow
+            label="b-mobile privacy policy"
+            kind="external"
+            onClick={() => void openUrl(APP_PRIVACY_URL)}
+          />
           <NavRow
             label="Open source licences"
             kind="push"
