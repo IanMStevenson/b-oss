@@ -6,7 +6,7 @@
 
 import { describe, it, expect } from 'vitest';
 import { BlipfotoError, HttpError, NetworkError } from '@b-oss/b-api';
-import { describeError, describeUploadError, mapApiError } from '../errors.js';
+import { describeError, describeUploadError, errorMessageOf, mapApiError } from '../errors.js';
 import { t } from '../../strings/index.js';
 
 function httpError(status: number): HttpError {
@@ -205,5 +205,24 @@ describe('describeUploadError (b-oss#318)', () => {
 
   it('shows an unexpected error’s own message instead of hiding it', () => {
     expect(describeUploadError(new Error('boom'), fallback)).toBe(`${fallback} (boom)`);
+  });
+});
+
+describe('errorMessageOf', () => {
+  it('uses the offline line for a transport failure', () => {
+    const err = new NetworkError('Network request failed', new Error('Unable to resolve host'));
+    expect(errorMessageOf(err, 'fallback')).toBe(
+      "You're offline. Check your connection and try again.",
+    );
+  });
+
+  it('uses the timeout line when the cause timed out', () => {
+    const err = new NetworkError('Network request failed', new Error('Read timed out'));
+    expect(errorMessageOf(err, 'fallback')).toBe('The request timed out. Try again.');
+  });
+
+  it("keeps any other error's own message, then the fallback", () => {
+    expect(errorMessageOf(new Error('Entry not found'), 'fallback')).toBe('Entry not found');
+    expect(errorMessageOf('weird', 'fallback')).toBe('fallback');
   });
 });

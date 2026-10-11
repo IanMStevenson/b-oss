@@ -113,6 +113,15 @@ export function describeError(outcome: ApiErrorOutcome, fallback: string): strin
   }
 }
 
+/** The text for a failed load shown inline (spinner screens, map, calendar): our offline/timeout
+ * line for a transport failure, otherwise the error's own message, otherwise the fallback. */
+export function errorMessageOf(err: unknown, fallback: string): string {
+  if (err instanceof NetworkError) {
+    return t(isTimeout(err) ? 'ERR.network.timeout' : 'ERR.network.offline');
+  }
+  return err instanceof Error && err.message ? err.message : fallback;
+}
+
 /** A readable line from whatever a transport layer rejected with — an Error, or a plugin's plain
  * `{code, message}` object (FileTransferError is not an Error subclass). */
 export function causeMessage(cause: unknown): string {

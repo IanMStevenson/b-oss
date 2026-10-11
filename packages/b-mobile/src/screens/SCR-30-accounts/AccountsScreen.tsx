@@ -69,6 +69,7 @@ import { AccountMismatchAlert, canRetryInApp } from '../../components/AccountMis
 import { useAppNavigate, useIsDrilledIn } from '../../app/routes/useAppNavigate.js';
 import { openUrl } from '../../platform/browser.js';
 import { t } from '../../strings/index.js';
+import { errorMessageOf } from '../../data/errors.js';
 
 // Blipfoto has no delete-account API; this is the page Help's "Delete my account" opened.
 const DELETE_ACCOUNT_URL = 'https://www.blipfoto.com/settings/profile#sidebar';
@@ -243,7 +244,7 @@ export function AccountsScreen({ reauthRequest }: { reauthRequest?: ReauthReques
       if (err instanceof AccountMismatchError) {
         setSignInMismatch({ error: err, account });
       } else if (!(err instanceof OAuthCancelledError)) {
-        setSignInError(err instanceof Error ? err.message : 'Sign-in failed. Please try again.');
+        setSignInError(errorMessageOf(err, 'Sign-in failed. Please try again.'));
       }
     } finally {
       setSigningInId(null);
