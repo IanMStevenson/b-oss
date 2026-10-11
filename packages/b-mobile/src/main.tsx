@@ -24,9 +24,14 @@ import './styles/theme.css';
 import './styles/globals.css';
 
 import { AppShell } from './app/AppShell.js';
+import { AppErrorBoundary } from './components/AppErrorBoundary.js';
 import { applySystemBarStyles } from './platform/systemBars.js';
 
 setupIonicReact();
 void applySystemBarStyles();
 
-createRoot(document.getElementById('root')!).render(<AppShell />);
+createRoot(document.getElementById('root')!).render(
+  <AppErrorBoundary>
+    <AppShell />
+  </AppErrorBoundary>,
+);
