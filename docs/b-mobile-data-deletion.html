@@ -1,0 +1,114 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Delete your data · b-mobile for Blipfoto · b-oss</title>
+    <meta
+      name="description"
+      content="How to delete the data b-mobile for Blipfoto handles, and where to delete a Blipfoto account."
+    />
+    <link rel="icon" href="assets/favicon.ico" sizes="any" />
+    <link rel="icon" type="image/png" sizes="32x32" href="assets/favicon-32.png" />
+    <link rel="icon" type="image/png" sizes="16x16" href="assets/favicon-16.png" />
+    <link rel="apple-touch-icon" sizes="180x180" href="assets/apple-touch-icon.png" />
+    <link rel="manifest" href="assets/site.webmanifest" />
+    <meta name="theme-color" content="#1f4d3a" />
+    <link rel="stylesheet" href="site.css" />
+  </head>
+  <body>
+    <header class="topbar">
+      <div class="topbar-inner">
+        <a class="brand" href="index.html">b-oss</a>
+        <nav class="nav" aria-label="Primary">
+          <a href="index.html">Home</a>
+          <a href="b-ark.html">b-ark</a>
+          <a href="b-api.html">b-api</a>
+          <a href="contact.html">Contact</a>
+        </nav>
+      </div>
+    </header>
+
+    <main class="page narrow">
+      <section class="hero" data-screen-label="Data deletion hero">
+        <h1>Delete your data — b-mobile for Blipfoto</h1>
+        <p class="lead">
+          How to delete the data b-mobile for Blipfoto handles, and where to delete your Blipfoto
+          account. b-mobile is an independent app built on Blipfoto's public API, and is not
+          affiliated with or endorsed by Blipfoto.
+        </p>
+      </section>
+
+      <section
+        class="block"
+        style="border-top: none; padding-top: 0"
+        data-screen-label="Data deletion body"
+      >
+        <h2>1. The notifications record</h2>
+        <p>
+          If you turned notifications on, b-push (the app's notification service) holds a record for
+          each account: your Blipfoto user ID, an encrypted read-only access token, your device's
+          push token, and your notification choices. To delete it, while your phone is online:
+        </p>
+        <ul>
+          <li>
+            In <strong>Settings</strong>, under <strong>b-mobile notifications</strong>, turn off
+            both <strong>New comments</strong> and <strong>New notifications</strong> for the
+            account; or
+          </li>
+          <li>
+            In <strong>Accounts</strong>, open the account's options and choose
+            <strong>Disconnect account</strong>.
+          </li>
+        </ul>
+        <p>
+          Either deletes the record straight away. If you uninstall the app without doing this, the
+          record is deleted automatically the next time b-push tries to reach your phone and Google
+          reports the app gone.
+        </p>
+
+        <h2>2. Data kept only on your phone</h2>
+        <p>
+          Your access tokens (in Android's secure storage), settings, hidden members, drafts, photos
+          waiting to upload and the picture cache are stored only on your phone and are not sent to
+          the developer. Uninstalling the app removes them, as does
+          <strong>Android Settings → Apps → b-mobile → Storage → Clear storage</strong>.
+        </p>
+        <p>
+          On Android 10 and later, photos you download from your own entries are saved to
+          <code>Pictures/b-mobile</code> and stay there after uninstalling. Delete them from your
+          gallery or file manager like any other picture.
+        </p>
+
+        <h2>3. Your Blipfoto account and content</h2>
+        <p>
+          Your Blipfoto account, journal, entries, photos and comments are held by Blipfoto, not by
+          b-mobile. Deleting a Blipfoto account is not available to apps like b-mobile; it is done
+          on Blipfoto's website, in your
+          <a href="https://www.blipfoto.com/settings/profile">Blipfoto account settings</a> (see
+          also <a href="https://www.blipfoto.com/help">Blipfoto help</a>). In the app,
+          <strong>Accounts</strong> → the account's options → <strong>Delete account</strong>
+          opens that page.
+        </p>
+        <p>
+          If you use b-mobile notifications, turn them off or disconnect the account in the app
+          first (section 1), then delete your Blipfoto account.
+        </p>
+
+        <h2>More detail</h2>
+        <p>
+          The <a href="b-mobile-privacy.html">b-mobile privacy policy</a> describes everything the
+          app handles. Questions can be sent to
+          <a href="mailto:b-oss@salientpoint.co.uk">b-oss@salientpoint.co.uk</a>.
+        </p>
+      </section>
+    </main>
+
+    <footer class="footer">
+      <div class="page footer-inner">
+        <div>&copy; b-oss : blipfoto open source software</div>
+        <div><a href="contact.html">Contact</a></div>
+      </div>
+    </footer>
+  </body>
+</html>
