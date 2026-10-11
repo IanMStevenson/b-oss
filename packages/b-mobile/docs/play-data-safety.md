@@ -67,4 +67,5 @@ at rest and covered under User IDs in the policy.
 - **Permissions:** camera (take a photo), approximate/precise location (my-location, Nearby),
   post notifications. No storage, contacts, SMS, or exact alarms.
 - **App access:** reviewer needs a Blipfoto login (b-oss#363).
-- **User-generated content:** yes: reporting and blocking (b-oss#362).
+- **User-generated content:** yes: reporting and blocking (b-oss#362). Where the form asks about
+  users accepting terms: sign-up and authorisation happen on Blipfoto.
