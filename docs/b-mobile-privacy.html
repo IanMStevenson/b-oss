@@ -44,14 +44,17 @@
         style="border-top: none; padding-top: 0"
         data-screen-label="Privacy body"
       >
-        <p><em>Last updated: October 2026</em></p>
+        <p><em>Last updated: 11 October 2026</em></p>
 
         <h2>Who is responsible</h2>
         <p>
           b-mobile for Blipfoto is an open-source project, part of b-oss and led by Ian Stevenson.
           It is published on the Google Play Store on behalf of the development team by Salient
-          Point Consulting Ltd. It is an independent app built on Blipfoto's public API. Questions
-          about this policy can be sent through the <a href="contact.html">contact page</a>.
+          Point Consulting Ltd. It is an independent app built on Blipfoto's public API, and is not
+          affiliated with or endorsed by Blipfoto. Questions about this policy can be sent to
+          <a href="mailto:b-oss@salientpoint.co.uk">b-oss@salientpoint.co.uk</a> or through the
+          <a href="contact.html">contact page</a>, whose form is delivered by
+          <a href="https://web3forms.com/privacy">Web3Forms</a>.
         </p>
 
         <h2>What stays on your device</h2>
@@ -65,11 +68,19 @@
             upload.
           </li>
           <li>
-            A temporary cache of pictures you have looked at, which expires after 15 minutes and
-            which Android can clear at any time.
+            A cache of pictures you have looked at, which is refreshed after 15 minutes and which
+            Android can clear at any time.
+          </li>
+          <li>
+            A record of the last request that failed, for troubleshooting. It stays on the device.
           </li>
         </ul>
-        <p>None of this is sent to the developer. Uninstalling the app removes it.</p>
+        <p>
+          None of this is sent to the developer. Uninstalling the app removes it. On Android 10 and
+          later, photos you download from your own entries are saved to your phone's Pictures folder
+          (<code>Pictures/b-mobile</code>) and stay there after uninstalling, like any other saved
+          picture.
+        </p>
 
         <h2>What is sent to Blipfoto</h2>
         <p>
@@ -79,13 +90,22 @@
           to an entry, or use the Nearby tab, the coordinates are sent to Blipfoto as part of that
           request. The developer does not receive a copy.
         </p>
+        <p>
+          Entry photos are uploaded unchanged, including the details stored in the image file (EXIF
+          data, such as the camera model and settings). For a photo taken with your phone's camera
+          this can include the location where it was taken, if location tagging is turned on in your
+          camera settings. That location goes to Blipfoto with the photo, whether or not you add a
+          location to the entry.
+        </p>
 
         <h2>Permissions the app asks for</h2>
         <ul>
           <li><strong>Camera</strong> — only when you choose to take a photo for an entry.</li>
           <li>
             <strong>Location</strong> (approximate or precise) — only when you tap my-location on a
-            map or open Nearby. Your position is used for that request and is not stored by the app.
+            map, open Nearby, or add your current location to an entry. Your position is used for
+            that request. A location you add to an entry is kept with the draft, on your device,
+            until the entry is posted; otherwise the app does not store it.
           </li>
           <li>
             <strong>Notifications</strong> — optional; to alert you to new comments and activity,
@@ -102,8 +122,9 @@
         <p>
           Map screens load map tiles from MapTiler. When you open a map, MapTiler receives your
           device's IP address and the map area you are viewing, under
-          <a href="https://www.maptiler.com/privacy-policy/">MapTiler's privacy policy</a>. Nothing
-          is sent to MapTiler until you open a map.
+          <a href="https://www.maptiler.com/privacy-policy/">MapTiler's privacy policy</a>. If you
+          tap my-location, the map moves to your position, so the area MapTiler receives is the one
+          around you. Nothing is sent to MapTiler until you open a map.
         </p>
 
         <h2>Notifications (optional)</h2>
@@ -130,12 +151,12 @@
           b-push only reads <em>counts</em> of unread items from Blipfoto, never their content, and
           never writes to Blipfoto. The push messages it sends are delivered via Google's Firebase
           Cloud Messaging and contain no comment or notification text, only which kind of activity
-          occurred and your Blipfoto username. Push delivery relies on Google's Firebase Cloud
-          Messaging. The Firebase code in the app gives your device a Firebase installation ID and
-          push token, and Google may log technical data about the device, its IP address and message
-          delivery, under Google's own policies and outside the developer's control. Cloudflare, as
-          host of b-push, likewise processes technical data such as IP addresses under its own
-          policy.
+          occurred, how many new items there are, and your Blipfoto user ID. Push delivery relies on
+          Google's Firebase Cloud Messaging. The Firebase code in the app gives your device a
+          Firebase installation ID and push token, and Google may log technical data about the
+          device, its IP address and message delivery, under Google's own policies and outside the
+          developer's control. Cloudflare, as host of b-push, likewise processes technical data such
+          as IP addresses under its own policy.
         </p>
         <p>
           <strong>Deleting it:</strong> turning notifications off for an account, or disconnecting
@@ -143,6 +164,13 @@
           clear its data without first turning notifications off or disconnecting your account, the
           record is deleted automatically the next time b-push tries to reach your device and Google
           reports it gone.
+        </p>
+        <p>
+          If b-push's read-only access stops working (for example, the token expires or is revoked),
+          b-push stops checking for that account and sends one notification asking you to sign in
+          again. The record is then kept, unused, until you sign in again, or turn notifications off
+          or disconnect the account in the app. If that notification cannot be delivered because the
+          app is no longer on the device, the record is deleted at once.
         </p>
 
         <h3>Logs and monitoring</h3>
@@ -162,14 +190,14 @@
           <li>the method and path of requests that failed.</li>
         </ul>
         <p>
-          They never contain access tokens, request bodies, your Blipfoto username or user ID, or
-          the text of any notification. A registration ID is a pseudonym: the developer can match it
-          to your b-push record while that record exists, so in that sense a log line can be tied to
-          a user, but it identifies nothing else about you, and it stops meaning anything once the
-          record is deleted. Cloudflare may also keep its own standard request data (such as time,
-          URL and IP address) for the Worker, under Cloudflare's policy and for a period set by its
-          plan. The developer does not share b-push logs with anyone else, and cannot see what
-          Google keeps.
+          Workers Logs keeps them for up to 7 days. They never contain access tokens, request
+          bodies, your Blipfoto username or user ID, or the text of any notification. A registration
+          ID is a pseudonym: the developer can match it to your b-push record while that record
+          exists, so in that sense a log line can be tied to a user, but it identifies nothing else
+          about you, and it stops meaning anything once the record is deleted. Cloudflare may also
+          keep its own standard request data (such as time, URL and IP address) for the Worker,
+          under Cloudflare's policy and for a period set by its plan. The developer does not share
+          b-push logs with anyone else, and cannot see what Google keeps.
         </p>
 
         <h2>What the app does not do</h2>
