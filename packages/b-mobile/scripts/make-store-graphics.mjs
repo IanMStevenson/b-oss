@@ -40,21 +40,27 @@ const result = await page.evaluate(
     const plate = [...x.getImageData(80, 80, 1, 1).data];
     // The glyph: near-white, opaque pixels. Mask keeps only those.
     const mask = x.createImageData(c.width, c.height);
-    let minX = 1e9, minY = 1e9, maxX = -1, maxY = -1;
+    let minX = 1e9,
+      minY = 1e9,
+      maxX = -1,
+      maxY = -1;
     for (let py = 0; py < c.height; py++) {
       for (let px = 0; px < c.width; px++) {
         const i = (py * c.width + px) * 4;
         if (d.data[i + 3] > 200 && d.data[i] > 225 && d.data[i + 1] > 225 && d.data[i + 2] > 225) {
           mask.data.set([255, 255, 255, 255], i);
-          minX = Math.min(minX, px); maxX = Math.max(maxX, px);
-          minY = Math.min(minY, py); maxY = Math.max(maxY, py);
+          minX = Math.min(minX, px);
+          maxX = Math.max(maxX, px);
+          minY = Math.min(minY, py);
+          maxY = Math.max(maxY, py);
         }
       }
     }
     const gw = maxX - minX + 1;
     const gh = maxY - minY + 1;
     const mc = document.createElement('canvas');
-    mc.width = c.width; mc.height = c.height;
+    mc.width = c.width;
+    mc.height = c.height;
     mc.getContext('2d').putImageData(mask, 0, 0);
     const rgb = `rgb(${plate[0]},${plate[1]},${plate[2]})`;
 
@@ -71,7 +77,8 @@ const result = await page.evaluate(
     const ic = document.createElement('canvas');
     ic.width = ic.height = 512;
     const ix = ic.getContext('2d');
-    ix.fillStyle = rgb; ix.fillRect(0, 0, 512, 512);
+    ix.fillStyle = rgb;
+    ix.fillRect(0, 0, 512, 512);
     glyph(ix, 512, 0.5);
     out.icon = ic.toDataURL('image/png');
 
@@ -88,9 +95,14 @@ const result = await page.evaluate(
     const mk = document.createElement('canvas');
     mk.width = mk.height = 512;
     const mx = mk.getContext('2d');
-    mx.fillStyle = '#ffffff'; mx.globalAlpha = 0.0; mx.fillRect(0, 0, 512, 512); mx.globalAlpha = 1;
+    mx.fillStyle = '#ffffff';
+    mx.globalAlpha = 0.0;
+    mx.fillRect(0, 0, 512, 512);
+    mx.globalAlpha = 1;
     mx.fillStyle = rgb;
-    mx.beginPath(); mx.roundRect(0, 0, 512, 512, 112); mx.fill();
+    mx.beginPath();
+    mx.roundRect(0, 0, 512, 512, 112);
+    mx.fill();
     glyph(mx, 512, 0.5);
     out.mark = mk.toDataURL('image/png');
     out.plate = rgb;
@@ -116,6 +128,9 @@ await page.setContent(`<!doctype html><html><body style="margin:0;width:1024px;h
     <div style="font-size:26px;font-weight:400;opacity:.75;margin-top:22px;max-width:520px;line-height:1.3">
       Browse, post and get notified<br>on your journal. Free and open source.</div>
   </div></body></html>`);
-await page.screenshot({ path: join(outDir, 'feature-graphic-1024x500.png'), clip: { x: 0, y: 0, width: 1024, height: 500 } });
+await page.screenshot({
+  path: join(outDir, 'feature-graphic-1024x500.png'),
+  clip: { x: 0, y: 0, width: 1024, height: 500 },
+});
 await browser.close();
 console.log('wrote', outDir, 'and ic_launcher_monochrome.png x5');
