@@ -8,6 +8,7 @@
 // monotonically increasing request id and discards any response that's no longer the newest.
 
 import { useEffect, useRef, useState } from 'react';
+import { errorMessageOf } from './errors.js';
 
 export type ResourceState<T> =
   | { status: 'loading' }
@@ -56,7 +57,7 @@ export function useResource<T>(
         if (id !== requestIdRef.current) return;
         setState({
           status: 'error',
-          message: err instanceof Error ? err.message : 'Something went wrong.',
+          message: errorMessageOf(err, 'Something went wrong.'),
           retry: load,
         });
       },

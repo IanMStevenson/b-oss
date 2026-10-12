@@ -54,6 +54,8 @@ import { useAppNavigate } from '../../app/routes/useAppNavigate.js';
 import { useOverlay } from '../../app/OverlayProvider.js';
 import { useDevicePrefsStore } from '../../state/devicePrefsStore.js';
 import { useActiveAccount, useAccountsStore } from '../../state/accountsStore.js';
+import { NetworkError } from '@b-oss/b-api';
+import { describeError, mapApiError } from '../../data/errors.js';
 import { t } from '../../strings/index.js';
 
 const SIGNUP_URL = 'https://www.blipfoto.com/account/signup';
@@ -118,7 +120,8 @@ export function SignInScreen({ returnTo }: { returnTo?: string } = {}) {
       return;
     }
     setStatus('error');
-    setError(err instanceof Error ? err.message : 'Sign-in failed. Please try again.');
+    const fallback = err instanceof Error ? err.message : 'Sign-in failed. Please try again.';
+    setError(err instanceof NetworkError ? describeError(mapApiError(err), fallback) : fallback);
   }
 
   async function handleContinue() {

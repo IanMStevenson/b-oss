@@ -16,6 +16,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { resumeGet, resumeSet } from './resumeCache.js';
+import { errorMessageOf } from './errors.js';
 
 export interface Page<T> {
   items: T[];
@@ -159,7 +160,7 @@ export function usePagedResource<T>(
       (err: unknown) => {
         if (id !== requestIdRef.current) return;
         setStatus('error');
-        setErrorMessage(err instanceof Error ? err.message : 'Something went wrong.');
+        setErrorMessage(errorMessageOf(err, 'Something went wrong.'));
       },
     );
   }

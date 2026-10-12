@@ -17,6 +17,7 @@ import { fetchMonthEligibility } from '../data/journal.js';
 import type { DayEligibility } from '../data/journal.js';
 import { formatLocalDate, todayDate } from '../data/dates.js';
 import './ComposeForm.css';
+import { errorMessageOf } from '../data/errors.js';
 
 const WEEKDAY_LABELS = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
 
@@ -63,7 +64,7 @@ export function MonthDatePicker({ value, onChange }: MonthDatePickerProps) {
       (err: unknown) => {
         if (cancelled) return;
         setLoading(false);
-        setError(err instanceof Error ? err.message : 'Could not load this month.');
+        setError(errorMessageOf(err, 'Could not load this month.'));
       },
     );
     return () => {
