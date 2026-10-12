@@ -75,9 +75,9 @@ Privacy policy: https://ianmstevenson.github.io/b-oss/b-mobile-privacy.html
 
 ## Graphics
 
-| Asset               | Spec                         | Status                                                                     |
-| ------------------- | ---------------------------- | -------------------------------------------------------------------------- |
-| App icon            | 512×512 PNG, ≤ 1 MB          | Done: `store/graphics/icon-512.png`                                        |
-| Feature graphic     | 1024×500 JPG/PNG             | Done: `store/graphics/feature-graphic-1024x500.png`                        |
-| Phone screenshots   | 2–8, 9:16, ≥ 1080 px         | To do: from the Blipfoto demo account (b-oss#363); blocked until it exists |
-| Themed (monochrome) | Optional adaptive-icon layer | Done: `ic_launcher_monochrome` in the Android project                      |
+| Asset               | Spec                         | Status                                                              |
+| ------------------- | ---------------------------- | ------------------------------------------------------------------- |
+| App icon            | 512×512 PNG, ≤ 1 MB          | Done: `store/graphics/icon-512.png`                                 |
+| Feature graphic     | 1024×500 JPG/PNG             | Done: `store/graphics/feature-graphic-1024x500.png`                 |
+| Phone screenshots   | 2–8, 9:16, ≥ 1080 px         | First set: `store/graphics/screenshots/` (4, from the demo account) |
+| Themed (monochrome) | Optional adaptive-icon layer | Done: `ic_launcher_monochrome` in the Android project               |
