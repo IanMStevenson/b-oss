@@ -52,12 +52,15 @@ import {
   IonPage,
   IonHeader,
   IonContent,
+  IonRefresher,
+  IonRefresherContent,
   IonSpinner,
   IonText,
   IonButton,
   IonAlert,
   IonToast,
 } from '@ionic/react';
+import type { RefresherEventDetail } from '@ionic/core';
 import { Flag, CornerUpLeft, EyeOff, Pencil, Trash2 } from 'lucide-react';
 import { AppHeader } from '../../components/AppHeader.js';
 import { EntryDetail, CommentComposer, ActionPill } from '@b-oss/b-view';
@@ -515,6 +518,16 @@ export function EntryDetailScreen({ entryId, initialReplyToCommentId }: EntryDet
         <AppHeader title="Entry" variant="back" backHref="/browse" accountIndicator />
       </IonHeader>
       <IonContent {...scroll}>
+        {/* Pull-down at the top reloads the entry and its comments in place (no spinner swap). */}
+        <IonRefresher
+          slot="fixed"
+          onIonRefresh={(e: CustomEvent<RefresherEventDetail>) => {
+            refresh();
+            e.detail.complete();
+          }}
+        >
+          <IonRefresherContent />
+        </IonRefresher>
         {entryState.status === 'loading' && (
           <div style={{ display: 'flex', justifyContent: 'center', padding: 32 }}>
             <IonSpinner />
