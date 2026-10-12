@@ -23,7 +23,11 @@ import { useAccountsStore } from '../state/accountsStore.js';
 const DONE_KEY = 'b-mobile:feed-probe-done';
 const RESULT_KEY = 'b-mobile:feed-probe-result';
 
-type Fetch = (client: BlipfotoClient, pageIndex: number, pageSize: number) => Promise<EntriesResponse>;
+type Fetch = (
+  client: BlipfotoClient,
+  pageIndex: number,
+  pageSize: number,
+) => Promise<EntriesResponse>;
 
 interface Feed {
   name: string;
@@ -43,7 +47,10 @@ export interface ProbeRow {
 
 function feeds(username: string): Feed[] {
   return [
-    { name: 'journal (control)', fetch: (c, i, s) => c.getJournalEntries({ pageIndex: i, pageSize: s }) },
+    {
+      name: 'journal (control)',
+      fetch: (c, i, s) => c.getJournalEntries({ pageIndex: i, pageSize: s }),
+    },
     { name: 'recent', fetch: (c, i, s) => c.getRecentEntries({ pageIndex: i, pageSize: s }) },
     { name: 'popular', fetch: (c, i, s) => c.getPopularEntries({ pageIndex: i, pageSize: s }) },
     { name: 'following', fetch: (c, i, s) => c.getFollowingEntries({ pageIndex: i, pageSize: s }) },
@@ -115,9 +122,9 @@ export async function runFeedProbe(): Promise<ProbeRow[]> {
   return rows;
 }
 
-/** Called once from AppShell's startup effect. A no-op in any build without VITE_FEED_PROBE=1. */
+/** Called once from AppShell's startup effect. A no-op in any build without VITE_FEED_PROBE=1, and always in a release build (RELEASE=1). */
 export async function maybeRunFeedProbe(): Promise<void> {
-  if (import.meta.env.VITE_FEED_PROBE !== '1') return;
+  if (__RELEASE__ || import.meta.env.VITE_FEED_PROBE !== '1') return;
   await authReady;
   if (!useAccountsStore.getState().activeAccountId) return; // retried on the next launch
   if ((await getPref(DONE_KEY)) === '1') return;

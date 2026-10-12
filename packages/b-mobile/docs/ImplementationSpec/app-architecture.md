@@ -281,7 +281,7 @@ arguments, including `Authorization` headers and secrets, to logcat (b-oss#241).
 - **Wakes** on launch, on enqueue, and on a timer for the next retry; no connectivity listener.
 
 **Limitation:** nothing uploads while the process is dead. On launch, `uploading` items reset to
-`waiting`. No foreground service, no ongoing upload notification (the `uploads` channel is unused),
+`waiting`. No foreground service, no ongoing upload notification (there is no `uploads` channel),
 no byte-level progress.
 
 ## 10. The image cache
@@ -467,8 +467,8 @@ on Android 10+, the app's own Pictures folder below). No exact-alarm permissions
 
 - `android:allowBackup="false"`; `MainActivity` is `singleTask` with `bmobile://` VIEW and
   `ACTION_SEND image/*` filters; the disabled `BlipfotoWebLinkAlias` (§16); a `FileProvider`.
-- **Channels** created by `MainActivity` at every launch: `activity`, `system_alerts`, `reminders`,
-  `uploads` (unused). b-push sets the channel on each message; FCM's default is `activity`.
+- **Channels** created by `MainActivity` at every launch: `activity`, `system_alerts` and
+  `reminders` (there is no `uploads` channel). b-push sets the channel on each message; FCM's default is `activity`.
 - **Local plugins** registered in `MainActivity`, each with a `src/platform/` wrapper:
   `BlipfotoLinksPlugin`, `AccessibilityPlugin`, `ShareIntentPlugin`, `EmbeddedAuthPlugin` (+
   non-exported `EmbeddedAuthActivity`), `PushAvailabilityPlugin`, `MediaSavePlugin`.

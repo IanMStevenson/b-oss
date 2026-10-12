@@ -42,14 +42,14 @@ public class MainActivity extends BridgeActivity {
     }
   }
 
-  // app-architecture.md §17: "a notification channel per category (activity, system alerts,
-  // reminders, uploads) so users can tune them in system settings." Created once, idempotently,
+  // app-architecture.md §17: a notification channel per category (activity, system alerts,
+  // reminders) so users can tune them in system settings. Created once, idempotently,
   // at every launch (createNotificationChannel is a no-op if the channel already exists with the
   // same id) rather than only on first install, since channel settings can't be created lazily
   // from within a background push/notification handler. b-push's fcm.ts sets a matching
   // android.notification.channel_id on every message it sends; platform/localNotifications.ts
-  // sets 'reminders' on the daily-reminder schedule. No channel is wired to 'uploads' yet — no
-  // app-built upload-progress notification exists.
+  // sets 'reminders' on the daily-reminder schedule. There is no 'uploads' channel: the app posts
+  // no upload-progress notification.
   private void createNotificationChannels() {
     if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return;
     NotificationManager manager = getSystemService(NotificationManager.class);
@@ -63,7 +63,7 @@ public class MainActivity extends BridgeActivity {
     manager.createNotificationChannel(systemAlerts);
     manager.createNotificationChannel(
         new NotificationChannel("reminders", "Reminders", NotificationManager.IMPORTANCE_DEFAULT));
-    manager.createNotificationChannel(
-        new NotificationChannel("uploads", "Uploads", NotificationManager.IMPORTANCE_LOW));
+    // Earlier builds created an unused "Uploads" channel; drop it from existing installs.
+    manager.deleteNotificationChannel("uploads");
   }
 }
