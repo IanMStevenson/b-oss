@@ -16,35 +16,50 @@ unverified), so wording of options below is from memory of the form; confirm aga
 
 ## Answers
 
-| Question                                       | Answer                                                      |
-| ---------------------------------------------- | ----------------------------------------------------------- |
-| Does the app collect or share user data?       | Yes                                                         |
-| Is all data encrypted in transit?              | Yes (HTTPS to Blipfoto, MapTiler, b-push, FCM)              |
-| Can users request data deletion?               | Yes: turn notifications off or disconnect (instant)         |
-| Account creation / sign-in inside the app?     | Sign-in with a Blipfoto account (OAuth); no account of ours |
-| Independent security review                    | No                                                          |
-| Follows Families policy / directed at children | No                                                          |
+| Question                                       | Answer                                                    |
+| ---------------------------------------------- | --------------------------------------------------------- |
+| Does the app collect or share user data?       | Yes                                                       |
+| Is all data encrypted in transit?              | Yes (HTTPS to Blipfoto, MapTiler, b-push, FCM)            |
+| Can users request data deletion?               | Yes: see the data deletion page below                     |
+| Account creation / sign-in inside the app?     | Sign-in with a Blipfoto account (OAuth); links to sign-up |
+| Independent security review                    | No                                                        |
+| Follows Families policy / directed at children | No                                                        |
 
 ## Data types
 
-| Category / type                | Collected | Shared | Optional | Purpose           | Notes                                                                 |
-| ------------------------------ | --------- | ------ | -------- | ----------------- | --------------------------------------------------------------------- |
-| Personal info: **User IDs**    | Yes       | No     | Yes      | App functionality | Blipfoto user ID in the b-push record; only if notifications are on   |
-| Device or other IDs            | Yes       | No     | Yes      | App functionality | FCM push token in the b-push record; only if notifications are on     |
-| Location: approximate/precise  | Yes       | No ⚠   | Yes      | App functionality | Nearby search and entry location go to Blipfoto; map area to MapTiler |
-| Photos and videos              | Yes       | No ⚠   | Yes      | App functionality | Photos the user posts, uploaded to Blipfoto; nothing to the developer |
-| Messages / user content        | Yes       | No ⚠   | Yes      | App functionality | Comments, journal text posted to Blipfoto                             |
-| App activity, web history etc. | No        | No     |          |                   | No analytics                                                          |
-| Crash logs / diagnostics       | No        |        |          |                   | None of ours. Play may add Android vitals independently               |
-| Financial, health, contacts    | No        |        |          |                   |                                                                       |
+| Category / type                                | Collected | Shared | Optional | Purpose           | Notes                                                                                                           |
+| ---------------------------------------------- | --------- | ------ | -------- | ----------------- | --------------------------------------------------------------------------------------------------------------- |
+| Personal info: **User IDs**                    | Yes       | No     | Yes      | App functionality | Blipfoto user ID in the b-push record; only if notifications are on                                             |
+| Device or other IDs                            | Yes       | No     | Yes      | App functionality | FCM push token in the b-push record; only once notifications are turned on                                      |
+| Location: **Approximate location**             | Yes       | No ⚠   | Yes      | App functionality | Nearby search and entry location go to Blipfoto; map area to MapTiler                                           |
+| Location: **Precise location**                 | Yes       | No ⚠   | Yes      | App functionality | As above when precise access is allowed; also camera photos' EXIF location, uploaded with the photo (b-oss#395) |
+| Photos and videos: **Photos**                  | Yes       | No ⚠   | Yes      | App functionality | Photos the user posts, uploaded to Blipfoto unchanged (EXIF included); nothing to the developer                 |
+| App activity: **Other user-generated content** | Yes       | No ⚠   | Yes      | App functionality | Comments, entry titles, descriptions and tags posted to Blipfoto                                                |
+| App activity: **In-app search history**        | Yes       | No ⚠   | Yes      | App functionality | Search terms sent to Blipfoto to run the search                                                                 |
+| App activity: **Other actions**                | Yes       | No ⚠   | Yes      | App functionality | Stars, favourites, follows, follow approvals and reports sent to Blipfoto                                       |
+| Messages                                       | No        | No     |          |                   | No messaging between users in the app; comments are under App activity                                          |
+| Web browsing history                           | No        | No     |          |                   | No analytics                                                                                                    |
+| Crash logs / diagnostics                       | No        |        |          |                   | None of ours. Play may add Android vitals independently                                                         |
+| Financial, health, contacts                    | No        |        |          |                   |                                                                                                                 |
 
 Firebase Cloud Messaging (Google's SDK in the app) also creates a Firebase installation ID and push
-token on the device and may log delivery data itself. Only the push token reaches the developer
-(the b-push record); the rest is Google's. The Device or other IDs row covers this, and the
-answer should stay Yes while push is in the app.
+token on the device once notifications are turned on (auto-init is off until then, b-oss#392), and
+may log delivery data itself. Only the push token reaches the developer (the b-push record); the
+rest is Google's. The Device or other IDs row covers this, and the answer should stay Yes while
+push is in the app.
 
 The Blipfoto read token stored by b-push is a credential, not a listed data type; it is encrypted
 at rest and covered under User IDs in the policy.
+
+## Data deletion
+
+- **Data deletion URL:** `https://ianmstevenson.github.io/b-oss/b-mobile-data-deletion.html`
+  (`docs/b-mobile-data-deletion.html`, b-oss#403).
+- The b-push record is deleted by turning notifications off or disconnecting the account in the
+  app (immediate), and automatically after uninstall. Everything else the app holds is on the
+  device and removed on uninstall, apart from photos the user downloaded (Android 10+).
+- Content on Blipfoto (account, entries, photos, comments) is deleted through Blipfoto; the
+  page and the app's Accounts → Delete account both lead to Blipfoto's account settings.
 
 ## Other declarations to answer consistently
 
@@ -52,4 +67,5 @@ at rest and covered under User IDs in the policy.
 - **Permissions:** camera (take a photo), approximate/precise location (my-location, Nearby),
   post notifications. No storage, contacts, SMS, or exact alarms.
 - **App access:** reviewer needs a Blipfoto login (b-oss#363).
-- **User-generated content:** yes: reporting and blocking (b-oss#362).
+- **User-generated content:** yes: reporting and blocking (b-oss#362). Where the form asks about
+  users accepting terms: sign-up and authorisation happen on Blipfoto.
