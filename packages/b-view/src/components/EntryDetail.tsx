@@ -20,6 +20,7 @@ import {
   SunMedium,
   Flag,
   UserX,
+  Share2,
 } from 'lucide-react';
 import type { BlipEntry, BlipComment, EntryIndex, EntryState } from '../types.js';
 import { EntryNavStrip, type HistoryItem } from './EntryNavStrip.js';
@@ -64,6 +65,9 @@ interface EntryDetailProps {
   /** Undefined: no report/hide segments. A host that knows nothing of members (the backup viewer)
    * leaves it out; b-mobile passes it for other people's entries (b-oss#362). */
   moderation?: EntryDetailModeration;
+  /** Undefined: no Share segment. The host owns the whole share flow (b-mobile: the system share
+   * sheet, after a protected-journal warning) — b-view stays free of platform plugins. */
+  onShare?: () => void;
   /** Rendered immediately after the comment list — the host owns the whole compose UI/behaviour. */
   commentComposer?: ReactNode;
   /** Rendered beside the nav strip — the host supplies edit/delete triggers for entries it owns. */
@@ -265,6 +269,7 @@ export function EntryDetail({
   entries,
   reactions,
   moderation,
+  onShare,
   commentComposer,
   entryActions,
   ownerActions,
@@ -548,6 +553,15 @@ export function EntryDetail({
                       <Heart size={14} strokeWidth={1.5} fill="currentColor" />
                       {entry.favorites_total}
                     </span>
+                  )}
+                  {onShare && (
+                    <button
+                      className={`${styles.pillSeg} ${styles.pillBtn}`}
+                      onClick={onShare}
+                      aria-label="Share link"
+                    >
+                      <Share2 size={14} strokeWidth={1.5} />
+                    </button>
                   )}
                   {imagePath && (
                     <button

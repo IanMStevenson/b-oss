@@ -32,8 +32,10 @@ import {
   IonLabel,
   IonAlert,
 } from '@ionic/react';
-import { Flag, UserX } from 'lucide-react';
+import { Flag, Share2, UserX } from 'lucide-react';
 import { useReport } from '../../flows/useReport.js';
+import { useShareLink } from '../../flows/useShareLink.js';
+import { isJournalProtected, profileShareText, profileShareUrl } from '../../flows/shareLink.js';
 import { AppHeader } from '../../components/AppHeader.js';
 import { useResource } from '../../data/useResource.js';
 import { usePagedResource } from '../../data/usePagedResource.js';
@@ -159,6 +161,7 @@ function GridTab({
 export function ProfileScreen({ username }: ProfileScreenProps) {
   const navigate = useAppNavigate();
   const { report, reportDialog } = useReport();
+  const { share, shareDialog } = useShareLink();
   const { showUpgradePrompt } = useOverlay();
   const signInPrompt = useSignInPrompt();
   const activeAccount = useActiveAccount();
@@ -342,6 +345,32 @@ export function ProfileScreen({ username }: ProfileScreenProps) {
                   </p>
                 )}
               </div>
+              {/* Share goes first so Report/Hide stay the trailing pair; it is the one icon shown
+                  on every profile, own included (b-oss#417). */}
+              <button
+                aria-label={`Share ${state.data.user.username}'s profile`}
+                onClick={() =>
+                  void share({
+                    url: profileShareUrl(state.data.user.username),
+                    text: profileShareText(
+                      state.data.details?.journal_title,
+                      state.data.user.username,
+                    ),
+                    ownerUsername: state.data.user.username,
+                    isProtected: isJournalProtected(state.data),
+                  })
+                }
+                style={{
+                  flex: 'none',
+                  background: 'none',
+                  border: 'none',
+                  padding: 8,
+                  cursor: 'pointer',
+                  color: 'var(--muted)',
+                }}
+              >
+                <Share2 size={20} strokeWidth={1.6} aria-hidden="true" />
+              </button>
               {/* Reporting a member is an entry report against their latest entry, with the
                   member named in the note (no other report resource exists), so it's only offered
                   when there is an entry this viewer can see (b-oss#362). */}
@@ -547,6 +576,7 @@ export function ProfileScreen({ username }: ProfileScreenProps) {
         buttons={['OK']}
       />
       {reportDialog}
+      {shareDialog}
       {signInPrompt.element}
     </IonPage>
   );

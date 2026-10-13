@@ -292,6 +292,11 @@ export const STRINGS = {
   'SIGN_IN_REQUIRED.button.cancel': 'Cancel',
   'SIGN_IN_REQUIRED.button.sign_in': 'Sign in now',
   'SIGN_IN_REQUIRED.title': 'You must be signed in to do this',
+  'SHARE.dialog_title': 'Share link',
+  'SHARE.protected.body':
+    'The link will only open for signed-in members who have been accepted as followers of {username}.',
+  'SHARE.protected.button_share': 'Share anyway',
+  'SHARE.protected.title': 'This journal is protected',
   'UPGRADE.body':
     "{username} is signed in read-only, so it can't do that. Switch to read-write to continue - you'll be asked to sign in again for write access.",
   'UPGRADE.button.confirm': 'Switch to read-write',

@@ -148,6 +148,13 @@
       "texts": [3]
     },
     {
+      "name": "@capacitor/share",
+      "version": "8.0.3",
+      "license": "MIT",
+      "repository": "https://github.com/ionic-team/capacitor-plugins",
+      "texts": [3]
+    },
+    {
       "name": "@capacitor/synapse",
       "version": "1.0.4",
       "license": "ISC",
