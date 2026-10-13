@@ -45,7 +45,16 @@ export function EntryAuthorBlock({
 }: EntryAuthorBlockProps) {
   const title = journalTitle.trim() || username;
   return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 12, minWidth: 0, maxWidth: '100%' }}>
+    <div
+      style={{
+        display: 'flex',
+        alignItems: 'center',
+        flex: 1,
+        gap: 12,
+        minWidth: 0,
+        maxWidth: '100%',
+      }}
+    >
       <button
         type="button"
         onClick={onOpenProfile}
@@ -148,7 +157,7 @@ export function EntryAuthorBlock({
       </div>
 
       {(onReport || onHide) && (
-        <div style={{ display: 'flex', flex: 'none', alignItems: 'center' }}>
+        <div style={{ display: 'flex', flex: 'none', alignItems: 'center', marginLeft: 'auto' }}>
           {onReport && (
             <button
               type="button"
@@ -178,7 +187,7 @@ export function EntryAuthorBlock({
 const moderationButtonStyle = {
   display: 'inline-flex',
   alignItems: 'center',
-  padding: 8,
+  padding: 6,
   color: 'var(--muted)',
 } as const;
 
