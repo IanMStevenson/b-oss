@@ -604,14 +604,6 @@ export function EntryDetailScreen({ entryId, initialReplyToCommentId }: EntryDet
                       })
                   : undefined
               }
-              moderation={
-                isOwnEntry
-                  ? undefined
-                  : {
-                      onReport: handleReportEntry,
-                      onHide: authorUsername ? () => setConfirmHide(true) : undefined,
-                    }
-              }
               commentComposer={
                 commentsOff ? (
                   <p
@@ -689,6 +681,8 @@ export function EntryDetailScreen({ entryId, initialReplyToCommentId }: EntryDet
                     follow={followControl}
                     onFollow={() => void handleFollow()}
                     onUnfollow={() => setConfirmUnfollow(true)}
+                    onReport={isOwnEntry ? undefined : handleReportEntry}
+                    onHide={isOwnEntry ? undefined : () => setConfirmHide(true)}
                     onOpenProfile={() =>
                       navigate.push(
                         isOwnEntry ? '/me' : `/user/${encodeURIComponent(authorUsername)}`,
