@@ -67,6 +67,11 @@ vi.mock('../../../flows/downloadFlow.js', () => ({
     downloadOwnEntryImage(entry, username),
 }));
 
+const share = vi.hoisted(() => vi.fn());
+vi.mock('../../../flows/useShareLink.js', () => ({
+  useShareLink: () => ({ share, shareDialog: null }),
+}));
+
 const openUrl = vi.hoisted(() => vi.fn());
 vi.mock('../../../platform/browser.js', () => ({ openUrl }));
 vi.mock('../../../app/routes/useAppNavigate.js', () => ({
@@ -188,6 +193,28 @@ describe('EntryDetailScreen', () => {
     expect(screen.getByText('sun', { selector: 'span,button' })).toBeDefined();
     expect(screen.getByText('12')).toBeDefined();
     expect(screen.getByText('views')).toBeDefined();
+  });
+
+  it("shares the entry link with its title and author, on someone else's entry", async () => {
+    const { fetchEntry } = await import('../../../data/entries.js');
+    vi.mocked(fetchEntry).mockResolvedValue(baseLoadedEntry);
+    renderScreen();
+    await userEvent.click(await screen.findByLabelText('Share link'));
+    expect(share).toHaveBeenCalledWith({
+      url: 'https://www.blipfoto.com/entry/1',
+      text: 'A day out by alice',
+      ownerUsername: 'alice',
+    });
+  });
+
+  it('offers Share on your own entry too', async () => {
+    const { fetchEntry } = await import('../../../data/entries.js');
+    vi.mocked(fetchEntry).mockResolvedValue({
+      ...baseLoadedEntry,
+      entry: { ...baseLoadedEntry.entry, username: 'me' },
+    });
+    renderScreen();
+    expect(await screen.findByLabelText('Share link')).toBeDefined();
   });
 
   it('starring optimistically updates the count and label, then persists on success', async () => {

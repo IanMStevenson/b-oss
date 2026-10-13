@@ -84,6 +84,8 @@ import { useOverlay } from '../../app/OverlayProvider.js';
 import { useAccountsStore, useActiveAccount, useCanWrite } from '../../state/accountsStore.js';
 import { useAccountConfirmGate } from '../../flows/useAccountConfirmGate.js';
 import { useReport } from '../../flows/useReport.js';
+import { useShareLink } from '../../flows/useShareLink.js';
+import { entryShareText, entryShareUrl } from '../../flows/shareLink.js';
 import {
   starEntry,
   favoriteEntry,
@@ -133,6 +135,7 @@ export function EntryDetailScreen({ entryId, initialReplyToCommentId }: EntryDet
   const photoFit = useDevicePrefsStore((s) => s.photoFit);
   const navigate = useAppNavigate();
   const { report, reportDialog } = useReport();
+  const { share, shareDialog } = useShareLink();
   const { showUpgradePrompt } = useOverlay();
   const activeAccount = useActiveAccount();
   const canWrite = useCanWrite();
@@ -591,13 +594,15 @@ export function EntryDetailScreen({ entryId, initialReplyToCommentId }: EntryDet
                     }
                   : undefined
               }
-              moderation={
-                isOwnEntry
-                  ? undefined
-                  : {
-                      onReport: handleReportEntry,
-                      onHide: authorUsername ? () => setConfirmHide(true) : undefined,
-                    }
+              onShare={
+                authorUsername && entryState.status === 'loaded'
+                  ? () =>
+                      void share({
+                        url: entryShareUrl(entryId),
+                        text: entryShareText(entryState.data.title, authorUsername),
+                        ownerUsername: authorUsername,
+                      })
+                  : undefined
               }
               commentComposer={
                 commentsOff ? (
@@ -676,6 +681,8 @@ export function EntryDetailScreen({ entryId, initialReplyToCommentId }: EntryDet
                     follow={followControl}
                     onFollow={() => void handleFollow()}
                     onUnfollow={() => setConfirmUnfollow(true)}
+                    onReport={isOwnEntry ? undefined : handleReportEntry}
+                    onHide={isOwnEntry ? undefined : () => setConfirmHide(true)}
                     onOpenProfile={() =>
                       navigate.push(
                         isOwnEntry ? '/me' : `/user/${encodeURIComponent(authorUsername)}`,
@@ -790,6 +797,7 @@ export function EntryDetailScreen({ entryId, initialReplyToCommentId }: EntryDet
         ]}
       />
       {reportDialog}
+      {shareDialog}
     </IonPage>
   );
 }

@@ -35,6 +35,11 @@ vi.mock('../../../flows/useReport.js', () => ({
   useReport: () => ({ report, reportDialog: null }),
 }));
 
+const share = vi.hoisted(() => vi.fn());
+vi.mock('../../../flows/useShareLink.js', () => ({
+  useShareLink: () => ({ share, shareDialog: null }),
+}));
+
 vi.mock('../../../platform/prefs.js', () => ({
   getPref: vi.fn().mockResolvedValue(null),
   setPref: vi.fn().mockResolvedValue(undefined),
@@ -285,5 +290,40 @@ describe('ProfileScreen', () => {
       .dispatchEvent(new CustomEvent('ionChange', { detail: { value: 'followers' } }));
     expect(await screen.findByText('bob')).toBeDefined();
     expect(fetchFollowers).toHaveBeenCalledWith('alice', 0);
+  });
+
+  it("shares the profile link with the journal title, on another member's open journal", async () => {
+    const { fetchUserProfile } = await import('../../../data/users.js');
+    vi.mocked(fetchUserProfile).mockResolvedValue(aliceProfile);
+    renderScreen('alice');
+    await userEvent.click(await screen.findByLabelText("Share alice's profile"));
+    expect(share).toHaveBeenCalledWith({
+      url: 'https://www.blipfoto.com/alice',
+      text: "Alice's journal on Blipfoto",
+      ownerUsername: 'alice',
+      isProtected: false,
+    });
+  });
+
+  it('marks the share as protected when the viewer cannot see the journal', async () => {
+    const { fetchUserProfile } = await import('../../../data/users.js');
+    vi.mocked(fetchUserProfile).mockResolvedValue({
+      ...aliceProfile,
+      details: null,
+      visible: false,
+    });
+    renderScreen('alice');
+    await userEvent.click(await screen.findByLabelText("Share alice's profile"));
+    expect(share).toHaveBeenCalledWith(expect.objectContaining({ isProtected: true }));
+  });
+
+  it('offers Share on your own profile too', async () => {
+    const { fetchUserProfile } = await import('../../../data/users.js');
+    vi.mocked(fetchUserProfile).mockResolvedValue({
+      ...aliceProfile,
+      user: { ...aliceProfile.user, username: 'me' },
+    });
+    renderScreen();
+    expect(await screen.findByLabelText("Share me's profile")).toBeDefined();
   });
 });

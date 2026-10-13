@@ -65,12 +65,19 @@
   /* Never wider than the bar, so a host's long title can truncate instead of overflowing. */
   min-width: 0;
   max-width: 100%;
+  /* Takes the room between the host's identity block and the nav strip, so a host that pins an
+     element to the block's right edge (b-mobile's Report/Hide) lands beside the nav. */
+  flex: 1 1 auto;
 }
 
 @container entry (max-width: 640px) {
   .topBar {
     flex-direction: column;
     align-items: flex-start;
+  }
+
+  .topLeft {
+    width: 100%;
   }
 }
 
