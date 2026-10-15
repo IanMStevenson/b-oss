@@ -56,3 +56,7 @@ packages/b-ark-chrome/public/b-view-dist/
 
 # Local debug pages
 debug/
+
+# Signing material must never be committed (b-mobile upload key, docs/RELEASING-android.md)
+*.jks
+*.keystore
