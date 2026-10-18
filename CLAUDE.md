@@ -84,6 +84,28 @@ The Chrome extension is **single-account** and has no electron-store; it stores 
 - **FSA handle** — the granted `FileSystemDirectoryHandle` is persisted in IndexedDB
   (`b-ark-ui-chrome/src/fsa-persistence.ts`); permission is re-queried on each use.
 
+## Mutagen dev-loop (Windows)
+
+Live Windows mirrors exist for local testing/debugging without a manual
+git-pull-and-refresh cycle - see
+`devutils/dev-vm-setup/mutagen-dev-loop-pattern.md` for the full pattern
+and the repoint command for "make that worktree available via Mutagen."
+
+- **b-ark** (debugging): local relay `b-ark-relay` → `~/live/b-ark-repo`
+  (the **whole monorepo**, not just `packages/b-ark` - `.vscode/launch.json`
+  needs the full workspace root) → Windows `D:\Dev\debugging\b-ark-build`.
+  Because the sync source is the repo root, `b-ark-relay` must be recreated
+  with `--ignore-vcs --ignore=node_modules/` (Windows keeps its own
+  `node_modules`; the other two relays sync a subfolder so don't need this).
+  The launch config runs `electron.cmd .` against the synced
+  `packages/b-ark/dist/`, so `npm run build` on the VM in the feeding
+  worktree is part of the loop. Full details + gotchas:
+  `devutils/dev-vm-setup/mutagen-dev-loop-pattern.md`.
+- **b-ark-chrome** (Chrome "Load unpacked"): local relay
+  `b-ark-chrome-relay` → `~/live/b-ark-chrome-dist` (built `dist/`, needs
+  `npm run dev` running in whichever worktree feeds it) → Windows
+  `D:\Dev\chrome-live\b-ark-chrome-build`.
+
 ## Commands
 
 ```bash
@@ -92,6 +114,8 @@ npm run lint           # ESLint --max-warnings 0
 npm test               # Vitest across all packages
 npm run build          # Build all packages (also bumps the local build counter)
 npm run build:release  # Build with RELEASE=1 — version shown as bare 1.0.0
+./scripts/build-win-docker.sh [--release]  # Build b-ark's Windows .exe on Linux, no Wine on
+                                            # the host — see RELEASING.md §3
 ```
 
 ### Local Android build + lint check (b-mobile; no CI)
@@ -129,6 +153,39 @@ non-Apache licence needs a matching entry/file in `scripts/native-licences.mjs`.
   PR description.
 - `packages/b-mobile/docs/DECIDED_NOT_TO_TEST.md` is ONLY for things the owner has explicitly said
   they are not testing. Never add to it on your own judgement, and don't use it as a testing log.
+## Local build credentials (`.env.local`)
+
+`MAIN_VITE_BLIPFOTO_CLIENT_ID` (b-ark) and `VITE_CHROME_CLIENT_ID`
+(b-ark-chrome) are read from a `.env.local` at the **repo root** (`vite.config.ts`/
+`electron.vite.config.ts` set `envDir` there — see `.env.example` for the full
+list and where to register each app). `.env.local` is gitignored, so it only
+exists wherever someone manually put it.
+
+**Worktree gotcha:** `git worktree add` only populates tracked files from the
+checked-out branch — gitignored files like `.env.local` are not copied into a
+new worktree automatically, because each worktree is a separate directory on
+disk. A worktree without its own `.env.local` builds successfully (no error,
+no warning) but with an empty client ID, and the "Sign in to Blipfoto" button
+then does nothing at all - no console output anywhere (page, popup, or service
+worker), because `startOAuthFlow` treats a missing client ID as a silent,
+logged-to-storage-only error rather than throwing. Confirmed on 2026-09-05
+after exactly this happened on a fresh Mutagen-fed build. Copy or symlink
+`.env.local` from the main checkout into any new worktree before relying on
+OAuth-related functionality there.
+
+## Building Gradle/Android on the egress-controlled dev VM
+
+Outbound traffic goes through a squid proxy (`localhost:3128`) with a per-domain rate limit
+(20 new connections/min). Two gotchas for `./gradlew` (b-mobile):
+
+- The JVM ignores `HTTP(S)_PROXY` env vars. Put `systemProp.http(s).proxyHost/proxyPort`
+  in `~/.gradle/gradle.properties`, and pass `JAVA_TOOL_OPTIONS="-Dhttps.proxyHost=localhost
+  -Dhttps.proxyPort=3128"` for the first run so the wrapper can download Gradle itself.
+- A `403 Forbidden` from `dl.google.com` is the rate limiter (`TCP_DENIED/403` in
+  `/var/log/squid/access.log`), not a blocked host. Gradle caches what it fetched, so retry
+  with `--max-workers=2` (a pause between attempts helps).
+- `npm ci` fails in Electron's postinstall (binary download blocked); use `--ignore-scripts`
+  for Android-only work.
 
 ## Versioning
 

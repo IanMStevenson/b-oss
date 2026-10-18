@@ -1,7 +1,7 @@
 {
   "name": "b-oss",
   "private": true,
-  "version": "1.0.2",
+  "version": "1.0.5",
   "description": "Blipfoto Open Source Software — tools for backing up Blipfoto journals",
   "workspaces": [
     "packages/*"
@@ -31,8 +31,8 @@
     "@types/node": "^26.6.5",
     "@typescript-eslint/eslint-plugin": "^8.71.1",
     "@typescript-eslint/parser": "^8.59.0",
-    "@vitejs/plugin-react": "^5.0.0",
-    "@vitest/coverage-v8": "^4.1.11",
+    "@vitejs/plugin-react": "^6.1.2",
+    "@vitest/coverage-v8": "^5.0.3",
     "eslint": "^10.12.0",
     "eslint-plugin-react-hooks": "^7.1.0",
     "husky": "^9.0.0",
@@ -40,7 +40,7 @@
     "playwright-core": "^1.64.0",
     "prettier": "^3.9.10",
     "typescript": "^6.0.3",
-    "vitest": "^4.1.11"
+    "vitest": "^5.0.1"
   },
   "engines": {
     "node": ">=22.12.0",

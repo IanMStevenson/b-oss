@@ -41,6 +41,8 @@ export function describeBackupError(err: BackupEvent & { type: 'failed' }): stri
       return `API error ${err.error.code}: ${err.error.message}`;
     case 'filesystem':
       return `Filesystem error: ${err.error.message}`;
+    case 'unexpected':
+      return `Unexpected error: ${err.error.message}`;
   }
 }
 
