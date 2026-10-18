@@ -136,4 +136,12 @@ describe('settings_lock', () => {
     await releaseSettingsLock(4); // not the owner
     expect((await readSettingsLock())?.tab_id).toBe(3);
   });
+
+  it('self-heals a lock whose owning tab no longer exists', async () => {
+    await acquireSettingsLock(3);
+    fake.closeTab(3); // simulate the tab being closed without a clean unmount
+    expect(await readSettingsLock()).toBeNull();
+    // The stale entry should actually be cleared, not just reported as null.
+    expect(fake.store.has('settings_lock')).toBe(false);
+  });
 });

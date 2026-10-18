@@ -13,7 +13,7 @@ which builds the workspaces, packages the NSIS installer with
 [electron-builder](packages/b-ark/electron-builder.json), and uploads
 `b-ark Setup <version>.exe`, `b-ark Setup <version>.exe.blockmap`, and
 `latest.yml` to a draft release on GitHub. You then finalise that draft
-manually (notes, SHA-512, pre-release tick) and publish.
+manually (notes, SHA-256, latest-release tick) and publish.
 
 Once published, existing b-ark installs at older versions detect the
 new release on next launch via electron-updater (which reads
@@ -38,10 +38,10 @@ update.
    "no update available", so the broken install is stuck. Bump the
    patch instead. Re-publishing is only safe if you are absolutely
    certain no one (you included) has downloaded the release yet.
-4. **GitHub release finalisation is manual** every time: tick
-   "Set as a pre-release" (while we're pre-1.0), compute and paste the
-   SHA-512 of the .exe into the notes (per [SECURITY.md](SECURITY.md);
-   drops out once Authenticode signing lands), then click Publish.
+4. **GitHub release finalisation is manual** every time: ensure "Set as
+   the latest release" is ticked, paste GitHub's own SHA-256 digest for
+   the .exe into the notes (per [SECURITY.md](SECURITY.md); drops out
+   once Authenticode signing lands), then click Publish.
 5. **Smoke-test OAuth.** `MAIN_VITE_BLIPFOTO_CLIENT_ID` is inlined into
    the main-process bundle at build time. The only way to verify it
    actually made it is to install the shipped .exe on a clean machine
@@ -106,6 +106,16 @@ npm run dist:win --workspace=packages/b-ark
 Remove-Item Env:RELEASE
 ```
 
+**On Linux** (no Windows machine handy, no Wine installed on the host):
+
+```bash
+./scripts/build-win-docker.sh --release
+```
+
+Runs electron-builder's official Wine-bundled image
+(`electronuserland/builder:wine`) via a disposable `docker run --rm` — same
+output path, nothing left behind on the host or in the image.
+
 Install `packages/b-ark/dist-electron/b-ark Setup <version>.exe`, launch it,
 **open About** (expect bare version, e.g. `0.1.0` — never `0.0.0-dev` and
 never `0.1.0.<commits>.<build>`), then **click Add account and confirm
@@ -153,16 +163,17 @@ When the workflow finishes, a draft appears at
 https://github.com/IanMStevenson/b-oss/releases with three assets
 attached. Click _Edit_ and:
 
-1. Tick **Set as a pre-release** (while we're pre-1.0).
-2. Download `b-ark Setup <version>.exe` from the draft and compute its
-   SHA-512:
-
-   ```powershell
-   Get-FileHash -Algorithm SHA512 "$env:USERPROFILE\Downloads\b-ark Setup <version>.exe" | Format-List
-   ```
-
+1. Ensure **Set as the latest release** is ticked (we're past 1.0 now —
+   this replaces the old "Set as a pre-release" step from the pre-1.0
+   era).
+2. Copy the SHA-256 digest GitHub already computes for
+   `b-ark Setup <version>.exe` — visible next to the asset in the draft
+   editor, or via `gh api repos/IanMStevenson/b-oss/releases/<id> --jq
+   '.assets[] | select(.name | endswith(".exe")) | .digest'`. No manual
+   hashing needed; GitHub generates this itself for every uploaded
+   asset.
 3. Write release notes — paste the relevant section from
-   [CHANGELOG.md](CHANGELOG.md) as the body, then add the SHA-512 and
+   [CHANGELOG.md](CHANGELOG.md) as the body, then add the SHA-256 and
    limitations footer. Template:
 
    ```
@@ -172,7 +183,7 @@ attached. Click _Edit_ and:
 
    **Known limitations**: Windows x64 only; Mac build not yet shipped; unsigned installer.
 
-   **SHA-512** (`b-ark Setup <version>.exe`): <paste hash>
+   **SHA-256** (`b-ark Setup <version>.exe`): <paste digest, e.g. sha256:...>
 
    Please report issues at https://github.com/IanMStevenson/b-oss/issues.
    ```
@@ -232,6 +243,20 @@ is corrupted`** — electron-builder was asked to package b-ark but
   once anyone has downloaded — electron-updater compares version
   strings and "same version" reads as "no update needed", leaving the
   broken install stuck.
+- **Two draft releases appear for the same tag** — a `.exe` +
+  `latest.yml` draft and a separate `.exe.blockmap`-only draft.
+  Reproduced on both the 1.0.2 and 1.0.3 attempts; looks like an
+  electron-builder GitHub-provider race uploading multiple assets
+  right after tag creation, not anything in our config. Recovery:
+  download the blockmap from the orphan draft
+  (`gh api repos/<owner>/b-oss/releases/assets/<id> -H "Accept:
+  application/octet-stream" > blockmap`), upload it to the correct
+  draft (`gh api --method POST -H "Content-Type:
+  application/octet-stream"
+  "https://uploads.github.com/repos/<owner>/b-oss/releases/<id>/assets?name=<exe>.blockmap"
+  --input blockmap`), then delete the now-empty orphan draft. Always
+  check the release's asset count/list before trusting it — don't
+  assume the first draft you see is complete.
 
 ## When the release process itself changes
 

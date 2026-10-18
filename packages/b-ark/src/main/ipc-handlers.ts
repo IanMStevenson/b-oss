@@ -3,7 +3,7 @@
 
 import path from 'node:path';
 import fs from 'node:fs';
-import { ipcMain, type BrowserWindow, dialog, shell, app } from 'electron';
+import { ipcMain, type BrowserWindow, type Session, dialog, shell, app } from 'electron';
 import { v4 as uuidv4 } from 'uuid';
 import { BlipfotoClient } from '@b-oss/b-api';
 import {
@@ -27,6 +27,7 @@ import {
   getAccount,
   saveAccount,
   deleteAccount,
+  deleteWebSessionBlob,
   getAppStore,
   getBackupFolder,
   getPortableSettings,
@@ -35,6 +36,14 @@ import {
   store as userDataStore,
 } from './store.js';
 import { ElectronPlatformIO } from './platform-io.js';
+import {
+  loadRunSession,
+  snapshotRunSession,
+  clearWebSession,
+  openWebLoginWindow,
+  fetchHtmlViaWindow,
+  disposeFallbackWindow,
+} from './web-session.js';
 import { startServer, stopServer, getServerPort } from './http-server.js';
 import { BackupScheduler, computeNextRun } from './scheduler.js';
 import { writeBViewFiles } from './b-view-files.js';
@@ -106,9 +115,32 @@ export function registerIpcHandlers(
     if (!account) throw new Error(`Account ${id} not found`);
     if (!account.backup_folder) throw new Error('No backup folder configured');
 
-    const pio = new ElectronPlatformIO((entry) => {
-      emit({ type: 'log:entry', account_id: entry.account_id, entry });
-    });
+    // Website-scrape session: only when the shared setting is on AND this
+    // account has a stored, still-valid blipfoto.com sign-in. Missing/expired
+    // → back up API-only and flag amber afterwards (never block the run).
+    const scrapeWanted = getPortableSettings().enable_web_scrape === true;
+    const hiresWanted = getPortableSettings().download_hires === true;
+    let webSession: Session | undefined;
+    if (scrapeWanted) {
+      webSession = (await loadRunSession(id)) ?? undefined;
+    }
+    const signedIn = webSession !== undefined;
+    let webSessionExpiredDuringRun = false;
+
+    const pio = new ElectronPlatformIO(
+      (entry) => {
+        emit({ type: 'log:entry', account_id: entry.account_id, entry });
+      },
+      {
+        webSession,
+        onWebSessionExpired: () => {
+          webSessionExpiredDuringRun = true;
+        },
+        fetchHtmlFallback: webSession
+          ? (url: string) => fetchHtmlViaWindow(webSession, url)
+          : undefined,
+      },
+    );
 
     // Unified log lives at the shared backup folder root, not per-journal.
     const logMgr = new LogManager(pio, account.backup_folder);
@@ -132,8 +164,8 @@ export function registerIpcHandlers(
             api_delay_ms: account.api_delay_ms,
             metadata_write_interval: 0,
             app_version: __APP_VERSION__,
-            enable_web_scrape: false,
-            download_hires: false,
+            enable_web_scrape: signedIn,
+            download_hires: signedIn && hiresWanted,
           },
           pio,
           client,
@@ -162,14 +194,29 @@ export function registerIpcHandlers(
         if (updated) {
           const journalFolder = path.join(updated.backup_folder, updated.username);
           const journal = await new JournalIndex(pio, journalFolder).load();
+
+          if (webSession) {
+            if (webSessionExpiredDuringRun) {
+              // Session died mid-run — drop it so the next run doesn't retry a
+              // dead cookie and the UI reflects "signed out".
+              deleteWebSessionBlob(id);
+            } else {
+              // Capture any server-side cookie rotation / sliding expiry.
+              await snapshotRunSession(id, webSession);
+            }
+          }
+
+          const scrapeDegraded = scrapeWanted && (!signedIn || webSessionExpiredDuringRun);
           await saveAccount({
             ...updated,
             last_backup_at: new Date().toISOString(),
             last_entry_date: journal?.entries[0]?.date ?? updated.last_entry_date ?? null,
             total_archived: journal?.entries.length ?? updated.total_archived,
             journal_entry_total: journal?.entry_total ?? updated.journal_entry_total,
-            rag_state: 'green',
-            error_message: null,
+            rag_state: scrapeDegraded ? 'amber' : 'green',
+            error_message: scrapeDegraded
+              ? 'Sign in to the Blipfoto website (Settings) to back up full-resolution and extra images'
+              : null,
           });
           emitStoreChanged();
         }
@@ -245,6 +292,7 @@ export function registerIpcHandlers(
         return;
       } finally {
         activeEngines.delete(id);
+        disposeFallbackWindow();
       }
     }
   }
@@ -336,9 +384,22 @@ export function registerIpcHandlers(
     activeEngines.get(id)?.cancel();
     activeEngines.delete(id);
     stopServer(id);
+    await clearWebSession(id);
     await deleteAccount(id);
     refreshTrayIcon();
     scheduler.rearm();
+    emitStoreChanged();
+  });
+
+  ipcMain.handle('webLogin', async (_event, id: string): Promise<boolean> => {
+    if (!getAccount(id)) throw new Error(`Account ${id} not found`);
+    const signedIn = await openWebLoginWindow(id, getMainWindow());
+    emitStoreChanged();
+    return signedIn;
+  });
+
+  ipcMain.handle('webLogout', async (_event, id: string): Promise<void> => {
+    await clearWebSession(id);
     emitStoreChanged();
   });
 
@@ -474,6 +535,8 @@ export function registerIpcHandlers(
         api_delay_ms: partial.api_delay_ms ?? current.api_delay_ms,
         gap_check_days: partial.gap_check_days ?? current.gap_check_days,
         redo_count: partial.redo_count ?? current.redo_count,
+        enable_web_scrape: partial.enableWebScrape ?? current.enable_web_scrape,
+        download_hires: partial.downloadHires ?? current.download_hires,
         ui: {
           thumbnail_size_percent: partial.thumbnailSizePercent ?? current.ui.thumbnail_size_percent,
           show_info_overlay: partial.showInfoOverlay ?? current.ui.show_info_overlay,

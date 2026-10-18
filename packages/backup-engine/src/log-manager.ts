@@ -24,10 +24,8 @@ export class LogManager {
 
   async append(entry: LogEntry): Promise<void> {
     try {
-      const existing = await this.readAllRaw();
-      const line = JSON.stringify(entry);
-      const next = existing.length === 0 ? `${line}\n` : `${existing}${line}\n`;
-      await this.io.atomicWrite(this.path, next);
+      // True append — no read-modify-write of the whole (potentially large) log file.
+      await this.io.appendFile(this.path, `${JSON.stringify(entry)}\n`);
     } catch {
       // Silently swallow — we cannot log a log failure without recursing
     }

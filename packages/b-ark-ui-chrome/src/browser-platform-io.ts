@@ -5,18 +5,56 @@ import type { PlatformIO, LogEntry } from '@b-oss/backup-engine';
 import { debug } from './debug.js';
 
 export class BrowserPlatformIO implements PlatformIO {
+  // Resolved directory handles, keyed by path prefix (e.g. "gbradley/entries/2024") — a
+  // full backup touches many files under a handful of directories (all entries in a given
+  // year, say), and re-walking getDirectoryHandle() from the root for every single file op
+  // was measurably wasteful. See b-oss#80.
+  private readonly dirCache = new Map<string, FileSystemDirectoryHandle>();
+
   constructor(private readonly root: FileSystemDirectoryHandle) {}
 
   private segments(path: string): string[] {
     return path.split('/').filter((s) => s.length > 0);
   }
 
+  /**
+   * Resolve a directory, preferring cached handles. If the walk fails — e.g. a cached
+   * handle went stale because the folder was deleted/moved outside our control — drop
+   * every prefix we might have cached under this path and retry once against a clean walk,
+   * rather than failing the whole operation over cache staleness.
+   */
   private async resolveDir(segs: string[], create = false): Promise<FileSystemDirectoryHandle> {
+    try {
+      return await this.walkDir(segs, create);
+    } catch (err) {
+      if (segs.length === 0) throw err; // nothing cached for the root itself
+      this.invalidateDirCache(segs);
+      return this.walkDir(segs, create);
+    }
+  }
+
+  private async walkDir(segs: string[], create: boolean): Promise<FileSystemDirectoryHandle> {
     let dir = this.root;
+    let prefix = '';
     for (const seg of segs) {
+      prefix = prefix ? `${prefix}/${seg}` : seg;
+      const cached = this.dirCache.get(prefix);
+      if (cached) {
+        dir = cached;
+        continue;
+      }
       dir = await dir.getDirectoryHandle(seg, { create });
+      this.dirCache.set(prefix, dir);
     }
     return dir;
+  }
+
+  private invalidateDirCache(segs: string[]): void {
+    let prefix = '';
+    for (const seg of segs) {
+      prefix = prefix ? `${prefix}/${seg}` : seg;
+      this.dirCache.delete(prefix);
+    }
   }
 
   async readFile(path: string): Promise<Uint8Array> {
@@ -44,6 +82,26 @@ export class BrowserPlatformIO implements PlatformIO {
   // performs is therefore redundant here — writeFile() is itself the atomic write.
   async atomicWrite(path: string, data: Uint8Array | string): Promise<void> {
     await this.writeFile(path, data);
+  }
+
+  // True append: reads only the current file *size* (a cheap stat, not its content) and
+  // writes new bytes at that position. keepExistingData:true has the browser preserve the
+  // existing content in the swap file at the OS/file-system level, so this avoids the
+  // JS-side read + decode + string-concat + re-encode a read-modify-write append would
+  // otherwise pay on every call — see b-oss#80 (LogManager was doing exactly that).
+  async appendFile(path: string, data: Uint8Array | string): Promise<void> {
+    const segs = this.segments(path);
+    const filename = segs[segs.length - 1];
+    const dir = await this.resolveDir(segs.slice(0, -1), true);
+    const fh = await dir.getFileHandle(filename, { create: true });
+    const file = await fh.getFile();
+    // Re-wrap into a fresh, plain-ArrayBuffer-backed view — an incoming Uint8Array's
+    // buffer is typed ArrayBufferLike (ArrayBuffer | SharedArrayBuffer), which the
+    // WriteParams `data` field doesn't accept.
+    const bytes = typeof data === 'string' ? data : new Uint8Array(data);
+    const w = await fh.createWritable({ keepExistingData: true });
+    await w.write({ type: 'write', position: file.size, data: bytes });
+    await w.close();
   }
 
   async ensureDir(path: string): Promise<void> {
