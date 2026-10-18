@@ -8,6 +8,7 @@ import { MemoryRouter } from 'react-router-dom';
 import { EntryGrid } from '../EntryGrid.js';
 import { useDevicePrefsStore } from '../../state/devicePrefsStore.js';
 import type { EntryIndex } from '@b-oss/b-view';
+import { resumeGet, resumeSet } from '../../data/resumeCache.js';
 
 vi.mock('../../platform/prefs.js', () => ({
   getPref: vi.fn().mockResolvedValue(null),
@@ -21,8 +22,9 @@ const { resolveImage, invalidateImage } = vi.hoisted(() => ({
 }));
 vi.mock('../../platform/imageCache.js', () => ({ resolveImage, invalidateImage }));
 
+const hiddenMembers = vi.hoisted(() => ({ list: [] as string[] }));
 vi.mock('../../state/hiddenMembersStore.js', () => ({
-  useHiddenMembers: () => [],
+  useHiddenMembers: () => hiddenMembers.list,
 }));
 
 function makeEntries(count: number): EntryIndex[] {
@@ -44,6 +46,7 @@ beforeEach(() => {
 });
 
 afterEach(() => {
+  hiddenMembers.list = [];
   cleanup();
   vi.resetAllMocks();
 });
@@ -233,5 +236,50 @@ describe('EntryGrid — caption mode (b-oss#259)', () => {
     );
     expect(screen.getByText('Entry 1')).toBeDefined();
     expect(screen.queryByText('alice')).toBeNull();
+  });
+});
+
+describe('EntryGrid — hidden members', () => {
+  it('draws a hidden member’s tile as the grey "hidden user" tile without fetching their image', async () => {
+    resolveImage.mockResolvedValue('blob:thumb');
+    hiddenMembers.list = ['alice'];
+    const [mine, theirs] = makeEntries(2);
+    const { container } = renderGrid([
+      { ...mine, username: 'bob' },
+      { ...theirs, username: 'alice' },
+    ]);
+    await waitFor(() => expect(container.querySelectorAll('img')).toHaveLength(2));
+    const srcs = [...container.querySelectorAll('img')].map((img) => img.getAttribute('src'));
+    expect(srcs[1]).toMatch(/^data:image\/svg\+xml,/);
+    expect(decodeURIComponent(srcs[1]!)).toContain('#9e9e9e');
+    expect(resolveImage).not.toHaveBeenCalledWith('thumb-2.jpg');
+    expect(resolveImage).toHaveBeenCalledWith('thumb-1.jpg');
+    expect(screen.queryByText('Entry 2')).toBeNull();
+  });
+});
+
+describe('EntryGrid — pull to refresh', () => {
+  it('reloads, forgets the remembered grid page, and completes the gesture', () => {
+    resumeSet('feed:x:top', 3);
+    const onRefresh = vi.fn();
+    const complete = vi.fn();
+    render(
+      <MemoryRouter>
+        <EntryGrid
+          entries={makeEntries(4)}
+          onSelectEntry={() => {}}
+          hasMore={false}
+          onLoadMore={() => {}}
+          onRefresh={onRefresh}
+          resumeKey="feed:x"
+        />
+      </MemoryRouter>,
+    );
+    document
+      .querySelector('ion-refresher')!
+      .dispatchEvent(new CustomEvent('ionRefresh', { detail: { complete } }));
+    expect(onRefresh).toHaveBeenCalledTimes(1);
+    expect(resumeGet('feed:x:top')).toBeUndefined();
+    expect(complete).toHaveBeenCalledTimes(1);
   });
 });

@@ -37,7 +37,7 @@ const meAccount = {
 
 beforeEach(() => {
   useAccountsStore.setState({ accounts: [meAccount], activeAccountId: 'a1', hydrated: true });
-  useHiddenMembersStore.setState({ hiddenByAccount: {}, hydrated: true });
+  useHiddenMembersStore.setState({ hidden: [], hydrated: true });
 });
 
 afterEach(() => {
@@ -128,7 +128,7 @@ describe('FollowersFollowingScreen', () => {
   });
 
   it('marks a hidden member as Hidden rather than suppressing the row', async () => {
-    useHiddenMembersStore.setState({ hiddenByAccount: { a1: ['alice'] }, hydrated: true });
+    useHiddenMembersStore.setState({ hidden: ['alice'], hydrated: true });
     const { fetchFollowing } = await import('../../../data/users.js');
     vi.mocked(fetchFollowing).mockResolvedValue({
       items: [{ username: 'alice', avatar_url: '', icons: [] }],

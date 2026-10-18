@@ -87,10 +87,13 @@ export function useCommentComposers({ entryId, gate, onPosted }: Options) {
       onPosted();
     } catch (err) {
       // The text stays in the box (and in the draft) so the user can simply try again.
-      setError({
-        where,
-        message: describeError(mapApiError(err), t('SCR-15.error.post_failed')),
-      });
+      const outcome = mapApiError(err);
+      // A network failure says why, but the reassurance that the text is kept still applies.
+      const message =
+        outcome.kind === 'transport'
+          ? `${outcome.message} ${t('SCR-15.error.text_kept')}`
+          : describeError(outcome, t('SCR-15.error.post_failed'));
+      setError({ where, message });
     } finally {
       setPosting(null);
     }

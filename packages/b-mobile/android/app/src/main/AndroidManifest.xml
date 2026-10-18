@@ -45,7 +45,10 @@
         <!-- EmbeddedAuthPlugin's "force new sign-in" WebView screen (FLW-20). Not exported — only
              ever launched internally via startActivityForResult from within this app, never by
              another app or a deep link. -->
+        <!-- configChanges as for MainActivity: without it a rotation recreates the Activity, which
+             clears cookies and reloads the sign-in page, losing whatever was typed. -->
         <activity
+            android:configChanges="orientation|keyboardHidden|keyboard|screenSize|locale|smallestScreenSize|screenLayout|uiMode|navigation|density"
             android:name=".EmbeddedAuthActivity"
             android:theme="@style/AppTheme"
             android:exported="false" />
@@ -85,6 +88,14 @@
             android:name="com.google.firebase.messaging.default_notification_channel_id"
             android:value="activity"
         />
+
+        <!-- Firebase Messaging otherwise creates an installation ID and push token at first launch,
+             before notifications are turned on. @capacitor/push-notifications' register() switches
+             auto-init on when the user enables notifications, and unregister() switches it off. -->
+        <meta-data
+            android:name="firebase_messaging_auto_init_enabled"
+            android:value="false"
+        />
     </application>
 
     <!-- Permissions (app-architecture.md §17) — exactly these, nothing more. No storage
@@ -97,6 +108,9 @@
     <uses-permission android:name="android.permission.CAMERA" />
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+    <!-- @capacitor/local-notifications declares SCHEDULE_EXACT_ALARM in its own manifest; strip it
+         from the merge so the comment above stays true. Reminders are scheduled inexact. -->
+    <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" tools:node="remove" />
 
     <!-- Declaring CAMERA implies a required camera, which would hide the app from devices without
          one. Taking a photo is optional here (the photo picker works without a camera). -->

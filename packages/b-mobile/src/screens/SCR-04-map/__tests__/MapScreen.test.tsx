@@ -158,7 +158,7 @@ const entryMarker: MapEntry = {
 beforeEach(() => {
   mapInstances.length = 0;
   markerInstances.length = 0;
-  useHiddenMembersStore.setState({ hiddenByAccount: {}, hydrated: true });
+  useHiddenMembersStore.setState({ hidden: [], hydrated: true });
   useAccountsStore.setState({ accounts: [], activeAccountId: null, hydrated: true });
 });
 
@@ -374,7 +374,7 @@ describe('MapScreen', () => {
       activeAccountId: 'a1',
       hydrated: true,
     });
-    useHiddenMembersStore.setState({ hiddenByAccount: { a1: ['alice'] }, hydrated: true });
+    useHiddenMembersStore.setState({ hidden: ['alice'], hydrated: true });
     const { getMapStyleUrl } = await import('../../../platform/mapTiles.js');
     const { fetchEntriesInBounds } = await import('../../../data/map.js');
     vi.mocked(getMapStyleUrl).mockReturnValue('https://example.com/style.json');

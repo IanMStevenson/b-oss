@@ -175,12 +175,7 @@ function SettingsHub() {
           <IonItem button detail onClick={() => navigate.push('/settings/app')}>
             <span>General</span>
           </IonItem>
-          <IonItem
-            button
-            detail
-            disabled={!signedIn}
-            onClick={() => navigate.push('/hidden', { drilledIn: true })}
-          >
+          <IonItem button detail onClick={() => navigate.push('/hidden', { drilledIn: true })}>
             <span>Hidden members</span>
           </IonItem>
           <IonItem button detail onClick={() => navigate.push('/settings/browsing')}>

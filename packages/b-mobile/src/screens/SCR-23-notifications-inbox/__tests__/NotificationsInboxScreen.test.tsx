@@ -42,7 +42,7 @@ function notification(overrides: Partial<Record<string, unknown>> = {}) {
 
 beforeEach(() => {
   useAccountsStore.setState({ accounts: [], activeAccountId: null, hydrated: true });
-  useHiddenMembersStore.setState({ hiddenByAccount: {}, hydrated: true });
+  useHiddenMembersStore.setState({ hidden: [], hydrated: true });
   useNotificationCountsStore.setState({ comments: 0, notifications: 3 });
 });
 
@@ -136,7 +136,7 @@ describe('NotificationsInboxScreen', () => {
       activeAccountId: 'me',
       hydrated: true,
     });
-    useHiddenMembersStore.setState({ hiddenByAccount: { me: ['alice'] }, hydrated: true });
+    useHiddenMembersStore.setState({ hidden: ['alice'], hydrated: true });
 
     fetchRecentNotifications.mockResolvedValue([
       notification({ notification_id_str: '1' }),

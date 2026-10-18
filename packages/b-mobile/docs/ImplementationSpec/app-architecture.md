@@ -71,8 +71,8 @@ dialogs; b-view and app components render inside pages.
   exempt). Screens use `useAppNavigate()`; flows take an injected `push` callback.
 - `styles/theme.css` maps b-visual tokens onto Ionic's `--ion-*` variables.
 - `IonMenu` (`AppShell.tsx`): New entry (write accounts), Browse, Search, Map, My profile /
-  Notifications / Comments (signed in), Settings, Help & about, Accounts, Hidden members (signed
-  in), Sign in (signed out). No `IonTabs`.
+  Notifications / Comments (signed in), Settings, Help & about, Accounts, Hidden members, Sign in
+  (signed out). No `IonTabs`.
 - `components/AppHeader.tsx`: title bar, menu button, quick actions, and `AccountIndicator` (only
   with two or more stored accounts).
 - `app/hardwareBack.ts`: Android Back does nothing on Browse; elsewhere Ionic's default applies.
@@ -112,12 +112,14 @@ direct children; don't expose the real routes to it. Back is made to feel right 
 `app/routes/AppRoutes.tsx` is the table (lowercase, hyphenated; params are the string form of an
 id; `/` redirects to `/browse`). Not obvious from the paths:
 
-- **Write-gated** (`WriteGuardRoute`): `/compose`, `/entry/:id/edit`, `/entry/:id/report`.
+- **Write-gated** (`WriteGuardRoute`): `/compose`, `/entry/:id/edit`, `/entry/:id/report`. Report
+  affordances go through `flows/useReport.tsx`, which only routes to `/report` with write access and
+  otherwise opens Blipfoto's support request form.
   **Account-gated** (`AccountGuardRoute`): `/notifications`, `/comments` (push targets).
 - **Lazy-loaded:** `/map`, `/compose/location` (MapLibre), `/compose/details` (react-easy-crop).
 - **Query/state:** `/map?entry=<id>` (focused mode); `/accounts?reauth=<accountId>` (opens that
   account's sign-in-again dialog); `/entry/:id` takes router state `replyToCommentId`; `/report`
-  takes the target user/comment via router state.
+  takes the target user/comment/member via router state.
 - Comments are composed inline on `/entry/:id` (there is no `SCR-15` route).
   `/compose/description` (`SCR-11`) is now the Biography editor only. Settings sections:
   `general`, `journal`, `profile`, `notifications`, `app`, `browsing`; Help also has `/help/:section`.
@@ -127,11 +129,19 @@ to `app/OverlayProvider.tsx` (`useOverlay()`); per-screen confirmations are loca
 
 **Gating** is done once, in the router:
 
-- **`WriteGuardRoute`** reads `useCanWrite()` (§6). Anonymous → `signInGated()` (read-write round),
-  resuming on success, back on failure. Read-only → an `IonAlert` upgrade prompt (decline goes
-  back, confirm goes to `/accounts`). This covers deep links and share intents too.
-- **`AccountGuardRoute`** wraps the inboxes, which a push tap can reach while signed out:
-  `signInGated()`, else redirect to `/browse`.
+- **`WriteGuardRoute`** reads `useCanWrite()` (§6). Anonymous → `SignInRequiredAlert` ("You must
+  be signed in to do this"): Sign in now replaces the route with `/sign-in?return=<route>`, Cancel
+  goes back. Read-only → an `IonAlert` upgrade prompt (decline goes back, confirm goes to
+  `/accounts`). This covers deep links and share intents too.
+- **`AccountGuardRoute`** wraps the inboxes, which a push tap can reach while signed out: the
+  same alert, Cancel → `/browse`.
+- **Screen actions** (Star, Favourite, Comment, Follow) use `useSignInPrompt()` when signed out:
+  the same alert and the same `/sign-in?return=` navigation, Cancel does nothing. The action is
+  not replayed after sign-in.
+- **Return target:** `/sign-in` reads `return` via `parseReturnTo()` (`signInReturn.ts`): a path
+  with a single leading `/`, not `/sign-in` itself; anything else is dropped. `SignInScreen` gets
+  it as `returnTo` and replaces itself with it after sign-in, and on Back, instead of going to
+  `/accounts`. The gate uses `replace`, so there is no duplicate history entry for that screen.
 
 ## 6. State management
 
@@ -148,7 +158,7 @@ use `getState()`/`setState()`.
 | Store                     | Holds                                                                                                                                                         | Persisted             |
 | ------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------- |
 | `accountsStore`           | accounts (id, username, avatar, `appTokenScope`, `hasServiceToken`, b-push registration id/status, push stream flags, `lastAppTokenScope`), `activeAccountId` | `prefs`, never tokens |
-| `hiddenMembersStore`      | per-account hidden usernames, device-local                                                                                                                    | `prefs`               |
+| `hiddenMembersStore`      | installation-wide hidden usernames, device-local                                                                                                              | `prefs`               |
 | `uploadQueueStore`        | the upload queue (§9)                                                                                                                                         | `prefs` + files       |
 | `devicePrefsStore`        | reactions confirm, per-account reminders, `uploadFullSize`, `openBlipfotoLinksInApp`, polling interval, explainer seen, grid/display prefs                    | `prefs`               |
 | `composeDraftStore`       | the publish/edit draft (`mode`), surviving `SCR-11`/`SCR-12` and rotation                                                                                     | memory                |
@@ -271,7 +281,7 @@ arguments, including `Authorization` headers and secrets, to logcat (b-oss#241).
 - **Wakes** on launch, on enqueue, and on a timer for the next retry; no connectivity listener.
 
 **Limitation:** nothing uploads while the process is dead. On launch, `uploading` items reset to
-`waiting`. No foreground service, no ongoing upload notification (the `uploads` channel is unused),
+`waiting`. No foreground service, no ongoing upload notification (there is no `uploads` channel),
 no byte-level progress.
 
 ## 10. The image cache
@@ -457,8 +467,8 @@ on Android 10+, the app's own Pictures folder below). No exact-alarm permissions
 
 - `android:allowBackup="false"`; `MainActivity` is `singleTask` with `bmobile://` VIEW and
   `ACTION_SEND image/*` filters; the disabled `BlipfotoWebLinkAlias` (§16); a `FileProvider`.
-- **Channels** created by `MainActivity` at every launch: `activity`, `system_alerts`, `reminders`,
-  `uploads` (unused). b-push sets the channel on each message; FCM's default is `activity`.
+- **Channels** created by `MainActivity` at every launch: `activity`, `system_alerts` and
+  `reminders` (there is no `uploads` channel). b-push sets the channel on each message; FCM's default is `activity`.
 - **Local plugins** registered in `MainActivity`, each with a `src/platform/` wrapper:
   `BlipfotoLinksPlugin`, `AccessibilityPlugin`, `ShareIntentPlugin`, `EmbeddedAuthPlugin` (+
   non-exported `EmbeddedAuthActivity`), `PushAvailabilityPlugin`, `MediaSavePlugin`.

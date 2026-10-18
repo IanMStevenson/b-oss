@@ -12,7 +12,7 @@ Known Blipfoto API limits: [AppLimitations.md](AppLimitations.md). Paths are rel
   link, share or push tap routes elsewhere.
 - Menu: account block (→ Accounts) · New entry (read-write only) · Browse · Search · Map · My
   profile, Notifications, Comments (signed in; inboxes show unread badges) · Settings · Help &
-  about · Accounts · Hidden members (signed in) · Sign in (signed out).
+  about · Accounts · Hidden members · Sign in (signed out).
 - No view stack: leaving a screen unmounts it and Back rebuilds it. `data/resumeCache.ts` (memory,
   10-minute TTL) restores Browse's tab and grid page; `useScrollResume` restores entry scroll.
 - The route table is keyed by the active account id: switching account rebuilds the current screen.
@@ -33,29 +33,39 @@ Known Blipfoto API limits: [AppLimitations.md](AppLimitations.md). Paths are rel
 - **Entry**: b-view `EntryDetail` plus app slots. Prev/next replaces the route. Star and Favourite
   are one-way (no unstar). Inline comment/reply/edit composers, with unsent text kept in memory per
   target (`data/commentDrafts.ts`). Reply/Edit/Delete per comment follow the API's `actions` flags;
-  Report on others' comments. Author block with Follow/Following/Requested. Others' entries: Report
-  and Hide. Own entries: Download photo (read-only too; own journal only, `flows/downloadFlow.ts`),
+  Report and Hide member (same confirmation as Hide user) on others' comments. Author block with Follow/Following/Requested. Others' entries: Report
+  and Hide user in the star/favourite pill, and again as muted underlined "Report" / "Hide user"
+  text links at the foot of the page. Own entries: Download photo (read-only too; own journal only, `flows/downloadFlow.ts`),
   Edit and Delete (read-write). Tags → `/tag`, location → `/map?entry=`, fullscreen button or
   double-tap → `/photo`. Calendar and ±1-year history need a signed-in account.
 - **Photo**: b-view Lightbox, zoom/pan, retry on image error. **New entry**: Take / Choose photo, or a shared photo.
 - **Compose details**, **Location picker**: see Compose. **Edit entry**: title, description, tags,
-  location, replace photo, Delete entry; no date field; Save enqueues and returns to the entry.
+  location, replace photo, Delete entry; no date field; Save enqueues and returns to the entry,
+  which shows the new title, description, tags and location with "Saving your changes…" until the
+  edit goes through, then reloads. If it fails, the entry as saved, "Your changes to this entry
+  weren't saved" with the error, and View uploads (b-oss#412).
 - **Biography editor** (`/compose/description`, despite the path): from Settings → Profile.
 - **Uploads**: Waiting / Uploading… / Uploaded / Failed (+ error); indeterminate bar while
   uploading; tap an uploaded item to open it. A failed item has Retry (back to Waiting, fresh
   attempt count) and Remove (asks first; drops it and its copied photo).
-- **Report**: five reasons (at least one required) plus note. A comment report uses the same
-  endpoint with a prefilled note `<user>'s comment: "<excerpt>"`. Afterwards offers to hide.
+- **Report** (entry, comment, member): read-write accounts get the in-app form: five reasons (at
+  least one required) plus note. The API accepts reports only with a read-write user token, so
+  signed out or read-only, Report shows "Blipfoto requires reports via Zendesk unless you are
+  signed in using Read/Write mode" (Cancel / Continue), and Continue opens Blipfoto's support
+  request form (`blipfoto.zendesk.com/hc/en-gb/requests/new`) (`flows/useReport.tsx`). A comment report
+  uses the entry endpoint with a prefilled note `<user>'s comment: "<excerpt>"`; a member report
+  (profile Flag, only when they have a visible latest entry) is sent against their latest entry with
+  `Reporting the member <user>, not just this entry: `. Afterwards offers to hide.
 - **Profile** (`/me`, `/user/:u`, one component): tabs About, Entries, Faves, Followers, Following.
   Stat row: entries; Follow/Following/Request sent (others) or Pending requests (own, protected
-  journal); Awards. Hide/Unhide for others.
+  journal); Awards. Report (when they have a visible entry) and Hide/Unhide for others.
 - **Followers/Following**: people list; Remove follower on your own followers. **Pending
   requests**: Approve/Refuse, then offers to hide. **Refused followers**: Allow, immediate.
 - **Awards**: whole catalogue from the API; earned = `added_stamp !== null`; `secret` → "Secret".
 - **Settings**: hub reachable signed out. Blipfoto account settings: General, Journal, Profile,
   Notifications (all disabled signed out), Refused followers (protected journal only). App
   settings: Accounts, General (daily reminder, confirm-account toggle, account picture style, open
-  blipfoto.com links in app), Hidden members, Browsing (zoom bar, pagination, margins, photo size).
+  blipfoto.com links in app), Hidden members (always enabled), Browsing (zoom bar, pagination, margins, photo size).
   Server-backed sections use Save/Cancel; device settings apply at once.
 - **Help & about**: static (icon guide, safety & privacy, licences). **Hidden members**: Unhide.
 - **Accounts**: list, tap to switch, Add account (→ `/sign-in`); row menu: switch read-only/
@@ -66,11 +76,14 @@ Known Blipfoto API limits: [AppLimitations.md](AppLimitations.md). Paths are rel
 
 - The only write test is `useCanWrite()`: the active account's granted scope is `read,write`
   (`state/accountsStore.ts`). The scope comes from `GET oauth/token`, never the requested scope.
-- `WriteGuardRoute` wraps `/compose`, `/entry/:id/edit`, `/entry/:id/report`. Signed out: runs a
-  read-write sign-in, then shows the screen (cancel → Back). Read-only: upgrade prompt "This
-  account is read-only" — Switch to read-write goes to `/accounts`, Not now goes Back.
+- `WriteGuardRoute` wraps `/compose`, `/entry/:id/edit`, `/entry/:id/report` (Report itself never
+  routes there without write access; see Report above). Signed out: the sign-in prompt (see Sign-in
+  and accounts) — Sign in now goes to `/sign-in` and back to the screen afterwards, Cancel goes
+  Back. Read-only: upgrade prompt "This account is read-only" — Switch to read-write goes to
+  `/accounts`, Not now goes Back.
 - Entry page: star, favourite, comment, follow, Edit and Delete are hidden for a read-only
-  account. Signed out, tapping one signs in read-write and then completes the action.
+  account. Signed out, tapping star, favourite, comment or follow (also Follow on a profile) shows
+  the sign-in prompt; nothing else happens until the user is signed in and taps again.
 - Profile Follow, request/refused actions and Remove follower show for read-only accounts but
   open the upgrade prompt. Settings sections show values disabled: "This account is read-only."
 - `/compose/details`, `/compose/location`, `/compose/description` are not route-guarded.
@@ -80,8 +93,9 @@ Known Blipfoto API limits: [AppLimitations.md](AppLimitations.md). Paths are rel
 
 ## Hidden members (`state/hiddenMembersStore.ts`)
 
-- Device-local, per account, keyed by username; never sent anywhere; none when signed out.
-- Grids: placeholder tile (no title, user or image). Entry: "You've hidden this member." + Unhide.
+- Device-local and installation-wide (one list whichever account is active, signed out too), keyed
+  by username; never sent anywhere. A list stored per account by an earlier build is merged on load.
+- Grids: mid-grey tile with a white image glyph, labelled "hidden user" (no title or image). Entry: "You've hidden this member." + Unhide.
   Their comments and reply subtrees are removed. Comments inbox: exact filter. Notifications inbox:
   best-effort, from profile links in `content_html`. Map: no marker. People lists: "(Hidden)".
 
@@ -108,7 +122,14 @@ Known Blipfoto API limits: [AppLimitations.md](AppLimitations.md). Paths are rel
 ## Sign-in and accounts (`flows/accountsFlow.ts`, `flows/oauthRound.ts`)
 
 - OAuth implicit grant to `bmobile://oauth/`, fresh `state` per round (mismatch = silent cancel).
-- Gated sign-in: read-write, no notifications, system browser. `/sign-in`: Read-write (default)
+- Gated sign-in (FLW-01, `useSignInPrompt`, `SignInRequiredAlert`): a signed-out user who taps a
+  gated action or reaches a write- or account-gated route sees "You must be signed in to do this"
+  with Sign in now and Cancel. No sign-in starts until they choose Sign in now, which replaces the
+  current screen with `/sign-in?return=<that screen>`. After a successful sign-in (and Back from
+  that screen) they go to the return target instead of `/accounts`; only in-app paths are accepted
+  (`app/routes/signInReturn.ts`), anything else is ignored. A shared photo stays cached, so New entry
+  picks it up afterwards. Cancel: nothing on the entry and profile screens, Back on write routes,
+  Browse on the inboxes. `/sign-in`: Read-write (default)
   or Read-only; Get notifications (disabled without push support); Use browser to sign in (on for
   the first account, off once one exists; off = in-app WebView with cookies cleared, which always
   asks for a password). First-run explainer shown once.
@@ -189,7 +210,7 @@ Source comments cite these ids; the AppSpec that defined them has been removed.
 
 | FLW | Flow — main code                                                            | FLW | Flow — main code                                                     |
 | --- | --------------------------------------------------------------------------- | --- | -------------------------------------------------------------------- |
-| 01  | Gated sign-in — `signInGated`, `WriteGuardRoute`                            | 12  | Compose/publish — `composeFlow.ts`, `uploadQueueRunner.ts`           |
+| 01  | Gated sign-in — `useSignInPrompt`, `WriteGuardRoute`                        | 12  | Compose/publish — `composeFlow.ts`, `uploadQueueRunner.ts`           |
 | 02  | Remove account / forced logout — `handleForcedLogout`, `reauthorizeAccount` | 13  | Edit/delete entry — `SCR-13-edit-entry`, `entries.ts` `deleteEntry`  |
 | 04  | Search — `SCR-03-search`                                                    | 14  | Browse map — `SCR-04-map`, `data/map.ts`                             |
 | 05  | View entry — `SCR-06-entry-detail`                                          | 15  | Inboxes — `SCR-23`, `SCR-24`, `data/notifications.ts`                |

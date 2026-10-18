@@ -129,12 +129,12 @@ function storedAccount(id: string): StoredAccount {
   };
 }
 
-function renderScreen() {
+function renderScreen(returnTo?: string) {
   return render(
     <MemoryRouter>
       <OverlayProvider>
         <OverlayHost />
-        <SignInScreen />
+        <SignInScreen returnTo={returnTo} />
       </OverlayProvider>
     </MemoryRouter>,
   );
@@ -198,6 +198,22 @@ describe('SignInScreen', () => {
       ),
     );
     expect(replace).toHaveBeenCalledWith('/accounts');
+  });
+
+  it('gated sign-in: goes back to the return target instead of /accounts (b-oss#397)', async () => {
+    signInDeliberate.mockResolvedValue('alice');
+    renderScreen('/entry/123');
+    await userEvent.click(screen.getByText('Continue'));
+    await waitFor(() => expect(replace).toHaveBeenCalledWith('/entry/123'));
+    expect(replace).not.toHaveBeenCalledWith('/accounts');
+  });
+
+  it('gated sign-in: Back returns to the return target even when signed out', async () => {
+    renderScreen('/entry/123');
+    const back = screen.getByLabelText('Back');
+    await userEvent.click(back);
+    expect(replace).toHaveBeenCalledWith('/entry/123');
+    expect(signInDeliberate).not.toHaveBeenCalled();
   });
 
   it('hides "Use browser to sign in" off-native (web)', () => {
@@ -396,6 +412,13 @@ describe('SignInScreen', () => {
     renderScreen();
     await userEvent.click(screen.getByText('New to Blipfoto? Create account'));
     expect(openUrl).toHaveBeenCalledWith('https://www.blipfoto.com/account/signup');
+  });
+
+  it('reminds that Blipfoto’s terms of service apply, linking to them', async () => {
+    renderScreen();
+    expect(screen.getByText(/Use of Blipfoto is governed by Blipfoto’s/)).toBeDefined();
+    await userEvent.click(screen.getByText('terms of service'));
+    expect(openUrl).toHaveBeenCalledWith('https://www.blipfoto.com/legal/terms');
   });
 
   it('shows the first-run explainer once, on the first hydrated visit, and marks it seen', async () => {

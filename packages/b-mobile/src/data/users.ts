@@ -6,6 +6,7 @@
 // accepts it (getUserProfile, entries/journal, entries/favorites) — the API's own convention,
 // which is why SCR-17 (My Profile) and SCR-18 (User Profile) can share one screen component.
 
+import { isJournalProtected } from '../flows/shareLink.js';
 import { getClient, withRateLimitFallback } from './client.js';
 import { stubToEntryIndex } from './viewModel.js';
 import { JOURNAL_PAGE_SIZE } from './entries.js';
@@ -64,6 +65,28 @@ export function fetchAuthorAvatar(username: string): Promise<string | null> {
 /** Test seam: forget cached avatars. */
 export function clearAuthorAvatarCache(): void {
   avatarCache.clear();
+}
+
+// Same once-per-author-per-session caching as the avatar lookup above, for the share flow's
+// protected-journal warning (b-oss#417). A failed lookup is evicted so the next attempt retries.
+const protectedCache = new Map<string, Promise<boolean>>();
+
+export function fetchJournalProtected(username: string): Promise<boolean> {
+  const cached = protectedCache.get(username);
+  if (cached) return cached;
+  const request = getClient()
+    .then((client) => client.getUserProfile({ username, returnDetails: true }))
+    .then((res) =>
+      isJournalProtected({ details: res.details ?? null, visible: res.visibility === 1 }),
+    );
+  protectedCache.set(username, request);
+  request.catch(() => protectedCache.delete(username));
+  return request;
+}
+
+/** Test seam: forget cached protected-journal lookups. */
+export function clearJournalProtectedCache(): void {
+  protectedCache.clear();
 }
 
 export async function fetchUserProfile(username?: string): Promise<UserProfile> {

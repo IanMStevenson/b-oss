@@ -9,7 +9,7 @@
 // Tapping the avatar or name opens the author's profile. The follow control replaces the
 // Follow / Unfollow / "Request sent" buttons that used to sit below the entry.
 
-import { UserPlus, UserCheck, Clock } from 'lucide-react';
+import { UserPlus, UserCheck, Clock, Flag, UserX } from 'lucide-react';
 import { CachedImage } from './CachedImage.js';
 
 /** `null`: the follow control isn't offered (own entry, read-only account). */
@@ -25,6 +25,9 @@ interface EntryAuthorBlockProps {
   /** Asks to unfollow — the screen confirms before anything happens. */
   onUnfollow: () => void;
   onOpenProfile: () => void;
+  /** Report / hide-the-author icons, to the right of the block (other people's entries only). */
+  onReport?: () => void;
+  onHide?: () => void;
 }
 
 const AVATAR_SIZE = 50;
@@ -37,10 +40,21 @@ export function EntryAuthorBlock({
   onFollow,
   onUnfollow,
   onOpenProfile,
+  onReport,
+  onHide,
 }: EntryAuthorBlockProps) {
   const title = journalTitle.trim() || username;
   return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 12, minWidth: 0, maxWidth: '100%' }}>
+    <div
+      style={{
+        display: 'flex',
+        alignItems: 'center',
+        flex: 1,
+        gap: 12,
+        minWidth: 0,
+        maxWidth: '100%',
+      }}
+    >
       <button
         type="button"
         onClick={onOpenProfile}
@@ -141,9 +155,41 @@ export function EntryAuthorBlock({
           )}
         </div>
       </div>
+
+      {(onReport || onHide) && (
+        <div style={{ display: 'flex', flex: 'none', alignItems: 'center', marginLeft: 'auto' }}>
+          {onReport && (
+            <button
+              type="button"
+              onClick={onReport}
+              aria-label="Report"
+              style={moderationButtonStyle}
+            >
+              <Flag size={20} strokeWidth={1.6} aria-hidden="true" />
+            </button>
+          )}
+          {onHide && (
+            <button
+              type="button"
+              onClick={onHide}
+              aria-label="Hide user"
+              style={moderationButtonStyle}
+            >
+              <UserX size={20} strokeWidth={1.6} aria-hidden="true" />
+            </button>
+          )}
+        </div>
+      )}
     </div>
   );
 }
+
+const moderationButtonStyle = {
+  display: 'inline-flex',
+  alignItems: 'center',
+  padding: 6,
+  color: 'var(--muted)',
+} as const;
 
 const iconButtonStyle = {
   display: 'inline-flex',

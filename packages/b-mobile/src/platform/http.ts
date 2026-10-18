@@ -51,13 +51,24 @@ function toBody(body: BodyInit | null | undefined): string | undefined {
   );
 }
 
+// CapacitorHttp (Capacitor 8.5.2) applies a timeout only when one is passed, so without these a
+// stalled request waits indefinitely. A mutating request that times out may still have succeeded,
+// so writes get a longer read timeout than reads. Multipart uploads go through platform/upload.ts
+// (@capacitor/file-transfer), not here, and are deliberately not limited by these.
+export const CONNECT_TIMEOUT_MS = 5000;
+export const READ_TIMEOUT_GET_MS = 10000;
+export const READ_TIMEOUT_MUTATING_MS = 30000;
+
 async function nativeFetch(
   input: RequestInfo | URL,
   init: RequestInit | undefined,
 ): Promise<Response> {
+  const method = init?.method ?? 'GET';
   const result = await CapacitorHttp.request({
     url: toUrl(input),
-    method: init?.method ?? 'GET',
+    method,
+    connectTimeout: CONNECT_TIMEOUT_MS,
+    readTimeout: method.toUpperCase() === 'GET' ? READ_TIMEOUT_GET_MS : READ_TIMEOUT_MUTATING_MS,
     headers: toHeaderRecord(init?.headers),
     data: toBody(init?.body),
     responseType: 'text',

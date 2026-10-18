@@ -209,7 +209,7 @@ export async function runLaunchBackstopCheck(): Promise<void> {
         account.notificationRegistrationId,
         secret,
       );
-      if (status.status === 'read-token-invalid') {
+      if (status.status === 'read-token-invalid' || status.status === 'not-found') {
         handleForcedLogout(account.id, 'service');
       }
     } catch {

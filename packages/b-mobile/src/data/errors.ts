@@ -21,7 +21,7 @@ export type ApiErrorOutcome =
   | { kind: 'upgrade-prompt'; message: string }
   | { kind: 'rate-limited'; message: string }
   | { kind: 'validation'; copyKey: StringKey }
-  | { kind: 'transport' }
+  | { kind: 'transport'; timedOut: boolean; message: string }
   | { kind: 'message'; message: string };
 
 /** The API's write/validation codes, mapped to their strings/deck.ts key. 303/304 and the
@@ -49,9 +49,20 @@ const VALIDATION_CODES: Record<number, StringKey> = {
   528: 'ERR.527_528.tags',
 };
 
+/** Whether a transport failure was a timeout rather than no connection. CapacitorHttp rejects
+ * with the platform's own message (e.g. "Read timed out", "timeout"), so this matches on text. */
+function isTimeout(error: NetworkError): boolean {
+  return /time(d)?[\s-]?out/i.test(causeMessage(error.cause));
+}
+
 export function mapApiError(error: unknown): ApiErrorOutcome {
   if (error instanceof NetworkError) {
-    return { kind: 'transport' };
+    const timedOut = isTimeout(error);
+    return {
+      kind: 'transport',
+      timedOut,
+      message: t(timedOut ? 'ERR.network.timeout' : 'ERR.network.offline'),
+    };
   }
   if (error instanceof HttpError) {
     // Without this a bare 500 reads as an app bug ("Something went wrong") — say whose it is.
@@ -86,20 +97,29 @@ export function mapApiError(error: unknown): ApiErrorOutcome {
 /** The uniform `outcome.kind === 'message' ? outcome.message : '<fallback>'` shape every call
  * site used before `validation` existed — extended to render a validation outcome's copyKey and
  * to stop discarding `rate-limited`/`upgrade-prompt`'s own message (both already carry one; they
- * just aren't `kind: 'message'`). `transport`/`forced-logout` still fall through to the caller's
- * own fallback, since both are handled as distinct states by their callers, not as inline text. */
+ * just aren't `kind: 'message'`). `transport` now carries the offline/timeout text; `forced-logout` still falls
+ * through to the caller's own fallback, since it is handled as a distinct state, not inline text. */
 export function describeError(outcome: ApiErrorOutcome, fallback: string): string {
   switch (outcome.kind) {
     case 'message':
     case 'rate-limited':
     case 'upgrade-prompt':
+    case 'transport':
       return outcome.message;
     case 'validation':
       return t(outcome.copyKey);
-    case 'transport':
     case 'forced-logout':
       return fallback;
   }
+}
+
+/** The text for a failed load shown inline (spinner screens, map, calendar): our offline/timeout
+ * line for a transport failure, otherwise the error's own message, otherwise the fallback. */
+export function errorMessageOf(err: unknown, fallback: string): string {
+  if (err instanceof NetworkError) {
+    return t(isTimeout(err) ? 'ERR.network.timeout' : 'ERR.network.offline');
+  }
+  return err instanceof Error && err.message ? err.message : fallback;
 }
 
 /** A readable line from whatever a transport layer rejected with — an Error, or a plugin's plain

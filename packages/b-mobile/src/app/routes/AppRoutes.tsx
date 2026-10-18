@@ -34,6 +34,7 @@ import { CommentsInboxScreen } from '../../screens/SCR-24-comments-inbox/Comment
 import { WriteGuardRoute } from './WriteGuardRoute.js';
 import { AccountGuardRoute } from './AccountGuardRoute.js';
 import { AccountsRoute } from './AccountsRoute.js';
+import { parseReturnTo, RETURN_PARAM } from './signInReturn.js';
 
 // MapLibre GL JS is by far the app's largest dependency (~19MB unpacked, app-architecture.md
 // §20) and only SCR-04/SCR-12 need it — lazy-loaded so it ships as its own chunk, fetched only
@@ -81,6 +82,7 @@ interface EntryRouteState {
 interface ReportRouteState {
   targetUsername?: string;
   reportedComment?: { username: string; excerpt: string };
+  reportedMember?: string;
 }
 
 // Route params are always defined for the paths they're mounted on.
@@ -130,8 +132,16 @@ function ReportEntryRoute() {
       entryId={useParam('entryId')}
       targetUsername={state.targetUsername}
       reportedComment={state.reportedComment}
+      reportedMember={state.reportedMember}
     />
   );
+}
+
+// `/sign-in?return=<path>`: where a gated sign-in goes back to afterwards (b-oss#397). An invalid
+// target is ignored, so the screen behaves as a plain sign-in.
+function SignInRoute() {
+  const { search } = useLocation();
+  return <SignInScreen returnTo={parseReturnTo(new URLSearchParams(search).get(RETURN_PARAM))} />;
 }
 
 function UserProfileRoute() {
@@ -244,7 +254,7 @@ function AppRouteTable() {
       <Route path="/help/:section" element={<HelpSectionRoute />} />
       <Route path="/accounts" element={<AccountsRoute />} />
       <Route path="/hidden" element={<HiddenMembersScreen />} />
-      <Route path="/sign-in" element={<SignInScreen />} />
+      <Route path="/sign-in" element={<SignInRoute />} />
       <Route path="/" element={<Navigate to="/browse" replace />} />
     </Routes>
   );

@@ -11,7 +11,11 @@
 // (re)schedules the OS notification. The Misc settings are per device and only matter with two or
 // more accounts stored, so that section is hidden below that. Signed out, the page is still
 // reachable (the links toggle must work logged out): Reminders shows greyed out.
+//
+// Turning the reminder on asks for the notification permission (Android 13+). A refusal, or a
+// scheduling error, leaves it stored as off and says why under the toggle (b-oss#389).
 
+import { useState } from 'react';
 import { IonList } from '@ionic/react';
 import {
   CaptionRow,
@@ -26,9 +30,18 @@ import { setReminderEnabled } from '../../../flows/reminderFlow.js';
 
 const REMINDER_MINUTES = [0, 15, 30, 45];
 
+const REFUSED_MESSAGE =
+  'Notifications are off for b-mobile, so the reminder can’t be shown. You can allow them in your phone’s Settings.';
+const FAILED_MESSAGE = 'Could not change the reminder. Please try again.';
+
 function RemindersGroup() {
   const activeAccount = useActiveAccount();
   const reminders = useDevicePrefsStore((s) => s.reminders);
+  // Tagged with its account so switching accounts doesn't carry the message across.
+  const [notice, setNotice] = useState<{ accountId: string; text: string } | null>(null);
+  // An Ionic toggle flips itself on tap; if the stored value ends up unchanged (a refusal on a
+  // reminder that was already off) React has nothing to re-render, so remount it to snap back.
+  const [toggleKey, setToggleKey] = useState(0);
   if (!activeAccount) {
     // Signed out: reminders are per account, so show the control greyed out rather than hide it.
     return (
@@ -46,12 +59,21 @@ function RemindersGroup() {
   const hour = setting?.hour ?? 20;
   const minute = setting?.minute ?? 0;
 
-  function apply(next: { enabled: boolean; hour: number; minute: number }): void {
+  async function apply(next: { enabled: boolean; hour: number; minute: number }): Promise<void> {
     if (!activeAccount) return;
-    void setReminderEnabled(activeAccount.id, next.enabled, {
-      hour: next.hour,
-      minute: next.minute,
-    });
+    const accountId = activeAccount.id;
+    setNotice(null);
+    try {
+      const result = await setReminderEnabled(accountId, next.enabled, {
+        hour: next.hour,
+        minute: next.minute,
+      });
+      if (result === 'refused') setNotice({ accountId, text: REFUSED_MESSAGE });
+    } catch {
+      setNotice({ accountId, text: FAILED_MESSAGE });
+    } finally {
+      setToggleKey((k) => k + 1);
+    }
   }
 
   return (
@@ -63,10 +85,14 @@ function RemindersGroup() {
         day&rsquo;s reminder, and tapping it opens a new entry.
       </CaptionRow>
       <ToggleRow
+        key={toggleKey}
         label="Daily reminder"
         checked={enabled}
-        onChange={(checked) => apply({ enabled: checked, hour, minute })}
+        onChange={(checked) => void apply({ enabled: checked, hour, minute })}
       />
+      {notice?.accountId === activeAccount.id && (
+        <CaptionRow tone="danger">{notice.text}</CaptionRow>
+      )}
       {enabled && (
         <>
           <TimeRow
@@ -75,7 +101,7 @@ function RemindersGroup() {
             hour={hour}
             minute={minute}
             minuteValues={REMINDER_MINUTES}
-            onChange={(t) => apply({ enabled, hour: t.hour, minute: t.minute })}
+            onChange={(t) => void apply({ enabled, hour: t.hour, minute: t.minute })}
           />
         </>
       )}

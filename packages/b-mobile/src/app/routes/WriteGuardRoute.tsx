@@ -6,12 +6,13 @@
 // to it (BEHAVIOUR.md, Read-only mode and write gating). This is what makes the deep-link and
 // share-intent bypass paths impossible to forget, since all three arrive through the router.
 //
-// Two distinct cases, per FLW-01's "read first, gate late": **anonymous** always goes
-// straight to a read-write sign-in round (never the upgrade prompt, which offers to repair an
-// account that doesn't exist) and resumes here on success; **signed in but read-only** gets the
-// upgrade prompt instead. Getting these branches right matters beyond SCR-06's affordances being
-// hidden for a read-only account — deep links and share intents can land directly on a
-// write-gated route with no account at all.
+// Two distinct cases, per FLW-01's "read first, gate late": **anonymous** gets "You must be signed
+// in to do this" (never the upgrade prompt, which offers to repair an account that doesn't exist)
+// — Sign in now replaces this route with the sign-in screen, which returns here on success, and
+// Cancel goes back (b-oss#397); **signed in but read-only** gets the upgrade prompt instead.
+// Getting these branches right matters beyond SCR-06's affordances being hidden for a read-only
+// account — deep links and share intents can land directly on a write-gated route with no account
+// at all.
 //
 // The upgrade prompt itself is a plain IonAlert here rather than OverlayProvider's shared
 // `showUpgradePrompt()` (§5, app/OverlayProvider.tsx) — this one's decline action must return the
@@ -21,39 +22,41 @@
 // (yet) the same component instance. TODO: give OverlayState an optional on-decline callback and
 // retire this local copy in favour of the shared one.
 
-import { useEffect, useRef, useState } from 'react';
+import { useState } from 'react';
 import type { ReactNode } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { IonAlert } from '@ionic/react';
 import { useActiveAccount, useCanWrite } from '../../state/accountsStore.js';
-import { signInGated } from '../../flows/accountsFlow.js';
+import { SignInRequiredAlert } from '../../components/SignInRequiredAlert.js';
+import { signInPathFor } from './signInReturn.js';
 import { t } from '../../strings/index.js';
 
 export function WriteGuardRoute({ children }: { children: ReactNode }) {
   const activeAccount = useActiveAccount();
   const canWrite = useCanWrite();
+  const { pathname, search } = useLocation();
   const navigate = useNavigate();
   const [dismissed, setDismissed] = useState(false);
-  const attemptedSignIn = useRef(false);
-
-  useEffect(() => {
-    if (!activeAccount && !attemptedSignIn.current) {
-      attemptedSignIn.current = true;
-      signInGated().catch(() => navigate(-1));
-    }
-  }, [activeAccount, navigate]);
 
   if (canWrite) {
     return <>{children}</>;
   }
 
-  if (!activeAccount) {
-    // Waiting on the sign-in round kicked off above — the browser overlay is the visible UI.
+  if (dismissed) {
     return null;
   }
 
-  if (dismissed) {
-    return null;
+  if (!activeAccount) {
+    return (
+      <SignInRequiredAlert
+        isOpen
+        onClose={(signIn) => {
+          setDismissed(true);
+          if (signIn) navigate(signInPathFor(pathname + search), { replace: true });
+          else navigate(-1);
+        }}
+      />
+    );
   }
 
   return (

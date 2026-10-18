@@ -11,10 +11,11 @@
 // moment it's read — so there must be exactly one call site. That's `AppShell.tsx`'s
 // `DeepLinkListener`, on both cold start and the `onShareReceived` warm-start signal, *before*
 // navigating to `/compose`. It can't be `NewEntryScreen` itself: `/compose` is wrapped in
-// `WriteGuardRoute` (FLW-12's "through the same write gate as SCR-09"), which may run an entire
-// OAuth round before `NewEntryScreen` ever mounts — the photo has to survive that wait, so
-// `checkForSharedImage()` caches it here in module state, and `NewEntryScreen` retrieves it via
-// `takePendingSharedPhoto()` once it actually mounts (i.e. once the gate has passed).
+// `WriteGuardRoute` (FLW-12's "through the same write gate as SCR-09"), which may send a signed-out
+// user through the sign-in screen and back before `NewEntryScreen` ever mounts — the photo has to
+// survive that wait, so `checkForSharedImage()` caches it here in module state, and
+// `NewEntryScreen` retrieves it via `takePendingSharedPhoto()` once it actually mounts (i.e. once
+// the gate has passed).
 //
 // No web fallback — sharing a file into a desktop-browser tab isn't a real scenario (§19's
 // browser-mode development is for testing signed-in screens, not native OS share sheets), so

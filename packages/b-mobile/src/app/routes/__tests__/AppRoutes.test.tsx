@@ -23,9 +23,18 @@ vi.mock('../../../screens/SCR-17-18-profile/ProfileScreen.js', async () => {
   };
 });
 
+const signInReturnTo = vi.fn();
+vi.mock('../../../screens/SCR-01-sign-in/SignInScreen.js', () => ({
+  SignInScreen: ({ returnTo }: { returnTo?: string }) => {
+    signInReturnTo(returnTo);
+    return null;
+  },
+}));
+
 afterEach(() => {
   cleanup();
   mounts.mockClear();
+  signInReturnTo.mockClear();
 });
 
 function acct(id: string) {
@@ -57,5 +66,27 @@ describe('renderAppRoutes', () => {
     // Same account again: no rebuild.
     act(() => useAccountsStore.getState().setActiveAccountId('a2'));
     expect(mounts).toHaveBeenCalledTimes(2);
+  });
+
+  it('passes a valid return target to the sign-in screen (b-oss#397)', async () => {
+    useAccountsStore.setState({ accounts: [], activeAccountId: null, hydrated: true });
+    const { renderAppRoutes } = await import('../AppRoutes.js');
+    render(
+      <MemoryRouter initialEntries={['/sign-in?return=%2Fentry%2F123']}>
+        {renderAppRoutes()}
+      </MemoryRouter>,
+    );
+    expect(signInReturnTo).toHaveBeenLastCalledWith('/entry/123');
+  });
+
+  it('ignores an invalid return target', async () => {
+    useAccountsStore.setState({ accounts: [], activeAccountId: null, hydrated: true });
+    const { renderAppRoutes } = await import('../AppRoutes.js');
+    render(
+      <MemoryRouter initialEntries={['/sign-in?return=https%3A%2F%2Fexample.com%2F']}>
+        {renderAppRoutes()}
+      </MemoryRouter>,
+    );
+    expect(signInReturnTo).toHaveBeenLastCalledWith(undefined);
   });
 });

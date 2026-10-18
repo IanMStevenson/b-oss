@@ -12,9 +12,10 @@
 // link resilient, back-navigable). The trigger is the dedicated fullscreen button (or a
 // double-tap; BEHAVIOUR.md, Screens), not a single photo tap.
 //
-// Follow/Unfollow/Report/Hide don't fit any of EntryDetail's slots (a backup viewer has no
-// "follow/report/hide a member" concept) — rendered as this screen's own strip beneath EntryDetail
-// instead. Star/Favourite share EntryDetail's one `reactions` slot, which can't independently hide
+// Report/Hide on other people's entries sit in EntryDetail's reactions pill (its `moderation`
+// prop) beside star and favourite, and again as quiet "Report" / "Hide user" text links at the foot
+// of the page (b-oss#362: findable without being prominent). Report goes through flows/useReport,
+// which opens Blipfoto's support form instead when signed out or read-only. Star/Favourite share EntryDetail's one `reactions` slot, which can't independently hide
 // just one of the two the way the old hand-built action row could — offered only when both
 // actions.star and actions.favorite agree (both permitted or the viewer is anonymous, matching
 // the old per-button "!activeAccount || actions?.x !== 0" rule combined across both flags); the
@@ -33,7 +34,8 @@
 // Star/Favourite/Comment carry the account-confirm gate (BEHAVIOUR.md, "Confirm account before
 // star, favourite or comment"); Follow/Report/Hide don't — the setting's scope is
 // deliberately narrow. All four write actions hide entirely (not just disable) for a signed-in,
-// read-only account; an anonymous tap routes through FLW-01 first, then resumes.
+// read-only account; an anonymous tap asks the user to sign in first (FLW-01) and does nothing
+// else — once signed in they come back to this entry and tap again.
 //
 // FLW-13 (Phase 7): Edit, owner-only AND only read-write (a read-only owner never sees this —
 // ownership doesn't imply write access). Pushes to SCR-13 (which itself sits behind
@@ -50,13 +52,16 @@ import {
   IonPage,
   IonHeader,
   IonContent,
+  IonRefresher,
+  IonRefresherContent,
   IonSpinner,
   IonText,
   IonButton,
   IonAlert,
   IonToast,
 } from '@ionic/react';
-import { Flag, UserX, CornerUpLeft, Pencil, Trash2 } from 'lucide-react';
+import type { RefresherEventDetail } from '@ionic/core';
+import { Flag, CornerUpLeft, EyeOff, Pencil, Trash2 } from 'lucide-react';
 import { AppHeader } from '../../components/AppHeader.js';
 import { EntryDetail, CommentComposer, ActionPill } from '@b-oss/b-view';
 import type { BlipComment, EntryState, ActionPillItem } from '@b-oss/b-view';
@@ -65,6 +70,7 @@ import { deleteEntry } from '../../data/entries.js';
 import { fetchAuthorAvatar } from '../../data/users.js';
 import { useCommentComposers } from './useCommentComposers.js';
 import { useRevealReplyComposer } from './useRevealReplyComposer.js';
+import { usePendingEdit, PendingEditNotice } from './usePendingEdit.js';
 import { useScrollResume } from '../../data/useScrollResume.js';
 import { EntryAuthorBlock, type FollowControl } from '../../components/EntryAuthorBlock.js';
 import { UserBadges } from '../../components/UserBadges.js';
@@ -73,10 +79,13 @@ import { fetchCalendarMonth, fetchHistoryItems } from '../../data/journalDays.js
 import { openUrl } from '../../platform/browser.js';
 import { resolveImage, invalidateImage } from '../../platform/imageCache.js';
 import { useAppNavigate } from '../../app/routes/useAppNavigate.js';
+import { useSignInPrompt } from '../../app/routes/useSignInPrompt.js';
 import { useOverlay } from '../../app/OverlayProvider.js';
 import { useAccountsStore, useActiveAccount, useCanWrite } from '../../state/accountsStore.js';
-import { signInGated } from '../../flows/accountsFlow.js';
 import { useAccountConfirmGate } from '../../flows/useAccountConfirmGate.js';
+import { useReport } from '../../flows/useReport.js';
+import { useShareLink } from '../../flows/useShareLink.js';
+import { entryShareText, entryShareUrl } from '../../flows/shareLink.js';
 import {
   starEntry,
   favoriteEntry,
@@ -125,11 +134,14 @@ function flattenComments(comments: ApiComment[], map: Map<string, ApiComment>): 
 export function EntryDetailScreen({ entryId, initialReplyToCommentId }: EntryDetailScreenProps) {
   const photoFit = useDevicePrefsStore((s) => s.photoFit);
   const navigate = useAppNavigate();
+  const { report, reportDialog } = useReport();
+  const { share, shareDialog } = useShareLink();
   const { showUpgradePrompt } = useOverlay();
   const activeAccount = useActiveAccount();
   const canWrite = useCanWrite();
   const hiddenMembers = useHiddenMembers();
   const { confirmAccount, dialog: accountConfirmDialog } = useAccountConfirmGate();
+  const signInPrompt = useSignInPrompt();
   const {
     entryState,
     prevEntryId,
@@ -153,6 +165,7 @@ export function EntryDetailScreen({ entryId, initialReplyToCommentId }: EntryDet
   const [confirmDeleteEntry, setConfirmDeleteEntry] = useState(false);
   const [downloadToast, setDownloadToast] = useState<string | null>(null);
   const [confirmHide, setConfirmHide] = useState(false);
+  const [hideCommenterTarget, setHideCommenterTarget] = useState<string | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<ApiComment | null>(null);
 
   const authorUsername = entryState.status === 'loaded' ? entryState.data.username : null;
@@ -214,6 +227,14 @@ export function EntryDetailScreen({ entryId, initialReplyToCommentId }: EntryDet
     composers.target?.kind === 'reply' ? composers.target.viewId : null,
   );
 
+  // A just-saved edit still in the upload queue is shown over the fetched entry (b-oss#412).
+  const pendingEdit = usePendingEdit(
+    entryId,
+    entryState.status === 'loaded' ? entryState.data : null,
+    refresh,
+  );
+  const applyPendingEdit = pendingEdit.apply;
+
   // EntryDetail renders stars_total/favorites_total straight from entryState.data itself — it
   // has no separate hook for an optimistic count the way the reactions slot does for the starred/
   // favorited booleans, so the optimistic bump/rollback in `reaction` has to be projected into the
@@ -224,13 +245,13 @@ export function EntryDetailScreen({ entryId, initialReplyToCommentId }: EntryDet
     return {
       ...entryState,
       data: {
-        ...entryState.data,
+        ...applyPendingEdit(entryState.data),
         stars_total: reaction?.starsTotal ?? entryState.data.stars_total,
         favorites_total: reaction?.favoritesTotal ?? entryState.data.favorites_total,
         comments: filterHiddenComments(entryState.data.comments, hiddenMembers),
       },
     };
-  }, [entryState, hiddenMembers, reaction]);
+  }, [entryState, hiddenMembers, reaction, applyPendingEdit]);
 
   // `entryState` itself is a fresh wrapper object on every call to useLiveEntry (every render),
   // even when nothing about the underlying resource changed — depending on it directly would
@@ -253,16 +274,14 @@ export function EntryDetailScreen({ entryId, initialReplyToCommentId }: EntryDet
 
   const hideForReadOnly = activeAccount !== null && activeAccount.appTokenScope !== 'read,write';
 
-  /** Shared FLW-06/07 gate: anonymous signs in first; with the confirm-account setting on and
-   * 2+ accounts, the account picker runs before the read-write check; a read-only result (of
-   * whichever account ends up active) shows the upgrade prompt instead of proceeding. */
+  /** Shared FLW-06/07 gate: anonymous gets the sign-in prompt and stops there; with the
+   * confirm-account setting on and 2+ accounts, the account picker runs before the read-write
+   * check; a read-only result (of whichever account ends up active) shows the upgrade prompt
+   * instead of proceeding. */
   async function gateReaction(confirmStep: boolean): Promise<boolean> {
     if (!useAccountsStore.getState().activeAccountId) {
-      try {
-        await signInGated();
-      } catch {
-        return false;
-      }
+      signInPrompt.prompt();
+      return false;
     }
     if (confirmStep) {
       const proceed = await confirmAccount();
@@ -364,7 +383,8 @@ export function EntryDetailScreen({ entryId, initialReplyToCommentId }: EntryDet
   }
 
   function handleReportComment(comment: ApiComment): void {
-    navigate.push(`/entry/${entryId}/report`, {
+    report({
+      entryId,
       targetUsername: comment.commenter.username,
       reportedComment: {
         username: comment.commenter.username,
@@ -398,9 +418,14 @@ export function EntryDetailScreen({ entryId, initialReplyToCommentId }: EntryDet
 
   function handleConfirmedHide(): void {
     setConfirmHide(false);
-    const account = useAccountsStore.getState();
-    if (!authorUsername || !account.activeAccountId) return;
-    useHiddenMembersStore.getState().hide(account.activeAccountId, authorUsername);
+    if (!authorUsername) return;
+    useHiddenMembersStore.getState().hide(authorUsername);
+  }
+
+  function handleConfirmedHideCommenter(): void {
+    const username = hideCommenterTarget;
+    setHideCommenterTarget(null);
+    if (username) useHiddenMembersStore.getState().hide(username);
   }
 
   // Own journal only — the flow refuses anything else, and the button is only offered for it.
@@ -415,20 +440,19 @@ export function EntryDetailScreen({ entryId, initialReplyToCommentId }: EntryDet
   }
 
   function handleReportEntry(): void {
-    navigate.push(`/entry/${entryId}/report`, { targetUsername: authorUsername ?? undefined });
+    report({ entryId, targetUsername: authorUsername ?? undefined });
   }
 
   function handleUnhideAuthor(): void {
-    const account = useAccountsStore.getState();
-    if (!authorUsername || !account.activeAccountId) return;
-    useHiddenMembersStore.getState().unhide(account.activeAccountId, authorUsername);
+    if (!authorUsername) return;
+    useHiddenMembersStore.getState().unhide(authorUsername);
   }
 
   function renderCommentActions(comment: BlipComment): ReactNode {
     const apiComment = commentActionsMap.get(comment.comment_id);
     if (!apiComment) return null;
     // Icon buttons in one small pill (Blipfoto's idiom) rather than a row of text buttons. You
-    // can't report your own comment, so Report only shows on other people's.
+    // can't report or hide your own comment, so Report and Hide member only show on other people's.
     const items: ActionPillItem[] = [];
     if (apiComment.actions.reply === 1) {
       items.push({
@@ -463,6 +487,12 @@ export function EntryDetailScreen({ entryId, initialReplyToCommentId }: EntryDet
         icon: <Flag size={15} strokeWidth={1.6} />,
         onClick: () => handleReportComment(apiComment),
       });
+      items.push({
+        key: 'hide',
+        label: 'Hide member',
+        icon: <EyeOff size={15} strokeWidth={1.6} />,
+        onClick: () => setHideCommenterTarget(apiComment.commenter.username),
+      });
     }
     return <ActionPill items={items} />;
   }
@@ -491,6 +521,16 @@ export function EntryDetailScreen({ entryId, initialReplyToCommentId }: EntryDet
         <AppHeader title="Entry" variant="back" backHref="/browse" accountIndicator />
       </IonHeader>
       <IonContent {...scroll}>
+        {/* Pull-down at the top reloads the entry and its comments in place (no spinner swap). */}
+        <IonRefresher
+          slot="fixed"
+          onIonRefresh={(e: CustomEvent<RefresherEventDetail>) => {
+            refresh();
+            e.detail.complete();
+          }}
+        >
+          <IonRefresherContent />
+        </IonRefresher>
         {entryState.status === 'loading' && (
           <div style={{ display: 'flex', justifyContent: 'center', padding: 32 }}>
             <IonSpinner />
@@ -515,6 +555,10 @@ export function EntryDetailScreen({ entryId, initialReplyToCommentId }: EntryDet
 
         {entryState.status === 'loaded' && !authorHidden && (
           <>
+            <PendingEditNotice
+              pendingEdit={pendingEdit}
+              onViewUploads={() => navigate.push('/uploads')}
+            />
             <EntryDetail
               photoFit={photoFit}
               entryState={displayEntryState}
@@ -548,6 +592,16 @@ export function EntryDetailScreen({ entryId, initialReplyToCommentId }: EntryDet
                       onToggleStar: () => void handleStar(),
                       onToggleFavorite: () => void handleFavorite(),
                     }
+                  : undefined
+              }
+              onShare={
+                authorUsername && entryState.status === 'loaded'
+                  ? () =>
+                      void share({
+                        url: entryShareUrl(entryId),
+                        text: entryShareText(entryState.data.title, authorUsername),
+                        ownerUsername: authorUsername,
+                      })
                   : undefined
               }
               commentComposer={
@@ -627,6 +681,8 @@ export function EntryDetailScreen({ entryId, initialReplyToCommentId }: EntryDet
                     follow={followControl}
                     onFollow={() => void handleFollow()}
                     onUnfollow={() => setConfirmUnfollow(true)}
+                    onReport={isOwnEntry ? undefined : handleReportEntry}
+                    onHide={isOwnEntry ? undefined : () => setConfirmHide(true)}
                     onOpenProfile={() =>
                       navigate.push(
                         isOwnEntry ? '/me' : `/user/${encodeURIComponent(authorUsername)}`,
@@ -653,33 +709,16 @@ export function EntryDetailScreen({ entryId, initialReplyToCommentId }: EntryDet
               renderCommentActions={renderCommentActions}
             />
 
-            {/* Report/Hide only exist for other people's entries (follow now lives in the author
-                block above), so on your own there is nothing to render here. */}
+            {/* The same two actions as the pill's Flag/UserX, as quiet text links at the foot of
+                other people's entries. */}
             {!isOwnEntry && (
-              <div
-                className="ion-padding"
-                style={{
-                  paddingTop: 0,
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 8,
-                  flexWrap: 'wrap',
-                }}
-              >
-                <button
-                  aria-label="Report"
-                  onClick={handleReportEntry}
-                  style={{ background: 'none', border: 'none', padding: 8, cursor: 'pointer' }}
-                >
-                  <Flag size={16} strokeWidth={1.6} />
+              <div className="ion-padding quiet-links quiet-links-row">
+                <button type="button" onClick={handleReportEntry}>
+                  Report
                 </button>
                 {authorUsername && (
-                  <button
-                    aria-label={`Hide ${authorUsername}`}
-                    onClick={() => setConfirmHide(true)}
-                    style={{ background: 'none', border: 'none', padding: 8, cursor: 'pointer' }}
-                  >
-                    <UserX size={16} strokeWidth={1.6} />
+                  <button type="button" onClick={() => setConfirmHide(true)}>
+                    Hide user
                   </button>
                 )}
               </div>
@@ -689,6 +728,7 @@ export function EntryDetailScreen({ entryId, initialReplyToCommentId }: EntryDet
       </IonContent>
 
       {accountConfirmDialog}
+      {signInPrompt.element}
 
       <IonAlert
         isOpen={confirmDeleteEntry}
@@ -737,6 +777,17 @@ export function EntryDetailScreen({ entryId, initialReplyToCommentId }: EntryDet
       />
 
       <IonAlert
+        isOpen={hideCommenterTarget !== null}
+        header={`Hide ${hideCommenterTarget ?? ''}?`}
+        message="You won't see their entries, comments or notifications. This doesn't stop them seeing your journal or commenting on your entries."
+        onDidDismiss={() => setHideCommenterTarget(null)}
+        buttons={[
+          { text: 'Cancel', role: 'cancel' },
+          { text: 'Hide', role: 'destructive', handler: handleConfirmedHideCommenter },
+        ]}
+      />
+
+      <IonAlert
         isOpen={!!deleteTarget}
         header="Delete comment?"
         onDidDismiss={() => setDeleteTarget(null)}
@@ -745,6 +796,8 @@ export function EntryDetailScreen({ entryId, initialReplyToCommentId }: EntryDet
           { text: 'Delete', role: 'destructive', handler: () => void handleConfirmedDelete() },
         ]}
       />
+      {reportDialog}
+      {shareDialog}
     </IonPage>
   );
 }

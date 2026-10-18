@@ -230,19 +230,24 @@ describe('SettingsScreen section routing', () => {
       expect(screen.queryByText(/Could not load/)).toBeNull();
     });
 
-    it('greys out the Blipfoto account rows and Hidden members', () => {
+    it('greys out the Blipfoto account rows', () => {
       renderHub();
       const item = (label: string) => screen.getAllByText(label)[0].closest('ion-item')!;
-      for (const label of ['Journal', 'Profile', 'Notifications', 'Hidden members']) {
+      for (const label of ['Journal', 'Profile', 'Notifications']) {
         expect(isDisabled(item(label))).toBe(true);
       }
       expect(isDisabled(screen.getAllByText('General')[0].closest('ion-item'))).toBe(true);
     });
 
-    it('keeps Accounts, App General and Browsing enabled and navigable', async () => {
+    it('keeps Accounts, App General, Hidden members and Browsing enabled and navigable', async () => {
       renderHub();
       const [, appGeneral] = screen.getAllByText('General');
-      for (const el of [screen.getByText('Accounts'), appGeneral, screen.getByText('Browsing')]) {
+      for (const el of [
+        screen.getByText('Accounts'),
+        appGeneral,
+        screen.getByText('Hidden members'),
+        screen.getByText('Browsing'),
+      ]) {
         expect(isDisabled(el.closest('ion-item'))).toBe(false);
       }
       await userEvent.click(appGeneral);

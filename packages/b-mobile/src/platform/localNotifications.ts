@@ -73,14 +73,17 @@ function nextOccurrence(time: ReminderTime, skipToday: boolean): Date {
   return candidate;
 }
 
+/** Resolves false only when the notification permission is refused — the caller turns the
+ * reminder off rather than keeping a third state (§12). Off native there's nothing to refuse, so
+ * that's true too (the no-op stance above). */
 async function scheduleAt(
   accountId: string,
   time: ReminderTime,
   skipToday: boolean,
-): Promise<void> {
-  if (!Capacitor.isNativePlatform()) return;
+): Promise<boolean> {
+  if (!Capacitor.isNativePlatform()) return true;
   const granted = await ensureNotificationPermission();
-  if (!granted) return; // A refusal turns the reminder off rather than a third state (§12).
+  if (!granted) return false;
 
   await LocalNotifications.schedule({
     notifications: [
@@ -93,15 +96,21 @@ async function scheduleAt(
         // Must match the channel id android/'s MainActivity creates at launch
         // (app-architecture.md §17's "notification channel per category").
         channelId: 'reminders',
+        // The plugin defaults to an exact alarm and, on Android 12+ without exact-alarm access,
+        // opens the "Alarms & reminders" settings screen before scheduling. Inexact is the
+        // intent here (see the header), so ask for it explicitly.
+        isExactNotification: false,
       },
     ],
   });
+  return true;
 }
 
 /** Used when the reminder is (re)enabled or its time changes — anchors at the next occurrence
- * from now (today, if that time hasn't passed yet; otherwise tomorrow). */
-export async function scheduleReminder(accountId: string, time: ReminderTime): Promise<void> {
-  await scheduleAt(accountId, time, false);
+ * from now (today, if that time hasn't passed yet; otherwise tomorrow). Resolves false if the
+ * notification permission was refused, so nothing was scheduled. */
+export function scheduleReminder(accountId: string, time: ReminderTime): Promise<boolean> {
+  return scheduleAt(accountId, time, false);
 }
 
 /** FLW-18's cancel-and-reschedule-on-publish — always anchors at tomorrow, regardless of whether

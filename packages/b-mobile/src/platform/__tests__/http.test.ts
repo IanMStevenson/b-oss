@@ -48,7 +48,29 @@ describe('platformFetch — native path', () => {
       headers: { authorization: 'Bearer t', 'content-type': 'application/x-www-form-urlencoded' },
       data: body.toString(),
       responseType: 'text',
+      connectTimeout: 5000,
+      readTimeout: 30000,
     });
+  });
+
+  it('gives GET a 10s read timeout and every mutating method 30s, all with a 5s connect timeout', async () => {
+    const { platformFetch } = await import('../http.js');
+    requestMock.mockResolvedValue({ data: '{}', status: 200, headers: {} });
+
+    for (const [method, readTimeout] of [
+      [undefined, 10000],
+      ['GET', 10000],
+      ['POST', 30000],
+      ['PUT', 30000],
+      ['PATCH', 30000],
+      ['DELETE', 30000],
+    ] as const) {
+      requestMock.mockClear();
+      await platformFetch('https://api.blipfoto.com/4/user.json', method ? { method } : undefined);
+      expect(requestMock).toHaveBeenCalledWith(
+        expect.objectContaining({ connectTimeout: 5000, readTimeout }),
+      );
+    }
   });
 
   it('defaults to GET with no body when init is omitted', async () => {
@@ -63,6 +85,8 @@ describe('platformFetch — native path', () => {
       headers: {},
       data: undefined,
       responseType: 'text',
+      connectTimeout: 5000,
+      readTimeout: 10000,
     });
   });
 

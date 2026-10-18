@@ -195,10 +195,11 @@ notification permission is found refused.
 ## System alert: reauth-required
 
 When the poll cannot use a row's read token, it marks the row `read-token-invalid` (which removes
-it from polling) and sends **one** `reauth-required` push. It is not resent: the status flag makes
-it idempotent, and a failed send is only logged. The push still reaches the device because FCM
-delivery uses the device token, not the Blipfoto token. If FCM reports that device as
-unregistered, the row is deleted instead.
+it from polling), sends **one** `reauth-required` push, then deletes the row (b-oss#394). A revoked
+token is never reinstated and the app registers afresh rather than reviving a row, so nothing is
+kept. The push still reaches the device because FCM delivery uses the device token, not the
+Blipfoto token. A failed send is only logged and loses that one push: the app's launch check
+treats a `GET` that finds no registration (404) the same as `read-token-invalid`.
 
 Triggers (`src/poll.ts`, `src/blipfoto.ts`):
 
@@ -212,8 +213,7 @@ token it would point to something wider (such as the app's client being rejected
 every row at once, so it is logged as an ordinary error and the row stays active (b-oss#238). At
 registration, 52 means junk input and gives 400.
 
-A row leaves `read-token-invalid` through a `PATCH` with a new read token. The app instead
-registers afresh and deletes the old row.
+The app registers afresh after signing in again; it does not revive the old row.
 
 ## Security notes
 

@@ -32,7 +32,10 @@ import {
   IonLabel,
   IonAlert,
 } from '@ionic/react';
-import { UserX } from 'lucide-react';
+import { Flag, Share2, UserX } from 'lucide-react';
+import { useReport } from '../../flows/useReport.js';
+import { useShareLink } from '../../flows/useShareLink.js';
+import { isJournalProtected, profileShareText, profileShareUrl } from '../../flows/shareLink.js';
 import { AppHeader } from '../../components/AppHeader.js';
 import { useResource } from '../../data/useResource.js';
 import { usePagedResource } from '../../data/usePagedResource.js';
@@ -45,9 +48,9 @@ import {
   JOURNAL_PAGE_SIZE,
 } from '../../data/users.js';
 import { followUser, unfollowUser } from '../../flows/reactionsFlow.js';
-import { signInGated } from '../../flows/accountsFlow.js';
 import { describeError, mapApiError } from '../../data/errors.js';
 import { useAppNavigate } from '../../app/routes/useAppNavigate.js';
+import { useSignInPrompt } from '../../app/routes/useSignInPrompt.js';
 import { useOverlay } from '../../app/OverlayProvider.js';
 import { useAccountsStore, useActiveAccount } from '../../state/accountsStore.js';
 import { resumeClear, resumeGet, resumeSet } from '../../data/resumeCache.js';
@@ -157,7 +160,10 @@ function GridTab({
 
 export function ProfileScreen({ username }: ProfileScreenProps) {
   const navigate = useAppNavigate();
+  const { report, reportDialog } = useReport();
+  const { share, shareDialog } = useShareLink();
   const { showUpgradePrompt } = useOverlay();
+  const signInPrompt = useSignInPrompt();
   const activeAccount = useActiveAccount();
   const isOwn = username === undefined || username === activeAccount?.username;
   const effectiveUsername = username ?? activeAccount?.username;
@@ -210,11 +216,8 @@ export function ProfileScreen({ username }: ProfileScreenProps) {
   async function handleFollow(): Promise<void> {
     if (!effectiveUsername) return;
     if (!useAccountsStore.getState().activeAccountId) {
-      try {
-        await signInGated();
-      } catch {
-        return;
-      }
+      signInPrompt.prompt();
+      return;
     }
     const fresh = useAccountsStore.getState();
     const active = fresh.accounts.find((a) => a.id === fresh.activeAccountId);
@@ -248,15 +251,13 @@ export function ProfileScreen({ username }: ProfileScreenProps) {
 
   function handleConfirmedHide(): void {
     setConfirmHide(false);
-    const account = useAccountsStore.getState();
-    if (!effectiveUsername || !account.activeAccountId) return;
-    useHiddenMembersStore.getState().hide(account.activeAccountId, effectiveUsername);
+    if (!effectiveUsername) return;
+    useHiddenMembersStore.getState().hide(effectiveUsername);
   }
 
   function handleUnhide(): void {
-    const account = useAccountsStore.getState();
-    if (!effectiveUsername || !account.activeAccountId) return;
-    useHiddenMembersStore.getState().unhide(account.activeAccountId, effectiveUsername);
+    if (!effectiveUsername) return;
+    useHiddenMembersStore.getState().unhide(effectiveUsername);
   }
 
   return (
@@ -326,7 +327,16 @@ export function ProfileScreen({ username }: ProfileScreenProps) {
                     gap: 6,
                   }}
                 >
-                  {state.data.user.username}
+                  <span
+                    style={{
+                      minWidth: 0,
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis',
+                      whiteSpace: 'nowrap',
+                    }}
+                  >
+                    {state.data.user.username}
+                  </span>
                   <UserBadges icons={state.data.user.icons} size={16} />
                 </h2>
                 {state.data.details?.journal_title && (
@@ -344,22 +354,77 @@ export function ProfileScreen({ username }: ProfileScreenProps) {
                   </p>
                 )}
               </div>
-              {!isOwn && (
+              {/* One tight cluster so the icons sit together and give the name the room. */}
+              <div style={{ display: 'flex', flex: 'none', alignItems: 'center' }}>
+                {/* Share goes first so Report/Hide stay the trailing pair; it is the one icon shown
+                  on every profile, own included (b-oss#417). */}
                 <button
-                  aria-label={`Hide ${state.data.user.username}`}
-                  onClick={() => setConfirmHide(true)}
+                  aria-label={`Share ${state.data.user.username}'s profile`}
+                  onClick={() =>
+                    void share({
+                      url: profileShareUrl(state.data.user.username),
+                      text: profileShareText(
+                        state.data.details?.journal_title,
+                        state.data.user.username,
+                      ),
+                      ownerUsername: state.data.user.username,
+                      isProtected: isJournalProtected(state.data),
+                    })
+                  }
                   style={{
                     flex: 'none',
                     background: 'none',
                     border: 'none',
-                    padding: 8,
+                    padding: 6,
                     cursor: 'pointer',
                     color: 'var(--muted)',
                   }}
                 >
-                  <UserX size={20} strokeWidth={1.6} aria-hidden="true" />
+                  <Share2 size={20} strokeWidth={1.6} aria-hidden="true" />
                 </button>
-              )}
+                {/* Reporting a member is an entry report against their latest entry, with the
+                  member named in the note (no other report resource exists), so it's only offered
+                  when there is an entry this viewer can see (b-oss#362). */}
+                {!isOwn && state.data.latestEntry && (
+                  <button
+                    aria-label={`Report ${state.data.user.username}`}
+                    onClick={() =>
+                      state.data.latestEntry &&
+                      report({
+                        entryId: state.data.latestEntry.entry_id_str,
+                        targetUsername: state.data.user.username,
+                        reportedMember: state.data.user.username,
+                      })
+                    }
+                    style={{
+                      flex: 'none',
+                      background: 'none',
+                      border: 'none',
+                      padding: 6,
+                      cursor: 'pointer',
+                      color: 'var(--muted)',
+                    }}
+                  >
+                    <Flag size={20} strokeWidth={1.6} aria-hidden="true" />
+                  </button>
+                )}
+                {!isOwn && (
+                  <button
+                    aria-label={`Hide ${state.data.user.username}`}
+                    onClick={() => setConfirmHide(true)}
+                    style={{
+                      flex: 'none',
+                      background: 'none',
+                      border: 'none',
+                      padding: 6,
+                      cursor: 'pointer',
+                      color: 'var(--muted)',
+                    }}
+                  >
+                    <UserX size={20} strokeWidth={1.6} aria-hidden="true" />
+                  </button>
+                )}
+              </div>
             </div>
 
             <nav
@@ -522,6 +587,9 @@ export function ProfileScreen({ username }: ProfileScreenProps) {
         onDidDismiss={() => setErrorMessage(null)}
         buttons={['OK']}
       />
+      {reportDialog}
+      {shareDialog}
+      {signInPrompt.element}
     </IonPage>
   );
 }

@@ -31,9 +31,24 @@ import { resolveImage, invalidateImage } from '../platform/imageCache.js';
 import { useHiddenMembers } from '../state/hiddenMembersStore.js';
 import { useAppNavigate } from '../app/routes/useAppNavigate.js';
 import { useDevicePrefsStore } from '../state/devicePrefsStore.js';
-import { resumeGet, resumeSet } from '../data/resumeCache.js';
+import { resumeClear, resumeGet, resumeSet } from '../data/resumeCache.js';
 
 const HIDDEN_THUMBNAIL = '__hidden__';
+
+// A hidden member's tile (b-oss#362): mid-grey with a white image glyph (lucide's Image, centred
+// at 32% of the tile), drawn as the tile's own image rather than ThumbnailGrid's pale "couldn't
+// load" placeholder, so it reads as deliberately withheld rather than broken.
+const HIDDEN_TILE_SRC =
+  'data:image/svg+xml,' +
+  encodeURIComponent(
+    '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">' +
+      '<rect width="100" height="100" fill="#9e9e9e"/>' +
+      '<g transform="translate(34 34) scale(1.333)" fill="none" stroke="#fff" stroke-width="1.6" ' +
+      'stroke-linecap="round" stroke-linejoin="round">' +
+      '<rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="9" cy="9" r="2"/>' +
+      '<path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/></g></svg>',
+  );
+const HIDDEN_LABEL = 'hidden user';
 
 // ThumbnailGrid's tile size is baseTileSize * sizePercent/100. Its own default base (156px) is
 // tuned for b-view-backup's desktop viewport with its own zoom controls — at a typical ~360px
@@ -122,7 +137,7 @@ export function EntryGrid({
               ...entry,
               title: '',
               journal_title: undefined,
-              username: undefined,
+              username: HIDDEN_LABEL,
               thumbnail_path: HIDDEN_THUMBNAIL,
             }
           : entry,
@@ -132,7 +147,7 @@ export function EntryGrid({
 
   const resolveAsset = useCallback(
     (path: string) =>
-      path === HIDDEN_THUMBNAIL ? Promise.reject(new Error('hidden member')) : resolveImage(path),
+      path === HIDDEN_THUMBNAIL ? Promise.resolve(HIDDEN_TILE_SRC) : resolveImage(path),
     [],
   );
 
@@ -142,7 +157,11 @@ export function EntryGrid({
     [],
   );
 
+  // Pull-down reloads from page 1, so the remembered grid page goes too — otherwise the rebuilt
+  // grid would restore the old page over the fresh data. (The feed's own resume entry is simply
+  // overwritten when the reload lands.)
   function handleRefresh(event: CustomEvent<RefresherEventDetail>): void {
+    if (topKey) resumeClear(topKey);
     onRefresh();
     event.detail.complete();
   }

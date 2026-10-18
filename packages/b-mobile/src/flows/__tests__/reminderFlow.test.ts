@@ -11,7 +11,7 @@ import { useDevicePrefsStore } from '../../state/devicePrefsStore.js';
 import { setReminderEnabled, onEntryPublished, cancelReminderForAccount } from '../reminderFlow.js';
 
 const { scheduleReminder, cancelReminder, rescheduleReminderSkippingToday } = vi.hoisted(() => ({
-  scheduleReminder: vi.fn().mockResolvedValue(undefined),
+  scheduleReminder: vi.fn().mockResolvedValue(true),
   cancelReminder: vi.fn().mockResolvedValue(undefined),
   rescheduleReminderSkippingToday: vi.fn().mockResolvedValue(undefined),
 }));
@@ -30,6 +30,7 @@ vi.mock('../../platform/prefs.js', () => ({
 
 beforeEach(() => {
   vi.clearAllMocks();
+  scheduleReminder.mockResolvedValue(true);
   useDevicePrefsStore.setState({
     confirmAccountBeforeReaction: false,
     reminders: {},
@@ -39,7 +40,7 @@ beforeEach(() => {
 
 describe('setReminderEnabled', () => {
   it('persists the setting and schedules when enabled', async () => {
-    await setReminderEnabled('acct1', true, { hour: 8, minute: 30 });
+    expect(await setReminderEnabled('acct1', true, { hour: 8, minute: 30 })).toBe('ok');
     expect(useDevicePrefsStore.getState().reminders.acct1).toEqual({
       enabled: true,
       hour: 8,
@@ -54,6 +55,30 @@ describe('setReminderEnabled', () => {
     expect(useDevicePrefsStore.getState().reminders.acct1.enabled).toBe(false);
     expect(cancelReminder).toHaveBeenCalledWith('acct1');
     expect(scheduleReminder).not.toHaveBeenCalled();
+  });
+
+  it('stores the reminder as off (time kept) when the notification permission is refused', async () => {
+    scheduleReminder.mockResolvedValue(false);
+    expect(await setReminderEnabled('acct1', true, { hour: 8, minute: 30 })).toBe('refused');
+    expect(useDevicePrefsStore.getState().reminders.acct1).toEqual({
+      enabled: false,
+      hour: 8,
+      minute: 30,
+    });
+  });
+
+  it('stores the reminder as off and rethrows when scheduling fails', async () => {
+    useDevicePrefsStore.getState().setReminder('acct1', { enabled: true, hour: 7, minute: 0 });
+    scheduleReminder.mockRejectedValue(new Error('boom'));
+    await expect(setReminderEnabled('acct1', true, { hour: 8, minute: 30 })).rejects.toThrow(
+      'boom',
+    );
+    expect(useDevicePrefsStore.getState().reminders.acct1).toEqual({
+      enabled: false,
+      hour: 8,
+      minute: 30,
+    });
+    expect(cancelReminder).toHaveBeenCalledWith('acct1');
   });
 });
 

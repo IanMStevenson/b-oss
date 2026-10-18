@@ -11,6 +11,7 @@ import { OverlayProvider, OverlayHost } from '../../../app/OverlayProvider.js';
 import { useAccountsStore } from '../../../state/accountsStore.js';
 import { useHiddenMembersStore } from '../../../state/hiddenMembersStore.js';
 import type { UserProfile } from '../../../data/users.js';
+import { t } from '../../../strings/index.js';
 
 vi.mock('../../../data/users.js', () => ({
   fetchUserProfile: vi.fn(),
@@ -28,6 +29,16 @@ const { followUser, unfollowUser } = vi.hoisted(() => ({
   unfollowUser: vi.fn(),
 }));
 vi.mock('../../../flows/reactionsFlow.js', () => ({ followUser, unfollowUser }));
+
+const report = vi.hoisted(() => vi.fn());
+vi.mock('../../../flows/useReport.js', () => ({
+  useReport: () => ({ report, reportDialog: null }),
+}));
+
+const share = vi.hoisted(() => vi.fn());
+vi.mock('../../../flows/useShareLink.js', () => ({
+  useShareLink: () => ({ share, shareDialog: null }),
+}));
 
 vi.mock('../../../platform/prefs.js', () => ({
   getPref: vi.fn().mockResolvedValue(null),
@@ -65,7 +76,7 @@ beforeEach(async () => {
   const users = await import('../../../data/users.js');
   vi.mocked(users.fetchAwards).mockResolvedValue([{}, {}, {}] as never);
   useAccountsStore.setState({ accounts: [meAccount], activeAccountId: 'a1', hydrated: true });
-  useHiddenMembersStore.setState({ hiddenByAccount: {}, hydrated: true });
+  useHiddenMembersStore.setState({ hidden: [], hydrated: true });
 });
 
 afterEach(() => {
@@ -139,6 +150,22 @@ describe('ProfileScreen', () => {
     expect(followUser).toHaveBeenCalledWith('alice');
   });
 
+  it('signed out, Follow asks the user to sign in and follows nobody (b-oss#397)', async () => {
+    useAccountsStore.setState({ accounts: [], activeAccountId: null, hydrated: true });
+    const { fetchUserProfile } = await import('../../../data/users.js');
+    vi.mocked(fetchUserProfile).mockResolvedValue(aliceProfile);
+    renderScreen('alice');
+    await userEvent.click(await screen.findByText('Follow', { selector: 'ion-button' }));
+    await waitFor(() =>
+      expect(
+        Array.from(document.querySelectorAll('ion-alert')).some(
+          (a) => a.getAttribute('header') === t('SIGN_IN_REQUIRED.title') && a.isOpen,
+        ),
+      ).toBe(true),
+    );
+    expect(followUser).not.toHaveBeenCalled();
+  });
+
   it('shows a protected message instead of entries when the journal is not visible to the viewer', async () => {
     const { fetchUserProfile } = await import('../../../data/users.js');
     vi.mocked(fetchUserProfile).mockResolvedValue({ ...aliceProfile, visible: false });
@@ -147,7 +174,7 @@ describe('ProfileScreen', () => {
   });
 
   it("shows the hidden-member state instead of a hidden member's profile", async () => {
-    useHiddenMembersStore.setState({ hiddenByAccount: { a1: ['alice'] }, hydrated: true });
+    useHiddenMembersStore.setState({ hidden: ['alice'], hydrated: true });
     const { fetchUserProfile } = await import('../../../data/users.js');
     vi.mocked(fetchUserProfile).mockResolvedValue(aliceProfile);
     renderScreen('alice');
@@ -163,9 +190,7 @@ describe('ProfileScreen', () => {
     expect(screen.queryByLabelText('More')).toBeNull();
     await userEvent.click(screen.getByLabelText('Hide alice'));
     await userEvent.click(await screen.findByText('Hide', { selector: '.alert-button-inner' }));
-    await waitFor(() =>
-      expect(useHiddenMembersStore.getState().hiddenByAccount['a1']).toEqual(['alice']),
-    );
+    await waitFor(() => expect(useHiddenMembersStore.getState().hidden).toEqual(['alice']));
   });
 
   it("shows the account indicator on another member's profile when there are two accounts", async () => {
@@ -179,6 +204,30 @@ describe('ProfileScreen', () => {
     renderScreen('alice');
     await screen.findByText("Alice's journal");
     expect(screen.getByLabelText('Switch account (currently me)')).toBeDefined();
+  });
+
+  it('reports a member against their latest entry, naming them in the report', async () => {
+    const { fetchUserProfile } = await import('../../../data/users.js');
+    vi.mocked(fetchUserProfile).mockResolvedValue({
+      ...aliceProfile,
+      latestEntry: { entry_id_str: '77' } as UserProfile['latestEntry'],
+    });
+    renderScreen('alice');
+    await screen.findByText("Alice's journal");
+    await userEvent.click(screen.getByLabelText('Report alice'));
+    expect(report).toHaveBeenCalledWith({
+      entryId: '77',
+      targetUsername: 'alice',
+      reportedMember: 'alice',
+    });
+  });
+
+  it('offers no member Report when there is no entry to report against', async () => {
+    const { fetchUserProfile } = await import('../../../data/users.js');
+    vi.mocked(fetchUserProfile).mockResolvedValue(aliceProfile); // latestEntry: null
+    renderScreen('alice');
+    await screen.findByText("Alice's journal");
+    expect(screen.queryByLabelText('Report alice')).toBeNull();
   });
 
   it('does not show a Hide button on your own profile', async () => {
@@ -241,5 +290,40 @@ describe('ProfileScreen', () => {
       .dispatchEvent(new CustomEvent('ionChange', { detail: { value: 'followers' } }));
     expect(await screen.findByText('bob')).toBeDefined();
     expect(fetchFollowers).toHaveBeenCalledWith('alice', 0);
+  });
+
+  it("shares the profile link with the journal title, on another member's open journal", async () => {
+    const { fetchUserProfile } = await import('../../../data/users.js');
+    vi.mocked(fetchUserProfile).mockResolvedValue(aliceProfile);
+    renderScreen('alice');
+    await userEvent.click(await screen.findByLabelText("Share alice's profile"));
+    expect(share).toHaveBeenCalledWith({
+      url: 'https://www.blipfoto.com/alice',
+      text: "Alice's journal on Blipfoto",
+      ownerUsername: 'alice',
+      isProtected: false,
+    });
+  });
+
+  it('marks the share as protected when the viewer cannot see the journal', async () => {
+    const { fetchUserProfile } = await import('../../../data/users.js');
+    vi.mocked(fetchUserProfile).mockResolvedValue({
+      ...aliceProfile,
+      details: null,
+      visible: false,
+    });
+    renderScreen('alice');
+    await userEvent.click(await screen.findByLabelText("Share alice's profile"));
+    expect(share).toHaveBeenCalledWith(expect.objectContaining({ isProtected: true }));
+  });
+
+  it('offers Share on your own profile too', async () => {
+    const { fetchUserProfile } = await import('../../../data/users.js');
+    vi.mocked(fetchUserProfile).mockResolvedValue({
+      ...aliceProfile,
+      user: { ...aliceProfile.user, username: 'me' },
+    });
+    renderScreen();
+    expect(await screen.findByLabelText("Share me's profile")).toBeDefined();
   });
 });

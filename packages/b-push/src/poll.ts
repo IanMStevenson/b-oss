@@ -59,7 +59,10 @@ interface PollOneOutcome {
   pushed: number;
 }
 
-/** Marks the row dead and sends the one distinct reauth-required push. */
+/** Marks the row dead, sends the one distinct reauth-required push, then deletes the row: a
+ * revoked token is never reinstated and the app registers afresh rather than reviving a row, so
+ * there is nothing to keep (b-oss#394). A failed send loses that one push; the app's launch check
+ * covers it, since a registration that no longer exists is read there as a dead token. */
 async function reauthRequired(ctx: PollContext, reg: RegistrationRow): Promise<void> {
   const { db, env, budget, nowMs } = ctx;
   budget.spend(1);
@@ -72,19 +75,16 @@ async function reauthRequired(ctx: PollContext, reg: RegistrationRow): Promise<v
       accountId: reg.blipfoto_user_id,
     },
     budget,
-  ).catch(async (sendErr: unknown) => {
-    // The device is gone, so nobody can act on the reauth push: drop the row and its token.
+  ).catch((sendErr: unknown) => {
     if (sendErr instanceof DeviceUnregisteredError) {
-      budget.spend(1);
-      await deleteRegistration(db, reg.id);
-      console.log(`[b-push] removed ${reg.id}: device unregistered`);
+      console.log(`[b-push] ${reg.id}: device unregistered`);
       return;
     }
     console.error(`[b-push] reauth push failed for ${reg.id}: ${describeError(sendErr)}`);
-    // Best-effort — the row's own status flag (not a resend) is what makes this idempotent;
-    // a failed send here is retried next time something else marks the row for reauth, not
-    // by this tick itself.
   });
+  budget.spend(1);
+  await deleteRegistration(db, reg.id);
+  console.log(`[b-push] removed ${reg.id}: read token no longer valid`);
 }
 
 async function pollOne(ctx: PollContext, reg: RegistrationRow): Promise<PollOneOutcome> {

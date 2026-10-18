@@ -59,6 +59,7 @@ import { useDebouncedValue } from '../../data/useDebounce.js';
 import { resumeGet, resumeSet } from '../../data/resumeCache.js';
 import { useHiddenMembers } from '../../state/hiddenMembersStore.js';
 import { useAppNavigate } from '../../app/routes/useAppNavigate.js';
+import { errorMessageOf } from '../../data/errors.js';
 
 interface MapScreenProps {
   /** From the `?entry=<id>` query param (app-architecture.md §5's route table) — AppRoutes.tsx
@@ -303,7 +304,7 @@ export function MapScreen({ focusedEntryId }: MapScreenProps) {
         // Non-blocking per SCR-04: the map (and its already-shown markers, if any) stay usable;
         // the next pan/zoom tries again on its own, no explicit retry action.
         setEntriesStatus('error');
-        setEntriesError(err instanceof Error ? err.message : 'Could not load entries.');
+        setEntriesError(errorMessageOf(err, 'Could not load entries.'));
       },
     );
   }, [debouncedBounds, renderMarkers]);

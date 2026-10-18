@@ -66,6 +66,8 @@ export const STRINGS = {
   'ERR.101.username_invalid': "That username isn't valid.",
   'ERR.102.username_taken': 'That username is already taken.',
   'ERR.104.protected': 'Protected',
+  'ERR.network.offline': "You're offline. Check your connection and try again.",
+  'ERR.network.timeout': 'The request timed out. Try again.',
   'ERR.11.rate_limited': 'Please wait a moment and try again.',
   'ERR.202.entry_unavailable': 'This entry is no longer available.',
   'ERR.205.comments_disabled': 'Comments are turned off for this journal.',
@@ -102,6 +104,9 @@ export const STRINGS = {
     'This needs one more sign-in step, to authorize posting, reacting, commenting and following.',
   'FLW22.upgrade_to_readwrite.button': 'Continue',
   'FLW22.upgrade_to_readwrite.title': 'Switch {username} to read-write?',
+  'GENERIC.crash.body': 'The app hit an unexpected problem. Reloading usually fixes it.',
+  'GENERIC.crash.reload_button': 'Reload',
+  'GENERIC.crash.title': 'Something went wrong',
   'GENERIC.error.list_load': "Couldn't load this. Check your connection and try again.",
   'GENERIC.error.retry_button': 'Retry',
   'HIDDEN.grid_tile.caption': 'Hidden',
@@ -144,13 +149,6 @@ export const STRINGS = {
   'SCR-01.mode.read_write.subtitle': 'Post, react, comment, follow',
   'SCR-01.mode.read_write.title': 'Read-write',
   'SCR-01.notifications_toggle': 'Get notifications',
-  'SCR-01.reason.comment': 'Sign in to comment',
-  'SCR-01.reason.favourite': 'Sign in to favourite this entry',
-  'SCR-01.reason.follow': 'Sign in to follow {username}',
-  'SCR-01.reason.generic': 'Sign in to continue',
-  'SCR-01.reason.publish': 'Sign in to post your photo',
-  'SCR-01.reason.report': 'Sign in to report this',
-  'SCR-01.reason.star': 'Sign in to star this entry',
   'SCR-01.second_auth.button_continue': 'Sign in again',
   'SCR-01.second_auth.button_skip': 'Skip notifications',
   'SCR-01.tooltip.read_only':
@@ -188,6 +186,7 @@ export const STRINGS = {
   'SCR-13.error.generic': "Couldn't save your changes. Check your connection and try again.",
   'SCR-14.empty':
     "No uploads yet. Entries you publish will show up here while they're on their way.",
+  'SCR-15.error.text_kept': 'Your text is still here.',
   'SCR-15.error.post_failed': "Couldn't post your comment. Your text is still here - try again.",
   'SCR-16.error.no_reason': 'Select a reason',
   'SCR-17.empty.awards': 'No awards yet.',
@@ -255,7 +254,7 @@ export const STRINGS = {
   'SCR-29.safety_privacy.delete_comment':
     'Delete a comment - on your own entries, you can remove any comment, from anyone, straight away. No need to wait for a report.',
   'SCR-29.safety_privacy.hide':
-    "Hide a member - you stop seeing their entries, comments and notifications. It's personal, immediate and reversible, and they're never told. It doesn't stop them seeing your journal or commenting on your entries.",
+    "Hide a member - this app's block. You stop seeing their entries, comments and notifications on this device, whichever account you're using and even signed out. It's personal, immediate and reversible, and they're never told. It doesn't stop them seeing your journal or commenting on your entries.",
   'SCR-29.safety_privacy.intro':
     "A few different tools handle unwanted attention, and they do different jobs - here's what each one actually does.",
   'SCR-29.safety_privacy.refuse':
@@ -263,7 +262,7 @@ export const STRINGS = {
   'SCR-29.safety_privacy.remove_follower':
     'Remove a follower - ends the relationship. On a private journal they lose access, but they can ask to follow again; on a public journal your entries were never hidden from them anyway.',
   'SCR-29.safety_privacy.report':
-    "Report - sends an entry or a comment to Blipfoto's moderators, who can act for everyone, not just you. Use this for anything that should be looked at more widely.",
+    "Report - sends an entry, a comment or a member to Blipfoto's moderators, who can act for everyone, not just you. Use this for anything that should be looked at more widely. Reporting from inside the app needs a read-write sign-in; signed out or read-only, Report opens Blipfoto's support request form instead.",
   'SCR-30.button.remove': 'Remove',
   'SCR-30.button.sign_in_again': 'Sign in again',
   'SCR-30.detail.mode': 'Mode',
@@ -290,6 +289,14 @@ export const STRINGS = {
     "You won't see their entries, comments or notifications. This doesn't stop them seeing your journal or commenting on it.",
   'SCR-31.public_journal_warning':
     'Your journal is public, so hidden members can still see your entries.',
+  'SIGN_IN_REQUIRED.button.cancel': 'Cancel',
+  'SIGN_IN_REQUIRED.button.sign_in': 'Sign in now',
+  'SIGN_IN_REQUIRED.title': 'You must be signed in to do this',
+  'SHARE.dialog_title': 'Share link',
+  'SHARE.protected.body':
+    'The link will only open for signed-in members who have been accepted as followers of {username}.',
+  'SHARE.protected.button_share': 'Share anyway',
+  'SHARE.protected.title': 'This journal is protected',
   'UPGRADE.body':
     "{username} is signed in read-only, so it can't do that. Switch to read-write to continue - you'll be asked to sign in again for write access.",
   'UPGRADE.button.confirm': 'Switch to read-write',

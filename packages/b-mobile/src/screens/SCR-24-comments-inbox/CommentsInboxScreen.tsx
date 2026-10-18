@@ -46,12 +46,14 @@ import { useNotificationCountsStore } from '../../state/notificationCountsStore.
 import { BBCodeText } from '@b-oss/b-view';
 import { openUrl } from '../../platform/browser.js';
 import { InboxRow, RowThumb } from '../../components/InboxRow.js';
+import { useReport } from '../../flows/useReport.js';
 import type { BlipComment } from '@b-oss/b-api';
 
 type Status = 'loading' | 'loaded' | 'empty' | 'error';
 
 export function CommentsInboxScreen() {
   const navigate = useAppNavigate();
+  const { report, reportDialog } = useReport();
   const hiddenUsernames = useHiddenMembers();
   const activeAccountId = useAccountsStore((s) => s.activeAccountId);
   const clearComments = useNotificationCountsStore((s) => s.clearComments);
@@ -108,8 +110,7 @@ export function CommentsInboxScreen() {
   }
 
   function handleHide(username: string): void {
-    if (!activeAccountId) return;
-    useHiddenMembersStore.getState().hide(activeAccountId, username);
+    useHiddenMembersStore.getState().hide(username);
   }
 
   async function handleConfirmedDelete(): Promise<void> {
@@ -136,7 +137,8 @@ export function CommentsInboxScreen() {
 
   function handleReport(comment: BlipComment): void {
     if (!comment.entry_id_str) return;
-    navigate.push(`/entry/${encodeURIComponent(comment.entry_id_str)}/report`, {
+    report({
+      entryId: comment.entry_id_str,
       targetUsername: comment.commenter.username,
       reportedComment: {
         username: comment.commenter.username,
@@ -275,6 +277,7 @@ export function CommentsInboxScreen() {
         onDidDismiss={() => setActionError(null)}
         buttons={['OK']}
       />
+      {reportDialog}
     </IonPage>
   );
 }

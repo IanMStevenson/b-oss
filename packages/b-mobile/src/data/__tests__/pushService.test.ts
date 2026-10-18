@@ -123,6 +123,21 @@ describe('getRegistrationStatus', () => {
   });
 });
 
+describe('getRegistrationStatus not found (b-oss#394)', () => {
+  it('returns not-found for a 404', async () => {
+    platformFetch.mockResolvedValue(jsonResponse({ error: 'No such registration' }, 404));
+    await expect(getRegistrationStatus('r1', 'sec')).resolves.toEqual({
+      status: 'not-found',
+      lastPolledAt: null,
+    });
+  });
+
+  it('still throws for other failures', async () => {
+    platformFetch.mockResolvedValue(jsonResponse({ error: 'boom' }, 500));
+    await expect(getRegistrationStatus('r1', 'sec')).rejects.toBeInstanceOf(PushServiceError);
+  });
+});
+
 describe('deleteRegistration', () => {
   it('DELETEs with the bearer secret', async () => {
     platformFetch.mockResolvedValue(new Response(null, { status: 204 }));
