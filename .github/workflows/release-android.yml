@@ -92,7 +92,8 @@ jobs:
       - name: Check the bundle
         run: |
           aab=packages/b-mobile/android/app/build/outputs/bundle/release/app-release.aab
-          jarsigner -verify "$aab"
+          # jarsigner is noisy about bundles (self-signed, no timestamp); only the verdict matters.
+          if out=$(jarsigner -verify "$aab" 2>&1); then echo "$out" | head -1; else echo "$out"; exit 1; fi
           # Play requires native libraries aligned for 16 KB pages.
           dir=$(mktemp -d)
           unzip -q "$aab" 'base/lib/*' -d "$dir" || true
