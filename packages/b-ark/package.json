@@ -22,12 +22,12 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@b-oss/b-ark-ui-electron": "*",
-    "@b-oss/backup-engine": "*",
     "@b-oss/b-api": "*",
+    "@b-oss/b-ark-ui-electron": "*",
     "@b-oss/b-view-backup": "*",
+    "@b-oss/backup-engine": "*",
     "electron-log": "^5.0.0",
-    "electron-store": "^11.0.2",
+    "electron-store": "^12.0.0",
     "electron-updater": "^6.0.0",
     "lucide-react": "^1.55.0",
     "react": "^19.3.0",
