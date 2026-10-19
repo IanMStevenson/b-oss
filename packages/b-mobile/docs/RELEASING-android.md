@@ -3,32 +3,35 @@
 Release is manual. Publisher: Salient Point (Play developer account). Application ID
 `uk.co.salientpoint.bmobile` (permanent once first uploaded).
 
-## Keys
+## Keys and where signing happens
 
 Play App Signing is used: Google holds the **app signing key**; we hold only an **upload key**,
 which proves an upload is ours. If the upload key is lost or leaked, Google can reset it (support
 request), so it is recoverable, but treat it as a secret.
 
-**The upload key lives on Windows only, never on the build VM.** The VM builds an unsigned
-bundle; signing happens on the machine that holds the key. Upload is manual (Play Console).
+**Releases are built and signed by GitHub Actions, never on the dev VM or a laptop.** The upload
+key exists only as secrets of the `play-release` Environment (plus a backup in the password
+manager). Nothing runs until Ian approves it, and only `b-mobile-v*` tags may deploy to it.
+Upload to Play is manual: download the signed bundle from the run and drop it in the Console.
 
-- Keep the keystore outside any synced or shared folder (not under the repo, the Mutagen relays
-  or the Samba-shared tree), with a backup in the password manager (attach the file).
-- Alias, keystore password and key password: in the password manager. Also record the
-  certificate's SHA-256 fingerprint; Play shows it after the first upload.
+### One-time setup (Ian, in GitHub settings)
 
-### One-time setup on Windows
-
-1. Install a JDK, which provides `keytool` and `jarsigner` (no Android SDK or Android Studio
-   needed): `winget install EclipseAdoptium.Temurin.21.JDK`, then reopen the terminal and check
-   `keytool -help`.
-2. Create the key (it prompts for the passwords):
-
-```powershell
-keytool -genkeypair -v -keystore C:\keys\b-mobile-upload.jks -alias upload `
-  -keyalg RSA -keysize 2048 -validity 9125 `
-  -dname "CN=Salient Point Consulting Ltd, O=Salient Point Consulting Ltd, C=GB"
-```
+1. **Environment** `play-release` (Settings, Environments): required reviewer = Ian; "Deployment
+   branches and tags" = selected tags, pattern `b-mobile-v*`.
+2. **Tag ruleset** (Settings, Rules, Rulesets, new tag ruleset): target `refs/tags/b-mobile-v*`,
+   restrict creations (and updates/deletions) with only Ian on the bypass list, so agents and
+   branches cannot trigger a release. Only approve runs for tags you created from a commit on
+   `main` or `b-mobile-initial` (the workflow also checks this).
+3. **Environment variables:** `VITE_BLIPFOTO_CLIENT_ID`, `VITE_OAUTH_REDIRECT_URI`
+   (`bmobile://oauth/`), `VITE_NOTIFY_SERVICE_URL`, `UPLOAD_KEY_ALIAS`.
+4. **Environment secrets:** `VITE_NOTIFY_REGISTRATION_SECRET`, `VITE_MAP_TILES_KEY`,
+   `GOOGLE_SERVICES_JSON` (the file's contents; not secret, but gitignored), and the key itself:
+   `UPLOAD_KEYSTORE_BASE64`, `UPLOAD_KEYSTORE_PASSWORD`, `UPLOAD_KEY_PASSWORD`.
+   On Windows, with nothing to install: `[Convert]::ToBase64String([IO.File]::ReadAllBytes('b-mobile-upload.jks')) | Set-Clipboard`.
+5. **The key:** created once with `keytool` (alias `upload`, RSA 2048, validity 9125 days, owner
+   `CN=Salient Point Consulting Ltd, O=Salient Point Consulting Ltd, C=GB`). Attach the file to
+   the password manager with its passwords and the certificate's SHA-256, then delete every other
+   copy. Play shows the same SHA-256 after the first upload.
 
 ## Versioning
 
@@ -73,24 +76,20 @@ the commit you intend to ship.
 
 ## Cutting an upload
 
-1. **On the VM:** clean working tree on the commit to ship (the script refuses otherwise), with
-   `android/app/google-services.json` (gitignored; worktrees do not copy it) and `.env.local` at
-   the repo root present. Run `packages/b-mobile/scripts/build-release-aab.sh`. Output, UNSIGNED:
-   `android/app/build/outputs/bundle/release/app-release.aab`. Check it is 16 KB-aligned if native
-   libraries changed (see #360).
-2. **Move it to Windows:** the dev tree is shared over Samba, so the file is at
-   `X:\<worktree>\packages\b-mobile\android\app\build\outputs\bundle\release\app-release.aab`
-   (the drive letter depends on the box).
-3. **On Windows:** `scripts\sign-aab.ps1 -Aab <that file> -Keystore C:\keys\b-mobile-upload.jks`.
-   It writes `app-release-signed.aab` and prints the signing certificate. (Without the script:
-   `jarsigner -keystore <jks> -sigalg SHA256withRSA -digestalg SHA-256 <aab> upload`.)
-4. **Upload** the signed file in the Play Console (internal testing track first). The first upload
-   registers its certificate as the upload key; compare the SHA-256 with the one you recorded.
+1. Make sure the checklist above is done and the commit to ship is on `main` or
+   `b-mobile-initial`, with `version` in `packages/b-mobile/package.json` set.
+2. Ian creates and pushes the tag `b-mobile-v<version>` (for example `b-mobile-v1.0.0`; a suffix
+   such as `-rc1` is allowed for test runs). The tag version must equal `package.json`.
+3. The workflow `Release b-mobile (Android)` starts and waits for approval. Ian approves it.
+4. It builds from a clean clone, signs, verifies the signature and 16 KB alignment, prints the
+   signing certificate in the run summary, and attaches `app-release.aab`.
+5. Download the artifact and upload it in the Play Console (internal testing track first). The
+   first upload registers its certificate as the upload key; compare the SHA-256 with your record.
 
-On the egress-controlled dev VM, see the Gradle proxy notes in the repo `CLAUDE.md`.
+`scripts/build-release-aab.sh` with no arguments builds an unsigned bundle locally (checks only).
 
-## Optional: signing on the build machine
+## Local signing (not the normal route)
 
-`android/app/build.gradle` can sign during the build if `BMOBILE_UPLOAD_STORE_FILE`,
-`BMOBILE_UPLOAD_STORE_PASSWORD`, `BMOBILE_UPLOAD_KEY_ALIAS` and `BMOBILE_UPLOAD_KEY_PASSWORD` are
-set. The standard flow does not use it, and `build-release-aab.sh` deliberately ignores it.
+`android/app/build.gradle` signs when `BMOBILE_UPLOAD_STORE_FILE`, `BMOBILE_UPLOAD_STORE_PASSWORD`,
+`BMOBILE_UPLOAD_KEY_ALIAS` and `BMOBILE_UPLOAD_KEY_PASSWORD` are set; the workflow uses this via
+`build-release-aab.sh --sign`. Do not put the real key on a development machine.
