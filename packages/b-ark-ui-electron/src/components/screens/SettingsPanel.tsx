@@ -195,6 +195,77 @@ function AccountRow({ account }: { account: AccountConfig }) {
   );
 }
 
+function WebSessionRow({ account }: { account: AccountConfig }) {
+  const { state, backend } = useApp();
+  const [busy, setBusy] = useState(false);
+  const signedIn = account.web_session_signed_in === true;
+  const backingUp = state.backupProgress[account.id]?.running === true;
+  const disabled = busy || backingUp;
+
+  async function run(action: Promise<unknown> | undefined): Promise<void> {
+    if (!action) return;
+    setBusy(true);
+    try {
+      await action;
+    } catch {
+      /* errors surface via the store / no-op */
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <div
+      style={{
+        display: 'flex',
+        alignItems: 'center',
+        gap: 12,
+        padding: '10px 0',
+        borderTop: '1px solid var(--line-2)',
+      }}
+    >
+      <img
+        src={account.avatar_url}
+        alt=""
+        style={{ width: 32, height: 32, borderRadius: '50%', flexShrink: 0 }}
+      />
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{ fontSize: 13, fontWeight: 500, color: 'var(--ink)' }}>
+          {account.journal_title}
+        </div>
+        <div
+          style={{
+            fontSize: 12,
+            color: signedIn ? 'var(--rag-green)' : 'var(--muted)',
+          }}
+        >
+          {signedIn ? 'Signed in' : 'Not signed in'}
+        </div>
+      </div>
+      <button
+        onClick={() => {
+          void run(signedIn ? backend.webLogout?.(account.id) : backend.webLogin?.(account.id));
+        }}
+        disabled={disabled}
+        style={{
+          height: 30,
+          padding: '0 12px',
+          borderRadius: 7,
+          border: '1px solid var(--line)',
+          background: 'white',
+          color: signedIn ? 'var(--ink-2)' : 'var(--green-800)',
+          fontSize: 13,
+          fontWeight: 500,
+          cursor: disabled ? 'default' : 'pointer',
+          opacity: disabled ? 0.5 : 1,
+        }}
+      >
+        {busy ? '…' : signedIn ? 'Sign out' : 'Sign in…'}
+      </button>
+    </div>
+  );
+}
+
 export function SettingsPanel() {
   const { state, dispatch, backend } = useApp();
   const showToast = useToast();
@@ -221,6 +292,10 @@ export function SettingsPanel() {
   const [showInfoOverlay, setShowInfoOverlay] = useState(store?.ui.showInfoOverlay ?? true);
   const [startWithWindows, setStartWithWindows] = useState(store?.app.startWithWindows ?? true);
   const [autoUpdateEnabled, setAutoUpdateEnabled] = useState(store?.app.autoUpdateEnabled ?? true);
+  const [enableWebScrape, setEnableWebScrape] = useState(
+    firstAcct?.enable_web_scrape ?? false,
+  );
+  const [downloadHires, setDownloadHires] = useState(firstAcct?.download_hires ?? false);
 
   const [focusedField, setFocusedField] = useState<string | null>(null);
 
@@ -239,6 +314,8 @@ export function SettingsPanel() {
     setShowInfoOverlay(store.ui.showInfoOverlay);
     setStartWithWindows(store.app.startWithWindows);
     setAutoUpdateEnabled(store.app.autoUpdateEnabled);
+    setEnableWebScrape(a.enable_web_scrape ?? false);
+    setDownloadHires(a.download_hires ?? false);
   }, [store]);
 
   if (!store) return null;
@@ -317,8 +394,8 @@ export function SettingsPanel() {
           {/* Folder */}
           <SettingBlock
             label="Folder"
-            hint="Where backups and settings are stored"
-            description="b-ark-settings.json lives here so your setup follows the folder between machines. Moving the folder updates the pointer only — existing backup files are not moved."
+            hint="Shared across all journals"
+            description="Where backups and settings are stored. b-ark-settings.json lives here so your setup follows the folder between machines. Moving the folder updates the pointer only — existing backup files are not moved. One folder for every account, each getting its own {folder}/{username} subfolder; you can't point a single account at a different folder."
           >
             <div style={{ display: 'flex' }}>
               <input
@@ -485,7 +562,8 @@ export function SettingsPanel() {
 
           <SettingBlock
             label="Delay"
-            description="Pause between each entry fetch (useful to avoid bandwidth hogging during working hours). Default 0. Shared across all journals."
+            hint="Shared across all journals"
+            description="Pause between each entry fetch (useful to avoid bandwidth hogging during working hours). Default 0."
           >
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
               <input
@@ -510,8 +588,8 @@ export function SettingsPanel() {
 
           <SettingBlock
             label="Gap check"
-            hint="Days to look back"
-            description="On each run, look back this many days and fill in any missing entries. Shared across all journals."
+            hint="Shared across all journals"
+            description="On each run, look back this many days and fill in any missing entries."
           >
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
               <input
@@ -536,8 +614,8 @@ export function SettingsPanel() {
 
           <SettingBlock
             label="Redo"
-            hint="Most-recent entries to refresh"
-            description="Re-download this many of the latest entries each run, in case captions or comments have changed. Shared across all journals."
+            hint="Shared across all journals"
+            description="Re-download this many of the latest entries each run, in case captions or comments have changed."
           >
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
               <input
@@ -561,7 +639,65 @@ export function SettingsPanel() {
           </SettingBlock>
 
           <SettingBlock
+            label="Full-resolution & extra images"
+            hint="Shared across all journals"
+            description="Blipfoto's API doesn't give distributed apps original-size images, hi-res images, or an entry's extra images. Turn this on to fetch them by scraping the logged-in blipfoto.com website. Each journal needs its own website sign-in; nothing is uploaded and the sign-in is stored locally, encrypted."
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 4 }}>
+              <PillToggle
+                checked={enableWebScrape}
+                onChange={(v) => {
+                  setEnableWebScrape(v);
+                  save({ enableWebScrape: v });
+                }}
+              />
+              <span style={{ fontSize: 13, color: 'var(--ink-2)' }}>
+                {enableWebScrape ? 'On' : 'Off'}
+              </span>
+            </div>
+
+            <div
+              style={{
+                opacity: enableWebScrape ? 1 : 0.4,
+                pointerEvents: enableWebScrape ? 'auto' : 'none',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: 6,
+                marginBottom: 12,
+              }}
+            >
+              <span style={{ fontSize: 12, color: 'var(--muted)' }}>
+                Always download hires images too, even when the original is already
+                available (a redundant extra copy). A hires image is fetched
+                regardless of this setting whenever the original isn't available.
+              </span>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <PillToggle
+                  checked={downloadHires}
+                  onChange={(v) => {
+                    setDownloadHires(v);
+                    save({ downloadHires: v });
+                  }}
+                />
+                <span style={{ fontSize: 13, color: 'var(--ink-2)' }}>
+                  {downloadHires ? 'On' : 'Off'}
+                </span>
+              </div>
+            </div>
+
+            {enableWebScrape &&
+              (store.accounts.length === 0 ? (
+                <div style={{ fontSize: 12, color: 'var(--muted)', padding: '8px 0' }}>
+                  Add an account first, then sign in to its website here.
+                </div>
+              ) : (
+                store.accounts.map((a) => <WebSessionRow key={a.id} account={a} />)
+              ))}
+          </SettingBlock>
+
+          <SettingBlock
             label="Show journal info overlay"
+            hint="Shared across all journals"
             description="Displays the date and title at the bottom of each thumbnail in the grid view."
           >
             <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
@@ -580,7 +716,8 @@ export function SettingsPanel() {
 
           <SettingBlock
             label="Start with Windows"
-            description="Open b-ark automatically on login. It stays in the system tray until you open it."
+            hint="This device only"
+            description="Open b-ark automatically on login. It stays in the system tray until you open it. Unlike the settings above, this doesn't travel with the backup folder to another machine."
           >
             <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
               <PillToggle
@@ -598,6 +735,7 @@ export function SettingsPanel() {
 
           <SettingBlock
             label="Check for updates automatically"
+            hint="This device only"
             description="At startup, b-ark checks GitHub for a newer release and offers to install it. Turn off if you'd rather update manually. Takes effect at next launch."
           >
             <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>

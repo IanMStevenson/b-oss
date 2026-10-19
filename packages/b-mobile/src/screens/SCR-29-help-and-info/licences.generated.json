@@ -79,7 +79,7 @@
     },
     {
       "name": "@capacitor/camera",
-      "version": "8.2.5",
+      "version": "8.2.6",
       "license": "MIT",
       "repository": "https://github.com/ionic-team/capacitor-camera",
       "texts": [3]
@@ -100,14 +100,14 @@
     },
     {
       "name": "@capacitor/filesystem",
-      "version": "8.1.4",
+      "version": "8.1.5",
       "license": "MIT",
       "repository": "https://github.com/ionic-team/capacitor-filesystem",
       "texts": [4]
     },
     {
       "name": "@capacitor/geolocation",
-      "version": "8.2.3",
+      "version": "8.2.4",
       "license": "MIT",
       "repository": "https://github.com/ionic-team/capacitor-geolocation",
       "texts": [4]
@@ -121,7 +121,7 @@
     },
     {
       "name": "@capacitor/keyboard",
-      "version": "8.0.5",
+      "version": "8.0.6",
       "license": "MIT",
       "repository": "https://github.com/ionic-team/capacitor-keyboard",
       "texts": [3]
@@ -177,21 +177,21 @@
     },
     {
       "name": "@ionic/core",
-      "version": "9.0.7",
+      "version": "9.0.8",
       "license": "MIT",
       "repository": "https://github.com/ionic-team/ionic-framework",
       "texts": [7]
     },
     {
       "name": "@ionic/react",
-      "version": "9.0.7",
+      "version": "9.0.8",
       "license": "MIT",
       "repository": "https://github.com/ionic-team/ionic-framework",
       "texts": [7]
     },
     {
       "name": "@ionic/react-router",
-      "version": "9.0.7",
+      "version": "9.0.8",
       "license": "MIT",
       "repository": "https://github.com/ionic-team/ionic-framework",
       "texts": [7]
@@ -219,7 +219,7 @@
     },
     {
       "name": "@mapbox/tiny-sdf",
-      "version": "2.2.0",
+      "version": "2.3.0",
       "license": "BSD-2-Clause",
       "repository": "https://github.com/mapbox/tiny-sdf",
       "texts": [11]
@@ -240,7 +240,7 @@
     },
     {
       "name": "@maplibre/geojson-vt",
-      "version": "6.1.2",
+      "version": "6.3.0",
       "license": "ISC",
       "repository": "https://github.com/maplibre/geojson-vt",
       "texts": [14]
@@ -282,7 +282,7 @@
     },
     {
       "name": "@stencil/react-output-target",
-      "version": "1.6.2",
+      "version": "1.6.5",
       "license": "MIT",
       "repository": "https://github.com/stenciljs/output-targets",
       "texts": [20]
@@ -443,7 +443,7 @@
     },
     {
       "name": "lucide-react",
-      "version": "1.55.0",
+      "version": "1.58.0",
       "license": "ISC",
       "repository": "https://github.com/lucide-icons/lucide",
       "texts": [39]
@@ -583,14 +583,14 @@
     },
     {
       "name": "react",
-      "version": "19.3.0",
+      "version": "19.3.1",
       "license": "MIT",
       "repository": "https://github.com/react/react",
       "texts": [53]
     },
     {
       "name": "react-dom",
-      "version": "19.3.0",
+      "version": "19.3.1",
       "license": "MIT",
       "repository": "https://github.com/react/react",
       "texts": [53]

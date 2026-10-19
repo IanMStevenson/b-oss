@@ -4,7 +4,8 @@
 // The in-app "Open source licences" page's data (SCR-29), generated from b-mobile's production
 // dependency tree rather than kept by hand. `npm run build` regenerates it; run
 // `node scripts/licences.mjs` after changing dependencies and commit the result.
-// scripts/licences.test.mjs fails when the committed file no longer matches package-lock.json.
+// `npm run licences:check` (scripts/licences-check.mjs) fails when the committed file no longer
+// matches package-lock.json; run it as part of cutting a release, not on every PR.
 //
 // The tree comes from package-lock.json, not from whatever happens to be in node_modules, so it is
 // the same on every machine. It starts at b-mobile's `dependencies` (never devDependencies) and

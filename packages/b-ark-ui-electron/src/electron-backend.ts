@@ -19,6 +19,8 @@ declare global {
       addAccount(): Promise<void>;
       addAccountFresh(): Promise<void>;
       removeAccount(id: string): Promise<void>;
+      webLogin(id: string): Promise<boolean>;
+      webLogout(id: string): Promise<void>;
       reauthoriseAccount(id: string): Promise<void>;
       reauthoriseAccountFresh(id: string): Promise<void>;
       startBackup(id: string): Promise<void>;
@@ -46,6 +48,8 @@ export class ElectronBackend implements BackendContext {
   addAccount = () => window.api.addAccount();
   addAccountFresh = () => window.api.addAccountFresh();
   removeAccount = (id: string) => window.api.removeAccount(id);
+  webLogin = (id: string) => window.api.webLogin(id);
+  webLogout = (id: string) => window.api.webLogout(id);
   reauthoriseAccount = (id: string) => window.api.reauthoriseAccount(id);
   reauthoriseAccountFresh = (id: string) => window.api.reauthoriseAccountFresh(id);
   startBackup = (id: string) => window.api.startBackup(id);

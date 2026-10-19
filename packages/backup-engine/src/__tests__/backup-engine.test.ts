@@ -42,6 +42,12 @@ class MockPlatformIO implements PlatformIO {
     this.files.set(path, typeof data === 'string' ? data : new TextDecoder().decode(data));
     return Promise.resolve();
   }
+  appendFile(path: string, data: Uint8Array | string): Promise<void> {
+    const existing = this.files.get(path) ?? '';
+    const text = typeof data === 'string' ? data : new TextDecoder().decode(data);
+    this.files.set(path, existing + text);
+    return Promise.resolve();
+  }
   ensureDir(_path: string): Promise<void> {
     return Promise.resolve();
   }
@@ -681,7 +687,9 @@ describe('BackupEngine — routine backup new posts', () => {
     const engine = makeEngine(makeConfig({ redo_count: 1 }), io, client, () => {});
     await engine.run();
 
-    expect(getEntrySpy.mock.calls.map((c) => c[0])).toEqual(['100', '200', '300']);
+    // new_posts now runs before redo (b-oss#86) — '200'/'300' (new, chronological) first,
+    // then '100' (redo re-fetching the pre-existing entry) last.
+    expect(getEntrySpy.mock.calls.map((c) => c[0])).toEqual(['200', '300', '100']);
     const journal = JSON.parse(io.files.get('/backups/gbradley/journal.json')!) as JournalMetadata;
     expect(journal.entries.map((e) => e.date)).toEqual(['2024-01-17', '2024-01-16', '2024-01-15']);
     expect(io.files.has('/backups/gbradley/entries/2024/2024-01-16.json')).toBe(true);
@@ -746,7 +754,9 @@ describe('BackupEngine — routine backup new posts', () => {
     await engine.run();
 
     expect(pageSpy).toHaveBeenCalledTimes(2);
-    expect(getEntrySpy.mock.calls.map((c) => c[0])).toEqual(['100', '150', '200', '300', '400']);
+    // new_posts now runs before redo (b-oss#86) — '150'-'400' (new, chronological) first,
+    // then '100' (redo re-fetching the pre-existing entry) last.
+    expect(getEntrySpy.mock.calls.map((c) => c[0])).toEqual(['150', '200', '300', '400', '100']);
   });
 
   it('three consecutive new-post fetch failures abort with BackupAbortedError', async () => {
@@ -780,6 +790,39 @@ describe('BackupEngine — routine backup new posts', () => {
     expect(failed).toBeDefined();
     if (failed && failed.type === 'failed') {
       expect(failed.error.kind).toBe('api_error');
+    }
+  });
+
+  it('an unrecognised error (not BackupAbortedError/BackupCancelledError) still emits a failed event before rethrowing', async () => {
+    const io = new MockPlatformIO();
+    const client = makeClient();
+    seedJournal(io, baseJournal);
+
+    vi.spyOn(client, 'getUserProfile').mockResolvedValue(makeProfileResponse(2));
+    vi.spyOn(client, 'getJournalEntries').mockResolvedValue({
+      page: { index: 0, size: 100, more: 0 },
+      entries: [makeEntryStub('200', '2024-01-16'), makeEntryStub('100', '2024-01-15')],
+    });
+    vi.spyOn(client, 'getEntry').mockImplementation((id: string) =>
+      Promise.resolve(makeEntryResponse(id, id === '200' ? '2024-01-16' : '2024-01-15')),
+    );
+    // journal.json's write always rejects with a plain Error — never BackupAbortedError —
+    // simulating an unclassified failure (e.g. a filesystem quota error) at the one write
+    // site (the final, unconditional metadata save) that isn't covered by any per-entry
+    // try/catch. Before this was fixed, run() would rethrow with zero events emitted.
+    vi.spyOn(io, 'atomicWrite').mockImplementation((path, data) => {
+      if (path === '/backups/gbradley/journal.json') return Promise.reject(new Error('disk full'));
+      return io.writeFile(path, data);
+    });
+
+    const events: BackupEvent[] = [];
+    const engine = makeEngine(makeConfig({ redo_count: 1 }), io, client, (e) => events.push(e));
+    await expect(engine.run()).rejects.toThrow('disk full');
+
+    const failed = events.find((e) => e.type === 'failed');
+    expect(failed).toBeDefined();
+    if (failed && failed.type === 'failed') {
+      expect(failed.error.kind).toBe('unexpected');
     }
   });
 
@@ -1022,12 +1065,14 @@ describe('BackupEngine — phase events', () => {
     expect(phases).toContain('new_posts');
     expect(phases).toContain('image_repair');
 
-    expect(phases.indexOf('redo')).toBeLessThan(phases.indexOf('gap_fill'));
-    expect(phases.indexOf('gap_fill')).toBeLessThan(phases.indexOf('new_posts'));
-    expect(phases.indexOf('new_posts')).toBeLessThan(phases.indexOf('image_repair'));
+    // b-oss#86: new_posts first (the content the user most cares about), then gap_fill,
+    // then redo last, then the image-repair pass.
+    expect(phases.indexOf('new_posts')).toBeLessThan(phases.indexOf('gap_fill'));
+    expect(phases.indexOf('gap_fill')).toBeLessThan(phases.indexOf('redo'));
+    expect(phases.indexOf('redo')).toBeLessThan(phases.indexOf('image_repair'));
   });
 
-  it('image-repair emits only the zero phase-entry event when no repairs needed', async () => {
+  it('image-repair ticks every entry checked (not just repairs), against a fixed total', async () => {
     const io = new MockPlatformIO();
     const client = makeClient();
     const events: BackupEvent[] = [];
@@ -1046,12 +1091,14 @@ describe('BackupEngine — phase events', () => {
       (e): e is Extract<BackupEvent, { type: 'progress' }> =>
         e.type === 'progress' && e.phase === 'image_repair',
     );
-    expect(repairEvents).toHaveLength(1);
-    expect(repairEvents[0]?.done).toBe(0);
-    expect(repairEvents[0]?.total).toBe(0);
+    // Phase-entry (total = 1 archived entry), then one tick for the one entry checked —
+    // its image is already present, so no repair happens, but it still ticks (this is what
+    // fixes the "looks frozen" UI complaint: every entry checked moves the counter, not just
+    // entries that needed a repair).
+    expect(repairEvents.map((e) => `${e.done}/${e.total}`)).toEqual(['0/1', '1/1']);
   });
 
-  it('image-repair emits one event per actual repair (plus the phase-entry zero)', async () => {
+  it('image-repair emits one tick per entry checked, including the one actual repair', async () => {
     const io = new MockPlatformIO();
     const client = makeClient();
     const events: BackupEvent[] = [];
@@ -1101,8 +1148,9 @@ describe('BackupEngine — phase events', () => {
       (e): e is Extract<BackupEvent, { type: 'progress' }> =>
         e.type === 'progress' && e.phase === 'image_repair',
     );
-    // Phase-entry zero, then one event for the one repair.
-    expect(repairEvents.map((e) => `${e.done}/${e.total}`)).toEqual(['0/0', '1/1']);
+    // Phase-entry (total = 2), then a tick for each of the 2 entries in turn: '200' (image
+    // already present, no repair) then '100' (image missing, repaired).
+    expect(repairEvents.map((e) => `${e.done}/${e.total}`)).toEqual(['0/2', '1/2', '2/2']);
   });
 
   it('routine backup with no new posts emits a single new_posts phase-entry event', async () => {
@@ -1127,6 +1175,374 @@ describe('BackupEngine — phase events', () => {
     expect(newPostsEvents).toHaveLength(1);
     expect(newPostsEvents[0]?.done).toBe(0);
     expect(newPostsEvents[0]?.total).toBe(0);
+  });
+});
+
+describe('BackupEngine — image_repair_complete (b-oss#85)', () => {
+  function repairEventsOf(events: BackupEvent[]) {
+    return events.filter(
+      (e): e is Extract<BackupEvent, { type: 'progress' }> =>
+        e.type === 'progress' && e.phase === 'image_repair',
+    );
+  }
+
+  // Single existing entry, '100', whose image is already present on disk.
+  function seedBaseJournal(io: MockPlatformIO): void {
+    const journal: JournalMetadata = {
+      schema_version: 1,
+      username: 'gbradley',
+      journal_title: 't',
+      avatar_url: 'a',
+      entry_total: 1,
+      last_backup_at: '2024-01-01T00:00:00Z',
+      entries: [
+        {
+          entry_id: '100',
+          date: '2024-01-15',
+          title: 'one',
+          thumbnail_path: 'entries/2024/2024-01-15-t.jpg',
+          json_path: 'entries/2024/2024-01-15.json',
+        },
+      ],
+    };
+    io.files.set('/backups/gbradley/journal.json', JSON.stringify(journal));
+    io.files.set('/backups/gbradley/entries/2024/2024-01-15.jpg', '<placeholder>');
+  }
+
+  it('skips the repair pass entirely when confirmed clean under the same settings', async () => {
+    const io = new MockPlatformIO();
+    const client = makeClient();
+    const events: BackupEvent[] = [];
+
+    const journal: JournalMetadata = {
+      schema_version: 1,
+      username: 'gbradley',
+      journal_title: 't',
+      avatar_url: 'a',
+      entry_total: 1,
+      last_backup_at: '2024-01-01T00:00:00Z',
+      entries: [
+        {
+          entry_id: '100',
+          date: '2024-01-15',
+          title: 'one',
+          thumbnail_path: 'entries/2024/2024-01-15-t.jpg',
+          json_path: 'entries/2024/2024-01-15.json',
+        },
+      ],
+      image_repair_complete: { enable_web_scrape: false, download_hires: false },
+    };
+    io.files.set('/backups/gbradley/journal.json', JSON.stringify(journal));
+    io.files.set('/backups/gbradley/entries/2024/2024-01-15.jpg', '<placeholder>');
+
+    vi.spyOn(client, 'getUserProfile').mockResolvedValue(makeProfileResponse(1));
+    vi.spyOn(client, 'getJournalEntries').mockResolvedValue({
+      page: { index: 0, size: 100, more: 0 },
+      entries: [makeEntryStub('100', '2024-01-15')],
+    });
+    vi.spyOn(client, 'getEntry').mockResolvedValue(makeEntryResponse('100', '2024-01-15'));
+
+    await makeEngine(makeConfig({ redo_count: 1, enable_web_scrape: false }), io, client, (e) =>
+      events.push(e),
+    ).run();
+
+    expect(repairEventsOf(events)).toEqual([expect.objectContaining({ done: 0, total: 0 })]);
+  });
+
+  it('runs a full repair pass when the settings differ from the stored snapshot', async () => {
+    const io = new MockPlatformIO();
+    const client = makeClient();
+    const events: BackupEvent[] = [];
+
+    const journal: JournalMetadata = {
+      schema_version: 1,
+      username: 'gbradley',
+      journal_title: 't',
+      avatar_url: 'a',
+      entry_total: 1,
+      last_backup_at: '2024-01-01T00:00:00Z',
+      entries: [
+        {
+          entry_id: '100',
+          date: '2024-01-15',
+          title: 'one',
+          thumbnail_path: 'entries/2024/2024-01-15-t.jpg',
+          json_path: 'entries/2024/2024-01-15.json',
+        },
+      ],
+      // Stored snapshot says clean under enable_web_scrape:false — config below turns it on.
+      image_repair_complete: { enable_web_scrape: false, download_hires: false },
+    };
+    io.files.set('/backups/gbradley/journal.json', JSON.stringify(journal));
+    io.files.set('/backups/gbradley/entries/2024/2024-01-15.jpg', '<placeholder>');
+
+    vi.spyOn(client, 'getUserProfile').mockResolvedValue(makeProfileResponse(1));
+    vi.spyOn(client, 'getJournalEntries').mockResolvedValue({
+      page: { index: 0, size: 100, more: 0 },
+      entries: [makeEntryStub('100', '2024-01-15')],
+    });
+    vi.spyOn(client, 'getEntry').mockResolvedValue(makeEntryResponse('100', '2024-01-15'));
+    vi.spyOn(io, 'fetchHtml').mockResolvedValue(
+      '<script>blipfoto.data.gallery = {"items":[]};</script>',
+    );
+
+    await makeEngine(makeConfig({ redo_count: 1, enable_web_scrape: true }), io, client, (e) =>
+      events.push(e),
+    ).run();
+
+    const repairEvents = repairEventsOf(events);
+    expect(repairEvents[0]?.total).toBe(1); // phase-entry total = 1 archived entry, not the skip-path 0
+  });
+
+  it('a fetched page with no gallery marker does not block the completion flag (only genuine fetch failures do)', async () => {
+    const io = new MockPlatformIO();
+    const client = makeClient();
+    seedBaseJournal(io);
+    // seedBaseJournal only seeds the image; the repair pass also needs to read the entry's
+    // own JSON to check its scrape state.
+    io.files.set(
+      '/backups/gbradley/entries/2024/2024-01-15.json',
+      JSON.stringify({ schema_version: 1, entry_id: '100', date: '2024-01-15', images: {} }),
+    );
+
+    vi.spyOn(client, 'getUserProfile').mockResolvedValue(makeProfileResponse(1));
+    vi.spyOn(client, 'getJournalEntries').mockResolvedValue({
+      page: { index: 0, size: 100, more: 0 },
+      entries: [makeEntryStub('100', '2024-01-15')],
+    });
+    vi.spyOn(client, 'getEntry').mockResolvedValue(makeEntryResponse('100', '2024-01-15'));
+    // MockPlatformIO.fetchHtml's default behaviour: resolves successfully with no gallery
+    // marker present — the normal case for a simple, single-image entry (b-oss#85).
+
+    await makeEngine(
+      makeConfig({ redo_count: 1, enable_web_scrape: true, download_hires: false }),
+      io,
+      client,
+      () => {},
+    ).run();
+
+    const saved = JSON.parse(io.files.get('/backups/gbradley/journal.json')!) as JournalMetadata;
+    expect(saved.image_repair_complete).toEqual({ enable_web_scrape: true, download_hires: false });
+  });
+
+  it('persists image_repair_complete after a clean run with no gaps', async () => {
+    const io = new MockPlatformIO();
+    const client = makeClient();
+    seedBaseJournal(io);
+
+    vi.spyOn(client, 'getUserProfile').mockResolvedValue(makeProfileResponse(1));
+    vi.spyOn(client, 'getJournalEntries').mockResolvedValue({
+      page: { index: 0, size: 100, more: 0 },
+      entries: [makeEntryStub('100', '2024-01-15')],
+    });
+    vi.spyOn(client, 'getEntry').mockResolvedValue(makeEntryResponse('100', '2024-01-15'));
+
+    await makeEngine(
+      makeConfig({ redo_count: 1, enable_web_scrape: false, download_hires: false }),
+      io,
+      client,
+      () => {},
+    ).run();
+
+    const saved = JSON.parse(io.files.get('/backups/gbradley/journal.json')!) as JournalMetadata;
+    expect(saved.image_repair_complete).toEqual({
+      enable_web_scrape: false,
+      download_hires: false,
+    });
+  });
+
+  it('a download failure anywhere in the run prevents the completion flag from being persisted', async () => {
+    const io = new MockPlatformIO();
+    const client = makeClient();
+    seedBaseJournal(io);
+    // Pre-seed the avatar so cacheAvatarIfMissing() doesn't consume the mocked rejection
+    // below with its own (separately, intentionally swallowed) downloadFile() call.
+    io.files.set('/backups/gbradley/avatar.jpg', '<placeholder>');
+
+    vi.spyOn(client, 'getUserProfile').mockResolvedValue(makeProfileResponse(2));
+    vi.spyOn(client, 'getJournalEntries').mockResolvedValue({
+      page: { index: 0, size: 100, more: 0 },
+      entries: [makeEntryStub('200', '2024-01-16'), makeEntryStub('100', '2024-01-15')],
+    });
+    const dateMap: Record<string, string> = { '100': '2024-01-15', '200': '2024-01-16' };
+    vi.spyOn(client, 'getEntry').mockImplementation((id: string) =>
+      Promise.resolve(makeEntryResponse(id, dateMap[id])),
+    );
+    // One download fails somewhere in the run — caught internally, doesn't abort the run —
+    // but should still mean the archive can't be trusted as fully repaired.
+    vi.spyOn(io, 'downloadFile').mockImplementationOnce(() =>
+      Promise.reject(new Error('network blip')),
+    );
+
+    const events: BackupEvent[] = [];
+    await makeEngine(makeConfig({ redo_count: 1, enable_web_scrape: false }), io, client, (e) =>
+      events.push(e),
+    ).run();
+
+    expect(events.some((e) => e.type === 'completed')).toBe(true);
+    const saved = JSON.parse(io.files.get('/backups/gbradley/journal.json')!) as JournalMetadata;
+    expect(saved.image_repair_complete).toBeUndefined();
+  });
+
+  it('repairs a missing image (with its scrape inline) and scrapes a second, already-present entry, in one pass', async () => {
+    const io = new MockPlatformIO();
+    const client = makeClient();
+
+    const journal: JournalMetadata = {
+      schema_version: 1,
+      username: 'gbradley',
+      journal_title: 't',
+      avatar_url: 'a',
+      entry_total: 2,
+      last_backup_at: '2024-01-01T00:00:00Z',
+      entries: [
+        {
+          entry_id: 'A1',
+          date: '2024-01-20',
+          title: 'a',
+          thumbnail_path: 'entries/2024/2024-01-20-t.jpg',
+          json_path: 'entries/2024/2024-01-20.json',
+        },
+        {
+          entry_id: 'B1',
+          date: '2024-01-10',
+          title: 'b',
+          thumbnail_path: 'entries/2024/2024-01-10-t.jpg',
+          json_path: 'entries/2024/2024-01-10.json',
+        },
+      ],
+    };
+    io.files.set('/backups/gbradley/journal.json', JSON.stringify(journal));
+    // A1: no image, no JSON on disk at all — needs a full repair fetch.
+    // B1: image present, JSON present but never scraped — needs the scrape-only branch.
+    io.files.set('/backups/gbradley/entries/2024/2024-01-10.jpg', '<placeholder>');
+    io.files.set(
+      '/backups/gbradley/entries/2024/2024-01-10.json',
+      JSON.stringify({
+        schema_version: 1,
+        entry_id: 'B1',
+        date: '2024-01-10',
+        title: 'b',
+        images: {},
+      }),
+    );
+
+    vi.spyOn(client, 'getUserProfile').mockResolvedValue(makeProfileResponse(2));
+    vi.spyOn(client, 'getJournalEntries').mockResolvedValue({
+      page: { index: 0, size: 100, more: 0 },
+      entries: [],
+    });
+    const getEntrySpy = vi
+      .spyOn(client, 'getEntry')
+      .mockImplementation((id: string) =>
+        Promise.resolve(makeEntryResponse(id, id === 'A1' ? '2024-01-20' : '2024-01-10')),
+      );
+    const fetchHtmlSpy = vi
+      .spyOn(io, 'fetchHtml')
+      .mockResolvedValue('<script>blipfoto.data.gallery = {"items":[]};</script>');
+
+    await makeEngine(
+      makeConfig({ redo_count: 0, enable_web_scrape: true }),
+      io,
+      client,
+      () => {},
+    ).run();
+
+    expect(getEntrySpy.mock.calls.map((c) => c[0])).toEqual(['A1']); // B1 never re-fetched via the API
+    expect(fetchHtmlSpy).toHaveBeenCalledTimes(2); // both entries got scraped
+
+    const aEntry = JSON.parse(
+      io.files.get('/backups/gbradley/entries/2024/2024-01-20.json')!,
+    ) as BlipEntry;
+    const bEntry = JSON.parse(
+      io.files.get('/backups/gbradley/entries/2024/2024-01-10.json')!,
+    ) as BlipEntry;
+    expect(aEntry.images.web_scraped).toBe(true);
+    expect(bEntry.images.web_scraped).toBe(true);
+  });
+
+  it('only applies api_delay_ms to entries the repair pass actually did network work for', async () => {
+    const io = new MockPlatformIO();
+    const client = makeClient();
+
+    const journal: JournalMetadata = {
+      schema_version: 1,
+      username: 'gbradley',
+      journal_title: 't',
+      avatar_url: 'a',
+      entry_total: 3,
+      last_backup_at: '2024-01-01T00:00:00Z',
+      entries: [
+        {
+          entry_id: 'A1',
+          date: '2024-01-20',
+          title: 'a',
+          thumbnail_path: 'entries/2024/2024-01-20-t.jpg',
+          json_path: 'entries/2024/2024-01-20.json',
+        },
+        {
+          entry_id: 'B1',
+          date: '2024-01-10',
+          title: 'b',
+          thumbnail_path: 'entries/2024/2024-01-10-t.jpg',
+          json_path: 'entries/2024/2024-01-10.json',
+        },
+        {
+          entry_id: 'C1',
+          date: '2024-01-05',
+          title: 'c',
+          thumbnail_path: 'entries/2024/2024-01-05-t.jpg',
+          json_path: 'entries/2024/2024-01-05.json',
+        },
+      ],
+    };
+    io.files.set('/backups/gbradley/journal.json', JSON.stringify(journal));
+    // A1: image missing — real network work (full repair fetch + inline scrape).
+    // B1: image present, never scraped — real network work (scrape-only).
+    // C1: image present, already scraped with its original on disk — pure local checks,
+    // no network work at all; this is the entry the bug applied a needless sleep to.
+    io.files.set('/backups/gbradley/entries/2024/2024-01-10.jpg', '<placeholder>');
+    io.files.set(
+      '/backups/gbradley/entries/2024/2024-01-10.json',
+      JSON.stringify({ schema_version: 1, entry_id: 'B1', date: '2024-01-10', images: {} }),
+    );
+    io.files.set('/backups/gbradley/entries/2024/2024-01-05.jpg', '<placeholder>');
+    io.files.set('/backups/gbradley/entries/2024/2024-01-05-o.jpg', '<placeholder>');
+    io.files.set(
+      '/backups/gbradley/entries/2024/2024-01-05.json',
+      JSON.stringify({
+        schema_version: 1,
+        entry_id: 'C1',
+        date: '2024-01-05',
+        images: { web_scraped: true, original: 'entries/2024/2024-01-05-o.jpg' },
+      }),
+    );
+
+    vi.spyOn(client, 'getUserProfile').mockResolvedValue(makeProfileResponse(3));
+    vi.spyOn(client, 'getJournalEntries').mockResolvedValue({
+      page: { index: 0, size: 100, more: 0 },
+      entries: [],
+    });
+    vi.spyOn(client, 'getEntry').mockImplementation((id: string) =>
+      Promise.resolve(makeEntryResponse(id, id === 'A1' ? '2024-01-20' : '2024-01-10')),
+    );
+    vi.spyOn(io, 'fetchHtml').mockResolvedValue(
+      '<script>blipfoto.data.gallery = {"items":[]};</script>',
+    );
+    // sleep() calls the real global setTimeout — spy without replacing it so a tiny delay
+    // (1ms) keeps the test fast while still letting us count how many times it actually fired.
+    const setTimeoutSpy = vi.spyOn(global, 'setTimeout');
+
+    await makeEngine(
+      makeConfig({ redo_count: 0, enable_web_scrape: true, api_delay_ms: 1 }),
+      io,
+      client,
+      () => {},
+    ).run();
+
+    // Exactly 2 calls (A1's repair, B1's scrape) — not 3, which is what the bug produced by
+    // sleeping after every entry checked, including C1's pure local no-op.
+    expect(setTimeoutSpy).toHaveBeenCalledTimes(2);
   });
 });
 
@@ -1337,5 +1753,351 @@ describe('cacheAvatarIfMissing', () => {
     io.downloadFile = () => Promise.reject(new Error('network blip'));
     await expect(cacheAvatarIfMissing(io, folder, url)).resolves.toBeUndefined();
     expect(io.files.has(dest)).toBe(false);
+  });
+});
+
+describe('BackupEngine — hires fallback/additive logic (b-oss#112)', () => {
+  const GALLERY_MARKER = 'blipfoto.data.gallery = ';
+
+  function galleryPage(items: unknown[]): string {
+    return `<html><body><script>${GALLERY_MARKER}${JSON.stringify({ items })};</script></body></html>`;
+  }
+
+  function seedJournal(io: MockPlatformIO) {
+    const journal: JournalMetadata = {
+      schema_version: 1,
+      username: 'gbradley',
+      journal_title: 't',
+      avatar_url: 'a',
+      entry_total: 1,
+      last_backup_at: '2024-01-01T00:00:00Z',
+      entries: [
+        {
+          entry_id: '100',
+          date: '2024-01-15',
+          title: 'one',
+          thumbnail_path: 'entries/2024/2024-01-15-t.jpg',
+          json_path: 'entries/2024/2024-01-15.json',
+        },
+      ],
+    };
+    io.files.set('/backups/gbradley/journal.json', JSON.stringify(journal));
+    io.files.set('/backups/gbradley/entries/2024/2024-01-15.jpg', '<placeholder>');
+    io.files.set(
+      '/backups/gbradley/entries/2024/2024-01-15.json',
+      JSON.stringify({ entry_id: '100', date: '2024-01-15', title: 'one', images: {} }),
+    );
+  }
+
+  function wireClient(client: BlipfotoClient) {
+    vi.spyOn(client, 'getUserProfile').mockResolvedValue(makeProfileResponse(1));
+    vi.spyOn(client, 'getJournalEntries').mockResolvedValue({
+      page: { index: 0, size: 100, more: 0 },
+      entries: [makeEntryStub('100', '2024-01-15')],
+    });
+    vi.spyOn(client, 'getEntry').mockResolvedValue(makeEntryResponse('100', '2024-01-15'));
+  }
+
+  const MAIN_ORIGINAL_URL = 'https://cdn.example/o/111.jpg';
+  const MAIN_HIRES_URL = 'https://cdn.example/h/111.jpg';
+  const EXTRA_ORIGINAL_URL = 'https://cdn.example/o/222.jpg';
+  const EXTRA_HIRES_URL = 'https://cdn.example/h/222.jpg';
+
+  const MAIN_ITEM = {
+    item_id_str: '111',
+    image_urls: { original: MAIN_ORIGINAL_URL, hires: MAIN_HIRES_URL },
+  };
+  const EXTRA_ITEM = {
+    item_id_str: '222',
+    image_urls: { original: EXTRA_ORIGINAL_URL, hires: EXTRA_HIRES_URL },
+  };
+
+  function failDownloadsFor(io: MockPlatformIO, ...urls: string[]) {
+    const real = io.downloadFile.bind(io);
+    vi.spyOn(io, 'downloadFile').mockImplementation((url: string, dest: string) => {
+      if (urls.includes(url)) return Promise.reject(new Error('download failed'));
+      return real(url, dest);
+    });
+  }
+
+  async function run(io: MockPlatformIO, downloadHires: boolean): Promise<BlipEntry> {
+    const client = makeClient();
+    seedJournal(io);
+    wireClient(client);
+    await makeEngine(
+      makeConfig({ redo_count: 1, enable_web_scrape: true, download_hires: downloadHires }),
+      io,
+      client,
+      () => {},
+    ).run();
+    return JSON.parse(io.files.get('/backups/gbradley/entries/2024/2024-01-15.json')!) as BlipEntry;
+  }
+
+  // --- Main image ---------------------------------------------------------
+
+  it('main, toggle off, original succeeds: no hires', async () => {
+    const io = new MockPlatformIO();
+    vi.spyOn(io, 'fetchHtml').mockResolvedValue(galleryPage([MAIN_ITEM]));
+    const entry = await run(io, false);
+    expect(entry.images.original).toBe('entries/2024/2024-01-15-o.jpg');
+    expect(entry.images.hires).toBeUndefined();
+    expect(io.downloads.some((d) => d.url === MAIN_HIRES_URL)).toBe(false);
+  });
+
+  it('main, toggle off, original fails: hires downloaded as a fallback', async () => {
+    const io = new MockPlatformIO();
+    vi.spyOn(io, 'fetchHtml').mockResolvedValue(galleryPage([MAIN_ITEM]));
+    failDownloadsFor(io, MAIN_ORIGINAL_URL);
+    const entry = await run(io, false);
+    expect(entry.images.original).toBeUndefined();
+    expect(entry.images.hires).toBe('entries/2024/2024-01-15-h.jpg');
+  });
+
+  it('main, toggle on, original succeeds: hires ALSO downloaded (additive)', async () => {
+    const io = new MockPlatformIO();
+    vi.spyOn(io, 'fetchHtml').mockResolvedValue(galleryPage([MAIN_ITEM]));
+    const entry = await run(io, true);
+    expect(entry.images.original).toBe('entries/2024/2024-01-15-o.jpg');
+    expect(entry.images.hires).toBe('entries/2024/2024-01-15-h.jpg');
+  });
+
+  it('main, toggle on, original fails: hires downloaded', async () => {
+    const io = new MockPlatformIO();
+    vi.spyOn(io, 'fetchHtml').mockResolvedValue(galleryPage([MAIN_ITEM]));
+    failDownloadsFor(io, MAIN_ORIGINAL_URL);
+    const entry = await run(io, true);
+    expect(entry.images.original).toBeUndefined();
+    expect(entry.images.hires).toBe('entries/2024/2024-01-15-h.jpg');
+  });
+
+  // --- Extra image (same 4 cases) -----------------------------------------
+
+  it('extra, toggle off, original succeeds: no hires', async () => {
+    const io = new MockPlatformIO();
+    vi.spyOn(io, 'fetchHtml').mockResolvedValue(galleryPage([MAIN_ITEM, EXTRA_ITEM]));
+    const entry = await run(io, false);
+    const extra = entry.images.extras?.[0];
+    expect(extra?.original).toBe('entries/2024/2024-01-15-222-o.jpg');
+    expect(extra?.hires).toBeUndefined();
+    expect(io.downloads.some((d) => d.url === EXTRA_HIRES_URL)).toBe(false);
+  });
+
+  it('extra, toggle off, original fails: hires downloaded as a fallback', async () => {
+    const io = new MockPlatformIO();
+    vi.spyOn(io, 'fetchHtml').mockResolvedValue(galleryPage([MAIN_ITEM, EXTRA_ITEM]));
+    failDownloadsFor(io, EXTRA_ORIGINAL_URL);
+    const entry = await run(io, false);
+    const extra = entry.images.extras?.[0];
+    expect(extra?.original).toBeUndefined();
+    expect(extra?.hires).toBe('entries/2024/2024-01-15-222-h.jpg');
+  });
+
+  it('extra, toggle on, original succeeds: hires ALSO downloaded (additive)', async () => {
+    const io = new MockPlatformIO();
+    vi.spyOn(io, 'fetchHtml').mockResolvedValue(galleryPage([MAIN_ITEM, EXTRA_ITEM]));
+    const entry = await run(io, true);
+    const extra = entry.images.extras?.[0];
+    expect(extra?.original).toBe('entries/2024/2024-01-15-222-o.jpg');
+    expect(extra?.hires).toBe('entries/2024/2024-01-15-222-h.jpg');
+  });
+
+  it('extra, toggle on, original fails: hires downloaded', async () => {
+    const io = new MockPlatformIO();
+    vi.spyOn(io, 'fetchHtml').mockResolvedValue(galleryPage([MAIN_ITEM, EXTRA_ITEM]));
+    failDownloadsFor(io, EXTRA_ORIGINAL_URL);
+    const entry = await run(io, true);
+    const extra = entry.images.extras?.[0];
+    expect(extra?.original).toBeUndefined();
+    expect(extra?.hires).toBe('entries/2024/2024-01-15-222-h.jpg');
+  });
+});
+
+describe('BackupEngine — web-scrape extras', () => {
+  const GALLERY_MARKER = 'blipfoto.data.gallery = ';
+
+  function galleryPage(items: unknown[]): string {
+    return `<html><body><script>${GALLERY_MARKER}${JSON.stringify({ items })};</script></body></html>`;
+  }
+
+  function seedJournal(io: MockPlatformIO, extra?: Partial<JournalMetadata>) {
+    const journal: JournalMetadata = {
+      schema_version: 1,
+      username: 'gbradley',
+      journal_title: 't',
+      avatar_url: 'a',
+      entry_total: 1,
+      last_backup_at: '2024-01-01T00:00:00Z',
+      entries: [
+        {
+          entry_id: '100',
+          date: '2024-01-15',
+          title: 'one',
+          thumbnail_path: 'entries/2024/2024-01-15-t.jpg',
+          json_path: 'entries/2024/2024-01-15.json',
+        },
+      ],
+      ...extra,
+    };
+    io.files.set('/backups/gbradley/journal.json', JSON.stringify(journal));
+    io.files.set('/backups/gbradley/entries/2024/2024-01-15.jpg', '<placeholder>');
+    io.files.set(
+      '/backups/gbradley/entries/2024/2024-01-15.json',
+      JSON.stringify({ entry_id: '100', date: '2024-01-15', title: 'one', images: {} }),
+    );
+  }
+
+  function wireClient(client: BlipfotoClient) {
+    vi.spyOn(client, 'getUserProfile').mockResolvedValue(makeProfileResponse(1));
+    vi.spyOn(client, 'getJournalEntries').mockResolvedValue({
+      page: { index: 0, size: 100, more: 0 },
+      entries: [makeEntryStub('100', '2024-01-15')],
+    });
+    vi.spyOn(client, 'getEntry').mockResolvedValue(makeEntryResponse('100', '2024-01-15'));
+  }
+
+  const MAIN = {
+    item_id_str: '111',
+    thumbnail_url: 'https://cdn.example/t/111.jpg',
+    image_urls: { hires: 'https://cdn.example/h/111.jpg', original: '/img/o/111.jpg' },
+  };
+  const EXTRA = {
+    item_id_str: '222',
+    thumbnail_url: 'https://cdn.example/t/222.jpg',
+    image_urls: { stdres: 'https://cdn.example/s/222.jpg', original: 'https://cdn.example/o/222.jpg' },
+  };
+
+  it('downloads main original + extra images and records them in the entry JSON', async () => {
+    const io = new MockPlatformIO();
+    const client = makeClient();
+    seedJournal(io);
+    wireClient(client);
+    const fetchHtml = vi.spyOn(io, 'fetchHtml').mockResolvedValue(galleryPage([MAIN, EXTRA]));
+
+    // download_hires: true — main's hires is expected too (additive, b-oss#112), even
+    // though its original also succeeds.
+    await makeEngine(
+      makeConfig({ redo_count: 1, enable_web_scrape: true, download_hires: true }),
+      io,
+      client,
+      () => {},
+    ).run();
+
+    expect(fetchHtml).toHaveBeenCalledWith('https://www.blipfoto.com/entry/100');
+    const urls = io.downloads.map((d) => d.url);
+    const dests = io.downloads.map((d) => d.destPath);
+    // relative gallery original is resolved against the site origin
+    expect(io.downloads).toContainEqual({
+      url: 'https://www.blipfoto.com/img/o/111.jpg',
+      destPath: '/backups/gbradley/entries/2024/2024-01-15-o.jpg',
+    });
+    // download_hires is on, so hires is fetched additively alongside a successful original
+    expect(dests).toContain('/backups/gbradley/entries/2024/2024-01-15-h.jpg');
+    // extra 222: thumbnail, stdres and original
+    expect(dests).toContain('/backups/gbradley/entries/2024/2024-01-15-222-t.jpg');
+    expect(dests).toContain('/backups/gbradley/entries/2024/2024-01-15-222.jpg');
+    expect(urls).toContain('https://cdn.example/o/222.jpg');
+
+    const saved = JSON.parse(
+      io.files.get('/backups/gbradley/entries/2024/2024-01-15.json')!,
+    ) as BlipEntry;
+    expect(saved.images.original).toBe('entries/2024/2024-01-15-o.jpg');
+    expect(saved.images.hires).toBe('entries/2024/2024-01-15-h.jpg');
+    expect(saved.images.web_scraped).toBe(true);
+    expect(saved.images.extras?.[0]?.item_id).toBe('222');
+    expect(saved.images.extras?.[0]?.original).toBe('entries/2024/2024-01-15-222-o.jpg');
+  });
+
+  it('falls back to main hires when the original download fails', async () => {
+    const io = new MockPlatformIO();
+    const client = makeClient();
+    seedJournal(io);
+    wireClient(client);
+    vi.spyOn(io, 'fetchHtml').mockResolvedValue(galleryPage([MAIN]));
+    const realDownload = io.downloadFile.bind(io);
+    vi.spyOn(io, 'downloadFile').mockImplementation((url: string, dest: string) => {
+      if (url === 'https://www.blipfoto.com/img/o/111.jpg') {
+        return Promise.reject(new Error('403'));
+      }
+      return realDownload(url, dest);
+    });
+
+    // download_hires: false — the fallback fires regardless of the toggle (b-oss#112).
+    await makeEngine(
+      makeConfig({ redo_count: 1, enable_web_scrape: true, download_hires: false }),
+      io,
+      client,
+      () => {},
+    ).run();
+
+    const dests = io.downloads.map((d) => d.destPath);
+    expect(dests).toContain('/backups/gbradley/entries/2024/2024-01-15-h.jpg');
+    const saved = JSON.parse(
+      io.files.get('/backups/gbradley/entries/2024/2024-01-15.json')!,
+    ) as BlipEntry;
+    expect(saved.images.hires).toBe('entries/2024/2024-01-15-h.jpg');
+
+    // A failed download leaves a gap → the "repair complete" marker is dropped.
+    const journal = JSON.parse(io.files.get('/backups/gbradley/journal.json')!) as JournalMetadata;
+    expect(journal.image_repair_complete).toBeUndefined();
+  });
+
+  it('skips re-downloading gallery files already on disk, but still records/refreshes their paths', async () => {
+    const io = new MockPlatformIO();
+    const client = makeClient();
+    seedJournal(io);
+    wireClient(client);
+    vi.spyOn(io, 'fetchHtml').mockResolvedValue(galleryPage([MAIN, EXTRA]));
+    // main original + one extra original already on disk
+    io.files.set('/backups/gbradley/entries/2024/2024-01-15-o.jpg', '<already here>');
+    io.files.set('/backups/gbradley/entries/2024/2024-01-15-222-o.jpg', '<already here>');
+
+    // download_hires: true — main's original is already on disk (gotOriginal derived from
+    // the existence check, per b-oss#112), so hires is still fetched additively.
+    await makeEngine(
+      makeConfig({ redo_count: 1, enable_web_scrape: true, download_hires: true }),
+      io,
+      client,
+      () => {},
+    ).run();
+
+    const dests = io.downloads.map((d) => d.destPath);
+    expect(dests).not.toContain('/backups/gbradley/entries/2024/2024-01-15-o.jpg');
+    expect(dests).not.toContain('/backups/gbradley/entries/2024/2024-01-15-222-o.jpg');
+    expect(dests).toContain('/backups/gbradley/entries/2024/2024-01-15-h.jpg');
+    const saved = JSON.parse(
+      io.files.get('/backups/gbradley/entries/2024/2024-01-15.json')!,
+    ) as BlipEntry;
+    // the extras loop re-assigns the relative path for a file already on disk
+    expect(saved.images.extras?.[0]?.original).toBe('entries/2024/2024-01-15-222-o.jpg');
+    expect(saved.images.hires).toBe('entries/2024/2024-01-15-h.jpg');
+  });
+
+  it('runs a full repair pass when the scrape settings differ from the stored snapshot', async () => {
+    const io = new MockPlatformIO();
+    const client = makeClient();
+    seedJournal(io, {
+      image_repair_complete: { enable_web_scrape: false, download_hires: false },
+    });
+    wireClient(client);
+    vi.spyOn(io, 'fetchHtml').mockResolvedValue(galleryPage([MAIN]));
+    const events: BackupEvent[] = [];
+
+    await makeEngine(
+      makeConfig({ redo_count: 0, enable_web_scrape: true, download_hires: true }),
+      io,
+      client,
+      (e) => events.push(e),
+    ).run();
+
+    const repair = events.filter(
+      (e): e is Extract<BackupEvent, { type: 'progress' }> =>
+        e.type === 'progress' && e.phase === 'image_repair',
+    );
+    expect(repair.some((e) => e.total === 1)).toBe(true);
+    const journal = JSON.parse(io.files.get('/backups/gbradley/journal.json')!) as JournalMetadata;
+    expect(journal.image_repair_complete).toEqual({
+      enable_web_scrape: true,
+      download_hires: true,
+    });
   });
 });

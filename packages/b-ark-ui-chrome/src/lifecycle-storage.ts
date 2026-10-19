@@ -118,7 +118,25 @@ export async function releaseBackupLock(tabId?: number): Promise<void> {
 
 export async function readSettingsLock(): Promise<SettingsLock | null> {
   const r = await chrome.storage.local.get(SETTINGS_LOCK_KEY);
-  return (r[SETTINGS_LOCK_KEY] as SettingsLock | undefined) ?? null;
+  const lock = (r[SETTINGS_LOCK_KEY] as SettingsLock | undefined) ?? null;
+  if (lock && !(await tabStillExists(lock.tab_id))) {
+    // The owning tab was closed without a clean unmount (e.g. the browser tab was
+    // closed directly rather than navigated away from), so releaseSettingsLock()
+    // never ran and the lock would otherwise block every other tab's settings
+    // button forever. Self-heal: a lock whose tab no longer exists is stale.
+    await chrome.storage.local.remove(SETTINGS_LOCK_KEY);
+    return null;
+  }
+  return lock;
+}
+
+async function tabStillExists(tabId: number): Promise<boolean> {
+  try {
+    await chrome.tabs.get(tabId);
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 export async function acquireSettingsLock(tabId: number): Promise<void> {
