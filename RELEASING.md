@@ -20,10 +20,42 @@ new release on next launch via electron-updater (which reads
 `latest.yml` from the GitHub Releases feed) and prompt the user to
 update.
 
+## Components and the common checklist
+
+Each distributable component has its own release process; this file is the b-ark one and holds
+the checklist the others follow ([b-oss#444](https://github.com/IanMStevenson/b-oss/issues/444)).
+
+| Component    | How it is released                                 | Process                                                                                    |
+| ------------ | -------------------------------------------------- | ------------------------------------------------------------------------------------------ |
+| b-ark        | Windows installer on GitHub Releases (Mac blocked) | This file                                                                                  |
+| b-ark-chrome | Zip uploaded to the Chrome Web Store               | [packages/b-ark-chrome/RELEASING.md](packages/b-ark-chrome/RELEASING.md)                   |
+| b-mobile     | Signed AAB uploaded to Google Play                 | [packages/b-mobile/docs/RELEASING-android.md](packages/b-mobile/docs/RELEASING-android.md) |
+| b-api        | Source only: consumers pull it from the repo       | [packages/b-api/RELEASING.md](packages/b-api/RELEASING.md)                                 |
+
+b-ark and b-ark-chrome share a version number and a CHANGELOG section (1.0.5 shipped both). b-mobile
+and b-api version independently.
+
+Every release, whatever the component:
+
+1. **Changelog.** Move `[Unreleased]` into a dated section; user-facing entries only.
+2. **Version.** Bump every file that carries the version (listed per component) in one commit.
+3. **Generated data is current.** Anything committed that is derived from dependencies or config
+   must be regenerated and checked now, not per PR. Today that is only b-mobile's open-source
+   licence lists (`npm run licences:generate`, then `npm run licences:check`, in `packages/b-mobile`);
+   b-ark, b-ark-chrome and b-api have none.
+4. **Release build.** Build with `RELEASE=1` so the in-app version is bare, from a clean tree.
+5. **Smoke test the artifact** on a clean machine or profile, including signing in to Blipfoto.
+6. **Publish** by the component's own route, then tag and finish the release notes.
+7. **Audit.** `npm audit --omit=dev --audit-level=high` must be clean (the b-ark workflow runs it);
+   anything tolerated is recorded as a dismissed Dependabot alert with a reason.
+
 ## Invariants (read once, internalise)
 
-1. **Both `package.json` versions bump together.** Root and
-   [packages/b-ark/package.json](packages/b-ark/package.json) must match.
+1. **All version files bump together.** Root `package.json`,
+   [packages/b-ark/package.json](packages/b-ark/package.json),
+   [packages/b-ark-chrome/package.json](packages/b-ark-chrome/package.json) and
+   [packages/b-ark-chrome/manifest.json](packages/b-ark-chrome/manifest.json) must match
+   (the 1.0.5 release commit changed all four).
    Root drives the in-app version (via [scripts/version.mjs](scripts/version.mjs)
    → `version.generated.json` → `__APP_VERSION__`); b-ark drives the
    installer filename and `app.getVersion()`.
@@ -124,12 +156,14 @@ made it into the bundle). If both check out, the release is safe to push.
 
 ### 4. Bump versions
 
-For a patch release (e.g. 0.1.0 → 0.1.1) — both `package.json` files
-in lockstep per invariant #1:
+For a patch release (e.g. 0.1.0 → 0.1.1) — all version files in
+lockstep per invariant #1:
 
 ```powershell
 npm version 0.1.1 --no-git-tag-version
 npm version 0.1.1 --workspace=packages/b-ark --no-git-tag-version
+npm version 0.1.1 --workspace=packages/b-ark-chrome --no-git-tag-version
+# then set "version" in packages/b-ark-chrome/manifest.json to 0.1.1 by hand
 ```
 
 (`npm version patch` is a shorthand for the version arithmetic, but
@@ -140,7 +174,8 @@ both bumps under our control.)
 Commit:
 
 ```powershell
-git add package.json packages/b-ark/package.json package-lock.json CHANGELOG.md
+git add package.json packages/b-ark/package.json packages/b-ark-chrome/package.json \
+  packages/b-ark-chrome/manifest.json package-lock.json CHANGELOG.md
 git commit -m "Release v0.1.1"
 git push origin main
 ```
@@ -169,7 +204,7 @@ attached. Click _Edit_ and:
 2. Copy the SHA-256 digest GitHub already computes for
    `b-ark Setup <version>.exe` — visible next to the asset in the draft
    editor, or via `gh api repos/IanMStevenson/b-oss/releases/<id> --jq
-   '.assets[] | select(.name | endswith(".exe")) | .digest'`. No manual
+'.assets[] | select(.name | endswith(".exe")) | .digest'`. No manual
    hashing needed; GitHub generates this itself for every uploaded
    asset.
 3. Write release notes — paste the relevant section from
@@ -250,11 +285,11 @@ is corrupted`** — electron-builder was asked to package b-ark but
   right after tag creation, not anything in our config. Recovery:
   download the blockmap from the orphan draft
   (`gh api repos/<owner>/b-oss/releases/assets/<id> -H "Accept:
-  application/octet-stream" > blockmap`), upload it to the correct
+application/octet-stream" > blockmap`), upload it to the correct
   draft (`gh api --method POST -H "Content-Type:
-  application/octet-stream"
-  "https://uploads.github.com/repos/<owner>/b-oss/releases/<id>/assets?name=<exe>.blockmap"
-  --input blockmap`), then delete the now-empty orphan draft. Always
+application/octet-stream"
+"https://uploads.github.com/repos/<owner>/b-oss/releases/<id>/assets?name=<exe>.blockmap"
+--input blockmap`), then delete the now-empty orphan draft. Always
   check the release's asset count/list before trusting it — don't
   assume the first draft you see is complete.
 
