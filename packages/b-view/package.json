@@ -20,23 +20,23 @@
     "@bbob/preset": "^4.4.1",
     "@bbob/react": "^4.4.1",
     "@bbob/types": "^4.4.1",
-    "lucide-react": "^1.55.0",
+    "lucide-react": "^1.58.0",
     "prosemirror-commands": "^1.7.2",
     "prosemirror-history": "^1.5.1",
     "prosemirror-keymap": "^1.2.3",
     "prosemirror-model": "^1.25.12",
     "prosemirror-state": "^1.4.4",
     "prosemirror-view": "^1.42.6",
-    "react": "^19.3.0",
-    "react-dom": "^19.3.0",
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1",
     "react-zoom-pan-pinch": "^4.2.0"
   },
   "devDependencies": {
     "@testing-library/react": "^16.3.3",
-    "@testing-library/user-event": "^14.6.7",
+    "@testing-library/user-event": "^14.6.8",
     "@types/react": "^19.3.0",
     "@types/react-dom": "^19.3.0",
-    "jsdom": "^30.1.2",
+    "jsdom": "^30.1.3",
     "vitest": "^5.0.5"
   }
 }

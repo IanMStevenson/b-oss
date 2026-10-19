@@ -177,21 +177,21 @@
     },
     {
       "name": "@ionic/core",
-      "version": "9.0.7",
+      "version": "9.0.8",
       "license": "MIT",
       "repository": "https://github.com/ionic-team/ionic-framework",
       "texts": [7]
     },
     {
       "name": "@ionic/react",
-      "version": "9.0.7",
+      "version": "9.0.8",
       "license": "MIT",
       "repository": "https://github.com/ionic-team/ionic-framework",
       "texts": [7]
     },
     {
       "name": "@ionic/react-router",
-      "version": "9.0.7",
+      "version": "9.0.8",
       "license": "MIT",
       "repository": "https://github.com/ionic-team/ionic-framework",
       "texts": [7]
@@ -443,7 +443,7 @@
     },
     {
       "name": "lucide-react",
-      "version": "1.55.0",
+      "version": "1.58.0",
       "license": "ISC",
       "repository": "https://github.com/lucide-icons/lucide",
       "texts": [39]
@@ -583,14 +583,14 @@
     },
     {
       "name": "react",
-      "version": "19.3.0",
+      "version": "19.3.1",
       "license": "MIT",
       "repository": "https://github.com/react/react",
       "texts": [53]
     },
     {
       "name": "react-dom",
-      "version": "19.3.0",
+      "version": "19.3.1",
       "license": "MIT",
       "repository": "https://github.com/react/react",
       "texts": [53]
