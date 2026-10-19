@@ -54,8 +54,8 @@ normally happen together.
 
 ## Notes
 
-- Review can take from hours to days, and a new permission or host pattern is the usual cause of
+- Review time varies, and a new permission or host pattern is the usual cause of
   delay or rejection. Keep permission changes out of releases that don't need them.
-- Never reuse a version number: once uploaded, even a rejected or unpublished version number is
-  spent in the dashboard. Bump the patch.
+- Don't reuse a version number: the dashboard wants each upload's manifest version higher than the
+  last. Bump the patch.
 - To roll back, publish a new, higher version with the fix; the Web Store has no downgrade.
