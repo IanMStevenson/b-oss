@@ -1,22 +1,17 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (C) 2026 Ian Stevenson
 
-// The committed licences file must cover exactly the production tree package-lock.json describes:
-// adding, removing or upgrading a dependency without re-running scripts/licences.mjs fails here.
+// Sanity checks on the committed licences file and on the dependency walk. Whether the file is
+// current with package-lock.json is a release-time check (`npm run licences:check`), not a
+// per-PR one: the list only matters for a distributed build, and `npm run build` regenerates it.
 
 import { describe, expect, it } from 'vitest';
 import fs from 'node:fs';
-import { OUT_PATH, productionPackages, readLock } from './licences.mjs';
+import { OUT_PATH, productionPackages } from './licences.mjs';
 
 const generated = JSON.parse(fs.readFileSync(OUT_PATH, 'utf8'));
 
 describe('licences.generated.json', () => {
-  it('lists exactly the production packages in package-lock.json (run `npm run licences:generate -w packages/b-mobile`)', () => {
-    const expected = productionPackages(readLock()).map((p) => `${p.name}@${p.version}`);
-    const actual = generated.packages.map((p) => `${p.name}@${p.version}`);
-    expect(actual).toEqual(expected);
-  });
-
   it('gives every package at least one licence text', () => {
     for (const p of generated.packages) {
       expect(p.texts.length, `${p.name}@${p.version}`).toBeGreaterThan(0);
