@@ -1,6 +1,6 @@
 name: Release b-mobile (Android)
 
-# Builds and signs the Play upload bundle (AAB) from a tag. Not automatic: the `play-release`
+# Builds and signs the Play upload bundle (AAB) from a tag. Not automatic: the `b-mobile-play-release`
 # Environment needs Ian's approval before this job starts, and only tags matching b-mobile-v* may
 # deploy to it. The upload key exists only as secrets of that Environment. The signed bundle is
 # attached to the run; upload it in the Play Console by hand. See
@@ -16,7 +16,7 @@ permissions:
 jobs:
   build:
     runs-on: ubuntu-latest
-    environment: play-release
+    environment: b-mobile-play-release
     steps:
       - uses: actions/checkout@v7
         with:
