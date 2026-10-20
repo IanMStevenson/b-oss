@@ -26,8 +26,9 @@ Upload to Play is manual: download the signed bundle from the run and drop it in
    (`bmobile://oauth/`), `VITE_NOTIFY_SERVICE_URL`, `UPLOAD_KEY_ALIAS`.
 4. **Environment secrets:** `VITE_NOTIFY_REGISTRATION_SECRET`, `VITE_MAP_TILES_KEY`,
    `GOOGLE_SERVICES_JSON` (the file's contents; not secret, but gitignored), and the key itself:
-   `UPLOAD_KEYSTORE_BASE64`, `UPLOAD_KEYSTORE_PASSWORD`, `UPLOAD_KEY_PASSWORD`.
-   On Windows, with nothing to install: `[Convert]::ToBase64String([IO.File]::ReadAllBytes('b-mobile-upload.jks')) | Set-Clipboard`.
+   `UPLOAD_KEYSTORE_BASE64`, `UPLOAD_KEYSTORE_PASSWORD`, `UPLOAD_KEY_PASSWORD` (a PKCS12
+   keystore has a single password, so set both password secrets to the same value).
+   On Windows, with nothing to install: `[Convert]::ToBase64String([IO.File]::ReadAllBytes((Resolve-Path .\b-mobile-upload.jks).Path)) | Set-Clipboard`.
 5. **The key:** created once with `keytool` (alias `upload`, RSA 2048, validity 9125 days, owner
    `CN=Salient Point Consulting Ltd, O=Salient Point Consulting Ltd, C=GB`). Attach the file to
    the password manager with its passwords and the certificate's SHA-256, then delete every other
