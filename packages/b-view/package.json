@@ -20,7 +20,7 @@
     "@bbob/preset": "^4.4.1",
     "@bbob/react": "^4.4.1",
     "@bbob/types": "^4.4.1",
-    "lucide-react": "^1.58.0",
+    "lucide-react": "^1.59.0",
     "prosemirror-commands": "^1.7.2",
     "prosemirror-history": "^1.5.1",
     "prosemirror-keymap": "^1.2.3",
