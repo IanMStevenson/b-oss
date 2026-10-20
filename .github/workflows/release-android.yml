@@ -1,0 +1,129 @@
+name: Release b-mobile (Android)
+
+# Builds and signs the Play upload bundle (AAB) from a tag. Not automatic: the `play-release`
+# Environment needs Ian's approval before this job starts, and only tags matching b-mobile-v* may
+# deploy to it. The upload key exists only as secrets of that Environment. The signed bundle is
+# attached to the run; upload it in the Play Console by hand. See
+# packages/b-mobile/docs/RELEASING-android.md for setup and the tag convention.
+
+on:
+  push:
+    tags: ['b-mobile-v*']
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    environment: play-release
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0 # versionCode is the commit count
+
+      - name: Tag must match the version and come from an integration branch
+        run: |
+          tag="${GITHUB_REF_NAME#b-mobile-v}"
+          version="${tag%%-*}" # b-mobile-v1.2.3-rc1 builds 1.2.3
+          pkg=$(node -p "require('./packages/b-mobile/package.json').version")
+          if [ "$version" != "$pkg" ]; then
+            echo "::error::tag $GITHUB_REF_NAME is for $version but packages/b-mobile/package.json is $pkg"
+            exit 1
+          fi
+          git fetch --no-tags origin main b-mobile-initial
+          if ! git merge-base --is-ancestor "$GITHUB_SHA" origin/main &&
+             ! git merge-base --is-ancestor "$GITHUB_SHA" origin/b-mobile-initial; then
+            echo "::error::tagged commit is not on main or b-mobile-initial"
+            exit 1
+          fi
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - run: npm ci
+
+      - name: Build settings (gitignored files the app build needs)
+        env:
+          BLIPFOTO_CLIENT_ID: ${{ vars.VITE_BLIPFOTO_CLIENT_ID }}
+          OAUTH_REDIRECT_URI: ${{ vars.VITE_OAUTH_REDIRECT_URI }}
+          NOTIFY_SERVICE_URL: ${{ vars.VITE_NOTIFY_SERVICE_URL }}
+          NOTIFY_REGISTRATION_SECRET: ${{ secrets.VITE_NOTIFY_REGISTRATION_SECRET }}
+          MAP_TILES_KEY: ${{ secrets.VITE_MAP_TILES_KEY }}
+          GOOGLE_SERVICES_JSON: ${{ secrets.GOOGLE_SERVICES_JSON }}
+        run: |
+          for v in BLIPFOTO_CLIENT_ID NOTIFY_SERVICE_URL NOTIFY_REGISTRATION_SECRET GOOGLE_SERVICES_JSON; do
+            if [ -z "${!v}" ]; then echo "::error::Environment value for $v is not set"; exit 1; fi
+          done
+          {
+            echo "VITE_BLIPFOTO_CLIENT_ID=$BLIPFOTO_CLIENT_ID"
+            echo "VITE_OAUTH_REDIRECT_URI=${OAUTH_REDIRECT_URI:-bmobile://oauth/}"
+            echo "VITE_NOTIFY_SERVICE_URL=$NOTIFY_SERVICE_URL"
+            echo "VITE_NOTIFY_REGISTRATION_SECRET=$NOTIFY_REGISTRATION_SECRET"
+            echo "VITE_MAP_TILES_KEY=$MAP_TILES_KEY"
+          } > .env.local
+          printf '%s' "$GOOGLE_SERVICES_JSON" > packages/b-mobile/android/app/google-services.json
+
+      - name: Accept Android SDK licences
+        run: yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses > /dev/null || true
+
+      - name: Build and sign the bundle
+        env:
+          KEYSTORE_BASE64: ${{ secrets.UPLOAD_KEYSTORE_BASE64 }}
+          BMOBILE_UPLOAD_STORE_PASSWORD: ${{ secrets.UPLOAD_KEYSTORE_PASSWORD }}
+          BMOBILE_UPLOAD_KEY_ALIAS: ${{ vars.UPLOAD_KEY_ALIAS }}
+          BMOBILE_UPLOAD_KEY_PASSWORD: ${{ secrets.UPLOAD_KEY_PASSWORD }}
+        run: |
+          for v in KEYSTORE_BASE64 BMOBILE_UPLOAD_STORE_PASSWORD BMOBILE_UPLOAD_KEY_ALIAS BMOBILE_UPLOAD_KEY_PASSWORD; do
+            if [ -z "${!v}" ]; then echo "::error::Environment value for $v is not set"; exit 1; fi
+          done
+          export BMOBILE_UPLOAD_STORE_FILE="$RUNNER_TEMP/upload.jks"
+          printf '%s' "$KEYSTORE_BASE64" | base64 -d > "$BMOBILE_UPLOAD_STORE_FILE"
+          packages/b-mobile/scripts/build-release-aab.sh --sign
+          rm -f "$BMOBILE_UPLOAD_STORE_FILE"
+
+      - name: Check the bundle
+        run: |
+          aab=packages/b-mobile/android/app/build/outputs/bundle/release/app-release.aab
+          # jarsigner is noisy about bundles (self-signed, no timestamp); only the verdict matters.
+          if out=$(jarsigner -verify "$aab" 2>&1); then echo "$out" | head -1; else echo "$out"; exit 1; fi
+          # Play requires native libraries aligned for 16 KB pages.
+          dir=$(mktemp -d)
+          unzip -q "$aab" 'base/lib/*' -d "$dir" || true
+          python3 -I - "$dir" <<'PY'
+          import glob, struct, sys
+          bad = 0
+          for f in sorted(glob.glob(sys.argv[1] + '/base/lib/*/*.so')):
+              d = open(f, 'rb').read()
+              if d[4] != 2:  # 32-bit libraries are not covered
+                  continue
+              off = struct.unpack_from('<Q', d, 0x20)[0]
+              size, num = struct.unpack_from('<HH', d, 0x36)
+              for i in range(num):
+                  o = off + i * size
+                  if struct.unpack_from('<I', d, o)[0] == 1 and struct.unpack_from('<Q', d, o + 0x30)[0] < 16384:
+                      print('not 16 KB aligned:', f)
+                      bad += 1
+          sys.exit(1 if bad else 0)
+          PY
+          {
+            echo "### b-mobile ${GITHUB_REF_NAME}"
+            echo "Upload certificate (compare with the Play Console after the first upload):"
+            echo '```'
+            keytool -printcert -jarfile "$aab" | grep -E 'Owner|SHA256|Valid'
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: b-mobile-${{ github.ref_name }}-aab
+          path: packages/b-mobile/android/app/build/outputs/bundle/release/app-release.aab
+          if-no-files-found: error
+          retention-days: 30
