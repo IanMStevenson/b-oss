@@ -10,13 +10,13 @@ which proves an upload is ours. If the upload key is lost or leaked, Google can 
 request), so it is recoverable, but treat it as a secret.
 
 **Releases are built and signed by GitHub Actions, never on the dev VM or a laptop.** The upload
-key exists only as secrets of the `play-release` Environment (plus a backup in the password
+key exists only as secrets of the `b-mobile-play-release` Environment (plus a backup in the password
 manager). Nothing runs until Ian approves it, and only `b-mobile-v*` tags may deploy to it.
 Upload to Play is manual: download the signed bundle from the run and drop it in the Console.
 
 ### One-time setup (Ian, in GitHub settings)
 
-1. **Environment** `play-release` (Settings, Environments): required reviewer = Ian; "Deployment
+1. **Environment** `b-mobile-play-release` (Settings, Environments): required reviewer = Ian; "Deployment
    branches and tags" = selected tags, pattern `b-mobile-v*`.
 2. **Tag ruleset** (Settings, Rules, Rulesets, new tag ruleset): target `refs/tags/b-mobile-v*`,
    restrict creations (and updates/deletions) with only Ian on the bypass list, so agents and
