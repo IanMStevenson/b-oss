@@ -92,6 +92,11 @@ the file). The deletion URL is above.
 
 ## Store listing
 
+Entered 2026-10-21: name, descriptions, icon, feature graphic, four phone screenshots, category
+(Photography), tags (Photography, Social), contact email, website, privacy policy. **Tablet
+screenshots (7- and 10-inch) were not provided**, which is fine for now; add them later if we
+want the listing to look better on tablets.
+
 Text, category and graphics are in `listing.md` and `graphics/` (icon, feature graphic, four phone
 screenshots). EU trader details (address, phone) are entered in the Console account settings; only
 the contact email above is recorded here.
