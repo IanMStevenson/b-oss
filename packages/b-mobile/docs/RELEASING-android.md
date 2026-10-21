@@ -37,11 +37,11 @@ Upload to Play is manual: download the signed bundle from the run and drop it in
 ## Versioning
 
 - `versionName` = the `version` in `packages/b-mobile/package.json`. Bump it for a real release.
-- `versionCode` = `git rev-list --count HEAD` + 500: rises with every commit, so no manual bump. Play
+- `versionCode` = `git rev-list --count HEAD` + 1000: rises with every commit, so no manual bump. Play
   needs it strictly higher than any previous upload; `BMOBILE_VERSION_CODE=<n>` overrides it. The
   offset exists because 1.0.0 was uploaded as 761 from the old integration branch, whose history
   was squashed into `main` (which then had far fewer commits); `main` is 333 commits at the squash,
-  so the next build is 834 or more.
+  so the next build is 1334 or more.
 - The in-app display version (`version.generated.json`, `RELEASE=1` drops the dev suffix) is a
   separate thing from these two.
 
