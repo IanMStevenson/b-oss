@@ -17,7 +17,7 @@
 
 import type { MouseEvent } from 'react';
 import BBCode from '@bbob/react';
-import { bbcodePreset, BBCODE_TAGS } from '../bbcode.js';
+import { bbcodePreset, normalizeBBCode, RENDERED_BBCODE_TAGS } from '../bbcode.js';
 
 interface BBCodeTextProps {
   source: string;
@@ -45,14 +45,14 @@ export function BBCodeText({ source, className, onLinkClick }: BBCodeTextProps) 
     if (href) (onLinkClick ?? defaultLinkClick)(href);
   }
 
-  const paragraphs = splitParagraphs(source);
+  const paragraphs = splitParagraphs(normalizeBBCode(source));
   if (paragraphs.length === 0) return null;
 
   return (
     <div className={className} onClick={handleClick}>
       {paragraphs.map((paragraph, i) => (
         <p key={i} style={{ whiteSpace: 'pre-line' }}>
-          <BBCode plugins={[bbcodePreset()]} options={{ onlyAllowTags: [...BBCODE_TAGS] }}>
+          <BBCode plugins={[bbcodePreset()]} options={{ onlyAllowTags: [...RENDERED_BBCODE_TAGS] }}>
             {paragraph}
           </BBCode>
         </p>

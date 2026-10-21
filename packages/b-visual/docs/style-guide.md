@@ -22,6 +22,8 @@ blipfoto.com itself carries in its nav bar.
 - **`--muted` / `--muted-2`** — tertiary text and meta information (counts' labels, placeholder
   text, timestamps-equivalent captions). `--muted-2` is the quieter of the two — used for
   placeholder/icon colour where `--muted` would be too present.
+- **`--ink-disabled`** — foreground for a disabled control (a greyed-out prev/next arrow). Far lighter
+  than `--muted-2` on purpose, so "can't press this" reads at a glance beside an enabled arrow.
 - **`--line` / `--line-2`** — borders and dividers. `--line` for a border that should read as a
   real separator (section rules, input borders); `--line-2` for a subtler hairline (a controls-bar
   bottom border, a hover-state fill).
@@ -93,9 +95,34 @@ role rather than a free choice:
 | 20px | A primary content heading (entry title)                                              |
 | 22px | A standout number (a large stat, e.g. view count)                                    |
 
-Font family: `'Helvetica Neue', Helvetica, Arial, sans-serif`, line-height `1.45` as the body
-default (tighter, `1.25`, for compact overlay text; looser, `1.5`–`1.6`, for longer-form body
-copy like descriptions and comments).
+Font family: **Roboto** (the face blipfoto.com uses), self-hosted from `src/fonts.css` so there
+are no external font requests — the app and the standalone viewer both work offline. Weights:
+Light 300, Regular 400, Medium 500 only. `--font-sans` falls back to the old
+`'Helvetica Neue', Helvetica, Arial, sans-serif` stack while a file loads and for scripts Roboto
+doesn't cover (it ships `latin` + `latin-ext`). Roboto is SIL OFL 1.1; its licence is
+`src/fonts-LICENSE`. Line-height `1.45` as the body default (tighter, `1.25`, for compact overlay
+text; looser, `1.5`–`1.6`, for longer-form body copy like descriptions and comments).
+
+## Typography tokens
+
+`tokens.css` now carries the scale as custom properties so the entry-page redesign
+([#167](https://github.com/IanMStevenson/b-oss/issues/167)) can reference steps rather than
+hard-coded pixels. The table above stays the description of what's in use today; the redesign
+migrates each use onto these.
+
+| Token                                | Value          | Intended use (Blipfoto-family look)                                        |
+| ------------------------------------ | -------------- | -------------------------------------------------------------------------- |
+| `--text-xs`                          | 12px           | Small meta labels                                                          |
+| `--text-sm`                          | 13px           | Body default; nav text; EXIF values                                        |
+| `--text-md`                          | 15px           | Section headings; description on wide layouts                              |
+| `--text-lg`                          | 17px           | Description / body on phones; the larger, lighter reading size             |
+| `--text-xl`                          | 22px           | Entry title; author/journal name; stat numbers                             |
+| `--text-2xl`                         | 26px           | Reserved for a large display heading                                       |
+| `--font-weight-light/regular/medium` | 300/400/500    | Light for descriptions + author name, Regular titles/body, Medium emphasis |
+| `--leading-tight/normal/relaxed`     | 1.25/1.45/1.55 | Overlay text / default / long-form copy                                    |
+
+The scale and the roles above are inferred from blipfoto.com on a phone (title ≈ 22px regular,
+description ≈ 17px light) — "same family, familiar style", not pixel-accurate.
 
 ## Spacing & radii
 

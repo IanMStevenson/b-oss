@@ -119,7 +119,7 @@ export function HomeScreen({ account, compact }: HomeScreenProps) {
   const entryState = useEntry(entryJsonPath);
 
   // In-grid search is owned by this screen since ThumbnailGrid moved to @b-oss/b-view and no
-  // longer imports a backup-data hook itself (see PLAN.md's Phase 0.2).
+  // longer imports a backup-data hook itself.
   const [searchQuery, setSearchQuery] = useState('');
   const deferredSearchQuery = useDeferredValue(searchQuery);
   const searchState = useSearchEntries(deferredSearchQuery, entries, resolveEntry);

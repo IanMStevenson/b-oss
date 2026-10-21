@@ -2,8 +2,8 @@
 // Copyright (C) 2026 Ian Stevenson
 // @vitest-environment jsdom
 
-import { describe, it, expect, afterEach, beforeAll } from 'vitest';
-import { render, screen, cleanup, fireEvent } from '@testing-library/react';
+import { describe, it, expect, afterEach, beforeAll, vi } from 'vitest';
+import { render, screen, cleanup, fireEvent, waitFor } from '@testing-library/react';
 import { ThumbnailGrid } from '../components/ThumbnailGrid.js';
 import gridStyles from '../components/ThumbnailGrid.module.css';
 import type { EntryIndex } from '../types.js';
@@ -24,13 +24,13 @@ beforeAll(() => {
 
 afterEach(cleanup);
 
-function makeEntries(count: number): EntryIndex[] {
+function makeEntries(count: number, startAt = 1): EntryIndex[] {
   return Array.from({ length: count }, (_, i) => ({
-    entry_id: String(i + 1),
-    date: `2026-01-${String(i + 1).padStart(2, '0')}`,
-    title: `Entry ${i + 1}`,
-    thumbnail_path: `thumb-${i + 1}.jpg`,
-    json_path: `entry-${i + 1}.json`,
+    entry_id: String(startAt + i),
+    date: `2026-01-${String(startAt + i).padStart(2, '0')}`,
+    title: `Entry ${startAt + i}`,
+    thumbnail_path: `thumb-${startAt + i}.jpg`,
+    json_path: `entry-${startAt + i}.json`,
   }));
 }
 
@@ -79,5 +79,642 @@ describe('ThumbnailGrid swipe navigation', () => {
     fireEvent.touchStart(scroll, { touches: [{ clientX: 200, clientY: 100 }] });
     fireEvent.touchEnd(scroll, { changedTouches: [{ clientX: 260, clientY: 300 }] }); // mostly vertical
     expect(screen.queryByLabelText('2026-01-05')).toBeNull();
+  });
+});
+
+function pinch(el: Element, startDist: number, endDist: number) {
+  const start = [
+    { clientX: 200 - startDist / 2, clientY: 200 },
+    { clientX: 200 + startDist / 2, clientY: 200 },
+  ];
+  const end = [
+    { clientX: 200 - endDist / 2, clientY: 200 },
+    { clientX: 200 + endDist / 2, clientY: 200 },
+  ];
+  fireEvent.touchStart(el, { touches: start });
+  fireEvent.touchMove(el, { touches: end });
+}
+
+describe('ThumbnailGrid pinch-to-zoom', () => {
+  it('two-finger pinch-out scales sizePercent up from the gesture start value', () => {
+    const entries = makeEntries(4);
+    let sizePercent = 100;
+    const handleSizeChange = (n: number) => {
+      sizePercent = n;
+    };
+    const { container } = render(
+      <ThumbnailGrid
+        entries={entries}
+        selectedEntryId={null}
+        onSelectEntry={() => {}}
+        sizePercent={sizePercent}
+        onSizeChange={handleSizeChange}
+      />,
+    );
+    const scroll = container.querySelector(`.${gridStyles.scroll}`)!;
+    pinch(scroll, 100, 200); // fingers move twice as far apart → ~2x
+    expect(sizePercent).toBe(200); // clamped to the same 30-200% range as the zoom buttons
+  });
+
+  it('two-finger pinch-in scales sizePercent down, clamped at 30%', () => {
+    const entries = makeEntries(4);
+    let sizePercent = 100;
+    const handleSizeChange = (n: number) => {
+      sizePercent = n;
+    };
+    const { container } = render(
+      <ThumbnailGrid
+        entries={entries}
+        selectedEntryId={null}
+        onSelectEntry={() => {}}
+        sizePercent={sizePercent}
+        onSizeChange={handleSizeChange}
+      />,
+    );
+    const scroll = container.querySelector(`.${gridStyles.scroll}`)!;
+    pinch(scroll, 200, 10); // fingers move much closer together
+    expect(sizePercent).toBe(30);
+  });
+
+  it('a single-finger touch never triggers zoom, and does not break swipe', () => {
+    const entries = makeEntries(10);
+    let sizePercent = 100;
+    const handleSizeChange = (n: number) => {
+      sizePercent = n;
+    };
+    const { container } = render(
+      <ThumbnailGrid
+        entries={entries}
+        selectedEntryId={null}
+        onSelectEntry={() => {}}
+        sizePercent={sizePercent}
+        onSizeChange={handleSizeChange}
+      />,
+    );
+    const scroll = container.querySelector(`.${gridStyles.scroll}`)!;
+    swipe(scroll, -100);
+    expect(sizePercent).toBe(100); // unaffected by an ordinary single-finger swipe
+    expect(screen.getByLabelText('2026-01-05')).toBeDefined(); // swipe still paged forward
+  });
+
+  it('does nothing when onSizeChange is not provided', () => {
+    const entries = makeEntries(4);
+    const { container } = render(
+      <ThumbnailGrid entries={entries} selectedEntryId={null} onSelectEntry={() => {}} />,
+    );
+    const scroll = container.querySelector(`.${gridStyles.scroll}`)!;
+    // Should not throw with no onSizeChange to call.
+    expect(() => pinch(scroll, 100, 200)).not.toThrow();
+  });
+});
+
+describe('ThumbnailGrid showZoomControls / showPagination', () => {
+  it('shows the zoom button group by default when onSizeChange is given', () => {
+    const entries = makeEntries(4);
+    render(
+      <ThumbnailGrid
+        entries={entries}
+        selectedEntryId={null}
+        onSelectEntry={() => {}}
+        onSizeChange={() => {}}
+      />,
+    );
+    expect(screen.getByLabelText('Zoom in')).toBeDefined();
+  });
+
+  it('hides the zoom button group when showZoomControls is false, without hiding Home/DatePicker', () => {
+    const entries = makeEntries(4);
+    render(
+      <ThumbnailGrid
+        entries={entries}
+        selectedEntryId={null}
+        onSelectEntry={() => {}}
+        onSizeChange={() => {}}
+        showZoomControls={false}
+      />,
+    );
+    expect(screen.queryByLabelText('Zoom in')).toBeNull();
+    expect(screen.getByLabelText('First page')).toBeDefined();
+  });
+
+  it('shows the calendar by default, and hides it when showCalendar is false (only the calendar)', () => {
+    const entries = makeEntries(4);
+    const props = {
+      entries,
+      selectedEntryId: null,
+      onSelectEntry: () => {},
+      onSizeChange: () => {},
+    };
+    const { rerender } = render(<ThumbnailGrid {...props} />);
+    expect(screen.getByLabelText('Jump to date')).toBeDefined();
+    rerender(<ThumbnailGrid {...props} showCalendar={false} />);
+    expect(screen.queryByLabelText('Jump to date')).toBeNull();
+    expect(screen.getByLabelText('First page')).toBeDefined();
+    expect(screen.getByLabelText('Zoom in')).toBeDefined();
+  });
+
+  it('hides the whole controls bar when showControls is false, but pinch zoom still works', () => {
+    const entries = makeEntries(4);
+    const onSizeChange = vi.fn();
+    const { container } = render(
+      <ThumbnailGrid
+        entries={entries}
+        selectedEntryId={null}
+        onSelectEntry={() => {}}
+        onSizeChange={onSizeChange}
+        showControls={false}
+      />,
+    );
+    expect(screen.queryByLabelText('First page')).toBeNull();
+    expect(screen.queryByLabelText('Zoom in')).toBeNull();
+    expect(screen.queryByLabelText('Jump to date')).toBeNull();
+    expect(container.querySelector(`.${gridStyles.controls}`)).toBeNull();
+    expect(screen.getByLabelText('2026-01-01')).toBeDefined(); // the grid itself is unaffected
+  });
+
+  it('hides the pagination row when showPagination is false, even with multiple pages', () => {
+    const entries = makeEntries(10); // fallback pageSize is 4 → multiple pages
+    const { container } = render(
+      <ThumbnailGrid
+        entries={entries}
+        selectedEntryId={null}
+        onSelectEntry={() => {}}
+        showPagination={false}
+      />,
+    );
+    expect(container.querySelector(`.${gridStyles.paginationRow}`)).toBeNull();
+  });
+
+  it('shows the pagination row by default with multiple pages', () => {
+    const entries = makeEntries(10);
+    const { container } = render(
+      <ThumbnailGrid entries={entries} selectedEntryId={null} onSelectEntry={() => {}} />,
+    );
+    expect(container.querySelector(`.${gridStyles.paginationRow}`)).not.toBeNull();
+  });
+});
+
+describe('ThumbnailGrid totalEntryCount (b-oss#144)', () => {
+  // Fallback pageSize is 2x2 = 4 when unmeasured (see the ResizeObserver stub comment above).
+  it('uses totalEntryCount for the displayed total when it is bigger than what has loaded', () => {
+    render(
+      <ThumbnailGrid
+        entries={makeEntries(4)}
+        selectedEntryId={null}
+        onSelectEntry={() => {}}
+        totalEntryCount={40}
+      />,
+    );
+    // 40 entries at pageSize 4 = 10 pages; the fixed-cell Pagination row always includes the
+    // last page number, so it appearing confirms totalPages picked up totalEntryCount, not just
+    // entries.length (which alone would say 1 page and hide the row entirely).
+    expect(screen.getByLabelText('Page 10')).toBeDefined();
+  });
+
+  it('never lets a stale totalEntryCount undercount what has actually loaded', () => {
+    render(
+      <ThumbnailGrid
+        entries={makeEntries(20)}
+        selectedEntryId={null}
+        onSelectEntry={() => {}}
+        totalEntryCount={4}
+      />,
+    );
+    // 20 loaded at pageSize 4 = 5 pages, even though the (stale) known total says only 1 page's
+    // worth exists.
+    expect(screen.getByLabelText('Page 5')).toBeDefined();
+  });
+
+  it('falls back to entries.length when no totalEntryCount is given', () => {
+    render(
+      <ThumbnailGrid entries={makeEntries(8)} selectedEntryId={null} onSelectEntry={() => {}} />,
+    );
+    expect(screen.getByLabelText('Page 2')).toBeDefined();
+    expect(screen.queryByLabelText('Page 3')).toBeNull();
+  });
+});
+
+describe('ThumbnailGrid allEntriesLoaded (b-oss#146)', () => {
+  // Fallback pageSize is 2x2 = 4 when unmeasured (see the ResizeObserver stub comment above).
+  it('once confirmed complete, corrects a totalEntryCount guess that was too high', () => {
+    render(
+      <ThumbnailGrid
+        entries={makeEntries(8)}
+        selectedEntryId={null}
+        onSelectEntry={() => {}}
+        totalEntryCount={40} // a wrong guess — genuinely only 8 entries exist
+        allEntriesLoaded
+      />,
+    );
+    // 8 loaded at pageSize 4 = 2 real pages, not the 10 the wrong guess implied.
+    expect(screen.getByLabelText('Page 2')).toBeDefined();
+    expect(screen.queryByLabelText('Page 10')).toBeNull();
+  });
+
+  it('trusts an unconfirmed totalEntryCount guess until allEntriesLoaded says otherwise', () => {
+    render(
+      <ThumbnailGrid
+        entries={makeEntries(8)}
+        selectedEntryId={null}
+        onSelectEntry={() => {}}
+        totalEntryCount={40}
+      />,
+    );
+    expect(screen.getByLabelText('Page 10')).toBeDefined();
+  });
+
+  it('shows a "nothing more" message, not a blank grid, when there is genuinely nothing to show', () => {
+    render(
+      <ThumbnailGrid
+        entries={[]}
+        selectedEntryId={null}
+        onSelectEntry={() => {}}
+        allEntriesLoaded
+      />,
+    );
+    expect(screen.getByText('Nothing more to show here.')).toBeDefined();
+  });
+
+  it('shows a "loading" message instead, while still waiting for more to arrive', () => {
+    render(<ThumbnailGrid entries={[]} selectedEntryId={null} onSelectEntry={() => {}} />);
+    expect(screen.getByText('Loading…')).toBeDefined();
+  });
+});
+
+describe('ThumbnailGrid onNearEnd (b-oss#138)', () => {
+  // Fallback pageSize is 2x2 = 4 when unmeasured (see the ResizeObserver stub comment above).
+  it('fires when there is no more locally-loaded page ahead', () => {
+    const onNearEnd = vi.fn();
+    render(
+      <ThumbnailGrid
+        entries={makeEntries(3)}
+        selectedEntryId={null}
+        onSelectEntry={() => {}}
+        onNearEnd={onNearEnd}
+      />,
+    );
+    expect(onNearEnd).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not fire while more locally-loaded pages remain', () => {
+    const onNearEnd = vi.fn();
+    render(
+      <ThumbnailGrid
+        entries={makeEntries(10)}
+        selectedEntryId={null}
+        onSelectEntry={() => {}}
+        onNearEnd={onNearEnd}
+      />,
+    );
+    expect(onNearEnd).not.toHaveBeenCalled();
+  });
+});
+
+describe('ThumbnailGrid onSeek / entriesOffset / onLoadBefore (b-oss#153)', () => {
+  // Fallback pageSize is 2x2 = 4 when unmeasured (see the ResizeObserver stub comment above).
+  it('clicking an already-loaded distant page just repositions locally, without seeking', () => {
+    const onSeek = vi.fn();
+    render(
+      <ThumbnailGrid
+        entries={makeEntries(20)} // 5 loaded pages at pageSize 4
+        selectedEntryId={null}
+        onSelectEntry={() => {}}
+        onSeek={onSeek}
+      />,
+    );
+    fireEvent.click(screen.getByLabelText('Page 4')); // target index 12 — well within the 20 loaded
+    expect(onSeek).not.toHaveBeenCalled();
+    expect(screen.getByLabelText('2026-01-13')).toBeDefined(); // page 4 starts at entry 13
+  });
+
+  it('clicking a page beyond the loaded window calls onSeek with the absolute target, and shows a loading state until it arrives', () => {
+    const onSeek = vi.fn();
+    render(
+      <ThumbnailGrid
+        entries={makeEntries(4)} // only 1 page loaded
+        selectedEntryId={null}
+        onSelectEntry={() => {}}
+        totalEntryCount={40} // pretends 10 pages exist, so "Page 10" is offered at all
+        onSeek={onSeek}
+      />,
+    );
+    fireEvent.click(screen.getByLabelText('Page 10')); // target index (10-1)*4 = 36, nowhere near loaded
+    expect(onSeek).toHaveBeenCalledWith(36);
+    // Not "Nothing more to show here." — that's reserved for allEntriesLoaded confirming this
+    // page genuinely doesn't exist, which isn't the case here; this is just still in flight.
+    expect(screen.getByText('Loading…')).toBeDefined();
+  });
+
+  it('once the host delivers the seeked window via entriesOffset, the target page renders for real', () => {
+    const onSeek = vi.fn();
+    const { rerender } = render(
+      <ThumbnailGrid
+        entries={makeEntries(4)}
+        selectedEntryId={null}
+        onSelectEntry={() => {}}
+        totalEntryCount={40}
+        onSeek={onSeek}
+      />,
+    );
+    fireEvent.click(screen.getByLabelText('Page 10'));
+
+    // The host's usePagedResource-style seekTo resolves: re-anchors the window at entry 37
+    // (absolute index 36), delivering exactly the page the click targeted.
+    rerender(
+      <ThumbnailGrid
+        entries={makeEntries(4, 37)}
+        entriesOffset={36}
+        selectedEntryId={null}
+        onSelectEntry={() => {}}
+        totalEntryCount={40}
+        onSeek={onSeek}
+      />,
+    );
+    expect(screen.getByLabelText('2026-01-37')).toBeDefined();
+    expect(screen.getByLabelText('Page 10').getAttribute('aria-current')).toBe('page');
+  });
+
+  it('paging backward past the start of a seeked window calls onLoadBefore', () => {
+    const onLoadBefore = vi.fn();
+    render(
+      <ThumbnailGrid
+        entries={makeEntries(4, 37)} // window starts at absolute 36, same as the previous test
+        entriesOffset={36}
+        selectedEntryId={null}
+        onSelectEntry={() => {}}
+        totalEntryCount={40}
+        onLoadBefore={onLoadBefore}
+      />,
+    );
+    // topLeftIndex defaults to 0 on mount, which is already before entriesOffset(36) — this is
+    // exactly the "not yet caught up" state a real host reaches via the same onSeek round-trip
+    // the previous test exercised; from ThumbnailGrid's own perspective it's indistinguishable
+    // from "the user paged backward past the window start", so the same onLoadBefore fires.
+    expect(onLoadBefore).toHaveBeenCalledTimes(1);
+  });
+
+  it('re-fires onNearEnd when a seek lands so the target page is only partly loaded', () => {
+    // Regression (b-oss#153 follow-up): the API window a seek fetches is a different size from the
+    // grid's page, so the target page can straddle the end of it. hasNext was already false before
+    // and after the seek, so the old transition-only trigger never asked for the missing tail —
+    // the user saw an incomplete page until they stepped away and back.
+    const onNearEnd = vi.fn();
+    const { rerender } = render(
+      <ThumbnailGrid
+        entries={makeEntries(4)}
+        selectedEntryId={null}
+        onSelectEntry={() => {}}
+        totalEntryCount={40}
+        onSeek={() => {}}
+        onNearEnd={onNearEnd}
+      />,
+    );
+    fireEvent.click(screen.getByLabelText('Page 10')); // target absolute 36
+    const callsBeforeSeekLands = onNearEnd.mock.calls.length;
+
+    // The seek lands on an API window that starts at 34: page 10 (36..39) has only 36, 37 so far.
+    rerender(
+      <ThumbnailGrid
+        entries={makeEntries(4, 35)}
+        entriesOffset={34}
+        selectedEntryId={null}
+        onSelectEntry={() => {}}
+        totalEntryCount={40}
+        onSeek={() => {}}
+        onNearEnd={onNearEnd}
+      />,
+    );
+    expect(onNearEnd.mock.calls.length).toBeGreaterThan(callsBeforeSeekLands);
+  });
+
+  it('passes the absolute target to onLoadBefore so a host can seek when a prepend cannot reach it', () => {
+    const onLoadBefore = vi.fn();
+    render(
+      <ThumbnailGrid
+        entries={makeEntries(4, 37)}
+        entriesOffset={36}
+        selectedEntryId={null}
+        onSelectEntry={() => {}}
+        onLoadBefore={onLoadBefore}
+      />,
+    );
+    expect(onLoadBefore).toHaveBeenCalledWith(0);
+  });
+
+  it('"First page" seeks directly to absolute 0 rather than incrementally loading backward', () => {
+    const onSeek = vi.fn();
+    render(
+      <ThumbnailGrid
+        entries={makeEntries(4, 37)}
+        entriesOffset={36}
+        selectedEntryId={null}
+        onSelectEntry={() => {}}
+        onSizeChange={() => {}}
+        onSeek={onSeek}
+      />,
+    );
+    fireEvent.click(screen.getByLabelText('First page'));
+    expect(onSeek).toHaveBeenCalledWith(0);
+  });
+});
+
+describe('ThumbnailGrid failed thumbnails (b-oss#185)', () => {
+  function setup() {
+    const resolveAsset = vi.fn((path: string) => Promise.resolve(`resolved://${path}`));
+    const invalidateAsset = vi.fn().mockResolvedValue(undefined);
+    render(
+      <ThumbnailGrid
+        entries={makeEntries(1)}
+        selectedEntryId={null}
+        onSelectEntry={() => {}}
+        resolveAsset={resolveAsset}
+        invalidateAsset={invalidateAsset}
+      />,
+    );
+    return { resolveAsset, invalidateAsset };
+  }
+
+  it('drops the cached copy and retries once when a thumbnail will not draw', async () => {
+    const { resolveAsset, invalidateAsset } = setup();
+    const img = await screen.findByAltText('Entry 1');
+    const before = resolveAsset.mock.calls.length; // (the first load resolves more than once)
+
+    fireEvent.error(img); // a corrupt cached file the browser can't draw
+    await waitFor(() => expect(invalidateAsset).toHaveBeenCalledWith('thumb-1.jpg'));
+    await waitFor(() => expect(resolveAsset.mock.calls.length).toBeGreaterThan(before)); // refetched
+    expect(await screen.findByAltText('Entry 1')).toBeDefined(); // an image again, not a placeholder
+  });
+
+  it('settles on the placeholder if the retry fails too, and does not loop', async () => {
+    const { resolveAsset, invalidateAsset } = setup();
+    fireEvent.error(await screen.findByAltText('Entry 1'));
+    await waitFor(() => expect(invalidateAsset).toHaveBeenCalledTimes(1));
+    const retried = await screen.findByAltText('Entry 1');
+    const afterRetry = resolveAsset.mock.calls.length;
+
+    fireEvent.error(retried); // the retry fails as well
+    await waitFor(() => expect(screen.queryByAltText('Entry 1')).toBeNull()); // placeholder
+    await new Promise((r) => setTimeout(r, 0));
+    expect(resolveAsset.mock.calls.length).toBe(afterRetry); // no third attempt
+  });
+
+  it('a host with no async resolver (the viewer) goes straight to the placeholder', () => {
+    render(
+      <ThumbnailGrid entries={makeEntries(1)} selectedEntryId={null} onSelectEntry={() => {}} />,
+    );
+    fireEvent.error(screen.getByAltText('Entry 1'));
+    expect(screen.queryByAltText('Entry 1')).toBeNull();
+  });
+});
+
+describe('ThumbnailGrid position memory (b-oss#182)', () => {
+  // Fallback pageSize is 2x2 = 4 when unmeasured (see the ResizeObserver stub comment above).
+  it('starts on the page it is told to, instead of the first', () => {
+    render(
+      <ThumbnailGrid
+        entries={makeEntries(20)}
+        selectedEntryId={null}
+        onSelectEntry={() => {}}
+        initialTopLeftIndex={8}
+      />,
+    );
+    expect(screen.getByLabelText('2026-01-09')).toBeDefined(); // page 3 starts at entry 9
+    expect(screen.queryByLabelText('2026-01-01')).toBeNull();
+    expect(screen.getByLabelText('Page 3').getAttribute('aria-current')).toBe('page');
+  });
+
+  it('reports its position — on mount, and as the user changes page', () => {
+    const onTopLeftIndexChange = vi.fn();
+    render(
+      <ThumbnailGrid
+        entries={makeEntries(20)}
+        selectedEntryId={null}
+        onSelectEntry={() => {}}
+        onTopLeftIndexChange={onTopLeftIndexChange}
+      />,
+    );
+    expect(onTopLeftIndexChange).toHaveBeenLastCalledWith(0);
+    fireEvent.click(screen.getByLabelText('Page 4'));
+    expect(onTopLeftIndexChange).toHaveBeenLastCalledWith(12);
+    fireEvent.click(screen.getByLabelText('Next page'));
+    expect(onTopLeftIndexChange).toHaveBeenLastCalledWith(16);
+  });
+
+  it('is unchanged without either prop', () => {
+    render(
+      <ThumbnailGrid entries={makeEntries(20)} selectedEntryId={null} onSelectEntry={() => {}} />,
+    );
+    expect(screen.getByLabelText('2026-01-01')).toBeDefined();
+  });
+});
+
+describe('ThumbnailGrid margins', () => {
+  it('normal (default) margins render the CSS module padding with a 20%-of-tile gap', () => {
+    const entries = makeEntries(4);
+    const { container } = render(
+      <ThumbnailGrid entries={entries} selectedEntryId={null} onSelectEntry={() => {}} />,
+    );
+    const grid = container.querySelector(`.${gridStyles.grid}`) as HTMLElement;
+    expect(grid.style.padding).toBe('');
+    expect(grid.style.gap).toBe('31px'); // 20% of the default 156px tile
+  });
+
+  it('narrow margins render a 4px gap/padding', () => {
+    const entries = makeEntries(4);
+    const { container } = render(
+      <ThumbnailGrid
+        entries={entries}
+        selectedEntryId={null}
+        onSelectEntry={() => {}}
+        margins="narrow"
+      />,
+    );
+    const grid = container.querySelector(`.${gridStyles.grid}`) as HTMLElement;
+    expect(grid.style.padding).toBe('4px');
+    expect(grid.style.gap).toBe('4px');
+  });
+
+  it('none margins render zero gap/padding', () => {
+    const entries = makeEntries(4);
+    const { container } = render(
+      <ThumbnailGrid
+        entries={entries}
+        selectedEntryId={null}
+        onSelectEntry={() => {}}
+        margins="none"
+      />,
+    );
+    const grid = container.querySelector(`.${gridStyles.grid}`) as HTMLElement;
+    expect(grid.style.padding).toBe('0px');
+    expect(grid.style.gap).toBe('0px');
+  });
+});
+
+describe('ThumbnailGrid caption mode (b-oss#259)', () => {
+  const entries: EntryIndex[] = [
+    { ...makeEntries(1)[0], username: 'alice', journal_title: "Alice's journal" },
+    { ...makeEntries(1, 2)[0], username: 'bob' },
+    { ...makeEntries(1, 3)[0] },
+  ];
+
+  it('defaults to date + title, unchanged for single-journal hosts', () => {
+    render(<ThumbnailGrid entries={entries} selectedEntryId={null} onSelectEntry={() => {}} />);
+    expect(screen.getByText('Entry 1')).toBeDefined();
+    expect(screen.getByLabelText('2026-01-01')).toBeDefined();
+    expect(screen.queryByText("Alice's journal")).toBeNull();
+  });
+
+  it("'journal' shows the journal title, falling back to the username, with no date/title", () => {
+    render(
+      <ThumbnailGrid
+        entries={entries}
+        selectedEntryId={null}
+        onSelectEntry={() => {}}
+        overlayContent="journal"
+      />,
+    );
+    expect(screen.getByText("Alice's journal")).toBeDefined();
+    expect(screen.getByText('bob')).toBeDefined();
+    expect(screen.queryByText('Entry 1')).toBeNull();
+    expect(screen.queryByText('Entry 2')).toBeNull();
+  });
+
+  it("'journal' draws no caption for an entry with neither journal title nor username", () => {
+    const { container } = render(
+      <ThumbnailGrid
+        entries={[makeEntries(1)[0]]}
+        selectedEntryId={null}
+        onSelectEntry={() => {}}
+        overlayContent="journal"
+      />,
+    );
+    expect(container.querySelector(`.${gridStyles.thumbOverlay}`)).toBeNull();
+  });
+
+  it('hides the caption on very small tiles, as the title already is', () => {
+    render(
+      <ThumbnailGrid
+        entries={entries}
+        selectedEntryId={null}
+        onSelectEntry={() => {}}
+        overlayContent="journal"
+        sizePercent={40}
+        baseTileSize={100}
+      />,
+    );
+    expect(screen.queryByText("Alice's journal")).toBeNull();
+  });
+
+  it('the show/hide toggle still hides the journal caption', () => {
+    render(
+      <ThumbnailGrid
+        entries={entries}
+        selectedEntryId={null}
+        onSelectEntry={() => {}}
+        overlayContent="journal"
+        showInfoOverlay={false}
+      />,
+    );
+    expect(screen.queryByText("Alice's journal")).toBeNull();
   });
 });

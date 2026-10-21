@@ -1,0 +1,130 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+// Copyright (C) 2026 Ian Stevenson
+
+// Owns every overlay (upgrade prompt, first-run explainer, account switcher) as overlays opened
+// imperatively, kept out of the router (§5) — dismissing a dialog is not a navigation, and
+// the account switcher is not a new screen ID. `<OverlayHost />` is the
+// one render site (mounted once from `AppShell.tsx`, inside the router since the upgrade prompt
+// and the account switcher both navigate) — callers only ever import `useOverlay()`, never render
+// their own copy of these overlays.
+//
+// Deliberately does NOT own per-screen destructive confirmations ("Remove account?", "Discard
+// comment?", "Delete entry?") — each names a different action with different consequences, so
+// there's no real duplication to remove, unlike the upgrade prompt (five screens had a
+// byte-identical `<IonAlert>` before this). Retrofitting genuinely distinct dialogs into one
+// shared "confirmation" kind would be a second, competing pattern for no benefit — local
+// `useState` stays right for those.
+
+import { createContext, useContext, useState } from 'react';
+import type { ReactNode } from 'react';
+import { IonAlert, IonButton } from '@ionic/react';
+import { useAppNavigate } from './routes/useAppNavigate.js';
+import { AccountSwitcherOverlay } from './AccountSwitcherOverlay.js';
+import { useActiveAccount } from '../state/accountsStore.js';
+import { t } from '../strings/index.js';
+
+export type OverlayState =
+  | { kind: null }
+  | { kind: 'upgrade-prompt' }
+  | { kind: 'first-run-explainer' }
+  | { kind: 'account-switcher' };
+
+interface OverlayContextValue {
+  overlay: OverlayState;
+  /** Reached whenever a read-only account hits a write affordance it can't use. */
+  showUpgradePrompt: () => void;
+  /** SCR-01's one-time explainer, shown above the mode choice on first deliberate visit. */
+  showFirstRunExplainer: () => void;
+  /** Tapping the persistent account indicator (BEHAVIOUR.md, Navigation shell). */
+  showAccountSwitcher: () => void;
+  dismiss: () => void;
+}
+
+const OverlayContext = createContext<OverlayContextValue | null>(null);
+
+export function OverlayProvider({ children }: { children: ReactNode }) {
+  const [overlay, setOverlay] = useState<OverlayState>({ kind: null });
+  const value: OverlayContextValue = {
+    overlay,
+    showUpgradePrompt: () => setOverlay({ kind: 'upgrade-prompt' }),
+    showFirstRunExplainer: () => setOverlay({ kind: 'first-run-explainer' }),
+    showAccountSwitcher: () => setOverlay({ kind: 'account-switcher' }),
+    dismiss: () => setOverlay({ kind: null }),
+  };
+  return <OverlayContext.Provider value={value}>{children}</OverlayContext.Provider>;
+}
+
+export function useOverlay(): OverlayContextValue {
+  const ctx = useContext(OverlayContext);
+  if (!ctx) throw new Error('useOverlay must be used within OverlayProvider');
+  return ctx;
+}
+
+// strings/deck.ts's SCR-01.explainer.first_run.* keys (a short panel with a single "Got it"
+// dismissal). A plain fixed-position overlay `<div>`, not IonModal — IonModal's `present()`
+// throws "framework delegate is missing" in this jsdom test setup (no established precedent for
+// IonModal anywhere else in this codebase to follow instead), the same class of Ionic-component-
+// vs-jsdom friction documented in app-architecture.md for IonLabel. A styled div is simpler, has no
+// such dependency, and satisfies "short panel/sheet" just as well as a real IonModal would.
+function FirstRunExplainer({ onDismiss }: { onDismiss: () => void }) {
+  return (
+    <div
+      role="dialog"
+      aria-label={t('SCR-01.explainer.first_run.title')}
+      style={{
+        position: 'fixed',
+        inset: 'auto 0 0 0',
+        zIndex: 1000,
+        background: 'var(--bg, #fff)',
+        borderTop: '1px solid var(--line, #e5e7eb)',
+        borderRadius: '16px 16px 0 0',
+        // Fixed to the viewport, so nothing reserves the system bars for it: pad past the gesture/
+        // nav bar at the bottom (the "Got it" button was hardly tappable under it — b-oss#165) and
+        // the side insets in landscape. Tall content (large font scale) scrolls rather than
+        // growing past the top.
+        padding:
+          '16px calc(16px + var(--ion-safe-area-right, 0px)) calc(16px + var(--ion-safe-area-bottom, 0px)) calc(16px + var(--ion-safe-area-left, 0px))',
+        maxHeight: '80vh',
+        overflowY: 'auto',
+        boxShadow: '0 -2px 12px rgba(0,0,0,0.15)',
+      }}
+    >
+      <h2>{t('SCR-01.explainer.first_run.title')}</h2>
+      {t('SCR-01.explainer.first_run.body')
+        .split('\n\n')
+        .map((paragraph) => (
+          <p key={paragraph}>{paragraph}</p>
+        ))}
+      <IonButton expand="block" onClick={onDismiss}>
+        {t('SCR-01.explainer.first_run.button')}
+      </IonButton>
+    </div>
+  );
+}
+
+/** The one place any of these overlays actually renders — mounted once from `AppShell.tsx`,
+ * inside the router (needs `useAppNavigate()` for the upgrade prompt's "Manage accounts", and
+ * `useActiveAccount()` to name the account UPGRADE.body's `{username}` token refers to — the one
+ * that was just read-only-gated, since that's always whichever account is currently active). */
+export function OverlayHost() {
+  const { overlay, dismiss } = useOverlay();
+  const navigate = useAppNavigate();
+  const activeAccount = useActiveAccount();
+
+  return (
+    <>
+      <IonAlert
+        isOpen={overlay.kind === 'upgrade-prompt'}
+        header={t('UPGRADE.title')}
+        message={t('UPGRADE.body', { username: activeAccount?.username ?? 'This account' })}
+        onDidDismiss={dismiss}
+        buttons={[
+          { text: t('UPGRADE.button.decline'), role: 'cancel' },
+          { text: t('UPGRADE.button.confirm'), handler: () => navigate.push('/accounts') },
+        ]}
+      />
+      {overlay.kind === 'first-run-explainer' && <FirstRunExplainer onDismiss={dismiss} />}
+      {overlay.kind === 'account-switcher' && <AccountSwitcherOverlay onDismiss={dismiss} />}
+    </>
+  );
+}

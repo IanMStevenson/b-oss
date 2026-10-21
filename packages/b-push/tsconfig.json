@@ -1,0 +1,16 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "outDir": "dist",
+    "rootDir": "src",
+    "module": "ES2022",
+    "lib": ["ES2022"],
+    // Both type packages coexist without collision here (verified) — @cloudflare/workers-types
+    // for the Worker runtime globals (D1Database, ScheduledEvent, ...) production code needs,
+    // "node" for the test-only helpers (node:sqlite, node:crypto, node:fs/path/url) that back
+    // src/__tests__/testDb.ts. One tsconfig for the whole package, same as every other package
+    // in this repo — no separate test-only project needed.
+    "types": ["@cloudflare/workers-types", "node"]
+  },
+  "include": ["src"]
+}

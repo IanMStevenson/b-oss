@@ -1,0 +1,19 @@
+/* SPDX-License-Identifier: GPL-3.0-or-later */
+/* Copyright (C) 2026 Ian Stevenson */
+
+/*
+ * Roboto, self-hosted (the face blipfoto.com itself uses). Bundled by the consuming app's
+ * bundler, so there are no external font requests — the app and the standalone viewer both
+ * have to work offline. Roboto is SIL OFL 1.1 (see ./fonts-LICENSE).
+ *
+ * Only the weights the design uses: Light 300 (descriptions, author name), Regular 400 (titles,
+ * body), Medium 500 (emphasis, stat numbers). `latin-ext` covers Central/Eastern European
+ * accents; each subset carries a unicode-range, so a browser downloads one only when text
+ * actually needs it. Anything else (Cyrillic, Greek, CJK…) falls back through --font-sans.
+ */
+@import '@fontsource/roboto/latin-300.css';
+@import '@fontsource/roboto/latin-ext-300.css';
+@import '@fontsource/roboto/latin-400.css';
+@import '@fontsource/roboto/latin-ext-400.css';
+@import '@fontsource/roboto/latin-500.css';
+@import '@fontsource/roboto/latin-ext-500.css';

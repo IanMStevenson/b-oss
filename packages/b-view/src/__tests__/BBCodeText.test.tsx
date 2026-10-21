@@ -3,7 +3,7 @@
 // @vitest-environment jsdom
 
 import { describe, it, expect, afterEach, vi } from 'vitest';
-import { render, screen, cleanup, fireEvent } from '@testing-library/react';
+import { render, cleanup, fireEvent } from '@testing-library/react';
 import { BBCodeText } from '../components/BBCodeText.js';
 
 afterEach(cleanup);
@@ -15,9 +15,48 @@ describe('BBCodeText', () => {
     expect(container.querySelector('i')?.textContent).toBe('italic');
   });
 
-  it('leaves disallowed tags as literal source text instead of dropping or executing them', () => {
-    render(<BBCodeText source="[script]alert(1)[/script] plain text" />);
-    expect(screen.getByText(/\[script\]alert\(1\)\[\/script\]/)).toBeDefined();
+  it('strips unrendered tags but keeps their inner text, never executing them', () => {
+    const { container } = render(<BBCodeText source="[script]alert(1)[/script] plain text" />);
+    expect(container.textContent).toBe('alert(1) plain text');
+    expect(container.querySelector('script')).toBeNull();
+  });
+
+  describe('real-looking comment corpus', () => {
+    const cases: Array<[string, string]> = [
+      ['[B]Great[/B] shot', 'Great shot'],
+      ['[quote=sam]nice light[/quote] agreed', 'nice light agreed'],
+      ['[quote]hi [b]there[/b][/quote]', 'hi there'],
+      ['look: [img]http://x.test/a.jpg[/img]', 'look: http://x.test/a.jpg'],
+      ['[color=red]red[/color] and [size=5]big[/size]', 'red and big'],
+      ['[center][b][i]nested[/i][/b][/center]', 'nested'],
+      ['Tom &amp; Jerry &lt;3 &quot;cats&quot;', 'Tom & Jerry <3 "cats"'],
+      ['see [URL=http://example.com]Here[/URL] too', 'see Here too'],
+      ['mail [EMAIL]a@b.co[/EMAIL]', 'mail a@b.co'],
+      ['[list][*]one[*]two[/list]', '• one• two'],
+      ['a [sic] remark and [1] ref', 'a [sic] remark and [1] ref'],
+      ['[b]never closed', 'never closed'],
+    ];
+    it.each(cases)('%s', (source, text) => {
+      const { container } = render(<BBCodeText source={source} />);
+      expect(container.textContent).toBe(text);
+    });
+
+    it('renders upper-case known tags as real elements', () => {
+      const { container } = render(<BBCodeText source="[B]b[/B] [URL=http://e.com]l[/URL]" />);
+      expect(container.querySelector('b')?.textContent).toBe('b');
+      expect(container.querySelector('a')?.getAttribute('href')).toBe('http://e.com');
+    });
+  });
+
+  it('renders [email] as a mailto: link, in both forms', () => {
+    const { container } = render(
+      <BBCodeText source="[email=me@example.com]write[/email] or [email]you@example.com[/email]" />,
+    );
+    const links = Array.from(container.querySelectorAll('a'));
+    expect(links.map((a) => [a.getAttribute('href'), a.textContent])).toEqual([
+      ['mailto:me@example.com', 'write'],
+      ['mailto:you@example.com', 'you@example.com'],
+    ]);
   });
 
   it('never uses dangerouslySetInnerHTML-style raw injection for [url] content', () => {
@@ -35,6 +74,57 @@ describe('BBCodeText', () => {
   it('normalizes an email-looking target to mailto:', () => {
     const { container } = render(<BBCodeText source="[url]person@example.com[/url]" />);
     expect(container.querySelector('a')?.getAttribute('href')).toBe('mailto:person@example.com');
+  });
+
+  describe('URL scheme allow-list', () => {
+    const bad = [
+      'javascript:alert(1)',
+      'JavaScript:alert(1)',
+      'JAVASCRIPT:alert(1)',
+      '  javascript:alert(1)',
+      '\n\tjavascript:alert(1)',
+      'java\tscript:alert(1)',
+      'java\nscript:alert(1)',
+      'java\u0000script:alert(1)',
+      'data:text/html,<script>alert(1)</script>',
+      'DATA:text/html;base64,AAAA',
+      'vbscript:msgbox(1)',
+      'VbScript:msgbox(1)',
+      'file:///etc/passwd',
+      'ftp://example.com/x',
+    ];
+
+    it.each(bad)('renders [url=%j] as plain text with no href', (target) => {
+      const { container } = render(<BBCodeText source={`[url=${target}]click me[/url]`} />);
+      expect(container.querySelector('a')).toBeNull();
+      expect(container.querySelector('[href]')).toBeNull();
+      expect(container.textContent).toBe('click me');
+    });
+
+    it('renders a bare [url] with a bad scheme as its target text, with no href', () => {
+      const { container } = render(<BBCodeText source="[url]javascript:alert(1)[/url]" />);
+      expect(container.querySelector('a')).toBeNull();
+      expect(container.textContent).toBe('javascript:alert(1)');
+    });
+
+    it.each([
+      ['http://example.com/a', 'http://example.com/a'],
+      ['HTTPS://example.com', 'HTTPS://example.com'],
+      ['mailto:a@example.com', 'mailto:a@example.com'],
+      ['example.com', 'http://example.com'],
+      ['example.com:8080/x', 'http://example.com:8080/x'],
+      ['a@example.com', 'mailto:a@example.com'],
+    ])('keeps [url=%s] as a link to %s', (target, href) => {
+      const { container } = render(<BBCodeText source={`[url=${target}]x[/url]`} />);
+      expect(container.querySelector('a')?.getAttribute('href')).toBe(href);
+    });
+
+    it('[email] always yields a mailto: href', () => {
+      const { container } = render(<BBCodeText source="[email]javascript:alert(1)[/email]" />);
+      expect(container.querySelector('a')?.getAttribute('href')).toBe('mailto:javascript:alert(1)');
+      const bare = render(<BBCodeText source="[email=a@example.com]mail[/email]" />);
+      expect(bare.container.querySelector('a')?.getAttribute('href')).toBe('mailto:a@example.com');
+    });
   });
 
   it('calls the default window.open handler on link click when no onLinkClick is given', () => {

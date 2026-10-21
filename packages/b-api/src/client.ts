@@ -32,7 +32,7 @@ import type {
   UpdateEntryParams,
   UpdateUserSettingsParams,
 } from './types.js';
-import { BlipfotoError, NetworkError } from './errors.js';
+import { BlipfotoError, HttpError, NetworkError } from './errors.js';
 
 function buildUrl(
   baseUrl: string,
@@ -56,6 +56,15 @@ function buildFormBody(params: Record<string, string | number | undefined>): URL
     }
   }
   return body;
+}
+
+interface RequestContext {
+  method: string;
+  url: string;
+  requestBody?: string;
+  status?: number;
+  statusText?: string;
+  responseHeaders?: Record<string, string>;
 }
 
 export class BlipfotoClient {
@@ -86,17 +95,43 @@ export class BlipfotoClient {
     };
   }
 
-  private parseEnvelopeBody<T>(bodyText: string): T {
-    const envelope = JSON.parse(bodyText) as ApiEnvelope<T>;
+  private parseEnvelopeBody<T>(bodyText: string, exchange: RequestContext): T {
+    let envelope: ApiEnvelope<T>;
+    try {
+      envelope = JSON.parse(bodyText) as ApiEnvelope<T>;
+    } catch {
+      // Not a Blipfoto envelope at all (an empty 500, an HTML error page): keep what was seen.
+      throw new HttpError({
+        method: exchange.method,
+        url: exchange.url,
+        requestBody: exchange.requestBody,
+        status: exchange.status ?? 0,
+        statusText: exchange.statusText ?? '',
+        responseHeaders: exchange.responseHeaders ?? {},
+        responseBody: bodyText.slice(0, 500),
+      });
+    }
     if (envelope.error !== null) {
       throw new BlipfotoError(envelope.error.code, envelope.error.message);
     }
     return envelope.data as T;
   }
 
-  private async parseEnvelope<T>(response: Response): Promise<T> {
+  private async parseEnvelope<T>(
+    response: Response,
+    request: { method: string; url: string; requestBody?: string },
+  ): Promise<T> {
     this.updateRateLimit(response.headers);
-    return this.parseEnvelopeBody<T>(await response.text());
+    const responseHeaders: Record<string, string> = {};
+    response.headers.forEach((value, key) => {
+      if (key.toLowerCase() !== 'set-cookie') responseHeaders[key] = value;
+    });
+    return this.parseEnvelopeBody<T>(await response.text(), {
+      ...request,
+      status: response.status,
+      statusText: response.statusText,
+      responseHeaders,
+    });
   }
 
   private async request<T>(
@@ -112,7 +147,7 @@ export class BlipfotoClient {
     } catch (err) {
       throw new NetworkError('Network request failed', err);
     }
-    return this.parseEnvelope<T>(response);
+    return this.parseEnvelope<T>(response, { method: 'GET', url });
   }
 
   private async mutate<T>(
@@ -120,21 +155,36 @@ export class BlipfotoClient {
     path: string,
     body: Record<string, string | number | undefined> = {},
   ): Promise<T> {
-    const url = new URL(`${path}.json`, this.baseUrl).toString();
+    const target = new URL(`${path}.json`, this.baseUrl);
+    const form = buildFormBody(body);
+    // The API reads DELETE parameters from the query string only ("parameters either in the
+    // querystring (GET or DELETE) or in the request body (POST or PUT)" — docs/api-general.md).
+    // Sent as a body, they're silently ignored: "No comment ID provided" (b-oss#285).
+    const inQuery = method === 'DELETE';
+    if (inQuery) form.forEach((value, key) => target.searchParams.set(key, value));
+    const url = target.toString();
     let response: Response;
     try {
-      response = await this.fetchImpl(url, {
-        method,
-        headers: {
-          Authorization: `Bearer ${this.accessToken}`,
-          'Content-Type': 'application/x-www-form-urlencoded',
-        },
-        body: buildFormBody(body),
-      });
+      response = await this.fetchImpl(
+        url,
+        inQuery
+          ? { method, headers: { Authorization: `Bearer ${this.accessToken}` } }
+          : {
+              method,
+              headers: {
+                Authorization: `Bearer ${this.accessToken}`,
+                'Content-Type': 'application/x-www-form-urlencoded',
+              },
+              body: form,
+            },
+      );
     } catch (err) {
       throw new NetworkError('Network request failed', err);
     }
-    return this.parseEnvelope<T>(response);
+    return this.parseEnvelope<T>(
+      response,
+      inQuery ? { method, url } : { method, url, requestBody: form.toString() },
+    );
   }
 
   private async mutateMultipart<T>(
@@ -163,7 +213,12 @@ export class BlipfotoClient {
         throw new NetworkError('Network request failed', err);
       }
       this.updateRateLimit(result.headers);
-      return this.parseEnvelopeBody<T>(result.body);
+      return this.parseEnvelopeBody<T>(result.body, {
+        method,
+        url,
+        status: result.status,
+        responseHeaders: result.headers,
+      });
     }
 
     // Default (web) path: FormData + Blob only — a native file path has nothing to read from
@@ -193,7 +248,7 @@ export class BlipfotoClient {
     } catch (err) {
       throw new NetworkError('Network request failed', err);
     }
-    return this.parseEnvelope<T>(response);
+    return this.parseEnvelope<T>(response, { method, url });
   }
 
   // ── Config ────────────────────────────────────────────────────────────────
@@ -272,6 +327,19 @@ export class BlipfotoClient {
     pageSize?: number;
   }): Promise<EntriesResponse> {
     return this.request<EntriesResponse>('entries/new', {
+      page_index: options?.pageIndex,
+      page_size: options?.pageSize,
+    });
+  }
+
+  /** Entries marking members' milestones (the website's Browse → Milestones). **Not in the
+   * published API docs** — found by probing (b-oss#216): the response is a normal EntriesResponse
+   * and its first entry matches blipfoto.com/browse/milestones. Treat as unofficial. */
+  async getMilestoneEntries(options?: {
+    pageIndex?: number;
+    pageSize?: number;
+  }): Promise<EntriesResponse> {
+    return this.request<EntriesResponse>('entries/milestones', {
       page_index: options?.pageIndex,
       page_size: options?.pageSize,
     });
@@ -500,9 +568,16 @@ export class BlipfotoClient {
 
   // ── OAuth ─────────────────────────────────────────────────────────────────
 
-  /** Verify the token in use was issued to your app (Implicit Grant flow). */
-  async verifyToken(clientId: string): Promise<{ username: string }> {
-    return this.request<{ username: string }>('oauth/token', { client_id: clientId });
+  /** Verify the token in use was issued to your app (Implicit Grant flow), and read back its
+   * granted scope — the standard mitigation for implicit grant's token-substitution weakness,
+   * and how a caller confirms it actually got the scope it asked for (docs/api-general.md). Like
+   * every other oauth/token call, the payload comes back nested under `token` (TokenResponse), not
+   * flat. */
+  async verifyToken(clientId: string): Promise<{ username: string; scope?: string }> {
+    const { token } = await this.request<TokenResponse>('oauth/token', {
+      client_id: clientId,
+    });
+    return { username: token.username, scope: token.scope };
   }
 
   /** Exchange an authorization code for an access token (Authorization Code flow, App auth). */

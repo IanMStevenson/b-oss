@@ -1,0 +1,101 @@
+/* SPDX-License-Identifier: GPL-3.0-or-later */
+/* Copyright (C) 2026 Ian Stevenson */
+
+/*
+ * Maps @b-oss/b-visual's tokens onto Ionic's CSS custom properties, so the shell inherits
+ * b-view's palette rather than Ionic's default (app-architecture.md §5). Import Ionic's core
+ * CSS separately (main.tsx) — this file only overrides the variables Ionic reads.
+ */
+@import '@b-oss/b-visual/tokens.css';
+
+:root {
+  --ion-color-primary: var(--green-800);
+  --ion-color-primary-rgb: 31, 77, 58;
+  --ion-color-primary-contrast: #ffffff;
+  --ion-color-primary-contrast-rgb: 255, 255, 255;
+  --ion-color-primary-shade: var(--green-900);
+  --ion-color-primary-tint: var(--green-700);
+
+  --ion-color-danger: var(--color-danger);
+
+  --ion-font-family: var(--font-sans);
+
+  --ion-background-color: var(--bg);
+  --ion-background-color-rgb: 255, 255, 255;
+  --ion-text-color: var(--ink);
+  --ion-text-color-rgb: 17, 17, 17;
+
+  --ion-toolbar-background: var(--bg);
+  --ion-toolbar-color: var(--ink);
+  --ion-item-background: var(--bg);
+  --ion-border-color: var(--line);
+
+  --ion-color-step-50: var(--bg-alt);
+  --ion-color-step-150: var(--line-2);
+  --ion-color-step-250: var(--line);
+}
+
+/*
+ * Buttons (UX review X1, confirmed style): pill-shaped, sentence case, no drop shadow, one accent.
+ * Hierarchy: filled green = primary, outline = secondary, clear = tertiary text, red
+ * (color="danger") only for destructive actions. Matches the white 1px pill group and green-800
+ * accent on the Entry page. Ionic's uppercase/letter-spacing/min-height live inside the
+ * button's shadow DOM, so they need `::part(native)` (same technique as ion-segment-button in
+ * globals.css); radius/shadow/height are exposed custom properties.
+ *
+ * Toolbar buttons (`.in-buttons`, i.e. inside <IonButtons> in AppHeader) are left to Ionic's
+ * own header styling so the header and its icon buttons are untouched. Icon-only buttons keep
+ * Ionic's padding but get the round radius and a 40px touch target.
+ */
+ion-button:not(.in-buttons) {
+  --border-radius: 999px;
+  --box-shadow: none;
+  --padding-start: 20px;
+  --padding-end: 20px;
+  --padding-top: 0;
+  --padding-bottom: 0;
+  min-height: 40px;
+  font-weight: 600;
+}
+
+ion-button:not(.in-buttons)::part(native) {
+  text-transform: none;
+  letter-spacing: 0;
+  font-size: 0.9375rem;
+  min-height: 40px;
+}
+
+/* `size="small"` stays compact, but never under the 40px touch target. */
+ion-button.button-small:not(.in-buttons) {
+  --padding-start: 16px;
+  --padding-end: 16px;
+  height: auto;
+  min-height: 40px;
+}
+
+ion-button.button-small:not(.in-buttons)::part(native) {
+  font-size: 0.875rem;
+}
+
+ion-button.button-has-icon-only:not(.in-buttons) {
+  --padding-start: 10px;
+  --padding-end: 10px;
+  min-width: 40px;
+}
+
+/* Secondary: green outline, transparent fill. (Danger outline picks up the red via color.) */
+ion-button.button-outline:not(.in-buttons):not([color]) {
+  --border-color: var(--green-800);
+  --border-width: 1px;
+  --color: var(--green-800);
+}
+
+/* Tertiary: text only. */
+ion-button.button-clear:not(.in-buttons):not([color]) {
+  --color: var(--green-800);
+}
+
+/* Disabled looks disabled without turning into a different shape. */
+ion-button.button-disabled:not(.in-buttons) {
+  opacity: 0.45;
+}

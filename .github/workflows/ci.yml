@@ -2,11 +2,13 @@ name: CI
 
 on:
   push:
-    branches: [main, develop]
+    # b-mobile-initial is the long-lived integration branch for the Android app, merged to main only
+    # when releasable — so it needs the same gate main has (typecheck, lint, tests) on every PR into it.
+    branches: [main, develop, b-mobile-initial]
     paths-ignore:
       - 'docs/**'
   pull_request:
-    branches: [main]
+    branches: [main, b-mobile-initial]
     paths-ignore:
       - 'docs/**'
 

@@ -44,7 +44,11 @@ export type MultipartImpl = (args: {
 export interface BlipUser {
   username: string;
   avatar_url: string;
-  icons: Array<{ icon_id_str: string; icon_url: string }>;
+  // The live response sends `icon_id` (already string-valued, no separate `_str`/numeric pair
+  // the way 64-bit entry/comment ids get — these ids are small, e.g. "2000") — confirmed against
+  // a real `messages/comments/recent` response; the field name here previously didn't match and
+  // had no consumer yet to notice.
+  icons: Array<{ icon_id: string; icon_url: string }>;
 }
 
 export interface BlipUserDetails {
@@ -110,9 +114,16 @@ export interface BlipComment {
   thumbnail_url: string;
   content: string;
   content_html: string;
-  commenter: Pick<BlipUser, 'username' | 'avatar_url'>;
+  commenter: Pick<BlipUser, 'username' | 'avatar_url' | 'icons'>;
   actions: { reply: 0 | 1; edit: 0 | 1; delete: 0 | 1 };
   replies: BlipComment[] | null;
+  /** Only populated by `messages/comments/recent` (the comments inbox, SCR-24) — absent
+   * elsewhere `BlipComment` appears (an entry's own comment list has no notion of "unread").
+   * `1` = unread as of this response; per docs/api-reference.md, fetching that endpoint at all
+   * marks *every* one of the account's unread comments read, so this flag only means anything
+   * captured from the *first* response of a session — see app-architecture.md §11's
+   * "first-page-unread-snapshot" trap. */
+  unread?: 0 | 1;
 }
 
 export interface BlipEntryComments {
@@ -240,11 +251,17 @@ export interface JournalDayResponse {
   day: BlipDay;
 }
 
+/** The grid is nested under `month` — `{ month: { month, year, week_start, days } }` — confirmed
+ * against the live API (2026-10-05); it was previously typed flat, which made every caller read
+ * `days` off the wrong object. `days` has `null` padding for the cells before the 1st
+ * (per `week_start`), then one `BlipDay` per day. */
 export interface JournalMonthResponse {
-  month: number;
-  year: number;
-  week_start: number;
-  days: Array<BlipDay | null>;
+  month: {
+    month: number;
+    year: number;
+    week_start: number;
+    days: Array<BlipDay | null>;
+  };
 }
 
 export interface UserSettingsResponse {

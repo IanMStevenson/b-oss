@@ -35,6 +35,8 @@ Use App auth when performing an action on behalf of your application, without a 
 
 For App Auth, **use your Client ID as the Access Token**.
 
+A bearer is required on every request, including reads of public content. A request with no `Authorization` header is rejected, so a signed-out client sends its Client ID rather than nothing. Several resources Blipfoto's docs list as User-only also work with App auth; [api-reference.md](api-reference.md) marks which.
+
 ### User Auth
 
 Use User auth when performing an action on behalf of a user (e.g. publishing an entry to a user's journal).
@@ -84,7 +86,7 @@ Inspect the querystring parameters on your `redirect_uri` for:
 
 #### Step 3 — Obtain an Access Token
 
-Use the `code` from Step 2 to make a request to [`POST /oauth/token`](blipfoto-api-reference.md#post-oauthtoken). A successful response returns a Token object containing the access token.
+Use the `code` from Step 2 to make a request to [`POST /oauth/token`](api-reference.md#post-oauthtoken). A successful response returns a Token object containing the access token.
 
 #### Redirect URIs for Web Apps
 
@@ -122,6 +124,17 @@ After the user grants (or denies) permission, they are redirected back to your `
 #### Step 2 — Obtain an Access Token
 
 Intercept the redirection request to `redirect_uri` and inspect the **URI fragment**. The querystring-encoded fragment contains the properties and values of a Token object, including the access token.
+
+There is no code exchange and no client secret in this flow, so `POST oauth/token` is not used.
+
+#### Practical notes for the implicit grant (observed)
+
+- **`state`**: generate a fresh, unpredictable value for every authorisation round, and check it on return before trusting or storing the token. Discard a redirect whose `state` is missing or doesn't match.
+- **Verify the token**: after receiving it, call [`GET oauth/token`](api-reference.md#get-oauthtoken) with your `client_id`. This confirms the token was issued to your app and returns its granted `scope`, so you can check you got what you asked for. `state` and this check guard against different things; do both.
+- **Always send `scope`**: the only valid values are `read` and `read,write`. Omitting `scope` does not give a read-only token; it gives full `read,write`.
+- **One scope per consent**: each authorisation round yields one token with one scope. A second, differently scoped token needs a second round, and an existing token's scope can't be upgraded.
+- **Lifetime**: tokens don't expire in practice. They stay valid until revoked (`DELETE oauth/token`) or invalidated by Blipfoto, so there is no refresh-token logic. An invalidated token shows up as error `51` on any call.
+- **Failed or declined sign-in**: no API call is involved, so no numbered error code comes back. The redirect carries an `error` parameter instead, and `access_denied` means the user declined. A `redirect_uri` that doesn't match the registered one is the usual failure during first setup.
 
 #### Redirect URIs for Distributed Apps
 
@@ -166,6 +179,8 @@ Each response includes the following headers to help you monitor usage:
 | `X-RateLimit-Reset`     | Seconds remaining until the next time window.     | integer  |
 
 > A value of `-1` indicates the request is not subject to rate limits.
+
+Because limits are per token, the Client ID used as an App auth bearer has its own allowance, separate from each user's. On code `11`, back off until the window resets rather than retrying in a loop. `BlipfotoError.isRateLimited` identifies it, and `BlipfotoClient` records the latest headers in `lastRateLimit`.
 
 ---
 
@@ -267,6 +282,8 @@ Some content (entry descriptions, comments) supports basic text formatting using
 Errors may occur in a variety of circumstances (e.g. wrong app configuration, or a user attempting an illegal action).
 
 Error information is returned in the top-level `error` property of the response. When an error occurs, the `data` property is always `null`.
+
+Success is shown by `error: null`, not by a code. Code `0` means "Temporarily unavailable", not success. Read the envelope's `error` rather than the HTTP status, because API errors arrive inside a normal envelope. b-api raises them as `BlipfotoError`. A response that isn't an envelope at all, such as an empty 500 or an HTML error page, is raised as `HttpError` instead.
 
 ```json
 {
@@ -385,3 +402,28 @@ The following is a non-exhaustive list of possible error codes and messages.
 | 623  | Your Blipfoto account is connected to a different Twitter account.  |
 | 624  | Sign in with Twitter is disabled for this account.                  |
 | 625  | There is no Blipfoto account connected to your Twitter account.     |
+
+### Notes on specific codes (observed)
+
+These notes record observed behaviour that the message text alone doesn't make clear. Any other code can be treated as a generic error and its `message` shown.
+
+| Code(s)   | Notes                                                                                                                                                                                                                                                     |
+| --------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 11        | Rate limited until the current 15-minute window ends. See [Rate Limits](#rate-limits).                                                                                                                                                                    |
+| 16        | A write was attempted with a `read` token. The scope can't be upgraded; a new `read,write` authorisation is needed.                                                                                                                                       |
+| 50        | No user token was sent to a resource that needs one. This is a separate code from 52, not a duplicate.                                                                                                                                                    |
+| 51        | The user token is invalid: revoked, or invalidated by Blipfoto. This is the signal that a stored token has died and the user must sign in again. It can come back from any call. b-api's `BlipfotoError.isTokenInvalid` covers 50 and 51.                 |
+| 52        | The client is invalid. A bearer that isn't recognised as a user token is read as a client ID, so a junk or mistyped token gets 52, not 51. On a token that worked before, it points to a problem with the app's client rather than with the user's token. |
+| 30–35     | OAuth-layer codes. Under the implicit grant, a failed authorisation generally arrives as an `error` parameter in the redirect rather than as one of these codes (see [OAuth for Distributed Apps](#oauth-for-distributed-apps)).                          |
+| 80, 501   | Each code really is shared by several failures (four search/list validation cases for 80, two email-validation cases for 501). Only the message text tells them apart. This is how the API behaves, not a duplication error in this table.                |
+| 101 / 103 | 101 means the username is malformed. 103 means a well-formed username whose account is unavailable (non-existent, deleted or suspended), which makes 103 the "no such user" code for a profile lookup.                                                    |
+| 104       | The user's journal is protected and the viewer can't see it. This is a visibility state, not a failure.                                                                                                                                                   |
+| 202       | The entry doesn't exist (for example, it was deleted after a list was fetched) or isn't visible to this viewer.                                                                                                                                           |
+| 205       | Comments are switched off. `actions.comment` on `GET entry` predicts this before a submit.                                                                                                                                                                |
+| 221 / 222 | Already starred or already favourited. The requested state already holds, so this isn't a real failure. 223 (favourite limit reached) is a real refusal.                                                                                                  |
+| 233       | This is an annual quota on additional photos (100 per calendar year across all entries, reset on 1 January), not a per-entry cap. Additional photos (`entry/photo`) are not available to our app type, so b-api clients shouldn't meet this code.         |
+| 250–252   | Publish-date rules. `GET journal/day` / `journal/month` (`state`, `actions.publish`) predict them before a `POST entry`.                                                                                                                                  |
+| 303–306   | Reply, delete and edit refusals. The comment's `actions.reply` / `actions.delete` / `actions.edit` flags predict them.                                                                                                                                    |
+| 516 / 517 | Journal title: limit **25 characters**.                                                                                                                                                                                                                   |
+| 525 / 526 | Entry title: limit **50 characters**.                                                                                                                                                                                                                     |
+| 527 / 528 | Entry tags: limit **255 characters** across the whole comma-separated field.                                                                                                                                                                              |

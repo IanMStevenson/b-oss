@@ -1,0 +1,185 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+// Copyright (C) 2026 Ian Stevenson
+
+// SCR-09 — New Entry (pick photo), FLW-12 step 1's photo-choosing half. Account/read-write gating
+// is handled once, at the router (WriteGuardRoute on /compose) — this screen only has to worry
+// about the camera/picker interaction itself. On a successful capture/pick, seeds
+// composeDraftStore and pushes to /compose/details (SCR-10) — that's the one thing this screen's
+// "Leads to" contract promises; SCR-10 reads the draft rather than being handed the photo via
+// route state, so a direct link to /compose/details after a process restart would find nothing
+// and can redirect back here (SCR-10's own job, not this screen's).
+//
+// A pending share-to-Blipfoto photo (FLW-12, platform/shareIntent.ts) is picked up here too, on
+// mount, via `takePendingSharedPhoto()` — reusing the exact same `startDraft()` a camera/gallery
+// pick uses, so there is no second, parallel draft-creation path to keep in sync. This screen is
+// where the gate (`WriteGuardRoute` on `/compose`) has already passed by the time it mounts,
+// which is exactly why the photo was consumed and cached earlier, in `AppShell.tsx`, rather than
+// read directly here — see `platform/shareIntent.ts`'s own header comment for the full reasoning.
+
+import { useEffect, useState } from 'react';
+import { IonPage, IonHeader, IonContent, IonButton, IonText, IonSpinner } from '@ionic/react';
+import { Camera, Image as ImageIcon } from 'lucide-react';
+import { AppHeader } from '../../components/AppHeader.js';
+import '../../components/ComposeForm.css';
+import {
+  takePhoto,
+  pickPhoto,
+  isNativeCamera,
+  CameraPermissionDeniedError,
+} from '../../platform/camera.js';
+import type { PickedPhoto } from '../../platform/camera.js';
+import { takePendingSharedPhoto } from '../../platform/shareIntent.js';
+import { useAppNavigate } from '../../app/routes/useAppNavigate.js';
+import { useActiveAccount } from '../../state/accountsStore.js';
+import { useComposeDraftStore } from '../../state/composeDraftStore.js';
+import { todayDate } from '../../data/dates.js';
+
+function todayFromCreatedAt(createdAt: string | null): string {
+  if (createdAt) {
+    const parsed = new Date(createdAt);
+    if (!Number.isNaN(parsed.getTime())) {
+      return parsed.toISOString().slice(0, 10);
+    }
+  }
+  return todayDate();
+}
+
+export function NewEntryScreen() {
+  const navigate = useAppNavigate();
+  const activeAccount = useActiveAccount();
+  const setDraft = useComposeDraftStore((s) => s.setDraft);
+  const [busy, setBusy] = useState<'camera' | 'picker' | null>(null);
+  const [cameraMessage, setCameraMessage] = useState<string | null>(null);
+  const [photoMessage, setPhotoMessage] = useState<string | null>(null);
+
+  function startDraft(photo: PickedPhoto): void {
+    if (!activeAccount) return;
+    setDraft({
+      mode: 'publish',
+      accountId: activeAccount.id,
+      photo: {
+        uri: photo.uri,
+        webPath: photo.webPath,
+        mimeType: photo.mimeType,
+        width: photo.width,
+        height: photo.height,
+        createdAt: photo.createdAt,
+        sizeBytes: photo.sizeBytes,
+      },
+      title: '',
+      tags: '',
+      description: '',
+      date: todayFromCreatedAt(photo.createdAt),
+      location: null,
+      displayLocation: false,
+      thumbnailCrop: null,
+      dirty: false,
+    });
+    navigate.push('/compose/details');
+  }
+
+  useEffect(() => {
+    const shared = takePendingSharedPhoto();
+    if (shared) startDraft(shared);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  async function handleTakePhoto(): Promise<void> {
+    setCameraMessage(null);
+    setPhotoMessage(null);
+    setBusy('camera');
+    try {
+      const photo = await takePhoto();
+      if (photo) startDraft(photo);
+    } catch (err) {
+      if (err instanceof CameraPermissionDeniedError) {
+        setCameraMessage(
+          err.canRetry
+            ? 'Taking a photo needs camera access. Try again to grant it.'
+            : 'Taking a photo needs camera access, which is currently blocked. Enable it for this app in your device Settings.',
+        );
+      } else {
+        setPhotoMessage(err instanceof Error ? err.message : 'Could not use that photo.');
+      }
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  async function handlePickPhoto(): Promise<void> {
+    setPhotoMessage(null);
+    setBusy('picker');
+    try {
+      const photo = await pickPhoto();
+      if (photo) startDraft(photo);
+    } catch (err) {
+      setPhotoMessage(err instanceof Error ? err.message : 'Could not use that photo.');
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  return (
+    <IonPage>
+      <IonHeader>
+        <AppHeader title="New entry" accountIndicator />
+      </IonHeader>
+      <IonContent>
+        <div className="new-entry-tiles">
+          <IonButton
+            className="new-entry-tile"
+            expand="block"
+            disabled={busy !== null}
+            onClick={() => void handleTakePhoto()}
+          >
+            {busy === 'camera' ? (
+              <IonSpinner name="dots" />
+            ) : (
+              <span className="new-entry-tile-inner">
+                <Camera size={32} aria-hidden="true" />
+                Take a photo
+              </span>
+            )}
+          </IonButton>
+          <IonButton
+            className="new-entry-tile"
+            expand="block"
+            fill="outline"
+            disabled={busy !== null}
+            onClick={() => void handlePickPhoto()}
+          >
+            {busy === 'picker' ? (
+              <IonSpinner name="dots" />
+            ) : (
+              <span className="new-entry-tile-inner">
+                <ImageIcon size={32} aria-hidden="true" />
+                Choose from device
+              </span>
+            )}
+          </IonButton>
+        </div>
+
+        <div className="compose-form" style={{ paddingTop: 0 }}>
+          {photoMessage && (
+            <IonText color="danger">
+              <p>{photoMessage}</p>
+            </IonText>
+          )}
+          {cameraMessage && (
+            <IonText color="medium">
+              <p>{cameraMessage}</p>
+            </IonText>
+          )}
+          {!isNativeCamera() && (
+            <IonText color="medium">
+              <p>
+                Running in a desktop browser — the system picker will use your browser&rsquo;s own
+                file chooser.
+              </p>
+            </IonText>
+          )}
+        </div>
+      </IonContent>
+    </IonPage>
+  );
+}

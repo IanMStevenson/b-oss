@@ -1,10 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (C) 2026 Ian Stevenson
 
-import { useEffect, useState, useCallback, type ReactNode } from 'react';
+import { useEffect, useRef, useState, useCallback, type ReactNode } from 'react';
 import {
-  ChevronLeft,
-  ChevronRight,
   ArrowLeft,
   Loader2,
   AlertCircle,
@@ -12,50 +10,42 @@ import {
   Heart,
   MapPin,
   Maximize2,
+  Pencil,
+  Trash2,
+  Download,
   Camera,
   Timer,
   Aperture,
   Ruler,
   SunMedium,
+  Flag,
+  UserX,
+  Share2,
 } from 'lucide-react';
 import type { BlipEntry, BlipComment, EntryIndex, EntryState } from '../types.js';
-import { DatePicker } from './DatePicker.js';
+import { EntryNavStrip, type HistoryItem } from './EntryNavStrip.js';
+import { AsyncThumb, type ResolveAsset } from './AsyncThumb.js';
 import { Lightbox } from './Lightbox.js';
+import { formatLongDate } from '../entryDates.js';
 import { BBCodeText } from './BBCodeText.js';
 import { useSwipeNav } from '../useSwipeNav.js';
 import styles from './EntryDetail.module.css';
 
-type ResolveAsset = (path: string) => Promise<string> | string;
-
-function ordinalSuffix(day: number): string {
-  const mod100 = day % 100;
-  if (mod100 >= 11 && mod100 <= 13) return 'th';
-  switch (day % 10) {
-    case 1:
-      return 'st';
-    case 2:
-      return 'nd';
-    case 3:
-      return 'rd';
-    default:
-      return 'th';
-  }
-}
-
-function formatLongDate(isoDate: string): string {
-  // Parse as local time (not UTC) so the calendar date doesn't shift in negative-offset locales.
-  const d = new Date(isoDate + 'T00:00:00');
-  if (Number.isNaN(d.getTime())) return isoDate;
-  const day = d.getDate();
-  const month = d.toLocaleDateString('en-GB', { month: 'long' });
-  return `${day}${ordinalSuffix(day)} ${month} ${d.getFullYear()}`;
-}
+/** Window for telling a double-tap on the photo from two single taps. */
+const DOUBLE_TAP_MS = 280;
 
 interface EntryDetailReactions {
   starred: boolean;
   favorited: boolean;
   onToggleStar: () => void;
   onToggleFavorite: () => void;
+}
+
+/** Report / hide-the-author for someone else's entry, offered alongside star and favourite. */
+interface EntryDetailModeration {
+  onReport: () => void;
+  /** Omitted: no Hide segment (e.g. the author is unknown). */
+  onHide?: () => void;
 }
 
 interface EntryDetailProps {
@@ -66,39 +56,84 @@ interface EntryDetailProps {
   onClose?: () => void;
   baseUrl?: string;
   resolveAsset?: ResolveAsset;
+  /** Drops the host's cached copy of an image the browser failed to draw, so the one automatic
+   * retry fetches it afresh (b-oss#185). Omitted: the retry just re-resolves. */
+  invalidateAsset?: (path: string) => void | Promise<void>;
   entries?: EntryIndex[];
   /** Undefined: stars/hearts render as today's static counts. Provided: they become tappable. */
   reactions?: EntryDetailReactions;
+  /** Undefined: no report/hide segments. A host that knows nothing of members (the backup viewer)
+   * leaves it out; b-mobile passes it for other people's entries (b-oss#362). */
+  moderation?: EntryDetailModeration;
+  /** Undefined: no Share segment. The host owns the whole share flow (b-mobile: the system share
+   * sheet, after a protected-journal warning) — b-view stays free of platform plugins. */
+  onShare?: () => void;
   /** Rendered immediately after the comment list — the host owns the whole compose UI/behaviour. */
   commentComposer?: ReactNode;
-  /** Rendered in the nav header — the host supplies edit/delete triggers for entries it owns. */
+  /** Rendered beside the nav strip — the host supplies edit/delete triggers for entries it owns. */
   entryActions?: ReactNode;
+  /** Edit / delete for an entry the host's user owns, as Blipfoto's owner pill (✏ | 🗑). A segment
+   * renders only when its handler is given, so a host that can't (or mustn't) delete simply omits
+   * `onDelete`. Omitted entirely: no pill. `onDownload` is the same idea for saving the photo — the
+   * host decides who may have it (b-mobile: only the author, never anyone else's entry). */
+  ownerActions?: { onEdit?: () => void; onDelete?: () => void; onDownload?: () => void };
+  /** Rendered at the left of the top bar, opposite the nav strip — a host's own page identity
+   * (b-mobile puts the author block here; the viewer has none). Stacks above the strip when the
+   * container is narrow. */
+  header?: ReactNode;
+  /** Which days of a month have an entry (day-of-month → entry id) — opens a month-grid calendar
+   * where only those days are tappable, for a host with no local entry list (b-mobile). Ignored
+   * when `entries` is given (the popup calendar is used instead). */
+  loadCalendarMonth?: (year: number, month: number) => Promise<Record<number, string>>;
+  /** Loads the "1 year ago / 1 year ahead" entries for the history pop-down; omit to hide it. */
+  loadHistory?: () => Promise<HistoryItem[]>;
+  /** How the photo sizes against the screen. `full-width` (default) is blipfoto.com's own
+   * behaviour: always the column width, however tall — a portrait photo runs past the bottom of
+   * the screen and you scroll. `capped` limits the height so the whole picture fits without
+   * scrolling, at the cost of a narrower photo. */
+  photoFit?: 'full-width' | 'capped';
   /** Per-comment slot (e.g. reply/delete) — the host decides ownership, this component doesn't. */
   renderCommentActions?: (comment: BlipComment) => ReactNode;
+  /** Per-comment: return a node to show an inline editor *in place of* that comment (its body and
+   * actions are hidden while it's shown); return null for the normal comment. */
+  renderCommentEditor?: (comment: BlipComment) => ReactNode;
+  /** Per-comment: badges rendered beside the commenter's name (member level, client type…). */
+  renderCommenterBadges?: (comment: BlipComment) => ReactNode;
+  /** Makes each commenter's name a link; omitted, names are plain text. */
+  onUserClick?: (username: string) => void;
+  /** Per-comment: a node rendered beneath the comment and its actions, above its replies — an
+   * inline reply composer. Null for none. */
+  renderCommentReply?: (comment: BlipComment) => ReactNode;
+  /** Forwarded to every internal BBCodeText (description + every comment/reply). Omitted: links
+   * open via BBCodeText's own default (a new browser tab) — fine for Electron/Chrome, but a host
+   * whose links must never navigate its own WebView away (e.g. a Capacitor system-browser open)
+   * needs to supply this rather than relying on the default. */
+  onLinkClick?: (href: string) => void;
+  /** Called instead of opening the internal Lightbox overlay when the fullscreen button (next to
+   * the reactions) is pressed — for a host with its own dedicated fullscreen-photo route/screen
+   * to navigate to rather than overlay in place. Omitted: the default internal Lightbox opens, as
+   * before. Extras thumbnails always still open the internal Lightbox regardless — this only
+   * covers the main-photo fullscreen button. */
+  onFullscreen?: () => void;
+  /** Double-tap/double-click on the main photo. Supplying it delays a single tap's previous/next
+   * entry navigation by DOUBLE_TAP_MS so the first tap of a double can be told apart (and cancelled);
+   * omitted, a tap navigates at once, as before. Typically the same as `onFullscreen`. */
+  onPhotoDoubleTap?: () => void;
+  /** Called when a tag chip is tapped, with the raw tag text — for a host that has a tag-entries
+   * screen/route to navigate to. Omitted: tags render as plain, non-interactive text, as before. */
+  onTagClick?: (tag: string) => void;
+  /** Called instead of the default plain `<a target="_blank">` when the location pin (next to the
+   * reactions) is pressed — for a host with its own map screen/route to navigate to internally
+   * rather than opening an external maps site. Omitted: the default external link, as before —
+   * accepted as a known WebView-navigation gap on native (b-mobile's own host now supplies this). */
+  onLocationClick?: (location: { lat: number; lon: number }) => void;
 }
 
-function AsyncThumb({
-  path,
-  syncSrc,
-  resolveAsset,
-}: {
-  path: string;
-  syncSrc: string | undefined;
-  resolveAsset: ResolveAsset | undefined;
-}) {
-  const [src, setSrc] = useState<string | null>(syncSrc ?? null);
-  useEffect(() => {
-    if (!resolveAsset) return;
-    let cancelled = false;
-    void Promise.resolve(resolveAsset(path)).then((url) => {
-      if (!cancelled) setSrc(url);
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, [path, resolveAsset]);
-  if (!src) return null;
-  return <img src={src} alt="" className={styles.extraThumbImg} />;
+/** Blipfoto's `FNumber` already arrives as "f/4"; older backups may hold a bare "4". Show "f/4"
+ * either way, never "f/f/4". */
+export function formatAperture(fNumber: string | null | undefined): string | null {
+  if (!fNumber) return null;
+  return /^f\//i.test(fNumber) ? fNumber : `f/${fNumber}`;
 }
 
 function ExifRows({ exif }: { exif: NonNullable<BlipEntry['exif']> }) {
@@ -107,7 +142,7 @@ function ExifRows({ exif }: { exif: NonNullable<BlipEntry['exif']> }) {
     { icon: <Timer size={14} strokeWidth={1.5} />, value: exif.exposure_time },
     {
       icon: <Aperture size={14} strokeWidth={1.5} />,
-      value: exif.f_number ? `f/${exif.f_number}` : null,
+      value: formatAperture(exif.f_number),
     },
     { icon: <Ruler size={14} strokeWidth={1.5} />, value: exif.focal_length },
     { icon: <SunMedium size={14} strokeWidth={1.5} />, value: exif.iso ? String(exif.iso) : null },
@@ -127,28 +162,97 @@ function ExifRows({ exif }: { exif: NonNullable<BlipEntry['exif']> }) {
 function CommentThread({
   comment,
   renderCommentActions,
+  renderCommentEditor,
+  renderCommentReply,
+  renderCommenterBadges,
+  onUserClick,
+  onLinkClick,
+  resolveAsset,
+  baseUrl,
 }: {
   comment: BlipComment;
   renderCommentActions?: (comment: BlipComment) => ReactNode;
+  renderCommentEditor?: (comment: BlipComment) => ReactNode;
+  renderCommentReply?: (comment: BlipComment) => ReactNode;
+  renderCommenterBadges?: (comment: BlipComment) => ReactNode;
+  onUserClick?: (username: string) => void;
+  onLinkClick?: (href: string) => void;
+  resolveAsset?: ResolveAsset;
+  baseUrl?: string;
 }) {
+  // An editor, when the host has one open for this comment, takes the place of the comment itself.
+  const editor = renderCommentEditor?.(comment) ?? null;
+  const reply = renderCommentReply?.(comment) ?? null;
+  const avatar = comment.commenter_avatar;
+  const shared = {
+    renderCommentActions,
+    renderCommentEditor,
+    renderCommentReply,
+    renderCommenterBadges,
+    onUserClick,
+    onLinkClick,
+    resolveAsset,
+    baseUrl,
+  };
   return (
     <div className={styles.comment}>
-      <span className={styles.commentAuthor}>{comment.commenter_username}</span>
-      <BBCodeText source={comment.content} className={styles.commentBody} />
-      {renderCommentActions && (
-        <div className={styles.commentActions}>{renderCommentActions(comment)}</div>
-      )}
-      {comment.replies && comment.replies.length > 0 && (
-        <div className={styles.replies}>
-          {comment.replies.map((reply) => (
-            <CommentThread
-              key={reply.comment_id}
-              comment={reply}
-              renderCommentActions={renderCommentActions}
+      {/* An avatar column only when the host supplies avatars at all (the viewer doesn't). */}
+      {avatar !== undefined && (
+        <div className={styles.commentAvatar}>
+          {avatar && (
+            <AsyncThumb
+              path={avatar}
+              syncSrc={
+                resolveAsset
+                  ? undefined
+                  : /^https?:/i.test(avatar) || !baseUrl
+                    ? avatar
+                    : `${baseUrl}/${avatar}`
+              }
+              resolveAsset={resolveAsset}
+              className={styles.commentAvatarImg}
             />
-          ))}
+          )}
         </div>
       )}
+      <div className={styles.commentMain}>
+        <div className={styles.commentHead}>
+          <div className={styles.commentWho}>
+            {onUserClick ? (
+              <button
+                type="button"
+                className={`${styles.commentAuthor} ${styles.commentAuthorLink}`}
+                onClick={() => onUserClick(comment.commenter_username)}
+              >
+                {comment.commenter_username}
+              </button>
+            ) : (
+              <span className={styles.commentAuthor}>{comment.commenter_username}</span>
+            )}
+            {renderCommenterBadges?.(comment)}
+          </div>
+          {/* The actions sit in the name row (right-aligned), not stacked under the text — and not
+              at all while an editor has replaced the comment. */}
+          {!editor && renderCommentActions && (
+            <div className={styles.commentActions}>{renderCommentActions(comment)}</div>
+          )}
+        </div>
+        {editor ?? (
+          <BBCodeText
+            source={comment.content}
+            className={styles.commentBody}
+            onLinkClick={onLinkClick}
+          />
+        )}
+        {reply}
+        {comment.replies && comment.replies.length > 0 && (
+          <div className={styles.replies}>
+            {comment.replies.map((r) => (
+              <CommentThread key={r.comment_id} comment={r} {...shared} />
+            ))}
+          </div>
+        )}
+      </div>
     </div>
   );
 }
@@ -161,21 +265,71 @@ export function EntryDetail({
   onClose,
   baseUrl,
   resolveAsset,
+  invalidateAsset,
   entries,
   reactions,
+  moderation,
+  onShare,
   commentComposer,
   entryActions,
+  ownerActions,
+  header,
+  loadCalendarMonth,
+  loadHistory,
+  photoFit = 'full-width',
   renderCommentActions,
+  renderCommentEditor,
+  renderCommentReply,
+  renderCommenterBadges,
+  onUserClick,
+  onLinkClick,
+  onFullscreen,
+  onPhotoDoubleTap,
+  onTagClick,
+  onLocationClick,
 }: EntryDetailProps) {
   const [asyncImageSrc, setAsyncImageSrc] = useState<string | null>(null);
+  // 0 = first load; 1 = the single automatic retry after the photo failed to draw.
+  const [photoAttempt, setPhotoAttempt] = useState(0);
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
   // Resolved URLs for all lightbox images: [main, ...extras stdres]
   const [lightboxUrls, setLightboxUrls] = useState<string[]>([]);
 
-  const photoSwipe = useSwipeNav({
-    onSwipeLeft: () => nextEntryId && onNavigate(nextEntryId),
-    onSwipeRight: () => prevEntryId && onNavigate(prevEntryId),
+  // Swipe follows the ◀ ▶ arrows in the nav header: the finger moves the way the arrow points
+  // (swipe right = ▶ newer, swipe left = ◀ older) — the reverse of page-turn convention, which
+  // read as backwards next to the arrows. Attached to the whole page (below), not just the photo,
+  // and inert while the lightbox is open (it renders inside this wrapper, so its own swipes would
+  // otherwise bubble up here and navigate the entry underneath it as well).
+  const pageSwipe = useSwipeNav({
+    onSwipeRight: () => lightboxIndex === null && nextEntryId && onNavigate(nextEntryId),
+    onSwipeLeft: () => lightboxIndex === null && prevEntryId && onNavigate(prevEntryId),
   });
+
+  // Single taps on the photo navigate entries; when a double-tap handler exists they wait out the
+  // double-tap window so the first tap of a double doesn't move to another entry first.
+  const tapTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(
+    () => () => {
+      if (tapTimer.current) clearTimeout(tapTimer.current);
+    },
+    [],
+  );
+  const onPhotoTap = (id: string | null) => {
+    if (!onPhotoDoubleTap) {
+      if (id) onNavigate(id);
+      return;
+    }
+    if (tapTimer.current) {
+      clearTimeout(tapTimer.current);
+      tapTimer.current = null;
+      onPhotoDoubleTap();
+      return;
+    }
+    tapTimer.current = setTimeout(() => {
+      tapTimer.current = null;
+      if (id) onNavigate(id);
+    }, DOUBLE_TAP_MS);
+  };
 
   const imagePath =
     entryState.status === 'loaded'
@@ -225,13 +379,19 @@ export function EntryDetail({
       return;
     }
     let cancelled = false;
+    if (photoAttempt > 0) setAsyncImageSrc(null); // show the loading state while it refetches
     void Promise.resolve(resolveAsset(imagePath)).then((url) => {
       if (!cancelled) setAsyncImageSrc(url);
     });
     return () => {
       cancelled = true;
     };
-  }, [resolveAsset, imagePath]);
+  }, [resolveAsset, imagePath, photoAttempt]);
+
+  // A different photo starts with its retry available again.
+  useEffect(() => {
+    setPhotoAttempt(0);
+  }, [imagePath]);
 
   // Reset lightbox when navigating to a new entry
   useEffect(() => {
@@ -265,189 +425,195 @@ export function EntryDetail({
   const { data: entry } = entryState;
 
   return (
-    <div className={styles.wrapper}>
-      {/* Navigation header */}
-      <div className={styles.navHeader}>
-        <div className={styles.navLeft}>
+    <div
+      className={styles.wrapper}
+      onTouchStart={pageSwipe.onTouchStart}
+      onTouchEnd={pageSwipe.onTouchEnd}
+    >
+      {/* Top bar: the host's identity block (if any) opposite the nav strip */}
+      <div className={`${styles.column} ${styles.topBar}`}>
+        <div className={styles.topLeft}>
           {onClose && (
             <button className={styles.navBtn} onClick={onClose} aria-label="Back to grid">
               <ArrowLeft size={16} strokeWidth={1.6} />
               <span style={{ fontSize: '12px' }}>Back</span>
             </button>
           )}
-          <button
-            className={styles.navBtn}
-            onClick={() => prevEntryId && onNavigate(prevEntryId)}
-            disabled={!prevEntryId}
-            aria-label="Older entry"
-          >
-            <ChevronLeft size={18} strokeWidth={1.6} />
-          </button>
-        </div>
-
-        <div className={styles.navTitle}>
-          {entries && entries.length > 0 && (
-            <DatePicker entries={entries} currentDate={entry.date} onNavigate={onNavigate} />
-          )}
-          <span className={styles.navHeading}>
-            {formatLongDate(entry.date)}
-            {entry.title && ` : ${entry.title}`}
-          </span>
-        </div>
-
-        <div className={styles.navRight}>
+          {header}
           {entryActions}
-          <button
-            className={styles.navBtn}
-            onClick={() => nextEntryId && onNavigate(nextEntryId)}
-            disabled={!nextEntryId}
-            aria-label="Newer entry"
-          >
-            <ChevronRight size={18} strokeWidth={1.6} />
-          </button>
         </div>
+        <EntryNavStrip
+          date={entry.date}
+          prevEntryId={prevEntryId}
+          nextEntryId={nextEntryId}
+          onNavigate={onNavigate}
+          entries={entries}
+          loadCalendarMonth={loadCalendarMonth}
+          loadHistory={loadHistory}
+          resolveAsset={resolveAsset}
+          baseUrl={baseUrl}
+        />
       </div>
 
       {/* Photo */}
       <div className={styles.photoOuter}>
-        <div className={styles.photoMiddle}>
-          {imageSrc && (
-            <div
-              className={styles.photoInner}
-              onTouchStart={photoSwipe.onTouchStart}
-              onTouchEnd={photoSwipe.onTouchEnd}
-            >
-              <img src={imageSrc} alt={entry.title} className={styles.photo} />
-              <div
-                className={`${styles.photoHalf} ${styles.photoHalfLeft}`}
-                onClick={() => prevEntryId && onNavigate(prevEntryId)}
-                aria-hidden="true"
-              />
-              <div
-                className={`${styles.photoHalf} ${styles.photoHalfRight}`}
-                onClick={() => nextEntryId && onNavigate(nextEntryId)}
-                aria-hidden="true"
-              />
-            </div>
-          )}
+        <div className={styles.column}>
+          <div className={styles.photoFrame}>
+            {imagePath && !imageSrc && (
+              <div className={styles.photoPlaceholder}>
+                <Loader2 size={28} strokeWidth={1.6} className={styles.spinner} />
+              </div>
+            )}
+            {imageSrc && (
+              <div className={styles.photoInner}>
+                <img
+                  src={imageSrc}
+                  alt={entry.title}
+                  className={`${styles.photo} ${photoFit === 'capped' ? styles.photoCapped : ''}`}
+                  onError={() => {
+                    // The browser couldn't draw it (e.g. a corrupt cached copy): drop that copy
+                    // and try once more from scratch, rather than leaving a broken photo up.
+                    if (!resolveAsset || !imagePath || photoAttempt > 0) return;
+                    void Promise.resolve(invalidateAsset?.(imagePath)).then(() =>
+                      setPhotoAttempt(1),
+                    );
+                  }}
+                />
+                <div
+                  className={`${styles.photoHalf} ${styles.photoHalfLeft}`}
+                  onClick={() => onPhotoTap(prevEntryId)}
+                  aria-hidden="true"
+                />
+                <div
+                  className={`${styles.photoHalf} ${styles.photoHalfRight}`}
+                  onClick={() => onPhotoTap(nextEntryId)}
+                  aria-hidden="true"
+                />
+              </div>
+            )}
+          </div>
         </div>
       </div>
 
-      {/* Below-image content */}
+      {/* Below-image content. Three grid areas — main (title + description), side (stats, tags,
+          EXIF, actions) and comments — so the order is Blipfoto's when narrow (main, side,
+          comments) and two columns when wide (main + comments left, side right). */}
       <div className={styles.metaScroll}>
         <div className={styles.metaInner}>
-          {/* Title repeated below image */}
-          {entry.title && <h2 className={styles.entryTitle}>{entry.title}</h2>}
-
-          <div className={styles.metaColumns}>
-            {/* Left column: description, tags, comments */}
-            <div className={styles.metaLeft}>
+          <div className={styles.metaGrid}>
+            <div className={styles.metaMain}>
+              {entry.title && <h2 className={styles.entryTitle}>{entry.title}</h2>}
               {entry.description && (
-                <BBCodeText source={entry.description} className={styles.description} />
-              )}
-
-              {entry.tags.length > 0 && (
-                <div className={styles.tags}>
-                  {entry.tags.map((tag) => (
-                    <span key={tag} className={styles.tag}>
-                      {tag}
-                    </span>
-                  ))}
-                </div>
-              )}
-
-              {(entry.comments.length > 0 || commentComposer) && (
-                <div className={styles.commentsSection}>
-                  {entry.comments.length > 0 && (
-                    <>
-                      <h3 className={styles.commentsHeader}>Comments ({entry.comments.length})</h3>
-                      {entry.comments.map((c) => (
-                        <CommentThread
-                          key={c.comment_id}
-                          comment={c}
-                          renderCommentActions={renderCommentActions}
-                        />
-                      ))}
-                    </>
-                  )}
-                  {commentComposer}
-                </div>
+                <BBCodeText
+                  source={entry.description}
+                  className={styles.description}
+                  onLinkClick={onLinkClick}
+                />
               )}
             </div>
 
-            {/* Right column: views, stars, hearts, location, EXIF */}
-            <div className={styles.metaRight}>
-              {/* Views */}
-              {entry.views_total > 0 && (
-                <div className={styles.viewsBlock}>
-                  <span className={styles.viewCount}>{entry.views_total.toLocaleString()}</span>
-                  <span className={styles.viewLabel}>views</span>
+            <div className={styles.metaSide}>
+              {/* Views + the stars / hearts / fullscreen pill */}
+              <div className={styles.statsRow}>
+                {entry.views_total > 0 && (
+                  <div className={styles.viewsBlock}>
+                    <span className={styles.viewCount}>{entry.views_total.toLocaleString()}</span>
+                    <span className={styles.viewLabel}>views</span>
+                  </div>
+                )}
+                <div className={styles.pill}>
+                  {reactions ? (
+                    <button
+                      className={`${styles.pillSeg} ${styles.pillBtn}`}
+                      onClick={reactions.onToggleStar}
+                      aria-pressed={reactions.starred}
+                      aria-label={reactions.starred ? 'Remove star' : 'Star this entry'}
+                    >
+                      <Star size={14} strokeWidth={1.5} fill="currentColor" />
+                      {entry.stars_total}
+                    </button>
+                  ) : (
+                    <span className={styles.pillSeg}>
+                      <Star size={14} strokeWidth={1.5} fill="currentColor" />
+                      {entry.stars_total}
+                    </span>
+                  )}
+                  {reactions ? (
+                    <button
+                      className={`${styles.pillSeg} ${styles.pillBtn}`}
+                      onClick={reactions.onToggleFavorite}
+                      aria-pressed={reactions.favorited}
+                      aria-label={reactions.favorited ? 'Remove favourite' : 'Favourite this entry'}
+                    >
+                      <Heart size={14} strokeWidth={1.5} fill="currentColor" />
+                      {entry.favorites_total}
+                    </button>
+                  ) : (
+                    <span className={styles.pillSeg}>
+                      <Heart size={14} strokeWidth={1.5} fill="currentColor" />
+                      {entry.favorites_total}
+                    </span>
+                  )}
+                  {onShare && (
+                    <button
+                      className={`${styles.pillSeg} ${styles.pillBtn}`}
+                      onClick={onShare}
+                      aria-label="Share link"
+                    >
+                      <Share2 size={14} strokeWidth={1.5} />
+                    </button>
+                  )}
+                  {imagePath && (
+                    <button
+                      className={`${styles.pillSeg} ${styles.pillBtn}`}
+                      onClick={() => (onFullscreen ? onFullscreen() : setLightboxIndex(0))}
+                      aria-label="View photo full-screen"
+                    >
+                      <Maximize2 size={14} strokeWidth={1.5} />
+                    </button>
+                  )}
+                  {moderation && (
+                    <button
+                      className={`${styles.pillSeg} ${styles.pillBtn}`}
+                      onClick={moderation.onReport}
+                      aria-label="Report"
+                    >
+                      <Flag size={14} strokeWidth={1.5} />
+                    </button>
+                  )}
+                  {moderation?.onHide && (
+                    <button
+                      className={`${styles.pillSeg} ${styles.pillBtn}`}
+                      onClick={moderation.onHide}
+                      aria-label="Hide user"
+                    >
+                      <UserX size={14} strokeWidth={1.5} />
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              {entry.tags.length > 0 && (
+                <div className={styles.tags}>
+                  {entry.tags.map((tag) =>
+                    onTagClick ? (
+                      <button
+                        key={tag}
+                        className={styles.tag}
+                        onClick={() => onTagClick(tag)}
+                        aria-label={`Entries tagged ${tag}`}
+                        style={{ font: 'inherit', cursor: 'pointer' }}
+                      >
+                        {tag}
+                      </button>
+                    ) : (
+                      <span key={tag} className={styles.tag}>
+                        {tag}
+                      </span>
+                    ),
+                  )}
                 </div>
               )}
-
-              {/* Stars + hearts */}
-              <div className={styles.reactionsRow}>
-                {reactions ? (
-                  <button
-                    className={`${styles.reactionItem} ${styles.reactionButton}`}
-                    onClick={reactions.onToggleStar}
-                    aria-pressed={reactions.starred}
-                    aria-label={reactions.starred ? 'Remove star' : 'Star this entry'}
-                  >
-                    <Star
-                      size={14}
-                      strokeWidth={1.5}
-                      fill={reactions.starred ? 'currentColor' : 'none'}
-                    />
-                    {entry.stars_total}
-                  </button>
-                ) : (
-                  <span className={styles.reactionItem}>
-                    <Star size={14} strokeWidth={1.5} />
-                    {entry.stars_total}
-                  </span>
-                )}
-                {reactions ? (
-                  <button
-                    className={`${styles.reactionItem} ${styles.reactionButton}`}
-                    onClick={reactions.onToggleFavorite}
-                    aria-pressed={reactions.favorited}
-                    aria-label={reactions.favorited ? 'Remove favourite' : 'Favourite this entry'}
-                  >
-                    <Heart
-                      size={14}
-                      strokeWidth={1.5}
-                      fill={reactions.favorited ? 'currentColor' : 'none'}
-                    />
-                    {entry.favorites_total}
-                  </button>
-                ) : (
-                  <span className={styles.reactionItem}>
-                    <Heart size={14} strokeWidth={1.5} />
-                    {entry.favorites_total}
-                  </span>
-                )}
-                {imagePath && (
-                  <button
-                    className={`${styles.reactionItem} ${styles.reactionButton}`}
-                    onClick={() => setLightboxIndex(0)}
-                    aria-label="View photo full-screen"
-                  >
-                    <Maximize2 size={14} strokeWidth={1.5} />
-                  </button>
-                )}
-                {entry.location && (
-                  <a
-                    className={styles.reactionItem}
-                    href={`https://maps.google.com/maps?q=${entry.location.lat},${entry.location.lon}`}
-                    target="_blank"
-                    rel="noreferrer"
-                    aria-label="View on map"
-                  >
-                    <MapPin size={14} strokeWidth={1.5} />
-                  </a>
-                )}
-              </div>
 
               {/* Extras thumbnail row */}
               {extras.length > 0 && (
@@ -475,6 +641,7 @@ export function EntryDetail({
                           path={thumbPath}
                           syncSrc={thumbSrc}
                           resolveAsset={resolveAsset}
+                          className={styles.extraThumbImg}
                         />
                         {isLast && overflow > 0 && (
                           <div className={styles.extraOverflow}>+{overflow}</div>
@@ -487,17 +654,106 @@ export function EntryDetail({
 
               {/* EXIF */}
               {entry.exif && <ExifRows exif={entry.exif} />}
+
+              {/* Right-aligned pills: where it was taken, and the owner's edit / delete */}
+              {(entry.location ||
+                ownerActions?.onEdit ||
+                ownerActions?.onDelete ||
+                ownerActions?.onDownload) && (
+                <div className={styles.actionsRow}>
+                  {entry.location &&
+                    (onLocationClick ? (
+                      <div className={styles.pill}>
+                        <button
+                          className={`${styles.pillSeg} ${styles.pillBtn}`}
+                          onClick={() => onLocationClick(entry.location!)}
+                          aria-label="View on map"
+                        >
+                          <MapPin size={14} strokeWidth={1.5} />
+                        </button>
+                      </div>
+                    ) : (
+                      <div className={styles.pill}>
+                        <a
+                          className={`${styles.pillSeg} ${styles.pillBtn}`}
+                          href={`https://maps.google.com/maps?q=${entry.location.lat},${entry.location.lon}`}
+                          target="_blank"
+                          rel="noreferrer"
+                          aria-label="View on map"
+                        >
+                          <MapPin size={14} strokeWidth={1.5} />
+                        </a>
+                      </div>
+                    ))}
+                  {(ownerActions?.onEdit || ownerActions?.onDelete || ownerActions?.onDownload) && (
+                    <div className={styles.pill}>
+                      {ownerActions.onEdit && (
+                        <button
+                          className={`${styles.pillSeg} ${styles.pillBtn}`}
+                          onClick={ownerActions.onEdit}
+                          aria-label="Edit entry"
+                        >
+                          <Pencil size={14} strokeWidth={1.5} />
+                        </button>
+                      )}
+                      {ownerActions.onDownload && (
+                        <button
+                          className={`${styles.pillSeg} ${styles.pillBtn}`}
+                          onClick={ownerActions.onDownload}
+                          aria-label="Download photo"
+                        >
+                          <Download size={14} strokeWidth={1.5} />
+                        </button>
+                      )}
+                      {ownerActions.onDelete && (
+                        <button
+                          className={`${styles.pillSeg} ${styles.pillBtn}`}
+                          onClick={ownerActions.onDelete}
+                          aria-label="Delete entry"
+                        >
+                          <Trash2 size={14} strokeWidth={1.5} />
+                        </button>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
+
+            {(entry.comments.length > 0 || commentComposer) && (
+              <div className={`${styles.metaComments} ${styles.commentsSection}`}>
+                <h3 className={styles.commentsHeader}>Comments ({entry.comments.length})</h3>
+                {/* The composer sits above the list, as on blipfoto.com. */}
+                {commentComposer}
+                {entry.comments.map((c) => (
+                  <CommentThread
+                    key={c.comment_id}
+                    comment={c}
+                    renderCommentActions={renderCommentActions}
+                    renderCommentEditor={renderCommentEditor}
+                    renderCommentReply={renderCommentReply}
+                    renderCommenterBadges={renderCommenterBadges}
+                    onUserClick={onUserClick}
+                    onLinkClick={onLinkClick}
+                    resolveAsset={resolveAsset}
+                    baseUrl={baseUrl}
+                  />
+                ))}
+              </div>
+            )}
           </div>
         </div>
       </div>
 
-      {lightboxIndex !== null && lightboxUrls.length > 0 && (
+      {lightboxIndex !== null && lightboxUrls.length > 0 && entryState.status === 'loaded' && (
         <Lightbox
           images={lightboxUrls}
           index={lightboxIndex}
           onClose={() => setLightboxIndex(null)}
           onNavigate={setLightboxIndex}
+          title={entryState.data.title}
+          journalTitle={entryState.data.journal_title}
+          date={formatLongDate(entryState.data.date)}
         />
       )}
     </div>

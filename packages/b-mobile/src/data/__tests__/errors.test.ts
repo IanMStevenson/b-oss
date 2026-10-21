@@ -1,0 +1,228 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+// Copyright (C) 2026 Ian Stevenson
+
+// §19 layer 1 — mapApiError is the single error mapper every call site uses (§7); explicitly
+// named in §19's "this is where the density should be" list.
+
+import { describe, it, expect } from 'vitest';
+import { BlipfotoError, HttpError, NetworkError } from '@b-oss/b-api';
+import { describeError, describeUploadError, errorMessageOf, mapApiError } from '../errors.js';
+import { t } from '../../strings/index.js';
+
+function httpError(status: number): HttpError {
+  return new HttpError({
+    method: 'PUT',
+    url: 'https://api.blipfoto.com/4/x.json',
+    status,
+    statusText: '',
+    responseHeaders: {},
+    responseBody: '',
+  });
+}
+
+describe('mapApiError', () => {
+  it('says a 5xx is Blipfoto’s, not the app’s (b-oss#245)', () => {
+    expect(mapApiError(httpError(500))).toEqual({
+      kind: 'message',
+      message: 'Blipfoto had a server error (500). Please try again later.',
+    });
+  });
+
+  it('names the status of any other non-envelope response', () => {
+    expect(mapApiError(httpError(404))).toEqual({
+      kind: 'message',
+      message: 'Blipfoto returned an unexpected response (404).',
+    });
+  });
+
+  it('maps a NetworkError to transport, the only class the upload queue retries', () => {
+    expect(mapApiError(new NetworkError('offline'))).toEqual({
+      kind: 'transport',
+      timedOut: false,
+      message: "You're offline. Check your connection and try again.",
+    });
+  });
+
+  it.each(['Read timed out', 'timeout', 'SocketTimeoutException: connect timed out'])(
+    'maps a NetworkError caused by "%s" to the timeout message',
+    (cause) => {
+      expect(mapApiError(new NetworkError('Network request failed', new Error(cause)))).toEqual({
+        kind: 'transport',
+        timedOut: true,
+        message: 'The request timed out. Try again.',
+      });
+    },
+  );
+
+  it('maps an invalid-session BlipfotoError (code 50/51) to forced-logout', () => {
+    expect(mapApiError(new BlipfotoError(50, 'invalid session'))).toEqual({
+      kind: 'forced-logout',
+    });
+    expect(mapApiError(new BlipfotoError(51, 'invalid token'))).toEqual({
+      kind: 'forced-logout',
+    });
+  });
+
+  it('maps a rate-limit BlipfotoError (code 11) to rate-limited with the copy-deck message', () => {
+    expect(mapApiError(new BlipfotoError(11, 'too many requests'))).toEqual({
+      kind: 'rate-limited',
+      message: t('ERR.11.rate_limited'),
+    });
+  });
+
+  it('maps insufficient-scope (code 16) to upgrade-prompt — should be unreachable via the write gate', () => {
+    expect(mapApiError(new BlipfotoError(16, 'insufficient scope'))).toEqual({
+      kind: 'upgrade-prompt',
+      message: t('UPGRADE.error.scope_16'),
+    });
+  });
+
+  it('maps any other BlipfotoError to message, carrying the error’s own text', () => {
+    expect(mapApiError(new BlipfotoError(999, 'an unmapped code')).kind).toBe('message');
+    expect(mapApiError(new BlipfotoError(999, 'an unmapped code'))).toEqual({
+      kind: 'message',
+      message: 'an unmapped code',
+    });
+  });
+
+  // The API's write/validation codes (b-api docs/api-general.md) → strings/deck.ts's `ERR.*`
+  // keys — a sample across the distinct groups, not every code, since the
+  // mapping itself is a flat table with no branching logic per entry.
+  it.each([
+    [101, 'ERR.101.username_invalid'],
+    [104, 'ERR.104.protected'],
+    [202, 'ERR.202.entry_unavailable'],
+    [240, 'ERR.240.invalid_jpg'],
+    [252, 'ERR.252.already_posted'],
+    [303, 'ERR.303_304.comment_no_reply'],
+    [304, 'ERR.303_304.comment_no_reply'],
+    [516, 'ERR.516_517.journal_title'],
+    [517, 'ERR.516_517.journal_title'],
+    [527, 'ERR.527_528.tags'],
+  ] as const)('maps code %i to validation outcome with copyKey %s', (code, copyKey) => {
+    expect(mapApiError(new BlipfotoError(code, 'server message'))).toEqual({
+      kind: 'validation',
+      copyKey,
+    });
+  });
+
+  it('maps a non-BlipfotoError, non-NetworkError value to a generic message', () => {
+    expect(mapApiError(new Error('boom'))).toEqual({
+      kind: 'message',
+      message: 'Something went wrong. Please try again.',
+    });
+    expect(mapApiError('a plain string')).toEqual({
+      kind: 'message',
+      message: 'Something went wrong. Please try again.',
+    });
+    expect(mapApiError(undefined)).toEqual({
+      kind: 'message',
+      message: 'Something went wrong. Please try again.',
+    });
+  });
+
+  it('checks isTokenInvalid/isRateLimited before falling through to a plain message for an unrelated code', () => {
+    // Code 51 is also token-invalid — confirms the forced-logout branch, not code equality, is
+    // what's actually driving the check.
+    expect(mapApiError(new BlipfotoError(999, 'unmapped code')).kind).toBe('message');
+  });
+});
+
+describe('describeError', () => {
+  it('uses the outcome message for message/rate-limited/upgrade-prompt kinds', () => {
+    expect(describeError({ kind: 'message', message: 'server said no' }, 'fallback')).toBe(
+      'server said no',
+    );
+    expect(describeError({ kind: 'rate-limited', message: 'slow down' }, 'fallback')).toBe(
+      'slow down',
+    );
+    expect(describeError({ kind: 'upgrade-prompt', message: 'read-only' }, 'fallback')).toBe(
+      'read-only',
+    );
+  });
+
+  it('looks up the copy-deck text for a validation outcome', () => {
+    expect(describeError({ kind: 'validation', copyKey: 'ERR.240.invalid_jpg' }, 'fallback')).toBe(
+      t('ERR.240.invalid_jpg'),
+    );
+  });
+
+  it('describes a transport failure as offline or timed out, not the raw network error', () => {
+    expect(describeError(mapApiError(new NetworkError('x')), 'Could not save this.')).toBe(
+      "You're offline. Check your connection and try again.",
+    );
+    expect(
+      describeError(
+        mapApiError(new NetworkError('x', new Error('Read timed out'))),
+        'Could not save this.',
+      ),
+    ).toBe('The request timed out. Try again.');
+  });
+
+  it('falls back to the caller-supplied text for forced-logout, which is handled as a distinct state', () => {
+    expect(describeError({ kind: 'forced-logout' }, 'Could not save this.')).toBe(
+      'Could not save this.',
+    );
+  });
+});
+
+describe('describeUploadError (b-oss#318)', () => {
+  const fallback = 'Could not upload that avatar.';
+
+  it('shows the HTTP status and the start of the body', () => {
+    const err = new HttpError({
+      method: 'PUT',
+      url: 'u',
+      status: 500,
+      statusText: '',
+      responseHeaders: {},
+      responseBody: '  <html>\n boom </html>',
+    });
+    expect(describeUploadError(err, fallback)).toBe(
+      `${fallback} (Blipfoto answered 500: <html> boom </html>)`,
+    );
+  });
+
+  it('says so for a 413', () => {
+    expect(describeUploadError(httpError(413), fallback)).toContain('too large');
+  });
+
+  it('keeps the copy-deck text for a validation code', () => {
+    expect(describeUploadError(new BlipfotoError(240, 'x'), fallback)).toBe(
+      t('ERR.240.invalid_jpg'),
+    );
+  });
+
+  it('surfaces the transport cause, including a plugin’s non-Error object', () => {
+    const err = new NetworkError('Network request failed', {
+      code: 'OS-PLUG-FTRN-0010',
+      message: 'bad file',
+    });
+    expect(describeUploadError(err, fallback)).toBe(
+      `${fallback} (network problem: OS-PLUG-FTRN-0010 bad file)`,
+    );
+  });
+
+  it('shows an unexpected error’s own message instead of hiding it', () => {
+    expect(describeUploadError(new Error('boom'), fallback)).toBe(`${fallback} (boom)`);
+  });
+});
+
+describe('errorMessageOf', () => {
+  it('uses the offline line for a transport failure', () => {
+    const err = new NetworkError('Network request failed', new Error('Unable to resolve host'));
+    expect(errorMessageOf(err, 'fallback')).toBe(
+      "You're offline. Check your connection and try again.",
+    );
+  });
+
+  it('uses the timeout line when the cause timed out', () => {
+    const err = new NetworkError('Network request failed', new Error('Read timed out'));
+    expect(errorMessageOf(err, 'fallback')).toBe('The request timed out. Try again.');
+  });
+
+  it("keeps any other error's own message, then the fallback", () => {
+    expect(errorMessageOf(new Error('Entry not found'), 'fallback')).toBe('Entry not found');
+    expect(errorMessageOf('weird', 'fallback')).toBe('fallback');
+  });
+});
