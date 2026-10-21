@@ -10,11 +10,16 @@ import { describe, expect, it } from 'vitest';
 import { resolveDeepLink, routeDeepLink } from '../deepLinkResolver.js';
 import type { DeepLinkTarget } from '../deepLinkResolver.js';
 import manifest from '../../../android/app/src/main/AndroidManifest.xml?raw';
+import buildGradle from '../../../android/app/build.gradle?raw';
 
 interface ViewFilter {
   scheme: string;
   host?: string;
 }
+
+// The manifest declares the scheme as a placeholder (b-oss#462): the Play build registers
+// bmobile://, the debug build bmobile-debug://, so both must reach the same resolver.
+const SCHEMES = { release: 'bmobile', debug: 'bmobile-debug' };
 
 function viewFilters(xml: string): ViewFilter[] {
   const filters: ViewFilter[] = [];
@@ -23,7 +28,12 @@ function viewFilters(xml: string): ViewFilter[] {
     for (const [, attrs] of body.matchAll(/<data\s+([^>]*?)\/>/g)) {
       const scheme = /android:scheme="([^"]+)"/.exec(attrs)?.[1];
       if (!scheme) continue;
-      filters.push({ scheme, host: /android:host="([^"]+)"/.exec(attrs)?.[1] });
+      const host = /android:host="([^"]+)"/.exec(attrs)?.[1];
+      if (scheme === '${bmobileScheme}') {
+        for (const s of Object.values(SCHEMES)) filters.push({ scheme: s, host });
+      } else {
+        filters.push({ scheme, host });
+      }
     }
   }
   return filters;
@@ -41,14 +51,20 @@ describe('AndroidManifest VIEW intent filters', () => {
   it('declares exactly the bmobile:// and https://www.blipfoto.com filters the resolver knows about', () => {
     expect(filters).toEqual([
       { scheme: 'bmobile', host: undefined },
+      { scheme: 'bmobile-debug', host: undefined },
       { scheme: 'https', host: 'www.blipfoto.com' },
     ]);
+  });
+
+  it('build.gradle supplies exactly those two scheme values', () => {
+    expect(buildGradle).toContain(`manifestPlaceholders = [bmobileScheme: "${SCHEMES.release}"]`);
+    expect(buildGradle).toContain(`manifestPlaceholders = [bmobileScheme: "${SCHEMES.debug}"]`);
   });
 
   it.each(filters)('resolver handles URLs reachable through filter %o', ({ scheme, host }) => {
     const base = host ? `${scheme}://${host}` : `${scheme}://`;
     const samples: Array<[string, string[]]> =
-      scheme === 'bmobile'
+      scheme === 'bmobile' || scheme === 'bmobile-debug'
         ? [
             [`${base}entry/42`, ['/entry/42']],
             [`${base}user/alice`, ['/user/alice']],

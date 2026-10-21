@@ -153,6 +153,7 @@ non-Apache licence needs a matching entry/file in `scripts/native-licences.mjs`.
   PR description.
 - `packages/b-mobile/docs/DECIDED_NOT_TO_TEST.md` is ONLY for things the owner has explicitly said
   they are not testing. Never add to it on your own judgement, and don't use it as a testing log.
+
 ## Local build credentials (`.env.local`)
 
 `MAIN_VITE_BLIPFOTO_CLIENT_ID` (b-ark) and `VITE_CHROME_CLIENT_ID`
@@ -173,6 +174,15 @@ after exactly this happened on a fresh Mutagen-fed build. Copy or symlink
 `.env.local` from the main checkout into any new worktree before relying on
 OAuth-related functionality there.
 
+## Debug build beside the Play build (b-mobile)
+
+The Play release is `uk.co.salientpoint.bmobile`; the debug build is
+`uk.co.salientpoint.bmobile.debug` ("b-mobile (debug)", scheme `bmobile-debug://`), so both install
+on one phone with separate data. Build it with `npm run build:android-debug` (not `npm run build`),
+`npx cap sync android`, `./gradlew assembleDebug`. It reads `.env.android-debug.local` for its own
+Blipfoto client ID and redirect; `google-services.json` must hold a client for both package names.
+Details in `.env.example`. Release builds (the `b-mobile-v*` workflow) are unaffected.
+
 ## Building Gradle/Android on the egress-controlled dev VM
 
 Outbound traffic goes through a squid proxy (`localhost:3128`) with a per-domain rate limit
@@ -180,7 +190,7 @@ Outbound traffic goes through a squid proxy (`localhost:3128`) with a per-domain
 
 - The JVM ignores `HTTP(S)_PROXY` env vars. Put `systemProp.http(s).proxyHost/proxyPort`
   in `~/.gradle/gradle.properties`, and pass `JAVA_TOOL_OPTIONS="-Dhttps.proxyHost=localhost
-  -Dhttps.proxyPort=3128"` for the first run so the wrapper can download Gradle itself.
+-Dhttps.proxyPort=3128"` for the first run so the wrapper can download Gradle itself.
 - A `403 Forbidden` from `dl.google.com` is the rate limiter (`TCP_DENIED/403` in
   `/var/log/squid/access.log`), not a blocked host. Gradle caches what it fetched, so retry
   with `--max-workers=2` (a pause between attempts helps).

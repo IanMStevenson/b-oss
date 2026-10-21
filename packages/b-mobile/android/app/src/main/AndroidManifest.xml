@@ -23,14 +23,15 @@
             </intent-filter>
 
             <!-- bmobile:// — OAuth redirect (bmobile://oauth/) and content links
-                 (bmobile://entry/:id, bmobile://user/:username). One scheme, two path
+                 (bmobile://entry/:id, bmobile://user/:username); the debug build uses
+                 bmobile-debug:// (manifest placeholder, build.gradle, b-oss#462). One scheme, two path
                  namespaces (app-architecture.md §16); resolved uniformly by
                  flows/deepLinkResolver.ts for both cold and warm start. -->
             <intent-filter android:label="@string/title_activity_main">
                 <action android:name="android.intent.action.VIEW" />
                 <category android:name="android.intent.category.DEFAULT" />
                 <category android:name="android.intent.category.BROWSABLE" />
-                <data android:scheme="bmobile" />
+                <data android:scheme="${bmobileScheme}" />
             </intent-filter>
 
             <!-- ACTION_SEND share-to-Blipfoto (app-architecture.md §16) — enters compose at

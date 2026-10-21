@@ -56,6 +56,8 @@ packages/b-ark-chrome/public/b-view-dist/
 
 # Local debug pages
 debug/
+# ...but the b-mobile Android debug source set (label override, b-oss#462) is source, not output
+!packages/b-mobile/android/app/src/debug/
 
 # Signing material must never be committed (b-mobile upload key, docs/RELEASING-android.md)
 *.jks
