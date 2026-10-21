@@ -51,6 +51,15 @@ may log delivery data itself. Only the push token reaches the developer (the b-p
 rest is Google's. The Device or other IDs row covers this, and the answer should stay Yes while
 push is in the app.
 
+Per Firebase's [Play data disclosure page](https://firebase.google.com/docs/android/play-data-disclosure),
+the Cloud Messaging SDK also sends the app version and a "Firebase user agent" (OS version, device
+model and brand, the installing app, SDK versions) to Google, and uses a Firebase installation ID.
+Google's page does not map these to Play data types. Decision (Ian, 2026-10-21): declare **Device
+or other IDs** (installation ID and push token) and answer **No** to Crash logs, Diagnostics and
+Other app performance data; the device-metadata flow is described in the privacy policy's
+Firebase paragraph. If Play ever asks, Diagnostics (collected, not shared, optional, app
+functionality) is the closest category to declare.
+
 The Blipfoto read token stored by b-push is a credential, not a listed data type; it is encrypted
 at rest and covered under User IDs in the policy.
 
