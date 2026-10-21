@@ -25,12 +25,12 @@ update.
 Each distributable component has its own release process; this file is the b-ark one and holds
 the checklist the others follow ([b-oss#444](https://github.com/IanMStevenson/b-oss/issues/444)).
 
-| Component    | How it is released                                 | Process                                                                                    |
-| ------------ | -------------------------------------------------- | ------------------------------------------------------------------------------------------ |
-| b-ark        | Windows installer on GitHub Releases (Mac blocked) | This file                                                                                  |
-| b-ark-chrome | Zip uploaded to the Chrome Web Store               | [packages/b-ark-chrome/RELEASING.md](packages/b-ark-chrome/RELEASING.md)                   |
-| b-mobile     | Signed AAB uploaded to Google Play                 | [packages/b-mobile/docs/RELEASING-android.md](packages/b-mobile/docs/RELEASING-android.md) |
-| b-api        | Source only: consumers pull it from the repo       | [packages/b-api/RELEASING.md](packages/b-api/RELEASING.md)                                 |
+| Component    | How it is released                                                           | Process                                                                                    |
+| ------------ | ---------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------ |
+| b-ark        | Windows installer on GitHub Releases (Mac blocked)                           | This file                                                                                  |
+| b-ark-chrome | Zip uploaded to the Chrome Web Store                                         | [packages/b-ark-chrome/RELEASING.md](packages/b-ark-chrome/RELEASING.md)                   |
+| b-mobile     | Built and signed in CI from a gated tag; AAB uploaded to Google Play by hand | [packages/b-mobile/docs/RELEASING-android.md](packages/b-mobile/docs/RELEASING-android.md) |
+| b-api        | Source only: consumers pull it from the repo                                 | [packages/b-api/RELEASING.md](packages/b-api/RELEASING.md)                                 |
 
 b-ark and b-ark-chrome share a version number and a CHANGELOG section (1.0.5 shipped both). b-mobile
 and b-api version independently.
@@ -45,7 +45,8 @@ Every release, whatever the component:
    b-ark, b-ark-chrome and b-api have none.
 4. **Release build.** Build with `RELEASE=1` so the in-app version is bare, from a clean tree.
 5. **Smoke test the artifact** on a clean machine or profile, including signing in to Blipfoto.
-6. **Publish** by the component's own route, then tag and finish the release notes.
+6. **Publish** by the component's own route, then tag and finish the release notes. (b-mobile
+   tags first: its tag starts the build.)
 7. **Audit.** `npm audit --omit=dev --audit-level=high` must be clean (the b-ark workflow runs it);
    anything tolerated is recorded as a dismissed Dependabot alert with a reason.
 
