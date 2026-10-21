@@ -24,9 +24,9 @@ Dependency-update branch `chore/deps-update-1.0.2` — validated clean (typechec
 
 ## API Limitations
 
-**Image URLs** — `hires` and `original` fields in `image_urls` come back null in practice despite the user uploading original-resolution images. Needs investigation/fix on the Blipfoto side. **These fields are only populated for trusted apps - how do I get trusted**
+**Image URLs** — `hires` and `original` fields in `image_urls` come back null in practice despite the user uploading original-resolution images. Needs investigation/fix on the Blipfoto side. **These fields are not available to our app type - how do we get access?**
 
-**Extra images** — Supplementary photos attached to an entry are not exposed by the API at all (no read or upload endpoint). Website-only feature. **There is an undocumented API for extra - only for trusted apps again**
+**Extra images** — Supplementary photos attached to an entry are not exposed by the API at all (no read or upload endpoint). Website-only feature. **Not available to our app type either - how do we get access?**
 
 **CORS** — The Blipfoto API returns no `Access-Control-Allow-Origin` headers, so browser-based `fetch()` calls are blocked by CORS policy. Direct browser access is not possible. Workarounds: (a) a thin server-side proxy that forwards requests and injects the header; (b) on Capacitor/mobile, use `@capacitor/http` which routes through native Android/iOS HTTP and is not subject to CORS. Worth raising with Blipfoto as a simple server-config change on their side. **There is a JSONP mechanism on their side that can handle GETs, doesn't work for POST/PUT/DELETE - but it's horrible - they should fix this**
 

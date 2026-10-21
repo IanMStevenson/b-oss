@@ -4,30 +4,43 @@
 
 b-oss is a monorepo of Blipfoto backup tools. b-ark is the Electron desktop app.
 b-ark-chrome is the Chrome-extension sibling (single-account, folder-based backup via
-the File System Access API). b-view is the browser-based journal viewer. All names are
-lowercase and hyphenated.
+the File System Access API). b-view is the shared journal-viewer component kit, and
+b-view-backup is the backup-folder data layer plus the standalone viewer SPA built on it.
+b-mobile is the Capacitor (Android) app for browsing and posting to Blipfoto, b-push is its
+Cloudflare Worker notification service, and b-visual holds the shared design tokens and style
+guide. All names are lowercase and hyphenated.
 
 ## Package structure
 
 ```
 packages/b-api          No Node or Electron deps. Blipfoto HTTP client.
 packages/backup-engine  No Electron deps. Backup algorithm. Defines PlatformIO interface.
-packages/b-view             No Node or Electron deps. React components + standalone SPA.
+packages/b-view             No Node or Electron deps. Source-agnostic, prop-driven React components (ThumbnailGrid, EntryDetail, Lightbox). Uses b-visual tokens.
+packages/b-view-backup      No Electron deps. Backup-folder data hooks + the standalone SPA viewer; adapts backup-engine data to b-view's props.
+packages/b-visual           No runtime deps. Shared design tokens (tokens.css/tokens.ts) and the style guide. Consumed by b-view and b-mobile.
 packages/b-ark-ui-components No Electron deps. Shared, prop-driven presentational kit. Defines BackendContext interface + view types.
 packages/b-ark-ui-electron  No Electron deps. Desktop React shell (multi-account App, Sidebar, AppContext reducer) + container wrappers around the kit; includes ElectronBackend (wraps window.api).
 packages/b-ark              Electron shell only. Implements PlatformIO (ElectronPlatformIO); wires up ElectronBackend from b-ark-ui-electron.
 packages/b-ark-ui-chrome    No Electron deps. Browser React shell (BackupPage) + BrowserBackend (wraps chrome.*) implementing BackendContext, BrowserPlatformIO (File System Access), and the mountChip content-script. Exports the Chrome platform primitives for the shell to reuse.
 packages/b-ark-chrome       Chrome extension shell only — service worker (sw.ts), OAuth capture, content scripts. Should consume BrowserBackend/BrowserPlatformIO and the platform primitives from b-ark-ui-chrome.
+packages/b-mobile           Capacitor/Ionic Android app. Depends on b-api, b-view, b-visual only (no backup-engine). All `@capacitor/*` imports live in src/platform/**; the rest of the app uses those wrappers.
+packages/b-push             Cloudflare Worker + D1 notification service for b-mobile. Depends on b-api only. Design in packages/b-push/ARCHITECTURE.md; deployed manually, see packages/b-push/README.md.
 ```
+
+b-mobile does not share the PlatformIO/BackendContext abstractions: it is its own app shell with a
+Capacitor platform layer (`src/platform/`). Its design record is
+`packages/b-mobile/docs/ImplementationSpec/app-architecture.md`; what it currently does (and the
+SCR-/FLW- id index cited in source comments) is `packages/b-mobile/docs/BEHAVIOUR.md`.
 
 The Chrome side mirrors the Electron split: `b-ark-chrome` is to `b-ark-ui-chrome` what
 `b-ark` is to `b-ark-ui-electron` (extension shell over a no-platform-deps React/backend kit).
 
 ## Architecture rules (never violate these)
 
-- b-api, backup-engine, b-view, b-ark-ui-components, b-ark-ui-electron, b-ark-ui-chrome must NEVER import from 'electron'
-- b-api, backup-engine, b-view, b-ark-ui-components, b-ark-ui-electron must NEVER reference 'chrome'/`chrome.*` — Chrome APIs live only in b-ark-ui-chrome and b-ark-chrome
-- b-api, backup-engine, b-view, b-ark-ui-components, b-ark-ui-electron, b-ark-ui-chrome must NEVER import `@capacitor/*` — Capacitor APIs are for b-mobile only. b-view's components take host behaviour (e.g. link-click handling) as injectable props/callbacks instead, so they stay usable from a Capacitor host without depending on it
+- b-api, backup-engine, b-view, b-view-backup, b-visual, b-ark-ui-components, b-ark-ui-electron, b-ark-ui-chrome, b-mobile, b-push must NEVER import from 'electron'
+- b-api, backup-engine, b-view, b-view-backup, b-visual, b-ark-ui-components, b-ark-ui-electron, b-mobile, b-push must NEVER reference 'chrome'/`chrome.*` — Chrome APIs live only in b-ark-ui-chrome and b-ark-chrome
+- Every package except b-mobile (b-api, backup-engine, b-view, b-view-backup, b-visual, b-ark-ui-*, b-ark, b-ark-chrome, b-push) must NEVER import `@capacitor/*` — Capacitor APIs are for b-mobile only, and within b-mobile only `src/platform/**` may import them (enforced by ESLint). b-view's components take host behaviour (e.g. link-click handling) as injectable props/callbacks instead, so they stay usable from a Capacitor host without depending on it
+- b-push must NEVER depend on b-mobile, and no package may depend on b-mobile or b-push. b-push runs on Cloudflare Workers: no Node-only APIs.
 - b-ark-ui components must NEVER call window.api directly — use useBackend() hook only
 - Access tokens: handled in main process only (Electron), never sent to renderer via IPC. On Chrome, tokens are AES-GCM encrypted at rest and handed straight to BackupEngine — never broadcast over chrome.runtime messages
 - All Blipfoto \_id fields: always use the \_str string variant, store as string
@@ -105,6 +118,41 @@ npm run build:release  # Build with RELEASE=1 — version shown as bare 1.0.0
                                             # the host — see RELEASING.md §3
 ```
 
+### Local Android build + lint check (b-mobile; no CI)
+
+Run before merging anything that touches `packages/b-mobile/android/**`, the manifest, or a Capacitor
+plugin/SDK version — it catches manifest, SDK and plugin breakage that vitest can't:
+
+```bash
+export ANDROID_HOME=$HOME/Android/Sdk && npm run build -w @b-oss/b-mobile && (cd packages/b-mobile && npx cap sync android) && (cd packages/b-mobile/android && ./gradlew assembleRelease lintRelease)
+```
+
+Takes ~2 min cold; produces an unsigned APK (`app-release-unsigned.apk`), nothing is uploaded. Gradle's JVM
+ignores `HTTP(S)_PROXY`, so on the dev VMs egress goes through the squid proxy set in
+`~/.gradle/gradle.properties` (`systemProp.http(s).proxyHost=localhost`, port `3128`) — if downloads hang or
+fail with connection errors, check that file first. Verified on ims-dev-o1 on 2026-10-08:
+`assembleRelease` passes; `lintRelease` currently fails on one error (`PermissionImpliesUnsupportedChromeOsHardware`:
+the CAMERA permission lacks a `<uses-feature android:name="android.hardware.camera" android:required="false"/>`),
+tracked on b-oss#330.
+
+### Regenerating the b-mobile native Android licence list
+
+After a Capacitor/plugin/native dependency change, with an Android SDK and the proxy set up as above:
+
+```bash
+export ANDROID_HOME=$HOME/Android/Sdk && npm run build -w @b-oss/b-mobile && (cd packages/b-mobile && npx cap sync android) && npm run licences:native -w @b-oss/b-mobile
+```
+
+(The build + `cap sync` first are needed on a fresh checkout so Gradle can configure.) Commit the updated
+`native-licences.generated.json`. Licence texts live in `packages/b-mobile/scripts/licence-texts/`; a new
+non-Apache licence needs a matching entry/file in `scripts/native-licences.mjs`.
+
+## Testing records
+
+- Testing still to do (device checks, verifying something just built) goes in a GitHub issue or the
+  PR description.
+- `packages/b-mobile/docs/DECIDED_NOT_TO_TEST.md` is ONLY for things the owner has explicitly said
+  they are not testing. Never add to it on your own judgement, and don't use it as a testing log.
 ## Local build credentials (`.env.local`)
 
 `MAIN_VITE_BLIPFOTO_CLIENT_ID` (b-ark) and `VITE_CHROME_CLIENT_ID`

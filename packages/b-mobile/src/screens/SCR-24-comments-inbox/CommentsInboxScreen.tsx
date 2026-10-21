@@ -1,0 +1,283 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+// Copyright (C) 2026 Ian Stevenson
+
+// SCR-24 — Comments Inbox (FLW-15/16). Account-gated via AccountGuardRoute (AppRoutes.tsx), same
+// reasoning as SCR-23 (reachable from a tapped push while signed out, FLW-16 step 3).
+//
+// Fetching *is* what marks every one of the account's unread comments read — not just the page
+// returned (b-api docs/api-reference.md). `newIdsRef` captures which ids were unread from the
+// **first** response only (`data/notifications.ts#unreadCommentIds`, app-architecture.md §11's
+// "first-page-unread- snapshot" trap) — a `useRef` seeded once, deliberately not derived reactively
+// from `items` on every render, since any later response (pull-to-refresh) will show every row as
+// already read.
+//
+// Hidden-member suppression here is exact, unlike SCR-23's best-effort heuristic — a comment
+// states who wrote it structurally (`commenter.username`), no text-parsing needed.
+//
+// Reply/Report route through the same SCR-15/SCR-16 route-state shape SCR-06's comment thread
+// already uses (AppRoutes.tsx's `CommentRouteState`/`ReportRouteState`) — same screens, same
+// contract, a second caller.
+
+import { useCallback, useEffect, useRef, useState } from 'react';
+import {
+  IonPage,
+  IonHeader,
+  IonContent,
+  IonSpinner,
+  IonText,
+  IonButton,
+  IonAlert,
+  IonActionSheet,
+  IonRefresher,
+  IonRefresherContent,
+} from '@ionic/react';
+import type { RefresherEventDetail } from '@ionic/core';
+import { CornerUpLeft, MessageSquare, MoreVertical } from 'lucide-react';
+import { EmptyState } from '../../components/EmptyState.js';
+import { AppHeader } from '../../components/AppHeader.js';
+import { UserBadges } from '../../components/UserBadges.js';
+import { fetchRecentComments, unreadCommentIds } from '../../data/notifications.js';
+import { deleteComment } from '../../flows/commentsFlow.js';
+import { describeError, mapApiError } from '../../data/errors.js';
+import { useAppNavigate } from '../../app/routes/useAppNavigate.js';
+import { useAccountsStore } from '../../state/accountsStore.js';
+import { useHiddenMembers, useHiddenMembersStore } from '../../state/hiddenMembersStore.js';
+import { useNotificationCountsStore } from '../../state/notificationCountsStore.js';
+import { BBCodeText } from '@b-oss/b-view';
+import { openUrl } from '../../platform/browser.js';
+import { InboxRow, RowThumb } from '../../components/InboxRow.js';
+import { useReport } from '../../flows/useReport.js';
+import type { BlipComment } from '@b-oss/b-api';
+
+type Status = 'loading' | 'loaded' | 'empty' | 'error';
+
+export function CommentsInboxScreen() {
+  const navigate = useAppNavigate();
+  const { report, reportDialog } = useReport();
+  const hiddenUsernames = useHiddenMembers();
+  const activeAccountId = useAccountsStore((s) => s.activeAccountId);
+  const clearComments = useNotificationCountsStore((s) => s.clearComments);
+
+  const [status, setStatus] = useState<Status>('loading');
+  const [items, setItems] = useState<BlipComment[]>([]);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<BlipComment | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
+  const [overflowTarget, setOverflowTarget] = useState<BlipComment | null>(null);
+
+  const latestIdRef = useRef<string | null>(null);
+  // Seeded once, from the first successful response only — see the file header comment.
+  const newIdsRef = useRef<Set<string> | null>(null);
+
+  const load = useCallback(() => {
+    clearComments();
+    setStatus('loading');
+    setErrorMessage(null);
+    fetchRecentComments().then(
+      (comments) => {
+        if (newIdsRef.current === null) {
+          newIdsRef.current = unreadCommentIds(comments);
+        }
+        latestIdRef.current = comments[0]?.comment_id_str ?? null;
+        setItems(comments);
+        setStatus(comments.length === 0 ? 'empty' : 'loaded');
+      },
+      (err: unknown) => {
+        const outcome = mapApiError(err);
+        setErrorMessage(describeError(outcome, 'Could not load comments.'));
+        setStatus('error');
+      },
+    );
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeAccountId]);
+
+  useEffect(() => {
+    load();
+  }, [load]);
+
+  function handleRefresh(event: CustomEvent<RefresherEventDetail>): void {
+    fetchRecentComments(latestIdRef.current ?? undefined).then(
+      (fresh) => {
+        if (fresh.length > 0) {
+          latestIdRef.current = fresh[0].comment_id_str;
+          setItems((prev) => [...fresh, ...prev]);
+          setStatus('loaded');
+        }
+        event.detail.complete();
+      },
+      () => event.detail.complete(),
+    );
+  }
+
+  function handleHide(username: string): void {
+    useHiddenMembersStore.getState().hide(username);
+  }
+
+  async function handleConfirmedDelete(): Promise<void> {
+    if (!deleteTarget) return;
+    const target = deleteTarget;
+    setDeleteTarget(null);
+    try {
+      await deleteComment(target.comment_id_str);
+      setItems((prev) => prev.filter((c) => c.comment_id_str !== target.comment_id_str));
+    } catch (err) {
+      const outcome = mapApiError(err);
+      setActionError(describeError(outcome, 'Could not delete this comment.'));
+    }
+  }
+
+  function handleReply(comment: BlipComment): void {
+    if (!comment.entry_id_str) return;
+    // The reply composer is inline on the entry page (b-oss#172) — land there with it open on this
+    // comment rather than on a separate compose screen.
+    navigate.push(`/entry/${encodeURIComponent(comment.entry_id_str)}`, {
+      replyToCommentId: comment.comment_id_str,
+    });
+  }
+
+  function handleReport(comment: BlipComment): void {
+    if (!comment.entry_id_str) return;
+    report({
+      entryId: comment.entry_id_str,
+      targetUsername: comment.commenter.username,
+      reportedComment: {
+        username: comment.commenter.username,
+        excerpt: comment.content.slice(0, 80),
+      },
+    });
+  }
+
+  const visibleItems = items.filter((c) => !hiddenUsernames.includes(c.commenter.username));
+
+  return (
+    <IonPage>
+      <IonHeader>
+        <AppHeader title="Comments" />
+      </IonHeader>
+      <IonContent>
+        {status === 'loading' && (
+          <div className="ion-padding" style={{ display: 'flex', justifyContent: 'center' }}>
+            <IonSpinner />
+          </div>
+        )}
+        {status === 'error' && (
+          <div className="ion-padding">
+            <IonText color="danger">
+              <p>{errorMessage}</p>
+            </IonText>
+            <IonButton onClick={load}>Retry</IonButton>
+          </div>
+        )}
+        {status === 'empty' && (
+          <EmptyState
+            icon={<MessageSquare size={40} strokeWidth={1.5} />}
+            title="No comments yet."
+          />
+        )}
+        {(status === 'loaded' || status === 'empty') && (
+          <>
+            <IonRefresher slot="fixed" onIonRefresh={handleRefresh}>
+              <IonRefresherContent />
+            </IonRefresher>
+            {visibleItems.map((comment) => (
+              <InboxRow
+                key={comment.comment_id_str}
+                align="top"
+                unread={newIdsRef.current?.has(comment.comment_id_str) ?? false}
+                leading={
+                  <button
+                    onClick={() =>
+                      comment.entry_id_str &&
+                      navigate.push(`/entry/${encodeURIComponent(comment.entry_id_str)}`)
+                    }
+                    aria-label="Open entry"
+                    className="inbox-row-leading"
+                  >
+                    <RowThumb src={comment.thumbnail_url} />
+                  </button>
+                }
+                actions={
+                  <>
+                    {comment.actions.reply === 1 && (
+                      <button onClick={() => handleReply(comment)} aria-label="Reply">
+                        <CornerUpLeft size={18} strokeWidth={1.6} color="var(--muted)" />
+                      </button>
+                    )}
+                    <button onClick={() => setOverflowTarget(comment)} aria-label="More actions">
+                      <MoreVertical size={18} strokeWidth={1.6} color="var(--muted)" />
+                    </button>
+                  </>
+                }
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                  <button
+                    onClick={() =>
+                      navigate.push(`/user/${encodeURIComponent(comment.commenter.username)}`)
+                    }
+                    className="inbox-row-name"
+                  >
+                    {comment.commenter.username}
+                  </button>
+                  <UserBadges icons={comment.commenter.icons} />
+                </div>
+                <div style={{ marginTop: 2 }}>
+                  <BBCodeText source={comment.content} onLinkClick={(href) => void openUrl(href)} />
+                </div>
+              </InboxRow>
+            ))}
+          </>
+        )}
+      </IonContent>
+
+      <IonActionSheet
+        isOpen={!!overflowTarget}
+        onDidDismiss={() => setOverflowTarget(null)}
+        buttons={[
+          ...(overflowTarget?.actions.delete === 1
+            ? [
+                {
+                  text: 'Delete',
+                  role: 'destructive' as const,
+                  handler: () => {
+                    if (overflowTarget) setDeleteTarget(overflowTarget);
+                  },
+                },
+              ]
+            : []),
+          {
+            text: 'Report',
+            handler: () => {
+              if (overflowTarget) handleReport(overflowTarget);
+            },
+          },
+          {
+            text: 'Hide this member',
+            handler: () => {
+              if (overflowTarget) handleHide(overflowTarget.commenter.username);
+            },
+          },
+          { text: 'Cancel', role: 'cancel' as const },
+        ]}
+      />
+
+      <IonAlert
+        isOpen={!!deleteTarget}
+        header={`Delete ${deleteTarget?.commenter.username ?? ''}'s comment?`}
+        onDidDismiss={() => setDeleteTarget(null)}
+        buttons={[
+          { text: 'Cancel', role: 'cancel' },
+          { text: 'Delete', role: 'destructive', handler: () => void handleConfirmedDelete() },
+        ]}
+      />
+
+      <IonAlert
+        isOpen={!!actionError}
+        header="Something went wrong"
+        message={actionError ?? ''}
+        onDidDismiss={() => setActionError(null)}
+        buttons={['OK']}
+      />
+      {reportDialog}
+    </IonPage>
+  );
+}

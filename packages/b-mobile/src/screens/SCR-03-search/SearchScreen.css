@@ -1,0 +1,64 @@
+/* SPDX-License-Identifier: GPL-3.0-or-later */
+/* Copyright (C) 2026 Ian Stevenson */
+
+/* Rounded search field: the compose fields' border/focus treatment, pill-shaped, with a leading
+   search icon and a trailing clear icon inside it (UX review 02, X5). */
+.search-form {
+  padding: 8px 12px;
+}
+
+.search-field {
+  position: relative;
+  display: flex;
+  align-items: center;
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  min-height: 44px;
+  color: var(--muted);
+}
+
+.search-field:focus-within {
+  border-color: var(--green-800);
+  box-shadow: 0 0 0 1px var(--green-800);
+}
+
+.search-field-icon {
+  flex: none;
+  margin-left: 14px;
+  display: inline-flex;
+}
+
+.search-field-input {
+  flex: 1;
+  min-width: 0;
+  box-sizing: border-box;
+  font: inherit;
+  font-size: 16px;
+  color: var(--ink);
+  background: transparent;
+  border: none;
+  outline: none;
+  padding: 10px 12px;
+  appearance: none;
+  -webkit-appearance: none;
+}
+
+.search-field-input::-webkit-search-cancel-button,
+.search-field-input::-webkit-search-decoration {
+  -webkit-appearance: none;
+  appearance: none;
+  display: none;
+}
+
+.search-field-clear {
+  flex: none;
+  width: 36px;
+  height: 36px;
+  margin-right: 4px;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--muted);
+}

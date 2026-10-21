@@ -1,0 +1,268 @@
+/* SPDX-License-Identifier: GPL-3.0-or-later */
+/* Copyright (C) 2026 Ian Stevenson */
+
+.composer {
+  margin-top: 8px;
+  /* Air between the pill and whatever follows (the first comment's dashed rule). */
+  margin-bottom: 14px;
+}
+
+.box {
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  background: var(--bg);
+}
+
+.box:focus-within {
+  border-color: var(--green-700);
+}
+
+.textarea {
+  display: block;
+  width: 100%;
+  box-sizing: border-box;
+  min-height: 120px;
+  padding: 10px;
+  border: 0;
+  outline: none;
+  resize: vertical;
+  background: transparent;
+  font: inherit;
+  font-size: var(--text-md, 15px);
+  line-height: var(--leading-normal, 1.45);
+  color: var(--ink);
+}
+
+/* The rich-text box (BBCodeEditor's ProseMirror surface). Long lines wrap even without a space
+   (a pasted URL). */
+.editor {
+  position: relative;
+  display: block;
+  box-sizing: border-box;
+  min-height: 120px;
+  max-height: 60vh;
+  overflow-y: auto;
+  padding: 10px;
+  outline: none;
+  font-size: var(--text-md, 15px);
+  line-height: var(--leading-normal, 1.45);
+  color: var(--ink);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.editor[data-empty='true']::before {
+  content: attr(data-placeholder);
+  color: var(--muted-2);
+  pointer-events: none;
+  position: absolute;
+}
+
+.editor a {
+  color: var(--green-700);
+  text-decoration: underline;
+}
+
+.editor[aria-readonly='true'] {
+  color: var(--muted);
+}
+
+.error {
+  margin: 8px 0 0;
+  font-size: var(--text-sm, 13px);
+  color: var(--color-danger);
+}
+
+.actions {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+/* Blipfoto's outlined, fully-rounded "Add comment" pill. */
+.submit {
+  padding: 8px 18px;
+  border: 1.5px solid var(--ink);
+  border-radius: 999px;
+  background: var(--bg);
+  font: inherit;
+  font-size: var(--text-md, 15px);
+  font-weight: var(--font-weight-medium, 500);
+  color: var(--ink);
+  cursor: pointer;
+}
+
+.submit:disabled {
+  /* Still plainly a button — the near-invisible --ink-disabled made an empty box look broken
+     ("comments have been disabled") — just visibly not active yet. */
+  border-color: var(--muted-2);
+  color: var(--muted);
+  cursor: default;
+}
+
+.cancel {
+  padding: 8px 12px;
+  border: 0;
+  background: none;
+  font: inherit;
+  font-size: var(--text-md, 15px);
+  color: var(--muted);
+  cursor: pointer;
+}
+
+.cancel:disabled {
+  cursor: default;
+  color: var(--ink-disabled, #d0d3d8);
+}
+
+/* Formatting toolbar: faded B / I / U / S / link in the box's bottom-left, as on blipfoto.com. */
+.footer {
+  padding: 2px 6px 6px;
+}
+
+.toolbar {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.fmtBtn {
+  min-width: 32px;
+  height: 32px;
+  padding: 0 6px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  border-radius: 4px;
+  background: none;
+  font: inherit;
+  font-size: var(--text-md, 15px);
+  color: var(--muted-2);
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.fmtBtn[aria-expanded='true'],
+.fmtBtn[aria-pressed='true'] {
+  color: var(--ink);
+  background: var(--line-2);
+}
+
+/* Hover only where there is one: on a touchscreen it sticks after a tap and reads as "on". */
+@media (hover: hover) {
+  .fmtBtn:hover:not(:disabled) {
+    color: var(--ink);
+    background: var(--line-2);
+  }
+}
+
+.fmtBtn:disabled {
+  cursor: default;
+  opacity: 0.5;
+}
+
+.fmtBold {
+  font-weight: 700;
+  font-family: Georgia, serif;
+}
+
+.fmtItalic {
+  font-style: italic;
+  font-family: Georgia, serif;
+}
+
+.fmtUnderline {
+  text-decoration: underline;
+  font-family: Georgia, serif;
+}
+
+.fmtStrike {
+  text-decoration: line-through;
+  font-family: Georgia, serif;
+}
+
+.linkPanel {
+  padding: 4px 0 8px;
+  border-bottom: 1px dashed var(--line);
+  margin-bottom: 4px;
+}
+
+.linkRow {
+  display: flex;
+  padding: 2px 0;
+}
+
+.linkInput {
+  flex: 1;
+  min-width: 0;
+  height: 34px;
+  padding: 0 8px;
+  font: inherit;
+  font-size: var(--text-md, 15px);
+  border: 1px solid var(--line);
+  border-radius: 4px;
+}
+
+.linkInput:focus {
+  outline: none;
+  border-color: var(--green-700);
+}
+
+.linkActions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  padding-top: 6px;
+}
+
+/* Small versions of the "Add comment" pill. */
+.linkAdd,
+.linkCancel,
+.linkRemove {
+  height: 30px;
+  padding: 0 14px;
+  border: 1.5px solid var(--muted-2);
+  border-radius: 999px;
+  background: var(--bg);
+  font: inherit;
+  font-size: var(--text-sm, 13px);
+  color: var(--muted);
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.linkAdd {
+  border-color: var(--green-700);
+  font-weight: var(--font-weight-medium, 500);
+  color: var(--green-700);
+}
+
+.linkRemove {
+  margin-right: auto;
+  border-color: var(--color-danger);
+  color: var(--color-danger);
+}
+
+/* The editor's mount point, and the few rules ProseMirror needs (its own stylesheet, minus what
+   .editor already sets). */
+.pmMount {
+  display: block;
+}
+
+.pmMount :global(.ProseMirror) {
+  word-wrap: break-word;
+  white-space: break-spaces;
+  font-variant-ligatures: none;
+  font-feature-settings: 'liga' 0;
+}
+
+.pmMount :global(.ProseMirror-hideselection *::selection) {
+  background: transparent;
+}
+
+.pmMount :global(.ProseMirror-hideselection) {
+  caret-color: transparent;
+}

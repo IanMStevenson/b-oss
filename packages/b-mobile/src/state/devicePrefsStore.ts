@@ -1,0 +1,263 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+// Copyright (C) 2026 Ian Stevenson
+
+// Device-level preferences with no per-account scope (except `reminders`, which is keyed *by*
+// account but is itself device-local — reminder settings never travel with the portable backup
+// folder). Starts small and grows per-phase rather than being rebuilt each time:
+// `confirmAccountBeforeReaction` (Phase 4, FLW-06/07), `reminders` (Phase 7, FLW-18). Phase 8
+// (SCR-25/29) adds the remaining device-local fields app-architecture.md §6 assigns to this
+// store: `uploadFullSize` (SCR-25 Misc — persisted now; SCR-10/SCR-13's compose path never reads
+// it, since no client-side downscaling exists anywhere in this app yet — that's a real gap
+// predating this phase, not something Phase 8 papers over),
+// `openBlipfotoLinksInApp` (SCR-29's link-handling toggle — §16's opt-in `<activity-alias>`,
+// wired to a real native effect in Phase 10 via platform/blipfotoLinks.ts), and
+// `notificationPollingIntervalMinutes` (SCR-25 Notifications' Advanced control — stored locally
+// since there's no deployed b-push registration to PATCH yet; Phase 9 wires the live call).
+// `showZoomBar`/`showPagination`/`thumbnailMargins` (SCR-25's new Browsing section) are
+// EntryGrid/ThumbnailGrid display prefs — device-wide, not account-scoped.
+
+import { create } from 'zustand';
+import { getPref, setPref } from '../platform/prefs.js';
+import { setBlipfotoLinksEnabled } from '../platform/blipfotoLinks.js';
+
+const PREFS_KEY = 'b-mobile:device-prefs';
+
+export interface ReminderSetting {
+  enabled: boolean;
+  hour: number;
+  minute: number;
+}
+
+interface PersistedShape {
+  /** On by default; Settings → App (SCR-25) exposes the toggle. Gates the account-confirm
+   * dialog before a star/favourite/comment (flows/useAccountConfirmGate.tsx). */
+  confirmAccountBeforeReaction: boolean;
+  /** Keyed by accountId. Absent = never configured (never offered/enabled) — distinct from
+   * `{enabled: false}`, though nothing currently reads that distinction; kept anyway since a
+   * missing entry costs nothing and avoids inventing a placeholder time for every account. */
+  reminders: Record<string, ReminderSetting>;
+  /** SCR-25 Misc. Default `true` matches actual current behaviour (nothing downscales yet), so
+   * turning this "off" is the opt-in, not the other way round. */
+  uploadFullSize: boolean;
+  /** SCR-29. Default off (BEHAVIOUR.md, "Errors and network": deep links) — the app must not
+   * silently claim blipfoto.com links on install. */
+  openBlipfotoLinksInApp: boolean;
+  /** SCR-25 Notifications' Advanced control. Server floor is 5 minutes (b-push ARCHITECTURE.md);
+   * enforced client-side here too since there's no live service to enforce it yet. */
+  notificationPollingIntervalMinutes: number;
+  /** SCR-01's first-run explainer (Phase 12.1, OverlayProvider) — shown once above the mode
+   * choice on the first deliberate visit, never again after dismissal. */
+  seenFirstRunExplainer: boolean;
+  /** SCR-25 Browsing section. All three below are EntryGrid/ThumbnailGrid display prefs, not
+   * account-scoped — device-wide like Misc's fields. */
+  showZoomBar: boolean;
+  showPagination: boolean;
+  /** 'normal' = today's spacing. 'narrow' keeps the same column count as 'normal' at a given zoom
+   * level but shrinks margins/gaps to a few px. 'none' removes margins/gaps entirely, at which
+   * point zoom directly controls how many thumbnails fit per row (ThumbnailGrid.tsx's own header
+   * comment on the margins prop has the full column-count reasoning). */
+  thumbnailMargins: 'none' | 'narrow' | 'normal';
+  /** EntryGrid's own zoom control (ThumbnailGrid's sizePercent) — was local component state until
+   * this field existed, so Browse/Tag-entries/Search/Profile's own grid each had an independent
+   * zoom level that reset to 100 on every remount and never matched each other. One shared,
+   * persisted value across all of them, same as the other Browsing-section prefs above. */
+  thumbnailZoomPercent: number;
+  /** Entry page photo: 'full-width' (default, Blipfoto's behaviour — fills the column however tall,
+   * so a portrait scrolls) or 'capped' (height-limited so the whole picture fits on screen). */
+  photoFit: 'full-width' | 'capped';
+  /** What represents an account in the header indicator and account switcher: its Blipfoto
+   * profile picture (default; falls back to the icon when it has none) or the generic user icon. */
+  accountAvatarStyle: 'picture' | 'icon';
+}
+
+interface DevicePrefsState extends PersistedShape {
+  hydrated: boolean;
+  hydrate: () => Promise<void>;
+  setConfirmAccountBeforeReaction: (value: boolean) => void;
+  setReminder: (accountId: string, setting: ReminderSetting) => void;
+  clearReminder: (accountId: string) => void;
+  setUploadFullSize: (value: boolean) => void;
+  setOpenBlipfotoLinksInApp: (value: boolean) => void;
+  setNotificationPollingIntervalMinutes: (minutes: number) => void;
+  setSeenFirstRunExplainer: (value: boolean) => void;
+  setShowZoomBar: (value: boolean) => void;
+  setShowPagination: (value: boolean) => void;
+  setThumbnailMargins: (value: PersistedShape['thumbnailMargins']) => void;
+  setThumbnailZoomPercent: (value: number) => void;
+  setPhotoFit: (value: PersistedShape['photoFit']) => void;
+  setAccountAvatarStyle: (value: PersistedShape['accountAvatarStyle']) => void;
+}
+
+const defaults: PersistedShape = {
+  confirmAccountBeforeReaction: true,
+  reminders: {},
+  uploadFullSize: true,
+  openBlipfotoLinksInApp: false,
+  notificationPollingIntervalMinutes: 5,
+  seenFirstRunExplainer: false,
+  showZoomBar: true,
+  showPagination: true,
+  thumbnailMargins: 'none',
+  thumbnailZoomPercent: 100,
+  photoFit: 'full-width',
+  accountAvatarStyle: 'picture',
+};
+
+function persist(state: PersistedShape): void {
+  void setPref(PREFS_KEY, JSON.stringify(state));
+}
+
+export const useDevicePrefsStore = create<DevicePrefsState>((set) => ({
+  ...defaults,
+  hydrated: false,
+
+  hydrate: async () => {
+    const raw = await getPref(PREFS_KEY);
+    if (raw) {
+      try {
+        const parsed = { ...defaults, ...(JSON.parse(raw) as Partial<PersistedShape>) };
+        set({ ...parsed, hydrated: true });
+        // A fresh install always starts with the native <activity-alias> disabled (§16) — if a
+        // restored/synced backup folder carries a previously-enabled toggle, the native side
+        // needs re-syncing at launch, since nothing else does this on the app's behalf.
+        void setBlipfotoLinksEnabled(parsed.openBlipfotoLinksInApp);
+        return;
+      } catch {
+        // Corrupt prefs — fall through to defaults rather than crash launch.
+      }
+    }
+    set({ hydrated: true });
+  },
+
+  setConfirmAccountBeforeReaction: (value) => {
+    set((prev) => {
+      const shape: PersistedShape = { ...toPersisted(prev), confirmAccountBeforeReaction: value };
+      persist(shape);
+      return shape;
+    });
+  },
+
+  setReminder: (accountId, setting) => {
+    set((prev) => {
+      const shape: PersistedShape = {
+        ...toPersisted(prev),
+        reminders: { ...prev.reminders, [accountId]: setting },
+      };
+      persist(shape);
+      return shape;
+    });
+  },
+
+  clearReminder: (accountId) => {
+    set((prev) => {
+      if (!(accountId in prev.reminders)) return prev;
+      const reminders = { ...prev.reminders };
+      delete reminders[accountId];
+      const shape: PersistedShape = { ...toPersisted(prev), reminders };
+      persist(shape);
+      return shape;
+    });
+  },
+
+  setUploadFullSize: (value) => {
+    set((prev) => {
+      const shape: PersistedShape = { ...toPersisted(prev), uploadFullSize: value };
+      persist(shape);
+      return shape;
+    });
+  },
+
+  setOpenBlipfotoLinksInApp: (value) => {
+    set((prev) => {
+      const shape: PersistedShape = { ...toPersisted(prev), openBlipfotoLinksInApp: value };
+      persist(shape);
+      void setBlipfotoLinksEnabled(value);
+      return shape;
+    });
+  },
+
+  setNotificationPollingIntervalMinutes: (minutes) => {
+    set((prev) => {
+      const floored = Math.max(5, Math.round(minutes));
+      const shape: PersistedShape = {
+        ...toPersisted(prev),
+        notificationPollingIntervalMinutes: floored,
+      };
+      persist(shape);
+      return shape;
+    });
+  },
+
+  setSeenFirstRunExplainer: (value) => {
+    set((prev) => {
+      const shape: PersistedShape = { ...toPersisted(prev), seenFirstRunExplainer: value };
+      persist(shape);
+      return shape;
+    });
+  },
+
+  setShowZoomBar: (value) => {
+    set((prev) => {
+      const shape: PersistedShape = { ...toPersisted(prev), showZoomBar: value };
+      persist(shape);
+      return shape;
+    });
+  },
+
+  setShowPagination: (value) => {
+    set((prev) => {
+      const shape: PersistedShape = { ...toPersisted(prev), showPagination: value };
+      persist(shape);
+      return shape;
+    });
+  },
+
+  setThumbnailMargins: (value) => {
+    set((prev) => {
+      const shape: PersistedShape = { ...toPersisted(prev), thumbnailMargins: value };
+      persist(shape);
+      return shape;
+    });
+  },
+
+  setThumbnailZoomPercent: (value) => {
+    set((prev) => {
+      const shape: PersistedShape = { ...toPersisted(prev), thumbnailZoomPercent: value };
+      persist(shape);
+      return shape;
+    });
+  },
+
+  setPhotoFit: (value) => {
+    set((prev) => {
+      const shape: PersistedShape = { ...toPersisted(prev), photoFit: value };
+      persist(shape);
+      return shape;
+    });
+  },
+
+  setAccountAvatarStyle: (value) => {
+    set((prev) => {
+      const shape: PersistedShape = { ...toPersisted(prev), accountAvatarStyle: value };
+      persist(shape);
+      return shape;
+    });
+  },
+}));
+
+function toPersisted(state: PersistedShape): PersistedShape {
+  return {
+    confirmAccountBeforeReaction: state.confirmAccountBeforeReaction,
+    reminders: state.reminders,
+    uploadFullSize: state.uploadFullSize,
+    openBlipfotoLinksInApp: state.openBlipfotoLinksInApp,
+    notificationPollingIntervalMinutes: state.notificationPollingIntervalMinutes,
+    seenFirstRunExplainer: state.seenFirstRunExplainer,
+    showZoomBar: state.showZoomBar,
+    showPagination: state.showPagination,
+    thumbnailMargins: state.thumbnailMargins,
+    thumbnailZoomPercent: state.thumbnailZoomPercent,
+    photoFit: state.photoFit,
+    accountAvatarStyle: state.accountAvatarStyle,
+  };
+}

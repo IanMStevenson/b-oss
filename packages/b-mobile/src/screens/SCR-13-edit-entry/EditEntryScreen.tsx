@@ -1,0 +1,335 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+// Copyright (C) 2026 Ian Stevenson
+
+// SCR-13 — Edit Entry (FLW-13). One unified screen (2026-09 feedback round) — previously two
+// separate "modes" reached via two separate overflow-menu items ("Edit details"/"Replace photo",
+// `initialMode`/router state), which meant a single edit action didn't exist and Delete entry
+// lived entirely on EntryDetailScreen instead. Now: the details form, a Replace-photo section, and
+// Delete entry all live together on this one screen, reached via EntryDetailScreen's single Edit
+// affordance — matching FLW-13's actual intent ("edit an entry") rather than its old two-menu-item
+// implementation.
+//
+// Loads the entry once (there's no cheaper source — SCR-06 deliberately doesn't hand its own
+// loaded entry down, same deep-link-resilience reasoning as SCR-07/SCR-15/SCR-16) and
+// seeds composeDraftStore in 'edit' mode; reuses SCR-10's shared draft/SCR-11/SCR-12 machinery
+// rather than a parallel form. Save enqueues the same durable background upload as compose (§9).
+// Delete is immediate (no draft involved) — same confirm-then-delete-then-navigate-to-Browse
+// behaviour this screen inherited from EntryDetailScreen's old overflow menu.
+
+import { useEffect, useRef, useState } from 'react';
+import {
+  IonPage,
+  IonHeader,
+  IonButton,
+  IonContent,
+  IonText,
+  IonSpinner,
+  IonAlert,
+} from '@ionic/react';
+import { AppHeader } from '../../components/AppHeader.js';
+import { CachedImage } from '../../components/CachedImage.js';
+import { DescriptionField, TextField, ToggleRow } from '../../components/ComposeForm.js';
+import { useAppNavigate } from '../../app/routes/useAppNavigate.js';
+import { useComposeDraftStore } from '../../state/composeDraftStore.js';
+import { useActiveAccount } from '../../state/accountsStore.js';
+import { fetchEntry, deleteEntry } from '../../data/entries.js';
+import { enqueueDraft } from '../../flows/composeFlow.js';
+import { describeError, mapApiError } from '../../data/errors.js';
+import { takePhoto, pickPhoto } from '../../platform/camera.js';
+import { validatePickedPhoto } from '../../data/photoValidation.js';
+import type { PickedPhoto } from '../../platform/camera.js';
+
+interface EditEntryScreenProps {
+  entryId: string;
+}
+
+export function EditEntryScreen({ entryId }: EditEntryScreenProps) {
+  const navigate = useAppNavigate();
+  const activeAccount = useActiveAccount();
+  const draft = useComposeDraftStore((s) => s.draft);
+  const setDraft = useComposeDraftStore((s) => s.setDraft);
+  const patchDraft = useComposeDraftStore((s) => s.patchDraft);
+  const clearDraft = useComposeDraftStore((s) => s.clearDraft);
+
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [photoError, setPhotoError] = useState<string | null>(null);
+  // The entry's current photo, shown until a replacement is picked. Only known when this screen
+  // instance loaded the entry itself (a resumed draft doesn't carry it).
+  const [currentImage, setCurrentImage] = useState<string | null>(null);
+  const [submitting, setSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
+  const [confirmDiscard, setConfirmDiscard] = useState(false);
+  const [confirmDeleteEntry, setConfirmDeleteEntry] = useState(false);
+  const [deletingEntry, setDeletingEntry] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+
+  const isCurrentDraft = draft?.mode === 'edit' && draft.entryId === entryId;
+  // Whether this screen instance has already seeded (or found) its draft — checked once, at the
+  // ref's initializer, not tracked as an effect dependency. Save's own clearDraft() nulls the
+  // draft on success, which would otherwise flip `isCurrentDraft` back to false and — if this
+  // component were still mounted/subscribed at that instant (it briefly is, before the route
+  // change unmounts it) — re-trigger a pointless refetch-and-reseed race straight after saving.
+  // A ref survives that state change without re-running the effect, since it isn't a dependency.
+  const hasSeededRef = useRef(isCurrentDraft);
+
+  useEffect(() => {
+    if (hasSeededRef.current) {
+      setLoading(false);
+      return;
+    }
+    if (!activeAccount) return;
+    let cancelled = false;
+    fetchEntry(entryId).then(
+      (loaded) => {
+        if (cancelled) return;
+        setDraft({
+          mode: 'edit',
+          accountId: activeAccount.id,
+          entryId,
+          photo: null,
+          title: loaded.entry.title,
+          tags: loaded.entry.tags.join(', '),
+          description: loaded.entry.description,
+          date: loaded.entry.date,
+          location: loaded.entry.location ?? null,
+          displayLocation: loaded.entry.location != null,
+          thumbnailCrop: null,
+          dirty: false,
+        });
+        setCurrentImage(loaded.entry.images?.image ?? loaded.entry.images?.thumbnail ?? null);
+        hasSeededRef.current = true;
+        setLoading(false);
+      },
+      (err: unknown) => {
+        if (cancelled) return;
+        const outcome = mapApiError(err);
+        setLoadError(describeError(outcome, 'Could not load this entry.'));
+        setLoading(false);
+      },
+    );
+    return () => {
+      cancelled = true;
+    };
+    // setDraft is a stable Zustand action reference (never changes identity), so including it
+    // doesn't add a re-run trigger beyond entryId/activeAccount.
+  }, [entryId, activeAccount, setDraft]);
+
+  function handleBack(): void {
+    if (draft?.dirty) {
+      setConfirmDiscard(true);
+      return;
+    }
+    clearDraft();
+    navigate.goBack();
+  }
+
+  async function pickNewPhoto(source: 'camera' | 'gallery'): Promise<void> {
+    setPhotoError(null);
+    try {
+      const photo: PickedPhoto | null = source === 'camera' ? await takePhoto() : await pickPhoto();
+      if (!photo) return;
+      const validation = validatePickedPhoto(photo, 'entry');
+      if (!validation.ok) {
+        setPhotoError(validation.message);
+        return;
+      }
+      patchDraft({
+        photo: {
+          uri: photo.uri,
+          webPath: photo.webPath,
+          mimeType: photo.mimeType,
+          width: photo.width,
+          height: photo.height,
+          createdAt: photo.createdAt,
+          sizeBytes: photo.sizeBytes,
+        },
+      });
+    } catch (err) {
+      setPhotoError(err instanceof Error ? err.message : 'Could not use that photo.');
+    }
+  }
+
+  async function handleSave(): Promise<void> {
+    if (!draft || submitting) return;
+    setSubmitting(true);
+    setSubmitError(null);
+    try {
+      await enqueueDraft(draft);
+      clearDraft();
+      navigate.replace(`/entry/${entryId}`);
+    } catch (err) {
+      const outcome = mapApiError(err);
+      setSubmitError(describeError(outcome, 'Could not queue this change.'));
+      setSubmitting(false);
+    }
+  }
+
+  async function handleConfirmedDeleteEntry(): Promise<void> {
+    setConfirmDeleteEntry(false);
+    setDeletingEntry(true);
+    try {
+      await deleteEntry(entryId);
+      clearDraft();
+      navigate.replace('/browse');
+    } catch (err) {
+      const outcome = mapApiError(err);
+      setDeleteError(describeError(outcome, 'Could not delete this entry.'));
+      setDeletingEntry(false);
+    }
+  }
+
+  if (loading) {
+    return (
+      <IonPage>
+        <IonContent className="ion-padding">
+          <IonSpinner />
+        </IonContent>
+      </IonPage>
+    );
+  }
+
+  if (loadError || !draft) {
+    return (
+      <IonPage>
+        <IonContent className="ion-padding">
+          <IonText color="danger">
+            <p>{loadError ?? 'Could not load this entry.'}</p>
+          </IonText>
+          <IonButton onClick={() => navigate.goBack()}>Back</IonButton>
+        </IonContent>
+      </IonPage>
+    );
+  }
+
+  return (
+    <IonPage>
+      <IonHeader>
+        <AppHeader title="Edit entry" variant="back" onBack={handleBack} accountIndicator />
+      </IonHeader>
+      <IonContent>
+        <div className="compose-form">
+          {submitError && (
+            <IonText color="danger">
+              <p>{submitError}</p>
+            </IonText>
+          )}
+          {deleteError && (
+            <IonText color="danger">
+              <p>{deleteError}</p>
+            </IonText>
+          )}
+
+          <TextField
+            label="Title"
+            value={draft.title}
+            maxLength={50}
+            onChange={(title) => patchDraft({ title })}
+          />
+
+          <DescriptionField
+            value={draft.description}
+            onChange={(description) => patchDraft({ description })}
+          />
+
+          <TextField
+            label="Tags (comma-separated)"
+            value={draft.tags}
+            maxLength={255}
+            onChange={(tags) => patchDraft({ tags })}
+          />
+
+          <ToggleRow
+            label="Add to map"
+            checked={draft.location != null}
+            onChange={(checked) => {
+              if (checked && !draft.location) {
+                navigate.push('/compose/location');
+              } else if (!checked && draft.location) {
+                patchDraft({ location: null, displayLocation: false });
+              }
+            }}
+          >
+            {draft.location && (
+              <IonButton
+                fill="clear"
+                size="small"
+                onClick={() => navigate.push('/compose/location')}
+              >
+                Change
+              </IonButton>
+            )}
+          </ToggleRow>
+
+          <div className="compose-field">
+            <span className="compose-field-label">Photo</span>
+            {photoError && (
+              <IonText color="danger">
+                <p>{photoError}</p>
+              </IonText>
+            )}
+            {draft.photo ? (
+              <img src={draft.photo.webPath} alt="New photo" className="compose-photo" />
+            ) : (
+              currentImage && (
+                <CachedImage src={currentImage} alt="Current photo" className="compose-photo" />
+              )
+            )}
+            <div className="compose-photo-actions">
+              <IonButton fill="outline" size="small" onClick={() => void pickNewPhoto('camera')}>
+                Take a photo
+              </IonButton>
+              <IonButton fill="outline" size="small" onClick={() => void pickNewPhoto('gallery')}>
+                Choose from device
+              </IonButton>
+            </div>
+          </div>
+
+          <IonButton expand="block" disabled={submitting} onClick={() => void handleSave()}>
+            {submitting ? <IonSpinner name="dots" /> : 'Save'}
+          </IonButton>
+
+          <div className="compose-danger-zone">
+            <IonButton
+              expand="block"
+              fill="outline"
+              color="danger"
+              disabled={deletingEntry}
+              onClick={() => setConfirmDeleteEntry(true)}
+            >
+              Delete entry
+            </IonButton>
+          </div>
+        </div>
+      </IonContent>
+
+      <IonAlert
+        isOpen={confirmDeleteEntry}
+        header="Delete this entry?"
+        message="This can't be undone."
+        onDidDismiss={() => setConfirmDeleteEntry(false)}
+        buttons={[
+          { text: 'Cancel', role: 'cancel' },
+          { text: 'Delete', role: 'destructive', handler: () => void handleConfirmedDeleteEntry() },
+        ]}
+      />
+
+      <IonAlert
+        isOpen={confirmDiscard}
+        header="Discard changes?"
+        onDidDismiss={() => setConfirmDiscard(false)}
+        buttons={[
+          { text: 'Keep editing', role: 'cancel' },
+          {
+            text: 'Discard',
+            role: 'destructive',
+            handler: () => {
+              clearDraft();
+              navigate.goBack();
+            },
+          },
+        ]}
+      />
+    </IonPage>
+  );
+}

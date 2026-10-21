@@ -8,6 +8,21 @@
   flex: 1;
   min-height: 0;
   overflow-y: auto;
+  /* The layout responds to the width this component is given, not the window's — the viewer and
+     the app embed it in very different spaces (and the viewer's own panes can resize). */
+  container-type: inline-size;
+  container-name: entry;
+  /* One column for everything on the page (top bar, photo, text), so it all lines up. */
+  --entry-column: 960px;
+  --entry-gutter: 16px;
+}
+
+.column {
+  width: 100%;
+  max-width: calc(var(--entry-column) + 2 * var(--entry-gutter));
+  margin: 0 auto;
+  padding: 0 var(--entry-gutter);
+  box-sizing: border-box;
 }
 
 .centred {
@@ -32,25 +47,38 @@
   gap: 8px;
 }
 
-/* Navigation header */
-.navHeader {
+/* Top bar: the host's identity block opposite the nav strip. On a wide container they share a
+   row (identity left, strip right); on a narrow one the strip drops beneath, left-aligned. */
+.topBar {
   display: flex;
   align-items: center;
-  padding: 6px 16px;
-  border-bottom: 1px solid var(--line);
-  min-height: 44px;
+  justify-content: space-between;
+  gap: 12px 16px;
+  padding-top: 16px;
+  padding-bottom: 16px;
+}
+
+.topLeft {
+  display: flex;
+  align-items: center;
   gap: 8px;
+  /* Never wider than the bar, so a host's long title can truncate instead of overflowing. */
+  min-width: 0;
+  max-width: 100%;
+  /* Takes the room between the host's identity block and the nav strip, so a host that pins an
+     element to the block's right edge (b-mobile's Report/Hide) lands beside the nav. */
+  flex: 1 1 auto;
 }
 
-.navLeft {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-}
+@container entry (max-width: 640px) {
+  .topBar {
+    flex-direction: column;
+    align-items: flex-start;
+  }
 
-.navRight {
-  display: flex;
-  align-items: center;
+  .topLeft {
+    width: 100%;
+  }
 }
 
 .navBtn {
@@ -67,37 +95,24 @@
   background: var(--line-2);
 }
 
-.navTitle {
-  flex: 1;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  overflow: hidden;
+.navBtn:disabled {
+  color: var(--ink-disabled, #d0d3d8);
+  cursor: default;
 }
 
-.navHeading {
-  font-size: 15px;
-  font-weight: 600;
-  color: var(--ink-2);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-/* Photo — grey bar constrained to metaInner width */
+/* Photo: blipfoto.com's "mat" — a thin light border with a few px of white padding on the white
+   page, across the full column. */
 .photoOuter {
   width: 100%;
 }
 
-.photoMiddle {
+.photoFrame {
+  /* a double-tap opens the lightbox: stop the browser reading it as double-tap-to-zoom */
+  touch-action: manipulation;
   position: relative;
-  max-width: 900px;
-  margin: 0 auto;
-  padding: 0 24px;
-  display: flex;
-  justify-content: center;
-  background: var(--photo-bg);
+  padding: 5px;
+  border: 1px solid var(--line);
+  background: var(--bg);
 }
 
 .photoInner {
@@ -105,12 +120,32 @@
   max-width: 100%;
 }
 
+/* Shown while imageSrc hasn't resolved yet (nothing rendered here otherwise, which used to
+   collapse this container to zero height — the meta content below jumped up to fill the gap,
+   then jumped back down once the image finally loaded, worse on a slow connection). No API field
+   gives an image's real dimensions up front to reserve exact space, so this is a fixed-height
+   placeholder rather than an aspect-ratio match. */
+.photoPlaceholder {
+  width: 100%;
+  min-height: 240px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--ink-2);
+}
+
 .photo {
   display: block;
-  width: auto;
+  width: 100%;
   height: auto;
+}
+
+/* photoFit="capped": the whole picture fits on screen without scrolling, at the cost of width. */
+.photoCapped {
+  width: auto;
   max-width: 100%;
-  max-height: 80vh;
+  max-height: 85vh;
+  margin: 0 auto;
   object-fit: contain;
 }
 
@@ -138,166 +173,174 @@
 }
 
 .metaInner {
-  max-width: 900px;
+  /* border-box so the gutter is *inside* the column, lining the text up with the photo frame. */
+  box-sizing: border-box;
+  width: 100%;
+  max-width: calc(var(--entry-column) + 2 * var(--entry-gutter));
   margin: 0 auto;
-  padding: 20px 24px 32px;
+  padding: 20px var(--entry-gutter) 32px;
 }
 
-/* Title below image */
-.entryTitle {
-  font-size: 20px;
-  font-weight: 700;
-  color: var(--ink);
-  margin: 0 0 16px;
-}
-
-/* Two-column layout */
-.metaColumns {
+/* Below-image content: three grid areas so the order is Blipfoto's when narrow (title and
+   description, then stats / tags / EXIF / actions, then comments) and two columns when wide
+   (main + comments left, the side column right). Responds to the width this component is given. */
+.metaGrid {
   display: grid;
-  grid-template-columns: 1fr minmax(200px, 260px);
-  gap: 32px;
+  grid-template-columns: 1fr;
+  grid-template-areas: 'main' 'side' 'comments';
+  gap: 20px 32px;
   align-items: start;
 }
 
-@media (max-width: 600px) {
-  .metaColumns {
-    grid-template-columns: 1fr;
-  }
-  .metaRight {
-    border-top: 1px solid var(--line);
-    padding-top: 16px;
-  }
-}
-
-/* Left column */
-.metaLeft {
+.metaMain {
+  grid-area: main;
   min-width: 0;
 }
 
-.description {
-  font-size: 14px;
-  line-height: 1.6;
-  color: var(--ink-2);
-  margin-bottom: 16px;
+.metaSide {
+  grid-area: side;
+  min-width: 0;
 }
 
+.metaComments {
+  grid-area: comments;
+  min-width: 0;
+}
+
+@container entry (min-width: 700px) {
+  .metaGrid {
+    grid-template-columns: 1fr minmax(220px, 280px);
+    grid-template-areas: 'main side' 'comments side';
+    grid-template-rows: auto 1fr;
+  }
+}
+
+/* Title and description: Roboto Regular title, Light description (the Blipfoto reading style). */
+.entryTitle {
+  font-size: var(--text-xl, 22px);
+  font-weight: var(--font-weight-regular, 400);
+  line-height: var(--leading-tight, 1.25);
+  color: var(--ink);
+  margin: 0 0 14px;
+}
+
+.description {
+  font-size: var(--text-lg, 17px);
+  font-weight: var(--font-weight-light, 300);
+  line-height: var(--leading-relaxed, 1.55);
+  color: var(--ink-2);
+}
+
+@container entry (min-width: 700px) {
+  .description {
+    font-size: var(--text-md, 15px);
+  }
+}
+
+/* Stats: views stacked on the left, the segmented pill on the right. */
+.statsRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding-bottom: 14px;
+  border-bottom: 1px solid var(--line);
+}
+
+.viewsBlock {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.05;
+}
+
+.viewCount {
+  font-size: var(--text-xl, 22px);
+  font-weight: var(--font-weight-medium, 500);
+  color: var(--ink);
+}
+
+.viewLabel {
+  font-size: var(--text-sm, 13px);
+  color: var(--ink-2);
+}
+
+/* The segmented pill — rounded ends, a light border, dividers between segments. Used for
+   stars/hearts/fullscreen, the location pin, and the owner's edit/delete. */
+.pill {
+  display: inline-flex;
+  align-items: stretch;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  overflow: hidden;
+  background: var(--bg);
+}
+
+.pillSeg {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 8px 13px;
+  font: inherit;
+  font-size: var(--text-sm, 13px);
+  color: var(--ink-2);
+  background: none;
+  border: 0;
+  text-decoration: none;
+}
+
+.pillSeg + .pillSeg {
+  border-left: 1px solid var(--line);
+}
+
+.pillBtn {
+  cursor: pointer;
+}
+
+.pillBtn:hover {
+  background: var(--line-2);
+}
+
+.pillBtn[aria-pressed='true'] {
+  color: var(--green-700);
+}
+
+/* Tags as chips (Blipfoto's chips are blue; ours keep the brand green). */
 .tags {
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
-  margin-bottom: 20px;
+  padding: 14px 0;
+  border-bottom: 1px solid var(--line);
 }
 
 .tag {
   background: var(--green-100);
   color: var(--green-800);
-  border-radius: 14px;
-  padding: 4px 10px;
-  font-size: 12px;
+  border: 1px solid var(--green-700);
+  border-radius: 3px;
+  padding: 3px 8px;
+  font-size: var(--text-xs, 12px);
+}
+
+/* Right-aligned pills row: location, then the owner's edit/delete. */
+.actionsRow {
+  display: flex;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding-top: 14px;
 }
 
 /* Comments */
 .commentsSection {
-  margin-top: 8px;
-  border-top: 1px solid var(--line);
-  padding-top: 16px;
+  border-top: 0;
 }
 
 .commentsHeader {
-  font-size: 13px;
-  font-weight: 600;
+  font-size: var(--text-md, 15px);
+  font-weight: var(--font-weight-medium, 500);
   color: var(--muted);
   margin: 0 0 12px;
-}
-
-.comment {
-  margin-bottom: 14px;
-}
-
-.commentAuthor {
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--ink);
-  display: block;
-  margin-bottom: 2px;
-}
-
-.commentBody {
-  font-size: 13px;
-  line-height: 1.5;
-  color: var(--ink-2);
-}
-
-.commentBody p {
-  margin: 0;
-}
-
-.commentActions {
-  margin-top: 4px;
-  display: flex;
-  gap: 8px;
-}
-
-.replies {
-  margin-top: 8px;
-  margin-left: 16px;
-  padding-left: 12px;
-  border-left: 2px solid var(--line);
-}
-
-/* Right column */
-.metaRight {
-  min-width: 0;
-}
-
-.viewsBlock {
-  margin-bottom: 8px;
-}
-
-.viewCount {
-  font-size: 22px;
-  font-weight: 600;
-  color: var(--ink);
-  margin-right: 4px;
-}
-
-.viewLabel {
-  font-size: 13px;
-  color: var(--muted);
-}
-
-.reactionsRow {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  margin-bottom: 16px;
-  padding-bottom: 12px;
-  border-bottom: 1px solid var(--line);
-}
-
-.reactionItem {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  font-size: 13px;
-  color: var(--ink-2);
-  text-decoration: none;
-}
-
-.reactionItem:hover {
-  color: var(--green-700);
-}
-
-.reactionButton {
-  background: none;
-  border: none;
-  padding: 0;
-  cursor: pointer;
-  font: inherit;
-}
-
-.reactionButton[aria-pressed='true'] {
-  color: var(--green-700);
 }
 
 /* Extras thumbnail row */
@@ -346,6 +389,7 @@
   display: flex;
   flex-direction: column;
   gap: 5px;
+  padding-top: 14px; /* clear of the separator above, as .tags does below its own */
 }
 
 .exifRow {
@@ -365,4 +409,113 @@
 
 .exifValue {
   color: var(--ink-2);
+}
+
+/* One comment: an optional square avatar beside a column holding the name row (name + badges on
+   the left, the action pill on the right), the body, then any reply composer and replies. Each
+   comment is separated from the last by a dashed rule, as on blipfoto.com. */
+.comment {
+  display: flex;
+  gap: 12px;
+  padding: 16px 0;
+  border-top: 1px dashed var(--line);
+}
+
+.commentAvatar {
+  flex: 0 0 44px;
+  width: 44px;
+  height: 44px;
+  background: var(--photo-bg);
+  overflow: hidden;
+}
+
+.commentAvatarImg {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.commentMain {
+  flex: 1;
+  min-width: 0;
+}
+
+.commentHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-height: 30px;
+  margin-bottom: 4px;
+}
+
+.commentWho {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.commentAuthor {
+  font-size: var(--text-md, 15px);
+  font-weight: var(--font-weight-medium, 500);
+  color: var(--ink);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* A linked name takes the interactive green (Blipfoto's are blue). */
+.commentAuthorLink {
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  font-size: var(--text-md, 15px);
+  font-weight: var(--font-weight-medium, 500);
+  color: var(--green-700);
+  cursor: pointer;
+}
+
+.commentBody {
+  font-size: var(--text-md, 15px);
+  line-height: var(--leading-relaxed, 1.55);
+  color: var(--ink-2);
+  overflow-wrap: anywhere;
+}
+
+.commentBody p {
+  margin: 0;
+}
+
+.commentBody p + p {
+  margin-top: 8px;
+}
+
+.commentActions {
+  flex-shrink: 0;
+}
+
+/* Replies nest inside their parent's column, so they're already indented past its avatar; a smaller
+   avatar and a quieter rule keep a thread from feeling crowded. */
+.replies {
+  margin-top: 12px;
+  padding-left: 12px;
+  border-left: 2px solid var(--line);
+}
+
+.replies .comment {
+  padding: 12px 0 0;
+  border-top: 0;
+}
+
+.replies .comment + .comment {
+  margin-top: 4px;
+}
+
+.replies .commentAvatar {
+  flex-basis: 34px;
+  width: 34px;
+  height: 34px;
 }

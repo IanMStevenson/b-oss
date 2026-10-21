@@ -4,7 +4,7 @@
 import { setupServer } from 'msw/node';
 import { http, HttpResponse } from 'msw';
 import { beforeAll, afterAll, afterEach, describe, it, expect } from 'vitest';
-import { BlipfotoClient, BlipfotoError, NetworkError } from '../index.js';
+import { BlipfotoClient, BlipfotoError, HttpError, NetworkError } from '../index.js';
 
 const BASE = 'https://api.blipfoto.com/4/';
 
@@ -45,7 +45,7 @@ function makeUserClient() {
 const mockUser = {
   username: 'gbradley',
   avatar_url: 'https://example.com/avatar.jpg',
-  icons: [{ icon_id_str: '123', icon_url: 'https://example.com/icon.jpg' }],
+  icons: [{ icon_id: '123', icon_url: 'https://example.com/icon.jpg' }],
 };
 
 const mockUserDetails = {
@@ -337,6 +337,23 @@ describe('getNewEntries', () => {
   });
 });
 
+describe('getMilestoneEntries (undocumented endpoint)', () => {
+  it('calls entries/milestones with paging and returns page + entries', async () => {
+    server.use(
+      http.get(`${BASE}entries/milestones.json`, ({ request }) => {
+        const url = new URL(request.url);
+        expect(url.searchParams.get('page_index')).toBe('2');
+        expect(url.searchParams.get('page_size')).toBe('100');
+        return HttpResponse.json(envelope({ page: mockPage, entries: [mockEntryStub] }), {
+          headers: rateLimitHeaders(),
+        });
+      }),
+    );
+    const result = await makeAppClient().getMilestoneEntries({ pageIndex: 2, pageSize: 100 });
+    expect(result.entries).toHaveLength(1);
+  });
+});
+
 describe('searchEntries (User auth only)', () => {
   it('sends text query and sort', async () => {
     server.use(
@@ -608,10 +625,12 @@ describe('updateEntry (User auth only)', () => {
 });
 
 describe('deleteEntry (User auth only)', () => {
-  it('DELETEs with entry_id in body', async () => {
+  it('DELETEs with entry_id in the query string', async () => {
     server.use(
       http.delete(`${BASE}entry.json`, async ({ request }) => {
-        const body = new URLSearchParams(await request.text());
+        // DELETE parameters travel in the query string, with no body (b-oss#285).
+        expect(await request.text()).toBe('');
+        const body = new URL(request.url).searchParams;
         expect(body.get('entry_id')).toBe('9876543210');
         return HttpResponse.json(envelope({ success: 1 }), { headers: rateLimitHeaders() });
       }),
@@ -682,10 +701,12 @@ describe('updateComment (User auth only)', () => {
 });
 
 describe('deleteComment (User auth only)', () => {
-  it('DELETEs with comment_id in body', async () => {
+  it('DELETEs with comment_id in the query string', async () => {
     server.use(
       http.delete(`${BASE}entry/comment.json`, async ({ request }) => {
-        const body = new URLSearchParams(await request.text());
+        // DELETE parameters travel in the query string, with no body (b-oss#285).
+        expect(await request.text()).toBe('');
+        const body = new URL(request.url).searchParams;
         expect(body.get('comment_id')).toBe('111');
         return HttpResponse.json(envelope({ success: 1 }), { headers: rateLimitHeaders() });
       }),
@@ -774,15 +795,16 @@ describe('getJournalMonth (User auth only)', () => {
         const url = new URL(request.url);
         expect(url.searchParams.get('date')).toBe('2024-01-01');
         return HttpResponse.json(
-          envelope({ month: 1, year: 2024, week_start: 1, days: [mockDay, null] }),
+          envelope({ month: { month: 1, year: 2024, week_start: 1, days: [mockDay, null] } }),
           { headers: rateLimitHeaders() },
         );
       }),
     );
     const result = await makeUserClient().getJournalMonth('2024-01-01');
-    expect(result.month).toBe(1);
-    expect(result.days[0]).not.toBeNull();
-    expect(result.days[1]).toBeNull();
+    // The grid is nested under `month` in the real response (confirmed live, 2026-10-05).
+    expect(result.month.month).toBe(1);
+    expect(result.month.days[0]).not.toBeNull();
+    expect(result.month.days[1]).toBeNull();
   });
 
   it('sends optional username and week_start', async () => {
@@ -791,9 +813,12 @@ describe('getJournalMonth (User auth only)', () => {
         const url = new URL(request.url);
         expect(url.searchParams.get('username')).toBe('gbradley');
         expect(url.searchParams.get('week_start')).toBe('7');
-        return HttpResponse.json(envelope({ month: 1, year: 2024, week_start: 7, days: [] }), {
-          headers: rateLimitHeaders(),
-        });
+        return HttpResponse.json(
+          envelope({ month: { month: 1, year: 2024, week_start: 7, days: [] } }),
+          {
+            headers: rateLimitHeaders(),
+          },
+        );
       }),
     );
     await makeUserClient().getJournalMonth('2024-01-01', {
@@ -815,6 +840,18 @@ describe('getRecentComments (User auth only)', () => {
     const result = await makeUserClient().getRecentComments();
     expect(result.comments).toHaveLength(1);
     expect(result.comments[0].comment_id_str).toBe('111');
+  });
+
+  it('passes through the comments-inbox-only unread flag when present', async () => {
+    server.use(
+      http.get(`${BASE}messages/comments/recent.json`, () =>
+        HttpResponse.json(envelope({ comments: [{ ...mockComment, unread: 1 }] }), {
+          headers: rateLimitHeaders(),
+        }),
+      ),
+    );
+    const result = await makeUserClient().getRecentComments();
+    expect(result.comments[0].unread).toBe(1);
   });
 
   it('sends size and since_id params', async () => {
@@ -904,11 +941,23 @@ describe('verifyToken', () => {
   it('returns username from token object', async () => {
     server.use(
       http.get(`${BASE}oauth/token.json`, () =>
-        HttpResponse.json(envelope({ username: 'gbradley' }), { headers: rateLimitHeaders() }),
+        HttpResponse.json(envelope({ token: mockToken }), { headers: rateLimitHeaders() }),
       ),
     );
     const result = await makeUserClient().verifyToken('my-client-id');
     expect(result.username).toBe('gbradley');
+  });
+
+  it('returns the granted scope when present', async () => {
+    server.use(
+      http.get(`${BASE}oauth/token.json`, () =>
+        HttpResponse.json(envelope({ token: { ...mockToken, scope: 'read,write' } }), {
+          headers: rateLimitHeaders(),
+        }),
+      ),
+    );
+    const result = await makeUserClient().verifyToken('my-client-id');
+    expect(result.scope).toBe('read,write');
   });
 
   it('throws BlipfotoError on error code 52 (invalid client)', async () => {
@@ -1219,6 +1268,29 @@ describe('updateNotificationSettings (User auth only)', () => {
     });
     expect(result.success).toBe(1);
   });
+
+  it('an empty HTTP 500 throws an HttpError describing the exchange, without the token (b-oss#245)', async () => {
+    server.use(
+      http.put(
+        `${BASE}user/settings/notifications.json`,
+        () => new HttpResponse(null, { status: 500, headers: { 'X-Request-Id': 'abc' } }),
+      ),
+    );
+    const err = await makeUserClient()
+      .updateNotificationSettings({ feed_friends: 1 })
+      .catch((e: unknown) => e);
+    expect(err).toBeInstanceOf(HttpError);
+    const http500 = err as HttpError;
+    expect(http500.status).toBe(500);
+    expect(http500.isServerError).toBe(true);
+    expect(http500.exchange.requestBody).toBe('feed_friends=1');
+    const text = http500.describe();
+    expect(text).toContain('PUT ');
+    expect(text).toContain('feed_friends=1');
+    expect(text).toContain('x-request-id: abc');
+    expect(text).toContain('(empty)');
+    expect(text).not.toContain(USER_TOKEN);
+  });
 });
 
 // ── Social ────────────────────────────────────────────────────────────────────
@@ -1268,10 +1340,12 @@ describe('follow (User auth only)', () => {
 });
 
 describe('unfollow (User auth only)', () => {
-  it('DELETEs with comma-separated usernames in body', async () => {
+  it('DELETEs with comma-separated usernames in the query string', async () => {
     server.use(
       http.delete(`${BASE}users/following.json`, async ({ request }) => {
-        const body = new URLSearchParams(await request.text());
+        // DELETE parameters travel in the query string, with no body (b-oss#285).
+        expect(await request.text()).toBe('');
+        const body = new URL(request.url).searchParams;
         expect(body.get('usernames')).toBe('alice');
         return HttpResponse.json(envelope({ friendships: [mockFriendship] }), {
           headers: rateLimitHeaders(),
@@ -1301,7 +1375,9 @@ describe('removeFollower (User auth only)', () => {
   it('DELETEs with usernames', async () => {
     server.use(
       http.delete(`${BASE}users/followers.json`, async ({ request }) => {
-        const body = new URLSearchParams(await request.text());
+        // DELETE parameters travel in the query string, with no body (b-oss#285).
+        expect(await request.text()).toBe('');
+        const body = new URL(request.url).searchParams;
         expect(body.get('usernames')).toBe('spammer');
         return HttpResponse.json(envelope({ friendships: [] }), { headers: rateLimitHeaders() });
       }),
@@ -1344,7 +1420,9 @@ describe('rejectPendingRequests (User auth only)', () => {
   it('DELETEs with usernames', async () => {
     server.use(
       http.delete(`${BASE}users/requests/pending.json`, async ({ request }) => {
-        const body = new URLSearchParams(await request.text());
+        // DELETE parameters travel in the query string, with no body (b-oss#285).
+        expect(await request.text()).toBe('');
+        const body = new URL(request.url).searchParams;
         expect(body.get('usernames')).toBe('spammer');
         return HttpResponse.json(envelope({ friendships: [] }), { headers: rateLimitHeaders() });
       }),
@@ -1384,7 +1462,9 @@ describe('unblockUsers (User auth only)', () => {
   it('DELETEs with usernames', async () => {
     server.use(
       http.delete(`${BASE}users/requests/blocked.json`, async ({ request }) => {
-        const body = new URLSearchParams(await request.text());
+        // DELETE parameters travel in the query string, with no body (b-oss#285).
+        expect(await request.text()).toBe('');
+        const body = new URL(request.url).searchParams;
         expect(body.get('usernames')).toBe('alice,bob');
         return HttpResponse.json(envelope({ friendships: [mockFriendship] }), {
           headers: rateLimitHeaders(),

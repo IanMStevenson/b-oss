@@ -3,7 +3,7 @@
 
 // b-view's own view-model types — source-agnostic, prop-driven. Previously re-exported from
 // @b-oss/backup-engine; now defined here so backup data and live b-api data can be interchangeable
-// sources behind the same components (see PLAN.md's Phase 0.2 for the split this came from).
+// sources behind the same components.
 // Structurally close to backup-engine's shapes (any consumer whose data has these fields works,
 // including backup-engine's own, unmodified) minus fields that are backup-pipeline bookkeeping
 // with no display role: schema_version, backed_up_at, backup_app_version, images.web_scraped.
@@ -12,6 +12,10 @@ export interface BlipComment {
   comment_id: string;
   parent_id: string | null;
   commenter_username: string;
+  /** The commenter's avatar (URL or backup-relative path). Absent for a host that has none — the
+   * backup viewer — which then renders comments without an avatar column; present-but-empty means
+   * "has no avatar", shown as a neutral placeholder so the column still lines up. */
+  commenter_avatar?: string;
   content: string;
   content_html: string;
   replies: BlipComment[];
@@ -66,6 +70,14 @@ export interface EntryIndex {
   title: string;
   thumbnail_path: string;
   json_path: string;
+  /** Optional: backup-engine's own equivalent shape (single-journal, so redundant per entry)
+   * never carries this. Populated by b-mobile's live adapter, where it drives the
+   * hidden-member-suppression grid check — a concept with no backup-viewer
+   * counterpart, so ThumbnailGrid itself never reads it. */
+  username?: string;
+  /** Optional: the entry's journal title, used by ThumbnailGrid's `'journal'` caption mode. Absent
+   * (or empty) falls back to `username`. */
+  journal_title?: string;
 }
 
 export type EntryState =

@@ -1,0 +1,19 @@
+{
+  "name": "@b-oss/b-push",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Cloud notification service for b-mobile (Cloudflare Worker + D1) — see packages/b-push/ARCHITECTURE.md.",
+  "scripts": {
+    "build": "tsc",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@b-oss/b-api": "*"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^5.20261011.1",
+    "vitest": "^5.0.5"
+  }
+}

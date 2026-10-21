@@ -5,6 +5,34 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Added
+
+- b-view-backup: backup-folder data hooks and standalone viewer SPA, split out so the shells
+  share one backup-to-viewer adapter.
+- b-visual: shared design tokens and visual style guide, used by b-view and b-mobile.
+- b-ark-chrome: back up Original and Extra images alongside the standard entry images,
+  with a lightbox viewer (b-view `Lightbox`/`EntryDetail`) for browsing them.
+
+### Fixed
+
+- backup-engine: improved missing-image detection and re-fetch logic.
+- b-ark-chrome: thumbnail display during an in-progress backup.
+
+## [b-mobile 1.0.0] - 2026-10-20
+
+First release of b-mobile, an Android app for Blipfoto, published on Google Play by Salient Point
+Consulting Ltd. Free, no ads, open source.
+
+### Added
+
+- b-mobile: browse Blipfoto (Recent, Following, Popular, Milestones, New Blippers, Nearby), search,
+  and a map of entries; post entries from the camera or gallery with a photo upload queue that
+  retries on its own; star, favourite, comment, reply and follow; multiple accounts; hide members;
+  report entries, comments and members; pull down to refresh.
+- b-mobile: optional notifications for new comments and activity, and a daily reminder to post.
+- b-push: new Cloudflare Worker + D1 service that sends push notifications to b-mobile. Records are
+  deleted as soon as a registration's access is revoked.
+
 ## [1.0.5] - 2026-09-08
 
 ### Added

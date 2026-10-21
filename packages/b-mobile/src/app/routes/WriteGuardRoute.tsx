@@ -1,0 +1,80 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+// Copyright (C) 2026 Ian Stevenson
+
+// The write-gate, implemented once (§5): a read-only account must never reach a write screen — a
+// dedicated write screen never opens in the first place; the prompt is shown instead of navigating
+// to it (BEHAVIOUR.md, Read-only mode and write gating). This is what makes the deep-link and
+// share-intent bypass paths impossible to forget, since all three arrive through the router.
+//
+// Two distinct cases, per FLW-01's "read first, gate late": **anonymous** gets "You must be signed
+// in to do this" (never the upgrade prompt, which offers to repair an account that doesn't exist)
+// — Sign in now replaces this route with the sign-in screen, which returns here on success, and
+// Cancel goes back (b-oss#397); **signed in but read-only** gets the upgrade prompt instead.
+// Getting these branches right matters beyond SCR-06's affordances being hidden for a read-only
+// account — deep links and share intents can land directly on a write-gated route with no account
+// at all.
+//
+// The upgrade prompt itself is a plain IonAlert here rather than OverlayProvider's shared
+// `showUpgradePrompt()` (§5, app/OverlayProvider.tsx) — this one's decline action must return the
+// user to where they came from (`navigate(-1)`), which the shared overlay has no per-caller
+// hook for yet (its own `dismiss()` only ever clears the overlay, with no side effect). Same copy
+// (strings/deck.ts's UPGRADE.* keys) either way, so the two don't drift even though they aren't
+// (yet) the same component instance. TODO: give OverlayState an optional on-decline callback and
+// retire this local copy in favour of the shared one.
+
+import { useState } from 'react';
+import type { ReactNode } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
+import { IonAlert } from '@ionic/react';
+import { useActiveAccount, useCanWrite } from '../../state/accountsStore.js';
+import { SignInRequiredAlert } from '../../components/SignInRequiredAlert.js';
+import { signInPathFor } from './signInReturn.js';
+import { t } from '../../strings/index.js';
+
+export function WriteGuardRoute({ children }: { children: ReactNode }) {
+  const activeAccount = useActiveAccount();
+  const canWrite = useCanWrite();
+  const { pathname, search } = useLocation();
+  const navigate = useNavigate();
+  const [dismissed, setDismissed] = useState(false);
+
+  if (canWrite) {
+    return <>{children}</>;
+  }
+
+  if (dismissed) {
+    return null;
+  }
+
+  if (!activeAccount) {
+    return (
+      <SignInRequiredAlert
+        isOpen
+        onClose={(signIn) => {
+          setDismissed(true);
+          if (signIn) navigate(signInPathFor(pathname + search), { replace: true });
+          else navigate(-1);
+        }}
+      />
+    );
+  }
+
+  return (
+    <IonAlert
+      isOpen
+      header={t('UPGRADE.title')}
+      message={t('UPGRADE.body', { username: activeAccount.username })}
+      onDidDismiss={() => {
+        setDismissed(true);
+        navigate(-1);
+      }}
+      buttons={[
+        { text: t('UPGRADE.button.decline'), role: 'cancel' },
+        {
+          text: t('UPGRADE.button.confirm'),
+          handler: () => navigate('/accounts'),
+        },
+      ]}
+    />
+  );
+}

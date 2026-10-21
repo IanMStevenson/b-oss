@@ -1,0 +1,375 @@
+/* SPDX-License-Identifier: GPL-3.0-or-later */
+/* Copyright (C) 2026 Ian Stevenson */
+
+/* Ionic's own core CSS (imported in main.tsx) already normalizes box-sizing, margins, and
+   touch targets. This file is only for what's specific to this app on top of that. */
+
+html {
+  font-family: var(--font-sans);
+}
+
+/* b-view's ThumbnailGrid/Pagination/DatePicker/InfoPopup render plain native <button>s (styled
+   only via inline style props), not Ionic components — Ionic's own CSS only resets its own
+   shadow-DOM ion-button, so these fall back to the browser's default grey button chrome unless
+   reset here too. b-view-backup's base.css carries the same rule for the same reason. */
+button {
+  font-family: inherit;
+  font-size: inherit;
+  cursor: pointer;
+  border: none;
+  background: none;
+  padding: 0;
+}
+
+button:disabled {
+  cursor: default;
+  opacity: 0.4;
+}
+
+/* Ionic's segment-button default (uppercase, ~14px) reads too loud next to AppHeader's title —
+   b-visual's type scale (style-guide.md) puts nav-bar text at 13px. `::part()`, not a plain
+   selector: Ionic's own text-transform/font-size rules live inside ion-segment-button's shadow
+   DOM, which a host-level style/class can't reach — only exposed parts can. */
+ion-segment-button::part(native) {
+  text-transform: none;
+  font-size: 13px;
+}
+
+/* Safe areas, part 2 of 2 (app-architecture.md §5 promises Ionic handles these once rather than
+   per-screen — IonHeader/IonToolbar already reserve --ion-safe-area-top automatically, this
+   covers the cases they don't):
+   - Scrollable IonContent has no IonFooter below it anywhere in this app, so nothing else
+     reserves --ion-safe-area-bottom — the last row of any list/grid (e.g. ThumbnailGrid's
+     pagination row) would otherwise render behind the gesture nav bar.
+   - IonHeader/IonToolbar reserve top/bottom automatically but not left/right — irrelevant in
+     portrait, but in landscape the camera cutout/rounded corners/gesture area shift to the side
+     edges, and confirmed live on a real device: the thumbnail grid filled to the very edge of the
+     screen there, colliding with them (b-oss#141), even though the header above it looked fine.
+   - IonMenu's content has no IonHeader above it (AppShell.tsx), so it gets none of the top
+     safe-area padding a normal screen's toolbar provides — its first item would render behind
+     the status bar. */
+ion-content {
+  --padding-bottom: var(--ion-safe-area-bottom);
+  --padding-start: var(--ion-safe-area-left);
+  --padding-end: var(--ion-safe-area-right);
+}
+
+ion-menu ion-content {
+  --padding-top: var(--ion-safe-area-top);
+}
+
+/* Settings / Help forms (UX review X5/X6/X9, b-oss#272/#278): share Notifications' look — grey
+   13px caption above each group, 16px gutters, one-line grey captions under labels. */
+.settings-section-header {
+  padding-top: 16px;
+  padding-inline: 16px;
+  min-height: 0;
+}
+
+.settings-section-header ion-note {
+  font-size: 13px;
+}
+
+.settings-caption {
+  margin: 2px 0 0;
+  font-size: 13px;
+  line-height: 1.35;
+  color: var(--muted);
+}
+
+.settings-caption-row {
+  --padding-top: 0;
+  --padding-bottom: 4px;
+}
+
+.settings-caption-row .settings-caption {
+  margin: 0;
+}
+
+.settings-toggle-text {
+  display: flex;
+  flex-direction: column;
+  padding: 10px 0;
+  white-space: normal;
+}
+
+.settings-actions {
+  padding: 24px 16px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.settings-external-icon {
+  color: var(--muted);
+}
+
+/* Toggle-like choices (Margins, Photo size) read as a choice, not navigation: the pill segment
+   instead of the tab underline. */
+ion-segment.settings-pill-segment {
+  --background: var(--line-2);
+  border-radius: 999px;
+  padding: 3px;
+  margin: 0 16px 4px;
+  width: calc(100% - 32px);
+  min-height: 40px;
+}
+
+ion-segment.settings-pill-segment ion-segment-button {
+  --color: var(--ink);
+  --color-checked: #ffffff;
+  --indicator-color: var(--green-800);
+  --border-radius: 999px;
+  min-height: 34px;
+}
+
+/* The md indicator is a 2px underline by default; stretch it into a filled pill behind the label. */
+ion-segment.settings-pill-segment ion-segment-button::part(indicator) {
+  padding: 0;
+  height: 100%;
+  align-self: stretch;
+}
+
+ion-segment.settings-pill-segment ion-segment-button::part(indicator-background) {
+  height: 100%;
+  border-radius: 999px;
+  background: var(--green-800);
+}
+
+ion-segment.settings-pill-segment ion-segment-button::part(native) {
+  letter-spacing: 0;
+}
+
+/* Inbox / people rows (UX review X7/X8, b-oss#274/#271): one anatomy for Notifications, Comments,
+   Awards and every people list — 16px gutters, hairline between rows, a fixed leading slot (48px
+   rounded square for entries and award icons, 40px circle for people), body, then trailing
+   actions. The unread marker is a green-800 dot hanging in the left gutter. */
+.inbox-row {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--line-2);
+  background: var(--bg, #fff);
+}
+
+.inbox-row-top {
+  align-items: flex-start;
+}
+
+.inbox-row-unread-dot {
+  position: absolute;
+  left: 4px;
+  top: 50%;
+  width: 8px;
+  height: 8px;
+  margin-top: -4px;
+  border-radius: 50%;
+  background: var(--green-800);
+}
+
+.inbox-row-leading {
+  flex-shrink: 0;
+  display: block;
+  padding: 0;
+  background: none;
+  border: none;
+}
+
+.inbox-row-thumb {
+  display: block;
+  width: 48px;
+  height: 48px;
+  border-radius: 8px;
+  object-fit: cover;
+  background: var(--bg-alt);
+}
+
+.inbox-row-avatar {
+  display: block;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  object-fit: cover;
+  background: var(--bg-alt);
+}
+
+.inbox-row-body {
+  flex: 1;
+  min-width: 0;
+  font-size: 15px;
+  line-height: 1.35;
+}
+
+.inbox-row-body p {
+  margin: 2px 0 0;
+}
+
+.inbox-row-body a {
+  color: var(--green-800);
+  font-weight: 600;
+}
+
+.inbox-row-name {
+  font: inherit;
+  font-weight: 600;
+  color: var(--green-800);
+  padding: 0;
+  text-align: left;
+}
+
+.inbox-row-actions {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.inbox-row-top .inbox-row-actions {
+  flex-direction: column;
+  gap: 12px;
+}
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+/* Shared empty / no-results block (components/EmptyState.tsx). */
+.empty-state {
+  text-align: center;
+  padding: 48px 24px 0;
+  color: var(--muted);
+}
+
+.empty-state-icon {
+  display: inline-flex;
+}
+
+.empty-state-title {
+  font-size: 1.1rem;
+  color: var(--ink);
+  margin: 12px 0 8px;
+}
+
+.empty-state-hint {
+  font-size: 0.85rem;
+  margin: 0;
+}
+
+/* Floating map chrome shared by the Map screen and the location picker (UX review X11): a round
+   white locate button top-right and a message card at the bottom. */
+.map-locate {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: #ffffff;
+  color: var(--green-800);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.3);
+}
+
+.map-message {
+  position: absolute;
+  left: 12px;
+  right: 12px;
+  bottom: 28px;
+  padding: 8px 12px;
+  border-radius: 10px;
+  background: var(--bg);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.25);
+}
+
+/* MapLibre popups on entry pins: rounded card, ink title, muted username. */
+.maplibregl-popup-content.entry-popup {
+  padding: 8px;
+  border-radius: 12px;
+  box-shadow: 0 1px 6px rgba(0, 0, 0, 0.3);
+}
+
+.entry-popup-button {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 0;
+  text-align: left;
+  font: inherit;
+  color: var(--ink);
+}
+
+/* MapLibre focuses the popup's first control on open; the card itself is the affordance. */
+.entry-popup-button:focus {
+  outline: none;
+}
+
+.entry-popup-thumb {
+  width: 100%;
+  max-width: 160px;
+  border-radius: 8px;
+  display: block;
+}
+
+.entry-popup-title {
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.entry-popup-user {
+  font-size: 13px;
+  color: var(--muted);
+}
+
+/* Solid backing for the (transparent, edge-to-edge) navigation bar: the content's bottom padding
+   keeps the end of a page clear of it, and this strip stops anything scrolling past from showing
+   through behind the bar's icons (b-oss#300). Zero height where there is no bottom inset. */
+.system-nav-strip {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: var(--ion-safe-area-bottom, 0px);
+  background: var(--bg, #fff);
+  z-index: 10000;
+  pointer-events: none;
+}
+
+/* Discreet but clearly-a-link text (b-oss#362): muted grey, underlined, centred. The sign-in
+   screen's terms reminder; with .quiet-links-row, the entry page's "Report" / "Hide user" footer. */
+.quiet-links {
+  margin: 8px 0;
+  font-size: 0.875rem;
+  color: var(--muted);
+  text-align: center;
+}
+
+.quiet-links button {
+  background: none;
+  border: none;
+  padding: 0;
+  font: inherit;
+  color: inherit;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  cursor: pointer;
+}
+
+.quiet-links-row {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 4px 24px;
+}
+
+.quiet-links-row button {
+  padding: 8px 4px;
+}

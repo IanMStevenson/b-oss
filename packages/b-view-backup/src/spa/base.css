@@ -15,7 +15,7 @@ body {
 }
 
 body {
-  font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+  font-family: var(--font-sans);
   font-size: 13px;
   line-height: 1.45;
   color: var(--ink);
