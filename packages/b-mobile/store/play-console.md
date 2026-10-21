@@ -103,6 +103,26 @@ the contact email above is recorded here.
 
 ## Testing and release
 
-First release goes to **Internal testing** (signed bundle from the release workflow; see
-`../docs/RELEASING-android.md`). Whether the account must run a closed test before production
-access depends on the account type; record what the Console says here once known.
+First release: **1.0.0, version code 761**, uploaded 2026-10-21 from the release workflow
+(`b-mobile-v1.0.0`) to **Internal testing**, with Play App Signing (Google-generated app signing
+key). The Console accepted it with two advisory warnings, both fine for 1.0: no deobfuscation file
+(minification is off by design) and no native debug symbols (the native libraries are prebuilt
+AndroidX ones). The bundle explorer reports Android 7+ (API 24), target 36, 11 permissions, and
+"Supports 16 KB" memory pages.
+
+Signing certificates (SHA-256; fingerprints are public):
+
+- **Upload key** (ours, held only as GitHub Environment secrets and the password-manager backup):
+  `14:DC:8F:55:5A:44:EA:50:35:B0:7A:EA:67:8C:9D:42:8C:5A:CC:F5:BB:A9:1B:D4:55:0D:B6:A0:91:7F:57:E6`
+  (matched the Console after the first upload).
+- **App signing key** (Google's; what Play installs are signed with):
+  `88:B1:BB:97:F6:AF:25:D9:94:F6:20:D5:83:35:2D:00:53:83:17:B2:BC:D4:1E:3B:CE:F3:47:89:61:93:93:93`
+
+Notes from the first rollout:
+
+- A tester who opts in may see "Item not found" for hours (up to about a day) after the first
+  release of a new app; the tester account must be the one signed in to Play on the phone.
+- A Play install can't replace a debug build with the same app ID (different signing key):
+  uninstall the debug build first. b-oss#462 gives the debug build its own ID.
+- Whether the account must run a closed test before production access depends on the account
+  type; record what the Console says here once known.
