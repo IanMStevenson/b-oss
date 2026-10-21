@@ -3,14 +3,16 @@ apply plugin: 'com.android.application'
 import groovy.json.JsonSlurper
 
 // Release versioning (docs/RELEASING-android.md). versionName is the b-mobile package.json version;
-// versionCode must rise on every Play upload, so it is the commit count (monotonic on the
-// integration branch, no manual bump). BMOBILE_VERSION_CODE overrides it, e.g. to re-upload a
+// versionCode must rise on every Play upload, so it is the commit count plus 500 (monotonic on
+// main, no manual bump; the offset keeps it above 1.0.0's 761, uploaded before the old branch's
+// history was squashed into main). BMOBILE_VERSION_CODE overrides it, e.g. to re-upload a
 // build of an already-used commit.
 def appVersionName = new JsonSlurper().parse(file('../../package.json')).version
-def appVersionCode = (System.getenv('BMOBILE_VERSION_CODE') ?: providers.exec {
+def commitCount = providers.exec {
     commandLine 'git', 'rev-list', '--count', 'HEAD'
     workingDir = rootDir
-}.standardOutput.asText.get().trim()).toInteger()
+}.standardOutput.asText.get().trim().toInteger()
+def appVersionCode = System.getenv('BMOBILE_VERSION_CODE')?.toInteger() ?: (commitCount + 500)
 
 // Upload-key signing. Values come from the environment or ~/.gradle/gradle.properties, never from
 // the repo. Absent, `bundleRelease` still builds, unsigned, so CI and other machines don't break.

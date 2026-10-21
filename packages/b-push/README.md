@@ -33,7 +33,7 @@ dashboard: Workers & Pages → `b-push` → Settings → Variables and Secrets, 
 
 ## Deploy
 
-From an up-to-date checkout of `b-mobile-initial` on the VM:
+From an up-to-date checkout of `main` on the VM:
 
 ```
 cd packages/b-push

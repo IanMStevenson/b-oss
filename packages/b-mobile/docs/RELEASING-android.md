@@ -21,7 +21,7 @@ Upload to Play is manual: download the signed bundle from the run and drop it in
 2. **Tag ruleset** (Settings, Rules, Rulesets, new tag ruleset): target `refs/tags/b-mobile-v*`,
    restrict creations (and updates/deletions) with only Ian on the bypass list, so agents and
    branches cannot trigger a release. Only approve runs for tags you created from a commit on
-   `main` or `b-mobile-initial` (the workflow also checks this).
+   `main` (the workflow also checks this).
 3. **Environment variables:** `VITE_BLIPFOTO_CLIENT_ID`, `VITE_OAUTH_REDIRECT_URI`
    (`bmobile://oauth/`), `VITE_NOTIFY_SERVICE_URL`, `UPLOAD_KEY_ALIAS`.
 4. **Environment secrets:** `VITE_NOTIFY_REGISTRATION_SECRET`, `VITE_MAP_TILES_KEY`,
@@ -37,8 +37,11 @@ Upload to Play is manual: download the signed bundle from the run and drop it in
 ## Versioning
 
 - `versionName` = the `version` in `packages/b-mobile/package.json`. Bump it for a real release.
-- `versionCode` = `git rev-list --count HEAD`: rises with every commit, so no manual bump. Play
-  needs it strictly higher than any previous upload; `BMOBILE_VERSION_CODE=<n>` overrides it.
+- `versionCode` = `git rev-list --count HEAD` + 500: rises with every commit, so no manual bump. Play
+  needs it strictly higher than any previous upload; `BMOBILE_VERSION_CODE=<n>` overrides it. The
+  offset exists because 1.0.0 was uploaded as 761 from the old integration branch, whose history
+  was squashed into `main` (which then had far fewer commits); `main` is 333 commits at the squash,
+  so the next build is 834 or more.
 - The in-app display version (`version.generated.json`, `RELEASE=1` drops the dev suffix) is a
   separate thing from these two.
 
@@ -57,7 +60,7 @@ the commit you intend to ship. Last run for real: 1.0.0 (2026-10-21).
 3. **Generated data is current.** From `packages/b-mobile`:
    - `npm run licences:generate`, then `npm run licences:check` (the check fails if the committed
      `licences.generated.json` doesn't match `package-lock.json`). Commit any change. Do this
-     _after_ the last merge from the integration branch, and again if you merge it later: a
+     _after_ the last merge to `main`, and again if you merge again later: a
      Dependabot bump that lands while the release PR is open changes the list (this happened on
      1.0.0), and the check then fails.
    - `npm run licences:native` if a Capacitor plugin or native dependency changed since the last
@@ -67,7 +70,7 @@ the commit you intend to ship. Last run for real: 1.0.0 (2026-10-21).
    [store/listing.md](../store/listing.md), [play-data-safety.md](play-data-safety.md) and the
    hosted privacy policy (`docs/b-mobile-privacy.html`) so what Play shows is true at submission.
 5. **Merge the release PR, then tag and build.** The release PR (changelog, version, licences)
-   merges to the integration branch. Ian then creates the tag `b-mobile-v<version>` and approves
+   merges to `main`. Ian then creates the tag `b-mobile-v<version>` and approves
    the run (see "Cutting an upload"): **the tag starts the build, so tagging comes before the
    smoke test and the upload.** To rehearse the whole pipeline without publishing, use a throwaway
    tag such as `b-mobile-v<version>-rc1`, then delete its release and tag.
@@ -88,11 +91,10 @@ the commit you intend to ship. Last run for real: 1.0.0 (2026-10-21).
 
 ## Cutting an upload
 
-1. Make sure the checklist above is done and the commit to ship is on `main` or
-   `b-mobile-initial`, with `version` in `packages/b-mobile/package.json` set.
+1. Make sure the checklist above is done and the commit to ship is on `main`, with `version` in `packages/b-mobile/package.json` set.
 2. Ian creates the tag `b-mobile-v<version>` (for example `b-mobile-v1.0.0`; a suffix such as `-rc1`
    is allowed for test runs). Without git on his machine: GitHub, Releases, Draft a new release,
-   choose a tag, type it, Create new tag on publish, target the integration branch (tick
+   choose a tag, type it, Create new tag on publish, target `main` (tick
    pre-release for a test), Publish. The tag version must equal `package.json`. Only Ian can do
    this (tag ruleset).
 3. The workflow `Release b-mobile (Android)` starts and waits for approval. Ian approves it.
