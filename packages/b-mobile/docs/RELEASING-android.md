@@ -78,6 +78,9 @@ the commit you intend to ship. Last run for real: 1.0.0 (2026-10-21).
    missing `google-services.json` in the Environment).
 7. **Publish.** Upload the signed bundle in Play Console and promote it following Play's own track
    order (internal, then closed/production as applicable). Attach the release notes.
+   Once the app is live on Google Play, replace "not on Google Play yet" on the Pages site
+   (`docs/b-mobile.html`, a docs PR to `main`) with the Play link, and add the link to the
+   listing/website fields if needed.
 8. **Audit.** `npm audit --omit=dev --audit-level=high` clean. Findings below that threshold, and
    any with no matching Dependabot alert, are assessed in the release PR (1.0.0 had three
    moderate react-router advisories, judged not exploitable); alerts already dismissed on GitHub
