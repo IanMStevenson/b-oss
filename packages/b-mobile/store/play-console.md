@@ -76,7 +76,9 @@ results below. Decided so far:
 
 ## Data safety
 
-Answers and reasoning: `../docs/play-data-safety.md`. The deletion URL is above.
+Answers and reasoning: `../docs/play-data-safety.md`. The answers as imported into the Console are
+in `data-safety.csv` (the Console's own export format; re-export after any change and replace
+the file). The deletion URL is above.
 
 ## Other declarations
 
