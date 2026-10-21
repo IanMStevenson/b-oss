@@ -28,6 +28,9 @@ android {
         targetSdkVersion rootProject.ext.targetSdkVersion
         versionCode appVersionCode
         versionName appVersionName
+        // The bmobile:// scheme (OAuth redirect and content links) is a placeholder so the debug
+        // build can claim its own scheme and install beside the Play build (b-oss#462).
+        manifestPlaceholders = [bmobileScheme: "bmobile"]
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         aaptOptions {
              // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.
@@ -46,6 +49,12 @@ android {
         }
     }
     buildTypes {
+        debug {
+            // Installs beside the Play build: own app ID, label (src/debug/res), and link scheme.
+            applicationIdSuffix ".debug"
+            versionNameSuffix "-debug"
+            manifestPlaceholders = [bmobileScheme: "bmobile-debug"]
+        }
         release {
             if (uploadStoreFile) signingConfig signingConfigs.release
             minifyEnabled false

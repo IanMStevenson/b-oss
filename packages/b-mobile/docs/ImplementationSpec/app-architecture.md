@@ -475,6 +475,12 @@ on Android 10+, the app's own Pictures folder below). No exact-alarm permissions
 - **Application ID** `uk.co.salientpoint.bmobile` (Salient Point is the Play publisher; decided in
   b-oss#359, 2026-10-10). Permanent once first uploaded to Play. Java package and manifest
   namespace match it. Release is manual; signing keys live outside the repo.
+- **Debug variant** (b-oss#462): `applicationIdSuffix ".debug"` (`uk.co.salientpoint.bmobile.debug`),
+  label "b-mobile (debug)", and the link scheme `bmobile-debug` via the `bmobileScheme` manifest
+  placeholder (`bmobile` for release), so it installs beside the Play build. Its OAuth redirect is
+  `bmobile-debug://oauth/` with its own Blipfoto client ID (`.env.android-debug.local`, used by
+  `npm run build:android-debug`); the resolver accepts both schemes. `google-services.json` needs
+  both package names.
 
 ## 18. Configuration and secrets
 

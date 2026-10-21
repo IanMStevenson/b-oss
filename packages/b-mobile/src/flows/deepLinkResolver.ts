@@ -61,7 +61,10 @@ export function resolveDeepLink(url: string): DeepLinkTarget {
     return { kind: 'ignore' };
   }
 
-  if (parsed.protocol === 'bmobile:') return resolveBmobilePath(parsed);
+  // bmobile-debug: is the debug build's own scheme (b-oss#462); only its manifest registers it.
+  if (parsed.protocol === 'bmobile:' || parsed.protocol === 'bmobile-debug:') {
+    return resolveBmobilePath(parsed);
+  }
 
   const hostname = parsed.hostname.toLowerCase();
   if (hostname === 'www.blipfoto.com' || hostname === 'blipfoto.com') {
