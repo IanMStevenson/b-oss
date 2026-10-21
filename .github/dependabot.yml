@@ -6,6 +6,9 @@ updates:
       interval: "weekly"
     open-pull-requests-limit: 5
     groups:
+      # vitest and @vitest/* have exact peer deps on each other, so split PRs can't install (#426)
+      vitest:
+        patterns: ["vitest", "@vitest/*"]
       minor-and-patch:
         update-types: ["minor", "patch"]
   # The Android app (packages/b-mobile) lives on the long-lived b-mobile-initial integration branch,
@@ -21,6 +24,9 @@ updates:
       interval: "weekly"
     open-pull-requests-limit: 5
     groups:
+      # vitest and @vitest/* have exact peer deps on each other, so split PRs can't install (#426)
+      vitest:
+        patterns: ["vitest", "@vitest/*"]
       minor-and-patch:
         update-types: ["minor", "patch"]
   - package-ecosystem: "github-actions"

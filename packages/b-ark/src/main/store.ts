@@ -24,14 +24,14 @@ const DEFAULT_STATUS: AccountStatus = {
   account_added_at: null,
 };
 
-const localDefaults: UserDataStore = {
+const localDefaults = {
   schema_version: 2,
   backup_folder: '',
   app: { startWithWindows: true, autoUpdateEnabled: true },
   tokens: {},
   status: {},
   web_sessions: {},
-};
+} satisfies UserDataStore;
 
 export const store = new Store<UserDataStore>({ defaults: localDefaults, name: 'b-ark-config' });
 
