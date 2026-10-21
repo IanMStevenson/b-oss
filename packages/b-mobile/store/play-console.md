@@ -124,5 +124,7 @@ Notes from the first rollout:
   release of a new app; the tester account must be the one signed in to Play on the phone.
 - A Play install can't replace a debug build with the same app ID (different signing key):
   uninstall the debug build first. b-oss#462 gives the debug build its own ID.
-- Whether the account must run a closed test before production access depends on the account
-  type; record what the Console says here once known.
+- **Trader details (EU DSA)** are entered in the Console account settings (not recorded here).
+- **Production access (2026-10-22):** the Console offers promotion to production directly, with no
+  closed test required first. Internal testing is live and the Play-installed build runs on a
+  phone.
