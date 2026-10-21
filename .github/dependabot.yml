@@ -5,6 +5,13 @@ updates:
     schedule:
       interval: "weekly"
     open-pull-requests-limit: 5
+    ignore:
+      # @ionic/react-router (b-mobile) peers on react-router and react-router-dom >=6.4.0 <7;
+      # revisit when Ionic supports a newer major.
+      - dependency-name: "react-router"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "react-router-dom"
+        update-types: ["version-update:semver-major"]
     groups:
       # vitest and @vitest/* have exact peer deps on each other, so split PRs can't install (#426)
       vitest:
