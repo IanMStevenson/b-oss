@@ -1,0 +1,6 @@
+# Code owners. The main-protection ruleset requires code-owner review, so a PR touching a path
+# below cannot merge without approval from that owner.
+
+# docs/ was the old GitHub Pages source (the site now lives in packages/b-site and is built by
+# Astro). Keep it owner-only so nothing is quietly published from it or recreated by accident.
+/docs/ @IanMStevenson
