@@ -1,0 +1,17 @@
+---
+interface Props {
+  title: string;
+  /** Value of the `data-screen-label` attribute (design-review label). */
+  label: string;
+  /** Alt text for the large b-oss icon above the heading; omit for no icon. */
+  icon?: string;
+}
+
+const { title, label, icon } = Astro.props;
+---
+
+<section class="hero" data-screen-label={label}>
+  {icon && <img class="hero-icon" src="assets/b-oss-icon-large.png" alt={icon} />}
+  <h1>{title}</h1>
+  <p class="lead"><slot /></p>
+</section>

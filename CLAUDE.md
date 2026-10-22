@@ -24,6 +24,7 @@ packages/b-ark              Electron shell only. Implements PlatformIO (Electron
 packages/b-ark-ui-chrome    No Electron deps. Browser React shell (BackupPage) + BrowserBackend (wraps chrome.*) implementing BackendContext, BrowserPlatformIO (File System Access), and the mountChip content-script. Exports the Chrome platform primitives for the shell to reuse.
 packages/b-ark-chrome       Chrome extension shell only — service worker (sw.ts), OAuth capture, content scripts. Should consume BrowserBackend/BrowserPlatformIO and the platform primitives from b-ark-ui-chrome.
 packages/b-mobile           Capacitor/Ionic Android app. Depends on b-api, b-view, b-visual only (no backup-engine). All `@capacitor/*` imports live in src/platform/**; the rest of the app uses those wrappers.
+packages/b-site             The b-oss project website (static Astro site, GitHub Pages). Shared Layout/Header/Footer; pages keep their `.html` URLs. No dependency on other packages.
 packages/b-push             Cloudflare Worker + D1 notification service for b-mobile. Depends on b-api only. Design in packages/b-push/ARCHITECTURE.md; deployed manually, see packages/b-push/README.md.
 ```
 

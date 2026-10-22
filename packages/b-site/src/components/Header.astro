@@ -1,0 +1,26 @@
+---
+export type NavKey = 'home' | 'b-ark' | 'b-mobile' | 'b-api' | 'contact';
+
+interface Props {
+  active?: NavKey;
+}
+
+const { active } = Astro.props;
+
+const links: { key: NavKey; href: string; label: string }[] = [
+  { key: 'home', href: 'index.html', label: 'Home' },
+  { key: 'b-ark', href: 'b-ark.html', label: 'b-ark' },
+  { key: 'b-mobile', href: 'b-mobile.html', label: 'b-mobile' },
+  { key: 'b-api', href: 'b-api.html', label: 'b-api' },
+  { key: 'contact', href: 'contact.html', label: 'Contact' },
+];
+---
+
+<header class="topbar">
+  <div class="topbar-inner">
+    <a class="brand" href="index.html">b-oss</a>
+    <nav class="nav" aria-label="Primary">
+      {links.map((l) => <a href={l.href} class={l.key === active ? 'active' : undefined}>{l.label}</a>)}
+    </nav>
+  </div>
+</header>

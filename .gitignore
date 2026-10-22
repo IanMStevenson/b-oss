@@ -62,3 +62,6 @@ debug/
 # Signing material must never be committed (b-mobile upload key, docs/RELEASING-android.md)
 *.jks
 *.keystore
+
+# Astro generated types (packages/b-site)
+.astro/

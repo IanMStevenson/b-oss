@@ -1,0 +1,119 @@
+---
+import Layout from '../layouts/Layout.astro';
+import Hero from '../components/Hero.astro';
+import FeatureItem from '../components/FeatureItem.astro';
+---
+
+<Layout
+  title="b-oss - blipfoto - open source software"
+  description="b-oss makes small, focused desktop tools. Currently home to b-ark, a local backup app for blipfoto."
+  nav="home"
+>
+  <Hero label="Hero" icon="b-oss" title="Open source tools for blipfoto.">Free to download, use, modify or build on.</Hero>
+
+  <section class="block" data-screen-label="About b-oss">
+    <p class="section-eyebrow">About</p>
+    <div class="prose" style="margin-top: 18px">
+      <p style="">
+        <b>b-oss</b>&nbsp;= Blipfoto - Open Source Software<br />Open source means anyone can
+        see the source code, build the software themselves, modify it, and contribute
+        improvements back. If you have the skill and the interest, you can join the development
+        team.
+      </p>
+      <p>
+        b-oss was started by <strong>Ian Stevenson</strong> — a technologist with thirty years'
+        experience as a software engineer and running software companies — using Claude Code and
+        other AI tools for implementation. Ian is also one of the directors of blipfoto, but
+        b-oss is a personal project and has no formal relationship with blipfoto.
+      </p>
+    </div>
+  </section>
+
+  <section class="app-card" data-screen-label="App: b-ark">
+    <div class="app-card-meta">
+      <div class="app-card-head">
+        <img src="assets/b-oss-icon.png" alt="" />
+        <div>
+          <h2>b-ark : Backup & Archive</h2>
+          <div class="tagline">Archive your blips on your own device (Windows).</div>
+        </div>
+      </div>
+      <p class="summary">
+        b-ark makes a local copy of every blip you've ever posted (images, text and metadata) on
+        your own machine, automatically keeping it up to date. Browse offline, publish to the
+        web, or hand over to AI tools to explore and create new formats.
+      </p>
+      <ul class="feature-list">
+        <FeatureItem><strong>Backup.</strong> A local copy of every blip, updated automatically.</FeatureItem>
+        <FeatureItem><strong>View.</strong> Browse your archive offline in the built-in viewer.</FeatureItem>
+        <FeatureItem><strong>Publish.</strong> Copy the backup folder to any web host to publish.</FeatureItem>
+        <FeatureItem><strong>AI-ready.</strong> README.md for AI tools: Use AI to build photobooks,
+            slideshows, statistics, custom sites.</FeatureItem>
+      </ul>
+      <div class="btn-row">
+        <a class="btn primary" href="b-ark.html">Learn more →</a>
+      </div>
+    </div>
+    <div class="shot" aria-label="b-ark screenshot">
+      <img
+        src="assets/b-ark-screenshot.png"
+        alt="The b-ark app showing an account with archived photos."
+      />
+    </div>
+  </section>
+
+  <section class="app-card" data-screen-label="App: b-mobile">
+    <div class="app-card-meta">
+      <div class="app-card-head">
+        <img src="assets/b-oss-icon.png" alt="" />
+        <div>
+          <h2>b-mobile : Blipfoto for Android</h2>
+          <div class="tagline">Browse, post and get notified from your phone.</div>
+        </div>
+      </div>
+      <p class="summary">
+        A Blipfoto app for Android: browse everything, post a blip from your camera or gallery,
+        join in with stars, favourites and comments, and choose whether to be notified.
+      </p>
+      <div class="btn-row">
+        <a class="btn primary" href="b-mobile.html">Learn more →</a>
+      </div>
+    </div>
+  </section>
+
+  <section class="app-card" data-screen-label="App: b-api">
+    <div class="app-card-meta">
+      <div class="app-card-head">
+        <img src="assets/b-oss-icon.png" alt="" />
+        <div>
+          <h2>b-api</h2>
+          <div class="tagline">TypeScript client for the Blipfoto v4 REST API.</div>
+        </div>
+      </div>
+      <p class="summary">
+        b-api is the HTTP client that b-ark is built on. It covers the full Blipfoto v4 REST API
+        and it works in browsers, Node.js 18+, and Electron alike. Clone the b-oss repository
+        and import b-api directly into your TypeScript project.
+      </p>
+      <ul class="feature-list">
+        <FeatureItem><strong>TypeScript.</strong> Full types for every request, response, and error. No
+            guessing.</FeatureItem>
+        <FeatureItem><strong>Universal.</strong> No Node or Electron dependency. Works in browsers,
+            Node.js 18+ and Electron.</FeatureItem>
+        <FeatureItem><strong>Complete.</strong> Journals, entries, CRUD, comments, social, OAuth,
+            notifications, user settings.</FeatureItem>
+        <FeatureItem><strong>Error-safe.</strong> Typed <code>BlipfotoError</code> and
+            <code>NetworkError</code> with helpers for rate limits and token expiry.</FeatureItem>
+      </ul>
+      <div class="btn-row">
+        <a class="btn primary" href="b-api.html">Learn more →</a>
+      </div>
+    </div>
+    <div class="shot" aria-label="b-ark screenshot">
+      <img
+        src="assets/b-api-screenshot.png"
+        alt="The b-ark app showing an account with archived photos."
+      />
+    </div>
+  </section>
+</Layout>

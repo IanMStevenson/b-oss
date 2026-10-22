@@ -1,0 +1,55 @@
+name: Site
+
+# Builds the b-oss website (packages/b-site). Pull requests only build it; a push to main also
+# deploys the build to GitHub Pages. Needs repo Settings -> Pages -> Source set to "GitHub Actions".
+# ci.yml skips packages/b-site/**, so this is the check that exercises site changes.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'packages/b-site/**'
+      - '.github/workflows/site.yml'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'packages/b-site/**'
+      - '.github/workflows/site.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '22'
+          cache: 'npm'
+      - run: npm ci --ignore-scripts --workspace @b-oss/b-site
+      - run: npm run typecheck --workspace @b-oss/b-site
+      - run: npm run build --workspace @b-oss/b-site
+      - uses: actions/upload-pages-artifact@v5
+        with:
+          path: packages/b-site/dist
+
+  deploy:
+    if: github.event_name != 'pull_request'
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v5
