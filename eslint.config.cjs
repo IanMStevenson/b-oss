@@ -6,7 +6,7 @@ const reactHooksPlugin = require('eslint-plugin-react-hooks');
 /** @type {import('eslint').Linter.Config[]} */
 module.exports = [
   {
-    ignores: ['**/dist/**', '**/node_modules/**', '**/*.js', '**/*.cjs', '**/*.mjs', '**/electron.vite.config.ts', '**/vite.config.ts', '**/capacitor.config.ts'],
+    ignores: ['**/dist/**', '**/.astro/**', '**/node_modules/**', '**/*.js', '**/*.cjs', '**/*.mjs', '**/electron.vite.config.ts', '**/vite.config.ts', '**/capacitor.config.ts'],
   },
   {
     files: ['packages/**/*.{ts,tsx}'],

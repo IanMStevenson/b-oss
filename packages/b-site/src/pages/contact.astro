@@ -1,0 +1,108 @@
+---
+import Layout from '../layouts/Layout.astro';
+import Hero from '../components/Hero.astro';
+---
+
+<Layout
+  title="Contact · b-oss"
+  description="Send feedback, suggestions and bug reports for b-ark, b-mobile and b-api."
+  nav="contact"
+  narrow
+>
+  <Hero label="Contact hero" title="Get in touch">Bug reports, feature ideas, or just hello. Drop a note below and I'll get back to
+      you.</Hero>
+
+  <section
+    class="block"
+    style="border-top: none; padding-top: 0"
+    data-screen-label="Contact form"
+  >
+    <form id="contact-form" class="form" novalidate>
+      <!--
+      Web3Forms — replace the access_key value with your real key.
+      Docs: https://docs.web3forms.com/
+    -->
+      <input type="hidden" name="access_key" value="a08ad6d7-2406-4218-98a2-a7439426eef3" />
+      <input type="hidden" name="subject" value="New message from b-oss.co.uk" />
+      <input type="hidden" name="from_name" value="b-oss website" />
+      <!-- Honeypot for bots -->
+      <input
+        type="checkbox"
+        name="botcheck"
+        style="display: none"
+        tabindex="-1"
+        autocomplete="off"
+      />
+
+      <div class="form-row">
+        <label for="name">Your name</label>
+        <input class="input" type="text" id="name" name="name" required autocomplete="name" />
+      </div>
+
+      <div class="form-row">
+        <label for="email">Email <span class="hint">(so I can reply)</span></label>
+        <input
+          class="input"
+          type="email"
+          id="email"
+          name="email"
+          required
+          autocomplete="email"
+        />
+      </div>
+
+      <div class="form-row">
+        <label for="message">Message</label>
+        <textarea class="textarea" id="message" name="message" required></textarea>
+      </div>
+
+      <div id="form-status" class="form-status" role="status" aria-live="polite"></div>
+
+      <div class="btn-row">
+        <button class="btn primary" type="submit" id="submit-btn">Send message</button>
+      </div>
+    </form>
+  </section>
+  <script is:inline slot="scripts">
+      (function () {
+        const form = document.getElementById('contact-form');
+        const statusEl = document.getElementById('form-status');
+        const submitBtn = document.getElementById('submit-btn');
+
+        function setStatus(kind, text) {
+          statusEl.className = 'form-status ' + kind;
+          statusEl.textContent = text;
+        }
+
+        form.addEventListener('submit', async function (e) {
+          e.preventDefault();
+          if (!form.reportValidity()) return;
+
+          submitBtn.disabled = true;
+          setStatus('sending', 'Sending…');
+
+          const data = new FormData(form);
+
+          try {
+            const res = await fetch('https://api.web3forms.com/submit', {
+              method: 'POST',
+              body: data,
+            });
+            const json = await res.json().catch(() => ({}));
+            if (res.ok && json.success) {
+              setStatus('ok', 'Thanks — your message is on its way. I\u2019ll be in touch.');
+              form.reset();
+            } else {
+              const msg =
+                json && json.message ? json.message : 'Something went wrong. Please try again.';
+              setStatus('err', msg);
+            }
+          } catch (err) {
+            setStatus('err', 'Network error. Please try again in a moment.');
+          } finally {
+            submitBtn.disabled = false;
+          }
+        });
+      })();
+    </script>
+</Layout>

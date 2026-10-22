@@ -1,6 +1,6 @@
-name: CI (docs-only)
+name: CI (site-only)
 
-# Companion to ci.yml. ci.yml skips docs/** via paths-ignore, so a docs-only PR
+# Companion to ci.yml. ci.yml skips packages/b-site/** via paths-ignore, so a site-only PR
 # never reports the 'ci' status check that the main ruleset requires. This
 # workflow reports a passing 'ci' for exactly those PRs. Keep the paths and the
 # job name in sync with ci.yml. See b-oss#381.
@@ -9,10 +9,10 @@ on:
   pull_request:
     branches: [main]
     paths:
-      - 'docs/**'
+      - 'packages/b-site/**'
 
 jobs:
   ci:
     runs-on: ubuntu-latest
     steps:
-      - run: echo "docs-only change, nothing to build"
+      - run: echo "site-only change, nothing to build"

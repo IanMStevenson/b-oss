@@ -1,0 +1,12 @@
+---
+import Layout from '../layouts/Layout.astro';
+import Hero from '../components/Hero.astro';
+---
+
+<Layout title="Page not found · b-oss" noindex>
+  <!-- A 404 is served from whatever path was requested, so relative links need a root base. -->
+  <base slot="head" href={import.meta.env.BASE_URL} />
+  <Hero label="Not found" title="Page not found">
+    That page doesn't exist. Try the <a href="index.html">home page</a>.
+  </Hero>
+</Layout>

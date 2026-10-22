@@ -1,0 +1,65 @@
+---
+import Layout from '../layouts/Layout.astro';
+import Hero from '../components/Hero.astro';
+import FeatureItem from '../components/FeatureItem.astro';
+---
+
+<Layout
+  title="b-mobile for Blipfoto · b-oss"
+  description="b-mobile for Blipfoto: browse, post and get notified on your Blipfoto journal from your Android phone. Open source, from b-oss."
+  nav="b-mobile"
+>
+  <Hero label="b-mobile hero" icon="b-mobile" title="b-mobile for Blipfoto">Browse, post and get notified on your Blipfoto journal, from your Android phone.</Hero>
+
+  <section class="block" data-screen-label="Introduction">
+    <p class="section-eyebrow">Introduction</p>
+    <div class="prose" style="margin-top: 18px">
+      <p>
+        b-mobile is a Blipfoto app for Android. It is an open-source project, part of b-oss and
+        led by Ian Stevenson, and is published on the Google Play Store on behalf of the
+        development team by Salient Point Consulting Ltd. It is built on Blipfoto's public API
+        and works with your existing Blipfoto account.
+      </p>
+    </div>
+
+    <ul class="feature-list" style="margin-top: 28px; max-width: 720px">
+      <FeatureItem><strong>Browse.</strong> Recent, Following, Popular, Milestones, New Blippers and
+          Nearby, plus search and a map of blips.</FeatureItem>
+      <FeatureItem><strong>Post.</strong> Take or choose a photo and publish, even on a poor connection:
+          uploads queue and retry on their own.</FeatureItem>
+      <FeatureItem><strong>Join in.</strong> Star, favourite, comment, reply and follow.</FeatureItem>
+      <FeatureItem><strong>Stay in touch.</strong> Optional notifications for new comments and activity,
+          and a daily reminder to post.</FeatureItem>
+      <FeatureItem><strong>Your accounts.</strong> Sign in with more than one Blipfoto account and
+          switch instantly.</FeatureItem>
+      <FeatureItem><strong>In control.</strong> Hide members you don't want to see, and report anything
+          that breaks the rules.</FeatureItem>
+    </ul>
+
+    <div class="prose" style="margin-top: 28px">
+      <p>
+        <strong>Free.</strong> b-mobile is completely free to use, with no ads and no in-app
+        purchases. It works with your existing Blipfoto account, whatever kind it is; any paid
+        Blipfoto features are separate from this app.
+      </p>
+      <p>
+        <strong>Limitations.</strong> Images are shown at standard size. Extra images and
+        full-size (original) downloads are not available to apps using Blipfoto's API, so
+        b-mobile can't show or save them. You can download the display-size photo of your own
+        entries.
+      </p>
+    </div>
+  </section>
+
+  <section class="block" data-screen-label="Get it">
+    <p class="section-eyebrow">Get it</p>
+    <div class="prose" style="margin-top: 18px">
+      <p>b-mobile is not on Google Play yet. This page will link to it when it is.</p>
+      <p>
+        <a href="b-mobile-privacy.html">Privacy policy</a> ·
+        <a href="https://github.com/IanMStevenson/b-oss">Source code on GitHub</a> ·
+        <a href="contact.html">Contact</a>
+      </p>
+    </div>
+  </section>
+</Layout>

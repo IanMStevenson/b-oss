@@ -1,0 +1,59 @@
+---
+import Header from '../components/Header.astro';
+import type { NavKey } from '../components/Header.astro';
+import Footer from '../components/Footer.astro';
+
+interface Props {
+  title: string;
+  description?: string;
+  /** Which primary-nav entry to highlight. */
+  nav?: NavKey;
+  /** Narrow reading column (guides, policies, forms). */
+  narrow?: boolean;
+  /** Load site.js: click-to-enlarge lightbox for guide screenshots. */
+  lightbox?: boolean;
+  /** Keep the page out of search engines (the 404 page). */
+  noindex?: boolean;
+}
+
+const { title, description, nav, narrow = false, lightbox = false, noindex = false } = Astro.props;
+
+// `index.html` is canonically `/`; every other page is its own `.html` URL.
+const canonical = new URL(Astro.url.pathname.replace(/\/index\.html$/, '/'), Astro.site).href;
+const socialImage = new URL('assets/b-oss-icon-large.png', Astro.site).href;
+---
+
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{title}</title>
+    <slot name="head" />
+    {description && <meta name="description" content={description} />}
+    {noindex ? <meta name="robots" content="noindex" /> : <link rel="canonical" href={canonical} />}
+    <meta property="og:site_name" content="b-oss" />
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content={title} />
+    {description && <meta property="og:description" content={description} />}
+    {!noindex && <meta property="og:url" content={canonical} />}
+    <meta property="og:image" content={socialImage} />
+    <meta name="twitter:card" content="summary" />
+    <link rel="icon" href="assets/favicon.ico" sizes="any" />
+    <link rel="icon" type="image/png" sizes="32x32" href="assets/favicon-32.png" />
+    <link rel="icon" type="image/png" sizes="16x16" href="assets/favicon-16.png" />
+    <link rel="apple-touch-icon" sizes="180x180" href="assets/apple-touch-icon.png" />
+    <link rel="manifest" href="assets/site.webmanifest" />
+    <meta name="theme-color" content="#1f4d3a" />
+    <link rel="stylesheet" href="site.css" />
+  </head>
+  <body>
+    <Header active={nav} />
+    <main class:list={['page', { narrow }]}>
+      <slot />
+    </main>
+    <Footer />
+    {lightbox && <script is:inline src="site.js"></script>}
+    <slot name="scripts" />
+  </body>
+</html>
