@@ -12,6 +12,8 @@ import {
   LogManager,
   cacheAvatarIfMissing,
   AVATAR_FILENAME,
+  countOutstanding,
+  outstandingMessage,
 } from '@b-oss/backup-engine';
 import type {
   AccountConfig,
@@ -145,7 +147,7 @@ export function registerIpcHandlers(
     // Unified log lives at the shared backup folder root, not per-journal.
     const logMgr = new LogManager(pio, account.backup_folder);
 
-    for (let networkAttempt = 0; ; ) {
+    for (let networkAttempt = 0; ;) {
       let engineStarted = false;
       try {
         const rawToken = decryptToken(account.access_token);
@@ -207,16 +209,23 @@ export function registerIpcHandlers(
           }
 
           const scrapeDegraded = scrapeWanted && (!signedIn || webSessionExpiredDuringRun);
+          const outstanding = countOutstanding(journal?.pending_entries ?? []);
+          const warnings = [
+            ...(scrapeDegraded
+              ? [
+                  'Sign in to the Blipfoto website (Settings) to back up full-resolution and extra images',
+                ]
+              : []),
+            ...(outstanding ? [outstandingMessage(outstanding)] : []),
+          ];
           await saveAccount({
             ...updated,
             last_backup_at: new Date().toISOString(),
             last_entry_date: journal?.entries[0]?.date ?? updated.last_entry_date ?? null,
             total_archived: journal?.entries.length ?? updated.total_archived,
             journal_entry_total: journal?.entry_total ?? updated.journal_entry_total,
-            rag_state: scrapeDegraded ? 'amber' : 'green',
-            error_message: scrapeDegraded
-              ? 'Sign in to the Blipfoto website (Settings) to back up full-resolution and extra images'
-              : null,
+            rag_state: warnings.length > 0 ? 'amber' : 'green',
+            error_message: warnings.length > 0 ? warnings.join('. ') : null,
           });
           emitStoreChanged();
         }

@@ -113,8 +113,59 @@ describe('triggerIfDue', () => {
   it('regression: self-heals a stuck amber+progress state with no live tab, instead of wedging forever', async () => {
     markSetUp();
     fake.storage.set('chip_rag', 'amber');
+    fake.storage.set('chip_incomplete', true);
     fake.storage.set('chip_progress', { done: 0, total: 1 });
     // No backup_tab_id at all — the run that set this state crashed without a tab to finish it.
+
+    await sw.triggerIfDue();
+    expect(fake.tabs.size).toBe(1);
+  });
+
+  it('resumes an incomplete amber run, but not again within the cooldown', async () => {
+    markSetUp();
+    fake.storage.set('chip_rag', 'amber');
+    fake.storage.set('chip_incomplete', true);
+    fake.storage.set('auto_resume_at', new Date().toISOString());
+
+    await sw.triggerIfDue();
+    expect(fake.tabs.size).toBe(0); // inside the cooldown
+
+    fake.storage.set(
+      'auto_resume_at',
+      new Date(Date.now() - sw.AUTO_RESUME_COOLDOWN_MS - 1000).toISOString(),
+    );
+    await sw.triggerIfDue();
+    expect(fake.tabs.size).toBe(1);
+    expect([...fake.tabs.values()][0].active).toBe(false);
+    expect(Date.now() - Date.parse(fake.storage.get('auto_resume_at') as string)).toBeLessThan(
+      5000,
+    );
+  });
+
+  it('regression: amber from a finished run (entries outstanding) is not resumed on every visit', async () => {
+    markSetUp();
+    fake.storage.set('chip_rag', 'amber');
+    fake.storage.set('chip_incomplete', false);
+    fake.storage.set('b_ark_status', {
+      last_backup_at: new Date().toISOString(),
+      rag_state: 'amber',
+    });
+    fake.storage.set('b_ark_settings', { period: 'daily', schedule_enabled: true });
+
+    await sw.triggerIfDue();
+    await sw.triggerIfDue();
+    expect(fake.tabs.size).toBe(0);
+  });
+
+  it('amber from a finished run is retried once the schedule period has elapsed', async () => {
+    markSetUp();
+    fake.storage.set('chip_rag', 'amber');
+    fake.storage.set('chip_incomplete', false);
+    fake.storage.set('b_ark_status', {
+      last_backup_at: new Date(Date.now() - 2 * 86_400_000).toISOString(),
+      rag_state: 'amber',
+    });
+    fake.storage.set('b_ark_settings', { period: 'daily', schedule_enabled: true });
 
     await sw.triggerIfDue();
     expect(fake.tabs.size).toBe(1);

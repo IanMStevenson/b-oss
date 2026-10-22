@@ -6,6 +6,7 @@ import { installChromeStorageLocal, type FakeChromeStorage } from './helpers.js'
 import {
   readStatus,
   setWorking,
+  setCancelledIncomplete,
   setCompleted,
   setFailed,
   setProgress,
@@ -38,6 +39,28 @@ describe('status-storage transitions', () => {
     expect(status.total_archived).toBe(128);
     expect(fake.store.get('chip_rag')).toBe('green');
     expect(fake.store.get('chip_last_backup_at')).toBe('2024-02-03T10:00:00Z');
+  });
+
+  it('setCompleted with outstanding entries is amber with an explanatory message, but not incomplete', async () => {
+    await setWorking();
+    await setCompleted('2024-02-03T10:00:00Z', 128, { retrying: 3, unavailable: 2, other: 1 });
+    const status = await readStatus();
+    expect(status.rag_state).toBe('amber');
+    expect(status.error_message).toBe(
+      '3 entries not archived yet — will retry. 2 entries are suspended or unavailable on Blipfoto. 1 entry could not be fetched after 14 days of trying',
+    );
+    expect(status.total_archived).toBe(128);
+    expect(fake.store.get('chip_rag')).toBe('amber');
+    expect(fake.store.get('chip_incomplete')).toBe(false);
+  });
+
+  it('a run that starts or is cancelled is marked incomplete until one completes', async () => {
+    await setWorking();
+    expect(fake.store.get('chip_incomplete')).toBe(true);
+    await setCompleted('2024-02-03T10:00:00Z', 5);
+    expect(fake.store.get('chip_incomplete')).toBe(false);
+    await setCancelledIncomplete();
+    expect(fake.store.get('chip_incomplete')).toBe(true);
   });
 
   it('setFailed maps the error kind to a chip label and goes red', async () => {

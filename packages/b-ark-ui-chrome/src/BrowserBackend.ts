@@ -410,7 +410,7 @@ export class BrowserBackend implements BackendContext {
       if (event.type === 'completed') {
         const now = new Date().toISOString();
         void (async () => {
-          await setCompleted(now, event.total_archived);
+          await setCompleted(now, event.total_archived, event.outstanding ?? null);
           void deployViewer(io, token.username);
           this._notifySwOnComplete();
           const entries = await logMgr.readAll();

@@ -9,10 +9,15 @@
 //
 // The RAG model (see plan):
 //   RED   = a run aborted with an error (auth / permission / network / api).
-//   AMBER = working, or incomplete-but-not-errored (resume in progress, cancelled).
-//   GREEN = a run reached `completed`.
+//   AMBER = working, or incomplete-but-not-errored (resume in progress, cancelled, or a run
+//           that completed with entries not archived yet).
+//   GREEN = a run reached `completed` with nothing outstanding.
 
-import type { BackupErrorPayload } from '@b-oss/backup-engine';
+import {
+  outstandingMessage,
+  type BackupErrorPayload,
+  type OutstandingCounts,
+} from '@b-oss/backup-engine';
 
 // ── Persisted shapes ────────────────────────────────────────────────────────
 
@@ -38,6 +43,7 @@ const CHIP_KEYS = [
   'chip_progress',
   'chip_error_kind',
   'chip_amber_reason',
+  'chip_incomplete',
   'chip_last_backup_at',
   'chip_avatar_url',
 ] as const;
@@ -76,6 +82,7 @@ export async function setWorking(): Promise<void> {
   await patchStatus({ rag_state: 'amber', error_message: null });
   await chrome.storage.local.set({
     chip_rag: 'amber',
+    chip_incomplete: true,
     chip_error_kind: null,
     chip_progress: null,
     chip_amber_reason: null,
@@ -83,15 +90,23 @@ export async function setWorking(): Promise<void> {
 }
 
 /** A run finished cleanly. */
-export async function setCompleted(nowIso: string, totalArchived: number): Promise<void> {
+export async function setCompleted(
+  nowIso: string,
+  totalArchived: number,
+  outstanding: OutstandingCounts | null = null,
+): Promise<void> {
+  // Entries not archived yet leave the backup amber, not green. The run itself finished, so
+  // it is complete as far as the service worker's auto-resume is concerned.
+  const rag: RagState = outstanding ? 'amber' : 'green';
   await patchStatus({
     last_backup_at: nowIso,
     total_archived: totalArchived,
-    rag_state: 'green',
-    error_message: null,
+    rag_state: rag,
+    error_message: outstanding ? outstandingMessage(outstanding) : null,
   });
   await chrome.storage.local.set({
-    chip_rag: 'green',
+    chip_rag: rag,
+    chip_incomplete: false,
     chip_progress: null,
     chip_last_backup_at: nowIso,
     chip_error_kind: null,
@@ -103,6 +118,7 @@ export async function setCancelledIncomplete(): Promise<void> {
   await patchStatus({ rag_state: 'amber', error_message: null });
   await chrome.storage.local.set({
     chip_rag: 'amber',
+    chip_incomplete: true,
     chip_error_kind: null,
     chip_progress: null,
     chip_amber_reason: null,
@@ -129,6 +145,7 @@ export async function clearError(): Promise<void> {
   await patchStatus({ rag_state: 'amber', error_message: null });
   await chrome.storage.local.set({
     chip_rag: 'amber',
+    chip_incomplete: true,
     chip_error_kind: null,
   });
 }
@@ -142,6 +159,7 @@ export async function clearError(): Promise<void> {
 export async function setStarting(): Promise<void> {
   await chrome.storage.local.set({
     chip_rag: 'amber',
+    chip_incomplete: true,
     chip_progress: null,
     chip_error_kind: null,
   });
@@ -159,5 +177,5 @@ export async function setAvatar(dataUrl: string): Promise<void> {
 
 /** Remove b_ark_status and every chip_* key — used when an account is removed. */
 export async function clearAll(): Promise<void> {
-  await chrome.storage.local.remove(['b_ark_status', ...CHIP_KEYS]);
+  await chrome.storage.local.remove(['b_ark_status', 'auto_resume_at', ...CHIP_KEYS]);
 }
