@@ -59,10 +59,21 @@ the repo root:
 
 ## CI and the old GitHub Pages URLs
 
-`.github/workflows/site.yml` builds the site, type-checks it and runs `npm run check-links`
-(every relative link and `#fragment` must resolve in `dist/`) on every PR touching this package.
-The GitHub Pages deploy job is switched off (repo variable `PAGES_DEPLOY` unset) because the site is
-moving to Cloudflare at `https://b-oss.dev`; see the issues under #478.
+`.github/workflows/site.yml` type-checks and builds the site, then runs `npm run check-links` (every
+relative link and `#fragment` must resolve in `dist/`) and `npm run check-stubs` (see below) on every
+PR touching this package. Cloudflare deploys the site; the workflow does not.
+
+The site used to live at `https://ianmstevenson.github.io/b-oss/`. Store listings and released
+b-mobile builds link there, so that address stays up **permanently** as redirect stubs:
+
+- `stubs/redirects.mjs` lists the old pages (frozen: never add new pages) and where each goes on
+  `https://b-oss.dev`. `astro.stubs.config.mjs` turns the list into tiny meta-refresh pages
+  (`npm run build:stubs` -> `dist-stubs/`).
+- `check-stubs` fails the build if a stub points at a page that no longer exists, so a page can't be
+  renamed or removed without a decision about its old URL.
+- The `deploy-stubs` job publishes `dist-stubs/` to GitHub Pages. It needs repo variable
+  `PAGES_DEPLOY=true` and Settings -> Pages -> Source = "GitHub Actions"; trigger it from the Actions
+  tab (it also runs on pushes that change this package).
 
 Hygiene the build provides: `sitemap-index.xml` (`@astrojs/sitemap`, with the real `.html` URLs),
 `robots.txt`, a canonical link and Open Graph tags per page, and a `404.html`. `site` in

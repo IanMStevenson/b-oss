@@ -65,3 +65,4 @@ debug/
 
 # Astro generated types (packages/b-site)
 .astro/
+dist-stubs/

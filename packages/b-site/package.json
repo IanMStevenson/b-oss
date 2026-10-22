@@ -9,7 +9,9 @@
     "build": "astro build",
     "preview": "astro preview",
     "typecheck": "astro check",
-    "check-links": "node scripts/check-links.mjs"
+    "build:stubs": "astro build --config astro.stubs.config.mjs",
+    "check-links": "node scripts/check-links.mjs",
+    "check-stubs": "node scripts/check-stubs.mjs"
   },
   "dependencies": {
     "@astrojs/sitemap": "^3.7.4",
