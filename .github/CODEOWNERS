@@ -1,6 +1,16 @@
 # Code owners. The main-protection ruleset requires code-owner review, so a PR touching a path
 # below cannot merge without approval from that owner.
+#
+# CODEOWNERS and .github/ (workflows, actions) are listed so the protection itself, and anything
+# that runs with repo secrets or publishes, can't be changed without the owner. Repo-wide review
+# of what else belongs here is tracked in a separate issue.
 
-# docs/ was the old GitHub Pages source (the site now lives in packages/b-site and is built by
-# Astro). Keep it owner-only so nothing is quietly published from it or recreated by accident.
+/.github/ @IanMStevenson
+
+# The b-oss website: published at b-oss.dev, and stubs/ holds the permanent redirects that released
+# b-mobile builds and store listings depend on.
+/packages/b-site/ @IanMStevenson
+
+# docs/ was the old GitHub Pages source (the site now lives in packages/b-site). Keep it owner-only
+# so nothing is quietly published from it or recreated by accident.
 /docs/ @IanMStevenson
