@@ -1,0 +1,14 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "b-oss-site",
+  "compatibility_date": "2026-10-13",
+  // Assets-only Worker: no code, Cloudflare serves dist/ directly.
+  "assets": {
+    "directory": "./dist",
+    // Our URLs are the literal `page.html` files (store listings link to them). The default
+    // would 307 `/b-api.html` -> `/b-api`, contradicting the canonical and sitemap URLs.
+    // With "none", `/` needs the rewrite in public/_redirects to reach index.html.
+    "html_handling": "none",
+    "not_found_handling": "404-page"
+  }
+}
