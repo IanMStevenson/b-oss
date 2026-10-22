@@ -1,11 +1,13 @@
 name: Site
 
-# Builds the b-oss website (packages/b-site) and checks its links. ci.yml skips packages/b-site/**,
-# so this is the check that exercises site changes.
+# Builds the b-oss website (packages/b-site) and checks it. ci.yml skips packages/b-site/**, so this
+# is the check that exercises site changes. The site itself is deployed by Cloudflare (b-oss.dev,
+# watching packages/b-site/*; see packages/b-site/README.md), not by this workflow.
 #
-# Deploying to GitHub Pages is off by default: the site is moving to Cloudflare (b-oss.dev, #475).
-# At cutover, set Settings -> Pages -> Source to "GitHub Actions" and the repo variable
-# PAGES_DEPLOY=true, then deploy a build that holds only redirect stubs for the old URLs.
+# The only thing this workflow deploys is GitHub Pages: a permanent set of redirect stubs so the
+# old https://ianmstevenson.github.io/b-oss/*.html URLs land on b-oss.dev (stubs/redirects.mjs).
+# That job runs only when repo variable PAGES_DEPLOY=true and Settings -> Pages -> Source is
+# "GitHub Actions"; run it from the Actions tab (workflow_dispatch) to publish.
 
 on:
   push:
@@ -40,11 +42,9 @@ jobs:
       - run: npm run typecheck --workspace @b-oss/b-site
       - run: npm run build --workspace @b-oss/b-site
       - run: npm run check-links --workspace @b-oss/b-site
-      - uses: actions/upload-pages-artifact@v5
-        with:
-          path: packages/b-site/dist
+      - run: npm run check-stubs --workspace @b-oss/b-site
 
-  deploy:
+  deploy-stubs:
     if: github.event_name != 'pull_request' && vars.PAGES_DEPLOY == 'true'
     needs: build
     runs-on: ubuntu-latest
@@ -55,5 +55,15 @@ jobs:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '24'
+          cache: 'npm'
+      - run: npm ci --ignore-scripts --workspace @b-oss/b-site
+      - run: npm run build:stubs --workspace @b-oss/b-site
+      - uses: actions/upload-pages-artifact@v5
+        with:
+          path: packages/b-site/dist-stubs
       - id: deployment
         uses: actions/deploy-pages@v5
