@@ -155,7 +155,15 @@ export function StatusBar({ account, progress, onViewLog, compact }: StatusBarPr
       )}
       {reasons.length > 0 && (
         <>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 5, color: 'var(--rag-amber)' }}>
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 5,
+              color: 'var(--rag-amber)',
+              whiteSpace: 'nowrap',
+            }}
+          >
             <AlertCircle size={12} strokeWidth={1.6} />
             <span>{plural(reasons.length, 'warning', 'warnings')}</span>
           </div>
