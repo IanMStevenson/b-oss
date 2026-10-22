@@ -52,6 +52,10 @@ the repo root:
 - Build command: `npm ci --ignore-scripts --workspace @b-oss/b-site && npm run build -w @b-oss/b-site`
 - Deploy command: `npx wrangler deploy --config packages/b-site/wrangler.jsonc`
 - Build variable: `NODE_VERSION=24` (Astro 7 needs Node >= 22.23.4)
+- Build watch paths (Settings -> Build): include `packages/b-site/*`, nothing else. This is a busy
+  monorepo; without it every merge to `main` would build and version an unchanged site.
+- Do not make the Cloudflare build a required status check: PRs that skip it would never report one.
+  `site.yml` and `ci` cover site changes.
 
 ## CI and the old GitHub Pages URLs
 
