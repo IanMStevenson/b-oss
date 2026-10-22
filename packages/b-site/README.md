@@ -32,7 +32,28 @@ public/                    copied verbatim: site.css, site.js, assets/
 - The contact form posts to [Web3Forms](https://web3forms.com); its access key is in
   `src/pages/contact.astro`.
 
-## Deploying
+## Hosting (Cloudflare Workers static assets)
+
+`wrangler.jsonc` makes this an assets-only Worker named `b-oss-site` serving `dist/`, in the same
+Cloudflare account as b-push. Two files in `public/` configure it:
+
+- `_headers`: security headers on every response, and a day of caching for `/assets/*`.
+- `_redirects`: one rewrite, `/ /index.html 200`. With `html_handling: "none"` (needed so that
+  `/b-api.html` is served as is rather than redirected to `/b-api`) the bare `/` has no file to
+  serve otherwise.
+
+Check changes locally on Cloudflare's runtime: `npm run build -w @b-oss/b-site`, then
+`npx wrangler dev` in this folder. Its compatibility date must not be newer than the installed
+`workerd` supports, or it refuses to start.
+
+Cloudflare build settings (dashboard: Workers & Pages -> b-oss-site -> Settings -> Builds), run from
+the repo root:
+
+- Build command: `npm ci --ignore-scripts --workspace @b-oss/b-site && npm run build -w @b-oss/b-site`
+- Deploy command: `npx wrangler deploy --config packages/b-site/wrangler.jsonc`
+- Build variable: `NODE_VERSION=24` (Astro 7 needs Node >= 22.23.4)
+
+## CI and the old GitHub Pages URLs
 
 `.github/workflows/site.yml` builds the site, type-checks it and runs `npm run check-links`
 (every relative link and `#fragment` must resolve in `dist/`) on every PR touching this package.
