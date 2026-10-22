@@ -13,7 +13,8 @@ import {
   cacheAvatarIfMissing,
   AVATAR_FILENAME,
   countOutstanding,
-  outstandingMessage,
+  dismissUnfetchable,
+  retryUnfetchable,
 } from '@b-oss/backup-engine';
 import type {
   AccountConfig,
@@ -52,6 +53,7 @@ import { writeBViewFiles } from './b-view-files.js';
 import { toCsv } from './log-csv.js';
 import { rebuildTrayMenu, refreshTrayIcon } from './tray.js';
 import { showBackupFailedNotification } from './notifications.js';
+import { completedStatus, withOutstanding } from './rag-reasons.js';
 
 interface BackupErrorLike {
   payload?: { kind: string };
@@ -209,23 +211,18 @@ export function registerIpcHandlers(
           }
 
           const scrapeDegraded = scrapeWanted && (!signedIn || webSessionExpiredDuringRun);
-          const outstanding = countOutstanding(journal?.pending_entries ?? []);
-          const warnings = [
-            ...(scrapeDegraded
-              ? [
-                  'Sign in to the Blipfoto website (Settings) to back up full-resolution and extra images',
-                ]
-              : []),
-            ...(outstanding ? [outstandingMessage(outstanding)] : []),
-          ];
+          const completed = completedStatus({
+            scrapeDegraded,
+            outstanding: countOutstanding(journal?.pending_entries ?? []),
+          });
           await saveAccount({
             ...updated,
             last_backup_at: new Date().toISOString(),
             last_entry_date: journal?.entries[0]?.date ?? updated.last_entry_date ?? null,
             total_archived: journal?.entries.length ?? updated.total_archived,
             journal_entry_total: journal?.entry_total ?? updated.journal_entry_total,
-            rag_state: warnings.length > 0 ? 'amber' : 'green',
-            error_message: warnings.length > 0 ? warnings.join('. ') : null,
+            ...completed,
+            error_message: null,
           });
           emitStoreChanged();
         }
@@ -262,10 +259,20 @@ export function registerIpcHandlers(
           const errorMessage = isAuthExpired
             ? 'Access token expired — reauthorise account'
             : (e?.message ?? 'Backup failed');
+          // A run cancelled by the user is incomplete, not failed.
+          const cancelled = (err as Error | undefined)?.name === 'BackupCancelledError';
           await saveAccount({
             ...updated,
             rag_state: ragState,
-            error_message: errorMessage,
+            error_message: ragState === 'red' ? errorMessage : null,
+            rag_reasons:
+              ragState === 'red'
+                ? []
+                : [
+                    cancelled
+                      ? { code: 'incomplete' }
+                      : { code: 'last_run_failed', message: errorMessage },
+                  ],
           });
           if (isStale) {
             const staleEntry: LogEntry = {
@@ -322,6 +329,7 @@ export function registerIpcHandlers(
         journal_title: profile.details?.journal_title ?? existing.journal_title,
         rag_state: 'amber',
         error_message: null,
+        rag_reasons: [{ code: 'incomplete' }],
       });
       refreshTrayIcon();
       if (existing.backup_folder) {
@@ -362,6 +370,7 @@ export function registerIpcHandlers(
       journal_entry_total: profile.details?.entry_total ?? 0,
       rag_state: 'amber',
       error_message: null,
+      rag_reasons: [{ code: 'incomplete' }],
       account_added_at: new Date().toISOString(),
     };
 
@@ -423,6 +432,7 @@ export function registerIpcHandlers(
       journal_entry_total: profile.details?.entry_total ?? account.journal_entry_total,
       rag_state: 'amber',
       error_message: null,
+      rag_reasons: [{ code: 'incomplete' }],
     });
     refreshTrayIcon();
     if (account.backup_folder) {
@@ -454,6 +464,34 @@ export function registerIpcHandlers(
 
   ipcMain.handle('cancelBackup', (_event, id: string) => {
     activeEngines.get(id)?.cancel();
+  });
+
+  // Rewrite the journal's pending list with `change`, then refresh the account's status to match.
+  async function changePending(
+    id: string,
+    change: typeof dismissUnfetchable,
+  ): Promise<AccountConfig | undefined> {
+    const account = getAccount(id);
+    if (!account) return undefined;
+    const pio = new ElectronPlatformIO(() => undefined);
+    const index = new JournalIndex(pio, path.join(account.backup_folder, account.username));
+    const journal = await index.load();
+    if (!journal?.pending_entries) return account;
+    const next = change(journal.pending_entries);
+    await index.save({ ...journal, pending_entries: next.length > 0 ? next : undefined });
+    await saveAccount({ ...account, ...withOutstanding(account, countOutstanding(next)) });
+    emitStoreChanged();
+    return account;
+  }
+
+  ipcMain.handle('dismissOutstanding', async (_event, id: string) => {
+    await changePending(id, dismissUnfetchable);
+  });
+
+  ipcMain.handle('retryOutstanding', async (_event, id: string) => {
+    if (activeEngines.has(id)) return;
+    await changePending(id, retryUnfetchable);
+    void runBackup(id);
   });
 
   // Refresh the on-disk b-view bundle on first viewer-open per session so the

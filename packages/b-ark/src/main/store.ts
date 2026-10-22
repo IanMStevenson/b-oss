@@ -228,6 +228,7 @@ function composeAccountConfig(p: PortableAccount): AccountConfig {
     journal_entry_total: status.journal_entry_total,
     rag_state: status.rag_state,
     error_message: status.error_message,
+    rag_reasons: status.rag_reasons,
     account_added_at: status.account_added_at,
     enable_web_scrape: settings.enable_web_scrape,
     download_hires: settings.download_hires,
@@ -292,6 +293,7 @@ export async function saveAccount(account: AccountConfig): Promise<void> {
     journal_entry_total: account.journal_entry_total,
     rag_state: account.rag_state,
     error_message: account.error_message,
+    rag_reasons: account.rag_reasons,
     account_added_at: account.account_added_at,
   });
 }

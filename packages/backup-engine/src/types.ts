@@ -94,6 +94,8 @@ export interface PendingEntry {
   date: string;
   first_failed_at: string;
   last_attempt_at: string;
+  /** Set when the user dismissed this entry's unfetchable warning; it stays listed but quiet. */
+  acknowledged_at?: string;
   last_error: { kind: PendingFailureKind; message: string };
 }
 

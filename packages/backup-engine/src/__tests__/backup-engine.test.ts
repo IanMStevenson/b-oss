@@ -11,6 +11,12 @@ import {
   type UserProfileResponse,
 } from '@b-oss/b-api';
 import { BackupEngine } from '../backup-engine.js';
+import {
+  countOutstanding,
+  dismissUnfetchable,
+  isUnfetchable,
+  retryUnfetchable,
+} from '../errors.js';
 import { CheckpointManager } from '../checkpoint.js';
 import { JournalIndex, cacheAvatarIfMissing, AVATAR_FILENAME } from '../journal-index.js';
 import { LogManager } from '../log-manager.js';
@@ -2455,5 +2461,97 @@ describe('BackupEngine — failed entries are retried and tracked (b-oss#473)', 
     await engineFor(routineConfig, io, client).run();
 
     expect(readJournal(io).pending_entries?.map((p) => p.entry_id)).toEqual(['200']);
+  });
+});
+
+describe('unfetchable helpers — dismiss and retry (b-oss#474)', () => {
+  const NOW = Date.parse('2026-11-01T00:00:00Z');
+  const rec = (id: string, daysAgo: number, kind: 'unavailable' | 'network' | 'other') => {
+    const at = new Date(NOW - daysAgo * 86_400_000).toISOString();
+    return {
+      entry_id: id,
+      date: '2026-01-01',
+      first_failed_at: at,
+      last_attempt_at: at,
+      last_error: { kind, message: 'm' },
+    };
+  };
+
+  it('countOutstanding splits retrying from past-window entries by cause', () => {
+    expect(
+      countOutstanding(
+        [rec('a', 1, 'network'), rec('b', 20, 'unavailable'), rec('c', 20, 'network')],
+        NOW,
+      ),
+    ).toEqual({ retrying: 1, unavailable: 1, other: 1 });
+    expect(countOutstanding([], NOW)).toBeNull();
+  });
+
+  it('dismissUnfetchable quiets only entries past the window, and they stop being counted', () => {
+    const next = dismissUnfetchable([rec('a', 1, 'network'), rec('b', 20, 'unavailable')], NOW);
+    expect(next[0].acknowledged_at).toBeUndefined();
+    expect(next[1].acknowledged_at).toBe(new Date(NOW).toISOString());
+    expect(countOutstanding(next, NOW)).toEqual({ retrying: 1, unavailable: 0, other: 0 });
+    expect(countOutstanding([next[1]], NOW)).toBeNull();
+  });
+
+  it('retryUnfetchable restarts the window and clears the dismissal', () => {
+    const dismissed = dismissUnfetchable([rec('b', 20, 'unavailable')], NOW);
+    const next = retryUnfetchable(dismissed, NOW);
+    expect(next[0].first_failed_at).toBe(new Date(NOW).toISOString());
+    expect(next[0].acknowledged_at).toBeUndefined();
+    expect(isUnfetchable(next[0], NOW)).toBe(false);
+  });
+
+  it('a dismissed entry that fails again stays dismissed', async () => {
+    const io = new MockPlatformIO();
+    const client = makeClient();
+    const old = new Date(Date.now() - 20 * 86_400_000).toISOString();
+    io.files.set(
+      '/backups/gbradley/journal.json',
+      JSON.stringify({
+        schema_version: 1,
+        username: 'gbradley',
+        journal_title: 't',
+        avatar_url: 'a',
+        entry_total: 2,
+        last_backup_at: '2024-01-01T00:00:00Z',
+        entries: [
+          {
+            entry_id: '100',
+            date: '2024-01-15',
+            title: 'x',
+            thumbnail_path: 'entries/2024/2024-01-15-t.jpg',
+            json_path: 'entries/2024/2024-01-15.json',
+          },
+        ],
+        pending_entries: [
+          { ...rec('050', 0, 'unavailable'), first_failed_at: old, acknowledged_at: old },
+        ],
+      }),
+    );
+    io.files.set('/backups/gbradley/entries/2024/2024-01-15.jpg', '<placeholder>');
+    vi.spyOn(client, 'getUserProfile').mockResolvedValue(makeProfileResponse(2));
+    vi.spyOn(client, 'getJournalEntries').mockResolvedValue({
+      page: { index: 0, size: 100, more: 0 },
+      entries: [makeEntryStub('100', '2024-01-15')],
+    });
+    const events: BackupEvent[] = [];
+    // Retried by the user (window restarted, dismissal cleared), fails again, then is dismissed.
+    const journal = JSON.parse(io.files.get('/backups/gbradley/journal.json')!) as JournalMetadata;
+    expect(journal.pending_entries![0].acknowledged_at).toBe(old);
+    vi.spyOn(client, 'getEntry').mockRejectedValue(new BlipfotoError(202, 'Entry unavailable'));
+    // Past the window, so it is not retried at all and keeps its acknowledgement.
+    await new BackupEngine(
+      makeConfig({ redo_count: 0, gap_check_days: 1 }),
+      io,
+      client,
+      (e) => events.push(e),
+      new LogManager(io, '/backups'),
+      { retryBackoffMs: [0, 0] },
+    ).run();
+    const after = JSON.parse(io.files.get('/backups/gbradley/journal.json')!) as JournalMetadata;
+    expect(after.pending_entries![0].acknowledged_at).toBe(old);
+    expect(events.find((e) => e.type === 'completed')).not.toHaveProperty('outstanding');
   });
 });

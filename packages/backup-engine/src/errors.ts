@@ -54,7 +54,11 @@ export interface OutstandingCounts {
   other: number;
 }
 
-/** Entries known to exist but not archived, split by state; null when there are none. */
+/**
+ * Entries known to exist but not archived, split by state; null when there are none worth
+ * raising. An entry past the give-up window that the user dismissed stays listed but is not
+ * counted here.
+ */
 export function countOutstanding(
   pending: ReadonlyArray<PendingEntry>,
   now: number = Date.now(),
@@ -62,31 +66,36 @@ export function countOutstanding(
   const counts: OutstandingCounts = { retrying: 0, unavailable: 0, other: 0 };
   for (const p of pending) {
     if (!isUnfetchable(p, now)) counts.retrying++;
+    else if (p.acknowledged_at !== undefined) continue;
     else if (p.last_error.kind === 'unavailable') counts.unavailable++;
     else counts.other++;
   }
   return counts.retrying + counts.unavailable + counts.other > 0 ? counts : null;
 }
 
-const entries = (n: number, one: string, many: string): string => `${n} ${n === 1 ? one : many}`;
+/** User dismissed the unfetchable warning: quiet every entry that is currently past the window. */
+export function dismissUnfetchable(
+  pending: ReadonlyArray<PendingEntry>,
+  now: number = Date.now(),
+): PendingEntry[] {
+  const at = new Date(now).toISOString();
+  return pending.map((p) =>
+    isUnfetchable(p, now) && p.acknowledged_at === undefined ? { ...p, acknowledged_at: at } : p,
+  );
+}
 
-/** Shown (amber) while any entry is not archived. */
-export function outstandingMessage(counts: OutstandingCounts): string {
-  const parts: string[] = [];
-  if (counts.retrying > 0) {
-    parts.push(`${entries(counts.retrying, 'entry', 'entries')} not archived yet — will retry`);
-  }
-  if (counts.unavailable > 0) {
-    parts.push(
-      `${entries(counts.unavailable, 'entry is', 'entries are')} suspended or unavailable on Blipfoto`,
-    );
-  }
-  if (counts.other > 0) {
-    parts.push(
-      `${entries(counts.other, 'entry', 'entries')} could not be fetched after ${PENDING_GIVE_UP_DAYS} days of trying`,
-    );
-  }
-  return parts.join('. ');
+/** User asked to retry: start a fresh give-up window for every entry past the current one. */
+export function retryUnfetchable(
+  pending: ReadonlyArray<PendingEntry>,
+  now: number = Date.now(),
+): PendingEntry[] {
+  const at = new Date(now).toISOString();
+  return pending.map((p) => {
+    if (!isUnfetchable(p, now)) return p;
+    const fresh: PendingEntry = { ...p, first_failed_at: at };
+    delete fresh.acknowledged_at;
+    return fresh;
+  });
 }
 
 /** Still failing after the give-up window: no longer retried automatically, shown as unfetchable. */

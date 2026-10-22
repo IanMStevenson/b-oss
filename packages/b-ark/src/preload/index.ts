@@ -20,6 +20,8 @@ contextBridge.exposeInMainWorld('api', {
   reauthoriseAccountFresh: (id: string) => ipcRenderer.invoke('reauthoriseAccountFresh', id),
   startBackup: (id: string) => ipcRenderer.invoke('startBackup', id),
   cancelBackup: (id: string) => ipcRenderer.invoke('cancelBackup', id),
+  dismissOutstanding: (id: string) => ipcRenderer.invoke('dismissOutstanding', id),
+  retryOutstanding: (id: string) => ipcRenderer.invoke('retryOutstanding', id),
   openViewer: (id: string) => ipcRenderer.invoke('openViewer', id),
   getViewerUrl: (id: string) => ipcRenderer.invoke('getViewerUrl', id),
   pickFolder: () => ipcRenderer.invoke('pickFolder'),

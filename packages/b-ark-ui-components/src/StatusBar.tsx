@@ -4,6 +4,11 @@
 import { Archive, Calendar, Clock, AlertCircle, FileText } from 'lucide-react';
 import type { AccountConfig } from './backend.js';
 import type { BackupProgress } from './view-types.js';
+import { describeReasons } from './ragReasons.js';
+
+function plural(n: number, one: string, many: string): string {
+  return `${n} ${n === 1 ? one : many}`;
+}
 
 function fmtDate(iso: string | null): string {
   if (!iso) return '—';
@@ -43,6 +48,7 @@ interface StatusBarProps {
 
 export function StatusBar({ account, progress, onViewLog, compact }: StatusBarProps) {
   const archived = progress?.total_archived ?? account.total_archived;
+  const reasons = describeReasons(account);
 
   const ragColour =
     account.rag_state === 'green'
@@ -55,7 +61,7 @@ export function StatusBar({ account, progress, onViewLog, compact }: StatusBarPr
     account.rag_state === 'green'
       ? 'Up to date'
       : account.rag_state === 'amber'
-        ? account.error_message
+        ? reasons.length > 0
           ? 'Warning'
           : 'Catching up'
         : 'Needs attention';
@@ -138,11 +144,20 @@ export function StatusBar({ account, progress, onViewLog, compact }: StatusBarPr
       <div style={{ flex: 1 }} />
 
       {/* Error */}
-      {account.error_message && (
+      {account.rag_state === 'red' && account.error_message && (
         <>
           <div style={{ display: 'flex', alignItems: 'center', gap: 5, color: 'var(--rag-red)' }}>
             <AlertCircle size={12} strokeWidth={1.6} />
             <span>{account.error_message}</span>
+          </div>
+          {sep}
+        </>
+      )}
+      {reasons.length > 0 && (
+        <>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 5, color: 'var(--rag-amber)' }}>
+            <AlertCircle size={12} strokeWidth={1.6} />
+            <span>{plural(reasons.length, 'warning', 'warnings')}</span>
           </div>
           {sep}
         </>

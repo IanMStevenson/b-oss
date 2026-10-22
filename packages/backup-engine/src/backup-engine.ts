@@ -497,6 +497,9 @@ export class BackupEngine {
       date: stub.date,
       first_failed_at: this.pending.get(id)?.first_failed_at ?? now,
       last_attempt_at: now,
+      ...(this.pending.get(id)?.acknowledged_at !== undefined
+        ? { acknowledged_at: this.pending.get(id)!.acknowledged_at }
+        : {}),
       last_error: { kind, message },
     });
     this.attemptedThisRun.add(id);

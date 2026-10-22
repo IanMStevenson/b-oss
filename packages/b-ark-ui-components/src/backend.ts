@@ -46,6 +46,20 @@ export interface BArkSettings {
   ui: { thumbnail_size_percent: number; show_info_overlay: boolean };
 }
 
+/**
+ * Why a journal is amber. Persisted as codes plus parameters; all wording lives in
+ * `describeReasons`. Red carries its own `error_message` and does not use these.
+ */
+export type RagReason =
+  /** The last run was cancelled or did not finish; Backup now resumes it. */
+  | { code: 'incomplete' }
+  /** Entries known to exist but not archived: still being retried, or given up on. */
+  | { code: 'outstanding'; retrying: number; unavailable: number; other: number }
+  /** Full-resolution / extra images are enabled but there is no website session (b-ark). */
+  | { code: 'web_signin_missing' }
+  /** The last run stopped with an error that is expected to clear on its own. */
+  | { code: 'last_run_failed'; message: string };
+
 export interface AccountStatus {
   last_backup_at: string | null;
   last_entry_date: string | null;
@@ -53,6 +67,8 @@ export interface AccountStatus {
   journal_entry_total: number;
   rag_state: 'green' | 'amber' | 'red';
   error_message: string | null;
+  /** Why the journal is amber; absent on status written before reasons existed. */
+  rag_reasons?: RagReason[];
   account_added_at: string | null;
 }
 
@@ -95,6 +111,8 @@ export interface AccountConfig {
   journal_entry_total: number;
   rag_state: 'green' | 'amber' | 'red';
   error_message: string | null;
+  /** Why the journal is amber; see `RagReason`. */
+  rag_reasons?: RagReason[];
   account_added_at: string | null;
   /**
    * Optional override for the "next backup" caption. When set (e.g. the Chrome
@@ -203,6 +221,13 @@ export interface BackendContext {
 
   startBackup(accountId: string): Promise<void>;
   cancelBackup(accountId: string): Promise<void>;
+  /**
+   * Quieten the warning for entries that have been unfetchable past the give-up window. They
+   * stay listed; a newly unfetchable entry raises the warning again.
+   */
+  dismissOutstanding(accountId: string): Promise<void>;
+  /** Start a fresh give-up window for unfetchable entries and run a backup to retry them. */
+  retryOutstanding(accountId: string): Promise<void>;
 
   openViewer(accountId: string): Promise<void>;
   getViewerUrl(accountId: string): Promise<string>;

@@ -66,6 +66,8 @@ function fakeBackend(boot: BootState) {
     reauthoriseAccountFresh: vi.fn().mockResolvedValue(undefined),
     startBackup: vi.fn().mockResolvedValue(undefined),
     cancelBackup: vi.fn().mockResolvedValue(undefined),
+    dismissOutstanding: vi.fn().mockResolvedValue(undefined),
+    retryOutstanding: vi.fn().mockResolvedValue(undefined),
     openViewer: vi.fn().mockResolvedValue(undefined),
     getViewerUrl: vi.fn().mockResolvedValue('about:blank'),
     pickFolder: vi.fn().mockResolvedValue(null),

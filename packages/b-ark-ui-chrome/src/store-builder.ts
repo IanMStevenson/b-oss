@@ -133,6 +133,7 @@ export function buildAppStore({
           journal_entry_total: entryTotal,
           rag_state: status.rag_state ?? 'green',
           error_message: status.error_message ?? null,
+          rag_reasons: status.rag_reasons,
           account_added_at: settings.account_added_at ?? null,
         },
       ]

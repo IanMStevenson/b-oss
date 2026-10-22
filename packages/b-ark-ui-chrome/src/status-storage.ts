@@ -13,11 +13,8 @@
 //           that completed with entries not archived yet).
 //   GREEN = a run reached `completed` with nothing outstanding.
 
-import {
-  outstandingMessage,
-  type BackupErrorPayload,
-  type OutstandingCounts,
-} from '@b-oss/backup-engine';
+import type { BackupErrorPayload, OutstandingCounts } from '@b-oss/backup-engine';
+import type { RagReason } from '@b-oss/b-ark-ui-components';
 
 // ── Persisted shapes ────────────────────────────────────────────────────────
 
@@ -35,6 +32,8 @@ export interface ChromeStatus {
   journal_entry_total: number;
   rag_state: RagState;
   error_message: string | null;
+  /** Why the journal is amber; see RagReason. */
+  rag_reasons?: RagReason[];
 }
 
 /** Every chip_* key this module owns — the single list used to clear chip state. */
@@ -79,7 +78,7 @@ function chipKindFor(kind: BackupErrorPayload['kind']): ChipErrorKind {
 
 /** A run started / resumed — the first successful network transaction proves it works. */
 export async function setWorking(): Promise<void> {
-  await patchStatus({ rag_state: 'amber', error_message: null });
+  await patchStatus({ rag_state: 'amber', error_message: null, rag_reasons: [] });
   await chrome.storage.local.set({
     chip_rag: 'amber',
     chip_incomplete: true,
@@ -87,6 +86,24 @@ export async function setWorking(): Promise<void> {
     chip_progress: null,
     chip_amber_reason: null,
   });
+}
+
+function outstandingReasons(outstanding: OutstandingCounts | null): RagReason[] {
+  return outstanding ? [{ code: 'outstanding', ...outstanding }] : [];
+}
+
+/**
+ * The outstanding-entries reason changed between runs (the user dismissed or retried): update
+ * the colour to match without touching any other reason. Never lowers a red status.
+ */
+export async function setOutstanding(outstanding: OutstandingCounts | null): Promise<void> {
+  const current = await readStatus();
+  if (current.rag_state === 'red') return;
+  const others = (current.rag_reasons ?? []).filter((r) => r.code !== 'outstanding');
+  const rag_reasons = [...others, ...outstandingReasons(outstanding)];
+  const rag: RagState = rag_reasons.length > 0 ? 'amber' : 'green';
+  await patchStatus({ rag_state: rag, rag_reasons });
+  await chrome.storage.local.set({ chip_rag: rag });
 }
 
 /** A run finished cleanly. */
@@ -102,7 +119,8 @@ export async function setCompleted(
     last_backup_at: nowIso,
     total_archived: totalArchived,
     rag_state: rag,
-    error_message: outstanding ? outstandingMessage(outstanding) : null,
+    error_message: null,
+    rag_reasons: outstandingReasons(outstanding),
   });
   await chrome.storage.local.set({
     chip_rag: rag,
@@ -115,7 +133,11 @@ export async function setCompleted(
 
 /** A run was cancelled — leaves an incomplete (amber), non-error state. */
 export async function setCancelledIncomplete(): Promise<void> {
-  await patchStatus({ rag_state: 'amber', error_message: null });
+  await patchStatus({
+    rag_state: 'amber',
+    error_message: null,
+    rag_reasons: [{ code: 'incomplete' }],
+  });
   await chrome.storage.local.set({
     chip_rag: 'amber',
     chip_incomplete: true,
@@ -132,7 +154,7 @@ export async function setRateLimited(): Promise<void> {
 
 /** A run aborted with an error — goes red with the correct chip label. */
 export async function setFailed(kind: BackupErrorPayload['kind'], message: string): Promise<void> {
-  await patchStatus({ rag_state: 'red', error_message: message });
+  await patchStatus({ rag_state: 'red', error_message: message, rag_reasons: [] });
   await chrome.storage.local.set({
     chip_rag: 'red',
     chip_error_kind: chipKindFor(kind),
@@ -142,7 +164,11 @@ export async function setFailed(kind: BackupErrorPayload['kind'], message: strin
 
 /** Remediation succeeded (reauthorise / folder grant) — clear red to amber. */
 export async function clearError(): Promise<void> {
-  await patchStatus({ rag_state: 'amber', error_message: null });
+  await patchStatus({
+    rag_state: 'amber',
+    error_message: null,
+    rag_reasons: [{ code: 'incomplete' }],
+  });
   await chrome.storage.local.set({
     chip_rag: 'amber',
     chip_incomplete: true,
