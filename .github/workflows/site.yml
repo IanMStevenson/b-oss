@@ -1,8 +1,11 @@
 name: Site
 
-# Builds the b-oss website (packages/b-site). Pull requests only build it; a push to main also
-# deploys the build to GitHub Pages. Needs repo Settings -> Pages -> Source set to "GitHub Actions".
-# ci.yml skips packages/b-site/**, so this is the check that exercises site changes.
+# Builds the b-oss website (packages/b-site) and checks its links. ci.yml skips packages/b-site/**,
+# so this is the check that exercises site changes.
+#
+# Deploying to GitHub Pages is off by default: the site is moving to Cloudflare (b-oss.dev, #475).
+# At cutover, set Settings -> Pages -> Source to "GitHub Actions" and the repo variable
+# PAGES_DEPLOY=true, then deploy a build that holds only redirect stubs for the old URLs.
 
 on:
   push:
@@ -36,12 +39,13 @@ jobs:
       - run: npm ci --ignore-scripts --workspace @b-oss/b-site
       - run: npm run typecheck --workspace @b-oss/b-site
       - run: npm run build --workspace @b-oss/b-site
+      - run: npm run check-links --workspace @b-oss/b-site
       - uses: actions/upload-pages-artifact@v5
         with:
           path: packages/b-site/dist
 
   deploy:
-    if: github.event_name != 'pull_request'
+    if: github.event_name != 'pull_request' && vars.PAGES_DEPLOY == 'true'
     needs: build
     runs-on: ubuntu-latest
     permissions:

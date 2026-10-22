@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://b-oss.dev/sitemap-index.xml

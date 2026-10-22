@@ -31,5 +31,11 @@ public/                    copied verbatim: site.css, site.js, assets/
 
 ## Deploying
 
-`.github/workflows/site.yml` builds the site on every PR touching this package and, on merge to
-`main`, deploys it to GitHub Pages. This needs repo **Settings → Pages → Source: GitHub Actions**.
+`.github/workflows/site.yml` builds the site, type-checks it and runs `npm run check-links`
+(every relative link and `#fragment` must resolve in `dist/`) on every PR touching this package.
+The GitHub Pages deploy job is switched off (repo variable `PAGES_DEPLOY` unset) because the site is
+moving to Cloudflare at `https://b-oss.dev`; see the issues under #478.
+
+Hygiene the build provides: `sitemap-index.xml` (`@astrojs/sitemap`, with the real `.html` URLs),
+`robots.txt`, a canonical link and Open Graph tags per page, and a `404.html`. `site` in
+`astro.config.mjs` is `https://b-oss.dev` (override with `SITE_URL`).

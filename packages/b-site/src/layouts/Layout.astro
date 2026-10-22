@@ -12,9 +12,15 @@ interface Props {
   narrow?: boolean;
   /** Load site.js: click-to-enlarge lightbox for guide screenshots. */
   lightbox?: boolean;
+  /** Keep the page out of search engines (the 404 page). */
+  noindex?: boolean;
 }
 
-const { title, description, nav, narrow = false, lightbox = false } = Astro.props;
+const { title, description, nav, narrow = false, lightbox = false, noindex = false } = Astro.props;
+
+// `index.html` is canonically `/`; every other page is its own `.html` URL.
+const canonical = new URL(Astro.url.pathname.replace(/\/index\.html$/, '/'), Astro.site).href;
+const socialImage = new URL('assets/b-oss-icon-large.png', Astro.site).href;
 ---
 
 <!doctype html>
@@ -23,7 +29,16 @@ const { title, description, nav, narrow = false, lightbox = false } = Astro.prop
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>{title}</title>
+    <slot name="head" />
     {description && <meta name="description" content={description} />}
+    {noindex ? <meta name="robots" content="noindex" /> : <link rel="canonical" href={canonical} />}
+    <meta property="og:site_name" content="b-oss" />
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content={title} />
+    {description && <meta property="og:description" content={description} />}
+    {!noindex && <meta property="og:url" content={canonical} />}
+    <meta property="og:image" content={socialImage} />
+    <meta name="twitter:card" content="summary" />
     <link rel="icon" href="assets/favicon.ico" sizes="any" />
     <link rel="icon" type="image/png" sizes="32x32" href="assets/favicon-32.png" />
     <link rel="icon" type="image/png" sizes="16x16" href="assets/favicon-16.png" />
