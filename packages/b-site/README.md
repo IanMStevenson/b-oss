@@ -5,6 +5,9 @@ It builds to plain HTML, so the output is as simple and fast as hand-written pag
 
 ## Editing
 
+Astro 7 needs Node >= 22.23.4 (the repo's other packages accept 22.12). The site is type-checked and
+built by `site.yml` on Node 24, not by the root `npm run typecheck`.
+
 ```bash
 npm run dev -w @b-oss/b-site        # live preview at http://localhost:4321
 npm run build -w @b-oss/b-site      # static output in packages/b-site/dist
