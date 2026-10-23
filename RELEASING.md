@@ -234,9 +234,16 @@ needs editing per release. Check the workflow run went green (it verifies the SH
 re-run it from the Actions tab with the tag (e.g. `b-ark-v1.0.6`). Never edit or delete `b-ark-latest` by
 hand. Only b-ark releases (`b-ark-v<number>`, or an old `v<number>`) feed it; b-mobile and pre-releases are ignored.
 
-GitHub's own "Latest" flag is still what the installed app's updater reads (b-oss#512 tracks
-removing that dependency), so keep ticking **Set as the latest release** for b-ark, and create
-b-mobile GitHub releases with it **unticked**.
+**Updates do not use GitHub's "Latest" flag.** Installed b-ark apps read their update feed (`latest.yml`,
+the installer and its blockmap) from the same permanent `b-ark-latest` release
+(`packages/b-ark/src/main/updater.ts`), so another package's release can't break them. The tick
+box on a b-ark release is no longer load-bearing, and nothing about b-mobile or other packages'
+releases affects updates. The workflow refuses to publish a feed whose `latest.yml` doesn't match the
+installer (version, file name and SHA-512), and finishes by fetching the public feed address.
+
+Versions before the one that introduced this (1.0.5 and older) still use GitHub's Latest flag, so
+the first release carrying the change must be published with **Set as the latest release** ticked, once,
+for those installs to find it.
 
 ### 7. Smoke-test from a second machine
 
