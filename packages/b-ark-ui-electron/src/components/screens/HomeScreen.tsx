@@ -18,7 +18,6 @@ import {
   IconButton,
   BackupButton,
 } from '@b-oss/b-ark-ui-components';
-import { describeReasons } from '@b-oss/b-ark-ui-components';
 import { AmberBanner } from '../AmberBanner.js';
 import { AuthErrorBanner } from '../AuthErrorBanner.js';
 import { StatusBar } from '../StatusBar.js';
@@ -209,48 +208,6 @@ export function HomeScreen({ account, compact }: HomeScreenProps) {
 
       {/* Amber: the backup may be incomplete and will probably recover. */}
       {!isBackingUp && account.rag_state === 'amber' && <AmberBanner account={account} />}
-
-      {/* Website sign-in nudge — full-res/extra images are enabled but this
-          journal has no blipfoto.com session, so backups run API-only. The amber banner
-          carries the same message (with its own action) once a run has recorded it. */}
-      {account.enable_web_scrape &&
-        account.web_session_signed_in === false &&
-        !(!isBackingUp && describeReasons(account).some((r) => r.key === 'web_signin_missing')) && (
-          <div
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: 10,
-              padding: '8px 24px',
-              background: 'var(--amber-50, #fdf6e3)',
-              borderBottom: '1px solid var(--line)',
-              fontSize: 12.5,
-              color: 'var(--ink-2)',
-            }}
-          >
-            <span style={{ flex: 1 }}>
-              Sign in to the Blipfoto website to back up full-resolution and extra images for this
-              journal.
-            </span>
-            <button
-              onClick={() => dispatch({ type: 'panel:open', panel: 'settings' })}
-              style={{
-                height: 26,
-                padding: '0 10px',
-                borderRadius: 6,
-                border: '1px solid var(--line)',
-                background: 'white',
-                color: 'var(--green-800)',
-                fontSize: 12.5,
-                fontWeight: 500,
-                cursor: 'pointer',
-                whiteSpace: 'nowrap',
-              }}
-            >
-              Open Settings
-            </button>
-          </div>
-        )}
 
       {/* Main area */}
       <div

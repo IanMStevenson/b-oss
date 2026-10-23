@@ -210,9 +210,7 @@ export function registerIpcHandlers(
             }
           }
 
-          const scrapeDegraded = scrapeWanted && (!signedIn || webSessionExpiredDuringRun);
           const completed = completedStatus({
-            scrapeDegraded,
             outstanding: countOutstanding(journal?.pending_entries ?? []),
           });
           await saveAccount({

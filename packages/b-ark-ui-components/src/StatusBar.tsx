@@ -6,10 +6,6 @@ import type { AccountConfig } from './backend.js';
 import type { BackupProgress } from './view-types.js';
 import { describeReasons } from './ragReasons.js';
 
-function plural(n: number, one: string, many: string): string {
-  return `${n} ${n === 1 ? one : many}`;
-}
-
 function fmtDate(iso: string | null): string {
   if (!iso) return '—';
   const d = new Date(iso);
@@ -153,24 +149,6 @@ export function StatusBar({ account, progress, onViewLog, compact }: StatusBarPr
           {sep}
         </>
       )}
-      {reasons.length > 0 && (
-        <>
-          <div
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: 5,
-              color: 'var(--rag-amber)',
-              whiteSpace: 'nowrap',
-            }}
-          >
-            <AlertCircle size={12} strokeWidth={1.6} />
-            <span>{plural(reasons.length, 'warning', 'warnings')}</span>
-          </div>
-          {sep}
-        </>
-      )}
-
       {/* View log */}
       <button
         onClick={onViewLog}
