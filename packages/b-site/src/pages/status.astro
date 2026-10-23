@@ -1,5 +1,6 @@
 ---
 import Layout from '../layouts/Layout.astro';
+import StatusDisclaimer from '../components/StatusDisclaimer.astro';
 ---
 
 <Layout
@@ -9,24 +10,14 @@ import Layout from '../layouts/Layout.astro';
 >
   <a slot="top" class="skip-link" href="#uptime">Skip the charts and go to the uptime table and incident list</a>
 
-  <div slot="below-header" class="st-disclaimer" role="note">
-    <div class="st-disclaimer-inner">
-      <span class="st-disclaimer-icon" aria-hidden="true">i</span>
-      <p>
-        <strong>Unofficial.</strong> This page is run by b-oss, an independent open-source project. It is
-        not operated by, affiliated with or endorsed by Blipfoto, and
-        <strong>problems shared here do not go to Blipfoto</strong>. For help from Blipfoto, use
-        <a href="#">Blipfoto support</a> or <a href="#">contact Blipfoto</a>.
-      </p>
-    </div>
-  </div>
+  <StatusDisclaimer slot="below-header" />
 
   <div class="status-page">
     <header class="st-head">
       <p class="st-eyebrow">Status</p>
       <h1>Is Blipfoto working?</h1>
       <p class="st-sub-lead">
-        An independent check of the Blipfoto website and API. <a href="#how-measured">How this works</a>
+        An independent check of the Blipfoto website and API. <a href="how-this-works.html">How this works</a>
       </p>
     </header>
 
@@ -97,6 +88,7 @@ import Layout from '../layouts/Layout.astro';
             couldn’t check are left out, so they count neither for nor against.
           </li>
         </ul>
+        <p><a href="how-this-works.html">Read the full explanation: how this works</a></p>
       </details>
     </section>
 
