@@ -14,7 +14,7 @@ You can find more information on the [b-oss website](https://ianmstevenson.githu
 
 ## Status
 
-Pre-release. [Download the latest Windows installer](https://github.com/ianstevenson/b-oss/releases) from the Releases page. The installer is unsigned, so Windows SmartScreen will warn on first run — click _More info_ → _Run anyway_. A Mac build (universal DMG) is currently in testing as an unsigned pre-release; a signed Mac release will follow once it's proven and we have a contributor with an Apple Developer account.
+Pre-release. [Download the latest Windows installer](https://github.com/IanMStevenson/b-oss/releases/download/b-ark-latest/b-ark-Setup.exe) (earlier versions are on the [Releases page](https://github.com/IanMStevenson/b-oss/releases)). The installer is unsigned, so Windows SmartScreen will warn on first run — click _More info_ → _Run anyway_. A Mac build (universal DMG) is currently in testing as an unsigned pre-release; a signed Mac release will follow once it's proven and we have a contributor with an Apple Developer account.
 
 The **b-ark-chrome** extension is in active development; build it with `npm run build --workspace=@b-oss/b-ark-chrome` (or `npm run dist --workspace=@b-oss/b-ark-chrome` to also package it) and load it unpacked until a packaged release is published.
 

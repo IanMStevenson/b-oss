@@ -226,6 +226,18 @@ attached. Click _Edit_ and:
 
 4. Click **Publish release**.
 
+**The "latest download" link updates itself.** Publishing a `v*` release runs the
+`b-ark latest download` workflow (`.github/workflows/b-ark-latest.yml`), which copies the installer
+to a permanent release, `b-ark-latest`, as `b-ark-Setup.exe`. The website, README and user guide link
+to `https://github.com/IanMStevenson/b-oss/releases/download/b-ark-latest/b-ark-Setup.exe`, so nothing
+needs editing per release. Check the workflow run went green (it verifies the SHA-256). If it didn't,
+re-run it from the Actions tab with the tag (e.g. `v1.0.6`). Never edit or delete `b-ark-latest` by
+hand. Only b-ark releases (`v<number>`) feed it; b-mobile and pre-releases are ignored.
+
+GitHub's own "Latest" flag is still what the installed app's updater reads (b-oss#512 tracks
+removing that dependency), so keep ticking **Set as the latest release** for b-ark, and create
+b-mobile GitHub releases with it **unticked**.
+
 ### 7. Smoke-test from a second machine
 
 Download the published .exe on a different machine (or fresh VM), install,
