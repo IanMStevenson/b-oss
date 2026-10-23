@@ -50,4 +50,6 @@ if [ "$sign" = 1 ]; then
   jarsigner -verify "$aab" >/dev/null || { echo "error: signature did not verify" >&2; exit 1; }
   state=signed
 fi
-echo "Built $aab ($state, versionCode $(git rev-list --count HEAD) @ $(git rev-parse --short HEAD))"
+# Same rule as android/app/build.gradle: the override if set, else commit count + 1000.
+version_code="${BMOBILE_VERSION_CODE:-$(($(git rev-list --count HEAD) + 1000))}"
+echo "Built $aab ($state, versionCode $version_code @ $(git rev-parse --short HEAD))"
