@@ -33,6 +33,10 @@ export async function recordSample(db: DbLike, outcome: ProbeOutcome): Promise<v
         outcome.retried ? 1 : 0,
         JSON.stringify(outcome.results),
       ),
+    // First sample ever: remember when monitoring began (an ignored insert writes nothing).
+    db
+      .prepare("INSERT OR IGNORE INTO meta (key, value) VALUES ('first_ts', ?)")
+      .bind(String(outcome.ts)),
   ];
 
   for (const c of COMPONENTS) {

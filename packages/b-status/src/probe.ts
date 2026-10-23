@@ -6,10 +6,12 @@
 // sample (b-oss#476 design). The stored checks are those of the final attempt.
 
 import { deriveStates } from './derive.js';
+import { INTERVAL_MS, slotOf } from './time.js';
 import { runChecks, type ProbeConfig, type ProbeDeps } from './checks.js';
 import type { CheckResult, Component, DerivedStates, State } from './types.js';
 
-export const SAMPLE_INTERVAL_MS = 15 * 60 * 1000;
+export const SAMPLE_INTERVAL_MS = INTERVAL_MS;
+export { slotOf };
 
 export interface ProbeOutcome {
   /** Epoch ms the run started. */
@@ -19,10 +21,6 @@ export interface ProbeOutcome {
   states: DerivedStates;
   results: CheckResult[];
   retried: boolean;
-}
-
-export function slotOf(ts: number): number {
-  return Math.floor(ts / SAMPLE_INTERVAL_MS);
 }
 
 function confirmed(first: DerivedStates, second: DerivedStates, c: Component): State {
