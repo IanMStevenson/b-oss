@@ -65,8 +65,8 @@ Every release, whatever the component:
    workflow sets this on its `version:bump` step; locally use
    `npm run build:release` or set `$env:RELEASE='1'` before
    `npm run dist:win`.
-3. **Never re-publish a tag.** Once `v0.1.0` is published and someone
-   has installed it, you cannot ship a fix as another `v0.1.0` —
+3. **Never re-publish a tag.** Once `b-ark-v0.1.0` is published and someone
+   has installed it, you cannot ship a fix as another `b-ark-v0.1.0` —
    electron-updater compares version strings and "same version" means
    "no update available", so the broken install is stuck. Bump the
    patch instead. Re-publishing is only safe if you are absolutely
@@ -286,7 +286,7 @@ is corrupted`** — electron-builder was asked to package b-ark but
   downloads; persistent blocking is the argument for Authenticode
   (deferred — see [kick-off/TODO.md](kick-off/TODO.md)).
 - **Need to retract a broken release** — delete the GitHub release
-  (`gh release delete v0.1.x --yes --cleanup-tag`), bump to the next
+  (`gh release delete b-ark-v0.1.x --yes --cleanup-tag`), bump to the next
   patch version, cut a new release. Do not re-tag the same version
   once anyone has downloaded — electron-updater compares version
   strings and "same version" reads as "no update needed", leaving the
