@@ -12,6 +12,7 @@ export type {
   AccountStatus,
   UserDataStore,
   AccountConfig,
+  RagReason,
   AppStore,
   LogEntry,
   BackupErrorPayload,

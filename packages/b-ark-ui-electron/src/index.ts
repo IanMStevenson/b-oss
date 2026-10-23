@@ -5,6 +5,7 @@ export { default as App } from './App.js';
 export type {
   BackendContext,
   AccountConfig,
+  RagReason,
   AppStore,
   BootState,
   LogCsvFilters,

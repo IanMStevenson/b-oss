@@ -84,6 +84,27 @@ export interface ImageRepairState {
   download_hires: boolean;
 }
 
+/** Why an entry could not be fetched. `unavailable` is the server's "entry unavailable" (code 202),
+ * which is how a suspended entry answers. */
+export type PendingFailureKind = 'unavailable' | 'network' | 'other';
+
+/** An entry the journal says exists but that has not been archived yet. */
+export interface PendingEntry {
+  entry_id: string;
+  date: string;
+  first_failed_at: string;
+  last_attempt_at: string;
+  /** Set when the user dismissed this entry's unfetchable warning; it stays listed but quiet. */
+  acknowledged_at?: string;
+  last_error: { kind: PendingFailureKind; message: string };
+}
+
+/** Outcome of the last full-listing reconcile, so an unchanged mismatch isn't re-listed every run. */
+export interface ReconcileState {
+  /** Entries the profile total counts that are neither archived nor pending, after the listing. */
+  unexplained: number;
+}
+
 export interface JournalMetadata {
   schema_version: 1;
   username: string;
@@ -98,6 +119,9 @@ export interface JournalMetadata {
    * settings still match. Absent, or a settings mismatch, means a full pass is needed.
    */
   image_repair_complete?: ImageRepairState;
+  /** Entries known to exist but not archived (failed fetches, or found by reconcile). */
+  pending_entries?: PendingEntry[];
+  reconcile?: ReconcileState;
 }
 
 export interface BackupCheckpoint {
@@ -133,7 +157,13 @@ export type BackupEvent =
       phase?: BackupPhase;
     }
   | { type: 'rate_limited'; account_id: string; resume_in_seconds: number }
-  | { type: 'completed'; account_id: string; total_archived: number }
+  | {
+      type: 'completed';
+      account_id: string;
+      total_archived: number;
+      /** Entries not yet archived, by state; omitted when there are none. */
+      outstanding?: { retrying: number; unavailable: number; other: number };
+    }
   | { type: 'cancelled'; account_id: string }
   | { type: 'failed'; account_id: string; error: BackupErrorPayload };
 

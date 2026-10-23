@@ -2,7 +2,14 @@
 // Copyright (C) 2026 Ian Stevenson
 
 import { BlipfotoClient } from '@b-oss/b-api';
-import { BackupEngine, LogManager } from '@b-oss/backup-engine';
+import {
+  BackupEngine,
+  JournalIndex,
+  LogManager,
+  countOutstanding,
+  dismissUnfetchable,
+  retryUnfetchable,
+} from '@b-oss/backup-engine';
 import type { BackupEvent } from '@b-oss/backup-engine';
 import type {
   AccountConfig,
@@ -24,6 +31,7 @@ import {
   patchStatus,
   setWorking,
   setCompleted,
+  setOutstanding,
   setCancelledIncomplete,
   setFailed,
   setRateLimited,
@@ -410,7 +418,7 @@ export class BrowserBackend implements BackendContext {
       if (event.type === 'completed') {
         const now = new Date().toISOString();
         void (async () => {
-          await setCompleted(now, event.total_archived);
+          await setCompleted(now, event.total_archived, event.outstanding ?? null);
           void deployViewer(io, token.username);
           this._notifySwOnComplete();
           const entries = await logMgr.readAll();
@@ -459,6 +467,31 @@ export class BrowserBackend implements BackendContext {
     } catch {
       return false;
     }
+  }
+
+  /** Rewrite the journal's pending list with `change` and bring the status colour in line. */
+  private async _changePending(change: typeof dismissUnfetchable): Promise<void> {
+    const token = await loadToken();
+    const handle = this._handle ?? (await loadHandle());
+    if (!token || !handle) return;
+    if ((await queryFsaPermission(handle)) !== 'granted') return;
+    const index = new JournalIndex(new BrowserPlatformIO(handle), token.username);
+    const journal = await index.load();
+    if (!journal?.pending_entries) return;
+    const next = change(journal.pending_entries);
+    await index.save({ ...journal, pending_entries: next.length > 0 ? next : undefined });
+    await setOutstanding(countOutstanding(next));
+    await this._reloadAndEmitStore();
+  }
+
+  async dismissOutstanding(_accountId: string): Promise<void> {
+    await this._changePending(dismissUnfetchable);
+  }
+
+  async retryOutstanding(accountId: string): Promise<void> {
+    if (this._engine) return;
+    await this._changePending(retryUnfetchable);
+    await this.startBackup(accountId);
   }
 
   cancelBackup(_accountId: string): Promise<void> {

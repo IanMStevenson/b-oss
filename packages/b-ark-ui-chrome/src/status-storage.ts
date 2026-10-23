@@ -9,10 +9,12 @@
 //
 // The RAG model (see plan):
 //   RED   = a run aborted with an error (auth / permission / network / api).
-//   AMBER = working, or incomplete-but-not-errored (resume in progress, cancelled).
-//   GREEN = a run reached `completed`.
+//   AMBER = working, or incomplete-but-not-errored (resume in progress, cancelled, or a run
+//           that completed with entries not archived yet).
+//   GREEN = a run reached `completed` with nothing outstanding.
 
-import type { BackupErrorPayload } from '@b-oss/backup-engine';
+import type { BackupErrorPayload, OutstandingCounts } from '@b-oss/backup-engine';
+import type { RagReason } from '@b-oss/b-ark-ui-components';
 
 // ── Persisted shapes ────────────────────────────────────────────────────────
 
@@ -30,6 +32,8 @@ export interface ChromeStatus {
   journal_entry_total: number;
   rag_state: RagState;
   error_message: string | null;
+  /** Why the journal is amber; see RagReason. */
+  rag_reasons?: RagReason[];
 }
 
 /** Every chip_* key this module owns — the single list used to clear chip state. */
@@ -38,6 +42,7 @@ const CHIP_KEYS = [
   'chip_progress',
   'chip_error_kind',
   'chip_amber_reason',
+  'chip_incomplete',
   'chip_last_backup_at',
   'chip_avatar_url',
 ] as const;
@@ -73,25 +78,53 @@ function chipKindFor(kind: BackupErrorPayload['kind']): ChipErrorKind {
 
 /** A run started / resumed — the first successful network transaction proves it works. */
 export async function setWorking(): Promise<void> {
-  await patchStatus({ rag_state: 'amber', error_message: null });
+  await patchStatus({ rag_state: 'amber', error_message: null, rag_reasons: [] });
   await chrome.storage.local.set({
     chip_rag: 'amber',
+    chip_incomplete: true,
     chip_error_kind: null,
     chip_progress: null,
     chip_amber_reason: null,
   });
 }
 
+function outstandingReasons(outstanding: OutstandingCounts | null): RagReason[] {
+  return outstanding ? [{ code: 'outstanding', ...outstanding }] : [];
+}
+
+/**
+ * The outstanding-entries reason changed between runs (the user dismissed or retried): update
+ * the colour to match without touching any other reason. Never lowers a red status.
+ */
+export async function setOutstanding(outstanding: OutstandingCounts | null): Promise<void> {
+  const current = await readStatus();
+  if (current.rag_state === 'red') return;
+  const others = (current.rag_reasons ?? []).filter((r) => r.code !== 'outstanding');
+  const rag_reasons = [...others, ...outstandingReasons(outstanding)];
+  const rag: RagState = rag_reasons.length > 0 ? 'amber' : 'green';
+  await patchStatus({ rag_state: rag, rag_reasons });
+  await chrome.storage.local.set({ chip_rag: rag });
+}
+
 /** A run finished cleanly. */
-export async function setCompleted(nowIso: string, totalArchived: number): Promise<void> {
+export async function setCompleted(
+  nowIso: string,
+  totalArchived: number,
+  outstanding: OutstandingCounts | null = null,
+): Promise<void> {
+  // Entries not archived yet leave the backup amber, not green. The run itself finished, so
+  // it is complete as far as the service worker's auto-resume is concerned.
+  const rag: RagState = outstanding ? 'amber' : 'green';
   await patchStatus({
     last_backup_at: nowIso,
     total_archived: totalArchived,
-    rag_state: 'green',
+    rag_state: rag,
     error_message: null,
+    rag_reasons: outstandingReasons(outstanding),
   });
   await chrome.storage.local.set({
-    chip_rag: 'green',
+    chip_rag: rag,
+    chip_incomplete: false,
     chip_progress: null,
     chip_last_backup_at: nowIso,
     chip_error_kind: null,
@@ -100,9 +133,14 @@ export async function setCompleted(nowIso: string, totalArchived: number): Promi
 
 /** A run was cancelled — leaves an incomplete (amber), non-error state. */
 export async function setCancelledIncomplete(): Promise<void> {
-  await patchStatus({ rag_state: 'amber', error_message: null });
+  await patchStatus({
+    rag_state: 'amber',
+    error_message: null,
+    rag_reasons: [{ code: 'incomplete' }],
+  });
   await chrome.storage.local.set({
     chip_rag: 'amber',
+    chip_incomplete: true,
     chip_error_kind: null,
     chip_progress: null,
     chip_amber_reason: null,
@@ -116,7 +154,7 @@ export async function setRateLimited(): Promise<void> {
 
 /** A run aborted with an error — goes red with the correct chip label. */
 export async function setFailed(kind: BackupErrorPayload['kind'], message: string): Promise<void> {
-  await patchStatus({ rag_state: 'red', error_message: message });
+  await patchStatus({ rag_state: 'red', error_message: message, rag_reasons: [] });
   await chrome.storage.local.set({
     chip_rag: 'red',
     chip_error_kind: chipKindFor(kind),
@@ -126,9 +164,14 @@ export async function setFailed(kind: BackupErrorPayload['kind'], message: strin
 
 /** Remediation succeeded (reauthorise / folder grant) — clear red to amber. */
 export async function clearError(): Promise<void> {
-  await patchStatus({ rag_state: 'amber', error_message: null });
+  await patchStatus({
+    rag_state: 'amber',
+    error_message: null,
+    rag_reasons: [{ code: 'incomplete' }],
+  });
   await chrome.storage.local.set({
     chip_rag: 'amber',
+    chip_incomplete: true,
     chip_error_kind: null,
   });
 }
@@ -142,6 +185,7 @@ export async function clearError(): Promise<void> {
 export async function setStarting(): Promise<void> {
   await chrome.storage.local.set({
     chip_rag: 'amber',
+    chip_incomplete: true,
     chip_progress: null,
     chip_error_kind: null,
   });
@@ -159,5 +203,5 @@ export async function setAvatar(dataUrl: string): Promise<void> {
 
 /** Remove b_ark_status and every chip_* key — used when an account is removed. */
 export async function clearAll(): Promise<void> {
-  await chrome.storage.local.remove(['b_ark_status', ...CHIP_KEYS]);
+  await chrome.storage.local.remove(['b_ark_status', 'auto_resume_at', ...CHIP_KEYS]);
 }

@@ -25,6 +25,8 @@ declare global {
       reauthoriseAccountFresh(id: string): Promise<void>;
       startBackup(id: string): Promise<void>;
       cancelBackup(id: string): Promise<void>;
+      dismissOutstanding(id: string): Promise<void>;
+      retryOutstanding(id: string): Promise<void>;
       openViewer(id: string): Promise<void>;
       getViewerUrl(id: string): Promise<string>;
       pickFolder(): Promise<string | null>;
@@ -54,6 +56,8 @@ export class ElectronBackend implements BackendContext {
   reauthoriseAccountFresh = (id: string) => window.api.reauthoriseAccountFresh(id);
   startBackup = (id: string) => window.api.startBackup(id);
   cancelBackup = (id: string) => window.api.cancelBackup(id);
+  dismissOutstanding = (id: string) => window.api.dismissOutstanding(id);
+  retryOutstanding = (id: string) => window.api.retryOutstanding(id);
   openViewer = (id: string) => window.api.openViewer(id);
   getViewerUrl = (id: string) => window.api.getViewerUrl(id);
   pickFolder = () => window.api.pickFolder();

@@ -12,6 +12,7 @@ export type {
   AccountStatus,
   UserDataStore,
   AccountConfig,
+  RagReason,
   AppStore,
   LogEntry,
   BackupErrorPayload,
@@ -38,6 +39,9 @@ export type { BackupButtonProps } from './BackupButton.js';
 export { Avatar } from './Avatar.js';
 export { StatusBar } from './StatusBar.js';
 export { AuthErrorBanner } from './AuthErrorBanner.js';
+export { AmberBanner } from './AmberBanner.js';
+export { describeReasons } from './ragReasons.js';
+export type { DescribedReason, ReasonAction } from './ragReasons.js';
 export { ToastHost } from './ToastHost.js';
 export { InfoBadge } from './InfoBadge.js';
 export { LogPanel } from './LogPanel.js';

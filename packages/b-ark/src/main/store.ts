@@ -12,6 +12,7 @@ import type {
 } from '@b-oss/b-ark-ui-electron';
 import { PortableSettingsManager } from './portable-settings.js';
 import { decryptSecret } from './secret-store.js';
+import { effectiveStatus } from './rag-reasons.js';
 import { deserializeCookies, isSignedInFromCookies } from './web-session-pure.js';
 
 const DEFAULT_STATUS: AccountStatus = {
@@ -143,7 +144,7 @@ export function getWorstRag(): 'green' | 'amber' | 'red' | null {
   const statuses = store.get('status');
   let worst: 'green' | 'amber' | 'red' = 'green';
   for (const id of ids) {
-    const rag = (statuses[id] ?? DEFAULT_STATUS).rag_state;
+    const rag = effectiveStatus(statuses[id] ?? DEFAULT_STATUS, webSigninMissing(id)).rag_state;
     if (rag === 'red') return 'red';
     if (rag === 'amber') worst = 'amber';
   }
@@ -207,10 +208,17 @@ export function deriveWebSessionSignedIn(accountId: string): boolean {
 // and existing IPC surface continue to work without changes.
 // ---------------------------------------------------------------------------
 
+/** Full-resolution/extra images are enabled but this account has no website session. */
+function webSigninMissing(accountId: string): boolean {
+  return portableCache.enable_web_scrape === true && !deriveWebSessionSignedIn(accountId);
+}
+
 function composeAccountConfig(p: PortableAccount): AccountConfig {
   const settings = portableCache;
   const status = getStatus(p.id);
   const token = getToken(p.username) ?? '';
+  const signedIn = deriveWebSessionSignedIn(p.id);
+  const effective = effectiveStatus(status, settings.enable_web_scrape === true && !signedIn);
   return {
     id: p.id,
     username: p.username,
@@ -226,12 +234,13 @@ function composeAccountConfig(p: PortableAccount): AccountConfig {
     last_entry_date: status.last_entry_date,
     total_archived: status.total_archived,
     journal_entry_total: status.journal_entry_total,
-    rag_state: status.rag_state,
+    rag_state: effective.rag_state,
     error_message: status.error_message,
+    rag_reasons: effective.rag_reasons,
     account_added_at: status.account_added_at,
     enable_web_scrape: settings.enable_web_scrape,
     download_hires: settings.download_hires,
-    web_session_signed_in: deriveWebSessionSignedIn(p.id),
+    web_session_signed_in: signedIn,
   };
 }
 
@@ -292,6 +301,7 @@ export async function saveAccount(account: AccountConfig): Promise<void> {
     journal_entry_total: account.journal_entry_total,
     rag_state: account.rag_state,
     error_message: account.error_message,
+    rag_reasons: account.rag_reasons,
     account_added_at: account.account_added_at,
   });
 }

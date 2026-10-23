@@ -11,6 +11,12 @@ import {
   type UserProfileResponse,
 } from '@b-oss/b-api';
 import { BackupEngine } from '../backup-engine.js';
+import {
+  countOutstanding,
+  dismissUnfetchable,
+  isUnfetchable,
+  retryUnfetchable,
+} from '../errors.js';
 import { CheckpointManager } from '../checkpoint.js';
 import { JournalIndex, cacheAvatarIfMissing, AVATAR_FILENAME } from '../journal-index.js';
 import { LogManager } from '../log-manager.js';
@@ -1963,7 +1969,10 @@ describe('BackupEngine — web-scrape extras', () => {
   const EXTRA = {
     item_id_str: '222',
     thumbnail_url: 'https://cdn.example/t/222.jpg',
-    image_urls: { stdres: 'https://cdn.example/s/222.jpg', original: 'https://cdn.example/o/222.jpg' },
+    image_urls: {
+      stdres: 'https://cdn.example/s/222.jpg',
+      original: 'https://cdn.example/o/222.jpg',
+    },
   };
 
   it('downloads main original + extra images and records them in the entry JSON', async () => {
@@ -2099,5 +2108,450 @@ describe('BackupEngine — web-scrape extras', () => {
       enable_web_scrape: true,
       download_hires: true,
     });
+  });
+});
+
+describe('BackupEngine — failed entries are retried and tracked (b-oss#473)', () => {
+  const NO_PAUSE = { retryBackoffMs: [0, 0] };
+
+  function engineFor(
+    config: AccountBackupConfig,
+    io: MockPlatformIO,
+    client: BlipfotoClient,
+    events: BackupEvent[] = [],
+  ): BackupEngine {
+    return new BackupEngine(
+      config,
+      io,
+      client,
+      (e) => events.push(e),
+      new LogManager(io, config.backup_folder),
+      NO_PAUSE,
+    );
+  }
+
+  function readJournal(io: MockPlatformIO): JournalMetadata {
+    return JSON.parse(io.files.get('/backups/gbradley/journal.json')!) as JournalMetadata;
+  }
+
+  function seedJournal(io: MockPlatformIO, journal: Partial<JournalMetadata>): void {
+    const full: JournalMetadata = {
+      schema_version: 1,
+      username: 'gbradley',
+      journal_title: 't',
+      avatar_url: 'a',
+      entry_total: 1,
+      last_backup_at: '2024-01-01T00:00:00Z',
+      entries: [
+        {
+          entry_id: '100',
+          date: '2024-01-15',
+          title: 'most recent',
+          thumbnail_path: 'entries/2024/2024-01-15-t.jpg',
+          json_path: 'entries/2024/2024-01-15.json',
+        },
+      ],
+      ...journal,
+    };
+    io.files.set('/backups/gbradley/journal.json', JSON.stringify(full));
+    for (const e of full.entries) {
+      io.files.set(
+        `/backups/gbradley/entries/${e.date.slice(0, 4)}/${e.date}.jpg`,
+        '<placeholder>',
+      );
+    }
+  }
+
+  const routineConfig = makeConfig({ redo_count: 0, gap_check_days: 1 });
+  const onlyOldEntryPage: JournalEntriesResponse = {
+    page: { index: 0, size: 100, more: 0 },
+    entries: [makeEntryStub('100', '2024-01-15')],
+  };
+
+  function pendingRecord(id: string, date: string, firstFailedAt: string) {
+    return {
+      entry_id: id,
+      date,
+      first_failed_at: firstFailedAt,
+      last_attempt_at: firstFailedAt,
+      last_error: { kind: 'network' as const, message: 'earlier failure' },
+    };
+  }
+
+  it('a transient failure that clears within the run archives the entry with nothing pending', async () => {
+    const io = new MockPlatformIO();
+    const client = makeClient();
+    vi.spyOn(client, 'getUserProfile').mockResolvedValue(makeProfileResponse(1));
+    vi.spyOn(client, 'getJournalEntries').mockResolvedValue({
+      page: { index: 0, size: 100, more: 0 },
+      entries: [makeEntryStub('111', '2024-01-15')],
+    });
+    let calls = 0;
+    vi.spyOn(client, 'getEntry').mockImplementation(() => {
+      calls++;
+      return calls < 3
+        ? Promise.reject(new NetworkError('offline', new Error('x')))
+        : Promise.resolve(makeEntryResponse('111', '2024-01-15'));
+    });
+
+    await engineFor(makeConfig(), io, client).run();
+
+    expect(calls).toBe(3);
+    const journal = readJournal(io);
+    expect(journal.entries.map((e) => e.entry_id)).toEqual(['111']);
+    expect(journal.pending_entries).toBeUndefined();
+  });
+
+  it('first backup: an entry that keeps failing is recorded as pending and the run still completes', async () => {
+    const io = new MockPlatformIO();
+    const client = makeClient();
+    const events: BackupEvent[] = [];
+    vi.spyOn(client, 'getUserProfile').mockResolvedValue(makeProfileResponse(3));
+    vi.spyOn(client, 'getJournalEntries').mockResolvedValue({
+      page: { index: 0, size: 100, more: 0 },
+      entries: [
+        makeEntryStub('111', '2024-01-15'),
+        makeEntryStub('222', '2024-01-14'),
+        makeEntryStub('333', '2024-01-13'),
+      ],
+    });
+    const getEntry = vi
+      .spyOn(client, 'getEntry')
+      .mockImplementation((id: string) =>
+        id === '222'
+          ? Promise.reject(new NetworkError('offline', new Error('x')))
+          : Promise.resolve(makeEntryResponse(id, id === '111' ? '2024-01-15' : '2024-01-13')),
+      );
+
+    await engineFor(makeConfig(), io, client, events).run();
+
+    expect(getEntry.mock.calls.filter((c) => c[0] === '222')).toHaveLength(3);
+    const journal = readJournal(io);
+    expect(journal.entries.map((e) => e.entry_id)).toEqual(['111', '333']);
+    expect(journal.entry_total).toBe(3);
+    expect(journal.pending_entries).toHaveLength(1);
+    expect(journal.pending_entries![0]).toMatchObject({
+      entry_id: '222',
+      date: '2024-01-14',
+      last_error: { kind: 'network' },
+    });
+    expect(events.some((e) => e.type === 'completed')).toBe(true);
+    expect(io.files.has('/backups/gbradley/_checkpoint.json')).toBe(false);
+  });
+
+  it('an "entry unavailable" (202) answer is not retried within the run and is tagged unavailable', async () => {
+    const io = new MockPlatformIO();
+    const client = makeClient();
+    vi.spyOn(client, 'getUserProfile').mockResolvedValue(makeProfileResponse(2));
+    vi.spyOn(client, 'getJournalEntries').mockResolvedValue({
+      page: { index: 0, size: 100, more: 0 },
+      entries: [makeEntryStub('111', '2024-01-15'), makeEntryStub('222', '2024-01-14')],
+    });
+    const getEntry = vi
+      .spyOn(client, 'getEntry')
+      .mockImplementation((id: string) =>
+        id === '222'
+          ? Promise.reject(new BlipfotoError(202, 'Entry unavailable'))
+          : Promise.resolve(makeEntryResponse(id, '2024-01-15')),
+      );
+
+    await engineFor(makeConfig(), io, client).run();
+
+    expect(getEntry.mock.calls.filter((c) => c[0] === '222')).toHaveLength(1);
+    expect(readJournal(io).pending_entries![0].last_error.kind).toBe('unavailable');
+  });
+
+  it('routine: a pending entry is retried by id (no paging) and cleared on success', async () => {
+    const io = new MockPlatformIO();
+    const client = makeClient();
+    seedJournal(io, {
+      entry_total: 2,
+      pending_entries: [pendingRecord('050', '2023-06-01', new Date().toISOString())],
+    });
+    vi.spyOn(client, 'getUserProfile').mockResolvedValue(makeProfileResponse(2));
+    const list = vi.spyOn(client, 'getJournalEntries').mockResolvedValue(onlyOldEntryPage);
+    const getEntry = vi
+      .spyOn(client, 'getEntry')
+      .mockImplementation((id: string) => Promise.resolve(makeEntryResponse(id, '2023-06-01')));
+
+    await engineFor(routineConfig, io, client).run();
+
+    expect(getEntry.mock.calls.map((c) => c[0])).toEqual(['050']);
+    expect(list).toHaveBeenCalledTimes(1); // new-posts discovery only
+    const journal = readJournal(io);
+    expect(journal.entries.map((e) => e.entry_id).sort()).toEqual(['050', '100']);
+    expect(journal.pending_entries).toBeUndefined();
+  });
+
+  it('routine: a pending entry still failing keeps its first_failed_at and updates the attempt', async () => {
+    const io = new MockPlatformIO();
+    const client = makeClient();
+    const firstFailed = new Date(Date.now() - 3 * 86_400_000).toISOString();
+    seedJournal(io, {
+      entry_total: 2,
+      pending_entries: [pendingRecord('050', '2023-06-01', firstFailed)],
+    });
+    vi.spyOn(client, 'getUserProfile').mockResolvedValue(makeProfileResponse(2));
+    vi.spyOn(client, 'getJournalEntries').mockResolvedValue(onlyOldEntryPage);
+    vi.spyOn(client, 'getEntry').mockRejectedValue(new BlipfotoError(202, 'Entry unavailable'));
+
+    await engineFor(routineConfig, io, client).run();
+
+    const [p] = readJournal(io).pending_entries!;
+    expect(p.first_failed_at).toBe(firstFailed);
+    expect(p.last_attempt_at > firstFailed).toBe(true);
+    expect(p.last_error.kind).toBe('unavailable');
+  });
+
+  it('routine: a pending entry failing for over 14 days is no longer retried but stays listed', async () => {
+    const io = new MockPlatformIO();
+    const client = makeClient();
+    const old = new Date(Date.now() - 15 * 86_400_000).toISOString();
+    seedJournal(io, { entry_total: 2, pending_entries: [pendingRecord('050', '2023-06-01', old)] });
+    vi.spyOn(client, 'getUserProfile').mockResolvedValue(makeProfileResponse(2));
+    vi.spyOn(client, 'getJournalEntries').mockResolvedValue(onlyOldEntryPage);
+    const getEntry = vi.spyOn(client, 'getEntry');
+
+    await engineFor(routineConfig, io, client).run();
+
+    expect(getEntry).not.toHaveBeenCalled();
+    expect(readJournal(io).pending_entries).toHaveLength(1);
+  });
+
+  it('completed event reports entries still failing after the give-up window', async () => {
+    const io = new MockPlatformIO();
+    const client = makeClient();
+    const events: BackupEvent[] = [];
+    const old = new Date(Date.now() - 15 * 86_400_000).toISOString();
+    seedJournal(io, { entry_total: 2, pending_entries: [pendingRecord('050', '2023-06-01', old)] });
+    vi.spyOn(client, 'getUserProfile').mockResolvedValue(makeProfileResponse(2));
+    vi.spyOn(client, 'getJournalEntries').mockResolvedValue(onlyOldEntryPage);
+
+    await engineFor(routineConfig, io, client, events).run();
+
+    const completed = events.find((e) => e.type === 'completed');
+    expect(completed).toMatchObject({
+      type: 'completed',
+      outstanding: { retrying: 0, unavailable: 0, other: 1 },
+    });
+  });
+
+  it('completed event counts a recently failed entry as retrying', async () => {
+    const io = new MockPlatformIO();
+    const client = makeClient();
+    const events: BackupEvent[] = [];
+    seedJournal(io, {
+      entry_total: 2,
+      pending_entries: [pendingRecord('050', '2023-06-01', new Date().toISOString())],
+    });
+    vi.spyOn(client, 'getUserProfile').mockResolvedValue(makeProfileResponse(2));
+    vi.spyOn(client, 'getJournalEntries').mockResolvedValue(onlyOldEntryPage);
+    vi.spyOn(client, 'getEntry').mockRejectedValue(new BlipfotoError(202, 'Entry unavailable'));
+
+    await engineFor(routineConfig, io, client, events).run();
+
+    expect(events.find((e) => e.type === 'completed')).toMatchObject({
+      outstanding: { retrying: 1, unavailable: 0, other: 0 },
+    });
+  });
+
+  it('completed event has no outstanding field when nothing is outstanding', async () => {
+    const io = new MockPlatformIO();
+    const client = makeClient();
+    const events: BackupEvent[] = [];
+    seedJournal(io, {});
+    vi.spyOn(client, 'getUserProfile').mockResolvedValue(makeProfileResponse(1));
+    vi.spyOn(client, 'getJournalEntries').mockResolvedValue(onlyOldEntryPage);
+
+    await engineFor(routineConfig, io, client, events).run();
+
+    const completed = events.find((e) => e.type === 'completed');
+    expect(completed).toBeDefined();
+    expect(completed).not.toHaveProperty('outstanding');
+  });
+
+  it('routine: a "no such entry" (201) answer drops the pending record', async () => {
+    const io = new MockPlatformIO();
+    const client = makeClient();
+    seedJournal(io, {
+      entry_total: 2,
+      pending_entries: [pendingRecord('050', '2023-06-01', new Date().toISOString())],
+    });
+    vi.spyOn(client, 'getUserProfile').mockResolvedValue(makeProfileResponse(1));
+    vi.spyOn(client, 'getJournalEntries').mockResolvedValue(onlyOldEntryPage);
+    vi.spyOn(client, 'getEntry').mockRejectedValue(new BlipfotoError(201, 'Entry ID invalid'));
+
+    await engineFor(routineConfig, io, client).run();
+
+    expect(readJournal(io).pending_entries).toBeUndefined();
+  });
+
+  it('reconcile: a profile count above archived + pending triggers a listing and fetches the missing entries', async () => {
+    const io = new MockPlatformIO();
+    const client = makeClient();
+    seedJournal(io, { entry_total: 1 });
+    vi.spyOn(client, 'getUserProfile').mockResolvedValue(makeProfileResponse(3));
+    const listing: JournalEntriesResponse = {
+      page: { index: 0, size: 100, more: 0 },
+      entries: [
+        makeEntryStub('100', '2024-01-15'),
+        makeEntryStub('070', '2023-08-01'),
+        makeEntryStub('060', '2023-07-01'),
+      ],
+    };
+    vi.spyOn(client, 'getJournalEntries').mockResolvedValue(listing);
+    const dates: Record<string, string> = { '070': '2023-08-01', '060': '2023-07-01' };
+    const getEntry = vi
+      .spyOn(client, 'getEntry')
+      .mockImplementation((id: string) => Promise.resolve(makeEntryResponse(id, dates[id])));
+
+    await engineFor(routineConfig, io, client).run();
+
+    expect(getEntry.mock.calls.map((c) => c[0]).sort()).toEqual(['060', '070']);
+    const journal = readJournal(io);
+    expect(journal.entries).toHaveLength(3);
+    expect(journal.entry_total).toBe(3);
+    expect(journal.pending_entries).toBeUndefined();
+    expect(journal.reconcile).toEqual({ unexplained: 0 });
+  });
+
+  it('reconcile: does not list when pending entries already explain the difference', async () => {
+    const io = new MockPlatformIO();
+    const client = makeClient();
+    seedJournal(io, {
+      entry_total: 2,
+      pending_entries: [pendingRecord('050', '2023-06-01', new Date().toISOString())],
+    });
+    vi.spyOn(client, 'getUserProfile').mockResolvedValue(makeProfileResponse(2));
+    const list = vi.spyOn(client, 'getJournalEntries').mockResolvedValue(onlyOldEntryPage);
+    vi.spyOn(client, 'getEntry').mockRejectedValue(new BlipfotoError(202, 'Entry unavailable'));
+
+    await engineFor(routineConfig, io, client).run();
+
+    expect(list).toHaveBeenCalledTimes(1); // new-posts discovery only, no reconcile listing
+  });
+
+  it('reconcile: a mismatch the listing cannot explain is remembered and not re-listed next run', async () => {
+    const io = new MockPlatformIO();
+    const client = makeClient();
+    seedJournal(io, { entry_total: 1 });
+    vi.spyOn(client, 'getUserProfile').mockResolvedValue(makeProfileResponse(2));
+    const list = vi.spyOn(client, 'getJournalEntries').mockResolvedValue(onlyOldEntryPage);
+    vi.spyOn(client, 'getEntry').mockResolvedValue(makeEntryResponse('100', '2024-01-15'));
+
+    await engineFor(routineConfig, io, client).run();
+    expect(readJournal(io).reconcile).toEqual({ unexplained: 1 });
+    const callsAfterFirst = list.mock.calls.length;
+
+    await engineFor(routineConfig, io, client).run();
+    expect(list.mock.calls.length - callsAfterFirst).toBe(1); // only new-posts discovery
+  });
+
+  it('routine: a new post that keeps failing is recorded as pending instead of being lost', async () => {
+    const io = new MockPlatformIO();
+    const client = makeClient();
+    seedJournal(io, { entry_total: 1 });
+    vi.spyOn(client, 'getUserProfile').mockResolvedValue(makeProfileResponse(2));
+    vi.spyOn(client, 'getJournalEntries').mockResolvedValue({
+      page: { index: 0, size: 100, more: 0 },
+      entries: [makeEntryStub('200', '2024-01-16'), makeEntryStub('100', '2024-01-15')],
+    });
+    vi.spyOn(client, 'getEntry').mockRejectedValue(new BlipfotoError(202, 'Entry unavailable'));
+
+    await engineFor(routineConfig, io, client).run();
+
+    expect(readJournal(io).pending_entries?.map((p) => p.entry_id)).toEqual(['200']);
+  });
+});
+
+describe('unfetchable helpers — dismiss and retry (b-oss#474)', () => {
+  const NOW = Date.parse('2026-11-01T00:00:00Z');
+  const rec = (id: string, daysAgo: number, kind: 'unavailable' | 'network' | 'other') => {
+    const at = new Date(NOW - daysAgo * 86_400_000).toISOString();
+    return {
+      entry_id: id,
+      date: '2026-01-01',
+      first_failed_at: at,
+      last_attempt_at: at,
+      last_error: { kind, message: 'm' },
+    };
+  };
+
+  it('countOutstanding splits retrying from past-window entries by cause', () => {
+    expect(
+      countOutstanding(
+        [rec('a', 1, 'network'), rec('b', 20, 'unavailable'), rec('c', 20, 'network')],
+        NOW,
+      ),
+    ).toEqual({ retrying: 1, unavailable: 1, other: 1 });
+    expect(countOutstanding([], NOW)).toBeNull();
+  });
+
+  it('dismissUnfetchable quiets only entries past the window, and they stop being counted', () => {
+    const next = dismissUnfetchable([rec('a', 1, 'network'), rec('b', 20, 'unavailable')], NOW);
+    expect(next[0].acknowledged_at).toBeUndefined();
+    expect(next[1].acknowledged_at).toBe(new Date(NOW).toISOString());
+    expect(countOutstanding(next, NOW)).toEqual({ retrying: 1, unavailable: 0, other: 0 });
+    expect(countOutstanding([next[1]], NOW)).toBeNull();
+  });
+
+  it('retryUnfetchable restarts the window and clears the dismissal', () => {
+    const dismissed = dismissUnfetchable([rec('b', 20, 'unavailable')], NOW);
+    const next = retryUnfetchable(dismissed, NOW);
+    expect(next[0].first_failed_at).toBe(new Date(NOW).toISOString());
+    expect(next[0].acknowledged_at).toBeUndefined();
+    expect(isUnfetchable(next[0], NOW)).toBe(false);
+  });
+
+  it('a dismissed entry that fails again stays dismissed', async () => {
+    const io = new MockPlatformIO();
+    const client = makeClient();
+    const old = new Date(Date.now() - 20 * 86_400_000).toISOString();
+    io.files.set(
+      '/backups/gbradley/journal.json',
+      JSON.stringify({
+        schema_version: 1,
+        username: 'gbradley',
+        journal_title: 't',
+        avatar_url: 'a',
+        entry_total: 2,
+        last_backup_at: '2024-01-01T00:00:00Z',
+        entries: [
+          {
+            entry_id: '100',
+            date: '2024-01-15',
+            title: 'x',
+            thumbnail_path: 'entries/2024/2024-01-15-t.jpg',
+            json_path: 'entries/2024/2024-01-15.json',
+          },
+        ],
+        pending_entries: [
+          { ...rec('050', 0, 'unavailable'), first_failed_at: old, acknowledged_at: old },
+        ],
+      }),
+    );
+    io.files.set('/backups/gbradley/entries/2024/2024-01-15.jpg', '<placeholder>');
+    vi.spyOn(client, 'getUserProfile').mockResolvedValue(makeProfileResponse(2));
+    vi.spyOn(client, 'getJournalEntries').mockResolvedValue({
+      page: { index: 0, size: 100, more: 0 },
+      entries: [makeEntryStub('100', '2024-01-15')],
+    });
+    const events: BackupEvent[] = [];
+    // Retried by the user (window restarted, dismissal cleared), fails again, then is dismissed.
+    const journal = JSON.parse(io.files.get('/backups/gbradley/journal.json')!) as JournalMetadata;
+    expect(journal.pending_entries![0].acknowledged_at).toBe(old);
+    vi.spyOn(client, 'getEntry').mockRejectedValue(new BlipfotoError(202, 'Entry unavailable'));
+    // Past the window, so it is not retried at all and keeps its acknowledgement.
+    await new BackupEngine(
+      makeConfig({ redo_count: 0, gap_check_days: 1 }),
+      io,
+      client,
+      (e) => events.push(e),
+      new LogManager(io, '/backups'),
+      { retryBackoffMs: [0, 0] },
+    ).run();
+    const after = JSON.parse(io.files.get('/backups/gbradley/journal.json')!) as JournalMetadata;
+    expect(after.pending_entries![0].acknowledged_at).toBe(old);
+    expect(events.find((e) => e.type === 'completed')).not.toHaveProperty('outstanding');
   });
 });

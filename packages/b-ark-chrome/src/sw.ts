@@ -38,6 +38,10 @@ interface ChromeSettings {
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
+/** Minimum gap between automatic resumes of an incomplete backup. */
+export const AUTO_RESUME_COOLDOWN_MS = 15 * 60 * 1000;
+const AUTO_RESUME_KEY = 'auto_resume_at';
+
 export function isPeriodDue(lastBackupAt: string | null, period: 'daily' | 'weekly'): boolean {
   if (!lastBackupAt) return true;
   const ms = period === 'daily' ? 86_400_000 : 7 * 86_400_000;
@@ -151,6 +155,8 @@ export async function triggerIfDue(): Promise<void> {
     'b_ark_settings',
     'chip_rag',
     'chip_progress',
+    'chip_incomplete',
+    AUTO_RESUME_KEY,
   ]);
 
   // Not set up — skip
@@ -171,13 +177,18 @@ export async function triggerIfDue(): Promise<void> {
     return;
   }
 
-  if (rag === 'amber') {
-    // Incomplete backup — resume silently
+  if (rag === 'amber' && r['chip_incomplete'] === true) {
+    // A run that never finished (cancelled, aborted, crashed) — resume silently, but not on
+    // every page visit: a run that keeps aborting would otherwise relaunch without end.
+    const lastResume = Date.parse((r[AUTO_RESUME_KEY] as string | undefined) ?? '');
+    if (Number.isFinite(lastResume) && Date.now() - lastResume < AUTO_RESUME_COOLDOWN_MS) return;
+    await chrome.storage.local.set({ [AUTO_RESUME_KEY]: new Date().toISOString() });
     await launchBackupTabSilent();
     return;
   }
 
-  // Green: check whether the configured period has elapsed since last completion
+  // Green, or amber from a run that did finish (entries outstanding): check whether the
+  // configured period has elapsed since the last completion.
   const status = (r['b_ark_status'] ?? {}) as Partial<ChromeStatus>;
   const settings = (r['b_ark_settings'] ?? {}) as Partial<ChromeSettings>;
   const period = settings.period ?? 'weekly';

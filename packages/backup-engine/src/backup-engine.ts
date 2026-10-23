@@ -9,7 +9,15 @@ import {
   type BlipEntryStub,
   type EntryResponse,
 } from '@b-oss/b-api';
-import { BackupAbortedError, BackupCancelledError } from './errors.js';
+import {
+  BackupAbortedError,
+  BackupCancelledError,
+  classifyFetchFailure,
+  countOutstanding,
+  isTransientFailure,
+  isUnfetchable,
+  type OutstandingCounts,
+} from './errors.js';
 import { CheckpointManager } from './checkpoint.js';
 import { JournalIndex, cacheAvatarIfMissing } from './journal-index.js';
 import type { LogManager } from './log-manager.js';
@@ -24,11 +32,15 @@ import type {
   ImageRepairState,
   JournalMetadata,
   LogEntry,
+  PendingEntry,
+  PendingFailureKind,
 } from './types.js';
 
 const MAX_CONSECUTIVE_FAILURES = 3;
 const DEFAULT_LOG_TRIM_LINES = 5000;
 const FETCH_PAGE_SIZE = 100;
+// Pauses between in-run attempts at one entry that failed without a definite answer from the server.
+const DEFAULT_RETRY_BACKOFF_MS = [1000, 4000];
 
 const BLIPFOTO_SITE = 'https://www.blipfoto.com';
 const GALLERY_MARKER = 'blipfoto.data.gallery = ';
@@ -123,6 +135,23 @@ function lastNDates(n: number): string[] {
   return out;
 }
 
+type FetchOutcome =
+  | { status: 'ok'; entry: BlipEntry }
+  | { status: 'gone' }
+  | { status: 'failed'; error: unknown; kind: PendingFailureKind };
+
+/** What the pending-retry and reconcile phases need to know about, and add to, the archive. */
+interface ArchiveView {
+  has(entryId: string): boolean;
+  size(): number;
+  add(entry: BlipEntry): void;
+}
+
+export interface BackupEngineOptions {
+  /** Pauses between in-run attempts at a failing entry; one retry per element. */
+  retryBackoffMs?: number[];
+}
+
 export class BackupEngine {
   private cancelled = false;
   private _sinceLastFlush = 0;
@@ -138,13 +167,24 @@ export class BackupEngine {
   // warn-logged, not surfaced to the caller.
   private hadImageGap = false;
 
+  // Entries the journal lists (or counts) that aren't archived, keyed by entry id. Loaded from
+  // journal.json at the start of a run and written back with every journal save.
+  private pending = new Map<string, PendingEntry>();
+  private reconcileUnexplained: number | undefined;
+  // Ids that already failed during this run, so the pending-retry phase doesn't repeat them.
+  private attemptedThisRun = new Set<string>();
+  private readonly retryBackoffMs: number[];
+
   constructor(
     private readonly config: AccountBackupConfig,
     private readonly io: PlatformIO,
     private readonly client: BlipfotoClient,
     private readonly onEvent: (event: BackupEvent) => void,
     private readonly logMgr: LogManager,
-  ) {}
+    options: BackupEngineOptions = {},
+  ) {
+    this.retryBackoffMs = options.retryBackoffMs ?? DEFAULT_RETRY_BACKOFF_MS;
+  }
 
   cancel(): void {
     this.cancelled = true;
@@ -160,10 +200,13 @@ export class BackupEngine {
     this.runLogMgr = this.logMgr;
     this.runBackupId = newId();
     this.hadImageGap = false;
+    this.attemptedThisRun = new Set();
 
     try {
       const checkpoint = await checkpointMgr.load();
       const existingIndex = await journalIndex.load();
+      this.pending = new Map((existingIndex?.pending_entries ?? []).map((p) => [p.entry_id, p]));
+      this.reconcileUnexplained = existingIndex?.reconcile?.unexplained;
 
       if (checkpoint !== null || existingIndex === null) {
         await this.runFirstBackup(journalFolder, checkpointMgr, journalIndex);
@@ -220,6 +263,8 @@ export class BackupEngine {
       fetched_entry_ids: [],
       total_to_fetch: 0,
     };
+    // The profile's entry count, when this run read it (not on a resumed run).
+    let serverTotal: number | undefined;
 
     if (!existing) {
       try {
@@ -227,7 +272,8 @@ export class BackupEngine {
         const profile = await this.callApi(() =>
           this.client.getUserProfile({ username: this.config.username, returnDetails: true }),
         );
-        checkpoint.total_to_fetch = profile.details?.entry_total ?? 0;
+        serverTotal = profile.details?.entry_total;
+        checkpoint.total_to_fetch = serverTotal ?? 0;
         await cacheAvatarIfMissing(this.io, journalFolder, profile.user.avatar_url);
       } catch (err) {
         if (err instanceof BackupAbortedError) throw err;
@@ -262,6 +308,28 @@ export class BackupEngine {
       priorIndex?.entries.map((e) => [e.entry_id, e]) ?? [],
     );
 
+    const mergedEntries = (): EntryIndex[] => {
+      const currentIds = new Set(fetchedEntries.map((e) => e.entry_id));
+      return [
+        ...fetchedEntries.map((e) => JournalIndex.toEntryIndex(e)),
+        ...[...priorEntryMap.values()].filter((e) => !currentIds.has(e.entry_id)),
+      ];
+    };
+    const persist = async (): Promise<void> => {
+      const entries = mergedEntries();
+      await checkpointMgr.save(checkpoint);
+      await journalIndex.save({
+        schema_version: 1,
+        username: this.config.username,
+        journal_title: this.config.journal_title,
+        avatar_url: this.config.avatar_url,
+        entry_total: entries.length,
+        last_backup_at: nowIso(),
+        entries,
+        ...this.pendingFields(),
+      });
+    };
+
     while (true) {
       this.checkCancelled();
       await this.appendLog('info', `API: getJournalEntries page ${pageIndex} (initial fetch)`);
@@ -277,27 +345,14 @@ export class BackupEngine {
         this.checkCancelled();
         if (fetchedSet.has(stub.entry_id_str)) continue;
 
-        let entry: BlipEntry;
-        try {
-          entry = await this.fetchAndWriteEntry(stub.entry_id_str, journalFolder);
-        } catch (err) {
-          if (err instanceof BackupAbortedError) throw err;
+        const outcome = await this.fetchTracked(stub, journalFolder, persist);
+        if (outcome.status === 'gone') continue;
+        if (outcome.status === 'failed') {
           consecutiveFailures++;
-          const message = err instanceof Error ? err.message : String(err);
-          await this.appendLog(
-            'warn',
-            `Failed to fetch entry ${stub.entry_id_str}: ${message} (${consecutiveFailures}/${MAX_CONSECUTIVE_FAILURES})`,
-          );
-          if (consecutiveFailures >= MAX_CONSECUTIVE_FAILURES) {
-            await this.appendLog(
-              'warn',
-              'Backup paused after 3 consecutive errors — will retry at next scheduled run',
-            );
-            const code = err instanceof BlipfotoError ? err.code : 0;
-            throw new BackupAbortedError({ kind: 'api_error', code, message });
-          }
+          await this.abortIfTooManyFailures(consecutiveFailures, outcome);
           continue;
         }
+        const entry = outcome.entry;
 
         consecutiveFailures = 0;
         fetchedSet.add(stub.entry_id_str);
@@ -306,23 +361,8 @@ export class BackupEngine {
         if (fetchedSet.size > checkpoint.total_to_fetch) {
           checkpoint.total_to_fetch = fetchedSet.size;
         }
-        const currentIds = new Set(fetchedEntries.map((e) => e.entry_id));
-        const mergedEntries: EntryIndex[] = [
-          ...fetchedEntries.map((e) => JournalIndex.toEntryIndex(e)),
-          ...[...priorEntryMap.values()].filter((e) => !currentIds.has(e.entry_id)),
-        ];
-        if (this.shouldFlushMetadata()) {
-          await checkpointMgr.save(checkpoint);
-          await journalIndex.save({
-            schema_version: 1,
-            username: this.config.username,
-            journal_title: this.config.journal_title,
-            avatar_url: this.config.avatar_url,
-            entry_total: mergedEntries.length,
-            last_backup_at: nowIso(),
-            entries: mergedEntries,
-          });
-        }
+        const archived = mergedEntries().length;
+        if (this.shouldFlushMetadata()) await persist();
 
         this.onEvent({
           type: 'progress',
@@ -330,7 +370,7 @@ export class BackupEngine {
           done: fetchedSet.size,
           total: checkpoint.total_to_fetch,
           current_date: entry.date,
-          total_archived: mergedEntries.length,
+          total_archived: archived,
         });
 
         if (this.config.api_delay_ms > 0) {
@@ -344,17 +384,27 @@ export class BackupEngine {
       await checkpointMgr.save(checkpoint);
     }
 
-    const finalCurrentIds = new Set(fetchedEntries.map((e) => e.entry_id));
-    const finalEntries: EntryIndex[] = [
-      ...fetchedEntries.map((e) => JournalIndex.toEntryIndex(e)),
-      ...[...priorEntryMap.values()].filter((e) => !finalCurrentIds.has(e.entry_id)),
-    ];
+    // Anything the journal counts that isn't archived or already known to be failing is found
+    // and fetched here; entries that failed during the pass above are left for the next run.
+    const archivedIds = new Set(mergedEntries().map((e) => e.entry_id));
+    const archive: ArchiveView = {
+      has: (id) => archivedIds.has(id),
+      size: () => archivedIds.size,
+      add: (entry) => {
+        archivedIds.add(entry.entry_id);
+        fetchedEntries.push(entry);
+      },
+    };
+    await this.reconcile(serverTotal, archive, persist);
+    await this.retryPending(journalFolder, archive, persist);
+
+    const finalEntries = mergedEntries();
     const metadata: JournalMetadata = {
       schema_version: 1,
       username: this.config.username,
       journal_title: this.config.journal_title,
       avatar_url: this.config.avatar_url,
-      entry_total: finalEntries.length,
+      entry_total: Math.max(serverTotal ?? 0, finalEntries.length),
       last_backup_at: nowIso(),
       entries: finalEntries,
       // Every entry above went through fetchAndWriteEntry(), which already attempts the
@@ -366,6 +416,7 @@ export class BackupEngine {
             enable_web_scrape: this.config.enable_web_scrape,
             download_hires: this.config.download_hires,
           },
+      ...this.pendingFields(),
     };
     await journalIndex.save(metadata);
     await checkpointMgr.clear();
@@ -375,11 +426,210 @@ export class BackupEngine {
       type: 'completed',
       account_id: this.config.id,
       total_archived: finalEntries.length,
+      ...this.outstandingField(),
     });
     await this.appendLog(
       'info',
-      `First backup complete — ${fetchedEntries.length} entries archived`,
+      `First backup complete — ${fetchedEntries.length} entries archived` +
+        (this.pending.size > 0 ? `, ${this.pending.size} still pending` : ''),
     );
+  }
+
+  private outstandingField(): { outstanding?: OutstandingCounts } {
+    const counts = countOutstanding([...this.pending.values()]);
+    return counts ? { outstanding: counts } : {};
+  }
+
+  /** Optional journal.json fields for the pending list and reconcile state; absent when empty. */
+  private pendingFields(): Pick<JournalMetadata, 'pending_entries' | 'reconcile'> {
+    return {
+      ...(this.pending.size > 0 ? { pending_entries: [...this.pending.values()] } : {}),
+      ...(this.reconcileUnexplained !== undefined
+        ? { reconcile: { unexplained: this.reconcileUnexplained } }
+        : {}),
+    };
+  }
+
+  /**
+   * Fetch and write one entry. A failure with no definite answer from the server is retried
+   * after short pauses; one that still fails is recorded as pending (and persisted at once) so a
+   * later run can fetch it by id. A "no such entry" answer drops any pending record instead.
+   * Cancellation and auth failures propagate.
+   */
+  private async fetchTracked(
+    stub: { entry_id_str: string; date: string },
+    journalFolder: string,
+    persist: () => Promise<void>,
+  ): Promise<FetchOutcome> {
+    const id = stub.entry_id_str;
+    let error: unknown;
+    for (let attempt = 0; ; attempt++) {
+      this.checkCancelled();
+      try {
+        const entry = await this.fetchAndWriteEntry(id, journalFolder);
+        this.pending.delete(id);
+        return { status: 'ok', entry };
+      } catch (err) {
+        if (err instanceof BackupCancelledError) throw err;
+        if (err instanceof BackupAbortedError && err.payload.kind !== 'network') throw err;
+        error = err;
+        if (classifyFetchFailure(err) === 'gone') {
+          await this.appendLog('info', `Entry ${id} (${stub.date}) no longer exists — dropped`);
+          if (this.pending.delete(id)) await persist();
+          return { status: 'gone' };
+        }
+        const pause = this.retryBackoffMs[attempt];
+        if (pause === undefined || !isTransientFailure(err)) break;
+        const message = err instanceof Error ? err.message : String(err);
+        await this.appendLog(
+          'warn',
+          `Entry ${id} (${stub.date}) failed: ${message} — retrying in ${pause}ms`,
+        );
+        await sleep(pause);
+      }
+    }
+
+    const kind = classifyFetchFailure(error) as PendingFailureKind;
+    const message = error instanceof Error ? error.message : String(error);
+    const now = nowIso();
+    this.pending.set(id, {
+      entry_id: id,
+      date: stub.date,
+      first_failed_at: this.pending.get(id)?.first_failed_at ?? now,
+      last_attempt_at: now,
+      ...(this.pending.get(id)?.acknowledged_at !== undefined
+        ? { acknowledged_at: this.pending.get(id)!.acknowledged_at }
+        : {}),
+      last_error: { kind, message },
+    });
+    this.attemptedThisRun.add(id);
+    await this.appendLog(
+      'warn',
+      `Failed to fetch entry ${id} (${stub.date}): ${message} [${kind}]`,
+    );
+    await persist();
+    return { status: 'failed', error, kind };
+  }
+
+  private async abortIfTooManyFailures(
+    consecutiveFailures: number,
+    outcome: Extract<FetchOutcome, { status: 'failed' }>,
+  ): Promise<void> {
+    if (consecutiveFailures < MAX_CONSECUTIVE_FAILURES) return;
+    await this.appendLog(
+      'warn',
+      'Backup paused after 3 consecutive errors — will retry at next scheduled run',
+    );
+    if (outcome.kind === 'network') throw new BackupAbortedError({ kind: 'network' });
+    const code = outcome.error instanceof BlipfotoError ? outcome.error.code : 0;
+    const message = outcome.error instanceof Error ? outcome.error.message : String(outcome.error);
+    throw new BackupAbortedError({ kind: 'api_error', code, message });
+  }
+
+  /**
+   * Retry each pending entry by id (no paging). Entries that failed earlier in this run, or have
+   * been failing for longer than the give-up window, are skipped. Stops quietly after three
+   * consecutive failures that aren't "unavailable" — the network is probably down.
+   */
+  private async retryPending(
+    journalFolder: string,
+    archive: ArchiveView,
+    persist: () => Promise<void>,
+  ): Promise<void> {
+    const todo = [...this.pending.values()]
+      .filter((p) => !this.attemptedThisRun.has(p.entry_id) && !isUnfetchable(p))
+      .sort((a, b) => a.date.localeCompare(b.date));
+    let consecutiveFailures = 0;
+    for (const p of todo) {
+      this.checkCancelled();
+      await this.appendLog('info', `Retrying pending entry ${p.date}`);
+      const outcome = await this.fetchTracked(
+        { entry_id_str: p.entry_id, date: p.date },
+        journalFolder,
+        persist,
+      );
+      if (outcome.status === 'ok') {
+        archive.add(outcome.entry);
+        consecutiveFailures = 0;
+        await this.appendLog('info', `Fetched pending entry ${outcome.entry.date}`);
+        await persist();
+      } else if (outcome.status === 'failed' && outcome.kind !== 'unavailable') {
+        if (++consecutiveFailures >= MAX_CONSECUTIVE_FAILURES) {
+          await this.appendLog('warn', 'Pending retries stopped after 3 consecutive errors');
+          return;
+        }
+      }
+      if (this.config.api_delay_ms > 0) {
+        await sleep(this.config.api_delay_ms);
+      }
+    }
+  }
+
+  /**
+   * If the journal's entry count exceeds what is archived plus pending, something is missing that
+   * we have no record of (for example a first backup from before failures were recorded). Page
+   * the full listing (stubs only) and add every unarchived id to pending. The result is
+   * remembered so a mismatch the listing can't explain isn't re-listed on every run.
+   */
+  private async reconcile(
+    serverTotal: number | undefined,
+    archive: ArchiveView,
+    persist: () => Promise<void>,
+  ): Promise<void> {
+    if (serverTotal === undefined) return;
+    const unexplained = serverTotal - archive.size() - this.pending.size;
+    if (unexplained <= 0 || unexplained === this.reconcileUnexplained) return;
+
+    await this.appendLog(
+      'info',
+      `Reconcile: ${unexplained} entries counted by the journal are not archived — listing journal`,
+    );
+    const listed: BlipEntryStub[] = [];
+    for (let pageIdx = 0; ; pageIdx++) {
+      this.checkCancelled();
+      await this.appendLog('info', `API: getJournalEntries page ${pageIdx} (reconcile)`);
+      let page;
+      try {
+        page = await this.callApi(() =>
+          this.client.getJournalEntries({
+            username: this.config.username,
+            pageIndex: pageIdx,
+            pageSize: FETCH_PAGE_SIZE,
+          }),
+        );
+      } catch (err) {
+        if (err instanceof BackupAbortedError) throw err;
+        const message = err instanceof Error ? err.message : String(err);
+        await this.appendLog('warn', `Reconcile listing failed: ${message}`);
+        return;
+      }
+      listed.push(...page.entries);
+      if (page.page.more === 0) break;
+      if (this.config.api_delay_ms > 0) await sleep(this.config.api_delay_ms);
+    }
+
+    const now = nowIso();
+    let found = 0;
+    for (const stub of listed) {
+      if (archive.has(stub.entry_id_str) || this.pending.has(stub.entry_id_str)) continue;
+      this.pending.set(stub.entry_id_str, {
+        entry_id: stub.entry_id_str,
+        date: stub.date,
+        first_failed_at: now,
+        last_attempt_at: now,
+        last_error: { kind: 'other', message: 'Listed by the journal but not archived' },
+      });
+      found++;
+    }
+    this.reconcileUnexplained = serverTotal - archive.size() - this.pending.size;
+    await this.appendLog(
+      'info',
+      `Reconcile: ${listed.length} entries listed, ${found} not archived` +
+        (this.reconcileUnexplained > 0
+          ? `; ${this.reconcileUnexplained} counted but not listed`
+          : ''),
+    );
+    await persist();
   }
 
   private async runRoutineBackup(
@@ -443,6 +693,7 @@ export class BackupEngine {
         entry_total: entryTotal,
         last_backup_at: nowIso(),
         entries: [...indexByDate.values()],
+        ...this.pendingFields(),
       });
     };
 
@@ -511,27 +762,18 @@ export class BackupEngine {
     let newPostsDone = 0;
     for (const stub of newStubs) {
       this.checkCancelled();
-      try {
-        await this.appendLog('info', `Fetching new entry ${stub.date}`);
-        const entry = await this.fetchAndWriteEntry(stub.entry_id_str, journalFolder);
+      await this.appendLog('info', `Fetching new entry ${stub.date}`);
+      const outcome = await this.fetchTracked(stub, journalFolder, () => saveSnapshot(true));
+      if (outcome.status === 'ok') {
+        const entry = outcome.entry;
         indexByDate.set(entry.date, JournalIndex.toEntryIndex(entry));
         indexById.set(entry.entry_id, JournalIndex.toEntryIndex(entry));
         await this.appendLog('info', `Fetched new entry ${entry.date}`);
         consecutiveFailures = 0;
         await saveSnapshot(true);
-      } catch (err) {
-        if (err instanceof BackupAbortedError) throw err;
+      } else if (outcome.status === 'failed') {
         consecutiveFailures++;
-        const message = err instanceof Error ? err.message : String(err);
-        await this.appendLog('warn', `Failed to fetch new entry ${stub.entry_id_str}: ${message}`);
-        if (consecutiveFailures >= MAX_CONSECUTIVE_FAILURES) {
-          await this.appendLog(
-            'warn',
-            'Backup paused after 3 consecutive errors — will retry at next scheduled run',
-          );
-          const code = err instanceof BlipfotoError ? err.code : 0;
-          throw new BackupAbortedError({ kind: 'api_error', code, message });
-        }
+        await this.abortIfTooManyFailures(consecutiveFailures, outcome);
       }
       newPostsDone++;
       this.onEvent({
@@ -548,10 +790,25 @@ export class BackupEngine {
       }
     }
 
+    // Entries the journal counts that we hold no record of are found by a full listing and
+    // added to pending; pending entries (including those) are then retried by id.
+    const archive: ArchiveView = {
+      has: (id) => indexById.has(id),
+      size: () => indexById.size,
+      add: (entry) => {
+        indexByDate.set(entry.date, JournalIndex.toEntryIndex(entry));
+        indexById.set(entry.entry_id, JournalIndex.toEntryIndex(entry));
+      },
+    };
+    await this.reconcile(entryTotal, archive, () => saveSnapshot(true));
+    await this.retryPending(journalFolder, archive, () => saveSnapshot(true));
+
     // Only dates in the window that have no entry in the index AND are not
-    // after the most recent post could be genuine gaps.
+    // after the most recent post could be genuine gaps. A pending entry's date is
+    // already being handled by the pending retry above.
+    const pendingDates = new Set([...this.pending.values()].map((p) => p.date));
     const uncoveredDates = [...recentDates].filter(
-      (d) => d <= mostRecentEntryDate && !indexByDate.has(d),
+      (d) => d <= mostRecentEntryDate && !indexByDate.has(d) && !pendingDates.has(d),
     );
 
     const recentStubs: BlipEntryStub[] = [];
@@ -597,7 +854,10 @@ export class BackupEngine {
     }
 
     const gapFillTodo = recentStubs.filter(
-      (s) => !indexByDate.has(s.date) && !indexById.has(s.entry_id_str),
+      (s) =>
+        !indexByDate.has(s.date) &&
+        !indexById.has(s.entry_id_str) &&
+        !this.pending.has(s.entry_id_str),
     );
     // Phase-entry emit so the GAPS cell resolves even when there's nothing to fill.
     this.onEvent({
@@ -613,26 +873,17 @@ export class BackupEngine {
     for (const stub of gapFillTodo) {
       this.checkCancelled();
       await this.appendLog('info', `Fetching missing entry ${stub.date} (gap-fill)`);
-      try {
-        const entry = await this.fetchAndWriteEntry(stub.entry_id_str, journalFolder);
+      const outcome = await this.fetchTracked(stub, journalFolder, () => saveSnapshot(true));
+      if (outcome.status === 'ok') {
+        const entry = outcome.entry;
         indexByDate.set(entry.date, JournalIndex.toEntryIndex(entry));
         indexById.set(entry.entry_id, JournalIndex.toEntryIndex(entry));
         await this.appendLog('info', `Gap-filled entry ${entry.date}`);
         consecutiveFailures = 0;
         await saveSnapshot();
-      } catch (err) {
-        if (err instanceof BackupAbortedError) throw err;
+      } else if (outcome.status === 'failed') {
         consecutiveFailures++;
-        const message = err instanceof Error ? err.message : String(err);
-        await this.appendLog('warn', `Failed to gap-fill ${stub.entry_id_str}: ${message}`);
-        if (consecutiveFailures >= MAX_CONSECUTIVE_FAILURES) {
-          await this.appendLog(
-            'warn',
-            'Backup paused after 3 consecutive errors — will retry at next scheduled run',
-          );
-          const code = err instanceof BlipfotoError ? err.code : 0;
-          throw new BackupAbortedError({ kind: 'api_error', code, message });
-        }
+        await this.abortIfTooManyFailures(consecutiveFailures, outcome);
       }
       gapFillDone++;
       this.onEvent({
@@ -868,6 +1119,7 @@ export class BackupEngine {
       // (skipRepair) or ran clean just now — and drops it the moment anything (anywhere in
       // this run, not just the repair pass) left a gap, so the next run does a full pass.
       image_repair_complete: this.hadImageGap ? undefined : repairSettings,
+      ...this.pendingFields(),
     };
     await journalIndex.save(metadata);
     await this.runLogMgr!.trim(DEFAULT_LOG_TRIM_LINES);
@@ -876,6 +1128,7 @@ export class BackupEngine {
       type: 'completed',
       account_id: this.config.id,
       total_archived: metadata.entries.length,
+      ...this.outstandingField(),
     });
     await this.appendLog(
       'info',

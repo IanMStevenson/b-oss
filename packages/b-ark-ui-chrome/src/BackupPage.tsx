@@ -33,6 +33,8 @@ import {
   IconButton,
   BackupButton,
   AuthErrorBanner,
+  AmberBanner,
+  describeReasons,
   BackupBanner,
   InfoBadge,
   StatusBar,
@@ -837,6 +839,17 @@ function BackupPageRoot() {
             }
           />
         )
+      )}
+
+      {/* Amber: the backup may be incomplete and will probably recover. */}
+      {!isBackingUp && account.rag_state === 'amber' && (
+        <AmberBanner
+          reasons={describeReasons(account)}
+          onAction={(action) => {
+            if (action === 'retry') void backend.retryOutstanding(account.id);
+            else if (action === 'dismiss') void backend.dismissOutstanding(account.id);
+          }}
+        />
       )}
 
       {/* Journal grid / entry detail */}
