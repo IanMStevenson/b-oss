@@ -1,14 +1,17 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (C) 2026 Ian Stevenson
 
-// The Worker entry point. Only the cron handler exists so far: it probes and stores one sample.
-// The public JSON endpoint and the snapshot build are b-oss#484; reports are b-oss#486. Deploys
+// The Worker entry point: the cron handler probes, stores a sample, folds old days and rebuilds the
+// page's snapshot; `GET /v1/status` serves that snapshot. Reports are b-oss#486. Deploys
 // are manual (see wrangler.toml and README.md); nothing in this repo runs `wrangler`.
 
 import type { ProbeConfig } from './checks.js';
+import { foldCompleteDays } from './fold.js';
 import { recordSample } from './incidents.js';
 import { describeError } from './log.js';
 import { runProbe } from './probe.js';
+import { handleStatus } from './serve.js';
+import { storeSnapshot } from './snapshot.js';
 import type { Env } from './types.js';
 
 /** Identifies the monitor and says where to find out more. The contact URL is revisited in b-oss#487. */
@@ -35,9 +38,12 @@ export async function runScheduled(env: Env): Promise<void> {
     RETRY_DELAY_MS,
   );
   await recordSample(env.DB, outcome);
+  // After the sample is stored: fold finished days, then rebuild the page's snapshot from it.
+  const folded = await foldCompleteDays(env.DB, outcome.ts);
+  await storeSnapshot(env.DB, outcome.ts);
   console.log(
     `[b-status] slot ${outcome.slot} site=${outcome.states.site.state} api=${outcome.states.api.state}` +
-      `${outcome.retried ? ' (retried)' : ''}`,
+      `${outcome.retried ? ' (retried)' : ''}${folded > 0 ? ` folded ${folded} day(s)` : ''}`,
   );
 }
 
@@ -49,7 +55,10 @@ export default {
       console.error(`[b-status] run failed: ${describeError(err)}`);
     }
   },
-  fetch(): Response {
+  async fetch(request: Request, env: Env): Promise<Response> {
+    if (new URL(request.url).pathname === '/v1/status') {
+      return handleStatus(request, env.DB, Date.now());
+    }
     return new Response(JSON.stringify({ error: 'Not found' }), {
       status: 404,
       headers: { 'Content-Type': 'application/json' },
