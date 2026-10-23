@@ -3,7 +3,7 @@
 // @vitest-environment jsdom
 
 import { describe, it, expect, afterEach, beforeEach, vi } from 'vitest';
-import { render, screen, cleanup, waitFor } from '@testing-library/react';
+import { render, screen, cleanup, waitFor, act } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
 import { OverlayProvider } from '../../../app/OverlayProvider.js';
@@ -21,13 +21,11 @@ vi.mock('../../../data/entries.js', () => ({ fetchEntry, deleteEntry }));
 const { enqueueDraft } = vi.hoisted(() => ({ enqueueDraft: vi.fn() }));
 vi.mock('../../../flows/composeFlow.js', () => ({ enqueueDraft }));
 
-const { takePhoto, pickPhoto } = vi.hoisted(() => ({ takePhoto: vi.fn(), pickPhoto: vi.fn() }));
-vi.mock('../../../platform/camera.js', () => ({ takePhoto, pickPhoto }));
-
 const replace = vi.fn();
 const goBack = vi.fn();
+const push = vi.fn();
 vi.mock('../../../app/routes/useAppNavigate.js', () => ({
-  useAppNavigate: () => ({ push: vi.fn(), replace, goBack }),
+  useAppNavigate: () => ({ push, replace, goBack }),
 }));
 
 beforeEach(() => {
@@ -114,24 +112,30 @@ describe('EditEntryScreen', () => {
     expect(useComposeDraftStore.getState().draft).toBeNull();
   });
 
-  it('the details form and the Replace photo section are both shown together', async () => {
-    takePhoto.mockResolvedValue({
-      uri: 'file:///new.jpg',
-      webPath: 'blob:new',
-      mimeType: 'image/jpeg',
-      width: 800,
-      height: 600,
-      createdAt: null,
-    });
+  it('Replace image opens the picker screen; a photo picked there shows in the frame', async () => {
     renderScreen();
     await screen.findByDisplayValue('Sunrise');
 
-    await userEvent.click(screen.getByText('Take a photo'));
-    await waitFor(() =>
-      expect(useComposeDraftStore.getState().draft?.photo?.webPath).toBe('blob:new'),
-    );
+    await userEvent.click(screen.getByText('Replace image'));
+    expect(push).toHaveBeenCalledWith('/entry/e1/edit/photo');
+    // The inline camera/gallery buttons are gone — the picker screen owns those now.
+    expect(screen.queryByText('Take a photo')).toBeNull();
+
+    act(() => {
+      useComposeDraftStore.getState().patchDraft({
+        photo: {
+          uri: 'file:///new.jpg',
+          webPath: 'blob:new',
+          mimeType: 'image/jpeg',
+          width: 800,
+          height: 600,
+          createdAt: null,
+          sizeBytes: null,
+        },
+      });
+    });
     expect(await screen.findByAltText('New photo')).toBeDefined();
-    // Details form is still there, not swapped out for the photo section.
+    // Details form is still there.
     expect(screen.getByDisplayValue('Sunrise')).toBeDefined();
   });
 

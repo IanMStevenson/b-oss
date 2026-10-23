@@ -4,7 +4,7 @@
 // SCR-13 — Edit Entry (FLW-13). One unified screen (2026-09 feedback round) — previously two
 // separate "modes" reached via two separate overflow-menu items ("Edit details"/"Replace photo",
 // `initialMode`/router state), which meant a single edit action didn't exist and Delete entry
-// lived entirely on EntryDetailScreen instead. Now: the details form, a Replace-photo section, and
+// lived entirely on EntryDetailScreen instead. Now: the details form, a photo frame with a Replace-image button (which reuses SCR-09's picker), and
 // Delete entry all live together on this one screen, reached via EntryDetailScreen's single Edit
 // affordance — matching FLW-13's actual intent ("edit an entry") rather than its old two-menu-item
 // implementation.
@@ -35,9 +35,6 @@ import { useActiveAccount } from '../../state/accountsStore.js';
 import { fetchEntry, deleteEntry } from '../../data/entries.js';
 import { enqueueDraft } from '../../flows/composeFlow.js';
 import { describeError, mapApiError } from '../../data/errors.js';
-import { takePhoto, pickPhoto } from '../../platform/camera.js';
-import { validatePickedPhoto } from '../../data/photoValidation.js';
-import type { PickedPhoto } from '../../platform/camera.js';
 
 interface EditEntryScreenProps {
   entryId: string;
@@ -53,7 +50,6 @@ export function EditEntryScreen({ entryId }: EditEntryScreenProps) {
 
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
-  const [photoError, setPhotoError] = useState<string | null>(null);
   // The entry's current photo, shown until a replacement is picked. Only known when this screen
   // instance loaded the entry itself (a resumed draft doesn't carry it).
   const [currentImage, setCurrentImage] = useState<string | null>(null);
@@ -124,32 +120,6 @@ export function EditEntryScreen({ entryId }: EditEntryScreenProps) {
     navigate.goBack();
   }
 
-  async function pickNewPhoto(source: 'camera' | 'gallery'): Promise<void> {
-    setPhotoError(null);
-    try {
-      const photo: PickedPhoto | null = source === 'camera' ? await takePhoto() : await pickPhoto();
-      if (!photo) return;
-      const validation = validatePickedPhoto(photo, 'entry');
-      if (!validation.ok) {
-        setPhotoError(validation.message);
-        return;
-      }
-      patchDraft({
-        photo: {
-          uri: photo.uri,
-          webPath: photo.webPath,
-          mimeType: photo.mimeType,
-          width: photo.width,
-          height: photo.height,
-          createdAt: photo.createdAt,
-          sizeBytes: photo.sizeBytes,
-        },
-      });
-    } catch (err) {
-      setPhotoError(err instanceof Error ? err.message : 'Could not use that photo.');
-    }
-  }
-
   async function handleSave(): Promise<void> {
     if (!draft || submitting) return;
     setSubmitting(true);
@@ -202,12 +172,24 @@ export function EditEntryScreen({ entryId }: EditEntryScreenProps) {
     );
   }
 
+  const photoSrc = draft.photo?.webPath ?? currentImage;
+  const photoFrame = photoSrc && (
+    <div className="compose-photo-frame">
+      {draft.photo ? (
+        <img src={photoSrc} alt="New photo" />
+      ) : (
+        <CachedImage src={photoSrc} alt="Current photo" />
+      )}
+    </div>
+  );
+
   return (
     <IonPage>
       <IonHeader>
         <AppHeader title="Edit entry" variant="back" onBack={handleBack} accountIndicator />
       </IonHeader>
       <IonContent>
+        {photoFrame}
         <div className="compose-form">
           {submitError && (
             <IonText color="danger">
@@ -219,6 +201,14 @@ export function EditEntryScreen({ entryId }: EditEntryScreenProps) {
               <p>{deleteError}</p>
             </IonText>
           )}
+
+          <IonButton
+            expand="block"
+            fill="outline"
+            onClick={() => navigate.push(`/entry/${entryId}/edit/photo`)}
+          >
+            Replace image
+          </IonButton>
 
           <TextField
             label="Title"
@@ -260,30 +250,6 @@ export function EditEntryScreen({ entryId }: EditEntryScreenProps) {
               </IonButton>
             )}
           </ToggleRow>
-
-          <div className="compose-field">
-            <span className="compose-field-label">Photo</span>
-            {photoError && (
-              <IonText color="danger">
-                <p>{photoError}</p>
-              </IonText>
-            )}
-            {draft.photo ? (
-              <img src={draft.photo.webPath} alt="New photo" className="compose-photo" />
-            ) : (
-              currentImage && (
-                <CachedImage src={currentImage} alt="Current photo" className="compose-photo" />
-              )
-            )}
-            <div className="compose-photo-actions">
-              <IonButton fill="outline" size="small" onClick={() => void pickNewPhoto('camera')}>
-                Take a photo
-              </IonButton>
-              <IonButton fill="outline" size="small" onClick={() => void pickNewPhoto('gallery')}>
-                Choose from device
-              </IonButton>
-            </div>
-          </div>
 
           <IonButton expand="block" disabled={submitting} onClick={() => void handleSave()}>
             {submitting ? <IonSpinner name="dots" /> : 'Save'}
