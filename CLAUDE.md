@@ -184,6 +184,13 @@ on one phone with separate data. Build it with `npm run build:android-debug` (no
 Blipfoto client ID and redirect; `google-services.json` must hold a client for both package names.
 Details in `.env.example`. Release builds (the `b-mobile-v*` workflow) are unaffected.
 
+`google-services.json` is gitignored (`packages/b-mobile/android/.gitignore`) and a build without it
+succeeds but silently has no push notifications. On the dev VMs the canonical copy is
+`~/.config/b-mobile/google-services.json` (mode 600; it has clients for both package names). A new
+worktree needs it symlinked in:
+`ln -s ~/.config/b-mobile/google-services.json <worktree>/packages/b-mobile/android/app/google-services.json`.
+Likewise copy `.env.local` and `.env.android-debug.local` from the main checkout.
+
 ## Building Gradle/Android on the egress-controlled dev VM
 
 Outbound traffic goes through a squid proxy (`localhost:3128`) with a per-domain rate limit
