@@ -450,7 +450,7 @@
     },
     {
       "name": "maplibre-gl",
-      "version": "6.14.0",
+      "version": "6.15.0",
       "license": "BSD-3-Clause",
       "repository": "https://github.com/maplibre/maplibre-gl-js",
       "texts": [40]
