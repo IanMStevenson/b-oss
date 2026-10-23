@@ -532,18 +532,18 @@ describe('EntryDetail', () => {
       return { ...utils, onNavigate };
     }
 
-    it('follows the arrows: swipe right goes ▶ (newer), swipe left goes ◀ (older)', () => {
+    it('swipe left goes ▶ (newer), swipe right goes ◀ (older)', () => {
       const { container, onNavigate } = renderWithNav();
       const photo = container.querySelector(`.${styles.photoInner}`)!;
-      swipe(photo, 120);
-      expect(onNavigate).toHaveBeenLastCalledWith('2');
       swipe(photo, -120);
+      expect(onNavigate).toHaveBeenLastCalledWith('2');
+      swipe(photo, 120);
       expect(onNavigate).toHaveBeenLastCalledWith('0');
     });
 
     it('works anywhere on the page, not just the photo (e.g. over the description)', () => {
       const { onNavigate } = renderWithNav();
-      swipe(screen.getByText(/Second paragraph/), 120);
+      swipe(screen.getByText(/Second paragraph/), -120);
       expect(onNavigate).toHaveBeenCalledWith('2');
     });
 
