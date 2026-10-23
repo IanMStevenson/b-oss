@@ -2,7 +2,7 @@
 
 b-status is the monitor behind the unofficial Blipfoto status page (b-oss#476). A Cloudflare
 Worker probes the public website, API and image host from outside every 15 minutes, records the
-result in D1, and (b-oss#484) publishes one JSON snapshot the static status page reads. It is not
+result in D1, and publishes one JSON snapshot the static status page reads. It is not
 operated by, affiliated with, or endorsed by Blipfoto, and it never uses credentials or user data.
 
 It is a peer package to b-push and shares nothing with it except the Cloudflare account. It depends
@@ -29,13 +29,35 @@ with the failure in the body.
 
 ## Data (`src/schema.sql`)
 
-| Table       | Rows                                                                                                                                                                                                        |
-| ----------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `samples`   | One per 15-minute slot (`slot` = floor(ms / 15 min), a duplicate cron is a no-op). A missing slot is "no data", never up or down. Per-check results kept as JSON, so an incident can say which check failed |
-| `incidents` | One per component per outage; `ended_at` NULL while ongoing                                                                                                                                                 |
-| `snapshot`  | The page's whole data bundle, one row, rebuilt each run (b-oss#484)                                                                                                                                         |
+| Table       | Rows                                                                                                                                                                                                              |
+| ----------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `samples`   | One per 15-minute slot (`slot` = floor(ms / 15 min), a duplicate cron is a no-op). A missing slot is "no data", never up or down. Per-check results kept as JSON, so an incident can say which check failed       |
+| `incidents` | One per component per outage; `ended_at` NULL while ongoing                                                                                                                                                       |
+| `day_rows`  | One per UTC day per component: up/down/unknown sample counts (unknown includes slots with no sample), incident count, longest incident, failed-check counts. Counts, not percentages, so days sum into any window |
+| `meta`      | `first_ts` (when monitoring began) and `history` (a cached summary of the folded days, rebuilt once a UTC day)                                                                                                    |
+| `snapshot`  | The page's whole data bundle, one row, rebuilt each run                                                                                                                                                           |
 
-Later (b-oss#484): samples older than 48 hours fold into per-day count rows; incidents are kept.
+Whole UTC days that ended at least 48 hours ago are **folded** into `day_rows` and their samples
+deleted, in one batch (`fold.ts`), so raw samples are kept for 48 to 72 hours. Incidents are kept
+for good. A day's definition is frozen when it is folded.
+
+## The snapshot and the endpoint (`snapshot.ts`, `serve.ts`)
+
+After each probe, the run folds old days and rebuilds **one JSON snapshot** holding everything the
+page draws: current state, the 48-hour lanes (as down/no-data _segments_, not 192 samples), daily
+history for a year and weekly history for all time (non-empty days only; the page fills the gaps),
+the uptime table (rounded **down**, so 100 only when nothing was found down), and the incident list
+(one row when one cause took both parts down). It carries `generated_at` and `next_refresh_at` so
+the page knows when fresher data can exist.
+
+`GET /v1/status` serves it from isolate memory: a page view costs **no D1 reads** in the normal
+case, and `Cache-Control: max-age` is the time remaining. If the cron is late the Worker still holds
+the old snapshot for a minute before looking again. Only the page's own origins get CORS headers.
+
+Known limit: the once-a-day history rebuild reads every `day_rows` row. Measured at about 12 ms in
+Node with three years of data (a steady-state run is about 1 ms). D1 waits don't count as Worker CPU,
+but before the history approaches that size the rebuild should become incremental (b-oss#484
+follow-up).
 
 ## Free-tier budget
 
