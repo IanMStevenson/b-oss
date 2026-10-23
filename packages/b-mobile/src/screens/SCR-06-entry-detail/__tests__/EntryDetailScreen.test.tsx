@@ -335,7 +335,30 @@ describe('EntryDetailScreen', () => {
     const ownEntry: LoadedEntry = {
       ...baseLoadedEntry,
       entry: { ...baseLoadedEntry.entry, username: 'me' },
+      actions: { star: 1, favorite: 1, comment: 1, edit: 1, delete: 1 },
     };
+
+    it('hides Edit when Blipfoto says the entry can’t be edited (actions.edit 0)', async () => {
+      const { fetchEntry } = await import('../../../data/entries.js');
+      vi.mocked(fetchEntry).mockResolvedValue({
+        ...ownEntry,
+        actions: { ...ownEntry.actions!, edit: 0 },
+      });
+      renderScreen();
+      await screen.findByText('A day out');
+      expect(screen.queryByLabelText('Edit entry')).toBeNull();
+    });
+
+    it('still offers Edit when only tags and location can be changed (actions.edit 2)', async () => {
+      const { fetchEntry } = await import('../../../data/entries.js');
+      vi.mocked(fetchEntry).mockResolvedValue({
+        ...ownEntry,
+        actions: { ...ownEntry.actions!, edit: 2 },
+      });
+      renderScreen();
+      await screen.findByText('A day out');
+      expect(screen.getByLabelText('Edit entry')).toBeDefined();
+    });
 
     it('offers Edit only for the viewer’s own, read-write entry', async () => {
       const { fetchEntry } = await import('../../../data/entries.js');

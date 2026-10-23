@@ -32,8 +32,9 @@ vi.mock('../../../platform/camera.js', () => ({
 }));
 
 const push = vi.fn();
+const goBack = vi.fn();
 vi.mock('../../../app/routes/useAppNavigate.js', () => ({
-  useAppNavigate: () => ({ push, replace: vi.fn(), goBack: vi.fn() }),
+  useAppNavigate: () => ({ push, replace: vi.fn(), goBack }),
 }));
 
 const { takePendingSharedPhoto } = vi.hoisted(() => ({ takePendingSharedPhoto: vi.fn() }));
@@ -63,17 +64,57 @@ afterEach(() => {
   vi.resetAllMocks();
 });
 
-function renderScreen() {
+function renderScreen(replaceEntryId?: string) {
   return render(
     <MemoryRouter>
       <OverlayProvider>
-        <NewEntryScreen />
+        <NewEntryScreen replaceEntryId={replaceEntryId} />
       </OverlayProvider>
     </MemoryRouter>,
   );
 }
 
 describe('NewEntryScreen', () => {
+  it('replace mode: a pick patches the open edit draft and goes back, without starting a new entry', async () => {
+    useComposeDraftStore.setState({
+      draft: {
+        mode: 'edit',
+        accountId: 'a1',
+        entryId: 'e1',
+        photo: null,
+        title: 'Sunrise',
+        tags: '',
+        description: '',
+        date: '2026-01-01',
+        location: null,
+        displayLocation: false,
+        thumbnailCrop: null,
+        dirty: false,
+      },
+    });
+    pickPhoto.mockResolvedValue({
+      uri: 'file:///new.jpg',
+      webPath: 'blob:new',
+      mimeType: 'image/jpeg',
+      width: 1600,
+      height: 1200,
+      createdAt: null,
+      sizeBytes: null,
+    });
+    renderScreen('e1');
+    expect(takePendingSharedPhoto).not.toHaveBeenCalled();
+    await userEvent.click(screen.getByText('Choose from device'));
+
+    await waitFor(() => expect(goBack).toHaveBeenCalled());
+    expect(push).not.toHaveBeenCalled();
+    expect(useComposeDraftStore.getState().draft).toMatchObject({
+      mode: 'edit',
+      title: 'Sunrise',
+      photo: { webPath: 'blob:new' },
+      dirty: true,
+    });
+  });
+
   it('seeds the draft and continues to SCR-10 on a successful capture', async () => {
     takePhoto.mockResolvedValue({
       uri: 'file:///photo.jpg',

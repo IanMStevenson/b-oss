@@ -121,6 +121,10 @@ function PhotoRoute() {
   return <PhotoScreen entryId={useParam('entryId')} />;
 }
 
+function ReplaceEntryPhotoRoute() {
+  return <NewEntryScreen replaceEntryId={useParam('entryId')} />;
+}
+
 function EditEntryRoute() {
   return <EditEntryScreen entryId={useParam('entryId')} />;
 }
@@ -195,6 +199,14 @@ function AppRouteTable() {
         element={
           <WriteGuardRoute>
             <ReportEntryRoute />
+          </WriteGuardRoute>
+        }
+      />
+      <Route
+        path="/entry/:entryId/edit/photo"
+        element={
+          <WriteGuardRoute>
+            <ReplaceEntryPhotoRoute />
           </WriteGuardRoute>
         }
       />

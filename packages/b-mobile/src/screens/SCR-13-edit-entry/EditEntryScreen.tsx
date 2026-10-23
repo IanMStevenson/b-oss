@@ -4,7 +4,7 @@
 // SCR-13 — Edit Entry (FLW-13). One unified screen (2026-09 feedback round) — previously two
 // separate "modes" reached via two separate overflow-menu items ("Edit details"/"Replace photo",
 // `initialMode`/router state), which meant a single edit action didn't exist and Delete entry
-// lived entirely on EntryDetailScreen instead. Now: the details form, a Replace-photo section, and
+// lived entirely on EntryDetailScreen instead. Now: the details form, a photo frame with a Replace-image button (which reuses SCR-09's picker), and
 // Delete entry all live together on this one screen, reached via EntryDetailScreen's single Edit
 // affordance — matching FLW-13's actual intent ("edit an entry") rather than its old two-menu-item
 // implementation.
@@ -35,9 +35,6 @@ import { useActiveAccount } from '../../state/accountsStore.js';
 import { fetchEntry, deleteEntry } from '../../data/entries.js';
 import { enqueueDraft } from '../../flows/composeFlow.js';
 import { describeError, mapApiError } from '../../data/errors.js';
-import { takePhoto, pickPhoto } from '../../platform/camera.js';
-import { validatePickedPhoto } from '../../data/photoValidation.js';
-import type { PickedPhoto } from '../../platform/camera.js';
 
 interface EditEntryScreenProps {
   entryId: string;
@@ -53,8 +50,7 @@ export function EditEntryScreen({ entryId }: EditEntryScreenProps) {
 
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
-  const [photoError, setPhotoError] = useState<string | null>(null);
-  // The entry's current photo, shown until a replacement is picked. Only known when this screen
+  // The entry's current photo (its thumbnail, like the site's edit page), shown until a replacement is picked. Only known when this screen
   // instance loaded the entry itself (a resumed draft doesn't carry it).
   const [currentImage, setCurrentImage] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -63,6 +59,10 @@ export function EditEntryScreen({ entryId }: EditEntryScreenProps) {
   const [confirmDeleteEntry, setConfirmDeleteEntry] = useState(false);
   const [deletingEntry, setDeletingEntry] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
+
+  // Blipfoto only lets part of an older entry be changed (actions.edit): it ignores the rest
+  // without an error, so the form offers only what will actually be saved.
+  const editLevel = draft?.editLevel ?? 1;
 
   const isCurrentDraft = draft?.mode === 'edit' && draft.entryId === entryId;
   // Whether this screen instance has already seeded (or found) its draft — checked once, at the
@@ -87,6 +87,7 @@ export function EditEntryScreen({ entryId }: EditEntryScreenProps) {
           mode: 'edit',
           accountId: activeAccount.id,
           entryId,
+          editLevel: loaded.actions?.edit ?? 1,
           photo: null,
           title: loaded.entry.title,
           tags: loaded.entry.tags.join(', '),
@@ -97,7 +98,7 @@ export function EditEntryScreen({ entryId }: EditEntryScreenProps) {
           thumbnailCrop: null,
           dirty: false,
         });
-        setCurrentImage(loaded.entry.images?.image ?? loaded.entry.images?.thumbnail ?? null);
+        setCurrentImage(loaded.entry.images?.thumbnail ?? loaded.entry.images?.image ?? null);
         hasSeededRef.current = true;
         setLoading(false);
       },
@@ -122,32 +123,6 @@ export function EditEntryScreen({ entryId }: EditEntryScreenProps) {
     }
     clearDraft();
     navigate.goBack();
-  }
-
-  async function pickNewPhoto(source: 'camera' | 'gallery'): Promise<void> {
-    setPhotoError(null);
-    try {
-      const photo: PickedPhoto | null = source === 'camera' ? await takePhoto() : await pickPhoto();
-      if (!photo) return;
-      const validation = validatePickedPhoto(photo, 'entry');
-      if (!validation.ok) {
-        setPhotoError(validation.message);
-        return;
-      }
-      patchDraft({
-        photo: {
-          uri: photo.uri,
-          webPath: photo.webPath,
-          mimeType: photo.mimeType,
-          width: photo.width,
-          height: photo.height,
-          createdAt: photo.createdAt,
-          sizeBytes: photo.sizeBytes,
-        },
-      });
-    } catch (err) {
-      setPhotoError(err instanceof Error ? err.message : 'Could not use that photo.');
-    }
   }
 
   async function handleSave(): Promise<void> {
@@ -202,12 +177,24 @@ export function EditEntryScreen({ entryId }: EditEntryScreenProps) {
     );
   }
 
+  const photoSrc = draft.photo?.webPath ?? currentImage;
+  const photoFrame = photoSrc && (
+    <div className="compose-photo-thumb">
+      {draft.photo ? (
+        <img src={photoSrc} alt="New photo" />
+      ) : (
+        <CachedImage src={photoSrc} alt="Current photo" />
+      )}
+    </div>
+  );
+
   return (
     <IonPage>
       <IonHeader>
         <AppHeader title="Edit entry" variant="back" onBack={handleBack} accountIndicator />
       </IonHeader>
       <IonContent>
+        {photoFrame}
         <div className="compose-form">
           {submitError && (
             <IonText color="danger">
@@ -220,72 +207,78 @@ export function EditEntryScreen({ entryId }: EditEntryScreenProps) {
             </IonText>
           )}
 
-          <TextField
-            label="Title"
-            value={draft.title}
-            maxLength={50}
-            onChange={(title) => patchDraft({ title })}
-          />
+          {editLevel !== 1 && (
+            <IonText color="medium">
+              <p>
+                {editLevel === 2
+                  ? 'Blipfoto only allows the tags and location to be changed on this entry now.'
+                  : "Blipfoto doesn't allow this entry to be edited."}
+              </p>
+            </IonText>
+          )}
 
-          <DescriptionField
-            value={draft.description}
-            onChange={(description) => patchDraft({ description })}
-          />
-
-          <TextField
-            label="Tags (comma-separated)"
-            value={draft.tags}
-            maxLength={255}
-            onChange={(tags) => patchDraft({ tags })}
-          />
-
-          <ToggleRow
-            label="Add to map"
-            checked={draft.location != null}
-            onChange={(checked) => {
-              if (checked && !draft.location) {
-                navigate.push('/compose/location');
-              } else if (!checked && draft.location) {
-                patchDraft({ location: null, displayLocation: false });
-              }
-            }}
-          >
-            {draft.location && (
+          {editLevel === 1 && (
+            <>
               <IonButton
-                fill="clear"
-                size="small"
-                onClick={() => navigate.push('/compose/location')}
+                expand="block"
+                fill="outline"
+                onClick={() => navigate.push(`/entry/${entryId}/edit/photo`)}
               >
-                Change
+                Replace image
               </IonButton>
-            )}
-          </ToggleRow>
 
-          <div className="compose-field">
-            <span className="compose-field-label">Photo</span>
-            {photoError && (
-              <IonText color="danger">
-                <p>{photoError}</p>
-              </IonText>
-            )}
-            {draft.photo ? (
-              <img src={draft.photo.webPath} alt="New photo" className="compose-photo" />
-            ) : (
-              currentImage && (
-                <CachedImage src={currentImage} alt="Current photo" className="compose-photo" />
-              )
-            )}
-            <div className="compose-photo-actions">
-              <IonButton fill="outline" size="small" onClick={() => void pickNewPhoto('camera')}>
-                Take a photo
-              </IonButton>
-              <IonButton fill="outline" size="small" onClick={() => void pickNewPhoto('gallery')}>
-                Choose from device
-              </IonButton>
-            </div>
-          </div>
+              <TextField
+                label="Title"
+                value={draft.title}
+                maxLength={50}
+                onChange={(title) => patchDraft({ title })}
+              />
 
-          <IonButton expand="block" disabled={submitting} onClick={() => void handleSave()}>
+              <DescriptionField
+                value={draft.description}
+                onChange={(description) => patchDraft({ description })}
+              />
+            </>
+          )}
+
+          {editLevel !== 0 && (
+            <>
+              <TextField
+                label="Tags (comma-separated)"
+                value={draft.tags}
+                maxLength={255}
+                onChange={(tags) => patchDraft({ tags })}
+              />
+
+              <ToggleRow
+                label="Add to map"
+                checked={draft.location != null}
+                onChange={(checked) => {
+                  if (checked && !draft.location) {
+                    navigate.push('/compose/location');
+                  } else if (!checked && draft.location) {
+                    patchDraft({ location: null, displayLocation: false });
+                  }
+                }}
+              >
+                {draft.location && (
+                  <IonButton
+                    fill="clear"
+                    size="small"
+                    onClick={() => navigate.push('/compose/location')}
+                  >
+                    Change
+                  </IonButton>
+                )}
+              </ToggleRow>
+            </>
+          )}
+
+          <IonButton
+            expand="block"
+            disabled={submitting || editLevel === 0}
+            onClick={() => void handleSave()}
+          >
             {submitting ? <IonSpinner name="dots" /> : 'Save'}
           </IonButton>
 

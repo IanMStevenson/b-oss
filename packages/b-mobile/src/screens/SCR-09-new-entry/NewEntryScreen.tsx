@@ -15,6 +15,11 @@
 // where the gate (`WriteGuardRoute` on `/compose`) has already passed by the time it mounts,
 // which is exactly why the photo was consumed and cached earlier, in `AppShell.tsx`, rather than
 // read directly here — see `platform/shareIntent.ts`'s own header comment for the full reasoning.
+//
+// With `replaceEntryId` set (SCR-13's "Replace image"), the same two-tile picker is reused to choose
+// a replacement photo for an entry being edited: a pick is validated, written into the open 'edit'
+// draft and the screen goes back to SCR-13 instead of starting a new draft. A pending shared photo
+// is deliberately not consumed in this mode — it belongs to a new entry.
 
 import { useEffect, useState } from 'react';
 import { IonPage, IonHeader, IonContent, IonButton, IonText, IonSpinner } from '@ionic/react';
@@ -33,6 +38,7 @@ import { useAppNavigate } from '../../app/routes/useAppNavigate.js';
 import { useActiveAccount } from '../../state/accountsStore.js';
 import { useComposeDraftStore } from '../../state/composeDraftStore.js';
 import { todayDate } from '../../data/dates.js';
+import { validatePickedPhoto } from '../../data/photoValidation.js';
 
 function todayFromCreatedAt(createdAt: string | null): string {
   if (createdAt) {
@@ -44,15 +50,41 @@ function todayFromCreatedAt(createdAt: string | null): string {
   return todayDate();
 }
 
-export function NewEntryScreen() {
+interface NewEntryScreenProps {
+  /** Pick a replacement photo for this entry's open edit draft instead of starting a new entry. */
+  replaceEntryId?: string;
+}
+
+export function NewEntryScreen({ replaceEntryId }: NewEntryScreenProps = {}) {
   const navigate = useAppNavigate();
   const activeAccount = useActiveAccount();
   const setDraft = useComposeDraftStore((s) => s.setDraft);
+  const patchDraft = useComposeDraftStore((s) => s.patchDraft);
   const [busy, setBusy] = useState<'camera' | 'picker' | null>(null);
   const [cameraMessage, setCameraMessage] = useState<string | null>(null);
   const [photoMessage, setPhotoMessage] = useState<string | null>(null);
 
   function startDraft(photo: PickedPhoto): void {
+    if (replaceEntryId) {
+      const validation = validatePickedPhoto(photo, 'entry');
+      if (!validation.ok) {
+        setPhotoMessage(validation.message);
+        return;
+      }
+      patchDraft({
+        photo: {
+          uri: photo.uri,
+          webPath: photo.webPath,
+          mimeType: photo.mimeType,
+          width: photo.width,
+          height: photo.height,
+          createdAt: photo.createdAt,
+          sizeBytes: photo.sizeBytes,
+        },
+      });
+      navigate.goBack();
+      return;
+    }
     if (!activeAccount) return;
     setDraft({
       mode: 'publish',
@@ -79,6 +111,7 @@ export function NewEntryScreen() {
   }
 
   useEffect(() => {
+    if (replaceEntryId) return;
     const shared = takePendingSharedPhoto();
     if (shared) startDraft(shared);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -122,7 +155,11 @@ export function NewEntryScreen() {
   return (
     <IonPage>
       <IonHeader>
-        <AppHeader title="New entry" accountIndicator />
+        {replaceEntryId ? (
+          <AppHeader title="Replace image" variant="back" onBack={() => navigate.goBack()} />
+        ) : (
+          <AppHeader title="New entry" accountIndicator />
+        )}
       </IonHeader>
       <IonContent>
         <div className="new-entry-tiles">
