@@ -5,7 +5,9 @@ name: b-ark latest download
 # the current installer and the website never needs editing per release (b-oss#512).
 #
 # GitHub's own "Latest" release is one flag for the whole repo, so it can't mean "latest b-ark" in a
-# monorepo with several released packages. This workflow never reads or sets that flag.
+# monorepo with several released packages. This workflow never reads or sets that flag. The release
+# is also the update feed installed apps read (latest.yml + installer + blockmap), so updates don't
+# depend on the flag either (src/main/updater.ts).
 #
 # Runs when a b-ark release (tag b-ark-v<number>; the old v<number> tags too) is published.
 # b-mobile-v* releases, pre-releases and b-ark-latest itself are ignored. To bootstrap, or to repair, run it by hand with a tag.
@@ -39,13 +41,24 @@ jobs:
         run: |
           [[ "$TAG" =~ ^(b-ark-)?v[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo "::error::'$TAG' is not a b-ark release tag (b-ark-v<major>.<minor>.<patch>)"; exit 1; }
 
-      - name: Download the installer from the release
+      - name: Download the release's update files and check they agree
         run: |
+          VERSION="${TAG#b-ark-v}"; VERSION="${VERSION#v}"
           mkdir dl
-          gh release download "$TAG" --repo "$GITHUB_REPOSITORY" --pattern 'b-ark-Setup-*.exe' --dir dl
-          [ "$(ls dl | wc -l)" -eq 1 ] || { echo "::error::expected exactly one installer in $TAG"; ls dl; exit 1; }
-          mv dl/b-ark-Setup-*.exe dl/b-ark-Setup.exe
-          sha256sum dl/b-ark-Setup.exe
+          gh release download "$TAG" --repo "$GITHUB_REPOSITORY" --dir dl \
+            --pattern 'b-ark-Setup-*.exe' --pattern 'b-ark-Setup-*.exe.blockmap' --pattern 'latest.yml'
+          EXE="b-ark-Setup-$VERSION.exe"
+          [ "$(ls dl | wc -l)" -eq 3 ] && [ -f "dl/$EXE" ] && [ -f "dl/$EXE.blockmap" ] && [ -f dl/latest.yml ] \
+            || { echo "::error::expected $EXE, $EXE.blockmap and latest.yml in $TAG"; ls dl; exit 1; }
+          # latest.yml is what installed apps read: it must describe exactly this installer.
+          [ "$(sed -n 's/^version: //p' dl/latest.yml)" = "$VERSION" ] || { echo "::error::latest.yml version is not $VERSION"; exit 1; }
+          [ "$(sed -n 's/^path: //p' dl/latest.yml)" = "$EXE" ] || { echo "::error::latest.yml path is not $EXE"; exit 1; }
+          want="$(sed -n 's/^sha512: //p' dl/latest.yml)"
+          got="$(openssl dgst -sha512 -binary "dl/$EXE" | base64 -w0)"
+          [ "$want" = "$got" ] || { echo "::error::latest.yml sha512 does not match $EXE"; exit 1; }
+          echo "EXE=$EXE" >> "$GITHUB_ENV"
+          cp "dl/$EXE" dl/b-ark-Setup.exe
+          sha256sum "dl/$EXE"
 
       - name: Create the rolling release if it does not exist
         run: |
@@ -54,16 +67,32 @@ jobs:
               --title "b-ark: current installer" --latest=false \
               --notes "Placeholder; filled in by the b-ark latest download workflow."
 
-      - name: Replace the installer and update the notes
+      - name: Publish the new files (installer first, latest.yml last)
         run: |
-          gh release upload "$ROLLING" dl/b-ark-Setup.exe --repo "$GITHUB_REPOSITORY" --clobber
+          # Installed apps read latest.yml, so it goes last: a client must never see a feed that
+          # names an installer that is not uploaded yet.
+          gh release upload "$ROLLING" "dl/$EXE" "dl/$EXE.blockmap" dl/b-ark-Setup.exe --repo "$GITHUB_REPOSITORY" --clobber
+          gh release upload "$ROLLING" dl/latest.yml --repo "$GITHUB_REPOSITORY" --clobber
+          # Now drop the previous version's files.
+          gh api "repos/$GITHUB_REPOSITORY/releases/tags/$ROLLING" --jq '.assets[].name' | while read -r name; do
+            case "$name" in "$EXE"|"$EXE.blockmap"|b-ark-Setup.exe|latest.yml) ;; *)
+              echo "removing old asset $name"
+              gh release delete-asset "$ROLLING" "$name" --repo "$GITHUB_REPOSITORY" --yes ;;
+            esac
+          done
           gh release edit "$ROLLING" --repo "$GITHUB_REPOSITORY" --latest=false \
             --title "b-ark: current installer ($TAG)" \
-            --notes "The newest b-ark Windows installer, always at this fixed address: \`b-ark-Setup.exe\`. Currently **$TAG**: https://github.com/$GITHUB_REPOSITORY/releases/tag/$TAG . Release notes, the SHA-256 and earlier versions are on the Releases page. This release is maintained by a workflow; do not edit it."
+            --notes "The newest b-ark Windows installer, always at this fixed address: \`b-ark-Setup.exe\`. Currently **$TAG**: https://github.com/$GITHUB_REPOSITORY/releases/tag/$TAG . This release is also the update feed that installed b-ark apps read (\`latest.yml\`, the installer and its blockmap), so that updates do not depend on GitHub's repo-wide Latest flag. Release notes, the SHA-256 and earlier versions are on the Releases page. Maintained by a workflow; do not edit."
 
-      - name: Verify the uploaded file is the one we downloaded
+      - name: Verify what was uploaded, and the feed address the app uses
         run: |
-          want="sha256:$(sha256sum dl/b-ark-Setup.exe | cut -d' ' -f1)"
-          got="$(gh api "repos/$GITHUB_REPOSITORY/releases/tags/$ROLLING" --jq '.assets[] | select(.name=="b-ark-Setup.exe") | .digest')"
-          echo "want $want"; echo "got  $got"
-          [ "$want" = "$got" ] || { echo "::error::digest mismatch"; exit 1; }
+          for f in "$EXE" b-ark-Setup.exe; do
+            want="sha256:$(sha256sum "dl/$f" | cut -d' ' -f1)"
+            got="$(gh api "repos/$GITHUB_REPOSITORY/releases/tags/$ROLLING" --jq ".assets[] | select(.name==\"$f\") | .digest")"
+            echo "$f want $want got $got"
+            [ "$want" = "$got" ] || { echo "::error::digest mismatch for $f"; exit 1; }
+          done
+          # The address b-ark's updater uses (src/main/updater.ts), followed through GitHub's redirect.
+          feed="$(curl -fsSL "https://github.com/$GITHUB_REPOSITORY/releases/download/$ROLLING/latest.yml")"
+          echo "$feed"
+          echo "$feed" | grep -qx "path: $EXE" || { echo "::error::the public feed does not point at $EXE"; exit 1; }
