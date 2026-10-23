@@ -5,6 +5,8 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [1.0.6] - 2026-10-23
+
 ### Added
 
 - b-view-backup: backup-folder data hooks and standalone viewer SPA, split out so the shells
@@ -14,6 +16,11 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   with a lightbox viewer (b-view `Lightbox`/`EntryDetail`) for browsing them.
 - b-ark, b-ark-chrome: an amber notice banner explains why a journal is amber, with Sign in,
   Retry and Dismiss actions where they apply.
+
+### Changed
+
+- b-ark: updates are read from a permanent `b-ark-latest` release, so another package's release can
+  no longer hide an update; the download link on the website always points at the current installer.
 
 ### Fixed
 
