@@ -7,15 +7,8 @@
 // for a minute before looking again, so a late cron can't turn a traffic spike into a D1 read per
 // request. `Cache-Control: max-age` is the time remaining, so browsers don't ask again either.
 
+import { jsonHeaders as headers } from './cors.js';
 import type { DbLike } from './db.js';
-
-/** Origins allowed to read the data (the page's own origins). A plain GET with no custom headers,
- * so browsers never send a preflight. */
-const ALLOWED_ORIGINS = new Set([
-  'https://b-oss.dev',
-  'https://www.b-oss.dev',
-  'http://localhost:4321', // astro dev
-]);
 
 const MIN_MAX_AGE_S = 15;
 const LATE_HOLD_MS = 60_000;
@@ -33,12 +26,6 @@ let cached: Cached | null = null;
 /** Test hook: forget the isolate-memory copy. */
 export function resetServeCache(): void {
   cached = null;
-}
-
-function headers(origin: string | null, extra: Record<string, string>): Headers {
-  const h = new Headers({ 'Content-Type': 'application/json', Vary: 'Origin', ...extra });
-  if (origin && ALLOWED_ORIGINS.has(origin)) h.set('Access-Control-Allow-Origin', origin);
-  return h;
 }
 
 export async function handleStatus(request: Request, db: DbLike, now: number): Promise<Response> {

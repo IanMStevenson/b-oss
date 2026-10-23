@@ -22,9 +22,9 @@ export async function foldCompleteDays(db: DbLike, now: number): Promise<number>
   const old = (
     await db
       .prepare(
-        'SELECT slot, ts, site_state, api_state, checks FROM samples WHERE ts < ? ORDER BY ts',
+        'SELECT slot, ts, site_state, api_state, checks FROM samples WHERE slot < ? ORDER BY slot',
       )
-      .bind(before)
+      .bind(slotOf(before))
       .all<FoldSample>()
   ).results;
   if (old.length === 0) return 0;
@@ -74,7 +74,7 @@ export async function foldCompleteDays(db: DbLike, now: number): Promise<number>
       );
     }
   }
-  stmts.push(db.prepare('DELETE FROM samples WHERE ts < ?').bind(before));
+  stmts.push(db.prepare('DELETE FROM samples WHERE slot < ?').bind(slotOf(before)));
   await db.batch(stmts);
   return days.length;
 }

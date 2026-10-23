@@ -59,3 +59,30 @@ CREATE TABLE IF NOT EXISTS day_rows (
   failed_checks         TEXT NOT NULL,
   PRIMARY KEY (day, component)
 ) WITHOUT ROWID;
+
+-- Visitor-shared problems (b-oss#486). No personal data: a time, which part, what was happening and
+-- optional tags. Rows are kept only until their day is folded into `share_days` (shares.ts), after
+-- which only counts remain. They never affect probe state or uptime.
+CREATE TABLE IF NOT EXISTS shares (
+  id         INTEGER PRIMARY KEY AUTOINCREMENT,
+  ts         INTEGER NOT NULL,
+  component  TEXT NOT NULL,   -- 'site' | 'api'
+  what       TEXT NOT NULL,   -- 'offline' | 'degraded'
+  tags       TEXT NOT NULL    -- comma-separated subset of: login, uploads, slow, unreliable
+);
+CREATE INDEX IF NOT EXISTS idx_shares_ts ON shares (ts);
+
+-- Daily share counts per component, folded from `shares` (same 48-hour boundary as day_rows).
+CREATE TABLE IF NOT EXISTS share_days (
+  day        TEXT NOT NULL,
+  component  TEXT NOT NULL,
+  count      INTEGER NOT NULL,
+  PRIMARY KEY (day, component)
+) WITHOUT ROWID;
+
+-- The 30-minute share limiter: a SALTED HASH of the client IP and when it stops counting. Never the
+-- raw IP. Checked inline against expires_at (so 30 minutes is exact) and purged by the cron.
+CREATE TABLE IF NOT EXISTS share_limit (
+  hash        TEXT PRIMARY KEY,
+  expires_at  INTEGER NOT NULL
+) WITHOUT ROWID;

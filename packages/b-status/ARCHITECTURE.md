@@ -48,7 +48,9 @@ page draws: current state, the 48-hour lanes (as down/no-data _segments_, not 19
 history for a year and weekly history for all time (non-empty days only; the page fills the gaps),
 the uptime table (rounded **down**, so 100 only when nothing was found down), and the incident list
 (one row when one cause took both parts down). It carries `generated_at` and `next_refresh_at` so
-the page knows when fresher data can exist.
+the page knows when fresher data can exist. `now.*.stale` only says the monitor itself has missed
+samples as of the build; a snapshot whose cron has stopped is not rewritten, so **the page must judge
+staleness from `generated_at` against its own clock** (older than two intervals reads as Unknown).
 
 `GET /v1/status` serves it from isolate memory: a page view costs **no D1 reads** in the normal
 case, and `Cache-Control: max-age` is the time remaining. If the cron is late the Worker still holds
@@ -58,6 +60,26 @@ Known limit: the once-a-day history rebuild reads every `day_rows` row. Measured
 Node with three years of data (a steady-state run is about 1 ms). D1 waits don't count as Worker CPU,
 but before the history approaches that size the rebuild should become incremental (b-oss#484
 follow-up).
+
+## Visitor shares (`shares.ts`)
+
+`POST /v1/shares` takes an anonymous "share a problem": which part (**Site** = the website, **API**
+= an app), what's happening (**offline** or **not working right**), and optional tags (login, uploads,
+slow, unreliable). No account, no email, no free text. Shares are a separate, unverified signal: they
+**never** change probe state or uptime.
+
+Cheapest check first, so bots never reach the store: validation (no I/O), then Cloudflare Turnstile
+verification, then the 30-minute limiter and a global hourly circuit breaker (two D1 reads), then
+one D1 batch. The limiter keeps a **salted hash of the IP** (`share_limit`), never the IP, checked
+inline against its expiry so the 30 minutes is exact. A repeat gets `already_shared` and is never
+told when it can share again. Expired limiter rows are purged on every accepted share and by each
+cron run, so a hash can outlive its 30 minutes by up to one cron interval (15 minutes): say "about
+half an hour" in user-facing copy, not "exactly 30 minutes then deleted".
+
+Whole days older than 48 hours fold into `share_days` counts and the raw rows (with their tags) are
+deleted. The snapshot carries hourly counts (48 hours), daily counts (a year) and weekly counts
+(all time) per part. The client should send the POST as `text/plain` so it is a simple request with
+no CORS preflight.
 
 ## Free-tier budget
 

@@ -2,15 +2,16 @@
 // Copyright (C) 2026 Ian Stevenson
 
 // The Worker entry point: the cron handler probes, stores a sample, folds old days and rebuilds the
-// page's snapshot; `GET /v1/status` serves that snapshot. Reports are b-oss#486. Deploys
+// page's snapshot; `GET /v1/status` serves that snapshot, and `POST /v1/shares` takes visitor-shared problems. Deploys
 // are manual (see wrangler.toml and README.md); nothing in this repo runs `wrangler`.
 
 import type { ProbeConfig } from './checks.js';
-import { foldCompleteDays } from './fold.js';
 import { recordSample } from './incidents.js';
 import { describeError } from './log.js';
 import { runProbe } from './probe.js';
 import { handleStatus } from './serve.js';
+import { runMaintenance } from './maintain.js';
+import { handleShare } from './shares.js';
 import { storeSnapshot } from './snapshot.js';
 import type { Env } from './types.js';
 
@@ -39,7 +40,7 @@ export async function runScheduled(env: Env): Promise<void> {
   );
   await recordSample(env.DB, outcome);
   // After the sample is stored: fold finished days, then rebuild the page's snapshot from it.
-  const folded = await foldCompleteDays(env.DB, outcome.ts);
+  const { foldedDays: folded } = await runMaintenance(env.DB, outcome.ts);
   await storeSnapshot(env.DB, outcome.ts);
   console.log(
     `[b-status] slot ${outcome.slot} site=${outcome.states.site.state} api=${outcome.states.api.state}` +
@@ -56,8 +57,13 @@ export default {
     }
   },
   async fetch(request: Request, env: Env): Promise<Response> {
-    if (new URL(request.url).pathname === '/v1/status') {
-      return handleStatus(request, env.DB, Date.now());
+    const path = new URL(request.url).pathname;
+    if (path === '/v1/status') return handleStatus(request, env.DB, Date.now());
+    if (path === '/v1/shares') {
+      return handleShare(request, env, env.DB, {
+        fetch: (input, init) => fetch(input, init),
+        now: () => Date.now(),
+      });
     }
     return new Response(JSON.stringify({ error: 'Not found' }), {
       status: 404,
