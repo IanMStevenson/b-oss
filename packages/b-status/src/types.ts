@@ -8,6 +8,10 @@ export interface Env {
   /** The dedicated "status monitor" API app's client id (a Worker secret, b-oss#487). Absent until
    * that app is registered: the API checks are then skipped and the API state is Unknown. */
   MONITOR_CLIENT_ID?: string;
+  /** Turnstile secret key (Worker secret, b-oss#487). Without it shares are refused (503). */
+  TURNSTILE_SECRET_KEY?: string;
+  /** Salt for the share-limiter IP hash (Worker secret, b-oss#487). Without it shares are refused. */
+  SHARE_HASH_SALT?: string;
 }
 
 export type CheckId = 'website_browse' | 'website_entry' | 'photo' | 'api_recent' | 'api_entry';
