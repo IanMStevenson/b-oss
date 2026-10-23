@@ -50,7 +50,7 @@ export function EditEntryScreen({ entryId }: EditEntryScreenProps) {
 
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
-  // The entry's current photo, shown until a replacement is picked. Only known when this screen
+  // The entry's current photo (its thumbnail, like the site's edit page), shown until a replacement is picked. Only known when this screen
   // instance loaded the entry itself (a resumed draft doesn't carry it).
   const [currentImage, setCurrentImage] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -93,7 +93,7 @@ export function EditEntryScreen({ entryId }: EditEntryScreenProps) {
           thumbnailCrop: null,
           dirty: false,
         });
-        setCurrentImage(loaded.entry.images?.image ?? loaded.entry.images?.thumbnail ?? null);
+        setCurrentImage(loaded.entry.images?.thumbnail ?? loaded.entry.images?.image ?? null);
         hasSeededRef.current = true;
         setLoading(false);
       },
@@ -174,7 +174,7 @@ export function EditEntryScreen({ entryId }: EditEntryScreenProps) {
 
   const photoSrc = draft.photo?.webPath ?? currentImage;
   const photoFrame = photoSrc && (
-    <div className="compose-photo-frame">
+    <div className="compose-photo-thumb">
       {draft.photo ? (
         <img src={photoSrc} alt="New photo" />
       ) : (

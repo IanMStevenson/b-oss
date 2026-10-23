@@ -119,6 +119,21 @@
   object-fit: contain;
 }
 
+.compose-photo-thumb {
+  display: flex;
+  justify-content: center;
+  margin: 16px 16px 0;
+}
+
+.compose-photo-thumb img {
+  display: block;
+  max-width: 200px;
+  max-height: 200px;
+  object-fit: contain;
+  border-radius: 10px;
+  background: var(--bg-alt);
+}
+
 .compose-crop-button {
   position: absolute;
   bottom: 8px;
