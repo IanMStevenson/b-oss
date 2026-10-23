@@ -18,6 +18,21 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - backup-engine: improved missing-image detection and re-fetch logic.
 - b-ark-chrome: thumbnail display during an in-progress backup.
 
+## [b-mobile 1.0.1] - 2026-10-23
+
+### Changed
+
+- b-mobile: swiping an entry now moves the way a photo gallery does: swipe left for the next
+  (newer) entry, right for the previous (older) one.
+- b-mobile: Edit entry shows the entry's thumbnail at the top with a Replace image button, which
+  opens the same Take a photo / Choose from device screen as posting.
+
+### Fixed
+
+- b-mobile: editing an older entry no longer appears to save a new title or description that
+  Blipfoto then ignores. Where Blipfoto only allows tags and location to change, that is all
+  Edit entry offers, and the edit button is hidden for entries that can't be edited at all.
+
 ## [b-mobile 1.0.0] - 2026-10-20
 
 First release of b-mobile, an Android app for Blipfoto, published on Google Play by Salient Point
