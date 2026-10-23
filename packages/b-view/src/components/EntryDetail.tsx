@@ -295,14 +295,15 @@ export function EntryDetail({
   // Resolved URLs for all lightbox images: [main, ...extras stdres]
   const [lightboxUrls, setLightboxUrls] = useState<string[]>([]);
 
-  // Swipe follows the ◀ ▶ arrows in the nav header: the finger moves the way the arrow points
-  // (swipe right = ▶ newer, swipe left = ◀ older) — the reverse of page-turn convention, which
-  // read as backwards next to the arrows. Attached to the whole page (below), not just the photo,
+  // Swipe follows page-turn / gallery convention: the content moves with the finger, so swiping
+  // left brings in the next (▶ newer) entry and swiping right the previous (◀ older) one. (This
+  // was briefly the other way round, to match the arrows' direction; reversed deliberately.)
+  // Attached to the whole page (below), not just the photo,
   // and inert while the lightbox is open (it renders inside this wrapper, so its own swipes would
   // otherwise bubble up here and navigate the entry underneath it as well).
   const pageSwipe = useSwipeNav({
-    onSwipeRight: () => lightboxIndex === null && nextEntryId && onNavigate(nextEntryId),
-    onSwipeLeft: () => lightboxIndex === null && prevEntryId && onNavigate(prevEntryId),
+    onSwipeLeft: () => lightboxIndex === null && nextEntryId && onNavigate(nextEntryId),
+    onSwipeRight: () => lightboxIndex === null && prevEntryId && onNavigate(prevEntryId),
   });
 
   // Single taps on the photo navigate entries; when a double-tap handler exists they wait out the
