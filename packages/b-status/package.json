@@ -1,0 +1,16 @@
+{
+  "name": "@b-oss/b-status",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Unofficial Blipfoto status monitor (Cloudflare Worker + D1) — see packages/b-status/ARCHITECTURE.md.",
+  "scripts": {
+    "build": "tsc",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^5.20261011.1",
+    "vitest": "^5.0.5"
+  }
+}

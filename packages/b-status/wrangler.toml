@@ -1,0 +1,32 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+# Copyright (C) 2026 Ian Stevenson
+
+# b-status — Cloudflare Worker config (ARCHITECTURE.md). Static config only: nothing here is run
+# automatically and no CI job invokes `wrangler`. Deploying is a deliberate, manual step Ian
+# performs, exactly as for b-push (packages/b-push/wrangler.toml).
+#
+# Same Cloudflare account as b-push (one account only: its free-plan quotas are SHARED, which is why
+# the design keeps page views off D1 and the Worker — see ARCHITECTURE.md "Free-tier budget").
+#
+# Manual setup still to do (b-oss#487):
+#   - create the D1 database `b-status`, run src/schema.sql in its Console, and put its id below
+#   - register the "status monitor" API app, set its client id as the Worker secret MONITOR_CLIENT_ID
+#   - the workers.dev URL will be https://b-status.b-oss.workers.dev
+
+name = "b-status"
+account_id = "ec00647e37de5f36fc3d5a7aac03ded2"
+main = "src/index.ts"
+compatibility_date = "2026-08-04"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "b-status"
+database_id = "REPLACE-WITH-D1-DATABASE-ID" # b-oss#487
+
+# One cron trigger: the probe, every 15 minutes. (The account allows 5 in total; b-push uses 1.)
+[triggers]
+crons = ["*/15 * * * *"]
+
+# Workers Logs: keeps the [b-status] lines. Nothing logged includes a response body or token.
+[observability]
+enabled = true
