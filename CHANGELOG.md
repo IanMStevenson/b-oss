@@ -12,11 +12,20 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - b-visual: shared design tokens and visual style guide, used by b-view and b-mobile.
 - b-ark-chrome: back up Original and Extra images alongside the standard entry images,
   with a lightbox viewer (b-view `Lightbox`/`EntryDetail`) for browsing them.
+- b-ark, b-ark-chrome: an amber notice banner explains why a journal is amber, with Sign in,
+  Retry and Dismiss actions where they apply.
 
 ### Fixed
 
 - backup-engine: improved missing-image detection and re-fetch logic.
 - b-ark-chrome: thumbnail display during an in-progress backup.
+- backup-engine: entries that fail to download are retried, recorded in `journal.json` and fetched
+  again on later runs, and a journal whose entry count exceeds what is archived is reconciled
+  against its full listing, so entries skipped by an earlier backup are filled in without
+  starting a new backup.
+- b-ark-chrome: a finished backup with entries outstanding no longer relaunches a backup on every
+  Blipfoto page visit; an interrupted one resumes at most once every 15 minutes.
+- b-ark: the status bar no longer shows a long red message for an amber journal.
 
 ## [b-mobile 1.0.0] - 2026-10-20
 
