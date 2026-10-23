@@ -78,3 +78,35 @@ b-mobile builds link there, so that address stays up **permanently** as redirect
 Hygiene the build provides: `sitemap-index.xml` (`@astrojs/sitemap`, with the real `.html` URLs),
 `robots.txt`, a canonical link and Open Graph tags per page, and a `404.html`. `site` in
 `astro.config.mjs` is `https://b-oss.dev` (override with `SITE_URL`).
+
+## Status page (`status.html`)
+
+The unofficial Blipfoto status page (b-oss#476). The page itself is static HTML (`src/pages/status.astro`);
+`src/status/` is a small client script (plain TypeScript, hand-built SVG, no framework) that fetches
+**one** JSON snapshot from the b-status Worker and draws everything from it. The design record is
+`packages/b-status/design/` (temporary screenshots and a README listing where the build differs
+from them).
+
+```
+src/status/types.ts     the snapshot shape, copied by hand from packages/b-status/src/snapshot.ts
+src/status/logic.ts     pure logic: formatting, refresh gating and back-off, chart geometry (unit-tested)
+src/status/now.ts       the "Now" card and headline        lanes.ts   the 48-hour lanes and axis
+src/status/history.ts   the daily/weekly history graphs     tables.ts  uptime table and incident list
+src/status/readout.ts   pop-up (wide) / readout card with Earlier/Later (phones)
+src/status/share.ts     the "Share a problem" form (UI and client state; posts to the Worker)
+src/status/fixtures.ts  fixture snapshots (all-good, api-down, both-down, unknown, stale, busy, new)
+```
+
+- **Settings** (build-time, Astro `PUBLIC_*`): `PUBLIC_STATUS_URL` (default
+  `https://b-status.b-oss.workers.dev/v1/status`) and `PUBLIC_TURNSTILE_SITE_KEY` (empty = a placeholder
+  box, and the Share button needs no token). Put them in `packages/b-site/.env`.
+- **Preview a state without a monitor:** `npm run dev -w @b-oss/b-site`, then open
+  `/status.html?fixture=api-down` (any name in `fixtures.ts`). Fixtures are honoured in dev builds only.
+- **One request per load, no timers.** The Refresh button makes no request before the snapshot's
+  `next_refresh_at`, then backs off (60 s, 2 min, 5 min) while nothing newer arrives. If the data can't
+  be loaded the page says so and never shows "working".
+- **Share POST** goes to `<origin of PUBLIC_STATUS_URL>/v1/shares` as `text/plain` JSON, so the browser
+  sends no CORS preflight.
+- **Placeholders still to replace:** every "Blipfoto support" / "contact Blipfoto" link is `#` (real
+  URLs are looked up and verified at build time), and the "How this works" link points at the
+  in-page "How this is measured" section until the separate page exists (b-oss#493).

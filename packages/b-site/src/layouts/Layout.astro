@@ -48,7 +48,9 @@ const socialImage = new URL('assets/b-oss-icon-large.png', Astro.site).href;
     <link rel="stylesheet" href="site.css" />
   </head>
   <body>
+    <slot name="top" />
     <Header active={nav} />
+    <slot name="below-header" />
     <main class:list={['page', { narrow }]}>
       <slot />
     </main>
