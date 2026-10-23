@@ -40,9 +40,9 @@ const TERMS_URL = 'https://www.blipfoto.com/legal/terms';
 const ACCEPTABLE_USE_URL = 'https://www.blipfoto.com/legal/acceptable-use';
 const PRIVACY_URL = 'https://www.blipfoto.com/legal/privacy';
 const BE_EXCELLENT_URL = 'https://www.blipfoto.com/be-excellent';
-const SOURCE_URL = 'https://ianmstevenson.github.io/b-oss/';
+const SOURCE_URL = 'https://b-oss.dev/';
 // This app's own policy (what b-mobile and its push service handle), as given in the Play listing.
-const APP_PRIVACY_URL = 'https://ianmstevenson.github.io/b-oss/b-mobile-privacy.html';
+const APP_PRIVACY_URL = 'https://b-oss.dev/b-mobile-privacy.html';
 
 export type HelpInfoSection = 'icon-guide' | 'safety-privacy' | 'licences';
 

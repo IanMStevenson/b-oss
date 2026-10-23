@@ -78,7 +78,7 @@ at rest and covered under User IDs in the policy.
 
 ## Data deletion
 
-- **Data deletion URL:** `https://ianmstevenson.github.io/b-oss/b-mobile-data-deletion.html`
+- **Data deletion URL:** `https://b-oss.dev/b-mobile-data-deletion.html`
   (`docs/b-mobile-data-deletion.html`, b-oss#403).
 - The b-push record is deleted by turning notifications off or disconnecting the account in the
   app (immediate), and automatically after uninstall. Everything else the app holds is on the

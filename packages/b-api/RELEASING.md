@@ -2,7 +2,7 @@
 
 b-api is **not published anywhere**. `package.json` is `private: true`, there is no npm package,
 no build artifact and no publication step. Anyone who wants it takes the source from this
-repository (see the [site page](https://ianmstevenson.github.io/b-oss/b-api.html)). So "releasing"
+repository (see the [site page](https://b-oss.dev/b-api.html)). So "releasing"
 b-api means keeping it in a state that is safe to take from `main`, and saying what changed.
 
 This is the b-api case of the repo-wide process in

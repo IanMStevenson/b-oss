@@ -4,7 +4,7 @@
 
 b-oss is a family of open-source tools for backing up and viewing [Blipfoto](https://www.blipfoto.com) journals. It is an independent project and is NOT supported or sponsored by blipfoto. The project is led and mangaged by Ian Stevenson in his personal capacity. Ian is also the architect, but immplementation has been carried out almost entirely using Claude Code.
 
-You can find more information on the [b-oss website](https://ianmstevenson.github.io/b-oss/).
+You can find more information on the [b-oss website](https://b-oss.dev/).
 
 ## Applications
 
