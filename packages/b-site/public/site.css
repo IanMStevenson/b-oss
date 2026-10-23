@@ -746,8 +746,9 @@ section.block:first-of-type {
   margin: 28px 0;
   padding: 0;
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(var(--n, 4), 1fr);
   gap: 20px;
+  max-width: 960px;
 }
 .phone-shots.single {
   display: flex;
@@ -782,5 +783,10 @@ section.block:first-of-type {
 @media (max-width: 720px) {
   .phone-shots {
     grid-template-columns: repeat(2, 1fr);
+  }
+  /* Three shots stay in one row (small); a 2+1 wrap looks lopsided. */
+  .phone-shots[style*='--n: 3'] {
+    grid-template-columns: repeat(3, 1fr);
+    gap: 10px;
   }
 }

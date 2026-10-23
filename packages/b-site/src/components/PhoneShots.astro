@@ -15,7 +15,7 @@ interface Props {
 const { shots } = Astro.props;
 ---
 
-<ul class:list={['phone-shots', { single: shots.length === 1 }]}>
+<ul class:list={['phone-shots', { single: shots.length === 1 }]} style={`--n: ${shots.length}`}>
   {
     shots.map((s) => (
       <li>
