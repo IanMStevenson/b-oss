@@ -50,6 +50,23 @@ a:hover {
   text-decoration: underline;
 }
 
+/* Links inside running text: the green is too close to the body colour to tell them apart without
+   an underline (WCAG 1.4.1). Navigation, cards, buttons, the footer and the contents list are
+   recognisable by position and keep the plain style. */
+.prose a:not(.btn),
+.block > p a:not(.btn),
+.lead a {
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 2px;
+}
+.prose a:not(.btn):hover,
+.block > p a:not(.btn):hover,
+.lead a:hover {
+  color: var(--green-700);
+  text-decoration-thickness: 2px;
+}
+
 img {
   max-width: 100%;
   display: block;
