@@ -4,6 +4,7 @@
 // UTC time helpers. Samples are 15-minute slots; "days" are UTC days everywhere (the page says so).
 
 export const INTERVAL_MS = 15 * 60 * 1000;
+export const HOUR_MS = 60 * 60 * 1000;
 export const DAY_MS = 24 * 60 * 60 * 1000;
 export const SLOTS_PER_DAY = DAY_MS / INTERVAL_MS; // 96
 /** Grace after the next cron slot before a client should expect fresher data (cron isn't punctual). */

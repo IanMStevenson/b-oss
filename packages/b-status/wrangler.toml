@@ -11,6 +11,8 @@
 # Manual setup still to do (b-oss#487):
 #   - create the D1 database `b-status`, run src/schema.sql in its Console, and put its id below
 #   - register the "status monitor" API app, set its client id as the Worker secret MONITOR_CLIENT_ID
+#   - Turnstile widget for the page's origin: its secret key is the Worker secret TURNSTILE_SECRET_KEY
+#   - SHARE_HASH_SALT: a long random string (Worker secret) salting the share-limiter IP hash
 #   - the workers.dev URL will be https://b-status.b-oss.workers.dev
 
 name = "b-status"

@@ -18,7 +18,7 @@ export type Totals = [number, number, number];
 export type WindowKey = 'w7' | 'w30' | 'w365' | 'all';
 
 export interface HistoryCache {
-  v: 1;
+  v: 2;
   /** Last folded UTC day; the cache is stale when this isn't `foldedThrough(now)`. */
   through: string;
   first_day: string | null;
@@ -26,6 +26,11 @@ export interface HistoryCache {
   weeks: Record<Component, HistoryEntry[]>;
   /** Sums over folded days only, for windows that end at today (the live days are added later). */
   totals: Record<Component, Record<WindowKey, Totals>>;
+  /** Visitor shares per UTC day and per week (Monday), non-empty only, from folded `share_days`. */
+  shares: {
+    days: Record<Component, [string, number][]>;
+    weeks: Record<Component, [string, number][]>;
+  };
 }
 
 const COMPONENTS: Component[] = ['site', 'api'];
@@ -46,12 +51,13 @@ function empty(through: string): HistoryCache {
       Totals
     >;
   return {
-    v: 1,
+    v: 2,
     through,
     first_day: null,
     days: { site: [], api: [] },
     weeks: { site: [], api: [] },
     totals: { site: totals(), api: totals() },
+    shares: { days: { site: [], api: [] }, weeks: { site: [], api: [] } },
   };
 }
 
@@ -114,6 +120,18 @@ export async function rebuildHistory(db: DbLike, now: number): Promise<HistoryCa
     }
     for (const c of COMPONENTS) cache.weeks[c] = [...weeks[c].values()];
   }
+  const shareRows = (
+    await db
+      .prepare('SELECT day, component, count FROM share_days ORDER BY day')
+      .all<{ day: string; component: Component; count: number }>()
+  ).results;
+  const shareWeeks: Record<Component, Map<string, number>> = { site: new Map(), api: new Map() };
+  for (const r of shareRows) {
+    cache.shares.days[r.component].push([r.day, r.count]);
+    const wk = weekStart(r.day);
+    shareWeeks[r.component].set(wk, (shareWeeks[r.component].get(wk) ?? 0) + r.count);
+  }
+  for (const c of COMPONENTS) cache.shares.weeks[c] = [...shareWeeks[c].entries()];
   await db
     .prepare("INSERT OR REPLACE INTO meta (key, value) VALUES ('history', ?)")
     .bind(JSON.stringify(cache))
@@ -128,7 +146,13 @@ export async function loadHistory(db: DbLike, now: number): Promise<HistoryCache
   }>();
   if (row) {
     const cache = JSON.parse(row.value) as HistoryCache;
-    if (cache.v === 1 && cache.through === foldedThrough(now)) return cache;
+    if (cache.v === 2 && cache.through === foldedThrough(now)) return cache;
   }
   return rebuildHistory(db, now);
+}
+
+/** Forget the cached summary so the next snapshot rebuilds it. Called whenever a fold writes rows,
+ * so the cache can't miss days folded after it was built. One write, only on fold events. */
+export async function invalidateHistory(db: DbLike): Promise<void> {
+  await db.prepare("DELETE FROM meta WHERE key = 'history'").run();
 }
