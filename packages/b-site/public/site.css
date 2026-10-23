@@ -756,6 +756,19 @@ section.block:first-of-type {
     font-size: 13px;
   }
 }
+/* Six nav items: tighten further on the narrowest phones so the bar doesn't scroll sideways. */
+@media (max-width: 420px) {
+  .topbar {
+    padding: 0 10px;
+  }
+  .nav {
+    gap: 0;
+  }
+  .nav a {
+    padding: 8px 6px;
+    font-size: 12.5px;
+  }
+}
 
 /* ---------- Phone screenshots (b-mobile) ---------- */
 .phone-shots {

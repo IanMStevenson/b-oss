@@ -1,5 +1,5 @@
 ---
-export type NavKey = 'home' | 'b-ark' | 'b-mobile' | 'b-api' | 'contact';
+export type NavKey = 'home' | 'b-ark' | 'b-mobile' | 'b-api' | 'about' | 'contact';
 
 interface Props {
   active?: NavKey;
@@ -12,6 +12,7 @@ const links: { key: NavKey; href: string; label: string }[] = [
   { key: 'b-ark', href: 'b-ark.html', label: 'b-ark' },
   { key: 'b-mobile', href: 'b-mobile.html', label: 'b-mobile' },
   { key: 'b-api', href: 'b-api.html', label: 'b-api' },
+  { key: 'about', href: 'about.html', label: 'About' },
   { key: 'contact', href: 'contact.html', label: 'Contact' },
 ];
 ---
