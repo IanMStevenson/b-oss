@@ -245,6 +245,26 @@ Versions before the one that introduced this (1.0.5 and older) still use GitHub'
 the first release carrying the change must be published with **Set as the latest release** ticked, once,
 for those installs to find it.
 
+### Holding a release back (publish as a pre-release first)
+
+When someone else should test the installer before anyone is pointed at it, publish the draft with
+**Set as a pre-release** ticked and **not** "Set as the latest release". A pre-release is ignored by
+the `b-ark latest download` workflow (its `if` skips pre-releases) and by the in-app updater
+(`allowPrerelease = false`), so `b-ark-latest` (the website download link and the update feed for
+current installs) stays on the previous version. The tester downloads the installer from the
+pre-release's own page.
+
+To promote it after sign-off:
+
+1. Edit the release: untick **Set as a pre-release** and tick **Set as the latest release** (the
+   tick matters once, for the first release carrying the `b-ark-latest` feed; see above).
+2. Run the workflow by hand: Actions → **b-ark latest download** → Run workflow with the tag, or
+   `gh workflow run b-ark-latest.yml -f tag=b-ark-v1.0.6`. Changing a pre-release into a release
+   fires GitHub's `released` event, which the workflow does not listen to (it runs on `published`),
+   so it will not start on its own.
+3. Check the run is green and `https://github.com/IanMStevenson/b-oss/releases/download/b-ark-latest/latest.yml`
+   names the new version.
+
 ### 7. Smoke-test from a second machine
 
 Download the published .exe on a different machine (or fresh VM), install,
