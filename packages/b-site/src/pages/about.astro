@@ -1,0 +1,48 @@
+---
+import Layout from '../layouts/Layout.astro';
+import Hero from '../components/Hero.astro';
+import CtaBand from '../components/CtaBand.astro';
+---
+
+<Layout
+  title="About · b-oss"
+  description="About b-oss, the open-source Blipfoto tools project: who started it, and how it is sponsored by Salient Point."
+  nav="about"
+>
+  <Hero label="About hero" icon="b-oss" title="About b-oss">Open source tools for blipfoto.</Hero>
+
+  <section class="block" data-screen-label="About b-oss">
+    <p class="section-eyebrow">The project</p>
+    <div class="prose" style="margin-top: 18px">
+      <p>
+        <b>b-oss</b>&nbsp;= Blipfoto - Open Source Software<br />Open source means anyone can
+        see the source code, build the software themselves, modify it, and contribute
+        improvements back. If you have the skill and the interest, you can join the development
+        team.
+      </p>
+      <p>
+        b-oss was started by <strong>Ian Stevenson</strong> — a technologist with thirty years'
+        experience as a software engineer and running software companies — using Claude Code and
+        other AI tools for implementation. Ian is also one of the directors of blipfoto, but
+        b-oss is a personal project and has no formal relationship with blipfoto.
+      </p>
+    </div>
+  </section>
+
+  <section class="block" data-screen-label="Sponsorship">
+    <p class="section-eyebrow">Sponsorship</p>
+    <div class="prose" style="margin-top: 18px">
+      <p>
+        b-oss is sponsored by <a href="https://salientpoint.co.uk">Salient Point</a>, which covers
+        certain hosting and development costs, and supports app publication.
+      </p>
+      <p>
+        This relationship is discretionary, and Salient Point does not own the code, apps, data
+        or intellectual property for this project. Salient Point has no say over the direction of
+        the project, or on authorship or licensing.
+      </p>
+    </div>
+  </section>
+
+  <CtaBand />
+</Layout>
