@@ -7,7 +7,7 @@ Mac releases are blocked pending a Mac contributor — see
 
 ## Overview
 
-Tag-driven. Pushing a `v*` tag fires
+Tag-driven. Pushing a `b-ark-v*` tag (e.g. `b-ark-v1.0.6`; releases before 1.0.6 were plain `v*`) fires
 [`.github/workflows/release-win.yml`](.github/workflows/release-win.yml),
 which builds the workspaces, packages the NSIS installer with
 [electron-builder](packages/b-ark/electron-builder.json), and uploads
@@ -184,8 +184,8 @@ git push origin main
 ### 5. Tag and push
 
 ```powershell
-git tag -a v0.1.1 -m "b-ark v0.1.1"
-git push origin v0.1.1
+git tag -a b-ark-v0.1.1 -m "b-ark v0.1.1"
+git push origin b-ark-v0.1.1
 ```
 
 In VS Code: Command Palette → **Git: Push Tags** (the default sync
@@ -225,6 +225,18 @@ attached. Click _Edit_ and:
    ```
 
 4. Click **Publish release**.
+
+**The "latest download" link updates itself.** Publishing a `b-ark-v*` release runs the
+`b-ark latest download` workflow (`.github/workflows/b-ark-latest.yml`), which copies the installer
+to a permanent release, `b-ark-latest`, as `b-ark-Setup.exe`. The website, README and user guide link
+to `https://github.com/IanMStevenson/b-oss/releases/download/b-ark-latest/b-ark-Setup.exe`, so nothing
+needs editing per release. Check the workflow run went green (it verifies the SHA-256). If it didn't,
+re-run it from the Actions tab with the tag (e.g. `b-ark-v1.0.6`). Never edit or delete `b-ark-latest` by
+hand. Only b-ark releases (`b-ark-v<number>`, or an old `v<number>`) feed it; b-mobile and pre-releases are ignored.
+
+GitHub's own "Latest" flag is still what the installed app's updater reads (b-oss#512 tracks
+removing that dependency), so keep ticking **Set as the latest release** for b-ark, and create
+b-mobile GitHub releases with it **unticked**.
 
 ### 7. Smoke-test from a second machine
 
