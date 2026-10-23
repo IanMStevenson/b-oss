@@ -7,8 +7,8 @@ name: b-ark latest download
 # GitHub's own "Latest" release is one flag for the whole repo, so it can't mean "latest b-ark" in a
 # monorepo with several released packages. This workflow never reads or sets that flag.
 #
-# Runs when a b-ark release (tag v<number>) is published. b-mobile-v* releases, pre-releases and
-# b-ark-latest itself are ignored. To bootstrap, or to repair, run it by hand with a tag.
+# Runs when a b-ark release (tag b-ark-v<number>; the old v<number> tags too) is published.
+# b-mobile-v* releases, pre-releases and b-ark-latest itself are ignored. To bootstrap, or to repair, run it by hand with a tag.
 
 on:
   release:
@@ -16,7 +16,7 @@ on:
   workflow_dispatch:
     inputs:
       tag:
-        description: 'b-ark release tag to publish as b-ark-latest, e.g. v1.0.5'
+        description: 'b-ark release tag to publish as b-ark-latest, e.g. b-ark-v1.0.6 (or v1.0.5 for an old one)'
         required: true
 
 permissions:
@@ -28,7 +28,7 @@ concurrency:
 
 jobs:
   update:
-    if: github.event_name == 'workflow_dispatch' || (!github.event.release.prerelease && startsWith(github.event.release.tag_name, 'v'))
+    if: github.event_name == 'workflow_dispatch' || (!github.event.release.prerelease && (startsWith(github.event.release.tag_name, 'b-ark-v') || startsWith(github.event.release.tag_name, 'v')))
     runs-on: ubuntu-latest
     env:
       GH_TOKEN: ${{ github.token }}
@@ -37,7 +37,7 @@ jobs:
     steps:
       - name: Check the tag looks like a b-ark release
         run: |
-          [[ "$TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo "::error::'$TAG' is not a b-ark release tag (v<major>.<minor>.<patch>)"; exit 1; }
+          [[ "$TAG" =~ ^(b-ark-)?v[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo "::error::'$TAG' is not a b-ark release tag (b-ark-v<major>.<minor>.<patch>)"; exit 1; }
 
       - name: Download the installer from the release
         run: |

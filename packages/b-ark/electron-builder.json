@@ -34,7 +34,8 @@
     {
       "provider": "github",
       "owner": "IanMStevenson",
-      "repo": "b-oss"
+      "repo": "b-oss",
+      "tagNamePrefix": "b-ark-v"
     }
   ]
 }
