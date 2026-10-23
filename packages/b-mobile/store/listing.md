@@ -60,16 +60,16 @@ GOOD TO KNOW
 b-mobile is an open-source project led by Ian Stevenson, published on Google Play on behalf of the development team by Salient Point Consulting Ltd. It is an independent app built on Blipfoto's public API, and is not affiliated with or endorsed by Blipfoto. Use of Blipfoto is governed by Blipfoto's terms of service.
 
 Source code: https://github.com/IanMStevenson/b-oss
-Privacy policy: https://ianmstevenson.github.io/b-oss/b-mobile-privacy.html
+Privacy policy: https://b-oss.dev/b-mobile-privacy.html
 
 ## Other store fields
 
 - **Category:** Photography. **Tags (chosen from Play's list):** Photography, Social. The Social tag fits ("facilitate social networking, sharing"); Play's Child Safety Standards policy is scoped by declared category, not tags.
 - **Contact email:** b-oss@salientpoint.co.uk (public on the listing; also the trader contact, b-oss#365).
-- **Website:** `https://ianmstevenson.github.io/b-oss/b-mobile.html`.
-- **Privacy policy URL:** `https://ianmstevenson.github.io/b-oss/b-mobile-privacy.html`.
+- **Website:** `https://b-oss.dev/b-mobile.html`.
+- **Privacy policy URL:** `https://b-oss.dev/b-mobile-privacy.html`.
 - **Data deletion URL** (Data safety → Data deletion):
-  `https://ianmstevenson.github.io/b-oss/b-mobile-data-deletion.html`.
+  `https://b-oss.dev/b-mobile-data-deletion.html`.
 - **Price / monetisation:** Free; contains ads: No; in-app purchases: No.
 - **Default language:** English (United Kingdom).
 

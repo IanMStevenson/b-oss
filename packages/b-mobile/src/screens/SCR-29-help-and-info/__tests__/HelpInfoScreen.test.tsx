@@ -73,7 +73,7 @@ describe('HelpInfoScreen hub — works with no account signed in (SCR-29 is not 
     const expected: Record<string, string> = {
       'Blipfoto terms & legal': 'https://www.blipfoto.com/legal/terms',
       'Blipfoto privacy policy': 'https://www.blipfoto.com/legal/privacy',
-      'b-mobile privacy policy': 'https://ianmstevenson.github.io/b-oss/b-mobile-privacy.html',
+      'b-mobile privacy policy': 'https://b-oss.dev/b-mobile-privacy.html',
     };
     for (const [label, url] of Object.entries(expected)) {
       await userEvent.click(screen.getByText(label));
@@ -150,7 +150,7 @@ describe('HelpInfoScreen sections', () => {
     await userEvent.click(screen.getByText('GNU General Public License, version 3 or later'));
     expect(openUrl).toHaveBeenLastCalledWith('https://www.gnu.org/licenses/gpl-3.0.html');
     await userEvent.click(screen.getByText('b-oss website'));
-    expect(openUrl).toHaveBeenLastCalledWith('https://ianmstevenson.github.io/b-oss/');
+    expect(openUrl).toHaveBeenLastCalledWith('https://b-oss.dev/');
   });
 
   it('credits MapTiler and OpenStreetMap (ODbL) for the maps', async () => {

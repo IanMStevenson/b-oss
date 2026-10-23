@@ -16,9 +16,9 @@ safety), `../docs/RELEASING-android.md` (building and uploading).
 | App or game / price | App, free                                                                            |
 | Category            | Photography (not Social: Social brings in Child Safety Standards declarations)       |
 | Contact email       | b-oss@salientpoint.co.uk (public)                                                    |
-| Website             | https://ianmstevenson.github.io/b-oss/b-mobile.html (live when the site page merges) |
-| Privacy policy      | https://ianmstevenson.github.io/b-oss/b-mobile-privacy.html                          |
-| Data deletion URL   | https://ianmstevenson.github.io/b-oss/b-mobile-data-deletion.html                    |
+| Website             | https://b-oss.dev/b-mobile.html |
+| Privacy policy      | https://b-oss.dev/b-mobile-privacy.html                          |
+| Data deletion URL   | https://b-oss.dev/b-mobile-data-deletion.html                    |
 
 ## App access (restricted: needs a sign-in)
 

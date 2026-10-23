@@ -66,7 +66,7 @@ Privacy
 - Your backup is written only to the folder you pick, using your browser's File System
   Access API. b-ark does not run its own servers and collects no analytics.
 - Your sign-in token is encrypted at rest on your device.
-- Full privacy policy: https://ianmstevenson.github.io/b-oss/b-ark-chrome-privacy.html
+- Full privacy policy: https://b-oss.dev/b-ark-chrome-privacy.html
 
 b-ark is an open source project from b-oss and is not affiliated with Blipfoto.
 
@@ -80,7 +80,7 @@ Backs up a user's own Blipfoto journal (entries and images) to a local folder th
 
 ### Privacy policy URL
 
-https://ianmstevenson.github.io/b-oss/b-ark-chrome-privacy.html
+https://b-oss.dev/b-ark-chrome-privacy.html
 
 ### Permission justifications
 
