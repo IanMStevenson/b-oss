@@ -46,6 +46,10 @@ export interface ComposeDraft {
   accountId: string;
   /** SCR-13 only. */
   entryId?: string;
+  /** SCR-13 only: the API's `actions.edit` for this entry — 1 fully editable, 2 only tags and
+   * location (older entries), 0 not editable. Absent is treated as 1. Kept on the draft so a
+   * resumed draft keeps its restriction. */
+  editLevel?: 0 | 1 | 2;
   /** null in SCR-13's "Edit details" mode (no new photo chosen) — the queue item then carries no
    * file, and updateEntry's `image` field is simply omitted. */
   photo: ComposePhoto | null;

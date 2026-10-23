@@ -20,7 +20,11 @@ import type { ComposeDraft } from '../state/composeDraftStore.js';
 
 export async function enqueueDraft(draft: ComposeDraft): Promise<string> {
   const id = randomId();
-  const filePath = draft.photo ? await copyPhotoToAppStorage(draft.photo, id) : null;
+  // An entry Blipfoto only partly lets you edit (actions.edit === 2) takes tags and location only;
+  // the rest is dropped here rather than sent to be silently ignored.
+  const tagsAndLocationOnly = draft.mode === 'edit' && draft.editLevel === 2;
+  const photo = tagsAndLocationOnly ? null : draft.photo;
+  const filePath = photo ? await copyPhotoToAppStorage(photo, id) : null;
 
   // Explicitly typed (rather than inferred) so `display_location` contextually types as the
   // `0 | 1 | undefined` both PublishQueueFields and EditQueueFields expect, without a cast.
@@ -32,9 +36,9 @@ export async function enqueueDraft(draft: ComposeDraft): Promise<string> {
     lon?: number;
     display_location?: 0 | 1;
   } = {
-    title: draft.title.trim() || undefined,
+    title: tagsAndLocationOnly ? undefined : draft.title.trim() || undefined,
     tags: draft.tags.trim() || undefined,
-    description: draft.description || undefined,
+    description: tagsAndLocationOnly ? undefined : draft.description || undefined,
     lat: draft.location ? draft.location.lat : undefined,
     lon: draft.location ? draft.location.lon : undefined,
     display_location: draft.location ? (draft.displayLocation ? 1 : 0) : undefined,
@@ -59,7 +63,7 @@ export async function enqueueDraft(draft: ComposeDraft): Promise<string> {
     kind: draft.mode === 'publish' ? 'publish' : 'edit',
     entryId: draft.entryId,
     filePath,
-    fileMimeType: draft.photo?.mimeType ?? null,
+    fileMimeType: photo?.mimeType ?? null,
     fields,
     status: 'waiting',
     attempts: 0,

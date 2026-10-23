@@ -699,7 +699,11 @@ export function EntryDetailScreen({ entryId, initialReplyToCommentId }: EntryDet
                       onDownload: () => void handleDownloadPhoto(),
                       ...(canWrite
                         ? {
-                            onEdit: () => navigate.push(`/entry/${entryId}/edit`),
+                            // actions.edit 0: Blipfoto won't take any edit (1 full, 2 tags and
+                            // location only — the edit screen narrows itself to that).
+                            ...(actions?.edit !== 0
+                              ? { onEdit: () => navigate.push(`/entry/${entryId}/edit`) }
+                              : {}),
                             onDelete: () => setConfirmDeleteEntry(true),
                           }
                         : {}),

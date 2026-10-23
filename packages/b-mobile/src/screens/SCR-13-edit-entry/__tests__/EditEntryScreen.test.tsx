@@ -139,6 +139,29 @@ describe('EditEntryScreen', () => {
     expect(screen.getByDisplayValue('Sunrise')).toBeDefined();
   });
 
+  it('editLevel 2 (older entry): only tags and location are offered, with an explanation', async () => {
+    fetchEntry.mockResolvedValue({
+      ...(await fetchEntry('e1')),
+      actions: { star: 1, favorite: 1, comment: 1, edit: 2, delete: 1 },
+    });
+    renderScreen();
+    await screen.findByDisplayValue('dawn');
+    expect(screen.getByText(/only allows the tags and location/i)).toBeDefined();
+    expect(screen.queryByDisplayValue('Sunrise')).toBeNull();
+    expect(screen.queryByText('Replace image')).toBeNull();
+    expect(useComposeDraftStore.getState().draft?.editLevel).toBe(2);
+  });
+
+  it('editLevel 0: nothing is editable and Save is disabled', async () => {
+    fetchEntry.mockResolvedValue({
+      ...(await fetchEntry('e1')),
+      actions: { star: 1, favorite: 1, comment: 1, edit: 0, delete: 1 },
+    });
+    renderScreen();
+    await screen.findByText(/doesn't allow this entry to be edited/i);
+    expect(screen.getByText('Save').closest('ion-button')!.hasAttribute('disabled')).toBe(true);
+  });
+
   it('Delete entry confirms, then deletes and returns to Browse', async () => {
     deleteEntry.mockResolvedValue(undefined);
     renderScreen();

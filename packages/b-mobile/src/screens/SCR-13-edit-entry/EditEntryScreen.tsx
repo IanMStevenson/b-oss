@@ -60,6 +60,10 @@ export function EditEntryScreen({ entryId }: EditEntryScreenProps) {
   const [deletingEntry, setDeletingEntry] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
 
+  // Blipfoto only lets part of an older entry be changed (actions.edit): it ignores the rest
+  // without an error, so the form offers only what will actually be saved.
+  const editLevel = draft?.editLevel ?? 1;
+
   const isCurrentDraft = draft?.mode === 'edit' && draft.entryId === entryId;
   // Whether this screen instance has already seeded (or found) its draft — checked once, at the
   // ref's initializer, not tracked as an effect dependency. Save's own clearDraft() nulls the
@@ -83,6 +87,7 @@ export function EditEntryScreen({ entryId }: EditEntryScreenProps) {
           mode: 'edit',
           accountId: activeAccount.id,
           entryId,
+          editLevel: loaded.actions?.edit ?? 1,
           photo: null,
           title: loaded.entry.title,
           tags: loaded.entry.tags.join(', '),
@@ -202,56 +207,78 @@ export function EditEntryScreen({ entryId }: EditEntryScreenProps) {
             </IonText>
           )}
 
+          {editLevel !== 1 && (
+            <IonText color="medium">
+              <p>
+                {editLevel === 2
+                  ? 'Blipfoto only allows the tags and location to be changed on this entry now.'
+                  : "Blipfoto doesn't allow this entry to be edited."}
+              </p>
+            </IonText>
+          )}
+
+          {editLevel === 1 && (
+            <>
+              <IonButton
+                expand="block"
+                fill="outline"
+                onClick={() => navigate.push(`/entry/${entryId}/edit/photo`)}
+              >
+                Replace image
+              </IonButton>
+
+              <TextField
+                label="Title"
+                value={draft.title}
+                maxLength={50}
+                onChange={(title) => patchDraft({ title })}
+              />
+
+              <DescriptionField
+                value={draft.description}
+                onChange={(description) => patchDraft({ description })}
+              />
+            </>
+          )}
+
+          {editLevel !== 0 && (
+            <>
+              <TextField
+                label="Tags (comma-separated)"
+                value={draft.tags}
+                maxLength={255}
+                onChange={(tags) => patchDraft({ tags })}
+              />
+
+              <ToggleRow
+                label="Add to map"
+                checked={draft.location != null}
+                onChange={(checked) => {
+                  if (checked && !draft.location) {
+                    navigate.push('/compose/location');
+                  } else if (!checked && draft.location) {
+                    patchDraft({ location: null, displayLocation: false });
+                  }
+                }}
+              >
+                {draft.location && (
+                  <IonButton
+                    fill="clear"
+                    size="small"
+                    onClick={() => navigate.push('/compose/location')}
+                  >
+                    Change
+                  </IonButton>
+                )}
+              </ToggleRow>
+            </>
+          )}
+
           <IonButton
             expand="block"
-            fill="outline"
-            onClick={() => navigate.push(`/entry/${entryId}/edit/photo`)}
+            disabled={submitting || editLevel === 0}
+            onClick={() => void handleSave()}
           >
-            Replace image
-          </IonButton>
-
-          <TextField
-            label="Title"
-            value={draft.title}
-            maxLength={50}
-            onChange={(title) => patchDraft({ title })}
-          />
-
-          <DescriptionField
-            value={draft.description}
-            onChange={(description) => patchDraft({ description })}
-          />
-
-          <TextField
-            label="Tags (comma-separated)"
-            value={draft.tags}
-            maxLength={255}
-            onChange={(tags) => patchDraft({ tags })}
-          />
-
-          <ToggleRow
-            label="Add to map"
-            checked={draft.location != null}
-            onChange={(checked) => {
-              if (checked && !draft.location) {
-                navigate.push('/compose/location');
-              } else if (!checked && draft.location) {
-                patchDraft({ location: null, displayLocation: false });
-              }
-            }}
-          >
-            {draft.location && (
-              <IonButton
-                fill="clear"
-                size="small"
-                onClick={() => navigate.push('/compose/location')}
-              >
-                Change
-              </IonButton>
-            )}
-          </ToggleRow>
-
-          <IonButton expand="block" disabled={submitting} onClick={() => void handleSave()}>
             {submitting ? <IonSpinner name="dots" /> : 'Save'}
           </IonButton>
 

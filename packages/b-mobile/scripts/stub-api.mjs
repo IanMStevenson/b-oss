@@ -234,7 +234,14 @@ function handle(path, q) {
           year_ahead: null,
         },
         friendships: [],
-        actions: { star: 1, favorite: 1, comment: 1, edit: 1, delete: 1 },
+        // edit: 1 full, 2 tags+location only (entries 8-11), 0 none (12+), like older real entries.
+        actions: {
+          star: 1,
+          favorite: 1,
+          comment: 1,
+          edit: id >= 12 ? 0 : id >= 8 ? 2 : 1,
+          delete: 1,
+        },
         image_urls: {
           lores: img(id, 'thumb'),
           stdres: img(id, 'full'),
