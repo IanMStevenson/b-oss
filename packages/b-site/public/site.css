@@ -739,3 +739,48 @@ section.block:first-of-type {
     font-size: 13px;
   }
 }
+
+/* ---------- Phone screenshots (b-mobile) ---------- */
+.phone-shots {
+  list-style: none;
+  margin: 28px 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 20px;
+}
+.phone-shots.single {
+  display: flex;
+  justify-content: center;
+}
+.phone-shots.single li {
+  width: 100%;
+  max-width: 250px;
+}
+.phone-shots figure {
+  margin: 0;
+  padding: 0;
+}
+.phone-shots img {
+  display: block;
+  width: 100%;
+  height: auto;
+  margin: 0;
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  box-shadow: var(--shadow-soft);
+  background: var(--bg-alt);
+  cursor: default;
+}
+.phone-shots figcaption {
+  margin-top: 10px;
+  font-size: 13px;
+  color: var(--muted);
+  text-align: center;
+  font-style: normal;
+}
+@media (max-width: 720px) {
+  .phone-shots {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}

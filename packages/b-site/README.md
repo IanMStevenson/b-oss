@@ -16,7 +16,7 @@ npm run typecheck -w @b-oss/b-site  # astro check
 
 ```
 src/layouts/Layout.astro   <head>, header, footer and <main> wrapper for every page
-src/components/            Header (nav), Footer, Hero, CtaBand, FeatureItem
+src/components/            Header (nav), Footer, Hero, CtaBand, FeatureItem, PhoneShots
 src/pages/*.astro          one file per page; page body only, wrapped in <Layout>
 public/                    copied verbatim: site.css, site.js, assets/
 ```

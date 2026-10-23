@@ -1,0 +1,309 @@
+---
+import Layout from '../layouts/Layout.astro';
+import Hero from '../components/Hero.astro';
+import PhoneShots from '../components/PhoneShots.astro';
+---
+
+<Layout
+  title="b-mobile User Guide · b-oss"
+  description="How to sign in, browse, post and get notifications with b-mobile, the open-source Blipfoto app for Android."
+  nav="b-mobile"
+  narrow
+>
+  <Hero label="Guide hero" title="b-mobile user guide">A short guide to browsing, posting and getting notified on your Blipfoto journal from your Android phone.</Hero>
+
+  <section class="block" style="border-top: none; padding-top: 0" data-screen-label="Guide body">
+    <nav class="toc" aria-label="Contents">
+      <p class="toc-title">Contents</p>
+      <ol>
+        <li><a href="#get-it">Getting the app</a></li>
+        <li><a href="#sign-in">Signing in</a></li>
+        <li><a href="#menu">Finding your way around</a></li>
+        <li><a href="#browse">Browsing, searching and the map</a></li>
+        <li><a href="#entry">Viewing an entry</a></li>
+        <li><a href="#post">Posting a new entry</a></li>
+        <li><a href="#edit">Editing and deleting your entries</a></li>
+        <li><a href="#notifications">Notifications and reminders</a></li>
+        <li><a href="#accounts">Using more than one account</a></li>
+        <li><a href="#hide-report">Hiding members and reporting</a></li>
+        <li><a href="#settings">Settings</a></li>
+        <li><a href="#limits">What the app can't do</a></li>
+        <li><a href="#privacy">Privacy and deleting your data</a></li>
+      </ol>
+    </nav>
+
+    <div class="prose">
+      <h2 id="get-it">1. Getting the app</h2>
+      <p>
+        b-mobile is free, with no ads and no in-app purchases. It will be available from Google
+        Play; the <a href="b-mobile.html">b-mobile page</a> will link to it when it is. It needs
+        a phone running Android.
+      </p>
+      <p>
+        You can look around without an account. Sign in to see your own entries and the people you
+        follow, and to post, star, favourite and comment.
+      </p>
+
+      <h2 id="sign-in">2. Signing in</h2>
+      <p>
+        Open the menu (the three lines at the top left) and choose <strong>Accounts</strong>, then
+        <strong>Add account</strong>, or tap <strong>Sign in</strong> if you aren't signed in. You
+        sign in on Blipfoto's own sign-in page.
+      </p>
+      <p>You choose what the app is allowed to do:</p>
+      <ul>
+        <li>
+          <strong>Read-write</strong> (the default) lets you post, edit, star, favourite, comment,
+          follow and report.
+        </li>
+        <li>
+          <strong>Read-only</strong> lets you browse as yourself, including your followed journals,
+          but not change anything. Buttons that need write access are hidden or ask you to switch.
+        </li>
+      </ul>
+      <p>
+        The sign-in screen also offers <strong>Get notifications</strong> (see
+        <a href="#notifications">Notifications and reminders</a>) and
+        <strong>Use browser to sign in</strong>. If your usual browser is already signed in to
+        Blipfoto, that is quickest. Turn it off to sign in inside the app instead, which always
+        asks for your password.
+      </p>
+
+      <h2 id="menu">3. Finding your way around</h2>
+      <p>
+        Everything is reached from the menu, opened with the button at the top left. The app
+        opens on Browse.
+      </p>
+      <PhoneShots
+        shots={[{ name: 'menu', alt: 'The b-mobile menu listing New entry, Browse, Search, Map, My profile, Notifications, Comments, Settings, Help and about, Accounts and Hidden members.', caption: 'The menu' }]}
+      />
+      <ul>
+        <li><strong>New entry</strong> to post (read-write accounts only).</li>
+        <li><strong>Browse</strong>, <strong>Search</strong> and <strong>Map</strong>.</li>
+        <li>
+          <strong>My profile</strong>, <strong>Notifications</strong> and
+          <strong>Comments</strong>, with a count of what's unread.
+        </li>
+        <li>
+          <strong>Settings</strong>, <strong>Help &amp; about</strong>, <strong>Accounts</strong>
+          and <strong>Hidden members</strong>.
+        </li>
+      </ul>
+      <p>
+        The Android Back button goes back one screen. On Browse it does nothing, so you can't
+        leave the app by accident. An open menu closes first.
+      </p>
+
+      <h2 id="browse">4. Browsing, searching and the map</h2>
+      <PhoneShots
+        shots={[{ name: 'browse', alt: 'The Browse screen: a grid of photos with tabs along the top.', caption: 'Browse' }]}
+      />
+      <p>
+        <strong>Browse</strong> has tabs along the top: <strong>Recent</strong>,
+        <strong>Following</strong> and <strong>Me</strong> (when you are signed in),
+        <strong>Popular</strong>, <strong>Milestones</strong>, <strong>New Blippers</strong> and
+        <strong>Nearby</strong>. Swipe the tab bar to see them all. Tap a photo to open it.
+      </p>
+      <ul>
+        <li>
+          <strong>Me</strong> shows your own journal, with a calendar and your number of entries.
+        </li>
+        <li>
+          <strong>Nearby</strong> needs your location. If you declined permission, use the
+          <strong>Allow location</strong> button.
+        </li>
+      </ul>
+      <p>
+        <strong>Search</strong> finds entries or people; results update as you type. Tags on an
+        entry open a grid of every entry with that tag.
+      </p>
+      <PhoneShots
+        shots={[{ name: 'map', alt: 'The map showing pins where blips were taken.', caption: 'Map' }]}
+      />
+      <p>
+        <strong>Map</strong> shows blips that have a location. Pan and zoom, and entries for the
+        area you are looking at load as you go. Tap a pin to open a preview of the entry, and use the
+        crosshair button to jump to where you are.
+      </p>
+
+      <h2 id="entry">5. Viewing an entry</h2>
+      <PhoneShots
+        shots={[{ name: 'entry', alt: 'An entry: the photo, title, description, view count, star and favourite buttons and the camera details.', caption: 'An entry' }]}
+      />
+      <p>
+        An entry shows the photo, title, description, tags and camera details, and its comments.
+      </p>
+      <ul>
+        <li>
+          <strong>Star</strong> and <strong>Favourite</strong> are one-way: once given they can't
+          be taken back from the app.
+        </li>
+        <li>
+          Write a <strong>comment</strong>, or <strong>reply</strong> to one. Text you've started
+          typing is kept while you look around the app. You can edit or delete a comment where
+          Blipfoto allows it.
+        </li>
+        <li><strong>Follow</strong> the author from the author block.</li>
+        <li>
+          Use the arrows to go to the previous or next entry, the calendar to jump to a date, and
+          the history button to see the same day in other years (these need you to be signed in).
+        </li>
+        <li>
+          Tap the expand button, or double-tap the photo, for full screen, where you can zoom and
+          pan.
+        </li>
+        <li>
+          On your own entries you can <strong>download</strong> the photo at the size the app
+          shows it.
+        </li>
+      </ul>
+      <p>
+        If you are signed out, tapping star, favourite, comment or follow asks you to sign in
+        first, and takes you back to the same place afterwards.
+      </p>
+
+      <h2 id="post">6. Posting a new entry</h2>
+      <p>
+        Choose <strong>New entry</strong> from the menu. You can <strong>take a photo</strong> or
+        <strong>choose one</strong> from your gallery. You can also share a photo to b-mobile from
+        another app.
+      </p>
+      <ol>
+        <li>
+          Pick the photo. It must be a JPEG or PNG, between 1 KB and 20 MB, with at least one
+          side 600 pixels or longer.
+        </li>
+        <li>
+          Add the <strong>details</strong>: a title (up to 50 characters), a description, tags,
+          and, if you want, a location on the map. The date starts as the date the photo was
+          taken, or today.
+        </li>
+        <li>
+          Tap <strong>Publish</strong>. It is only available when the day is free: Blipfoto
+          allows one entry per day, so the app tells you if you already have one for that date,
+          or if the date is in the future or too far back.
+        </li>
+      </ol>
+      <p>
+        Publishing doesn't wait for the upload. The photo goes into a queue, and the
+        <strong>Uploads</strong> screen shows each item as Waiting, Uploading, Uploaded or
+        Failed. On a poor connection b-mobile retries by itself, several times with longer gaps, and
+        picks up where it left off if the app is closed and reopened. If an item does fail, it shows why, and you can
+        <strong>Retry</strong> it or <strong>Remove</strong> it.
+      </p>
+      <p>
+        If you go back with unsaved changes the app asks whether to discard the entry.
+      </p>
+
+      <h2 id="edit">7. Editing and deleting your entries</h2>
+      <p>
+        Open one of your own entries (read-write accounts only) and choose <strong>Edit</strong>.
+        You can change the title, description, tags and location, and replace the photo. The date
+        can't be changed. Saving returns you to the entry, which shows your changes with "Saving
+        your changes…" until they have gone through. If a save fails, the entry shows what it was
+        before and says so, and you can find the attempt in <strong>Uploads</strong>.
+      </p>
+      <p>
+        <strong>Delete entry</strong> is on the same screen, and asks you to confirm first.
+      </p>
+
+      <h2 id="notifications">8. Notifications and reminders</h2>
+      <p>
+        <strong>Notifications</strong> and <strong>Comments</strong> in the menu are your inboxes
+        on Blipfoto. They show a badge with the number of unread items. Pull down to refresh.
+      </p>
+      <p>
+        You can also get <strong>phone notifications</strong>, which you choose per account in
+        <strong>Settings → Notifications</strong>: one for new comments and one for new
+        notifications. They are optional and off until you turn them on. Android will ask for
+        permission, and for a read-write account the app asks you to sign in once more to allow
+        it. A notification tells you how many new items there are (for example, "2 new
+        comments"), not who they're from, and it can arrive a few minutes after the event.
+        Tapping it opens the right inbox on the right account.
+      </p>
+      <p>
+        <strong>Daily reminder</strong>: in <strong>Settings → General</strong> you can ask for a
+        reminder at a time you choose, for each read-write account. It is skipped on days you
+        have already posted or edited an entry.
+      </p>
+
+      <h2 id="accounts">9. Using more than one account</h2>
+      <p>
+        <strong>Accounts</strong> lists every account you have signed in with, with its mode
+        (read-only or read-write) and whether notifications are on. Tap one to switch to it;
+        switching is instant. With two or more accounts, an account button appears at the top of
+        the screen for quick switching.
+      </p>
+      <ul>
+        <li>
+          An account marked red needs you to sign in again. Tap it to do so.
+        </li>
+        <li>
+          Use an account's menu to switch between read-only and read-write, or to
+          <strong>Disconnect</strong> it, which signs it out of the app and cancels its
+          notifications and queued uploads.
+        </li>
+        <li>
+          By default the app asks which account to use before a star, favourite or comment, when
+          you have more than one. You can turn that off in Settings.
+        </li>
+      </ul>
+
+      <h2 id="hide-report">10. Hiding members and reporting</h2>
+      <p>
+        <strong>Hide user</strong> removes a member from what you see: their entries show as a
+        grey "hidden user" tile, their comments disappear, and they have no pin on the map. The
+        list is kept on your phone only, shared by all your accounts, and never sent anywhere.
+        Manage it from <strong>Hidden members</strong> in the menu, where you can unhide anyone.
+      </p>
+      <p>
+        <strong>Report</strong> is on entries, comments and profiles. With a read-write account
+        you choose at least one reason, add a note if you like, and send it from the app. With a
+        read-only or signed-out account the app explains that reporting needs read-write access.
+        After reporting, it offers to hide the member.
+      </p>
+
+      <h2 id="settings">11. Settings</h2>
+      <p>
+        <strong>Settings</strong> has two parts. The first is your Blipfoto account settings
+        (General, Journal, Profile, Notifications and, for protected journals, Refused
+        followers). They are saved with <strong>Save</strong> and <strong>Cancel</strong> and need
+        you to be signed in. The second is settings for the app on this phone: accounts, the
+        daily reminder, how account pictures look, whether blipfoto.com links open inside the
+        app, and how Browse looks (zoom bar, pagination, margins and photo size). Phone settings
+        take effect straight away.
+      </p>
+
+      <h2 id="limits">12. What the app can't do</h2>
+      <ul>
+        <li>
+          <strong>Photos are standard size.</strong> Extra images and original-size downloads
+          aren't available to apps like b-mobile, so it can't show or save them.
+        </li>
+        <li>
+          <strong>Feeds have a limit.</strong> Each feed stops after a fixed number of entries.
+          Recent, for example, ends at 900.
+        </li>
+        <li>
+          <strong>Notifications are counts</strong>, not details, and may be a few minutes late.
+        </li>
+        <li>
+          <strong>No offline mode.</strong> If a screen can't load, it shows the problem and a
+          <strong>Retry</strong> button. Uploads you've queued are the exception: they wait for
+          the connection and carry on.
+        </li>
+      </ul>
+
+      <h2 id="privacy">13. Privacy and deleting your data</h2>
+      <p>
+        See the <a href="b-mobile-privacy.html">privacy policy</a> for what b-mobile handles and
+        why. <a href="b-mobile-data-deletion.html">Delete your data</a> explains how to remove it
+        and where to delete your Blipfoto account.
+      </p>
+      <p>
+        Found a problem, or something this guide gets wrong? <a href="contact.html">Get in touch</a>,
+        or open an issue on <a href="https://github.com/IanMStevenson/b-oss/issues">GitHub</a>.
+      </p>
+    </div>
+  </section>
+</Layout>
