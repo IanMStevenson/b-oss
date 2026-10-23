@@ -26,7 +26,7 @@ code it: do not try to reproduce any generated markup.
 2. **Privacy line.** The form's "No account needed and no personal information collected. We only
    keep your answers and the time." is inaccurate once the 30-minute limit exists. Use: "No account
    needed. We keep your answers and the time. To limit repeat shares, an anonymous marker is kept
-   for 30 minutes, then deleted." The same applies to the Privacy section of How this works, which
+   for about half an hour, then deleted." The same applies to the Privacy section of How this works, which
    should also not advertise the exact interval as an invitation to share again.
 3. **Footer tagline.** The mockups' "Blipfoto - Open Source Software" under "b-oss" reads as though
    Blipfoto is the product. Use wording that makes the relationship clear (e.g. "Open-source tools
