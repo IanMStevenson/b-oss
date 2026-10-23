@@ -48,7 +48,9 @@ page draws: current state, the 48-hour lanes (as down/no-data _segments_, not 19
 history for a year and weekly history for all time (non-empty days only; the page fills the gaps),
 the uptime table (rounded **down**, so 100 only when nothing was found down), and the incident list
 (one row when one cause took both parts down). It carries `generated_at` and `next_refresh_at` so
-the page knows when fresher data can exist.
+the page knows when fresher data can exist. `now.*.stale` only says the monitor itself has missed
+samples as of the build; a snapshot whose cron has stopped is not rewritten, so **the page must judge
+staleness from `generated_at` against its own clock** (older than two intervals reads as Unknown).
 
 `GET /v1/status` serves it from isolate memory: a page view costs **no D1 reads** in the normal
 case, and `Cache-Control: max-age` is the time remaining. If the cron is late the Worker still holds
