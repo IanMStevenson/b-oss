@@ -1,0 +1,35 @@
+---
+// Portrait phone screenshots with captions: a row of them, or a single centred one. Images are
+// 600px-wide WebP in public/assets/b-mobile/ (resized from the Play store screenshots).
+interface Shot {
+  /** File name in assets/b-mobile/, without extension. */
+  name: string;
+  alt: string;
+  caption: string;
+}
+
+interface Props {
+  shots: Shot[];
+}
+
+const { shots } = Astro.props;
+---
+
+<ul class:list={['phone-shots', { single: shots.length === 1 }]} style={`--n: ${shots.length}`}>
+  {
+    shots.map((s) => (
+      <li>
+        <figure>
+          <img
+            src={`assets/b-mobile/${s.name}.webp`}
+            alt={s.alt}
+            width="600"
+            height="1160"
+            loading="lazy"
+          />
+          <figcaption>{s.caption}</figcaption>
+        </figure>
+      </li>
+    ))
+  }
+</ul>
