@@ -37,3 +37,25 @@ CREATE TABLE IF NOT EXISTS snapshot (
   generated_at     INTEGER NOT NULL,
   next_refresh_at  INTEGER NOT NULL
 );
+
+-- Small key/value store: 'first_ts' (when monitoring began, set once) and 'history' (the cached,
+-- rebuilt-once-a-day summary of folded days, see history.ts).
+CREATE TABLE IF NOT EXISTS meta (
+  key   TEXT PRIMARY KEY,
+  value TEXT NOT NULL
+);
+
+-- One row per UTC day per component, folded from samples older than 48 hours (fold.ts).
+-- Counts, not percentages, so days sum into any window. `unknown_samples` includes slots with no
+-- sample at all. `failed_checks` is JSON {checkId: count of down samples it failed in}.
+CREATE TABLE IF NOT EXISTS day_rows (
+  day                   TEXT NOT NULL,   -- YYYY-MM-DD (UTC)
+  component             TEXT NOT NULL,   -- 'site' | 'api'
+  up_samples            INTEGER NOT NULL,
+  down_samples          INTEGER NOT NULL,
+  unknown_samples       INTEGER NOT NULL,
+  incident_count        INTEGER NOT NULL,
+  longest_incident_min  INTEGER NOT NULL,
+  failed_checks         TEXT NOT NULL,
+  PRIMARY KEY (day, component)
+) WITHOUT ROWID;

@@ -6,9 +6,9 @@ b-oss#476 for the design and the page.
 
 ## Status
 
-Under construction (b-oss#483). The probe, retry, incident tracking and schema exist and are
-tested. Not yet built: the public JSON endpoint and rollup (b-oss#484), visitor reports
-(b-oss#486), and the page (b-oss#485). The API checks need the monitor's client id (b-oss#487) and
+Under construction (b-oss#483, #484). The probe, retry, incident tracking, rollup, snapshot and
+`GET /v1/status` exist and are tested. Not yet built: visitor reports (b-oss#486) and the page
+(b-oss#485). The API checks need the monitor's client id (b-oss#487) and
 are skipped without it.
 
 ## Develop
