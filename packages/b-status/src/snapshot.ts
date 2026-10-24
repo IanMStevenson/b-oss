@@ -12,6 +12,7 @@ import { loadHistory, type HistoryEntry, type Totals, type WindowKey } from './h
 import { MINUTES_PER_SAMPLE } from './fold.js';
 import {
   DAY_MS,
+  HOUR_MS,
   INTERVAL_MS,
   REFRESH_GRACE_MS,
   addDays,
@@ -75,6 +76,15 @@ export interface StatusSnapshot {
   };
   uptime: Record<Component, Record<'h24' | 'd7' | 'd30' | 'd365' | 'all', UptimeWindow>>;
   incidents: SnapshotIncident[];
+  /** Visitor-shared problems per part: unverified, never part of uptime. */
+  shares: {
+    /** [hour start epoch ms, count] for the last 48 hours. */
+    hours: Record<Component, [number, number][]>;
+    /** [UTC day, count] for the last 365 days. */
+    days: Record<Component, [string, number][]>;
+    /** [Monday UTC day, count] for all time. */
+    weeks: Record<Component, [string, number][]>;
+  };
 }
 
 interface LiveSample extends SampleStates {
@@ -134,6 +144,12 @@ export async function buildSnapshot(db: DbLike, now: number): Promise<StatusSnap
       .prepare('SELECT * FROM incidents ORDER BY started_at DESC LIMIT ?')
       .bind(INCIDENT_CAP)
       .all<IncidentRow>()
+  ).results;
+  const liveShares = (
+    await db
+      .prepare('SELECT ts, component FROM shares WHERE ts >= ?')
+      .bind(dayStartMs(addDays(history.through, 1)))
+      .all<{ ts: number; component: Component }>()
   ).results;
   const firstRow = await db.prepare("SELECT value FROM meta WHERE key = 'first_ts'").first<{
     value: string;
@@ -227,6 +243,37 @@ export async function buildSnapshot(db: DbLike, now: number): Promise<StatusSnap
     days[c] = days[c].filter((d) => d[0] >= yearStart);
   }
 
+  // Visitor shares: folded days from the cache, live (unfolded) rows bucketed here.
+  const shares: StatusSnapshot['shares'] = {
+    hours: { site: [], api: [] },
+    days: { site: [], api: [] },
+    weeks: { site: [], api: [] },
+  };
+  const hourFrom = now - 2 * DAY_MS;
+  for (const c of COMPONENTS) {
+    const hours = new Map<number, number>();
+    const liveDayCounts = new Map<string, number>();
+    for (const r of liveShares.filter((x) => x.component === c)) {
+      const d = dayOf(r.ts);
+      liveDayCounts.set(d, (liveDayCounts.get(d) ?? 0) + 1);
+      if (r.ts >= hourFrom) {
+        const h = r.ts - (r.ts % HOUR_MS);
+        hours.set(h, (hours.get(h) ?? 0) + 1);
+      }
+    }
+    shares.hours[c] = [...hours.entries()].sort((a, b) => a[0] - b[0]);
+    shares.days[c] = [
+      ...history.shares.days[c].filter((d) => d[0] >= yearStart),
+      ...[...liveDayCounts.entries()].sort((a, b) => (a[0] < b[0] ? -1 : 1)),
+    ];
+    const weekly = new Map(history.shares.weeks[c]);
+    for (const [d, n] of liveDayCounts) {
+      const wk = weekStart(d);
+      weekly.set(wk, (weekly.get(wk) ?? 0) + n);
+    }
+    shares.weeks[c] = [...weekly.entries()].sort((a, b) => (a[0] < b[0] ? -1 : 1));
+  }
+
   // One row per outage; a single cause that took both components down over the same period is one row.
   const combined: SnapshotIncident[] = [];
   for (const i of incidents) {
@@ -274,6 +321,7 @@ export async function buildSnapshot(db: DbLike, now: number): Promise<StatusSnap
     },
     uptime,
     incidents: combined,
+    shares,
   };
 }
 
