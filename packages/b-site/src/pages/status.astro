@@ -1,4 +1,5 @@
 ---
+import { BLIPFOTO_SUPPORT_REQUEST } from '../blipfoto-links';
 import Layout from '../layouts/Layout.astro';
 import StatusDisclaimer from '../components/StatusDisclaimer.astro';
 ---
@@ -151,7 +152,7 @@ import StatusDisclaimer from '../components/StatusDisclaimer.astro';
               <button type="submit" class="st-btn st-btn-primary" data-submit disabled>Share</button>
               <p class="st-share-note">
                 Shared with other users on this page. It does not go to Blipfoto. To get help,
-                <a href="#">contact Blipfoto Support</a>.
+                <a href={BLIPFOTO_SUPPORT_REQUEST}>contact Blipfoto Support</a>.
               </p>
             </div>
             <p class="st-sub" data-hint>Choose what you’re using and what’s happening, then share.</p>
@@ -164,7 +165,7 @@ import StatusDisclaimer from '../components/StatusDisclaimer.astro';
             <h3 tabindex="-1">You’ve shared a problem recently</h3>
             <p>Thanks, it still counts.</p>
             <p class="st-share-note">
-              Shared problems don’t go to Blipfoto. To get help, <a href="#">contact Blipfoto Support</a>.
+              Shared problems don’t go to Blipfoto. To get help, <a href={BLIPFOTO_SUPPORT_REQUEST}>contact Blipfoto Support</a>.
             </p>
           </div>
           <div class="st-thanks" data-thanks role="dialog" aria-modal="true" aria-labelledby="st-thanks-title" hidden>
@@ -176,7 +177,7 @@ import StatusDisclaimer from '../components/StatusDisclaimer.astro';
                 about your problem so they have the chance to fix it.
               </p>
               <div class="st-thanks-actions">
-                <a class="st-btn st-btn-primary" href="#" target="_blank" rel="noopener">Contact Blipfoto Support ↗</a>
+                <a class="st-btn st-btn-primary" href={BLIPFOTO_SUPPORT_REQUEST} target="_blank" rel="noopener">Contact Blipfoto Support ↗</a>
                 <button type="button" class="st-btn" data-done>Done</button>
               </div>
             </div>
@@ -188,7 +189,7 @@ import StatusDisclaimer from '../components/StatusDisclaimer.astro';
           <p>
             Problems shared here don’t go to Blipfoto. To get something fixed, tell Blipfoto Support.
           </p>
-          <a href="#" target="_blank" rel="noopener">Contact Blipfoto Support ↗</a>
+          <a href={BLIPFOTO_SUPPORT_REQUEST} target="_blank" rel="noopener">Contact Blipfoto Support ↗</a>
         </aside>
       </div>
     </section>
