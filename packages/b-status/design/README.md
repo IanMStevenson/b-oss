@@ -32,8 +32,7 @@ code it: do not try to reproduce any generated markup.
    Blipfoto is the product. Use wording that makes the relationship clear (e.g. "Open-source tools
    for Blipfoto users"). The site-wide fix is tracked separately; the status pages use the shared
    footer, so don't hard-code a tagline on them.
-4. **Placeholders.** Every Blipfoto Support / Contact Blipfoto link is `#` and the Turnstile box is
-   a placeholder. Real links are looked up and verified at build time.
+4. **Support links.** Every "Blipfoto Support" / "contact Blipfoto" link points at Blipfoto's own support-request page (`https://blipfoto.zendesk.com/hc/en-gb/requests/new`), and the disclaimer's "Blipfoto support" at the general help (`https://www.blipfoto.com/help`); both are constants in `packages/b-site/src/blipfoto-links.ts`. The Turnstile box is still a placeholder until its site key exists.
 5. **How this works** makes claims about the implementation (what the Site and API checks do, the
    30-minute limit, and so on). They must be checked against what was actually built, and are not
    to be copied from the mockup unverified.
