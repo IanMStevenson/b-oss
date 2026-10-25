@@ -6,6 +6,7 @@ import react from '@vitejs/plugin-react';
 import { dirname, resolve } from 'node:path';
 import { createRequire } from 'node:module';
 import { readFileSync, existsSync } from 'node:fs';
+import { appVersion, type GeneratedVersion } from './src/appVersion.js';
 
 // @lit/react's package `exports` only offers its browser build under the `browser` condition, which
 // Vitest's Node-side resolution never selects, so the tests alias it by path — see `test` below.
@@ -13,25 +14,22 @@ function litReactBrowserBuild(): string {
   return resolve(dirname(createRequire(import.meta.url).resolve('@lit/react')), '../index.js');
 }
 
-function readGeneratedVersion(): string {
+function readGenerated(): GeneratedVersion | null {
   const path = resolve(__dirname, '../../version.generated.json');
-  if (!existsSync(path)) return '0.0.0-dev';
-  const parsed = JSON.parse(readFileSync(path, 'utf8')) as { version: string };
-  return parsed.version;
+  if (!existsSync(path)) return null;
+  return JSON.parse(readFileSync(path, 'utf8')) as GeneratedVersion;
 }
 
-function readGeneratedRelease(): boolean {
-  const path = resolve(__dirname, '../../version.generated.json');
-  if (!existsSync(path)) return false;
-  const parsed = JSON.parse(readFileSync(path, 'utf8')) as { isRelease?: boolean };
-  return parsed.isRelease ?? false;
-}
+const pkgVersion = (
+  JSON.parse(readFileSync(resolve(__dirname, 'package.json'), 'utf8')) as { version: string }
+).version;
+const generated = readGenerated();
 
 export default defineConfig({
   envDir: resolve(__dirname, '../..'),
   define: {
-    __APP_VERSION__: JSON.stringify(readGeneratedVersion()),
-    __RELEASE__: JSON.stringify(readGeneratedRelease()),
+    __APP_VERSION__: JSON.stringify(appVersion(pkgVersion, generated)),
+    __RELEASE__: JSON.stringify(generated?.isRelease ?? false),
   },
   resolve: {
     dedupe: ['react', 'react-dom', 'react/jsx-runtime'],

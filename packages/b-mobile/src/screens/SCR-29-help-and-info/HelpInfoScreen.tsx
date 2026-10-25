@@ -364,7 +364,7 @@ function Licences() {
 
 function HelpInfoHub() {
   const navigate = useAppNavigate();
-  // __APP_VERSION__ (root CLAUDE.md's Versioning section, env.d.ts's ambient declaration).
+  // __APP_VERSION__: b-mobile's own package.json version (src/appVersion.ts, set in vite.config.ts).
   const version = typeof __APP_VERSION__ === 'string' ? __APP_VERSION__ : '1.0.0';
 
   return (

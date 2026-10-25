@@ -42,8 +42,9 @@ Upload to Play is manual: download the signed bundle from the run and drop it in
   offset exists because 1.0.0 was uploaded as 761 from the old integration branch, whose history
   was squashed into `main` (which then had far fewer commits); `main` is 333 commits at the squash,
   so the next build is 1334 or more.
-- The in-app display version (`version.generated.json`, `RELEASE=1` drops the dev suffix) is a
-  separate thing from these two.
+- The in-app display version (Help & info) is the same `packages/b-mobile/package.json` version,
+  plus the dev suffix (`.{commits}.{build}`) from `version.generated.json` on non-release builds
+  (`RELEASE=1` drops it). See `src/appVersion.ts`.
 
 ## Release checklist
 
