@@ -28,7 +28,8 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { IonPage, IonHeader, IonContent, IonSpinner, IonText } from '@ionic/react';
-import { Map as MapLibreMap, Marker, Popup, setWorkerUrl } from 'maplibre-gl';
+import { Marker, Popup, setWorkerUrl } from 'maplibre-gl';
+import type { Map as MapLibreMap } from 'maplibre-gl';
 import type { ErrorEvent as MapLibreErrorEvent } from 'maplibre-gl';
 import maplibreWorkerUrl from 'maplibre-gl/dist/maplibre-gl-worker.mjs?worker&url';
 import 'maplibre-gl/dist/maplibre-gl.css';
@@ -50,6 +51,7 @@ import { createPin } from '../../components/mapPin.js';
 import { LocateFixed } from 'lucide-react';
 import { AppHeader } from '../../components/AppHeader.js';
 import { getMapStyleUrl, MAP_ATTRIBUTION } from '../../platform/mapTiles.js';
+import { createMap, MAP_FAILED_MESSAGE } from '../../components/createMap.js';
 import { getCurrentPosition } from '../../platform/geolocation.js';
 import { resolveImage } from '../../platform/imageCache.js';
 import { fetchEntriesInBounds } from '../../data/map.js';
@@ -108,6 +110,7 @@ export function MapScreen({ focusedEntryId }: MapScreenProps) {
   const [entriesError, setEntriesError] = useState<string | null>(null);
   const [locationMessage, setLocationMessage] = useState<string | null>(null);
   const [mapError, setMapError] = useState<string | null>(null);
+  const [mapFailed, setMapFailed] = useState(false);
 
   // Memoized on focusedEntryId alone (everything else it reads comes from refs) so the
   // bounds-fetch effect below can safely list it as a dependency without refiring on every
@@ -210,13 +213,27 @@ export function MapScreen({ focusedEntryId }: MapScreenProps) {
       }
       if (cancelled || !containerRef.current) return;
 
-      map = new MapLibreMap({
-        container: containerRef.current,
-        style: url,
-        center,
-        zoom,
-        attributionControl: { customAttribution: MAP_ATTRIBUTION },
-      });
+      map = createMap(
+        {
+          container: containerRef.current,
+          style: url,
+          center,
+          zoom,
+          attributionControl: { customAttribution: MAP_ATTRIBUTION },
+        },
+        {
+          onFailed: () => {
+            if (!cancelled) setMapFailed(true);
+          },
+          onRecovered: () => {
+            if (!cancelled) setMapFailed(false);
+          },
+        },
+      );
+      if (!map) {
+        setEntriesStatus('empty');
+        return;
+      }
       mapRef.current = map;
 
       // Focused mode (reached from a specific entry): show only that one pin, not a general
@@ -360,13 +377,13 @@ export function MapScreen({ focusedEntryId }: MapScreenProps) {
             >
               <LocateFixed size={22} aria-hidden="true" />
             </button>
-            {mapError && (
+            {(mapFailed || mapError) && (
               <div
                 className="ion-padding"
                 style={{ position: 'absolute', top: 0, left: 0, right: 0, background: 'var(--bg)' }}
               >
                 <IonText color="danger">
-                  <p>{mapError}</p>
+                  <p>{mapFailed ? MAP_FAILED_MESSAGE : mapError}</p>
                 </IonText>
               </div>
             )}

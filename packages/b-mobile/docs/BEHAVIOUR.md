@@ -183,6 +183,11 @@ Known Blipfoto API limits: [AppLimitations.md](AppLimitations.md). Paths are rel
 - Rate limit: public browsing (Recent, Popular, Milestones, New Blippers, Nearby, tag, entry and
   people search, map) retries once with the anonymous app credential; identity-bound calls don't.
 - Images are cached on disk by URL for 15 minutes (`platform/imageCache.ts`); data is not cached.
+- Map and location picker (`components/createMap.ts`): if the map can't start (no WebGL2) or loses
+  its WebGL context, they say "The map couldn't be displayed on this device." (cleared if
+  MapLibre restores the context).
+  Not detected: a map that starts but draws only its plain yellow/cream background. Seen with an
+  outdated Android System WebView (111, b-oss#535). Updating it from the Play Store fixed it.
 - Deep links (`flows/deepLinkResolver.ts`): `bmobile://entry/<id>`, `bmobile://user/<name>`; and
   blipfoto.com entry, profile and follow-request URLs only when "Open blipfoto.com links in this
   app" is on (default off).
