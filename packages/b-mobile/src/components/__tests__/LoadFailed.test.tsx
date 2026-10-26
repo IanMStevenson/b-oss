@@ -22,20 +22,20 @@ describe('LoadFailed', () => {
     render(<LoadFailed transport onRefresh={() => {}} />);
     expect(screen.getByText('Checking your connection…')).toBeDefined();
     expect(await screen.findByText('You seem to be offline')).toBeDefined();
-    expect(screen.getByText('Swipe down to try again.')).toBeDefined();
+    expect(screen.getByText('Swipe down or tap below to try again.')).toBeDefined();
   });
 
   it('says Blipfoto is unreachable when a transport failure finds a connection', async () => {
     isOnline.mockResolvedValue(true);
     render(<LoadFailed transport onRefresh={() => {}} />);
     expect(await screen.findByText('Can’t reach Blipfoto')).toBeDefined();
-    expect(screen.getByText('Swipe down to try again.')).toBeDefined();
+    expect(screen.getByText('Swipe down or tap below to try again.')).toBeDefined();
   });
 
   it('shows the error’s own message, without probing, for a non-transport failure', () => {
     render(<LoadFailed transport={false} message="Entry not found" onRefresh={() => {}} />);
     expect(screen.getByText('Entry not found')).toBeDefined();
-    expect(screen.getByText('Swipe down to try again.')).toBeDefined();
+    expect(screen.getByText('Swipe down or tap below to try again.')).toBeDefined();
     expect(isOnline).not.toHaveBeenCalled();
   });
 

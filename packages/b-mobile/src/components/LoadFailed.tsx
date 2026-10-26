@@ -74,7 +74,7 @@ export function LoadFailed({ transport, message, onRefresh }: LoadFailedProps) {
         </div>
         <p className="empty-state-title">{title}</p>
         <p className="empty-state-hint">{hint}</p>
-        <p className="empty-state-hint">Swipe down to try again.</p>
+        <p className="empty-state-hint">Swipe down or tap below to try again.</p>
         <IonButton fill="outline" size="small" onClick={onRefresh} className="load-failed-retry">
           Try again
         </IonButton>
