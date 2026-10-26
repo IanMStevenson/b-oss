@@ -50,7 +50,8 @@ After each probe, the run folds old days and rebuilds **one JSON snapshot** hold
 page draws: current state, the 48-hour lanes (as down/no-data _segments_, not 192 samples), daily
 history for the **last 30 days** (non-empty days only; the page fills the gaps; anything older is
 covered by the uptime table and the incident list),
-the uptime table (rounded **down**, so 100 only when nothing was found down), and the incident list
+the uptime table (rounded **down** to 3 decimal places, so 100 only when nothing was found down; the
+page decides how many to display), and the incident list
 (one row when one cause took both parts down). It carries `generated_at` and `next_refresh_at` so
 the page knows when fresher data can exist. `now.*.stale` only says the monitor itself has missed
 samples as of the build; a snapshot whose cron has stopped is not rewritten, so **the page must judge

@@ -29,6 +29,9 @@ CREATE TABLE IF NOT EXISTS incidents (
   failed_checks TEXT NOT NULL            -- comma-separated check ids
 );
 CREATE INDEX IF NOT EXISTS idx_incidents_open ON incidents (component) WHERE ended_at IS NULL;
+-- The snapshot reads the newest 100 incidents every run: without this it scanned the whole table, and
+-- the table only grows. One extra write per incident, and incidents are rare.
+CREATE INDEX IF NOT EXISTS idx_incidents_started ON incidents (started_at);
 
 -- The page's whole data bundle, rebuilt each run (b-oss#484). A single row (id = 1).
 CREATE TABLE IF NOT EXISTS snapshot (

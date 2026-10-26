@@ -34,7 +34,8 @@ export interface Segment {
 }
 
 export interface UptimeWindow {
-  /** Percent rounded DOWN to 2 places; 100 only when nothing was measured down; null = no data. */
+  /** Percent rounded DOWN to 3 places (so the page can show fewer without ever rounding up); 100
+   * only when nothing was measured down; null = no data. */
   uptime: number | null;
   down_minutes: number;
   incidents: number;
@@ -87,11 +88,12 @@ interface LiveSample extends SampleStates {
   ts: number;
 }
 
-/** Uptime % rounded DOWN, so 100 means nothing at all was found down. */
+/** Uptime % rounded DOWN to 3 decimal places, so 100 means nothing at all was found down. The page
+ * decides how many to show (one, or up to three for 99.9x figures). */
 export function uptimePercent(down: number, known: number): number | null {
   if (known <= 0) return null;
   if (down <= 0) return 100;
-  return Math.floor((10000 * (known - down)) / known) / 100;
+  return Math.floor((100000 * (known - down)) / known) / 1000;
 }
 
 function window(totals: Totals): UptimeWindow {

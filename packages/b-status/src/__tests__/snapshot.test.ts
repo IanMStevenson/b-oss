@@ -20,9 +20,10 @@ const count = async (table: string): Promise<number> =>
 describe('uptimePercent', () => {
   it('rounds down: 100 only when nothing was found down', () => {
     expect(uptimePercent(0, 10)).toBe(100);
-    expect(uptimePercent(1, 100_000)).toBe(99.99);
+    expect(uptimePercent(1, 100_000)).toBe(99.999);
+    expect(uptimePercent(1, 10_000_000)).toBe(99.999); // never rounds up to 100
     expect(uptimePercent(1, 100)).toBe(99);
-    expect(uptimePercent(5, 525)).toBe(99.04);
+    expect(uptimePercent(5, 525)).toBe(99.047);
   });
   it('is null with no checked time', () => {
     expect(uptimePercent(0, 0)).toBeNull();
@@ -154,10 +155,10 @@ describe('buildSnapshot', () => {
   it('computes uptime, rounded down, with unchecked slots left out', async () => {
     const s = await snapshot();
     // 529 slots, 4 unchecked: 525 known, Site down in 3 of them.
-    expect(s.uptime.site.all).toEqual({ uptime: 99.42, down_minutes: 45, incidents: 2 });
+    expect(s.uptime.site.all).toEqual({ uptime: 99.428, down_minutes: 45, incidents: 2 });
     expect(s.uptime.site.d7).toEqual(s.uptime.site.all);
     // Last 24 hours is exact: API down for the final two samples of 97.
-    expect(s.uptime.api.h24).toMatchObject({ uptime: 97.93, down_minutes: 30 });
+    expect(s.uptime.api.h24).toMatchObject({ uptime: 97.938, down_minutes: 30 });
     // The 09:00 photo outage on the 22nd is outside the last 24 hours (cutoff 12:00 on the 22nd).
     expect(s.uptime.site.h24).toMatchObject({ uptime: 100, down_minutes: 0 });
   });
