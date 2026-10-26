@@ -5,6 +5,10 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Fixed
+
+- b-mobile: Help & info showed the b-ark version (e.g. 1.0.5) instead of b-mobile's own (1.0.1).
+
 ## [1.0.6] - 2026-10-23
 
 ### Added
