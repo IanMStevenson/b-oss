@@ -13,11 +13,11 @@
 import { useEffect, useRef, useState } from 'react';
 import { IonPage, IonHeader, IonButton, IonContent, IonText } from '@ionic/react';
 import { LocateFixed } from 'lucide-react';
-import { Map as MapLibreMap } from 'maplibre-gl';
-import type { Marker } from 'maplibre-gl';
+import type { Map as MapLibreMap, Marker } from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import { AppHeader } from '../../components/AppHeader.js';
 import { createPin } from '../../components/mapPin.js';
+import { createMap, MAP_FAILED_MESSAGE } from '../../components/createMap.js';
 import '../../components/ComposeForm.css';
 import { getMapStyleUrl, MAP_ATTRIBUTION } from '../../platform/mapTiles.js';
 import { getCurrentPosition } from '../../platform/geolocation.js';
@@ -38,6 +38,7 @@ export function LocationPickerScreen() {
   const mapRef = useRef<MapLibreMap | null>(null);
   const markerRef = useRef<Marker | null>(null);
   const [locationMessage, setLocationMessage] = useState<string | null>(null);
+  const [mapFailed, setMapFailed] = useState(false);
 
   // Selection lives in local state (not composeDraftStore directly) while the map is open, so
   // Cancel-via-back can discard an in-progress tap without touching the draft — only Done commits.
@@ -67,13 +68,24 @@ export function LocationPickerScreen() {
       : DEFAULT_CENTER;
     const initialZoom = draft?.location ? SELECTED_ZOOM : DEFAULT_ZOOM;
 
-    const map = new MapLibreMap({
-      container: containerRef.current,
-      style: url,
-      center: initialCenter,
-      zoom: initialZoom,
-      attributionControl: { customAttribution: MAP_ATTRIBUTION },
-    });
+    const map = createMap(
+      {
+        container: containerRef.current,
+        style: url,
+        center: initialCenter,
+        zoom: initialZoom,
+        attributionControl: { customAttribution: MAP_ATTRIBUTION },
+      },
+      {
+        onFailed: () => {
+          if (!cancelled) setMapFailed(true);
+        },
+        onRecovered: () => {
+          if (!cancelled) setMapFailed(false);
+        },
+      },
+    );
+    if (!map) return;
     mapRef.current = map;
 
     map.on('load', () => {
@@ -143,6 +155,22 @@ export function LocationPickerScreen() {
               >
                 <LocateFixed size={22} aria-hidden="true" />
               </button>
+              {mapFailed && (
+                <div
+                  className="ion-padding"
+                  style={{
+                    position: 'absolute',
+                    top: 0,
+                    left: 0,
+                    right: 0,
+                    background: 'var(--bg)',
+                  }}
+                >
+                  <IonText color="danger">
+                    <p style={{ margin: 0 }}>{MAP_FAILED_MESSAGE}</p>
+                  </IonText>
+                </div>
+              )}
               {locationMessage && (
                 <div className="map-message">
                   <IonText color="medium">

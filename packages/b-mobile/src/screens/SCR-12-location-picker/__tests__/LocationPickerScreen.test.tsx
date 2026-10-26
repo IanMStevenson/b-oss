@@ -7,7 +7,8 @@
 // test, not MapLibre's rendering.
 
 import { describe, it, expect, afterEach, beforeEach, vi } from 'vitest';
-import { render, screen, cleanup, waitFor } from '@testing-library/react';
+import { render, screen, cleanup, waitFor, act } from '@testing-library/react';
+import { MAP_FAILED_MESSAGE } from '../../../components/createMap.js';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
 import { OverlayProvider } from '../../../app/OverlayProvider.js';
@@ -49,6 +50,8 @@ const { MockMap, MockMarker, mapInstances, markerInstances } = vi.hoisted(() => 
   class MockMapImpl {
     handlers: Record<string, Array<(e: unknown) => void>> = {};
     jumpToCalls: Array<{ center: [number, number]; zoom: number }> = [];
+    /** Set by a test to make the next construction throw, as MapLibre does without WebGL2. */
+    static constructError: Error | null = null;
     constructor(
       public options: {
         center: [number, number];
@@ -56,6 +59,7 @@ const { MockMap, MockMarker, mapInstances, markerInstances } = vi.hoisted(() => 
         attributionControl?: { customAttribution?: string[] };
       },
     ) {
+      if (MockMapImpl.constructError) throw MockMapImpl.constructError;
       mapInstances.push(this);
     }
     on(event: string, handler: (e: unknown) => void) {
@@ -108,6 +112,7 @@ function draft(overrides: Partial<ComposeDraft> = {}): ComposeDraft {
 }
 
 beforeEach(() => {
+  MockMap.constructError = null;
   mapInstances.length = 0;
   markerInstances.length = 0;
   getMapStyleUrl.mockReturnValue('https://example.com/style.json');
@@ -209,5 +214,23 @@ describe('LocationPickerScreen', () => {
     mapInstances[0].trigger('click', { lngLat: { lat: 1, lng: 2 } });
     await waitFor(() => expect(markerInstances.length).toBe(1));
     expect(markerInstances[0].options).toEqual({ color: '#1f4d3a', draggable: true });
+  });
+
+  it('says the map can\u2019t be displayed, instead of a blank area, when it can\u2019t be created (b-oss#537)', () => {
+    MockMap.constructError = Object.assign(new Error('WebGL2 is required'), {
+      name: 'GPUInitializationError',
+    });
+    renderScreen();
+    expect(screen.getByText(MAP_FAILED_MESSAGE)).toBeDefined();
+    expect(mapInstances.length).toBe(0);
+  });
+
+  it('says so when the WebGL context is lost, and clears it once restored (b-oss#537)', async () => {
+    renderScreen();
+    await waitFor(() => expect(mapInstances.length).toBe(1));
+    act(() => mapInstances[0].trigger('webglcontextlost'));
+    expect(screen.getByText(MAP_FAILED_MESSAGE)).toBeDefined();
+    act(() => mapInstances[0].trigger('webglcontextrestored'));
+    expect(screen.queryByText(MAP_FAILED_MESSAGE)).toBeNull();
   });
 });

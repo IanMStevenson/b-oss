@@ -7,6 +7,8 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 
+- b-mobile: the map and location picker say when the map can't be displayed (no WebGL2, or a lost
+  graphics context), instead of showing a blank area.
 - b-mobile: Help & info showed the b-ark version (e.g. 1.0.5) instead of b-mobile's own (1.0.1).
 
 ## [1.0.6] - 2026-10-23

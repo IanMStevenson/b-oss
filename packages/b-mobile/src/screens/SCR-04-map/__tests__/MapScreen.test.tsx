@@ -11,7 +11,8 @@
 // to a WebView-rendered library instead of a Capacitor plugin.
 
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { render, screen, cleanup, waitFor } from '@testing-library/react';
+import { render, screen, cleanup, waitFor, act } from '@testing-library/react';
+import { MAP_FAILED_MESSAGE } from '../../../components/createMap.js';
 import { createTrackedRouter } from '../../../app/routes/test-router.js';
 import { MapScreen } from '../MapScreen.js';
 import { OverlayProvider, OverlayHost } from '../../../app/OverlayProvider.js';
@@ -69,14 +70,17 @@ const { MockMap, MockMarker, MockPopup, mapInstances, markerInstances } = vi.hoi
       zoom: number;
       attributionControl?: { customAttribution?: string[] };
     };
-    handlers: Record<string, Array<() => void>> = {};
+    /** Set by a test to make the next construction throw, as MapLibre does without WebGL2. */
+    static constructError: Error | null = null;
+    handlers: Record<string, Array<(e?: unknown) => void>> = {};
     removed = false;
     jumpToCalls: Array<{ center: [number, number]; zoom: number }> = [];
     constructor(options: MockMapImpl['options']) {
+      if (MockMapImpl.constructError) throw MockMapImpl.constructError;
       this.options = options;
       mapInstances.push(this);
     }
-    on(event: string, handler: () => void) {
+    on(event: string, handler: (e?: unknown) => void) {
       (this.handlers[event] ??= []).push(handler);
       return this;
     }
@@ -98,8 +102,8 @@ const { MockMap, MockMarker, MockPopup, mapInstances, markerInstances } = vi.hoi
     remove() {
       this.removed = true;
     }
-    trigger(event: string): void {
-      (this.handlers[event] ?? []).forEach((h) => h());
+    trigger(event: string, payload?: unknown): void {
+      (this.handlers[event] ?? []).forEach((h) => h(payload));
     }
   }
 
@@ -156,6 +160,7 @@ const entryMarker: MapEntry = {
 };
 
 beforeEach(() => {
+  MockMap.constructError = null;
   mapInstances.length = 0;
   markerInstances.length = 0;
   useHiddenMembersStore.setState({ hidden: [], hydrated: true });
@@ -517,5 +522,48 @@ describe('MapScreen', () => {
     const locate = screen.getByRole('button', { name: 'My location' });
     expect(locate.classList.contains('map-locate')).toBe(true);
     expect(locate.closest('ion-header')).toBeNull();
+  });
+
+  describe('when the map can\u2019t draw (b-oss#537)', () => {
+    function gpuError(): Error {
+      const e = new Error('WebGL2 is required to display this map.');
+      e.name = 'GPUInitializationError';
+      return e;
+    }
+
+    it('says so, instead of a blank area, when the map can\u2019t be created', async () => {
+      const { getMapStyleUrl } = await import('../../../platform/mapTiles.js');
+      vi.mocked(getMapStyleUrl).mockReturnValue('https://example.com/style.json');
+      MockMap.constructError = gpuError();
+      renderScreen();
+      expect(await screen.findByText(MAP_FAILED_MESSAGE)).toBeDefined();
+      expect(mapInstances.length).toBe(0);
+    });
+
+    it('says so when the WebGL context is lost, and clears it once restored', async () => {
+      const { getMapStyleUrl } = await import('../../../platform/mapTiles.js');
+      const { fetchEntriesInBounds } = await import('../../../data/map.js');
+      vi.mocked(getMapStyleUrl).mockReturnValue('https://example.com/style.json');
+      vi.mocked(fetchEntriesInBounds).mockResolvedValue([]);
+      renderScreen();
+      await waitFor(() => expect(mapInstances.length).toBe(1));
+
+      act(() => mapInstances[0].trigger('webglcontextlost'));
+      expect(await screen.findByText(MAP_FAILED_MESSAGE)).toBeDefined();
+      act(() => mapInstances[0].trigger('webglcontextrestored'));
+      await waitFor(() => expect(screen.queryByText(MAP_FAILED_MESSAGE)).toBeNull());
+    });
+
+    it('says so when restoring a lost context fails', async () => {
+      const { getMapStyleUrl } = await import('../../../platform/mapTiles.js');
+      const { fetchEntriesInBounds } = await import('../../../data/map.js');
+      vi.mocked(getMapStyleUrl).mockReturnValue('https://example.com/style.json');
+      vi.mocked(fetchEntriesInBounds).mockResolvedValue([]);
+      renderScreen();
+      await waitFor(() => expect(mapInstances.length).toBe(1));
+
+      act(() => mapInstances[0].trigger('error', { error: gpuError() }));
+      expect(await screen.findByText(MAP_FAILED_MESSAGE)).toBeDefined();
+    });
   });
 });
