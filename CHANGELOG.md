@@ -5,6 +5,13 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [b-mobile 1.0.2] - 2026-10-26
+
+### Changed
+
+- b-mobile: when a browse list can't load, it now says whether you seem to be offline or Blipfoto
+  can't be reached, and offers swipe-down or a Try again button, instead of a bare error line.
+
 ### Fixed
 
 - b-mobile: the map and location picker say when the map can't be displayed (no WebGL2, or a lost
