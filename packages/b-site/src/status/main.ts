@@ -1,11 +1,11 @@
 // The status page's client script. It makes ONE request for the data on load (the snapshot
 // holds everything the page draws), then nothing: no timers, no auto-refresh. The Refresh link only
 // goes to the network once the snapshot says fresher data can exist (`next_refresh_at`), and backs
-// off if the monitor is late. Range buttons, "Show more" and the pop-ups all use the loaded data.
+// off if the monitor is late. "Show more" and the pop-ups all use the loaded data.
 
 import { dayOf } from './dayutil';
 import { h, setChildren } from './dom';
-import { renderHistory, RANGES, type Range } from './history';
+import { renderHistory } from './history';
 import { renderLanes } from './lanes';
 import {
   afterFetch,
@@ -34,7 +34,6 @@ const $ = <T extends HTMLElement>(sel: string): T => {
 let snap: StatusSnapshot | null = null;
 let failedToLoad = false;
 let refresh: RefreshState = initialRefresh;
-let range: Range = '90';
 let shown = INCIDENT_PAGE;
 let note = '';
 let busy = false;
@@ -120,7 +119,7 @@ function renderIncidentList(): void {
 function renderCharts(): void {
   if (!snap) return;
   renderLanes($('[data-lanes]'), snap, Date.now(), mobileQuery.matches);
-  renderHistory($('[data-history]'), snap, range, dayOf(Date.now()));
+  renderHistory($('[data-history]'), snap, dayOf(Date.now()));
 }
 
 async function load(manual: boolean): Promise<void> {
@@ -156,27 +155,7 @@ async function load(manual: boolean): Promise<void> {
   renderAll();
 }
 
-function initRanges(): void {
-  const host = $('[data-ranges]');
-  const buttons = RANGES.map((r) => {
-    const b = h(
-      'button',
-      { type: 'button', class: 'st-range', 'aria-pressed': r.id === range },
-      r.label,
-    );
-    b.addEventListener('click', () => {
-      range = r.id;
-      for (const [i, x] of buttons.entries())
-        x.setAttribute('aria-pressed', String(RANGES[i]?.id === range));
-      if (snap) renderHistory($('[data-history]'), snap, range, dayOf(Date.now()));
-    });
-    return b;
-  });
-  setChildren(host, ...buttons);
-}
-
 function start(): void {
-  initRanges();
   initShare($('[data-share]'), { endpoint: SHARES_URL, siteKey: SITE_KEY });
   renderAll();
 

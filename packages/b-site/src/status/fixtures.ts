@@ -29,30 +29,15 @@ const HOUR = 60 * MIN;
 const DAY = 24 * HOUR;
 const day = (ts: number): string => new Date(ts).toISOString().slice(0, 10);
 
-function monday(d: string): string {
-  const ms = Date.parse(`${d}T00:00:00Z`);
-  const dow = new Date(ms).getUTCDay();
-  return day(ms - ((dow + 6) % 7) * DAY);
-}
-
 type Ev = [daysAgo: number, downMin: number, incidents: number, noDataMin?: number];
 
-/** Daily entries from events, and the weekly roll-up of the same. */
-function history(now: number, events: Ev[]): { days: HistoryEntry[]; weeks: HistoryEntry[] } {
+/** Daily entries from events, for the last 30 UTC days only (the snapshot carries nothing older). */
+function history(now: number, events: Ev[]): HistoryEntry[] {
   const today = Date.parse(`${day(now)}T00:00:00Z`);
-  const days: HistoryEntry[] = events
+  return events
+    .filter(([ago]) => ago >= 0 && ago <= 29)
     .map(([ago, down, inc, nd = 0]): HistoryEntry => [day(today - ago * DAY), down, inc, nd])
     .sort((a, b) => a[0].localeCompare(b[0]));
-  const weeks = new Map<string, HistoryEntry>();
-  for (const [d, down, inc, nd] of days) {
-    const wk = monday(d);
-    const w = weeks.get(wk) ?? [wk, 0, 0, 0];
-    w[1] += down;
-    w[2] += inc;
-    w[3] += nd;
-    weeks.set(wk, w);
-  }
-  return { days, weeks: [...weeks.values()] };
 }
 
 const win = (uptime: number | null, down: number, incidents: number): UptimeWindow => ({
@@ -70,7 +55,6 @@ const perfect = (): Record<UptimeKey, UptimeWindow> => ({
 
 function base(now: number): StatusSnapshot {
   const generated = now - 6 * MIN;
-  const none = (): { days: HistoryEntry[]; weeks: HistoryEntry[] } => ({ days: [], weeks: [] });
   return {
     version: 1,
     generated_at: generated,
@@ -89,11 +73,7 @@ function base(now: number): StatusSnapshot {
       api: { state: 'up', checked_at: generated, failed: [], stale: false },
     },
     last48h: { from: now - 48 * HOUR, to: now, site: [], api: [] },
-    history: {
-      first_day: '2025-03-03',
-      days: { site: none().days, api: none().days },
-      weeks: { site: none().weeks, api: none().weeks },
-    },
+    history: { first_day: '2025-03-03', days: { site: [], api: [] } },
     uptime: { site: perfect(), api: perfect() },
     incidents: [],
   };
@@ -125,7 +105,6 @@ const shares = (
   return {
     hours: { site: h(siteCounts), api: h(apiCounts) },
     days: { site: [[day(now - 15 * DAY), 5]], api: [[day(now - 15 * DAY), 2]] },
-    weeks: { site: [[monday(day(now - 15 * DAY)), 5]], api: [[monday(day(now - 15 * DAY)), 2]] },
   };
 };
 
@@ -142,14 +121,9 @@ const OLD_INCIDENTS = (now: number): SnapshotIncident[] => [
 
 export function makeFixture(name: FixtureName, now: number): StatusSnapshot {
   const s = base(now);
-  const quiet = history(now, [
-    [45, 15, 1],
-    [12, 30, 1],
-  ]);
-  s.history.days.site = quiet.days.slice(0, 1);
-  s.history.weeks.site = quiet.weeks.slice(0, 1);
-  s.history.days.api = quiet.days;
-  s.history.weeks.api = quiet.weeks;
+  // Quiet month: one 30-minute API blip 12 days ago (older incidents are only in the table/list).
+  s.history.days.api = history(now, [[12, 30, 1]]);
+  s.uptime.api.d30 = win(99.93, 30, 1);
   s.incidents = OLD_INCIDENTS(now);
   s.shares = shares(now, [[30, 1]], [[20, 1]]);
 
@@ -183,14 +157,11 @@ export function makeFixture(name: FixtureName, now: number): StatusSnapshot {
         d365: win(99.96, 180, 6),
         all: win(99.97, 180, 6),
       };
-      const h = history(now, [
-        [45, 15, 1],
+      s.history.days.api = history(now, [
         [12, 30, 1],
         [1, 15, 1],
         [0, 60, 1],
       ]);
-      s.history.days.api = h.days;
-      s.history.weeks.api = h.weeks;
       s.shares = shares(
         now,
         [[30, 1]],
@@ -235,34 +206,27 @@ export function makeFixture(name: FixtureName, now: number): StatusSnapshot {
     }
 
     case 'busy': {
-      const h = history(now, [
-        [88, 15, 1],
-        [78, 15, 1],
-        [66, 45, 1],
-        [60, 15, 1],
-        [52, 195, 2],
-        [45, 15, 1],
-        [37, 570, 3],
-        [31, 15, 1],
-        [24, 255, 1],
-        [16, 30, 1],
-        [9, 15, 1],
+      s.history.days.site = history(now, [
+        [28, 15, 1],
+        [25, 45, 1],
+        [22, 195, 2],
+        [19, 15, 1],
+        [16, 570, 3],
+        [13, 15, 1],
+        [10, 255, 1],
+        [8, 30, 1],
+        [5, 15, 1],
         [3, 60, 1],
         [1, 45, 1],
       ]);
-      s.history.days.site = h.days;
-      s.history.weeks.site = h.weeks;
-      const a = history(now, [
-        [75, 15, 1],
-        [33, 0, 0, 120],
-        [58, 30, 1],
-        [37, 570, 2],
-        [20, 15, 1],
+      s.history.days.api = history(now, [
+        [26, 30, 1],
+        [20, 0, 0, 120],
+        [16, 570, 2],
+        [10, 15, 1],
         [6, 30, 1],
         [2, 45, 1],
       ]);
-      s.history.days.api = a.days;
-      s.history.weeks.api = a.weeks;
       s.last48h.site = [
         {
           kind: 'down',
@@ -284,10 +248,17 @@ export function makeFixture(name: FixtureName, now: number): StatusSnapshot {
       ];
       s.uptime.site = {
         h24: win(100, 0, 0),
-        d7: win(99.55, 45, 1),
-        d30: win(99.34, 285, 5),
-        d365: win(99.8, 1020, 13),
-        all: win(99.86, 1140, 14),
+        d7: win(98.8, 120, 3),
+        d30: win(97.08, 1260, 14),
+        d365: win(99.0, 1500, 17),
+        all: win(99.2, 1620, 18),
+      };
+      s.uptime.api = {
+        h24: win(100, 0, 0),
+        d7: win(99.25, 75, 2),
+        d30: win(98.39, 690, 5),
+        d365: win(99.6, 780, 8),
+        all: win(99.7, 810, 9),
       };
       // People shared problems on a day when our checks found nothing.
       s.shares = shares(
@@ -304,12 +275,8 @@ export function makeFixture(name: FixtureName, now: number): StatusSnapshot {
         ],
       );
       s.shares.days.site = [
+        [day(now - 22 * DAY), 3],
         [day(now - 15 * DAY), 5],
-        [day(now - 90 * DAY), 3],
-      ];
-      s.shares.weeks.site = [
-        [monday(day(now - 15 * DAY)), 5],
-        [monday(day(now - 90 * DAY)), 3],
       ];
       return s;
     }
@@ -320,7 +287,6 @@ export function makeFixture(name: FixtureName, now: number): StatusSnapshot {
       s.history = {
         first_day: day(started),
         days: { site: [], api: [] },
-        weeks: { site: [], api: [] },
       };
       s.uptime = {
         site: {

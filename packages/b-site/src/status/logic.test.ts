@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { makeFixture } from './fixtures';
+import { FIXTURE_NAMES, makeFixture } from './fixtures';
 import {
   HISTORY_CEILING_MIN,
   HOUR,
@@ -16,7 +16,7 @@ import {
   laneTicks,
   nextAllowedFetch,
   overallOf,
-  rangeSummary,
+  windowSummary,
   sharedScale,
   uptimeLabel,
   utcDayLabel,
@@ -185,13 +185,13 @@ describe('laneTicks', () => {
   });
 });
 
-describe('history bars', () => {
-  const keys = columnKeys(90, '2026-10-22', null);
+describe('history bars (flat 30 days)', () => {
+  const keys = columnKeys(30, '2026-10-22');
 
-  it('has one column per UTC day, ending today', () => {
-    expect(keys).toHaveLength(90);
+  it('has one column per UTC day for the last 30 days, ending today', () => {
+    expect(keys).toHaveLength(30);
     expect(keys.at(-1)).toBe('2026-10-22');
-    expect(keys[0]).toBe('2026-07-25');
+    expect(keys[0]).toBe('2026-09-23');
   });
 
   it('scales minutes down absolutely against a 4 hour ceiling, with a 3 px minimum', () => {
@@ -225,10 +225,20 @@ describe('history bars', () => {
     expect(HISTORY_CEILING_MIN).toBe(240);
   });
 
-  it('uses Monday-start weeks for all time', () => {
-    const weeks = columnKeys('all', '2026-10-22', '2026-10-07');
-    expect(weeks[0]).toBe('2026-10-05');
-    expect(weeks.at(-1)).toBe('2026-10-19');
+  it('keeps bars slim on a wide chart and visible on a narrow one', () => {
+    const wide = historyBars(keys, [['2026-10-22', 60, 1, 0]], 900, 80).at(-1);
+    expect(wide?.w).toBe(18); // 900/30*0.7 = 21, capped
+    const narrow = historyBars(keys, [['2026-10-22', 60, 1, 0]], 300, 80).at(-1);
+    expect(narrow?.w).toBeCloseTo(7); // 300/30*0.7
+    const tiny = historyBars(keys, [['2026-10-22', 60, 1, 0]], 60, 80).at(-1);
+    expect(tiny?.w).toBe(2);
+  });
+
+  it('crosses a month boundary correctly', () => {
+    const k = columnKeys(30, '2026-03-02');
+    expect(k).toHaveLength(30);
+    expect(k.at(-2)).toBe('2026-03-01');
+    expect(k.at(-3)).toBe('2026-02-28');
   });
 });
 
@@ -240,25 +250,32 @@ describe('shared lane scale', () => {
   });
 });
 
-describe('rangeSummary', () => {
-  it('uses the server window when given one, and no-problems wording when clean', () => {
-    const s = rangeSummary(
-      'the last year',
-      [],
-      [],
-      { uptime: 99.98, down_minutes: 60, incidents: 3 },
-      0,
-    );
-    expect(s).toBe('99.98% over the last year · 1 h down · 3 incidents');
+describe('windowSummary', () => {
+  it('summarises the 30-day window, with plain wording when clean', () => {
     expect(
-      rangeSummary('the last 30 days', [], [], { uptime: 100, down_minutes: 0, incidents: 0 }, 0),
-    ).toBe('100% over the last 30 days · no problems');
+      windowSummary('the last 30 days', { uptime: 99.98, down_minutes: 105, incidents: 3 }),
+    ).toBe('99.98% over the last 30 days · 1 h 45 min down · 3 incidents');
+    expect(windowSummary('the last 30 days', { uptime: 100, down_minutes: 0, incidents: 0 })).toBe(
+      '100% over the last 30 days · no problems',
+    );
+    expect(windowSummary('the last 30 days', { uptime: null, down_minutes: 0, incidents: 0 })).toBe(
+      'No data yet for the last 30 days',
+    );
   });
+});
 
-  it('computes a rounded-down figure from the entries when there is no server window', () => {
-    const keys = columnKeys(90, '2026-10-22', null);
-    const s = rangeSummary('the last 90 days', [['2026-10-22', 15, 1, 0]], keys, null, 90 * 1440);
-    expect(s).toBe('99.98% over the last 90 days · 15 min down · 1 incident');
+describe('fixtures follow the 30-day contract', () => {
+  it('every fixture holds only the last 30 days of history and no weekly data', () => {
+    const cutoff = new Date(NOW - 29 * 86_400_000).toISOString().slice(0, 10);
+    for (const name of FIXTURE_NAMES) {
+      const snap = makeFixture(name, NOW);
+      expect('weeks' in snap.history).toBe(false);
+      expect(snap.shares === undefined || !('weeks' in snap.shares)).toBe(true);
+      for (const c of ['site', 'api'] as const) {
+        for (const [d] of snap.history.days[c]) expect(d >= cutoff).toBe(true);
+        for (const [d] of snap.shares?.days[c] ?? []) expect(d >= cutoff).toBe(true);
+      }
+    }
   });
 });
 

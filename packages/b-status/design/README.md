@@ -53,6 +53,11 @@ code it: do not try to reproduce any generated markup.
 10. **Shared problems** in the mockups are drawn from an optional `shares` field in the snapshot
     (b-oss#486); without it the Shared lanes are simply empty.
 
+11. **History is a fixed 30 days.** There is no 30d/90d/1y/All-time control and no weekly view; the
+    mockups `05b` and the range buttons are superseded. Longer periods are covered by the uptime
+    table and the incident list. With 30 columns the bars are slim (capped at 18 px) and the axis
+    labels a date every 7 days, plus "Today".
+
 ## Files
 
 | File                                             | What it shows                                                                                                                                                                        |

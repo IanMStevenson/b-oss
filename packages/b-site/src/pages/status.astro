@@ -52,13 +52,8 @@ import Layout from '../layouts/Layout.astro';
     </section>
 
     <section class="st-section" aria-labelledby="st-hist-title">
-      <div class="st-hist-title">
-        <div>
-          <h2 id="st-hist-title">History</h2>
-          <p class="st-sub">Time down each day. Empty means no problems.</p>
-        </div>
-        <div class="st-ranges" role="group" aria-label="Time range" data-ranges></div>
-      </div>
+      <h2 id="st-hist-title">History</h2>
+      <p class="st-sub">Time down each day over the last 30 days. Empty means no problems.</p>
       <div data-history></div>
     </section>
 
@@ -89,7 +84,8 @@ import Layout from '../layouts/Layout.astro';
             approximate, to the nearest 15 minutes.
           </li>
           <li>
-            Times of day are UK time. History days, and the uptime figures, count each day from midnight to
+            Times of day are UK time. History shows the last 30 days; longer periods are in the uptime table
+            and incident list. History days, and the uptime figures, count each day from midnight to
             midnight UTC.
           </li>
           <li>

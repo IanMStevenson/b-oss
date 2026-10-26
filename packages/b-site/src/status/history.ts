@@ -1,4 +1,4 @@
-// The "History" graphs: one panel per component, one column per UTC day (weekly for All time),
+// The "History" graphs: one panel per component, one column per UTC day for the last 30 days,
 // column height = minutes down on an absolute scale with a 4-hour ceiling. Perfect days are empty.
 
 import { h, hatch, ringFor, rove, s, setChildren, type MarkEl } from './dom';
@@ -8,28 +8,17 @@ import {
   componentName,
   durationLabel,
   historyBars,
-  rangeSummary,
+  windowSummary,
   sharedScale,
   utcDayLabel,
 } from './logic';
 import { Readout, type Mark } from './readout';
-import type { Component, HistoryEntry, StatusSnapshot, UptimeKey } from './types';
+import type { Component, HistoryEntry, StatusSnapshot } from './types';
 
-export type Range = '30' | '90' | '365' | 'all';
-
-export const RANGES: { id: Range; label: string; words: string }[] = [
-  { id: '30', label: '30 days', words: 'the last 30 days' },
-  { id: '90', label: '90 days', words: 'the last 90 days' },
-  { id: '365', label: '1 year', words: 'the last year' },
-  { id: 'all', label: 'All time', words: 'all time' },
-];
-
-const WINDOW: Record<Range, UptimeKey | null> = {
-  '30': 'd30',
-  '90': null,
-  '365': 'd365',
-  all: 'all',
-};
+/** The History chart is a fixed 30 days; longer periods are in the uptime table and incident list. */
+export const HISTORY_DAYS = 30;
+const WORDS = 'the last 30 days';
+const MAX_BAR_PX = 18;
 const CHART_H = 80;
 const TOP = 18;
 const GAP_H = 8;
@@ -38,54 +27,26 @@ const SHARED_H = 18;
 const COMPONENTS: Component[] = ['site', 'api'];
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
-/** x positions and text for the axis under a history chart. */
-function axisLabels(
-  keys: string[],
-  range: Range,
-  plotW: number,
-): { x: number; text: string; bold?: boolean }[] {
+/** Axis labels for 30 columns: a date every 7 days back from today, and "Today" at the right edge. */
+function axisLabels(keys: string[], plotW: number): { x: number; text: string; bold?: boolean }[] {
   const slot = plotW / keys.length;
   const out: { x: number; text: string; bold?: boolean }[] = [];
-  const first = keys[0];
-  if (!first) return out;
-  const step = range === '365' ? 3 : range === 'all' ? 6 : 1;
-  const lastMonth = (k: string) => Number(k.slice(5, 7)) - 1;
-  keys.forEach((k, i) => {
-    const day = Number(k.slice(8, 10));
-    const month = lastMonth(k);
-    const monthStart = range === 'all' ? day <= 7 : day === 1;
-    if (i > 0 && monthStart && month % step === 0 && (i + 0.5) * slot < plotW - 40) {
-      out.push({
-        x: (i + 0.5) * slot,
-        text:
-          range === 'all' || (range === '365' && month === 0)
-            ? `${MONTHS[month]} ${k.slice(0, 4)}`
-            : (MONTHS[month] ?? ''),
-      });
-    }
-  });
-  const m = MONTHS[Number(first.slice(5, 7)) - 1] ?? '';
-  out.unshift({
-    x: 0,
-    text: range === 'all' ? `${m} ${first.slice(0, 4)}` : `${Number(first.slice(8, 10))} ${m}`,
-  });
-  out.push({ x: plotW, text: range === 'all' ? 'This week' : 'Today', bold: true });
-  return out.filter(
-    (l, i, a) => i === 0 || i === a.length - 1 || Math.abs(l.x - (a[i - 1]?.x ?? -99)) > 44,
-  );
+  for (let back = 28; back >= 7; back -= 7) {
+    const i = keys.length - 1 - back;
+    const k = keys[i];
+    if (k === undefined || i < 0) continue;
+    const m = MONTHS[Number(k.slice(5, 7)) - 1] ?? '';
+    out.push({ x: (i + 0.5) * slot, text: `${Number(k.slice(8, 10))} ${m}` });
+  }
+  out.push({ x: plotW, text: 'Today', bold: true });
+  return out;
 }
 
-function sharedMap(snap: StatusSnapshot, c: Component, range: Range): Map<string, number> {
-  const src = range === 'all' ? snap.shares?.weeks[c] : snap.shares?.days[c];
-  return new Map(src ?? []);
+function sharedMap(snap: StatusSnapshot, c: Component): Map<string, number> {
+  return new Map(snap.shares?.days[c] ?? []);
 }
 
-export function renderHistory(
-  host: HTMLElement,
-  snap: StatusSnapshot,
-  range: Range,
-  today: string,
-): void {
+export function renderHistory(host: HTMLElement, snap: StatusSnapshot, today: string): void {
   const wrap = h('div', { class: 'st-history' });
   const panels: { c: Component; chart: HTMLElement; shared: HTMLElement; summary: HTMLElement }[] =
     [];
@@ -121,26 +82,22 @@ export function renderHistory(
   const plotW = W - GUTTER;
   const marks: Mark[] = [];
   const first = snap.history.first_day;
-  const keys = columnKeys(range === 'all' ? 'all' : Number(range), today, first);
-  const words = RANGES.find((r) => r.id === range)?.words ?? '';
-  const winKey = WINDOW[range];
+  const keys = columnKeys(HISTORY_DAYS, today);
+  const words = WORDS;
 
   for (const { c, chart, shared, summary } of panels) {
-    const entries: HistoryEntry[] = range === 'all' ? snap.history.weeks[c] : snap.history.days[c];
-    const sharesBy = sharedMap(snap, c, range);
+    const entries: HistoryEntry[] = snap.history.days[c];
+    const sharesBy = sharedMap(snap, c);
     const bars = historyBars(keys, entries, plotW, CHART_H);
-    const firstKey = keys.findIndex((k) =>
-      first ? (range === 'all' ? k >= weekOf(first) : k >= first) : false,
-    );
+    const firstKey = keys.findIndex((k) => (first ? k >= first : false));
     const before = first ? (firstKey === -1 ? keys.length : firstKey) : keys.length;
     const monitoredDays = keys.length - before;
 
     // summary line
-    const cover = (range === 'all' ? monitoredDays * 7 : monitoredDays) * 1440;
     summary.textContent =
-      first && monitoredDays > 0 && monitoredDays < 7 && range !== 'all'
+      first && monitoredDays > 0 && monitoredDays < 7
         ? `Collecting data since ${utcDayLabel(first)}`
-        : rangeSummary(words, entries, keys, winKey ? snap.uptime[c][winKey] : null, cover);
+        : windowSummary(words, snap.uptime[c].d30);
 
     const H = TOP + CHART_H + GAP_H + 22;
     const svg = s('svg', { width: W, height: H, viewBox: `0 0 ${W} ${H}`, class: 'st-svg' });
@@ -176,12 +133,9 @@ export function renderHistory(
     let lastLabelX = -Infinity;
     const slot = plotW / keys.length;
     const detail = (key: string): Pick<Mark, 'title' | 'lines' | 'note'> => {
-      const weekly = range === 'all';
       const lines = COMPONENTS.map((x) => {
-        const e = (range === 'all' ? snap.history.weeks[x] : snap.history.days[x]).find(
-          (v) => v[0] === key,
-        );
-        const n = sharedMap(snap, x, range).get(key) ?? 0;
+        const e = snap.history.days[x].find((v) => v[0] === key);
+        const n = sharedMap(snap, x).get(key) ?? 0;
         const down =
           e && e[1] > 0
             ? `${durationLabel(e[1])} down${e[2] ? `, ${e[2]} incident${e[2] === 1 ? '' : 's'}` : ''}`
@@ -192,7 +146,7 @@ export function renderHistory(
       if (e && e[3] > 0) lines.push(`No data for ${durationLabel(e[3])}`);
       const mine = sharesBy.get(key) ?? 0;
       return {
-        title: weekly ? `Week of ${utcDayLabel(key)}` : utcDayLabel(key),
+        title: utcDayLabel(key),
         lines,
         note:
           mine > 0 && !(e && e[1] > 0)
@@ -263,13 +217,14 @@ export function renderHistory(
         if (el) readout.selectEl(el);
       });
 
-    for (const l of axisLabels(keys, range, plotW)) {
-      const anchor = l.x <= 1 ? 'start' : l.x >= plotW - 1 ? 'end' : 'middle';
+    for (const l of axisLabels(keys, plotW)) {
+      // A label too near the left edge is left-aligned there instead of being clipped.
+      const anchor = l.x < 24 ? 'start' : l.x >= plotW - 1 ? 'end' : 'middle';
       svg.append(
         s(
           'text',
           {
-            x: l.x,
+            x: anchor === 'start' ? 0 : l.x,
             y: H - 4,
             'text-anchor': anchor,
             class: l.bold ? 'st-axis-text st-axis-day' : 'st-axis-text',
@@ -306,7 +261,7 @@ export function renderHistory(
     keys.forEach((k, i) => {
       const n = counts[i] ?? 0;
       if (n <= 0) return;
-      const bw = Math.max(2, slot * 0.7);
+      const bw = Math.min(MAX_BAR_PX, Math.max(2, slot * 0.7));
       const bh = Math.max(3, (n / scale) * (SHARED_H - 4));
       const x = (i + 0.5) * slot - bw / 2;
       const bar = s('rect', {
@@ -332,10 +287,4 @@ export function renderHistory(
     shared.append(ssvg);
   }
   readout.setMarks(marks);
-}
-
-function weekOf(day: string): string {
-  const ms = Date.parse(`${day}T00:00:00Z`);
-  const dow = new Date(ms).getUTCDay();
-  return new Date(ms - ((dow + 6) % 7) * 86_400_000).toISOString().slice(0, 10);
 }

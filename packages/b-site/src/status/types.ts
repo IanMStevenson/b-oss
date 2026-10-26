@@ -37,10 +37,8 @@ export interface SnapshotIncident {
 export interface Shares {
   /** [hour-start epoch ms, count], last 48 hours, non-empty hours only. */
   hours: Record<Component, [number, number][]>;
-  /** [UTC 'YYYY-MM-DD', count], last 365 days, non-empty only. */
+  /** [UTC 'YYYY-MM-DD', count], last 30 days, non-empty only. */
   days: Record<Component, [string, number][]>;
-  /** [Monday UTC 'YYYY-MM-DD', count], all time, non-empty only. */
-  weeks: Record<Component, [string, number][]>;
 }
 
 export interface StatusSnapshot {
@@ -56,8 +54,8 @@ export interface StatusSnapshot {
   last48h: { from: number; to: number } & Record<Component, Segment[]>;
   history: {
     first_day: string | null;
+    /** The last 30 UTC days (ending today), non-empty days only; the page fills the gaps. */
     days: Record<Component, HistoryEntry[]>;
-    weeks: Record<Component, HistoryEntry[]>;
   };
   uptime: Record<Component, Record<UptimeKey, UptimeWindow>>;
   incidents: SnapshotIncident[];

@@ -1262,37 +1262,6 @@ p.st-sub {
 .st-axis-row {
   margin-top: 4px;
 }
-.st-hist-title {
-  display: flex;
-  justify-content: space-between;
-  gap: 16px;
-  align-items: flex-start;
-  flex-wrap: wrap;
-}
-.st-ranges {
-  display: inline-flex;
-  border: 1px solid var(--control);
-  border-radius: var(--radius);
-  overflow: hidden;
-}
-.st-range {
-  font: inherit;
-  font-size: 13px;
-  padding: 8px 14px;
-  min-height: 36px;
-  background: #fff;
-  color: var(--ink);
-  border: 0;
-  border-left: 1px solid var(--control);
-  cursor: pointer;
-}
-.st-range:first-child {
-  border-left: 0;
-}
-.st-range[aria-pressed='true'] {
-  background: var(--green-800);
-  color: #fff;
-}
 .st-hist-panel {
   margin-top: 14px;
 }
@@ -1743,15 +1712,6 @@ p.st-sub {
     color: var(--muted-2);
     border-color: var(--line);
     cursor: not-allowed;
-  }
-  .st-ranges {
-    display: grid;
-    grid-template-columns: repeat(4, 1fr);
-    width: 100%;
-  }
-  .st-range {
-    min-height: 44px;
-    padding: 8px 4px;
   }
   .st-hist-head {
     grid-template-columns: minmax(0, 1fr);

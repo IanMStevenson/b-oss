@@ -266,26 +266,12 @@ export interface Bar {
   key: string;
 }
 
-/** The ordered column keys for a history range ('YYYY-MM-DD' days, or Monday week-starts). */
-export function columnKeys(
-  rangeDays: number | 'all',
-  today: string,
-  firstDay: string | null,
-): string[] {
-  const dayMs = (d: string) => Date.parse(`${d}T00:00:00Z`);
-  const fmt = (ms: number) => new Date(ms).toISOString().slice(0, 10);
-  if (rangeDays === 'all') {
-    if (!firstDay) return [];
-    const monday = (d: string) => {
-      const dow = new Date(dayMs(d)).getUTCDay();
-      return fmt(dayMs(d) - ((dow + 6) % 7) * DAY);
-    };
-    const keys: string[] = [];
-    for (let t = dayMs(monday(firstDay)); t <= dayMs(today); t += 7 * DAY) keys.push(fmt(t));
-    return keys;
-  }
+/** The ordered column keys ('YYYY-MM-DD' UTC days): the last `days` days, ending today. */
+export function columnKeys(days: number, today: string): string[] {
+  const todayMs = Date.parse(`${today}T00:00:00Z`);
   const keys: string[] = [];
-  for (let i = rangeDays - 1; i >= 0; i--) keys.push(fmt(dayMs(today) - i * DAY));
+  for (let i = days - 1; i >= 0; i--)
+    keys.push(new Date(todayMs - i * DAY).toISOString().slice(0, 10));
   return keys;
 }
 
@@ -297,11 +283,12 @@ export function historyBars(
   width: number,
   chartHeight: number,
   minBarPx = 2,
+  maxBarPx = 18,
 ): Bar[] {
   if (keys.length === 0 || width <= 0) return [];
   const byKey = new Map(entries.map((e) => [e[0], e]));
   const slot = width / keys.length;
-  const w = Math.max(minBarPx, slot * 0.7);
+  const w = Math.min(maxBarPx, Math.max(minBarPx, slot * 0.7));
   return keys.map((key, index) => {
     const entry = byKey.get(key);
     const minutes = entry?.[1] ?? 0;
@@ -328,37 +315,11 @@ export function historyBars(
 /** Scale for a Shared lane: bars are relative to max(5, busiest slot). */
 export const sharedScale = (counts: number[]): number => Math.max(5, ...counts, 0);
 
-/** Range summary line: "99.98% over the last 90 days · 15 min down · 1 incident". */
-export function rangeSummary(
-  label: string,
-  entries: HistoryEntry[],
-  keys: string[],
-  fallback: UptimeWindow | null,
-  coverMinutes: number,
-): string {
-  let down = 0;
-  let incidents = 0;
-  let noData = 0;
-  const wanted = new Set(keys);
-  for (const e of entries) {
-    if (!wanted.has(e[0])) continue;
-    down += e[1];
-    incidents += e[2];
-    noData += e[3];
-  }
-  let pct: number | null;
-  let downMin = down;
-  let inc = incidents;
-  if (fallback) {
-    pct = fallback.uptime;
-    downMin = fallback.down_minutes;
-    inc = fallback.incidents;
-  } else {
-    const known = coverMinutes - noData;
-    pct = known <= 0 ? null : down <= 0 ? 100 : Math.floor((10000 * (known - down)) / known) / 100;
-  }
-  const incPart = `${inc} incident${inc === 1 ? '' : 's'}`;
-  if (pct === null) return `No data yet for ${label}`;
-  if (downMin === 0 && inc === 0) return `${uptimeLabel(pct)} over ${label} · no problems`;
-  return `${uptimeLabel(pct)} over ${label} · ${durationLabel(downMin)} down · ${incPart}`;
+/** Summary line over a window: "99.98% over the last 30 days · 15 min down · 1 incident". */
+export function windowSummary(words: string, w: UptimeWindow): string {
+  if (w.uptime === null) return `No data yet for ${words}`;
+  if (w.down_minutes === 0 && w.incidents === 0)
+    return `${uptimeLabel(w.uptime)} over ${words} · no problems`;
+  const inc = `${w.incidents} incident${w.incidents === 1 ? '' : 's'}`;
+  return `${uptimeLabel(w.uptime)} over ${words} · ${durationLabel(w.down_minutes)} down · ${inc}`;
 }
