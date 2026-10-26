@@ -178,8 +178,12 @@ Known Blipfoto API limits: [AppLimitations.md](AppLimitations.md). Paths are rel
   525–528 → copy-deck text (`strings/deck.ts` `ERR.*`); otherwise the API's own message.
 - Star 221 / favourite 222 ("already") count as success; 223 → daily favourite limit. Optimistic
   star/favourite/follow roll back on failure. Entry load maps 104 and 202 to their own messages.
-- Feeds show the raw error message plus Retry; no offline mode or banner. Upload failures add
-  detail (HTTP status and body start, 413 "too large", network cause).
+- A feed that fails to load shows `components/LoadFailed` with swipe-down-to-refresh (plus a "Try
+  again" button). A transport failure (`usePagedResource.errorIsTransport`) asks
+  `platform/connectivity.ts` — a DNS-over-HTTPS query to 1.1.1.1, 4 s timeout — and reads "You seem
+  to be offline" or "Can't reach Blipfoto"; any other failure shows the error's own message. No
+  offline mode or banner. Upload failures add detail (HTTP status and body start, 413 "too large",
+  network cause).
 - Rate limit: public browsing (Recent, Popular, Milestones, New Blippers, Nearby, tag, entry and
   people search, map) retries once with the anonymous app credential; identity-bound calls don't.
 - Images are cached on disk by URL for 15 minutes (`platform/imageCache.ts`); data is not cached.

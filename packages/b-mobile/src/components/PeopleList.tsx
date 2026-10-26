@@ -9,8 +9,6 @@
 import { useEffect, useState } from 'react';
 import {
   IonSpinner,
-  IonText,
-  IonButton,
   IonAlert,
   IonRefresher,
   IonRefresherContent,
@@ -29,6 +27,7 @@ import { useOverlay } from '../app/OverlayProvider.js';
 import { useActiveAccount, useCanWrite } from '../state/accountsStore.js';
 import { UserRow } from './UserRow.js';
 import type { BlipUser } from '@b-oss/b-api';
+import { LoadFailed } from './LoadFailed.js';
 
 export interface PeopleListProps {
   username: string;
@@ -102,12 +101,11 @@ export function PeopleList({ username, mode, onReady }: PeopleListProps) {
         </div>
       )}
       {resource.status === 'error' && (
-        <div className="ion-padding">
-          <IonText color="danger">
-            <p>{resource.errorMessage}</p>
-          </IonText>
-          <IonButton onClick={resource.refresh}>Retry</IonButton>
-        </div>
+        <LoadFailed
+          transport={resource.errorIsTransport}
+          message={resource.errorMessage}
+          onRefresh={resource.refresh}
+        />
       )}
       {resource.status === 'empty' && (
         <EmptyState

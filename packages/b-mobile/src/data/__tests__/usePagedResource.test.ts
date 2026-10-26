@@ -9,6 +9,7 @@
 
 import { describe, it, expect, vi } from 'vitest';
 import { renderHook, waitFor, act } from '@testing-library/react';
+import { NetworkError } from '@b-oss/b-api';
 import { usePagedResource } from '../usePagedResource.js';
 import type { Page } from '../usePagedResource.js';
 
@@ -367,5 +368,21 @@ describe('usePagedResource — resuming (b-oss#182)', () => {
     mount1.unmount();
     const mount2 = renderHook(() => usePagedResource(pagesOf, [], PAGE_SIZE));
     expect(mount2.result.current.status).toBe('loading');
+  });
+});
+
+describe('usePagedResource — errorIsTransport (b-oss#539)', () => {
+  it('is true only when the first load got no response at all', async () => {
+    const transport = renderHook(() =>
+      usePagedResource(() => Promise.reject(new NetworkError('offline')), [], PAGE_SIZE),
+    );
+    await waitFor(() => expect(transport.result.current.status).toBe('error'));
+    expect(transport.result.current.errorIsTransport).toBe(true);
+
+    const other = renderHook(() =>
+      usePagedResource(() => Promise.reject(new Error('Entry not found')), [], PAGE_SIZE),
+    );
+    await waitFor(() => expect(other.result.current.status).toBe('error'));
+    expect(other.result.current.errorIsTransport).toBe(false);
   });
 });

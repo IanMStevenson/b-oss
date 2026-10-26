@@ -64,6 +64,7 @@ import { openUrl } from '../../platform/browser.js';
 import type { Page } from '../../data/usePagedResource.js';
 import { BBCodeText } from '@b-oss/b-view';
 import type { EntryIndex } from '@b-oss/b-view';
+import { LoadFailed } from '../../components/LoadFailed.js';
 
 interface ProfileScreenProps {
   username?: string;
@@ -124,12 +125,11 @@ function GridTab({
   }
   if (resource.status === 'error') {
     return (
-      <div className="ion-padding">
-        <IonText color="danger">
-          <p>{resource.errorMessage}</p>
-        </IonText>
-        <IonButton onClick={resource.refresh}>Retry</IonButton>
-      </div>
+      <LoadFailed
+        transport={resource.errorIsTransport}
+        message={resource.errorMessage}
+        onRefresh={resource.refresh}
+      />
     );
   }
   if (resource.status === 'empty') {

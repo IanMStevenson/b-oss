@@ -16,6 +16,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { resumeGet, resumeSet } from './resumeCache.js';
+import { NetworkError } from '@b-oss/b-api';
 import { errorMessageOf } from './errors.js';
 
 export interface Page<T> {
@@ -50,6 +51,8 @@ export interface PagedResourceState<T> {
   status: PagedStatus;
   items: T[];
   errorMessage?: string;
+  /** The failed load got no response at all (offline, timeout), as opposed to an HTTP/API error. */
+  errorIsTransport: boolean;
   hasMore: boolean;
   loadingMore: boolean;
   loadMore: () => void;
@@ -101,6 +104,7 @@ export function usePagedResource<T>(
   const [status, setStatus] = useState<PagedStatus>(snapshot ? 'loaded' : 'loading');
   const [items, setItems] = useState<T[]>(snapshot?.items ?? []);
   const [errorMessage, setErrorMessage] = useState<string | undefined>(undefined);
+  const [errorIsTransport, setErrorIsTransport] = useState(false);
   const [hasMore, setHasMore] = useState(snapshot?.hasMore ?? false);
   const [loadingMore, setLoadingMore] = useState(false);
   const [windowStart, setWindowStart] = useState(snapshot?.windowStart ?? 0);
@@ -150,6 +154,7 @@ export function usePagedResource<T>(
     setHasBefore(false);
     setStatus('loading');
     setErrorMessage(undefined);
+    setErrorIsTransport(false);
     fetchPageRef.current(0).then(
       (page) => {
         if (id !== requestIdRef.current) return;
@@ -161,6 +166,7 @@ export function usePagedResource<T>(
         if (id !== requestIdRef.current) return;
         setStatus('error');
         setErrorMessage(errorMessageOf(err, 'Something went wrong.'));
+        setErrorIsTransport(err instanceof NetworkError);
       },
     );
   }
@@ -260,6 +266,7 @@ export function usePagedResource<T>(
     status,
     items,
     errorMessage,
+    errorIsTransport,
     hasMore,
     loadingMore,
     loadMore,

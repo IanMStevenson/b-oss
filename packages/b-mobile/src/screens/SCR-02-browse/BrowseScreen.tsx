@@ -19,7 +19,6 @@ import {
   IonLabel,
   IonContent,
   IonSpinner,
-  IonText,
   IonButton,
 } from '@ionic/react';
 import { AppHeader } from '../../components/AppHeader.js';
@@ -43,6 +42,7 @@ import { useActiveAccount } from '../../state/accountsStore.js';
 import { useAppNavigate } from '../../app/routes/useAppNavigate.js';
 import { getCurrentPosition } from '../../platform/geolocation.js';
 import type { EntryIndex } from '@b-oss/b-view';
+import { LoadFailed } from '../../components/LoadFailed.js';
 
 type Tab = 'recent' | 'following' | 'justme' | 'popular' | 'milestones' | 'new' | 'nearby';
 
@@ -146,12 +146,11 @@ function ResourceGrid({
   }
   if (resource.status === 'error') {
     return (
-      <div className="ion-padding">
-        <IonText color="danger">
-          <p>{resource.errorMessage}</p>
-        </IonText>
-        <IonButton onClick={resource.refresh}>Retry</IonButton>
-      </div>
+      <LoadFailed
+        transport={resource.errorIsTransport}
+        message={resource.errorMessage}
+        onRefresh={resource.refresh}
+      />
     );
   }
   if (resource.status === 'empty') {

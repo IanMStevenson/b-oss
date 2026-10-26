@@ -71,7 +71,7 @@ describe('RefusedFollowersScreen', () => {
     expect(await screen.findByText('Network down')).toBeDefined();
 
     vi.mocked(fetchBlockedUsers).mockResolvedValue({ items: [], more: false });
-    await userEvent.click(screen.getByText('Retry'));
+    await userEvent.click(screen.getByText('Try again'));
     expect(await screen.findByText('You haven’t refused anyone.')).toBeDefined();
   });
 

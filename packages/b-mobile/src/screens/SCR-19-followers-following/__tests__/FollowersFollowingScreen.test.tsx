@@ -71,7 +71,7 @@ describe('FollowersFollowingScreen', () => {
     expect(await screen.findByText('Network down')).toBeDefined();
 
     vi.mocked(fetchFollowers).mockResolvedValue({ items: [], more: false });
-    await userEvent.click(screen.getByText('Retry'));
+    await userEvent.click(screen.getByText('Try again'));
     expect(await screen.findByText('No followers yet.')).toBeDefined();
   });
 
