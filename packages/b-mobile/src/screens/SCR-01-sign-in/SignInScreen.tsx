@@ -23,7 +23,7 @@
 // owner-checked by the flow; if it comes back as someone else, the account stays signed in without
 // notifications and the mismatch alert offers to redo just that round in the app.
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   IonPage,
   IonHeader,
@@ -70,12 +70,7 @@ export function SignInScreen({ returnTo }: { returnTo?: string } = {}) {
   // nothing to go back to and keeps the menu button (b-oss#195), unless a gated action sent the
   // user here, in which case Back returns to that screen.
   const drilledIn = useActiveAccount() !== null || returnTo !== undefined;
-  // Where a successful sign-in goes. The very first account lands on Browse — dropping a new user
-  // on the Accounts list, with "Add account" under their one row, looked like the sign-in had
-  // failed. Adding a further account returns to the list so the new row confirms it. Captured at
-  // mount: signing in makes the new account active, which would flip a live check mid-flow.
-  const startedSignedIn = useRef(useActiveAccount() !== null).current;
-  const done = returnTo ?? (startedSignedIn ? '/accounts' : '/browse');
+  const done = returnTo ?? '/accounts';
   const { showFirstRunExplainer } = useOverlay();
   const hydrated = useDevicePrefsStore((s) => s.hydrated);
   const seenFirstRunExplainer = useDevicePrefsStore((s) => s.seenFirstRunExplainer);

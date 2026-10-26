@@ -174,10 +174,10 @@ describe('SignInScreen', () => {
     expect(document.querySelector('ion-spinner')).not.toBeNull();
 
     resolveSignIn('acct1');
-    await waitFor(() => expect(replace).toHaveBeenCalledWith('/browse'));
+    await waitFor(() => expect(replace).toHaveBeenCalledWith('/accounts'));
   });
 
-  it('loaded: a successful first sign-in navigates to /browse with the chosen scope/notifications', async () => {
+  it('loaded: a successful sign-in navigates to /accounts with the chosen scope/notifications', async () => {
     signInDeliberate.mockResolvedValue('acct1');
     renderScreen();
 
@@ -197,18 +197,7 @@ describe('SignInScreen', () => {
         expect.anything(), // the beforeServiceRound hook
       ),
     );
-    expect(replace).toHaveBeenCalledWith('/browse');
-  });
-
-  it('adding a further account returns to the Accounts list', async () => {
-    const spy = vi.spyOn(accountsStore, 'useActiveAccount').mockReturnValue({
-      username: 'ian',
-    } as never);
-    signInDeliberate.mockResolvedValue('alice');
-    renderScreen();
-    await userEvent.click(screen.getByText('Continue'));
-    await waitFor(() => expect(replace).toHaveBeenCalledWith('/accounts'));
-    spy.mockRestore();
+    expect(replace).toHaveBeenCalledWith('/accounts');
   });
 
   it('gated sign-in: goes back to the return target instead of /accounts (b-oss#397)', async () => {
@@ -328,7 +317,7 @@ describe('SignInScreen', () => {
     expect(replace).not.toHaveBeenCalled();
     await userEvent.click(screen.getByText('Sign in again'));
 
-    await waitFor(() => expect(replace).toHaveBeenCalledWith('/browse'));
+    await waitFor(() => expect(replace).toHaveBeenCalledWith('/accounts'));
   });
 
   it('the first account can still choose the in-app browser', async () => {
@@ -349,7 +338,7 @@ describe('SignInScreen', () => {
     );
   });
 
-  it('a notifications round for another account explains, and Not now goes to Browse', async () => {
+  it('a notifications round for another account explains, and Not now goes to Accounts', async () => {
     signInDeliberate.mockRejectedValue(new AccountMismatchError('carol', 'mallory'));
     renderScreen();
     await userEvent.click(screen.getByText('Continue'));
@@ -360,7 +349,7 @@ describe('SignInScreen', () => {
     );
     expect(replace).not.toHaveBeenCalled();
     await userEvent.click(screen.getByRole('button', { name: 'OK' }));
-    await waitFor(() => expect(replace).toHaveBeenCalledWith('/browse'));
+    await waitFor(() => expect(replace).toHaveBeenCalledWith('/accounts'));
     expect(changeAccountMode).not.toHaveBeenCalled();
   });
 
@@ -383,7 +372,7 @@ describe('SignInScreen', () => {
         useEmbedded: true,
       }),
     );
-    await waitFor(() => expect(replace).toHaveBeenCalledWith('/browse'));
+    await waitFor(() => expect(replace).toHaveBeenCalledWith('/accounts'));
   });
 
   it("the service's own 403 (owner unknown) gets the same explanation", async () => {

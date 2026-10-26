@@ -126,7 +126,7 @@ Known Blipfoto API limits: [AppLimitations.md](AppLimitations.md). Paths are rel
   gated action or reaches a write- or account-gated route sees "You must be signed in to do this"
   with Sign in now and Cancel. No sign-in starts until they choose Sign in now, which replaces the
   current screen with `/sign-in?return=<that screen>`. After a successful sign-in (and Back from
-  that screen) they go to the return target instead of Browse (or `/accounts` when adding a further account); only in-app paths are accepted
+  that screen) they go to the return target instead of `/accounts`; only in-app paths are accepted
   (`app/routes/signInReturn.ts`), anything else is ignored. A shared photo stays cached, so New entry
   picks it up afterwards. Cancel: nothing on the entry and profile screens, Back on write routes,
   Browse on the inboxes. `/sign-in`: Read-write (default)
