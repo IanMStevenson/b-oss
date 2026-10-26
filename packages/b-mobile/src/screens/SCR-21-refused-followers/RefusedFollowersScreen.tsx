@@ -13,7 +13,6 @@ import {
   IonHeader,
   IonContent,
   IonSpinner,
-  IonText,
   IonButton,
   IonAlert,
   IonToast,
@@ -34,6 +33,7 @@ import { useAccountsStore, useCanWrite } from '../../state/accountsStore.js';
 import { useIsHidden } from '../../state/hiddenMembersStore.js';
 import { UserRow } from '../../components/UserRow.js';
 import type { BlipUser } from '@b-oss/b-api';
+import { LoadFailed } from '../../components/LoadFailed.js';
 
 function RefusedRow({
   user,
@@ -108,12 +108,11 @@ export function RefusedFollowersScreen() {
           </div>
         )}
         {resource.status === 'error' && (
-          <div className="ion-padding">
-            <IonText color="danger">
-              <p>{resource.errorMessage}</p>
-            </IonText>
-            <IonButton onClick={resource.refresh}>Retry</IonButton>
-          </div>
+          <LoadFailed
+            transport={resource.errorIsTransport}
+            message={resource.errorMessage}
+            onRefresh={resource.refresh}
+          />
         )}
         {resource.status === 'empty' && (
           <EmptyState

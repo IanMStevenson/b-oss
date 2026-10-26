@@ -12,7 +12,6 @@ import {
   IonHeader,
   IonContent,
   IonSpinner,
-  IonText,
   IonButton,
   IonAlert,
   IonRefresher,
@@ -33,6 +32,7 @@ import { useAccountsStore } from '../../state/accountsStore.js';
 import { useHiddenMembersStore } from '../../state/hiddenMembersStore.js';
 import { UserRow } from '../../components/UserRow.js';
 import type { BlipUser } from '@b-oss/b-api';
+import { LoadFailed } from '../../components/LoadFailed.js';
 
 export function PendingRequestsScreen() {
   const navigate = useAppNavigate();
@@ -107,12 +107,11 @@ export function PendingRequestsScreen() {
           </div>
         )}
         {resource.status === 'error' && (
-          <div className="ion-padding">
-            <IonText color="danger">
-              <p>{resource.errorMessage}</p>
-            </IonText>
-            <IonButton onClick={resource.refresh}>Retry</IonButton>
-          </div>
+          <LoadFailed
+            transport={resource.errorIsTransport}
+            message={resource.errorMessage}
+            onRefresh={resource.refresh}
+          />
         )}
         {resource.status === 'empty' && (
           <EmptyState

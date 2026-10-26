@@ -5,13 +5,14 @@
 
 import { Tag } from 'lucide-react';
 import { EmptyState } from '../../components/EmptyState.js';
-import { IonPage, IonHeader, IonContent, IonSpinner, IonText, IonButton } from '@ionic/react';
+import { IonPage, IonHeader, IonContent, IonSpinner } from '@ionic/react';
 import { AppHeader } from '../../components/AppHeader.js';
 import { usePagedResource } from '../../data/usePagedResource.js';
 import { fetchTagPage, PAGE_SIZE } from '../../data/entries.js';
 import { EntryGrid } from '../../components/EntryGrid.js';
 import { useAppNavigate } from '../../app/routes/useAppNavigate.js';
 import { useActiveAccount } from '../../state/accountsStore.js';
+import { LoadFailed } from '../../components/LoadFailed.js';
 
 interface TagEntriesScreenProps {
   tag: string;
@@ -41,12 +42,11 @@ export function TagEntriesScreen({ tag }: TagEntriesScreenProps) {
           </div>
         )}
         {resource.status === 'error' && (
-          <div className="ion-padding">
-            <IonText color="danger">
-              <p>{resource.errorMessage}</p>
-            </IonText>
-            <IonButton onClick={resource.refresh}>Retry</IonButton>
-          </div>
+          <LoadFailed
+            transport={resource.errorIsTransport}
+            message={resource.errorMessage}
+            onRefresh={resource.refresh}
+          />
         )}
         {resource.status === 'empty' && (
           <EmptyState

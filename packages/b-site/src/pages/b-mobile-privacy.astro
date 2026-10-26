@@ -17,7 +17,7 @@ import Hero from '../components/Hero.astro';
     style="border-top: none; padding-top: 0"
     data-screen-label="Privacy body"
   >
-    <p><em>Last updated: 11 October 2026</em></p>
+    <p><em>Last updated: 26 October 2026</em></p>
 
     <h2>Who is responsible</h2>
     <p>
@@ -53,6 +53,14 @@ import Hero from '../components/Hero.astro';
       later, photos you download from your own entries are saved to your phone's Pictures folder
       (<code>Pictures/b-mobile</code>) and stay there after uninstalling, like any other saved
       picture.
+    </p>
+
+    <h2>Connection check</h2>
+    <p>
+      When the app can't load something from Blipfoto, it checks whether your phone is online by
+      sending a small DNS lookup to Cloudflare's public resolver (1.1.1.1), so it can tell "you're
+      offline" from "Blipfoto isn't answering". The request carries no account details; Cloudflare
+      sees your IP address, under its own policy. The developer does not receive a copy.
     </p>
 
     <h2>What is sent to Blipfoto</h2>
