@@ -429,3 +429,36 @@ ion-item.nav-item-current::before {
 ion-item.nav-item-current::after {
   bottom: 0;
 }
+
+/* Map chrome on the Dark and Mid themes (b-oss#549). The pin's colour comes from --accent in
+   components/mapPin.ts; its centre dot (MapLibre draws it white) follows --on-accent, which is
+   white in Light, so nothing changes there. */
+.maplibregl-marker svg circle {
+  fill: var(--on-accent);
+}
+
+/* The popup card is MapLibre's own white (the entry-popup class is on the popup's outer box, not the
+   card, hence the descendant selector); take the page surface so its --ink text stays legible. */
+.entry-popup .maplibregl-popup-content {
+  background: var(--bg);
+}
+
+.entry-popup.maplibregl-popup-anchor-top .maplibregl-popup-tip,
+.entry-popup.maplibregl-popup-anchor-top-left .maplibregl-popup-tip,
+.entry-popup.maplibregl-popup-anchor-top-right .maplibregl-popup-tip {
+  border-bottom-color: var(--bg);
+}
+
+.entry-popup.maplibregl-popup-anchor-bottom .maplibregl-popup-tip,
+.entry-popup.maplibregl-popup-anchor-bottom-left .maplibregl-popup-tip,
+.entry-popup.maplibregl-popup-anchor-bottom-right .maplibregl-popup-tip {
+  border-top-color: var(--bg);
+}
+
+.entry-popup.maplibregl-popup-anchor-left .maplibregl-popup-tip {
+  border-right-color: var(--bg);
+}
+
+.entry-popup.maplibregl-popup-anchor-right .maplibregl-popup-tip {
+  border-left-color: var(--bg);
+}

@@ -16,9 +16,21 @@ const { applySystemBarStyles } = vi.hoisted(() => ({
   applySystemBarStyles: vi.fn().mockResolvedValue(undefined),
 }));
 vi.mock('../../platform/systemBars.js', () => ({ applySystemBarStyles }));
+const { setNativeTheme } = vi.hoisted(() => ({
+  setNativeTheme: vi.fn().mockResolvedValue(undefined),
+}));
+vi.mock('../../platform/nativeTheme.js', () => ({ setNativeTheme }));
 
 import indexHtml from '../../../index.html?raw';
-import { isDarkTheme, resolveTheme, applyTheme, initTheme, THEME_STORAGE_KEY } from '../theme.js';
+import { renderHook, act } from '@testing-library/react';
+import {
+  isDarkTheme,
+  resolveTheme,
+  applyTheme,
+  initTheme,
+  useResolvedTheme,
+  THEME_STORAGE_KEY,
+} from '../theme.js';
 import { useDevicePrefsStore } from '../../state/devicePrefsStore.js';
 
 describe('resolveTheme', () => {
@@ -49,6 +61,7 @@ describe('applyTheme / initTheme', () => {
     localStorage.clear();
     delete document.documentElement.dataset.theme;
     applySystemBarStyles.mockClear();
+    setNativeTheme.mockClear();
     useDevicePrefsStore.setState({ theme: 'system' });
     systemDark = false;
     onChange = null;
@@ -88,6 +101,26 @@ describe('applyTheme / initTheme', () => {
     useDevicePrefsStore.getState().setTheme('mid');
     expect(document.documentElement.dataset.theme).toBe('mid');
     expect(localStorage.getItem(THEME_STORAGE_KEY)).toBe('mid');
+  });
+
+  it('tells the native side the stored preference at startup and on every change', () => {
+    localStorage.setItem(THEME_STORAGE_KEY, 'mid');
+    initTheme();
+    expect(setNativeTheme).toHaveBeenLastCalledWith('mid');
+    useDevicePrefsStore.getState().setTheme('light');
+    expect(setNativeTheme).toHaveBeenLastCalledWith('light');
+  });
+
+  it('reports the drawn theme to subscribers (the map re-creates itself on a change)', () => {
+    const seen: string[] = [];
+    const { result, unmount } = renderHook(() => useResolvedTheme());
+    seen.push(result.current);
+    act(() => applyTheme('dark'));
+    seen.push(result.current);
+    act(() => applyTheme('mid'));
+    seen.push(result.current);
+    unmount();
+    expect(seen).toEqual(['light', 'dark', 'mid']);
   });
 
   it('follows the phone live only while the setting is System default', () => {
