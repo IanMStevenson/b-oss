@@ -8,6 +8,7 @@ import {
   agoLabel,
   columnKeys,
   durationLabel,
+  failedChecksLabel,
   failedCheckCount,
   outageLength,
   historyBars,
@@ -77,10 +78,10 @@ describe('formatting', () => {
     // 100% already says it: no repeated "No downtime" under every clean figure.
     expect(windowDetail({ uptime: 100, down_minutes: 0, incidents: 0 })).toBe('');
     expect(windowDetail({ uptime: 99.981, down_minutes: 60, incidents: 3 })).toBe(
-      '1 h downtime · 3 incidents',
+      '4 failed checks · 3 incidents',
     );
     expect(windowDetail({ uptime: 99.5, down_minutes: 15, incidents: 1 })).toBe(
-      '15 min downtime · 1 incident',
+      '1 failed check · 1 incident',
     );
     expect(windowDetail({ uptime: null, down_minutes: 0, incidents: 0 })).toBe(
       'Not enough data yet',
@@ -178,6 +179,13 @@ describe('incident titles', () => {
     expect(incidentTitle({ components: ['site', 'api'], failed: ['photo'] })).toBe(
       'Photos not loading',
     );
+  });
+});
+
+describe('failedChecksLabel', () => {
+  it('counts 15-minute samples, never a duration', () => {
+    expect(failedChecksLabel(15)).toBe('1 failed check');
+    expect(failedChecksLabel(45)).toBe('3 failed checks');
   });
 });
 
