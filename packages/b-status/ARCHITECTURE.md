@@ -18,7 +18,8 @@ on no other package. Design decisions and the visual targets are in b-oss#476 an
 2. **State** (`derive.ts`): **Site** = website checks + photo; **API** = API checks + photo. So a
    photo failure turns both down. A component is **Unknown** when none of its own checks ran
    (e.g. before the monitor's API app exists).
-3. **Retry** (`probe.ts`): if anything is down, run once more a few seconds later. A component is
+3. **Retry** (`probe.ts`): if anything is down, run once more later: 30 s for a scheduled check (plenty of wall time), 5 s for a triggered
+   re-check (see below), so a short blip can clear before the confirming attempt. A component is
    recorded down only if it is down on both attempts, so a blip doesn't paint a red sample.
 4. **Store** (`incidents.ts`): one D1 batch writes the sample row and opens, extends or closes
    incidents. An incident starts at the first confirmed-down sample and ends at the first passing
@@ -109,7 +110,7 @@ the later of the snapshot's `generated_at` (last scheduled check) and the `meta`
 A cycle therefore sees at most about three triggered checks, usually none or one. Two reports in the
 same instant from different IPs can both pass the decision (no atomic claim); bounded and accepted.
 
-**What it may record**: it runs the normal `runProbe` (confirm-with-retry), then may only turn an UP
+**What it may record**: it runs the normal `runProbe` (confirm-with-retry, but with a 5 s retry delay rather than the scheduled run's 30 s: `waitUntil` work is capped at about 30 s of wall time after the response, and each attempt can take up to the 10 s timeout), then may only turn an UP
 into a confirmed DOWN, per component, in the **current slot's existing sample**: `UPDATE` that row
 (`retried = 1`, `checks` replaced), open an incident if none is open (`started_at` = the check's time;
 the same `incidentStatements` as the scheduled run) and rebuild the snapshot (which recomputes the
