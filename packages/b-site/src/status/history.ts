@@ -8,6 +8,7 @@ import {
   componentName,
   componentThe,
   durationLabel,
+  failedChecksLabel,
   historyBars,
   sharedScale,
   utcDayLabel,
@@ -144,7 +145,7 @@ export function renderHistory(host: HTMLElement, snap: StatusSnapshot, today: st
         const n = sharedMap(snap, x).get(key) ?? 0;
         const down =
           e && e[1] > 0
-            ? `${durationLabel(e[1])} downtime${e[2] ? `, ${e[2]} incident${e[2] === 1 ? '' : 's'}` : ''}`
+            ? `${failedChecksLabel(e[1])}${e[2] ? `, ${e[2]} incident${e[2] === 1 ? '' : 's'}` : ''}`
             : 'no downtime';
         return `${componentName(x)}: ${down}${n > 0 ? `, ${n} user report${n === 1 ? '' : 's'}` : ''}`;
       });
@@ -175,7 +176,7 @@ export function renderHistory(host: HTMLElement, snap: StatusSnapshot, today: st
           height: b.h,
           class: 'st-bar',
           role: 'button',
-          'aria-label': `${utcDayLabel(b.key)}: ${durationLabel(b.minutes)} downtime`,
+          'aria-label': `${utcDayLabel(b.key)}: ${failedChecksLabel(b.minutes)}`,
         });
         group.append(rect);
         if (b.clipped) {

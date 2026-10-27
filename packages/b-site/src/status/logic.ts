@@ -89,6 +89,13 @@ export function failedCheckCount(start: number, end: number | null, lastCheck: n
   return Math.max(1, Math.round(span / (15 * MINUTE)) + (end === null ? 1 : 0));
 }
 
+/** "1 failed check", "4 failed checks": minutes of downtime counted in 15-minute samples. Used where
+ * several outages are summed, where a duration would claim more precision than one reading gives. */
+export function failedChecksLabel(minutes: number): string {
+  const n = Math.max(1, Math.round(minutes / 15));
+  return `${n} failed check${n === 1 ? '' : 's'}`;
+}
+
 /** What to say about how long an outage lasted. Checks are 15 minutes apart, so n failed checks in a
  * row mean real downtime between (n-1) and (n+1) intervals: one check is no duration at all, two or
  * three are a floor ("More than 15 min"), and from four the spread is small enough for "About". */
@@ -133,7 +140,7 @@ export function windowDetail(w: UptimeWindow): string {
   // 100% already says "no downtime"; only spell out downtime when there is some.
   if (w.down_minutes === 0 && w.incidents === 0) return '';
   const inc = `${w.incidents} incident${w.incidents === 1 ? '' : 's'}`;
-  return `${durationLabel(w.down_minutes)} downtime · ${inc}`;
+  return `${failedChecksLabel(w.down_minutes)} · ${inc}`;
 }
 
 /** "6 minutes ago", "about 4 hours ago". */
