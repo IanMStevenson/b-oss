@@ -39,23 +39,31 @@ async function seeded() {
 beforeEach(() => resetServeCache());
 
 describe('GET /v1/status', () => {
-  it('serves the stored snapshot with max-age set to the time remaining', async () => {
+  it('serves the stored snapshot, with max-age capped at a minute', async () => {
     const { db, snap } = await seeded();
     const res = await handleStatus(req(), db, NOW + 60_000);
     expect(res.status).toBe(200);
     expect(await res.json()).toEqual(JSON.parse(JSON.stringify(snap)));
-    const remaining = Math.floor((snap.next_refresh_at - (NOW + 60_000)) / 1000);
-    expect(res.headers.get('Cache-Control')).toBe(`public, max-age=${remaining}`);
+    // About 14 minutes remain to the next probe, but shares can change the data sooner.
+    expect(res.headers.get('Cache-Control')).toBe('public, max-age=60');
   });
 
-  it('costs no D1 round trip after the first request, until the snapshot is due', async () => {
+  it('advertises the time remaining when that is under a minute', async () => {
+    const { db, snap } = await seeded();
+    const res = await handleStatus(req(), db, snap.next_refresh_at - 30_000);
+    expect(res.headers.get('Cache-Control')).toBe('public, max-age=30');
+  });
+
+  it('costs no D1 round trip after the first request, and looks again at most once a minute', async () => {
     const { db } = await seeded();
     const c = counted(db);
     await handleStatus(req(), c.db, NOW + 1000);
     expect(c.reads()).toBe(1);
     await handleStatus(req(), c.db, NOW + 2000);
-    await handleStatus(req(), c.db, NOW + 600_000);
+    await handleStatus(req(), c.db, NOW + 59_000);
     expect(c.reads()).toBe(1);
+    await handleStatus(req(), c.db, NOW + 62_000);
+    expect(c.reads()).toBe(2);
   });
 
   it('when the cron is late, holds the old snapshot for a minute instead of reading D1 per request', async () => {

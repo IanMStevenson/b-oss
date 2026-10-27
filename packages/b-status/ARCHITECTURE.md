@@ -58,8 +58,8 @@ samples as of the build; a snapshot whose cron has stopped is not rewritten, so 
 staleness from `generated_at` against its own clock** (older than two intervals reads as Unknown).
 
 `GET /v1/status` serves it from isolate memory: a page view costs **no D1 reads** in the normal
-case, and `Cache-Control: max-age` is the time remaining. If the cron is late the Worker still holds
-the old snapshot for a minute before looking again. Only the page's own origins get CORS headers.
+case. An instance looks in D1 at most once a minute (that minute is also how fast a share reaches
+everyone), and `Cache-Control: max-age` is the time remaining, capped at 60 seconds. Only the page's own origins get CORS headers.
 
 The once-a-day history rebuild reads only the sparse `day_exceptions` rows and the incidents, so it
 stays small however many years accumulate (b-oss#510).
@@ -82,6 +82,13 @@ half an hour" in user-facing copy, not "exactly 30 minutes then deleted".
 Whole days older than 48 hours fold into `share_days` counts and the raw rows (with their tags) are
 deleted. The snapshot carries hourly counts (48 hours) and daily counts (30 days) per part. The client should send the POST as `text/plain` so it is a simple request with
 no CORS preflight.
+
+**A share is counted at once.** After the share is stored, the Worker patches the stored snapshot's
+hourly and daily share counts (one row read, one write; the probe data and `next_refresh_at` are left
+alone), forgets its own in-memory copy, and returns the updated counts in the 201 response so the
+poster's page can redraw without another request. Other instances pick it up within a minute. The
+next probe rebuilds the snapshot from the `shares` table, which is the source of truth, so a lost
+update from two simultaneous shares can't persist.
 
 ## Free-tier budget
 
