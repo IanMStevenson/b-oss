@@ -9,12 +9,12 @@
 @import '@b-oss/b-visual/tokens.css';
 
 :root {
-  --ion-color-primary: var(--green-800);
+  --ion-color-primary: var(--accent);
   --ion-color-primary-rgb: 31, 77, 58;
-  --ion-color-primary-contrast: #ffffff;
+  --ion-color-primary-contrast: var(--on-accent);
   --ion-color-primary-contrast-rgb: 255, 255, 255;
   --ion-color-primary-shade: var(--green-900);
-  --ion-color-primary-tint: var(--green-700);
+  --ion-color-primary-tint: var(--accent-alt);
 
   --ion-color-danger: var(--color-danger);
 
@@ -85,14 +85,14 @@ ion-button.button-has-icon-only:not(.in-buttons) {
 
 /* Secondary: green outline, transparent fill. (Danger outline picks up the red via color.) */
 ion-button.button-outline:not(.in-buttons):not([color]) {
-  --border-color: var(--green-800);
+  --border-color: var(--accent);
   --border-width: 1px;
-  --color: var(--green-800);
+  --color: var(--accent);
 }
 
 /* Tertiary: text only. */
 ion-button.button-clear:not(.in-buttons):not([color]) {
-  --color: var(--green-800);
+  --color: var(--accent);
 }
 
 /* Disabled looks disabled without turning into a different shape. */

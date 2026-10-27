@@ -78,26 +78,26 @@
 /* A day with an entry: tappable and clearly "live". */
 .hasEntry {
   border: 0;
-  background: var(--green-100);
-  color: var(--green-800);
+  background: var(--accent-soft);
+  color: var(--accent);
   font-weight: var(--font-weight-medium, 500);
   cursor: pointer;
 }
 
 .hasEntry:hover {
-  background: var(--green-700);
-  color: #fff;
+  background: var(--accent-alt);
+  color: var(--on-accent);
 }
 
 /* Everything else (no entry, or in the future): flat, grey, inert. */
 .noEntry {
-  background: #ececec;
-  color: #b9bdc3;
+  background: var(--cell-disabled-bg);
+  color: var(--cell-disabled-ink);
 }
 
 .selected {
-  background: var(--green-800);
-  color: #fff;
+  background: var(--accent);
+  color: var(--on-accent);
 }
 
 .overlay {
@@ -108,7 +108,7 @@
   align-items: center;
   justify-content: center;
   gap: 8px;
-  background: rgba(255, 255, 255, 0.75);
+  background: var(--bg-veil);
   font-size: var(--text-sm, 13px);
   color: var(--ink-2);
 }

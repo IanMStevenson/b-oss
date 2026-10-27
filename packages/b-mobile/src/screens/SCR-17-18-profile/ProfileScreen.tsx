@@ -483,7 +483,7 @@ export function ProfileScreen({ username }: ProfileScreenProps) {
                 }}
               >
                 {awardCount != null && <strong style={statCountStyle}>{awardCount}</strong>}
-                <span style={{ ...statLabelStyle, color: 'var(--green-800)' }}>Awards</span>
+                <span style={{ ...statLabelStyle, color: 'var(--accent)' }}>Awards</span>
               </button>
             </nav>
 

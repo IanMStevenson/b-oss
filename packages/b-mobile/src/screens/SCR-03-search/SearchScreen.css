@@ -19,8 +19,8 @@
 }
 
 .search-field:focus-within {
-  border-color: var(--green-800);
-  box-shadow: 0 0 0 1px var(--green-800);
+  border-color: var(--accent);
+  box-shadow: 0 0 0 1px var(--accent);
 }
 
 .search-field-icon {

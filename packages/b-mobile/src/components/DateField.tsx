@@ -46,7 +46,7 @@ export function DateField({ value, onChange }: DateFieldProps) {
         aria-label={`Date: ${formatDateLabel(value)}`}
         onClick={toggle}
       >
-        <CalendarDays size={20} aria-hidden="true" color="var(--green-800)" />
+        <CalendarDays size={20} aria-hidden="true" color="var(--accent)" />
         <span className="date-field-value">{formatDateLabel(value)}</span>
         {open ? (
           <ChevronUp size={20} aria-hidden="true" color="var(--muted)" />

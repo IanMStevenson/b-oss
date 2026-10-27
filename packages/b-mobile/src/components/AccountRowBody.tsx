@@ -51,7 +51,7 @@ export function AccountRowBody({
             size={18}
             strokeWidth={2}
             aria-label="Active account"
-            style={{ color: 'var(--green-800, #1f4d3a)', flexShrink: 0 }}
+            style={{ color: 'var(--accent)', flexShrink: 0 }}
           />
         ))}
     </>

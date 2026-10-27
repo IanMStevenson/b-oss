@@ -377,8 +377,8 @@ export function AccountsScreen({ reauthRequest }: { reauthRequest?: ReauthReques
             );
           })}
           <IonItem button onClick={() => navigate.push('/sign-in')}>
-            <span style={{ color: 'var(--green-700)', fontWeight: 600 }}>Add account</span>
-            <IonNote slot="end" style={{ color: 'var(--green-700)', fontSize: '18px' }}>
+            <span style={{ color: 'var(--accent-alt)', fontWeight: 600 }}>Add account</span>
+            <IonNote slot="end" style={{ color: 'var(--accent-alt)', fontSize: '18px' }}>
               +
             </IonNote>
           </IonItem>

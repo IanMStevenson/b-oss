@@ -30,8 +30,8 @@ export function AccountAvatar({ avatarUrl, size }: { avatarUrl: string | null; s
         width: size,
         height: size,
         borderRadius: '50%',
-        background: 'var(--green-800, #1f4d3a)',
-        color: '#fff',
+        background: 'var(--brand-fill)',
+        color: 'var(--on-brand-fill)',
         flexShrink: 0,
       }}
     >

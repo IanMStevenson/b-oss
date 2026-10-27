@@ -14,7 +14,7 @@
 }
 
 .box:focus-within {
-  border-color: var(--green-700);
+  border-color: var(--accent-alt);
 }
 
 .textarea {
@@ -59,7 +59,7 @@
 }
 
 .editor a {
-  color: var(--green-700);
+  color: var(--accent-alt);
   text-decoration: underline;
 }
 
@@ -208,7 +208,7 @@
 
 .linkInput:focus {
   outline: none;
-  border-color: var(--green-700);
+  border-color: var(--accent-alt);
 }
 
 .linkActions {
@@ -235,9 +235,9 @@
 }
 
 .linkAdd {
-  border-color: var(--green-700);
+  border-color: var(--accent-alt);
   font-weight: var(--font-weight-medium, 500);
-  color: var(--green-700);
+  color: var(--accent-alt);
 }
 
 .linkRemove {
