@@ -2,17 +2,19 @@
 
 import { h, setChildren } from './dom';
 import {
-  aboutDuration,
+  failedCheckCount,
   componentLabel,
   dayLabel,
   incidentTitle,
   longDate,
+  outageLength,
   timeOf,
   uptimeLabel,
   visibleUptimeKeys,
   whenLabel,
   windowDetail,
 } from './logic';
+import { lastCheckedAt } from './now';
 import type { StatusSnapshot, UptimeKey } from './types';
 
 const ROWS: { key: UptimeKey; label: string }[] = [
@@ -95,7 +97,7 @@ export function renderIncidents(
       end === null
         ? whenLabel(i.started_at, now)
         : `${whenLabel(i.started_at, now)} to ${dayLabel(end) === dayLabel(i.started_at) ? timeOf(end) : whenLabel(end, now)}`;
-    const mins = Math.max(15, Math.round(((end ?? now) - i.started_at) / 60_000 / 15) * 15);
+    const n = failedCheckCount(i.started_at, end, lastCheckedAt(snap) ?? now);
     return h(
       'li',
       { class: 'st-incident' },
@@ -110,8 +112,9 @@ export function renderIncidents(
           h('strong', {}, incidentTitle(i)),
         ),
         h('span', { class: 'st-sub' }, `${componentLabel(i.components)} · ${when}`),
+        i.reason ? h('span', { class: 'st-sub' }, `Reason: ${i.reason}`) : null,
       ),
-      h('span', { class: 'st-incident-dur' }, `${aboutDuration(mins)}${ongoing ? ' so far' : ''}`),
+      h('span', { class: 'st-incident-dur' }, outageLength(n, i.started_at, ongoing)),
     );
   });
   const more = snap.incidents.length - shown;

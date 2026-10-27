@@ -15,6 +15,8 @@ export interface Segment {
   /** null = still going (drawn flush to "now"). */
   end: number | null;
   failed?: CheckId[];
+  /** Plain reason the failing check gave ("timed out after 10 s"); absent for older outages. */
+  reason?: string;
 }
 
 export interface UptimeWindow {
@@ -32,6 +34,7 @@ export interface SnapshotIncident {
   started_at: number;
   ended_at: number | null;
   failed: CheckId[];
+  reason?: string;
 }
 
 export interface Shares {

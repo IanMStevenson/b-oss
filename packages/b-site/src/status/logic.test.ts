@@ -8,6 +8,8 @@ import {
   agoLabel,
   columnKeys,
   durationLabel,
+  failedCheckCount,
+  outageLength,
   historyBars,
   incidentTitle,
   isStale,
@@ -331,5 +333,25 @@ describe('visibleUptimeKeys', () => {
     expect(at(30)).toEqual(['h24', 'd7', 'd30', 'all']);
     expect(at(365, -1)).toEqual(['h24', 'd7', 'd30', 'all']);
     expect(at(365)).toEqual(['h24', 'd7', 'd30', 'd365', 'all']);
+  });
+});
+
+describe('outage length', () => {
+  const start = Date.UTC(2026, 9, 27, 22, 45); // 22:45 UK (GMT by then)
+  it('counts failed checks from the span', () => {
+    expect(failedCheckCount(start, start + 15 * MINUTE, start + 99 * MINUTE)).toBe(1);
+    expect(failedCheckCount(start, start + 30 * MINUTE, 0)).toBe(2);
+    expect(failedCheckCount(start, null, start)).toBe(1);
+    expect(failedCheckCount(start, null, start + 15 * MINUTE)).toBe(2);
+  });
+  it('gives one failed check no duration', () => {
+    expect(outageLength(1, start, false)).toBe('Failed 1 check, at 22:45');
+    expect(outageLength(1, start, true)).toBe('Failed 1 check, at 22:45');
+  });
+  it('gives a floor for two or three checks and "About" from four', () => {
+    expect(outageLength(2, start, false)).toBe('More than 15 min');
+    expect(outageLength(3, start, true)).toBe('More than 30 min');
+    expect(outageLength(4, start, false)).toBe('About 1 h');
+    expect(outageLength(10, start, true)).toBe('About 2 h 30 min so far');
   });
 });
