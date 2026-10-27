@@ -4,17 +4,19 @@ import {
   HISTORY_CEILING_MIN,
   HOUR,
   MINUTE,
-  afterFetch,
   agoLabel,
   columnKeys,
   durationLabel,
   historyBars,
   incidentTitle,
-  initialRefresh,
   isStale,
   laneBlocks,
   laneTicks,
+  REFRESH_FLOOR_MS,
   nextAllowedFetch,
+  parseShareResponse,
+  snapshotUnchanged,
+  withShares,
   overallOf,
   windowSummary,
   sharedScale,
@@ -101,34 +103,30 @@ describe('formatting', () => {
   });
 });
 
-describe('refresh gating', () => {
-  it('may not fetch before next_refresh_at, and may after', () => {
-    expect(nextAllowedFetch(1000, 5000, initialRefresh)).toBe(5000);
-    expect(nextAllowedFetch(5000, 5000, initialRefresh)).toBeNull();
-    expect(nextAllowedFetch(0, null, initialRefresh)).toBeNull();
+describe('refresh', () => {
+  it('may refetch once 60 seconds have passed since the last fetch, whatever next_refresh_at says', () => {
+    expect(REFRESH_FLOOR_MS).toBe(60_000);
+    expect(nextAllowedFetch(1000, 0)).toBe(60_000);
+    expect(nextAllowedFetch(59_999, 0)).toBe(60_000);
+    expect(nextAllowedFetch(60_000, 0)).toBeNull();
+    expect(nextAllowedFetch(500_000, 0)).toBeNull();
   });
 
-  it('backs off 60 s, 2 min, then 5 min (and stays there) when nothing new arrives', () => {
-    let s = initialRefresh;
-    const waits: number[] = [];
-    for (let i = 0; i < 5; i++) {
-      s = afterFetch(10_000, s, { ok: true, fresh: false });
-      waits.push(s.notBefore - 10_000);
-    }
-    expect(waits).toEqual([60_000, 120_000, 300_000, 300_000, 300_000]);
+  it('is unrestricted before the first fetch', () => {
+    expect(nextAllowedFetch(0, null)).toBeNull();
   });
 
-  it('treats a failed fetch the same way, and resets on fresh data', () => {
-    let s = afterFetch(0, initialRefresh, { ok: false });
-    expect(s.notBefore).toBe(60_000);
-    s = afterFetch(100_000, s, { ok: true, fresh: true });
-    expect(s).toEqual(initialRefresh);
-  });
-
-  it('the backoff gate wins over an already-passed next_refresh_at', () => {
-    const s = afterFetch(10_000, initialRefresh, { ok: true, fresh: false });
-    expect(nextAllowedFetch(20_000, 5000, s)).toBe(70_000);
-    expect(nextAllowedFetch(70_000, 5000, s)).toBeNull();
+  it('says nothing changed only for the same snapshot AND the same share counts', () => {
+    const a = makeFixture('busy', NOW);
+    expect(snapshotUnchanged(a, structuredClone(a))).toBe(true);
+    const moreShares = structuredClone(a);
+    moreShares.shares!.hours.site = [...moreShares.shares!.hours.site, [NOW, 1]];
+    expect(snapshotUnchanged(a, moreShares)).toBe(false);
+    expect(snapshotUnchanged(a, { ...structuredClone(a), generated_at: a.generated_at + 1 })).toBe(
+      false,
+    );
+    const none = makeFixture('new', NOW);
+    expect(snapshotUnchanged(none, structuredClone(none))).toBe(true);
   });
 
   it('treats data older than two intervals as stale', () => {
@@ -136,6 +134,50 @@ describe('refresh gating', () => {
     expect(isStale(snap, NOW)).toBe(false);
     expect(isStale(snap, snap.generated_at + 30 * MINUTE)).toBe(false);
     expect(isStale(snap, snap.generated_at + 31 * MINUTE)).toBe(true);
+  });
+});
+
+describe('share response', () => {
+  const good = {
+    ok: true,
+    shares: {
+      hours: { site: [[1000, 2]], api: [] },
+      days: { site: [['2026-10-22', 2]], api: [] },
+    },
+  };
+
+  it('parses the updated aggregates from the 201 body', () => {
+    expect(parseShareResponse(good)).toEqual(good.shares);
+  });
+
+  it.each([
+    ['null', null],
+    ['no shares', { ok: true }],
+    [
+      'missing component',
+      { ok: true, shares: { hours: { site: [] }, days: { site: [], api: [] } } },
+    ],
+    [
+      'bad hour entry',
+      { ok: true, shares: { hours: { site: [['x', 1]], api: [] }, days: { site: [], api: [] } } },
+    ],
+    [
+      'bad day entry',
+      { ok: true, shares: { hours: { site: [], api: [] }, days: { site: [[1, 1]], api: [] } } },
+    ],
+  ])('rejects %s without throwing', (_name, body) => {
+    expect(parseShareResponse(body)).toBeNull();
+  });
+
+  it('replaces only hours and days, keeping everything else', () => {
+    const snap = makeFixture('busy', NOW);
+    const next = withShares(snap, good.shares as never);
+    expect(next.shares).toEqual(good.shares);
+    expect(next.history).toBe(snap.history);
+    expect(next.incidents).toBe(snap.incidents);
+    expect(snap.shares).not.toEqual(good.shares); // the original is untouched
+    const bare = withShares(makeFixture('new', NOW), good.shares as never);
+    expect(bare.shares).toEqual(good.shares);
   });
 });
 

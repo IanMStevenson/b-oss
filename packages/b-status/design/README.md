@@ -46,9 +46,8 @@ code it: do not try to reproduce any generated markup.
    cards at all. "Try again" is the Refresh control.
 8. **Stale data.** A snapshot older than two sampling intervals is shown as Unknown ("No recent
    data"), even if its last state was Up.
-9. **Refresh** is a button that makes no request before the snapshot's `next_refresh_at`; it shows
-   "Next check due about HH:MM" instead, and backs off if nothing newer arrives. There is no
-   auto-refresh.
+9. **Refresh** is a button with no auto-refresh. (The original rule, no request before
+   `next_refresh_at` with a 60 s / 2 min / 5 min back-off, is superseded by item 13.)
 10. **Shared problems** in the mockups are drawn from an optional `shares` field in the snapshot
     (b-oss#486); without it the Shared lanes are simply empty.
 
@@ -59,6 +58,12 @@ code it: do not try to reproduce any generated markup.
 
 12. **Percentages:** one decimal place, rounded down; 99.9x figures show up to three decimals so
     they are never rounded up to 100%; supersedes the two-decimal figures in the screenshots.
+
+13. **Shares appear immediately.** The 201 response carries the updated share aggregates, which the
+    page swaps in and redraws, so the poster sees their share counted at once. After Done the form's
+    hint line says so (no layout jump). The Refresh floor is 60 s after the last fetch, whatever
+    `next_refresh_at` says; `next_refresh_at` only drives the "Next check due about HH:MM" label and
+    the stale rule. Supersedes the previous refresh-gating rule.
 
 ## Files
 

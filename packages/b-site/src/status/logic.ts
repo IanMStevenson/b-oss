@@ -6,6 +6,7 @@ import type {
   Component,
   HistoryEntry,
   Segment,
+  Shares,
   SnapshotIncident,
   StatusSnapshot,
   UptimeWindow,
@@ -113,39 +114,58 @@ export function agoLabel(ts: number, now: number): string {
   return `about ${d} days ago`;
 }
 
-// ---------- Refresh gating (no timers: the link only fetches when allowed) ----------
+// ---------- Refresh (no timers: the button only fetches when pressed, and not too often) ----------
 
-export const BACKOFF_MS = [60_000, 120_000, 300_000] as const;
+/** A manual refresh may hit the network once this long after the last fetch. Data can change
+ * between probes (shared problems), so this floor, not `next_refresh_at`, is what limits requests;
+ * `next_refresh_at` only drives the "Next check due" label and the stale rule. */
+export const REFRESH_FLOOR_MS = 60_000;
 
-export interface RefreshState {
-  /** Consecutive fetches that brought nothing new (or failed). */
-  attempt: number;
-  /** No request before this time (epoch ms). 0 = unrestricted. */
-  notBefore: number;
-}
-
-export const initialRefresh: RefreshState = { attempt: 0, notBefore: 0 };
-
-/** The earliest moment a refresh may hit the network, or null if it may now. */
-export function nextAllowedFetch(
-  now: number,
-  nextRefreshAt: number | null,
-  s: RefreshState,
-): number | null {
-  const due = Math.max(nextRefreshAt ?? 0, s.notBefore);
+/** The earliest moment a manual refresh may hit the network, or null if it may now. */
+export function nextAllowedFetch(now: number, lastFetchAt: number | null): number | null {
+  if (lastFetchAt === null) return null;
+  const due = lastFetchAt + REFRESH_FLOOR_MS;
   return now >= due ? null : due;
 }
 
-/** State after a fetch: fresh data resets; the same `generated_at` (cron late) or a failure backs off. */
-export function afterFetch(
-  now: number,
-  s: RefreshState,
-  outcome: { ok: true; fresh: boolean } | { ok: false },
-): RefreshState {
-  if (outcome.ok && outcome.fresh) return { attempt: 0, notBefore: 0 };
-  const attempt = s.attempt + 1;
-  const delay = BACKOFF_MS[Math.min(attempt, BACKOFF_MS.length) - 1] ?? BACKOFF_MS[2];
-  return { attempt, notBefore: now + delay };
+/** True when a refetch brought nothing new: the same snapshot and the same share counts. */
+export function snapshotUnchanged(prev: StatusSnapshot, next: StatusSnapshot): boolean {
+  return (
+    prev.generated_at === next.generated_at &&
+    JSON.stringify(prev.shares ?? null) === JSON.stringify(next.shares ?? null)
+  );
+}
+
+const isHours = (v: unknown): v is [number, number][] =>
+  Array.isArray(v) &&
+  v.every((x) => Array.isArray(x) && typeof x[0] === 'number' && typeof x[1] === 'number');
+const isDays = (v: unknown): v is [string, number][] =>
+  Array.isArray(v) &&
+  v.every((x) => Array.isArray(x) && typeof x[0] === 'string' && typeof x[1] === 'number');
+
+/** The updated share aggregates from a 201 response body `{ ok: true, shares: {hours, days} }`, or
+ * null if it isn't in that shape (the page then simply doesn't update, and shows the thank-you). */
+export function parseShareResponse(body: unknown): Pick<Shares, 'hours' | 'days'> | null {
+  if (typeof body !== 'object' || body === null) return null;
+  const shares = (body as { shares?: unknown }).shares;
+  if (typeof shares !== 'object' || shares === null) return null;
+  const { hours, days } = shares as {
+    hours?: Record<string, unknown>;
+    days?: Record<string, unknown>;
+  };
+  if (!hours || !days) return null;
+  for (const c of ['site', 'api'] as const) {
+    if (!isHours(hours[c]) || !isDays(days[c])) return null;
+  }
+  return { hours: hours as Shares['hours'], days: days as Shares['days'] };
+}
+
+/** The snapshot with its share aggregates replaced (everything else untouched). */
+export function withShares(
+  snap: StatusSnapshot,
+  shares: Pick<Shares, 'hours' | 'days'>,
+): StatusSnapshot {
+  return { ...snap, shares: { hours: shares.hours, days: shares.days } };
 }
 
 /** Older than two sampling intervals: the monitor has no recent data. */

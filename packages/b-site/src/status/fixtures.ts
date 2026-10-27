@@ -310,3 +310,31 @@ export function makeFixture(name: FixtureName, now: number): StatusSnapshot {
     }
   }
 }
+
+/** The 201 body the shares endpoint returns: the FULL updated aggregates (same shapes as
+ * snapshot.shares.hours / .days) with one more share counted for `component`. Used by the dev
+ * preview and the browser checks as the share mock. */
+export function shareResponse(
+  snap: StatusSnapshot,
+  component: Component,
+  now: number,
+): { ok: true; shares: Pick<Shares, 'hours' | 'days'> } {
+  const hourStart = Math.floor(now / HOUR) * HOUR;
+  const today = day(now);
+  const bump = <K extends number | string>(rows: [K, number][], key: K): [K, number][] => {
+    const next = rows.map((r): [K, number] => [r[0], r[1]]);
+    const hit = next.find((r) => r[0] === key);
+    if (hit) hit[1] += 1;
+    else next.push([key, 1]);
+    return next.sort((a, b) => (a[0] < b[0] ? -1 : 1));
+  };
+  const hours = { site: snap.shares?.hours.site ?? [], api: snap.shares?.hours.api ?? [] };
+  const days = { site: snap.shares?.days.site ?? [], api: snap.shares?.days.api ?? [] };
+  return {
+    ok: true,
+    shares: {
+      hours: { ...hours, [component]: bump(hours[component], hourStart) },
+      days: { ...days, [component]: bump(days[component], today) },
+    },
+  };
+}
