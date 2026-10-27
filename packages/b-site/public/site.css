@@ -1795,3 +1795,125 @@ p.st-sub {
     margin: -12px -6px;
   }
 }
+
+/* ---- "How this works" page (b-oss#493): reading layout for the status explanation ---- */
+.hw-back {
+  margin: 0 0 4px;
+  font-size: var(--text-sm, 13px);
+}
+.hw-back a {
+  color: var(--green-800);
+}
+.hw-layout {
+  display: grid;
+  grid-template-columns: 200px minmax(0, 1fr);
+  gap: 48px;
+  margin-top: 8px;
+}
+.hw-toc {
+  position: sticky;
+  top: 16px;
+  align-self: start;
+  border-left: 1px solid var(--line);
+  padding-left: 16px;
+}
+.hw-toc ul {
+  list-style: none;
+  margin: 8px 0 0;
+  padding: 0;
+}
+.hw-toc li {
+  margin: 0;
+}
+.hw-toc a {
+  display: block;
+  padding: 6px 0;
+  font-size: 13px;
+  color: var(--muted-strong);
+  text-decoration: none;
+}
+.hw-toc a:hover,
+.hw-toc a:focus-visible {
+  color: var(--green-800);
+  text-decoration: underline;
+}
+.hw-body section {
+  padding: 24px 0;
+  border-top: 1px solid var(--line);
+}
+.hw-body section:first-child {
+  border-top: 0;
+  padding-top: 8px;
+}
+.hw-body h2 {
+  margin-bottom: 10px;
+}
+.hw-body p,
+.hw-body li {
+  line-height: 1.55;
+}
+.hw-body p {
+  margin: 0 0 12px;
+}
+.hw-body ul {
+  margin: 0 0 12px;
+  padding-left: 20px;
+}
+.hw-body a {
+  color: var(--green-800);
+}
+.hw-body a.st-btn-primary {
+  color: #fff;
+}
+.hw-states {
+  display: grid;
+  grid-template-columns: max-content minmax(0, 1fr);
+  gap: 12px 20px;
+  align-items: center;
+  margin: 0;
+}
+.hw-states dt,
+.hw-states dd {
+  margin: 0;
+}
+.hw-key {
+  list-style: none;
+  padding: 0;
+}
+.hw-key li {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  margin: 0 0 10px;
+}
+.hw-key .st-key {
+  flex: none;
+  margin-top: 3px;
+}
+.hw-callout {
+  background: var(--tint, #eef2ee);
+  border-radius: 6px;
+  padding: 12px 16px;
+  margin: 8px 0 0;
+}
+@media (max-width: 760px) {
+  .hw-layout {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 8px;
+  }
+  .hw-toc {
+    position: static;
+    border-left: 0;
+    padding-left: 0;
+  }
+  .hw-toc a {
+    padding: 10px 0;
+  }
+  .hw-states {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 6px;
+  }
+  .hw-states dd {
+    margin-bottom: 10px;
+  }
+}

@@ -107,6 +107,6 @@ src/status/fixtures.ts  fixture snapshots (all-good, api-down, both-down, unknow
   be loaded the page says so and never shows "working".
 - **Share POST** goes to `<origin of PUBLIC_STATUS_URL>/v1/shares` as `text/plain` JSON, so the browser
   sends no CORS preflight.
-- **Placeholders still to replace:** every "Blipfoto support" / "contact Blipfoto" link is `#` (real
-  URLs are looked up and verified at build time), and the "How this works" link points at the
-  in-page "How this is measured" section until the separate page exists (b-oss#493).
+- **Blipfoto support links** are the two constants in `src/blipfoto-links.ts` (general help, and the
+  support-request form); change them there. The Turnstile box stays a placeholder until
+  `PUBLIC_TURNSTILE_SITE_KEY` is set.

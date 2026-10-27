@@ -1,0 +1,187 @@
+---
+import { BLIPFOTO_SUPPORT_REQUEST } from '../blipfoto-links';
+import Layout from '../layouts/Layout.astro';
+import StatusDisclaimer from '../components/StatusDisclaimer.astro';
+
+// Every statement about what the monitor does here describes packages/b-status as built
+// (probe, retry, snapshot, shares). Re-check this page whenever that changes (b-oss#493).
+const sections = [
+  ['who', 'Who runs this'],
+  ['what', 'What we check'],
+  ['often', 'How often'],
+  ['states', 'Up, Down and Unknown'],
+  ['charts', 'Reading the charts'],
+  ['shared', 'Shared problems'],
+  ['uptime', 'Uptime figures'],
+  ['times', 'Times and days'],
+  ['privacy', 'Privacy'],
+] as const;
+---
+
+<Layout
+  title="How the Blipfoto status page works (unofficial) · b-oss"
+  description="What the unofficial Blipfoto status page checks, how often, and how to read it."
+  nav="status"
+>
+  <StatusDisclaimer slot="below-header" />
+
+  <div class="status-page hw-page">
+    <p class="hw-back"><a href="status.html">&lsaquo; Back to status</a></p>
+    <header class="st-head">
+      <p class="st-eyebrow">Status</p>
+      <h1>How this works</h1>
+      <p class="st-sub-lead">What we check, how often, and what the page is telling you.</p>
+    </header>
+
+    <div class="hw-layout">
+      <nav class="hw-toc" aria-label="On this page">
+        <p class="st-eyebrow">On this page</p>
+        <ul>
+          {sections.map(([id, label]) => <li><a href={`#${id}`}>{label}</a></li>)}
+        </ul>
+      </nav>
+
+      <div class="hw-body">
+        <section id="who" aria-labelledby="hw-who">
+          <h2 id="hw-who">Who runs this</h2>
+          <p>
+            This page is run by b-oss, a small open-source project that makes tools for Blipfoto users.
+            It isn’t run by Blipfoto.
+          </p>
+          <p>
+            That means we can tell you whether something looks wrong, but we can’t fix it. If Blipfoto
+            isn’t working for you, Blipfoto Support is the only way to get it looked at.
+          </p>
+          <p><a class="st-btn st-btn-primary" href={BLIPFOTO_SUPPORT_REQUEST} target="_blank" rel="noopener">Contact Blipfoto Support ↗</a></p>
+        </section>
+
+        <section id="what" aria-labelledby="hw-what">
+          <h2 id="hw-what">What we check</h2>
+          <p>We check two parts of Blipfoto separately, because they can fail separately.</p>
+          <ul>
+            <li>
+              <strong>Site</strong> is blipfoto.com in a web browser. We load the browse page, then one
+              of the entries on it, the way a browser would.
+            </li>
+            <li>
+              <strong>API</strong> is what apps such as b-ark and b-mobile use to talk to Blipfoto. We
+              make the same kind of simple, read-only requests those apps make, using an app registration
+              created just for this monitor, and check that we get a proper answer rather than an error.
+            </li>
+          </ul>
+          <p>
+            We also check that the entry’s photo loads. Some things affect both parts: if photos aren’t
+            loading, the Site and the API both show as down, even though it’s one problem.
+          </p>
+          <p>
+            If a check fails we try again a few seconds later, and only a failure both times counts as
+            down. A check also counts as failed if it comes back, but far too slowly to be usable.
+          </p>
+          <p>
+            All our checks run from one place, outside Blipfoto’s own network. If a problem is only in
+            some places, or only with your own connection, we may not see it. We don’t log in, and we
+            only read public pages.
+          </p>
+        </section>
+
+        <section id="often" aria-labelledby="hw-often">
+          <h2 id="hw-often">How often</h2>
+          <p>
+            We check every 15 minutes. The status at the top of the page shows how long ago the last check
+            was, and the page tells you when the next one is due. It doesn’t refresh itself, so nothing
+            moves while you’re reading.
+          </p>
+          <p>Because we only look every 15 minutes:</p>
+          <ul>
+            <li>a problem that lasts less than 15 minutes might not show up at all;</li>
+            <li>start times, end times and durations are approximate, to the nearest 15 minutes.</li>
+          </ul>
+        </section>
+
+        <section id="states" aria-labelledby="hw-states">
+          <h2 id="hw-states">Up, Down and Unknown</h2>
+          <dl class="hw-states">
+            <dt><span class="st-badge st-badge-up"><span aria-hidden="true">✓</span> Up</span></dt>
+            <dd>Our last check worked.</dd>
+            <dt><span class="st-badge st-badge-down"><span aria-hidden="true">✕</span> Down</span></dt>
+            <dd>Our last check failed, and so did the retry: the page or request didn’t load, was far too slow, or came back with an error.</dd>
+            <dt><span class="st-badge st-badge-unknown"><span aria-hidden="true">?</span> Unknown</span></dt>
+            <dd>
+              We haven’t been able to check recently. That’s a problem on our side, not necessarily
+              Blipfoto’s, and we don’t count it as up or down.
+            </dd>
+          </dl>
+        </section>
+
+        <section id="charts" aria-labelledby="hw-charts">
+          <h2 id="hw-charts">Reading the charts</h2>
+          <p>The charts only show problems. An empty lane is good news: every check in that period worked.</p>
+          <ul class="hw-key">
+            <li><span class="st-key st-key-down" aria-hidden="true"></span><span><strong>Red block or bar:</strong> our checks found a problem. In History, the taller the bar, the longer it was down that day.</span></li>
+            <li><span class="st-key st-key-nodata" aria-hidden="true"></span><span><strong>Striped grey:</strong> no data. We couldn’t check at that time.</span></li>
+            <li><span class="st-key st-key-shared" aria-hidden="true"></span><span><strong>Amber bars:</strong> people shared a problem. See below.</span></li>
+            <li><span><strong>A bar with a white cut</strong> was down for more than 4 hours. We cut very long bars short so that short problems stay visible; the real time is shown above the bar.</span></li>
+          </ul>
+          <p>Select any mark to see the details. On a phone, use the Earlier and Later buttons under each chart.</p>
+        </section>
+
+        <section id="shared" aria-labelledby="hw-shared">
+          <h2 id="hw-shared">Shared problems</h2>
+          <p>
+            Anyone can share a problem they’re having from the status page. Shared problems are counted
+            separately for the website and for apps, and show as amber bars under each chart.
+          </p>
+          <p>
+            They are not verified, and they never change the uptime figures. Sometimes people share a
+            problem when our checks found nothing. That can happen when the problem is with one
+            feature, such as uploads, or affects some people but not the place we check from. It’s
+            still useful to know.
+          </p>
+          <div class="hw-callout" role="note">
+            <strong>Sharing a problem here doesn’t tell Blipfoto.</strong> If you’d like it fixed,
+            please also <a href={BLIPFOTO_SUPPORT_REQUEST}>contact Blipfoto Support</a>.
+          </div>
+        </section>
+
+        <section id="uptime" aria-labelledby="hw-uptime">
+          <h2 id="hw-uptime">Uptime figures</h2>
+          <p>
+            Uptime is the share of the time we checked that each part was working. Times when we couldn’t
+            check are left out, so they don’t count for or against.
+          </p>
+          <p>
+            We always round down. 100% means we found no problems at all; very high figures show extra
+            decimal places (such as 99.999%) so they are never rounded up to 100%.
+          </p>
+        </section>
+
+        <section id="times" aria-labelledby="hw-times">
+          <h2 id="hw-times">Times and days</h2>
+          <p>Times of day on the status page are UK time.</p>
+          <p>
+            The History chart and the uptime figures count each day from midnight to midnight UTC, the
+            same as GMT. In summer that’s an hour behind UK clocks, so a problem just after midnight UK
+            time can appear on the previous day.
+          </p>
+        </section>
+
+        <section id="privacy" aria-labelledby="hw-privacy">
+          <h2 id="hw-privacy">Privacy</h2>
+          <p>
+            You don’t need an account to share a problem. We keep your answers and the time you shared
+            them, and nothing else about you.
+          </p>
+          <p>
+            So that the counts stay fair, the number of shares from one place is limited. To do that we
+            keep an anonymous marker for about half an hour, then it is deleted. It is a one-way
+            scrambled form of your connection’s address, not the address itself.
+          </p>
+          <p>
+            Sharing uses Cloudflare’s Turnstile anti-bot check. The code for this page and the monitor
+            is open source: <a href="https://github.com/IanMStevenson/b-oss">see the source code</a>.
+          </p>
+        </section>
+      </div>
+    </div>
+  </div>
+</Layout>
