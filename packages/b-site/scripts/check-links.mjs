@@ -13,11 +13,6 @@ const ids = new Map(
   ]),
 );
 
-// TEMPORARY: pages another change is adding. A link to one of these is allowed while the page does not
-// exist yet; once it exists it is checked like any other link. Remove this set (and the privacy.html
-// entry) when the privacy page has landed on main (status page -> privacy.html).
-const PENDING_PAGES = new Set(['privacy.html']);
-
 const problems = [];
 for (const page of pages) {
   const html = readFileSync(join(dist, page), 'utf8').replace(/<!--[\s\S]*?-->/g, '');
@@ -26,7 +21,6 @@ for (const page of pages) {
     const [path, fragment] = url.split('#');
     const target = path || page;
     if (!existsSync(join(dist, target))) {
-      if (PENDING_PAGES.has(target)) continue;
       problems.push(`${page}: ${attr}="${url}" -> missing ${target}`);
     } else if (fragment && target.endsWith('.html') && !ids.get(target)?.has(fragment))
       problems.push(`${page}: ${attr}="${url}" -> no #${fragment} in ${target}`);

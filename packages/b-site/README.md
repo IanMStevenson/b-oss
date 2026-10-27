@@ -125,5 +125,4 @@ production bundle is unaffected: the preview re-bundles the page script from
 `scripts/status-preview-entry.ts`, which is not part of the site.
 
 - **Privacy:** the report form carries only a small "Privacy" link to `privacy.html`, the site-wide
-  policy page (added separately). Until that page exists, `scripts/check-links.mjs` allows links to it
-  via a temporary `PENDING_PAGES` set; remove the entry once the page has landed.
+  policy page.
