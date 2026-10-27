@@ -471,7 +471,10 @@ on Android 10+, the app's own Pictures folder below). No exact-alarm permissions
   `reminders` (there is no `uploads` channel). b-push sets the channel on each message; FCM's default is `activity`.
 - **Local plugins** registered in `MainActivity`, each with a `src/platform/` wrapper:
   `BlipfotoLinksPlugin`, `AccessibilityPlugin`, `ShareIntentPlugin`, `EmbeddedAuthPlugin` (+
-  non-exported `EmbeddedAuthActivity`), `PushAvailabilityPlugin`, `MediaSavePlugin`.
+  non-exported `EmbeddedAuthActivity`), `PushAvailabilityPlugin`, `MediaSavePlugin`, `ThemePlugin` (b-oss#549: stores the theme preference and, in
+  `MainActivity` before the WebView exists, sets Android's night mode and the window/WebView background
+  to the theme's page colour, so there is no white flash at launch and system dialogs/pickers take
+  their dark variants for Dark and Mid; the colours must match b-visual's `themes.css` `--bg`).
 - **Application ID** `uk.co.salientpoint.bmobile` (Salient Point is the Play publisher; decided in
   b-oss#359, 2026-10-10). Permanent once first uploaded to Play. Java package and manifest
   namespace match it. Release is manual; signing keys live outside the repo.

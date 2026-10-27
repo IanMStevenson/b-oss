@@ -24,7 +24,14 @@ public class MainActivity extends BridgeActivity {
     registerPlugin(EmbeddedAuthPlugin.class);
     registerPlugin(PushAvailabilityPlugin.class);
     registerPlugin(MediaSavePlugin.class); // saves an entry photo into the gallery (Download)
+    registerPlugin(ThemePlugin.class); // colour theme: window/WebView background and night mode
+    // The chosen theme, before the Activity or its WebView exist (b-oss#549): night mode first, so
+    // the Activity is created already light or dark, and then the page colour behind the WebView,
+    // so there is no white flash before the web layer paints its own theme.
+    String themePreference = ThemePlugin.storedPreference(this);
+    ThemePlugin.applyNightMode(themePreference);
     super.onCreate(savedInstanceState);
+    ThemePlugin.applyBackground(this, getBridge().getWebView(), themePreference);
     createNotificationChannels();
   }
 

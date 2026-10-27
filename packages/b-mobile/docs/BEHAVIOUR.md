@@ -71,7 +71,9 @@ Known Blipfoto API limits: [AppLimitations.md](AppLimitations.md). Paths are rel
   follows Android's dark-theme setting and picks Light or Dark, never Mid. Stored in device prefs and
   mirrored to `localStorage` so `index.html` can apply it before first paint. The theme is the
   `data-theme` attribute on `<html>`, which b-visual's opt-in `themes.css` re-points the colour
-  tokens for (`src/theme/theme.ts`); Mid counts as dark for the system bars and `color-scheme`.
+  tokens for (`src/theme/theme.ts`); Mid counts as dark for the system bars, `color-scheme` and Android's night mode (`ThemePlugin`, which
+  also paints the window/WebView background natively at launch). The map uses MapTiler's dark style
+  and accent pins on Dark and Mid, and re-creates itself when the theme changes.
 - **Help & about**: static (icon guide, safety & privacy, licences). **Hidden members**: Unhide.
 - **Accounts**: list, tap to switch, Add account (→ `/sign-in`); row menu: switch read-only/
   read-write, Disconnect account, Delete account (explains, then opens blipfoto.com settings —

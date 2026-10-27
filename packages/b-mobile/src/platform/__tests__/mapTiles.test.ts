@@ -24,4 +24,11 @@ describe('getMapStyleUrl', () => {
     expect(url).toContain('api.maptiler.com');
     expect(url).toContain('key=test-key-123');
   });
+
+  it("uses the light style by default and MapTiler's dark style for Dark and Mid", () => {
+    vi.stubEnv('VITE_MAP_TILES_KEY', 'k');
+    expect(getMapStyleUrl()).toContain('/maps/streets-v2/style.json');
+    expect(getMapStyleUrl(false)).toContain('/maps/streets-v2/style.json');
+    expect(getMapStyleUrl(true)).toContain('/maps/streets-v2-dark/style.json');
+  });
 });

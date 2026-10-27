@@ -20,6 +20,7 @@ import { createPin } from '../../components/mapPin.js';
 import { createMap, MAP_FAILED_MESSAGE } from '../../components/createMap.js';
 import '../../components/ComposeForm.css';
 import { getMapStyleUrl, MAP_ATTRIBUTION } from '../../platform/mapTiles.js';
+import { isDarkTheme, useResolvedTheme } from '../../theme/theme.js';
 import { getCurrentPosition } from '../../platform/geolocation.js';
 import { useAppNavigate } from '../../app/routes/useAppNavigate.js';
 import { useComposeDraftStore } from '../../state/composeDraftStore.js';
@@ -32,7 +33,7 @@ export function LocationPickerScreen() {
   const navigate = useAppNavigate();
   const draft = useComposeDraftStore((s) => s.draft);
   const patchDraft = useComposeDraftStore((s) => s.patchDraft);
-  const styleUrl = getMapStyleUrl();
+  const styleUrl = getMapStyleUrl(isDarkTheme(useResolvedTheme()));
 
   const containerRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<MapLibreMap | null>(null);

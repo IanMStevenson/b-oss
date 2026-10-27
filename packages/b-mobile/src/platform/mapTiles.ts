@@ -13,6 +13,9 @@
 // state rather than the map silently failing to load tiles.
 
 const STYLE = 'streets-v2';
+/** MapTiler's own dark counterpart of STYLE, used for the Dark and Mid themes (b-oss#549) rather
+ * than recolouring or filtering the light one. */
+const DARK_STYLE = 'streets-v2-dark';
 
 /** Credit the tile provider and the OpenStreetMap data (ODbL) on every map explicitly, rather than
  * relying on the style happening to carry its own attribution. MapLibre drops a custom entry that
@@ -22,8 +25,8 @@ export const MAP_ATTRIBUTION = [
   '<a href="https://www.openstreetmap.org/copyright" target="_blank">&copy; OpenStreetMap contributors</a>',
 ];
 
-export function getMapStyleUrl(): string | null {
+export function getMapStyleUrl(dark = false): string | null {
   const key = import.meta.env.VITE_MAP_TILES_KEY;
   if (!key) return null;
-  return `https://api.maptiler.com/maps/${STYLE}/style.json?key=${encodeURIComponent(key)}`;
+  return `https://api.maptiler.com/maps/${dark ? DARK_STYLE : STYLE}/style.json?key=${encodeURIComponent(key)}`;
 }
