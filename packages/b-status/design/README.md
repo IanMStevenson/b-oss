@@ -58,6 +58,9 @@ code it: do not try to reproduce any generated markup.
     table and the incident list. With 30 columns the bars are slim (capped at 18 px) and the axis
     labels a date every 7 days, plus "Today".
 
+12. **Percentages:** one decimal place, rounded down; 99.9x figures show up to three decimals so
+    they are never rounded up to 100%; supersedes the two-decimal figures in the screenshots.
+
 ## Files
 
 | File                                             | What it shows                                                                                                                                                                        |

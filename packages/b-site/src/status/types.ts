@@ -18,7 +18,7 @@ export interface Segment {
 }
 
 export interface UptimeWindow {
-  /** Percent rounded DOWN to 2 places; 100 only when nothing was found down; null = no data. */
+  /** Percent floored to 3 decimals; 100 only when nothing was found down; null = no data. */
   uptime: number | null;
   down_minutes: number;
   incidents: number;

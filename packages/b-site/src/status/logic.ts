@@ -80,10 +80,19 @@ export function durationLabel(minutes: number): string {
 /** "About 15 min" (durations are quantised to the 15-minute sampling interval). */
 export const aboutDuration = (minutes: number): string => `About ${durationLabel(minutes)}`;
 
-/** Uptime as drawn: "100%" or two decimals. The server already rounds down; never round again. */
+/** The one place a percentage is formatted. The server sends uptime already floored to 3 decimals.
+ * One decimal, always rounded DOWN ("99.4%", "98.0%"); figures in the 99.9x range show up to three
+ * decimals with trailing zeros trimmed ("99.9%", "99.95%", "99.999%") so a figure that isn't perfect
+ * never reads as 100%. Only an exact 100 shows "100%". null = no data. */
 export function uptimeLabel(pct: number | null): string {
   if (pct === null) return 'No data yet';
-  return pct === 100 ? '100%' : `${pct.toFixed(2)}%`;
+  if (pct >= 100) return '100%';
+  // Integer thousandths, floored (the epsilon absorbs float error, e.g. 99.428 * 1000), capped
+  // below 100 so 99.9999 can never become "100%".
+  const n = Math.min(99_999, Math.floor(Math.max(0, pct) * 1000 + 1e-6));
+  const floor1 = Math.floor(n / 100) / 10;
+  if (floor1 >= 99.9) return `${n / 1000}%`;
+  return `${floor1.toFixed(1)}%`;
 }
 
 export function windowDetail(w: UptimeWindow): string {
@@ -315,7 +324,7 @@ export function historyBars(
 /** Scale for a Shared lane: bars are relative to max(5, busiest slot). */
 export const sharedScale = (counts: number[]): number => Math.max(5, ...counts, 0);
 
-/** Summary line over a window: "99.98% over the last 30 days · 15 min down · 1 incident". */
+/** Summary line over a window: "99.4% over the last 30 days · 15 min down · 1 incident". */
 export function windowSummary(words: string, w: UptimeWindow): string {
   if (w.uptime === null) return `No data yet for ${words}`;
   if (w.down_minutes === 0 && w.incidents === 0)

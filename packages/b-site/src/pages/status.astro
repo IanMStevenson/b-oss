@@ -89,8 +89,10 @@ import Layout from '../layouts/Layout.astro';
             midnight UTC.
           </li>
           <li>
-            Uptime is the share of checked time that each part worked, rounded down. Periods when we
-            couldn’t check are left out, so they count neither for nor against.
+            Uptime is the share of checked time that each part worked. We always round down: 100% means we
+            found no problems at all, and very high figures show extra decimal places (such as 99.999%) so
+            they are never rounded up to 100%. Periods when we couldn’t check are left out, so they count
+            neither for nor against.
           </li>
         </ul>
       </details>

@@ -34,16 +34,45 @@ describe('formatting', () => {
     expect(durationLabel(180)).toBe('3 h');
   });
 
-  it('shows 100% plainly and otherwise two decimals, never rounding up', () => {
+  it('shows one decimal, rounded down, for ordinary figures', () => {
+    expect(uptimeLabel(99.428)).toBe('99.4%');
+    expect(uptimeLabel(99.0)).toBe('99.0%');
+    expect(uptimeLabel(98.0)).toBe('98.0%');
+    expect(uptimeLabel(94.99)).toBe('94.9%');
+    expect(uptimeLabel(87.5)).toBe('87.5%');
+    expect(uptimeLabel(99.899)).toBe('99.8%');
+    expect(uptimeLabel(0)).toBe('0.0%');
+  });
+
+  it('shows up to three decimals (trailing zeros trimmed) for 99.9x figures', () => {
+    expect(uptimeLabel(99.9)).toBe('99.9%');
+    expect(uptimeLabel(99.95)).toBe('99.95%');
+    expect(uptimeLabel(99.931)).toBe('99.931%');
+    expect(uptimeLabel(99.999)).toBe('99.999%');
+  });
+
+  it('never rounds up: only an exact 100 reads as 100%', () => {
     expect(uptimeLabel(100)).toBe('100%');
-    expect(uptimeLabel(99.9)).toBe('99.90%');
-    expect(uptimeLabel(99.99)).toBe('99.99%');
+    expect(uptimeLabel(99.9999)).toBe('99.999%');
+    expect(uptimeLabel(99.99999)).toBe('99.999%');
+  });
+
+  it('is not fooled by float error in the thousandths', () => {
+    for (let n = 0; n < 100_000; n += 7) {
+      const p = n / 1000; // a value the server could send
+      const shown = Number.parseFloat(uptimeLabel(p));
+      expect(shown).toBeLessThanOrEqual(p + 1e-9);
+      expect(p - shown).toBeLessThan(p >= 99.9 ? 0.0011 : 0.1001);
+    }
+  });
+
+  it('says no data for null', () => {
     expect(uptimeLabel(null)).toBe('No data yet');
   });
 
   it('describes a window', () => {
     expect(windowDetail({ uptime: 100, down_minutes: 0, incidents: 0 })).toBe('No problems');
-    expect(windowDetail({ uptime: 99.98, down_minutes: 60, incidents: 3 })).toBe(
+    expect(windowDetail({ uptime: 99.981, down_minutes: 60, incidents: 3 })).toBe(
       '1 h down · 3 incidents',
     );
     expect(windowDetail({ uptime: 99.5, down_minutes: 15, incidents: 1 })).toBe(
@@ -253,8 +282,8 @@ describe('shared lane scale', () => {
 describe('windowSummary', () => {
   it('summarises the 30-day window, with plain wording when clean', () => {
     expect(
-      windowSummary('the last 30 days', { uptime: 99.98, down_minutes: 105, incidents: 3 }),
-    ).toBe('99.98% over the last 30 days · 1 h 45 min down · 3 incidents');
+      windowSummary('the last 30 days', { uptime: 99.428, down_minutes: 105, incidents: 3 }),
+    ).toBe('99.4% over the last 30 days · 1 h 45 min down · 3 incidents');
     expect(windowSummary('the last 30 days', { uptime: 100, down_minutes: 0, incidents: 0 })).toBe(
       '100% over the last 30 days · no problems',
     );

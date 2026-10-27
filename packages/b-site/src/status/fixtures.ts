@@ -49,8 +49,8 @@ const perfect = (): Record<UptimeKey, UptimeWindow> => ({
   h24: win(100, 0, 0),
   d7: win(100, 0, 0),
   d30: win(100, 0, 0),
-  d365: win(99.98, 60, 3),
-  all: win(99.97, 180, 4),
+  d365: win(99.998, 60, 3),
+  all: win(99.999, 180, 4),
 });
 
 function base(now: number): StatusSnapshot {
@@ -123,7 +123,7 @@ export function makeFixture(name: FixtureName, now: number): StatusSnapshot {
   const s = base(now);
   // Quiet month: one 30-minute API blip 12 days ago (older incidents are only in the table/list).
   s.history.days.api = history(now, [[12, 30, 1]]);
-  s.uptime.api.d30 = win(99.93, 30, 1);
+  s.uptime.api.d30 = win(99.931, 30, 1);
   s.incidents = OLD_INCIDENTS(now);
   s.shares = shares(now, [[30, 1]], [[20, 1]]);
 
@@ -151,11 +151,11 @@ export function makeFixture(name: FixtureName, now: number): StatusSnapshot {
       ];
       s.incidents = [inc(9, ['api'], 70 * MIN, null, now, ['api_recent']), ...s.incidents];
       s.uptime.api = {
-        h24: win(95.83, 60, 1),
-        d7: win(99.25, 75, 2),
-        d30: win(99.75, 105, 3),
-        d365: win(99.96, 180, 6),
-        all: win(99.97, 180, 6),
+        h24: win(95.833, 60, 1),
+        d7: win(99.256, 75, 2),
+        d30: win(99.751, 105, 3),
+        d365: win(99.964, 180, 6),
+        all: win(99.971, 180, 6),
       };
       s.history.days.api = history(now, [
         [12, 30, 1],
@@ -248,15 +248,15 @@ export function makeFixture(name: FixtureName, now: number): StatusSnapshot {
       ];
       s.uptime.site = {
         h24: win(100, 0, 0),
-        d7: win(98.8, 120, 3),
-        d30: win(97.08, 1260, 14),
-        d365: win(99.0, 1500, 17),
+        d7: win(98.809, 120, 3),
+        d30: win(97.083, 1260, 14),
+        d365: win(99.021, 1500, 17),
         all: win(99.2, 1620, 18),
       };
       s.uptime.api = {
         h24: win(100, 0, 0),
-        d7: win(99.25, 75, 2),
-        d30: win(98.39, 690, 5),
+        d7: win(99.256, 75, 2),
+        d30: win(98.398, 690, 5),
         d365: win(99.6, 780, 8),
         all: win(99.7, 810, 9),
       };
