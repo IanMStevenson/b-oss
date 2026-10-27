@@ -202,7 +202,14 @@ import Layout from '../layouts/Layout.astro';
 
   <Fragment slot="scripts">
     <script>
-      import '../status/main';
+      import { start } from '../status/main';
+
+      // The only place build-time settings are read (PUBLIC_* variables; see README "Status page").
+      start({
+        statusUrl: String(import.meta.env.PUBLIC_STATUS_URL ?? ''),
+        turnstileKey: String(import.meta.env.PUBLIC_TURNSTILE_SITE_KEY ?? ''),
+        loadFixtures: import.meta.env.DEV ? () => import('../status/fixtures') : undefined,
+      });
     </script>
   </Fragment>
 </Layout>

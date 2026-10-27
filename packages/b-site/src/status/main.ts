@@ -21,9 +21,20 @@ import { INCIDENT_PAGE, renderIncidents, renderUptime } from './tables';
 import type { StatusSnapshot } from './types';
 
 const DEFAULT_URL = 'https://b-status.b-oss.workers.dev/v1/status';
-const STATUS_URL: string = import.meta.env.PUBLIC_STATUS_URL || DEFAULT_URL;
-const SHARES_URL = `${new URL(STATUS_URL).origin}/v1/shares`;
-const SITE_KEY: string = import.meta.env.PUBLIC_TURNSTILE_SITE_KEY || '';
+
+/** Settings handed in by the page (status.astro reads the build-time PUBLIC_* variables, so no
+ * .ts file here touches import.meta.env). */
+export interface StatusOptions {
+  /** Snapshot endpoint; empty = the default workers.dev URL. */
+  statusUrl: string;
+  /** Cloudflare Turnstile site key; empty = placeholder box. */
+  turnstileKey: string;
+  /** Dev builds only: loads the fixture snapshots for `?fixture=<name>`. Absent in production, so
+   * the fixtures are not part of the built site. */
+  loadFixtures?: () => Promise<typeof import('./fixtures')>;
+}
+
+let STATUS_URL = DEFAULT_URL;
 
 const $ = <T extends HTMLElement>(sel: string): T => {
   const el = document.querySelector<T>(sel);
@@ -155,8 +166,12 @@ async function load(manual: boolean): Promise<void> {
   renderAll();
 }
 
-function start(): void {
-  initShare($('[data-share]'), { endpoint: SHARES_URL, siteKey: SITE_KEY });
+export function start(opts: StatusOptions): void {
+  STATUS_URL = opts.statusUrl || DEFAULT_URL;
+  initShare($('[data-share]'), {
+    endpoint: `${new URL(STATUS_URL).origin}/v1/shares`,
+    siteKey: opts.turnstileKey,
+  });
   renderAll();
 
   // Redraw the charts when the available width changes (they are drawn at real pixel sizes).
@@ -175,10 +190,10 @@ function start(): void {
   mobileQuery.addEventListener('change', renderCharts);
 
   void (async () => {
-    if (import.meta.env.DEV) {
+    if (opts.loadFixtures) {
       // `?fixture=<name>` in `npm run dev` only: preview any state without a monitor.
       const name = new URLSearchParams(location.search).get('fixture');
-      const { FIXTURE_NAMES, makeFixture } = await import('./fixtures');
+      const { FIXTURE_NAMES, makeFixture } = await opts.loadFixtures();
       const found = FIXTURE_NAMES.find((n) => n === name);
       if (found) {
         snap = makeFixture(found, Date.now());
@@ -190,5 +205,3 @@ function start(): void {
     await load(false);
   })();
 }
-
-start();
