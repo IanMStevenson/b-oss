@@ -67,3 +67,6 @@ debug/
 # Astro generated types (packages/b-site)
 .astro/
 dist-stubs/
+
+# Claude Code worktrees live inside the repo (see the global worktree convention); never commit them
+.claude/worktrees/
