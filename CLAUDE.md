@@ -7,7 +7,8 @@ b-ark-chrome is the Chrome-extension sibling (single-account, folder-based backu
 the File System Access API). b-view is the shared journal-viewer component kit, and
 b-view-backup is the backup-folder data layer plus the standalone viewer SPA built on it.
 b-mobile is the Capacitor (Android) app for browsing and posting to Blipfoto, b-push is its
-Cloudflare Worker notification service, and b-visual holds the shared design tokens and style
+Cloudflare Worker notification service, b-status is the Cloudflare Worker monitor behind the unofficial
+Blipfoto status page (hosted in b-site), and b-visual holds the shared design tokens and style
 guide. All names are lowercase and hyphenated.
 
 ## Package structure
@@ -26,6 +27,7 @@ packages/b-ark-chrome       Chrome extension shell only — service worker (sw.t
 packages/b-mobile           Capacitor/Ionic Android app. Depends on b-api, b-view, b-visual only (no backup-engine). All `@capacitor/*` imports live in src/platform/**; the rest of the app uses those wrappers.
 packages/b-site             The b-oss project website (static Astro site, GitHub Pages). Shared Layout/Header/Footer; pages keep their `.html` URLs. No dependency on other packages.
 packages/b-push             Cloudflare Worker + D1 notification service for b-mobile. Depends on b-api only. Design in packages/b-push/ARCHITECTURE.md; deployed manually, see packages/b-push/README.md.
+packages/b-status           Cloudflare Worker + D1 monitor behind the unofficial Blipfoto status page (probes the public website, a photo and the API every 15 minutes; takes visitor reports). Depends on no other package. Design in packages/b-status/ARCHITECTURE.md; operating it (deploy, secrets, logs) in packages/b-status/README.md; deployed manually.
 ```
 
 b-mobile does not share the PlatformIO/BackendContext abstractions: it is its own app shell with a
@@ -38,10 +40,11 @@ The Chrome side mirrors the Electron split: `b-ark-chrome` is to `b-ark-ui-chrom
 
 ## Architecture rules (never violate these)
 
-- b-api, backup-engine, b-view, b-view-backup, b-visual, b-ark-ui-components, b-ark-ui-electron, b-ark-ui-chrome, b-mobile, b-push must NEVER import from 'electron'
-- b-api, backup-engine, b-view, b-view-backup, b-visual, b-ark-ui-components, b-ark-ui-electron, b-mobile, b-push must NEVER reference 'chrome'/`chrome.*` — Chrome APIs live only in b-ark-ui-chrome and b-ark-chrome
-- Every package except b-mobile (b-api, backup-engine, b-view, b-view-backup, b-visual, b-ark-ui-*, b-ark, b-ark-chrome, b-push) must NEVER import `@capacitor/*` — Capacitor APIs are for b-mobile only, and within b-mobile only `src/platform/**` may import them (enforced by ESLint). b-view's components take host behaviour (e.g. link-click handling) as injectable props/callbacks instead, so they stay usable from a Capacitor host without depending on it
+- b-api, backup-engine, b-view, b-view-backup, b-visual, b-ark-ui-components, b-ark-ui-electron, b-ark-ui-chrome, b-mobile, b-push, b-status must NEVER import from 'electron'
+- b-api, backup-engine, b-view, b-view-backup, b-visual, b-ark-ui-components, b-ark-ui-electron, b-mobile, b-push, b-status must NEVER reference 'chrome'/`chrome.*` — Chrome APIs live only in b-ark-ui-chrome and b-ark-chrome
+- Every package except b-mobile (b-api, backup-engine, b-view, b-view-backup, b-visual, b-ark-ui-*, b-ark, b-ark-chrome, b-push, b-status) must NEVER import `@capacitor/*` — Capacitor APIs are for b-mobile only, and within b-mobile only `src/platform/**` may import them (enforced by ESLint). b-view's components take host behaviour (e.g. link-click handling) as injectable props/callbacks instead, so they stay usable from a Capacitor host without depending on it
 - b-push must NEVER depend on b-mobile, and no package may depend on b-mobile or b-push. b-push runs on Cloudflare Workers: no Node-only APIs.
+- b-status depends on no other package and no package may depend on it (b-site copies the snapshot types by hand). b-status runs on Cloudflare Workers: no Node-only APIs. It reads only public Blipfoto pages and the API with the monitor's own app id; never user credentials or user data.
 - b-ark-ui components must NEVER call window.api directly — use useBackend() hook only
 - Access tokens: handled in main process only (Electron), never sent to renderer via IPC. On Chrome, tokens are AES-GCM encrypted at rest and handed straight to BackupEngine — never broadcast over chrome.runtime messages
 - All Blipfoto \_id fields: always use the \_str string variant, store as string

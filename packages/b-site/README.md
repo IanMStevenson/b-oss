@@ -83,9 +83,9 @@ Hygiene the build provides: `sitemap-index.xml` (`@astrojs/sitemap`, with the re
 
 The unofficial Blipfoto status page (b-oss#476). The page itself is static HTML (`src/pages/status.astro`);
 `src/status/` is a small client script (plain TypeScript, hand-built SVG, no framework) that fetches
-**one** JSON snapshot from the b-status Worker and draws everything from it. The design record is
-`packages/b-status/design/` (temporary screenshots and a README listing where the build differs
-from them).
+**one** JSON snapshot from the b-status Worker and draws everything from it. The design decisions
+(terminology, banner states and colours, behaviour, accessibility) are recorded in
+[`docs/status-page.md`](docs/status-page.md).
 
 ```
 src/status/types.ts     the snapshot shape, copied by hand from packages/b-status/src/snapshot.ts
@@ -106,7 +106,7 @@ src/status/fixtures.ts  fixture snapshots (all-good, api-down, both-down, unknow
   since the last fetch (data can change between probes, because of user reports); `next_refresh_at`
   is not shown, and the stale rule uses `generated_at`. If the data can't be loaded
   the page says so and never shows "working".
-- **User reports appear immediately** (the action is "share", the thing is a "user report"; the API field is still `shares`). Visible words are plain: Working / Not working / Unknown, Website and API, downtime, incident (see the design README's terminology note). A 201 from the shares endpoint carries the full updated aggregates
+- **User reports appear immediately** (the action is "share", the thing is a "user report"; the API field is still `shares`). Visible words are plain: Working / Not working / Unknown, Website and API, downtime, incident (see `docs/status-page.md`). A 201 from the shares endpoint carries the full updated aggregates
   (`{ ok: true, shares: { hours, days } }`); the page swaps them into its loaded snapshot and redraws
   the Shared lanes, with no refetch.
 - **Share POST** goes to `<origin of PUBLIC_STATUS_URL>/v1/shares` as `text/plain` JSON, so the browser
