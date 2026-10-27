@@ -49,7 +49,7 @@ blipfoto.com itself carries in its nav bar.
 Components use these, not the raw `--green-*` palette, so a theme can re-point them (b-oss#549).
 The rule that matters is **fill vs accent**:
 
-- `--brand-fill` / `--on-brand-fill`: a green *area* with white content on it (top bar, date box,
+- `--brand-fill` / `--on-brand-fill`: a green _area_ with white content on it (top bar, date box,
   account avatar). Brand green in every theme.
 - `--accent`: green used as text, an icon, an outline, an indicator or a small fill on the page
   background. `--on-accent` is the content on an accent fill (badges, selected day, current page).
