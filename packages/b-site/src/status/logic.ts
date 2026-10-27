@@ -10,6 +10,7 @@ import type {
   State,
   SnapshotIncident,
   StatusSnapshot,
+  UptimeKey,
   UptimeWindow,
 } from './types';
 
@@ -95,6 +96,21 @@ export function uptimeLabel(pct: number | null): string {
   const floor1 = Math.floor(n / 100) / 10;
   if (floor1 >= 99.9) return `${n / 1000}%`;
   return `${floor1.toFixed(1)}%`;
+}
+
+/** Uptime rows worth showing yet: 24 hours and all time always; 7 days, 30 days and a year only
+ * once monitoring has lasted that long (snapshot `generated_at` minus `monitoring_since`). */
+export function visibleUptimeKeys(
+  generatedAt: number,
+  monitoringSince: number | null,
+): UptimeKey[] {
+  const keys: UptimeKey[] = ['h24'];
+  const lasted = monitoringSince === null ? -1 : generatedAt - monitoringSince;
+  if (lasted >= 7 * DAY) keys.push('d7');
+  if (lasted >= 30 * DAY) keys.push('d30');
+  if (lasted >= 365 * DAY) keys.push('d365');
+  keys.push('all');
+  return keys;
 }
 
 export function windowDetail(w: UptimeWindow): string {
