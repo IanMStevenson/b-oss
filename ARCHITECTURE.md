@@ -27,6 +27,9 @@ b-mobile (Capacitor/Ionic Android app)
 
 b-push (Cloudflare Worker + D1 notification service for b-mobile)
   └── b-api (HTTP client)
+
+b-status (Cloudflare Worker + D1 monitor behind the unofficial status page; depends on no package)
+b-site (the b-oss.dev website, including the status page that reads b-status; depends on no package)
 ```
 
 `b-view-backup` sits between the backup world and `b-view`: it holds the backup-folder data
@@ -77,6 +80,16 @@ props/callbacks instead of importing Capacitor. Design:
 when a count rises. It talks to `b-mobile` only over HTTP (a registration contract); there is no
 code dependency in either direction. Design: `packages/b-push/ARCHITECTURE.md`. Deployed
 manually; see `packages/b-push/README.md`.
+
+### 5. b-status (status monitor)
+
+`b-status` probes Blipfoto's public website, a photo and its API every 15 minutes from outside, stores
+one sample per slot and the incidents, and publishes a single JSON snapshot for the status page
+(`packages/b-site`). Visitors can also submit user reports (no account, no free text). It reads only public data with
+no user credentials, depends on no other package, and no package depends on it (the page copies the
+snapshot's types by hand). Design: `packages/b-status/ARCHITECTURE.md`; operating it (deploy, secrets,
+logs, wiping data): `packages/b-status/README.md`; the page's design record:
+`packages/b-site/docs/status-page.md`. Deployed manually.
 
 ## IPC security rules
 
