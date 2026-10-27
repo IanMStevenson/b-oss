@@ -40,6 +40,7 @@
   --on-brand-fill: #ffffff;
   --accent: var(--green-800);
   --accent-alt: var(--green-700); /* secondary accent: links, hover fills, focus borders */
+  --on-accent-rgb: 255, 255, 255;
   --on-accent: #ffffff; /* content on an --accent / --accent-alt fill (badges, selected day, …) */
   --accent-soft: var(--green-100); /* tint behind accent text (chips, calendar "today") */
   --selected-row-bg: var(--green-100);
@@ -52,6 +53,17 @@
   --cell-disabled-bg: #ececec; /* calendar days with no entry */
   --cell-disabled-ink: #b9bdc3;
   --bg-veil: rgba(255, 255, 255, 0.75); /* translucent cover over loading content */
+
+  /* Ionic-style "r, g, b" triplets for the values Ionic wants as rgb(), so a theme re-points them
+     with the colour they belong to. */
+  --bg-rgb: 255, 255, 255;
+  --ink-rgb: 17, 17, 17;
+  --accent-rgb: 31, 77, 58;
+  --accent-shade: var(--green-900); /* pressed state of an accent fill */
+  /* The 1dp lines that separate green areas from a dark page (top bar, date box, selected drawer
+     row). Drawn with inset shadows / pseudo-elements, never borders, so they take no space. Nothing
+     is drawn in Light. One token so they can be toned down in one place. */
+  --separator-line: transparent;
 
   /* Typography. Roboto first (self-hosted, see fonts.css), then the previous system stack so
      text never renders unstyled while a font file loads or for scripts Roboto doesn't cover. */

@@ -383,3 +383,49 @@ ion-segment.settings-pill-segment ion-segment-button::part(native) {
 ion-menu {
   --background: var(--surface-drawer);
 }
+
+/* Dark / Mid separator lines (b-oss#549). --separator-line is transparent in Light, so these
+   draw nothing there. They are pseudo-elements/inset shadows, never borders, so they take no
+   space and nothing shifts when a theme turns them on. */
+
+/* Along the bottom edge of the green top bar, on every screen that has one. */
+ion-toolbar.app-header-toolbar {
+  position: relative;
+}
+
+ion-toolbar.app-header-toolbar::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 1px;
+  background: var(--separator-line);
+  pointer-events: none;
+  z-index: 1;
+}
+
+/* Across the top and bottom of the selected drawer row, the full width of the drawer. */
+ion-item.nav-item-current {
+  position: relative;
+}
+
+ion-item.nav-item-current::before,
+ion-item.nav-item-current::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: var(--separator-line);
+  pointer-events: none;
+  z-index: 5; /* above Ionic's own item surface, which would otherwise cover the top line */
+}
+
+ion-item.nav-item-current::before {
+  top: 0;
+}
+
+ion-item.nav-item-current::after {
+  bottom: 0;
+}

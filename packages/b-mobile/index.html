@@ -1,9 +1,36 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <title>b-mobile</title>
+    <!--
+      Colour theme before first paint (b-oss#549). The persisted prefs load asynchronously, so the
+      choice is mirrored in localStorage (src/theme/theme.ts) and applied here, synchronously,
+      before anything draws; the page background below stops a white flash while the app loads.
+      Keep the hex values in step with b-visual's themes.css (a test checks this).
+    -->
+    <script>
+      (function () {
+        try {
+          var pref = localStorage.getItem('b-mobile:theme');
+          var dark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+          var theme =
+            pref === 'light' || pref === 'dark' || pref === 'mid' ? pref : dark ? 'dark' : 'light';
+          document.documentElement.setAttribute('data-theme', theme);
+        } catch (e) {}
+      })();
+    </script>
+    <style>
+      html[data-theme='dark'] {
+        background: #121212;
+        color-scheme: dark;
+      }
+      html[data-theme='mid'] {
+        background: #4c4c4c;
+        color-scheme: dark;
+      }
+    </style>
   </head>
   <body>
     <div id="root"></div>

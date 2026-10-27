@@ -64,9 +64,14 @@ Known Blipfoto API limits: [AppLimitations.md](AppLimitations.md). Paths are rel
 - **Awards**: whole catalogue from the API; earned = `added_stamp !== null`; `secret` → "Secret".
 - **Settings**: hub reachable signed out. Blipfoto account settings: General, Journal, Profile,
   Notifications (all disabled signed out), Refused followers (protected journal only). App
-  settings: Accounts, General (daily reminder, confirm-account toggle, account picture style, open
+  settings: Accounts, General (theme, daily reminder, confirm-account toggle, account picture style, open
   blipfoto.com links in app), Hidden members (always enabled), Browsing (zoom bar, pagination, margins, photo size).
   Server-backed sections use Save/Cancel; device settings apply at once.
+- **Theme** (App settings → General): System (default), Light, Dark, Mid. System
+  follows Android's dark-theme setting and picks Light or Dark, never Mid. Stored in device prefs and
+  mirrored to `localStorage` so `index.html` can apply it before first paint. The theme is the
+  `data-theme` attribute on `<html>`, which b-visual's opt-in `themes.css` re-points the colour
+  tokens for (`src/theme/theme.ts`); Mid counts as dark for the system bars and `color-scheme`.
 - **Help & about**: static (icon guide, safety & privacy, licences). **Hidden members**: Unhide.
 - **Accounts**: list, tap to switch, Add account (→ `/sign-in`); row menu: switch read-only/
   read-write, Disconnect account, Delete account (explains, then opens blipfoto.com settings —

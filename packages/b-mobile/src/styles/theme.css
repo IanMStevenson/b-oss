@@ -7,13 +7,14 @@
  * CSS separately (main.tsx) — this file only overrides the variables Ionic reads.
  */
 @import '@b-oss/b-visual/tokens.css';
+@import '@b-oss/b-visual/themes.css';
 
 :root {
   --ion-color-primary: var(--accent);
-  --ion-color-primary-rgb: 31, 77, 58;
+  --ion-color-primary-rgb: var(--accent-rgb);
   --ion-color-primary-contrast: var(--on-accent);
-  --ion-color-primary-contrast-rgb: 255, 255, 255;
-  --ion-color-primary-shade: var(--green-900);
+  --ion-color-primary-contrast-rgb: var(--on-accent-rgb);
+  --ion-color-primary-shade: var(--accent-shade);
   --ion-color-primary-tint: var(--accent-alt);
 
   --ion-color-danger: var(--color-danger);
@@ -21,9 +22,9 @@
   --ion-font-family: var(--font-sans);
 
   --ion-background-color: var(--bg);
-  --ion-background-color-rgb: 255, 255, 255;
+  --ion-background-color-rgb: var(--bg-rgb);
   --ion-text-color: var(--ink);
-  --ion-text-color-rgb: 17, 17, 17;
+  --ion-text-color-rgb: var(--ink-rgb);
 
   --ion-toolbar-background: var(--bg);
   --ion-toolbar-color: var(--ink);
@@ -98,4 +99,52 @@ ion-button.button-clear:not(.in-buttons):not([color]) {
 /* Disabled looks disabled without turning into a different shape. */
 ion-button.button-disabled:not(.in-buttons) {
   opacity: 0.45;
+}
+
+/*
+ * Dark and Mid (b-oss#549): Ionic's own surfaces. The b-visual tokens above already re-point under
+ * [data-theme] (themes.css); this block covers what Ionic reads from its own scale — step colours
+ * (borders, list/overlay surfaces, popovers, pickers) and the toast/overlay surfaces. Light is
+ * deliberately untouched: nothing here applies without the attribute.
+ */
+:root[data-theme='dark'],
+:root[data-theme='mid'] {
+  /* Ionic's step scale runs from the background (0) to the text colour (1000). */
+  --ion-color-step-50: color-mix(in srgb, var(--ink) 5%, var(--bg));
+  --ion-color-step-100: color-mix(in srgb, var(--ink) 10%, var(--bg));
+  --ion-color-step-150: color-mix(in srgb, var(--ink) 15%, var(--bg));
+  --ion-color-step-200: color-mix(in srgb, var(--ink) 20%, var(--bg));
+  --ion-color-step-250: color-mix(in srgb, var(--ink) 25%, var(--bg));
+  --ion-color-step-300: color-mix(in srgb, var(--ink) 30%, var(--bg));
+  --ion-color-step-350: color-mix(in srgb, var(--ink) 35%, var(--bg));
+  --ion-color-step-400: color-mix(in srgb, var(--ink) 40%, var(--bg));
+  --ion-color-step-450: color-mix(in srgb, var(--ink) 45%, var(--bg));
+  --ion-color-step-500: color-mix(in srgb, var(--ink) 50%, var(--bg));
+  --ion-color-step-550: color-mix(in srgb, var(--ink) 55%, var(--bg));
+  --ion-color-step-600: color-mix(in srgb, var(--ink) 60%, var(--bg));
+  --ion-color-step-650: color-mix(in srgb, var(--ink) 65%, var(--bg));
+  --ion-color-step-700: color-mix(in srgb, var(--ink) 70%, var(--bg));
+  --ion-color-step-750: color-mix(in srgb, var(--ink) 75%, var(--bg));
+  --ion-color-step-800: color-mix(in srgb, var(--ink) 80%, var(--bg));
+  --ion-color-step-850: color-mix(in srgb, var(--ink) 85%, var(--bg));
+  --ion-color-step-900: color-mix(in srgb, var(--ink) 90%, var(--bg));
+  --ion-color-step-950: color-mix(in srgb, var(--ink) 95%, var(--bg));
+
+  --ion-item-background: var(--bg);
+  --ion-overlay-background-color: var(--surface-drawer);
+  --ion-color-medium: var(--muted);
+  --ion-color-medium-rgb: 168, 173, 170;
+  --ion-color-success: var(--accent);
+}
+
+/* Snackbars follow the same surface/text/accent rule as dialogs (light themes keep Ionic's own
+   inverted toast). */
+:root[data-theme='dark'] ion-toast,
+:root[data-theme='mid'] ion-toast {
+  --background: var(--surface-drawer);
+  --color: var(--ink);
+  --button-color: var(--accent);
+  --border-color: var(--line);
+  --border-width: 1px;
+  --border-style: solid;
 }

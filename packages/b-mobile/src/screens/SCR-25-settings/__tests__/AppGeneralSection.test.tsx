@@ -208,6 +208,33 @@ describe('AppGeneralSection — multiple accounts', () => {
   });
 });
 
+describe('AppGeneralSection — theme', () => {
+  function themeSegment() {
+    return document.querySelector<HTMLElement & { value: string }>(
+      'ion-segment[aria-label="Theme"]',
+    )!;
+  }
+
+  it('offers System, Light, Dark and Mid even with one account, defaulting to System', () => {
+    render(<AppGeneralSection />);
+    const segment = themeSegment();
+    expect(segment.classList.contains('settings-pill-segment')).toBe(true);
+    expect(segment.value).toBe('system');
+    const labels = Array.from(segment.querySelectorAll('ion-segment-button')).map(
+      (b) => b.textContent,
+    );
+    expect(labels).toEqual(['System', 'Light', 'Dark', 'Mid']);
+  });
+
+  it('persists the choice', () => {
+    render(<AppGeneralSection />);
+    themeSegment().dispatchEvent(
+      new CustomEvent('ionChange', { bubbles: true, detail: { value: 'mid' } }),
+    );
+    expect(useDevicePrefsStore.getState().theme).toBe('mid');
+  });
+});
+
 describe('AppGeneralSection — signed out', () => {
   beforeEach(() => {
     useAccountsStore.setState({ accounts: [], activeAccountId: null, hydrated: true });

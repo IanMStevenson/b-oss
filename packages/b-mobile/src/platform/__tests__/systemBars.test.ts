@@ -32,6 +32,13 @@ describe('applySystemBarStyles', () => {
     expect(setStyle).toHaveBeenCalledWith({ bar: 'NavigationBar', style: 'LIGHT' });
   });
 
+  it('gives the navigation bar light icons when the theme is dark (Dark and Mid)', async () => {
+    isNativePlatform.mockReturnValue(true);
+    await applySystemBarStyles(true);
+    expect(setStyle).toHaveBeenCalledWith({ bar: 'StatusBar', style: 'DARK' });
+    expect(setStyle).toHaveBeenCalledWith({ bar: 'NavigationBar', style: 'DARK' });
+  });
+
   it('swallows a plugin failure', async () => {
     isNativePlatform.mockReturnValue(true);
     setStyle.mockRejectedValueOnce(new Error('nope'));

@@ -6,15 +6,22 @@
 // takes light icons. Bottom: a solid strip drawn by the web layer (.system-nav-strip,
 // globals.css) so scrolling content never shows through the navigation bar, so the navigation bar
 // takes dark icons. Native only; a no-op in a browser.
+//
+// Dark and Mid (b-oss#549): the top bar stays brand green in every theme, so the status bar keeps
+// light icons; the strip under the navigation bar takes the theme's page colour, so the navigation
+// bar's icons follow whether the theme is dark.
 
 import { Capacitor, SystemBars, SystemBarsStyle, SystemBarType } from '@capacitor/core';
 
-export async function applySystemBarStyles(): Promise<void> {
+export async function applySystemBarStyles(darkTheme = false): Promise<void> {
   if (!Capacitor.isNativePlatform()) return;
   try {
     // "Dark" = light icons (for a dark background); "Light" = dark icons.
     await SystemBars.setStyle({ bar: SystemBarType.StatusBar, style: SystemBarsStyle.Dark });
-    await SystemBars.setStyle({ bar: SystemBarType.NavigationBar, style: SystemBarsStyle.Light });
+    await SystemBars.setStyle({
+      bar: SystemBarType.NavigationBar,
+      style: darkTheme ? SystemBarsStyle.Dark : SystemBarsStyle.Light,
+    });
   } catch {
     // Cosmetic only; the bars keep their default appearance.
   }
