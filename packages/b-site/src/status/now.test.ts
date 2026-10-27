@@ -15,12 +15,12 @@ describe('banner headline', () => {
     expect(text('all-good')).toEqual({ kind: 'up', title: 'Blipfoto is working', body: '' });
   });
 
-  it('one part not working: plain words and when it started', () => {
+  it('API not working: a warning, the website is fine', () => {
     const api = text('api-down');
-    expect(api.kind).toBe('down');
-    expect(api.title).toBe('The API isn’t working');
+    expect(api.kind).toBe('warn');
+    expect(api.title).toBe('Blipfoto is working, but apps may not connect');
     expect(api.body).toMatch(
-      /^Apps such as b-ark and b-mobile may not connect\. Not working since about \d\d:\d\d\.$/,
+      /^The website is fine\. The API that apps use isn’t responding\. Not working since about \d\d:\d\d\.$/,
     );
   });
 
@@ -29,6 +29,17 @@ describe('banner headline', () => {
     expect(t.kind).toBe('down');
     expect(t.title).toBe('The website isn’t working');
     expect(t.body).toMatch(/^Apps should still connect\. Not working since about \d\d:\d\d\.$/);
+  });
+
+  it('severity follows who is affected: website or both = red, API alone = amber', () => {
+    const kind = (n: Parameters<typeof makeFixture>[0]) =>
+      bannerKind(makeFixture(n, NOW), NOW, false);
+    expect(kind('all-good')).toBe('up');
+    expect(kind('website-down')).toBe('down');
+    expect(kind('api-down')).toBe('warn');
+    expect(kind('both-down')).toBe('down');
+    expect(kind('unknown')).toBe('unknown');
+    expect(kind('stale')).toBe('unknown');
   });
 
   it('both not working: one cause, photos', () => {
@@ -47,7 +58,9 @@ describe('banner headline', () => {
     const t = text('all-good', true);
     expect(t.kind).toBe('error');
     expect(t.title).toBe('Couldn’t load the status');
-    expect(t.body).toMatch(/doesn’t mean Blipfoto isn’t working/);
+    expect(t.body).toMatch(
+      /doesn’t mean Blipfoto isn’t working\. The charts and tables below are from/,
+    );
     expect(bannerKind(makeFixture('all-good', NOW), NOW, true)).toBe('error');
     expect(bannerKind(null, NOW, true)).toBe('error');
     expect(bannerKind(null, NOW, false)).toBe('loading');

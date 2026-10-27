@@ -78,6 +78,12 @@ code it: do not try to reproduce any generated markup.
     Share button; no visible "Answer both questions" hint (Share keeps an `aria-describedby`
     reason); no "Resolved" chip on past incidents and no repeated "No downtime" under every 100%.
 
+15. **Banner severity follows who is affected.** The website affects everyone, so the website (or both
+    parts) not working is a **red** banner. The API affects far fewer people and the fallback is simply
+    "use the website", so the API alone not working is an **amber** warning ("Blipfoto is working, but
+    apps may not connect"). Green = all working, hatched grey = no recent data, amber outline =
+    couldn't load (its rows show Unknown, never Working). The chart and legend colours do not change.
+
 ## Terminology (visible text and docs; code identifiers and API field names such as `shares` are unchanged)
 
 - **Website** and **API**: the two monitored parts. In the status banner the rows read

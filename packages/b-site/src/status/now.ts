@@ -8,10 +8,13 @@ import type { Component, StatusSnapshot } from './types';
 /** Row names in the banner (compact): the website, and the API that apps use. */
 const ROW_NAME: Record<Component, string> = { site: 'Website', api: 'API / apps' };
 
-type Kind = 'up' | 'down' | 'unknown' | 'error';
+/** Banner severity: up (green), warn (amber), down (red), unknown (hatched grey), error (amber outline).
+ * The website affects everyone, so its failure is red; the API affects far fewer people (and the
+ * fallback is simply "use the website"), so its failure alone is only a warning. */
+type Kind = 'up' | 'warn' | 'down' | 'unknown' | 'error';
 
 function icon(kind: Kind): HTMLElement {
-  const glyph = { up: '✓', down: '✕', unknown: '?', error: '!' }[kind];
+  const glyph = { up: '✓', warn: '!', down: '✕', unknown: '?', error: '!' }[kind];
   return h('span', { class: `st-icon st-icon-${kind}`, 'aria-hidden': 'true' }, glyph);
 }
 
@@ -53,7 +56,9 @@ export function headline(
     return {
       kind: 'error',
       title: 'Couldn’t load the status',
-      body: `That doesn’t mean Blipfoto isn’t working. Showing the last data we have, from ${updatedLabel(snap.generated_at)}.`,
+      // The banner rows are Unknown in this state (we can't vouch for them); the charts and tables
+      // below still show the last data we have, so say when it is from.
+      body: `That doesn’t mean Blipfoto isn’t working. The charts and tables below are from ${updatedLabel(snap.generated_at)}.`,
     };
   }
   const since = (c: Component) => {
@@ -65,9 +70,9 @@ export function headline(
       return { kind: 'up', title: 'Blipfoto is working', body: '' };
     case 'api-down':
       return {
-        kind: 'down',
-        title: 'The API isn’t working',
-        body: `Apps such as b-ark and b-mobile may not connect.${since('api')}`,
+        kind: 'warn',
+        title: 'Blipfoto is working, but apps may not connect',
+        body: `The website is fine. The API that apps use isn’t responding.${since('api')}`,
       };
     case 'site-down':
       return {
@@ -128,7 +133,8 @@ export function renderNow(
   failedToLoad: boolean,
   footer: HTMLElement,
 ): HTMLElement[] {
-  const stale = isStale(snap, now);
+  // Stale data, or a failed update, means the rows can't be vouched for: show them as Unknown.
+  const stale = isStale(snap, now) || failedToLoad;
   const t = headline(snap, now, overallOf(snap, now), failedToLoad);
   return [
     // The headline IS the page's h1: the answer to "is Blipfoto working?".
