@@ -1660,9 +1660,6 @@ p.st-sub {
 .st-share-note a {
   text-decoration: underline;
 }
-.st-form-card [data-hint] {
-  margin-top: 8px;
-}
 .st-privacy {
   margin: 12px 0 0;
   font-size: 13px;
@@ -1672,13 +1669,6 @@ p.st-sub {
   color: var(--muted-strong);
   text-decoration: underline;
   text-underline-offset: 2px;
-}
-.st-live {
-  min-height: 1.3em;
-  margin: 4px 0 0;
-  font-size: 14px;
-  font-weight: 500;
-  text-align: center;
 }
 .st-form-error {
   border: 2px solid var(--down-text);

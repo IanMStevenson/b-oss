@@ -6,7 +6,6 @@ import type {
   Component,
   HistoryEntry,
   Segment,
-  Shares,
   State,
   SnapshotIncident,
   StatusSnapshot,
@@ -155,38 +154,6 @@ export function snapshotUnchanged(prev: StatusSnapshot, next: StatusSnapshot): b
     prev.now.api.checked_at === next.now.api.checked_at &&
     JSON.stringify(prev.shares ?? null) === JSON.stringify(next.shares ?? null)
   );
-}
-
-const isHours = (v: unknown): v is [number, number][] =>
-  Array.isArray(v) &&
-  v.every((x) => Array.isArray(x) && typeof x[0] === 'number' && typeof x[1] === 'number');
-const isDays = (v: unknown): v is [string, number][] =>
-  Array.isArray(v) &&
-  v.every((x) => Array.isArray(x) && typeof x[0] === 'string' && typeof x[1] === 'number');
-
-/** The updated share aggregates from a 201 response body `{ ok: true, shares: {hours, days} }`, or
- * null if it isn't in that shape (the page then simply doesn't update, and shows the thank-you). */
-export function parseShareResponse(body: unknown): Pick<Shares, 'hours' | 'days'> | null {
-  if (typeof body !== 'object' || body === null) return null;
-  const shares = (body as { shares?: unknown }).shares;
-  if (typeof shares !== 'object' || shares === null) return null;
-  const { hours, days } = shares as {
-    hours?: Record<string, unknown>;
-    days?: Record<string, unknown>;
-  };
-  if (!hours || !days) return null;
-  for (const c of ['site', 'api'] as const) {
-    if (!isHours(hours[c]) || !isDays(days[c])) return null;
-  }
-  return { hours: hours as Shares['hours'], days: days as Shares['days'] };
-}
-
-/** The snapshot with its share aggregates replaced (everything else untouched). */
-export function withShares(
-  snap: StatusSnapshot,
-  shares: Pick<Shares, 'hours' | 'days'>,
-): StatusSnapshot {
-  return { ...snap, shares: { hours: shares.hours, days: shares.days } };
 }
 
 /** Older than two sampling intervals: the monitor has no recent data. */

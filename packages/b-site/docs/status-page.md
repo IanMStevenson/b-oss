@@ -45,11 +45,16 @@ them.
 ## Behaviour
 
 - **No auto-refresh**, nothing moves under the reader. Refresh may fetch again 60 s after the last
-  fetch; the Worker serves from memory and re-reads its store at most once a minute.
-- **A user report appears immediately:** the share response carries the updated counts, the page swaps
-  them in and redraws the User reports lanes with no extra request. A second report within half an
-  hour is refused ("You've already shared a report. Thanks. Your earlier report is counted, but this
-  one wasn't added.") and the page never says when they can report again (we don't want repeats).
+  fetch; the Worker serves from memory and re-reads its store at most once a minute, and the browser
+  may cache the data for up to a minute.
+- **A user report appears within a minute or two, and the page never draws it early.** The page only
+  shows what the Worker has published, so a refresh can never make the reporter's own report vanish
+  and reappear. The thank-you dialog sets the expectation: "Thanks, your report is in. It can take a
+  minute or two to appear on this page." (The Worker patches the report into the stored snapshot at
+  once; the delay is the Worker's one-minute in-memory copy plus the browser's 60-second cache, which
+  also limit repeat reloads.) A second report within half an hour is refused ("You've already shared a
+  report. Thanks. Your earlier report is counted, but this one wasn't added.") and the page never says
+  when they can report again (we don't want repeats).
 - **Last 48 hours:** outage-only lanes (nothing drawn means nothing wrong); only problems are drawn;
   blocks are at least 6 px wide so a single 15-minute outage is visible; ongoing sits flush with
   "Now"; each lane has a thin amber User reports lane (bars per hour).

@@ -15,9 +15,7 @@ import {
   laneTicks,
   REFRESH_FLOOR_MS,
   nextAllowedFetch,
-  parseShareResponse,
   snapshotUnchanged,
-  withShares,
   overallOf,
   sharedScale,
   uptimeLabel,
@@ -139,50 +137,6 @@ describe('refresh', () => {
     expect(isStale(snap, NOW)).toBe(false);
     expect(isStale(snap, snap.generated_at + 30 * MINUTE)).toBe(false);
     expect(isStale(snap, snap.generated_at + 31 * MINUTE)).toBe(true);
-  });
-});
-
-describe('share response', () => {
-  const good = {
-    ok: true,
-    shares: {
-      hours: { site: [[1000, 2]], api: [] },
-      days: { site: [['2026-10-22', 2]], api: [] },
-    },
-  };
-
-  it('parses the updated aggregates from the 201 body', () => {
-    expect(parseShareResponse(good)).toEqual(good.shares);
-  });
-
-  it.each([
-    ['null', null],
-    ['no shares', { ok: true }],
-    [
-      'missing component',
-      { ok: true, shares: { hours: { site: [] }, days: { site: [], api: [] } } },
-    ],
-    [
-      'bad hour entry',
-      { ok: true, shares: { hours: { site: [['x', 1]], api: [] }, days: { site: [], api: [] } } },
-    ],
-    [
-      'bad day entry',
-      { ok: true, shares: { hours: { site: [], api: [] }, days: { site: [[1, 1]], api: [] } } },
-    ],
-  ])('rejects %s without throwing', (_name, body) => {
-    expect(parseShareResponse(body)).toBeNull();
-  });
-
-  it('replaces only hours and days, keeping everything else', () => {
-    const snap = makeFixture('busy', NOW);
-    const next = withShares(snap, good.shares as never);
-    expect(next.shares).toEqual(good.shares);
-    expect(next.history).toBe(snap.history);
-    expect(next.incidents).toBe(snap.incidents);
-    expect(snap.shares).not.toEqual(good.shares); // the original is untouched
-    const bare = withShares(makeFixture('new', NOW), good.shares as never);
-    expect(bare.shares).toEqual(good.shares);
   });
 });
 

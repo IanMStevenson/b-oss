@@ -1,10 +1,8 @@
 // The "Share a problem" form: client state only. It posts one small JSON body (as text/plain, so the
 // browser makes no CORS preflight) to the shares endpoint and shows the outcome. Nothing here ever
-// displays or works out a time after which sharing is possible again. On success the response carries
-// the updated share counts, handed to `onShared` so the page can show the share at once.
-
-import { parseShareResponse } from './logic';
-import type { Shares } from './types';
+// displays or works out a time after which sharing is possible again. A successful report is NOT drawn
+// into the page: the page only ever shows what the server has published (it can take a minute or
+// two to appear), so a refresh can never make the reporter's own report vanish and reappear.
 
 interface Turnstile {
   render(
@@ -30,7 +28,6 @@ export interface ShareConfig {
   endpoint: string;
   siteKey: string;
   /** Called with the updated share aggregates from a 201 response. */
-  onShared?: (shares: Pick<Shares, 'hours' | 'days'>) => void;
 }
 
 const q = <T extends Element>(root: ParentNode, sel: string): T => {
@@ -43,7 +40,6 @@ export function initShare(root: HTMLElement, cfg: ShareConfig): void {
   const form = q<HTMLFormElement>(root, 'form');
   const fields = q<HTMLElement>(root, '[data-fields]');
   const submit = q<HTMLButtonElement>(root, '[data-submit]');
-  const hint = q<HTMLElement>(root, '[data-hint]');
   const banner = q<HTMLElement>(root, '[data-error]');
   const already = q<HTMLElement>(root, '[data-already]');
   const thanks = q<HTMLElement>(root, '[data-thanks]');
@@ -52,7 +48,6 @@ export function initShare(root: HTMLElement, cfg: ShareConfig): void {
   let token = '';
   let phase: Phase = 'idle';
   let widget: string | undefined;
-  let counted = false;
 
   root.hidden = false;
 
@@ -113,18 +108,7 @@ export function initShare(root: HTMLElement, cfg: ShareConfig): void {
     if (p === 'thanks') done.focus();
   }
 
-  /** After Done: say, in the reserved status line under the button (no layout jump), that the report is counted. */
-  function showCounted(): void {
-    hint.replaceChildren(
-      document.createTextNode('Your report is counted above. '),
-      Object.assign(document.createElement('a'), { href: '#st-48-title', textContent: 'See it' }),
-    );
-  }
   form.addEventListener('change', () => {
-    if (counted) {
-      counted = false;
-      hint.textContent = '';
-    }
     update();
   });
   async function onSubmit(e: Event): Promise<void> {
@@ -146,9 +130,6 @@ export function initShare(root: HTMLElement, cfg: ShareConfig): void {
         credentials: 'omit',
       });
       if (res.status === 201) {
-        const updated = parseShareResponse(await res.json().catch(() => null));
-        if (updated) cfg.onShared?.(updated);
-        counted = updated !== null;
         set('thanks');
       } else if (res.status === 429) set('already');
       else set('error');
@@ -169,7 +150,6 @@ export function initShare(root: HTMLElement, cfg: ShareConfig): void {
     form.reset();
     token = '';
     set('idle');
-    if (counted) showCounted();
     // Back to the form, where the reader was, without scrolling.
     form.querySelector<HTMLInputElement>('input')?.focus({ preventScroll: true });
   });

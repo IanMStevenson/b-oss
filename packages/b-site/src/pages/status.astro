@@ -94,7 +94,6 @@ import StatusDisclaimer from '../components/StatusDisclaimer.astro';
           </div>
           <button type="submit" class="st-btn st-btn-primary st-btn-wide" data-submit aria-describedby="st-share-why" disabled>Share</button>
           <span id="st-share-why" class="st-sr">Share is available once you have answered both questions above.</span>
-          <p class="st-live" data-hint role="status" aria-live="polite"></p>
           <p class="st-share-note">
             Reports stay on this page and are not sent to Blipfoto.
             <a href={BLIPFOTO_SUPPORT_REQUEST} target="_blank" rel="noopener">Contact Blipfoto Support</a>
@@ -108,8 +107,8 @@ import StatusDisclaimer from '../components/StatusDisclaimer.astro';
         </div>
         <div class="st-thanks" data-thanks role="dialog" aria-modal="true" aria-labelledby="st-thanks-title" hidden>
           <div class="st-thanks-card">
-            <h3 id="st-thanks-title" tabindex="-1">Thanks, your report is counted</h3>
-            <p>To get it fixed, tell Blipfoto Support.</p>
+            <h3 id="st-thanks-title" tabindex="-1">Thanks, your report is in</h3>
+            <p>It can take a minute or two to appear on this page. To get it fixed, tell Blipfoto Support.</p>
             <div class="st-thanks-actions">
               <a class="st-btn st-btn-primary" href={BLIPFOTO_SUPPORT_REQUEST} target="_blank" rel="noopener">Contact Blipfoto Support ↗</a>
               <button type="button" class="st-btn" data-done>Done</button>

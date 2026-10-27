@@ -85,8 +85,11 @@ no CORS preflight.
 
 **A share is counted at once.** After the share is stored, the Worker patches the stored snapshot's
 hourly and daily share counts (one row read, one write; the probe data and `next_refresh_at` are left
-alone), forgets its own in-memory copy, and returns the updated counts in the 201 response so the
-poster's page can redraw without another request. Other instances pick it up within a minute. The
+alone), forgets its own in-memory copy, and returns the updated counts in the 201 response (the status page deliberately
+does not draw them early: it shows only what the Worker has published, so a refresh can never make
+the reporter's own report vanish and reappear). Other instances pick it up within a minute, and a
+browser may hold the previous response for up to 60 seconds, so a report can take a minute or two to
+appear on the page. The
 next probe rebuilds the snapshot from the `shares` table, which is the source of truth, so a lost
 update from two simultaneous shares can't persist.
 
