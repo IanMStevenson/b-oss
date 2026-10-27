@@ -16,7 +16,8 @@
 
 import { ALLOWED_ORIGINS, jsonResponse } from './cors.js';
 import type { DbLike } from './db.js';
-import { DAY_MS, dayOf, startOfUtcDay } from './time.js';
+import { invalidateStatusCache } from './serve.js';
+import { DAY_MS, HOUR_MS, dayOf, startOfUtcDay } from './time.js';
 import type { Component, Env } from './types.js';
 
 export const SHARE_INTERVAL_MS = 30 * 60 * 1000;
@@ -159,7 +160,65 @@ export async function handleShare(
       .bind(hash, now + SHARE_INTERVAL_MS),
     db.prepare('DELETE FROM share_limit WHERE expires_at <= ?').bind(now),
   ]);
-  return jsonResponse({ ok: true }, 201, origin);
+  // The share is counted straight away: patch it into the stored snapshot (no waiting for the next
+  // probe), forget this instance's cached copy, and hand the updated counts back so the poster's
+  // page can show it without another request.
+  const shares = await bumpSnapshotShares(db, share.component, now);
+  invalidateStatusCache();
+  return jsonResponse({ ok: true, shares }, 201, origin);
+}
+
+/** The visitor-share counts the page draws (the snapshot's `shares` field, minus nothing the page needs). */
+export interface ShareAggregates {
+  hours: Record<Component, [number, number][]>;
+  days: Record<Component, [string, number][]>;
+}
+
+function emptyAggregates(): ShareAggregates {
+  return { hours: { site: [], api: [] }, days: { site: [], api: [] } };
+}
+
+function bump<K extends string | number>(list: [K, number][], key: K): void {
+  const hit = list.find((e) => e[0] === key);
+  if (hit) hit[1]++;
+  else list.push([key, 1]);
+}
+
+/** Count one more share in the stored snapshot's hourly and daily share counts (the snapshot's
+ * probe data, `generated_at` and `next_refresh_at` are left alone) and return the updated counts.
+ * Read-modify-write, so two shares in the same instant could lose one count in the snapshot until
+ * the next probe rebuilds it from the `shares` table (the source of truth). With no snapshot yet it
+ * returns just this share. */
+export async function bumpSnapshotShares(
+  db: DbLike,
+  component: Component,
+  now: number,
+): Promise<ShareAggregates> {
+  const hour = now - (now % HOUR_MS);
+  const day = dayOf(now);
+  const row = await db
+    .prepare('SELECT json, generated_at, next_refresh_at FROM snapshot WHERE id = 1')
+    .first<{ json: string; generated_at: number; next_refresh_at: number }>();
+  if (!row) {
+    const agg = emptyAggregates();
+    bump(agg.hours[component], hour);
+    bump(agg.days[component], day);
+    return agg;
+  }
+  const snap = JSON.parse(row.json) as { shares?: ShareAggregates } & Record<string, unknown>;
+  const agg = snap.shares ?? emptyAggregates();
+  bump(agg.hours[component], hour);
+  bump(agg.days[component], day);
+  agg.hours[component].sort((a, b) => a[0] - b[0]);
+  agg.days[component].sort((a, b) => (a[0] < b[0] ? -1 : 1));
+  snap.shares = agg;
+  await db
+    .prepare(
+      'INSERT OR REPLACE INTO snapshot (id, json, generated_at, next_refresh_at) VALUES (1, ?, ?, ?)',
+    )
+    .bind(JSON.stringify(snap), row.generated_at, row.next_refresh_at)
+    .run();
+  return agg;
 }
 
 /** Cron: drop limiter rows that have expired (the handler also purges when it writes). */

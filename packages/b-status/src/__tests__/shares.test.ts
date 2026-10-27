@@ -11,6 +11,7 @@ import {
   parseShare,
   purgeShareLimit,
 } from '../shares.js';
+import { handleStatus, resetServeCache } from '../serve.js';
 import { storeSnapshot } from '../snapshot.js';
 import { runMaintenance } from '../maintain.js';
 import { NOW, WEEK, at, simulate } from './sim.js';
@@ -94,7 +95,14 @@ describe('POST /v1/shares', () => {
   it('stores a share and a limiter row (a hash, never the IP)', async () => {
     const res = await handleShare(post(GOOD), ENV, db, deps());
     expect(res.status).toBe(201);
-    expect(await res.json()).toEqual({ ok: true });
+    // The response carries the updated share counts (no snapshot yet, so just this share).
+    expect(await res.json()).toEqual({
+      ok: true,
+      shares: {
+        hours: { site: [], api: [[NOW - (NOW % 3_600_000), 1]] },
+        days: { site: [], api: [['2026-10-23', 1]] },
+      },
+    });
     const share = await db.prepare('SELECT * FROM shares').first<Record<string, unknown>>();
     expect(share).toMatchObject({ ts: NOW, component: 'api', what: 'degraded', tags: 'login' });
     const lim = await db.prepare('SELECT * FROM share_limit').first<{
@@ -204,6 +212,62 @@ describe('POST /v1/shares', () => {
     expect(res.headers.get('Access-Control-Allow-Headers')).toBe('Content-Type');
     const get = new Request('https://b-status.test/v1/shares');
     expect((await handleShare(get, ENV, db, deps())).status).toBe(405);
+  });
+});
+
+describe('a share is counted at once', () => {
+  async function seededSnapshot() {
+    await simulate(db, WEEK);
+    await runMaintenance(db, NOW);
+    return storeSnapshot(db, NOW);
+  }
+
+  it('patches the stored snapshot and returns the updated counts, leaving the probe data alone', async () => {
+    const before = await seededSnapshot();
+    const res = await handleShare(post(GOOD), ENV, db, deps());
+    const body = await res.json<{ shares: typeof before.shares }>();
+    const hour = NOW - (NOW % 3_600_000);
+    expect(body.shares.hours.api).toEqual([[hour, 1]]);
+    expect(body.shares.days.api).toEqual([['2026-10-23', 1]]);
+    const row = await db
+      .prepare('SELECT json, generated_at, next_refresh_at FROM snapshot WHERE id = 1')
+      .first<{ json: string; generated_at: number; next_refresh_at: number }>();
+    const stored = JSON.parse(row?.json ?? '{}') as typeof before;
+    expect(stored.shares).toEqual(body.shares);
+    // The probe's own data, and when it can next change, are untouched.
+    expect(stored.generated_at).toBe(before.generated_at);
+    expect(stored.next_refresh_at).toBe(before.next_refresh_at);
+    expect(stored.uptime).toEqual(before.uptime);
+    expect(stored.now).toEqual(before.now);
+  });
+
+  it('counts a second share from someone else in the same hour as 2', async () => {
+    await seededSnapshot();
+    await handleShare(post(GOOD, '198.51.100.1'), ENV, db, deps());
+    const res = await handleShare(post(GOOD, '198.51.100.2'), ENV, db, deps(NOW + 60_000));
+    const body = await res.json<{ shares: { hours: { api: [number, number][] } } }>();
+    expect(body.shares.hours.api).toEqual([[NOW - (NOW % 3_600_000), 2]]);
+  });
+
+  it('is visible to the very next status request on the same instance, even if one was cached before', async () => {
+    resetServeCache();
+    await seededSnapshot();
+    const before = await handleStatus(
+      new Request('https://b-status.test/v1/status'),
+      db,
+      NOW + 1000,
+    );
+    expect(
+      (await before.json<{ shares: { hours: { api: unknown[] } } }>()).shares.hours.api,
+    ).toEqual([]);
+    await handleShare(post(GOOD), ENV, db, deps(NOW + 2000));
+    const after = await handleStatus(
+      new Request('https://b-status.test/v1/status'),
+      db,
+      NOW + 3000,
+    );
+    const snap = await after.json<{ shares: { hours: { api: [number, number][] } } }>();
+    expect(snap.shares.hours.api).toEqual([[NOW - (NOW % 3_600_000), 1]]);
   });
 });
 

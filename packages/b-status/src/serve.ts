@@ -2,16 +2,19 @@
 // Copyright (C) 2026 Ian Stevenson
 
 // GET /v1/status: serve the stored snapshot. Free-tier discipline (b-oss#476): the Worker keeps the
-// snapshot in isolate memory until it is due to be replaced, so a page view normally costs ZERO D1
-// reads. If the cron is late (the snapshot is past its `next_refresh_at`) it still holds the old one
-// for a minute before looking again, so a late cron can't turn a traffic spike into a D1 read per
-// request. `Cache-Control: max-age` is the time remaining, so browsers don't ask again either.
+// snapshot in isolate memory and looks in D1 at most once a minute, so a page view normally costs
+// ZERO D1 reads however busy the page is. The minute is also how quickly a visitor's shared problem
+// (patched into the stored snapshot the moment it is accepted, see shares.ts) reaches everyone else,
+// and `Cache-Control: max-age` is capped at the same minute so browsers don't hold a stale copy
+// longer than that.
 
 import { jsonHeaders as headers } from './cors.js';
 import type { DbLike } from './db.js';
 
+/** How long a Worker instance trusts its in-memory snapshot, and the cap on browser caching. */
+const RECHECK_MS = 60_000;
+const MAX_MAX_AGE_S = 60;
 const MIN_MAX_AGE_S = 15;
-const LATE_HOLD_MS = 60_000;
 
 interface Cached {
   json: string;
@@ -23,7 +26,13 @@ interface Cached {
 
 let cached: Cached | null = null;
 
-/** Test hook: forget the isolate-memory copy. */
+/** Forget this Worker instance's in-memory copy, so its next request reads the stored snapshot. Called
+ * after a share is patched into it, so a visitor on the same instance sees the share at once. */
+export function invalidateStatusCache(): void {
+  cached = null;
+}
+
+/** Test hook (same as invalidateStatusCache). */
 export function resetServeCache(): void {
   cached = null;
 }
@@ -55,13 +64,15 @@ export async function handleStatus(request: Request, db: DbLike, now: number): P
       json: row.json,
       generatedAt: row.generated_at,
       nextRefreshAt: row.next_refresh_at,
-      recheckAt: Math.max(row.next_refresh_at, now + LATE_HOLD_MS),
+      recheckAt: now + RECHECK_MS,
     };
   }
 
   const remainingS = Math.floor((cached.nextRefreshAt - now) / 1000);
-  // Past due (cron late): ask again in a minute, not in a tight loop.
-  const maxAge = remainingS >= MIN_MAX_AGE_S ? remainingS : remainingS > 0 ? MIN_MAX_AGE_S : 60;
+  // Never longer than a minute (shares can change the data between probes); past due (cron late):
+  // ask again in a minute, not in a tight loop.
+  const maxAge =
+    remainingS <= 0 ? MAX_MAX_AGE_S : Math.min(MAX_MAX_AGE_S, Math.max(MIN_MAX_AGE_S, remainingS));
   return new Response(request.method === 'HEAD' ? null : cached.json, {
     status: 200,
     headers: headers(origin, { 'Cache-Control': `public, max-age=${maxAge}` }),
