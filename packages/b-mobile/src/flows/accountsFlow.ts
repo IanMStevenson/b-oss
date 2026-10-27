@@ -199,8 +199,26 @@ export async function signInDeliberate(
   const result = await runOAuthRound(choice.scope, embedded);
   const account = await storeAppToken(result);
   rememberInAppBrowser(account.id, embedded.useEmbedded);
-  useAccountsStore.getState().setActiveAccountId(account.id);
 
+  // The account only becomes active once the whole sign-in is over (success or failure). Active-
+  // account changes re-key the route table (AppRoutes), remounting the sign-in screen mid-flow —
+  // and with it the second-round explainer it hosts, which then never appears, leaving the user on
+  // a fresh sign-in form with the sign-in hung (b-oss#543).
+  try {
+    await registerNotificationsAfterSignIn(account, result, choice, embedded, hooks);
+  } finally {
+    useAccountsStore.getState().setActiveAccountId(account.id);
+  }
+  return account.id;
+}
+
+async function registerNotificationsAfterSignIn(
+  account: StoredAccount,
+  result: OAuthResult,
+  choice: SignInModeChoice,
+  embedded: { useEmbedded: boolean | undefined },
+  hooks: SignInHooks,
+): Promise<void> {
   if (choice.notifications && (await ensurePushPermission())) {
     if (account.appTokenScope === 'read') {
       // Read-only + notifications: the same token serves both — no second round.
@@ -227,8 +245,6 @@ export async function signInDeliberate(
       }
     }
   }
-
-  return account.id;
 }
 
 /** FLW-21 — instant, local, no network call. A needs-reauth account can't simply be switched to

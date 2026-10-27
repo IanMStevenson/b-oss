@@ -140,6 +140,25 @@ describe('signInDeliberate (FLW-20)', () => {
     expect(await getToken('carol', 'service')).toBe('tok-r-service');
   });
 
+  it('does not switch the active account until the sign-in has finished (b-oss#543)', async () => {
+    // Making the account active re-keys the route table and remounts the sign-in screen, taking
+    // the second-round explainer (which lives in that screen) with it.
+    const activeAt: Array<string | null> = [];
+    runOAuthRound
+      .mockResolvedValueOnce({ accessToken: 'tok-rw', grantedScope: 'read,write', username: 'gus' })
+      .mockImplementationOnce(() => {
+        activeAt.push(useAccountsStore.getState().activeAccountId);
+        return Promise.resolve({ accessToken: 'tok-svc', grantedScope: 'read', username: 'gus' });
+      });
+    const beforeServiceRound = vi.fn().mockImplementation(() => {
+      activeAt.push(useAccountsStore.getState().activeAccountId);
+      return Promise.resolve(true);
+    });
+    await signInDeliberate({ scope: 'read,write', notifications: true }, { beforeServiceRound });
+    expect(activeAt).toEqual([null, null]);
+    expect(useAccountsStore.getState().activeAccountId).toBe('gus');
+  });
+
   it('beforeServiceRound: false skips the second round — signed in read-write without notifications', async () => {
     runOAuthRound.mockResolvedValueOnce({
       accessToken: 'tok-rw',
