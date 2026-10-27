@@ -24,10 +24,11 @@ code it: do not try to reproduce any generated markup.
    say when sharing is possible again: we don't want to encourage repeat shares. Say only that
    they've shared recently and that it still counts.
 2. **Privacy line.** The form's "No account needed and no personal information collected. We only
-   keep your answers and the time." is inaccurate once the 30-minute limit exists. Use: "No account
-   needed. We keep your answers and the time. To limit repeat shares, an anonymous marker is kept
-   for about half an hour, then deleted." The same applies to the Privacy section of How this works, which
-   should also not advertise the exact interval as an invitation to share again.
+   keep your answers and the time." is inaccurate once the repeat limit exists. Use (design pass 2):
+   "No account or personal details. Your address is kept only in scrambled form, briefly, to limit
+   repeats." The page must **not claim anonymity**: the address is kept as a salted hash, which is
+   pseudonymised and still personal data. The Privacy section of How this works matches and doesn't
+   advertise the exact interval as an invitation to share again.
 3. **Footer tagline.** The mockups' "Blipfoto - Open Source Software" under "b-oss" reads as though
    Blipfoto is the product. Use wording that makes the relationship clear (e.g. "Open-source tools
    for Blipfoto users"). The site-wide fix is tracked separately; the status pages use the shared
@@ -72,18 +73,26 @@ code it: do not try to reproduce any generated markup.
     "Unofficial" notice at the top and one "reports stay on this page" line at the Share button
     (no "Need help" aside, no repeated disclaimers); no repeated 30-day summary line (the figure is
     in the Uptime table); and a single centred report column. See the terminology note below.
+    **Pass 2** removed more redundancy: the page title is the banner headline itself (the only h1);
+    no "Site and API are both up" sentence; no "Next check about HH:MM" (nothing shows when the next
+    check is due); no "Share a problem" link in the banner; "How this works" sits in the banner
+    footer; Refresh is the standard circular-arrow icon button; the Turnstile box sits under the
+    Share button; no visible "Answer both questions" hint (Share keeps an `aria-describedby`
+    reason); no "Resolved" chip on past incidents and no repeated "No downtime" under every 100%.
 
 ## Terminology (visible text and docs; code identifiers and API field names such as `shares` are unchanged)
 
-- **Site** and **API**: the two monitored parts (the website, and what apps use).
-- **Up / Down / Unknown**: a part's state right now. Unknown = no recent data (the monitor's
-  fault, not necessarily Blipfoto's).
-- **Downtime**: time spent Down. **Incident**: one recorded period of Down. Not "outage", and
-  "problem" is not used for measured things.
+- **Website** and **API**: the two monitored parts. In the status banner the rows read
+  "Website" and "API / apps" (compact, one line each); everywhere else "Website" and "API".
+- **Working / Not working / Unknown**: a part's state right now. Unknown = no recent data (the
+  monitor's fault, not necessarily Blipfoto's). Not "Up" / "Down" or "available".
+- **Downtime**: time spent not working ("21 h downtime", "No downtime"). **Incident**: one recorded
+  period of not working. Not "outage"; "problem" is not used for anything we measure.
 - **Check**: the automated test every 15 minutes. **No data**: a stretch of time we couldn't
   check (shown striped).
 - **User report**: what a visitor submits; always "not verified". **Share** is the _action_ only
-  (the button, "Share a problem", "you've shared a report recently"), never the thing.
+  (the button; "you've shared a report recently"), never the thing.
+- The report section's heading is the invitation "Seeing a problem?" with "Share it with others."
 
 ## Files
 

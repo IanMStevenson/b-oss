@@ -8,7 +8,7 @@ import StatusDisclaimer from '../components/StatusDisclaimer.astro';
 const sections = [
   ['what', 'What we check'],
   ['often', 'How often'],
-  ['states', 'Up, Down and Unknown'],
+  ['states', 'Working, not working, unknown'],
   ['charts', 'Reading the charts'],
   ['reports', 'User reports'],
   ['uptime', 'Uptime'],
@@ -47,7 +47,7 @@ const sections = [
           </p>
           <ul>
             <li>
-              <strong>Site</strong> is blipfoto.com in a web browser. We load the browse page, then one
+              <strong>Website</strong> is blipfoto.com in a web browser. We load the browse page, then one
               of its entries, then that entry’s photo.
             </li>
             <li>
@@ -57,8 +57,8 @@ const sections = [
             </li>
           </ul>
           <p>
-            Photos matter to both, so if photos don’t load, Site and API both show as Down: one cause,
-            not two. A check also fails if the answer is far too slow to be usable. When one fails we
+            Photos matter to both, so if photos don’t load, the website and the API both show as not working:
+            one cause, not two. A check also fails if the answer is far too slow to be usable. When one fails we
             retry a few seconds later, and only a second failure counts.
           </p>
           <p>
@@ -70,24 +70,24 @@ const sections = [
         <section id="often" aria-labelledby="hw-often">
           <h2 id="hw-often">How often</h2>
           <p>
-            Every 15 minutes. The page shows when it last checked and when the next check is due, and
-            never refreshes itself, so nothing moves while you read. Because we only look every 15
+            Every 15 minutes. The page says when it last checked and never refreshes itself, so nothing
+            moves while you read; the refresh button fetches the latest. Because we only look every 15
             minutes, a fault shorter than that may not show, and start times, end times and durations
             are approximate, to the nearest 15 minutes.
           </p>
         </section>
 
         <section id="states" aria-labelledby="hw-states">
-          <h2 id="hw-states">Up, Down and Unknown</h2>
+          <h2 id="hw-states">Working, not working, unknown</h2>
           <dl class="hw-states">
-            <dt><span class="st-badge st-badge-up"><span aria-hidden="true">✓</span> Up</span></dt>
+            <dt><span class="st-badge st-badge-up"><span aria-hidden="true">✓</span> Working</span></dt>
             <dd>Our last check worked.</dd>
-            <dt><span class="st-badge st-badge-down"><span aria-hidden="true">✕</span> Down</span></dt>
-            <dd>Our last check failed, and so did the retry. An <strong>incident</strong> is a period spent Down.</dd>
+            <dt><span class="st-badge st-badge-down"><span aria-hidden="true">✕</span> Not working</span></dt>
+            <dd>Our last check failed, and so did the retry. An <strong>incident</strong> is a period spent not working.</dd>
             <dt><span class="st-badge st-badge-unknown"><span aria-hidden="true">?</span> Unknown</span></dt>
             <dd>
               We have no recent data. That’s on our side, not necessarily Blipfoto’s, and it counts as
-              neither Up nor Down.
+              neither working nor not working.
             </dd>
           </dl>
         </section>
@@ -96,10 +96,10 @@ const sections = [
           <h2 id="hw-charts">Reading the charts</h2>
           <p>Charts show only downtime, so an empty lane is good news.</p>
           <ul class="hw-key">
-            <li><span class="st-key st-key-down" aria-hidden="true"></span><span><strong>Red:</strong> Down. In the 30-day chart, a taller bar means more downtime that day.</span></li>
+            <li><span class="st-key st-key-down" aria-hidden="true"></span><span><strong>Red:</strong> not working. In the 30-day chart, a taller bar means more downtime that day.</span></li>
             <li><span class="st-key st-key-nodata" aria-hidden="true"></span><span><strong>Striped grey:</strong> no data. We couldn’t check then.</span></li>
             <li><span class="st-key st-key-shared" aria-hidden="true"></span><span><strong>Amber:</strong> user reports.</span></li>
-            <li><span><strong>A bar with a white cut</strong> was down for over 4 hours. We cut long bars short so short ones stay visible; the real time is printed above.</span></li>
+            <li><span><strong>A bar with a white cut</strong> was not working for over 4 hours. We cut long bars short so short ones stay visible; the real time is printed above.</span></li>
           </ul>
           <p>Select a mark for details. On a phone, use the Earlier and Later buttons under each chart.</p>
         </section>
@@ -108,7 +108,7 @@ const sections = [
           <h2 id="hw-reports">User reports</h2>
           <p>
             Anyone can share a problem from the status page. Each one is a <strong>user report</strong>,
-            counted for the Site (“the website”) or the API (“an app”) and drawn as amber bars. They are
+            counted for the website (if they were using the website) or the API (if they were using an app) and drawn as amber bars. They are
             not verified and never change the uptime figures. Sometimes people report something our
             checks don’t see, such as one feature failing or a fault that only affects some people.
           </p>
@@ -121,7 +121,7 @@ const sections = [
         <section id="uptime" aria-labelledby="hw-uptime">
           <h2 id="hw-uptime">Uptime</h2>
           <p>
-            The share of checked time that each part was Up; time we couldn’t check is left out. We
+            The share of checked time that each part was working; time we couldn’t check is left out. We
             always round down: 100% means no downtime at all, and very high figures show extra decimals
             (such as 99.999%) so they are never rounded up to 100%.
           </p>
@@ -140,9 +140,8 @@ const sections = [
           <h2 id="hw-privacy">Privacy</h2>
           <p>
             No account is needed to share a report. We keep your answers and the time, and nothing else
-            about you. To keep the counts fair we limit reports from one place, using an anonymous
-            marker (a one-way scramble of your connection’s address) kept for about half an hour, then
-            deleted. Reporting uses Cloudflare’s Turnstile anti-bot check. The code for this page and the
+            about you. To keep the counts fair we limit reports from one place, using a marker (your
+            connection’s address in scrambled form) kept for about half an hour, then deleted. Reporting uses Cloudflare’s Turnstile anti-bot check. The code for this page and the
             monitor is open source: <a href="https://github.com/IanMStevenson/b-oss">see the source</a>.
           </p>
         </section>

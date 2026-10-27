@@ -25,11 +25,12 @@ const ROWS: { key: UptimeKey; label: string }[] = [
 export function renderUptime(host: HTMLElement, snap: StatusSnapshot): void {
   const cell = (c: 'site' | 'api', key: UptimeKey) => {
     const w = snap.uptime[c][key];
+    const detail = windowDetail(w);
     return h(
       'td',
       {},
       h('strong', { class: 'st-pct' }, uptimeLabel(w.uptime)),
-      h('span', { class: 'st-sub' }, windowDetail(w)),
+      detail ? h('span', { class: 'st-sub' }, detail) : null,
     );
   };
   const table = h(
@@ -43,7 +44,7 @@ export function renderUptime(host: HTMLElement, snap: StatusSnapshot): void {
         'tr',
         {},
         h('th', { scope: 'col' }, 'Period'),
-        h('th', { scope: 'col' }, 'Site'),
+        h('th', { scope: 'col' }, 'Website'),
         h('th', { scope: 'col' }, 'API'),
       ),
     ),
@@ -89,21 +90,22 @@ export function renderIncidents(
     const ongoing = end === null;
     const when =
       end === null
-        ? `${whenLabel(i.started_at, now)}, still ongoing`
+        ? whenLabel(i.started_at, now)
         : `${whenLabel(i.started_at, now)} to ${dayLabel(end) === dayLabel(i.started_at) ? timeOf(end) : whenLabel(end, now)}`;
     const mins = Math.max(15, Math.round(((end ?? now) - i.started_at) / 60_000 / 15) * 15);
     return h(
       'li',
       { class: 'st-incident' },
       h(
-        'span',
-        { class: ongoing ? 'st-chip st-chip-ongoing' : 'st-chip' },
-        ongoing ? 'Ongoing' : 'Resolved',
-      ),
-      h(
         'div',
         { class: 'st-incident-main' },
-        h('strong', {}, incidentTitle(i)),
+        // Only a current incident is flagged: past ones are the default, so no "Resolved" on every row.
+        h(
+          'span',
+          { class: 'st-incident-title' },
+          ongoing ? h('span', { class: 'st-chip st-chip-ongoing' }, 'Ongoing') : null,
+          h('strong', {}, incidentTitle(i)),
+        ),
         h('span', { class: 'st-sub' }, `${componentLabel(i.components)} · ${when}`),
       ),
       h('span', { class: 'st-incident-dur' }, `${aboutDuration(mins)}${ongoing ? ' so far' : ''}`),

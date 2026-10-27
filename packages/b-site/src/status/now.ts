@@ -2,22 +2,11 @@
 // compact rows that carry their own state. The "last checked · Refresh" line is passed in (main.ts).
 
 import { h } from './dom';
-import {
-  agoLabel,
-  componentName,
-  isStale,
-  overallOf,
-  timeOf,
-  updatedLabel,
-  whenLabel,
-  type Overall,
-} from './logic';
+import { agoLabel, isStale, overallOf, updatedLabel, whenLabel, type Overall } from './logic';
 import type { Component, StatusSnapshot } from './types';
 
-const ROLE: Record<Component, string> = {
-  site: 'the website',
-  api: 'what apps use',
-};
+/** Row names in the banner (compact): the website, and the API that apps use. */
+const ROW_NAME: Record<Component, string> = { site: 'Website', api: 'API / apps' };
 
 type Kind = 'up' | 'down' | 'unknown' | 'error';
 
@@ -27,7 +16,7 @@ function icon(kind: Kind): HTMLElement {
 }
 
 function badge(state: 'up' | 'down' | 'unknown'): HTMLElement {
-  const text = { up: 'Up', down: 'Down', unknown: 'Unknown' }[state];
+  const text = { up: 'Working', down: 'Not working', unknown: 'Unknown' }[state];
   const glyph = { up: '✓', down: '✕', unknown: '?' }[state];
   return h(
     'span',
@@ -48,11 +37,12 @@ function sinceLabel(snap: StatusSnapshot, c: Component, now: number): string | n
 
 export interface Text {
   title: string;
+  /** One short line, or empty when the title and the rows say it all. */
   body: string;
   kind: Kind;
 }
 
-/** The banner's state and its one short line. */
+/** The banner's state and, only if it adds something, one short line. */
 export function headline(
   snap: StatusSnapshot,
   now: number,
@@ -63,54 +53,48 @@ export function headline(
     return {
       kind: 'error',
       title: 'Couldn’t load the status',
-      body: `That doesn’t mean Blipfoto is down. Showing the last data we have, from ${updatedLabel(snap.generated_at)}.`,
+      body: `That doesn’t mean Blipfoto isn’t working. Showing the last data we have, from ${updatedLabel(snap.generated_at)}.`,
     };
   }
   const since = (c: Component) => {
     const s = sinceLabel(snap, c, now);
-    return s ? ` Down ${s}.` : '';
+    return s ? ` Not working ${s}.` : '';
   };
   switch (overall) {
     case 'working':
-      return { kind: 'up', title: 'Blipfoto is working', body: 'Site and API are both up.' };
+      return { kind: 'up', title: 'Blipfoto is working', body: '' };
     case 'api-down':
       return {
         kind: 'down',
-        title: 'The API is down',
-        body: `Apps such as b-ark and b-mobile may not connect. The Site is up.${since('api')}`,
+        title: 'The API isn’t working',
+        body: `Apps such as b-ark and b-mobile may not connect.${since('api')}`,
       };
     case 'site-down':
       return {
         kind: 'down',
-        title: 'The Site is down',
-        body: `The API is up, so apps should still connect.${since('site')}`,
+        title: 'The website isn’t working',
+        body: `Apps should still connect.${since('site')}`,
       };
     case 'photos':
       return {
         kind: 'down',
-        title: 'Photos aren’t loading',
-        body: `Site and API both show as down because of it: one cause, not two.${since('site')}`,
+        title: 'Blipfoto isn’t working',
+        body: `Photos aren’t loading, which affects both the website and the API.${since('site')}`,
       };
     case 'both-down':
       return {
         kind: 'down',
-        title: 'Site and API are down',
-        body: since('site').trim() || 'Both are down.',
+        title: 'Blipfoto isn’t working',
+        body: since('site').trim(),
       };
     case 'partly-unknown':
+      return { kind: 'unknown', title: 'Part of the status is unknown', body: '' };
+    case 'unknown':
       return {
         kind: 'unknown',
-        title: 'Part of the status is unknown',
-        body: 'We have no recent data for one part. The other part is up.',
+        title: 'No recent data',
+        body: 'We can’t tell whether Blipfoto is working.',
       };
-    case 'unknown': {
-      const last = snap.now.site.checked_at ?? snap.now.api.checked_at;
-      return {
-        kind: 'unknown',
-        title: 'Status unknown',
-        body: `No data${last ? ` since ${timeOf(last)}` : ''}. That’s the monitor’s fault, not necessarily Blipfoto’s.`,
-      };
-    }
   }
 }
 
@@ -133,7 +117,7 @@ function part(snap: StatusSnapshot, c: Component, stale: boolean): HTMLElement {
   return h(
     'li',
     { class: `st-part st-part-${state}` },
-    h('span', { class: 'st-part-name' }, h('strong', {}, componentName(c)), h('span', {}, ROLE[c])),
+    h('span', { class: 'st-part-name' }, ROW_NAME[c]),
     badge(state),
   );
 }
@@ -147,15 +131,16 @@ export function renderNow(
   const stale = isStale(snap, now);
   const t = headline(snap, now, overallOf(snap, now), failedToLoad);
   return [
+    // The headline IS the page's h1: the answer to "is Blipfoto working?".
     h(
       'div',
       { class: `st-banner-main st-banner-main-${t.kind}` },
       icon(t.kind),
-      h('div', {}, h('h2', { id: 'st-now-title' }, t.title), h('p', {}, t.body)),
+      h('div', {}, h('h1', { id: 'st-now-title' }, t.title), t.body ? h('p', {}, t.body) : null),
     ),
     h(
       'ul',
-      { class: 'st-parts', 'aria-label': 'Site and API' },
+      { class: 'st-parts', 'aria-label': 'Website and API' },
       part(snap, 'site', stale),
       part(snap, 'api', stale),
     ),

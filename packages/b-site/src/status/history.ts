@@ -6,6 +6,7 @@ import {
   HISTORY_CEILING_MIN,
   columnKeys,
   componentName,
+  componentThe,
   durationLabel,
   historyBars,
   sharedScale,
@@ -143,7 +144,7 @@ export function renderHistory(host: HTMLElement, snap: StatusSnapshot, today: st
         const n = sharedMap(snap, x).get(key) ?? 0;
         const down =
           e && e[1] > 0
-            ? `${durationLabel(e[1])} down${e[2] ? `, ${e[2]} incident${e[2] === 1 ? '' : 's'}` : ''}`
+            ? `${durationLabel(e[1])} downtime${e[2] ? `, ${e[2]} incident${e[2] === 1 ? '' : 's'}` : ''}`
             : 'no downtime';
         return `${componentName(x)}: ${down}${n > 0 ? `, ${n} user report${n === 1 ? '' : 's'}` : ''}`;
       });
@@ -155,7 +156,7 @@ export function renderHistory(host: HTMLElement, snap: StatusSnapshot, today: st
         lines,
         note:
           mine > 0 && !(e && e[1] > 0)
-            ? `Our checks found no downtime for the ${componentName(c)}.`
+            ? `Our checks found no downtime for ${componentThe(c)}.`
             : mine > 0
               ? 'User reports are not verified.'
               : undefined,
@@ -174,7 +175,7 @@ export function renderHistory(host: HTMLElement, snap: StatusSnapshot, today: st
           height: b.h,
           class: 'st-bar',
           role: 'button',
-          'aria-label': `${utcDayLabel(b.key)}: ${durationLabel(b.minutes)} down`,
+          'aria-label': `${utcDayLabel(b.key)}: ${durationLabel(b.minutes)} downtime`,
         });
         group.append(rect);
         if (b.clipped) {
@@ -276,7 +277,7 @@ export function renderHistory(host: HTMLElement, snap: StatusSnapshot, today: st
         height: bh,
         class: 'st-shared-bar',
         role: 'button',
-        'aria-label': `${utcDayLabel(k)}: ${n} user report${n === 1 ? '' : 's'} for the ${componentName(c)}. Not verified.`,
+        'aria-label': `${utcDayLabel(k)}: ${n} user report${n === 1 ? '' : 's'} for ${componentThe(c)}. Not verified.`,
       });
       const ring = ringFor({ x, y: SHARED_H - 1 - bh, w: bw, h: bh });
       sgroup.append(bar, ring);

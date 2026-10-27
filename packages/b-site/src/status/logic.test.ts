@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { FIXTURE_NAMES, makeFixture } from './fixtures';
+import { componentLabel, componentName, componentThe } from './logic';
 import {
   HISTORY_CEILING_MIN,
   HOUR,
@@ -72,12 +73,13 @@ describe('formatting', () => {
   });
 
   it('describes a window', () => {
-    expect(windowDetail({ uptime: 100, down_minutes: 0, incidents: 0 })).toBe('No downtime');
+    // 100% already says it: no repeated "No downtime" under every clean figure.
+    expect(windowDetail({ uptime: 100, down_minutes: 0, incidents: 0 })).toBe('');
     expect(windowDetail({ uptime: 99.981, down_minutes: 60, incidents: 3 })).toBe(
-      '1 h down · 3 incidents',
+      '1 h downtime · 3 incidents',
     );
     expect(windowDetail({ uptime: 99.5, down_minutes: 15, incidents: 1 })).toBe(
-      '15 min down · 1 incident',
+      '15 min downtime · 1 incident',
     );
     expect(windowDetail({ uptime: null, down_minutes: 0, incidents: 0 })).toBe(
       'Not enough data yet',
@@ -177,6 +179,17 @@ describe('share response', () => {
     expect(snap.shares).not.toEqual(good.shares); // the original is untouched
     const bare = withShares(makeFixture('new', NOW), good.shares as never);
     expect(bare.shares).toEqual(good.shares);
+  });
+});
+
+describe('plain words for the parts', () => {
+  it('says Website and API, never Site', () => {
+    expect(componentName('site')).toBe('Website');
+    expect(componentName('api')).toBe('API');
+    expect(componentLabel(['site', 'api'])).toBe('Website and API');
+    expect(componentLabel(['site'])).toBe('Website');
+    expect(componentThe('site')).toBe('the website');
+    expect(componentThe('api')).toBe('the API');
   });
 });
 

@@ -17,7 +17,7 @@ export const HOUR = 60 * MINUTE;
 export const DAY = 24 * HOUR;
 /** Segments are never drawn narrower than this, so one 15-minute sample is always visible. */
 export const MIN_BLOCK_PX = 6;
-/** History bars are drawn on an absolute scale with this ceiling (minutes down per day). */
+/** History bars are drawn on an absolute scale with this ceiling (minutes of downtime per day). */
 export const HISTORY_CEILING_MIN = 240;
 export const HISTORY_MIN_BAR_PX = 3;
 
@@ -98,9 +98,10 @@ export function uptimeLabel(pct: number | null): string {
 
 export function windowDetail(w: UptimeWindow): string {
   if (w.uptime === null) return 'Not enough data yet';
-  if (w.down_minutes === 0 && w.incidents === 0) return 'No downtime';
+  // 100% already says "no downtime"; only spell out downtime when there is some.
+  if (w.down_minutes === 0 && w.incidents === 0) return '';
   const inc = `${w.incidents} incident${w.incidents === 1 ? '' : 's'}`;
-  return `${durationLabel(w.down_minutes)} down · ${inc}`;
+  return `${durationLabel(w.down_minutes)} downtime · ${inc}`;
 }
 
 /** "6 minutes ago", "about 4 hours ago". */
@@ -118,7 +119,7 @@ export function agoLabel(ts: number, now: number): string {
 
 /** A manual refresh may hit the network once this long after the last fetch. Data can change
  * between probes (shared problems), so this floor, not `next_refresh_at`, is what limits requests;
- * `next_refresh_at` only drives the "Next check due" label and the stale rule. */
+ * `next_refresh_at` is not shown; the stale rule uses `generated_at`. */
 export const REFRESH_FLOOR_MS = 60_000;
 
 /** The earliest moment a manual refresh may hit the network, or null if it may now. */
@@ -212,9 +213,11 @@ export function incidentTitle(i: Pick<SnapshotIncident, 'components' | 'failed'>
   return i.components[0] === 'api' ? 'API not responding' : 'Website not responding';
 }
 
-export const componentName = (c: Component): string => (c === 'site' ? 'Site' : 'API');
+export const componentName = (c: Component): string => (c === 'site' ? 'Website' : 'API');
+/** Mid-sentence form: "the website" / "the API". */
+export const componentThe = (c: Component): string => (c === 'site' ? 'the website' : 'the API');
 export const componentLabel = (cs: Component[]): string =>
-  cs.length === 2 ? 'Site and API' : componentName(cs[0] ?? 'site');
+  cs.length === 2 ? 'Website and API' : componentName(cs[0] ?? 'site');
 
 // ---------- Chart geometry ----------
 

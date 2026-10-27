@@ -902,6 +902,7 @@ section.block:first-of-type {
 }
 .st-disclaimer p {
   margin: 0;
+  text-align: center;
 }
 
 /* ---- Page frame: one centred column ---- */
@@ -1007,17 +1008,17 @@ p.st-sub {
   gap: 18px;
   align-items: center;
 }
-.st-banner h2 {
-  font-size: 30px;
+.status-page .st-banner h1 {
+  font-size: 32px;
   line-height: 1.15;
   font-weight: 700;
   letter-spacing: -0.01em;
-  margin: 0 0 4px;
+  margin: 0;
   padding: 0;
   border: 0;
 }
 .st-banner-main p {
-  margin: 0;
+  margin: 4px 0 0;
   font-size: 17px;
   max-width: 60ch;
 }
@@ -1075,21 +1076,9 @@ p.st-sub {
   box-shadow: none;
 }
 .st-part-name {
-  display: flex;
-  flex-direction: column;
+  font-size: 17px;
+  font-weight: 700;
   line-height: 1.25;
-}
-.st-part-name strong {
-  font-size: 18px;
-}
-.st-part-name span {
-  font-size: 14px;
-  opacity: 0.9;
-}
-.st-banner-unknown .st-part-name span,
-.st-banner-error .st-part-name span {
-  opacity: 1;
-  color: var(--muted-strong);
 }
 .st-badge {
   flex: none;
@@ -1143,9 +1132,43 @@ p.st-sub {
 .st-banner-loading .st-banner-foot {
   border-top-color: rgba(0, 0, 0, 0.25);
 }
-.st-banner-foot a,
-.st-refresh {
+.st-banner-foot a {
   color: inherit;
+}
+.st-refresh {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  margin: -6px 2px -6px 6px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.28);
+  color: inherit;
+  vertical-align: middle;
+  cursor: pointer;
+}
+.st-refresh:hover {
+  background: rgba(255, 255, 255, 0.4);
+}
+.st-banner-unknown .st-refresh,
+.st-banner-error .st-refresh,
+.st-banner-loading .st-refresh {
+  background: rgba(0, 0, 0, 0.1);
+  color: var(--green-800);
+}
+.st-banner-unknown .st-refresh:hover,
+.st-banner-error .st-refresh:hover,
+.st-banner-loading .st-refresh:hover {
+  background: rgba(0, 0, 0, 0.18);
+}
+.st-foot-left {
+  display: inline-flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0 4px;
 }
 .st-banner-unknown a,
 .st-banner-error a,
@@ -1155,8 +1178,7 @@ p.st-sub {
 .st-banner-loading a {
   color: var(--green-800);
 }
-.st-trouble,
-.st-refresh {
+.st-howlink {
   font-weight: 700;
   text-decoration: underline;
   text-underline-offset: 3px;
@@ -1437,11 +1459,17 @@ p.st-sub {
 }
 .st-incident {
   display: grid;
-  grid-template-columns: 92px minmax(0, 1fr) auto;
+  grid-template-columns: minmax(0, 1fr) auto;
   gap: 12px;
   align-items: start;
   padding: 14px 0;
   border-bottom: 1px solid var(--st-line);
+}
+.st-incident-title {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px 10px;
 }
 .st-incident-main {
   display: flex;
@@ -1640,6 +1668,7 @@ p.st-sub {
 .st-turnstile {
   width: 300px;
   max-width: 100%;
+  margin: 14px auto 0;
   min-height: 65px;
   border: 1.5px dashed var(--control);
   border-radius: var(--radius);
@@ -1653,11 +1682,14 @@ p.st-sub {
   padding: 0;
   border-radius: 0;
   width: auto;
+  display: flex;
+  justify-content: center;
 }
 .st-share-note {
   margin: 12px 0 0;
   font-size: 15px;
   font-weight: 500;
+  text-align: center;
 }
 .st-share-note a {
   text-decoration: underline;
@@ -1666,11 +1698,17 @@ p.st-sub {
   margin-top: 8px;
 }
 .st-privacy {
-  margin: 18px 0 0;
-  padding-top: 14px;
-  border-top: 1px solid var(--st-line);
-  font-size: 14px;
+  margin: 14px 0 0;
+  font-size: 13px;
   color: var(--muted-strong);
+  text-align: center;
+}
+.st-live {
+  min-height: 1.5em;
+  margin: 8px 0 0;
+  font-size: 14px;
+  font-weight: 500;
+  text-align: center;
 }
 .st-form-error {
   border: 2px solid var(--down-text);
@@ -1743,8 +1781,8 @@ p.st-sub {
   .st-banner-error {
     padding: 20px 18px 14px;
   }
-  .st-banner h2 {
-    font-size: 24px;
+  .status-page .st-banner h1 {
+    font-size: 26px;
   }
   .st-banner-main p {
     font-size: 16px;
@@ -1828,11 +1866,15 @@ p.st-sub {
   .st-chip-opt span {
     min-height: 44px;
   }
-  .st-refresh,
-  .st-trouble {
+  .st-refresh {
+    width: 44px;
+    height: 44px;
+    margin: -8px 0 -8px 4px;
+  }
+  .st-howlink {
     display: inline-block;
-    padding: 12px 4px;
-    margin: -12px -4px;
+    padding: 12px 0;
+    margin: -12px 0;
   }
 }
 @media (min-width: 640px) {

@@ -11,46 +11,45 @@ const text = (name: Parameters<typeof makeFixture>[0], failed = false) => {
 };
 
 describe('banner headline', () => {
-  it('says it plainly, with the state and one short line', () => {
-    expect(text('all-good')).toEqual({
-      kind: 'up',
-      title: 'Blipfoto is working',
-      body: 'Site and API are both up.',
-    });
+  it('all working: just the headline, the rows say the rest', () => {
+    expect(text('all-good')).toEqual({ kind: 'up', title: 'Blipfoto is working', body: '' });
+  });
+
+  it('one part not working: plain words and when it started', () => {
     const api = text('api-down');
     expect(api.kind).toBe('down');
-    expect(api.title).toBe('The API is down');
+    expect(api.title).toBe('The API isn’t working');
     expect(api.body).toMatch(
-      /^Apps such as b-ark and b-mobile may not connect\. The Site is up\. Down since about \d\d:\d\d\.$/,
+      /^Apps such as b-ark and b-mobile may not connect\. Not working since about \d\d:\d\d\.$/,
     );
   });
 
-  it('one cause for both: photos', () => {
+  it('both not working: one cause, photos', () => {
     const t = text('both-down');
-    expect(t.title).toBe('Photos aren’t loading');
-    expect(t.body).toMatch(/Site and API both show as down because of it: one cause, not two/);
+    expect(t.title).toBe('Blipfoto isn’t working');
+    expect(t.body).toMatch(/^Photos aren’t loading, which affects both the website and the API\./);
   });
 
-  it('unknown and stale are Unknown, never Up', () => {
+  it('no recent data is Unknown, never working', () => {
     expect(text('unknown').kind).toBe('unknown');
     expect(text('stale').kind).toBe('unknown');
-    expect(text('unknown').title).toBe('Status unknown');
+    expect(text('unknown').title).toBe('No recent data');
   });
 
   it('a failed load is its own amber state and never reads as working', () => {
     const t = text('all-good', true);
     expect(t.kind).toBe('error');
     expect(t.title).toBe('Couldn’t load the status');
-    expect(t.body).toMatch(/doesn’t mean Blipfoto is down/);
+    expect(t.body).toMatch(/doesn’t mean Blipfoto isn’t working/);
     expect(bannerKind(makeFixture('all-good', NOW), NOW, true)).toBe('error');
     expect(bannerKind(null, NOW, true)).toBe('error');
     expect(bannerKind(null, NOW, false)).toBe('loading');
   });
 
-  it('uses "down" and "incident" consistently: no "outage" or "problem" for measured things', () => {
+  it('uses plain words: no Up/Down/Site, no "outage", no "problem" for measured things', () => {
     for (const n of ['all-good', 'api-down', 'both-down', 'unknown', 'stale'] as const) {
       const t = text(n);
-      expect(`${t.title} ${t.body}`).not.toMatch(/outage|problem/i);
+      expect(`${t.title} ${t.body}`).not.toMatch(/\b(up|down|site)\b|outage|problem/i);
     }
   });
 });

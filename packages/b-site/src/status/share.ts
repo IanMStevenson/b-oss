@@ -53,9 +53,6 @@ export function initShare(root: HTMLElement, cfg: ShareConfig): void {
   let phase: Phase = 'idle';
   let widget: string | undefined;
   let counted = false;
-  const hintDefault = hint.textContent ?? '';
-  hint.setAttribute('role', 'status');
-  hint.setAttribute('aria-live', 'polite');
 
   root.hidden = false;
 
@@ -95,7 +92,10 @@ export function initShare(root: HTMLElement, cfg: ShareConfig): void {
     const ready =
       chosen('using') !== null && chosen('what') !== null && (!cfg.siteKey || token !== '');
     submit.disabled = phase === 'sharing' || !ready;
-    hint.hidden = ready;
+    // Why Share is disabled stays available to assistive tech (aria-describedby) but isn't shown.
+    if (submit.disabled && phase !== 'sharing')
+      submit.setAttribute('aria-describedby', 'st-share-why');
+    else submit.removeAttribute('aria-describedby');
     for (const f of fields.querySelectorAll('fieldset')) f.disabled = phase === 'sharing';
     submit.classList.toggle('is-busy', phase === 'sharing');
     submit.textContent =
@@ -113,7 +113,7 @@ export function initShare(root: HTMLElement, cfg: ShareConfig): void {
     if (p === 'thanks') done.focus();
   }
 
-  /** After Done: say, in the existing hint line (no layout jump), that the share is counted. */
+  /** After Done: say, in the reserved status line under the button (no layout jump), that the report is counted. */
   function showCounted(): void {
     hint.replaceChildren(
       document.createTextNode('Your report is counted above. '),
@@ -123,7 +123,7 @@ export function initShare(root: HTMLElement, cfg: ShareConfig): void {
   form.addEventListener('change', () => {
     if (counted) {
       counted = false;
-      hint.textContent = hintDefault;
+      hint.textContent = '';
     }
     update();
   });

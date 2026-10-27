@@ -102,11 +102,11 @@ src/status/fixtures.ts  fixture snapshots (all-good, api-down, both-down, unknow
   box, and the Share button needs no token). Put them in `packages/b-site/.env`.
 - **Preview a state without a monitor:** `npm run dev -w @b-oss/b-site`, then open
   `/status.html?fixture=api-down` (any name in `fixtures.ts`). Fixtures are honoured in dev builds only.
-- **One request per load, no timers.** The Refresh button may fetch again once 60 seconds have passed
-  since the last fetch (data can change between probes, because of shared problems); `next_refresh_at`
-  only drives the "Next check due about HH:MM" label and the stale rule. If the data can't be loaded
+- **One request per load, no timers.** The refresh icon button may fetch again once 60 seconds have passed
+  since the last fetch (data can change between probes, because of user reports); `next_refresh_at`
+  is not shown, and the stale rule uses `generated_at`. If the data can't be loaded
   the page says so and never shows "working".
-- **User reports appear immediately** (the action is "share", the thing is a "user report"; the API field is still `shares`). A 201 from the shares endpoint carries the full updated aggregates
+- **User reports appear immediately** (the action is "share", the thing is a "user report"; the API field is still `shares`). Visible words are plain: Working / Not working / Unknown, Website and API, downtime, incident (see the design README's terminology note). A 201 from the shares endpoint carries the full updated aggregates
   (`{ ok: true, shares: { hours, days } }`); the page swaps them into its loaded snapshot and redraws
   the Shared lanes, with no refetch.
 - **Share POST** goes to `<origin of PUBLIC_STATUS_URL>/v1/shares` as `text/plain` JSON, so the browser

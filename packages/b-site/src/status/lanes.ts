@@ -8,6 +8,7 @@ import {
   MINUTE,
   aboutDuration,
   componentName,
+  componentThe,
   dayLabel,
   incidentTitle,
   laneBlocks,
@@ -124,9 +125,9 @@ export function renderLanes(
         : [range, 'We couldn’t check during this time.'];
       const note = down
         ? b.ongoing
-          ? 'Still down at our last check.'
+          ? 'Still not working at our last check.'
           : seg.failed?.includes('photo')
-            ? 'Photos not loading affects both the Site and the API.'
+            ? 'Photos not loading affects both the website and the API.'
             : undefined
         : 'A gap in our monitoring, not necessarily downtime at Blipfoto.';
       const rect = s('rect', {
@@ -154,9 +155,7 @@ export function renderLanes(
           'text-anchor': 'middle',
           class: unmonitoredW > 0 ? 'st-lane-msg st-lane-msg-before' : 'st-lane-msg',
         },
-        unmonitoredW > 0
-          ? 'No downtime since checking started'
-          : '✓ No downtime in the last 48 hours',
+        unmonitoredW > 0 ? 'No downtime' : '✓ No downtime',
       );
       svg.append(msg);
     }
@@ -197,7 +196,7 @@ export function renderLanes(
         height: bh,
         class: 'st-shared-bar',
         role: 'button',
-        'aria-label': `${n} user report${n === 1 ? '' : 's'} for the ${componentName(c)}, ${timeOf(hourStart)} to ${timeOf(hourStart + HOUR)}. Not verified.`,
+        'aria-label': `${n} user report${n === 1 ? '' : 's'} for ${componentThe(c)}, ${timeOf(hourStart)} to ${timeOf(hourStart + HOUR)}. Not verified.`,
       });
       const ring = ringFor({ x: cx - bw / 2, y: SHARED_H - 1 - bh, w: bw, h: bh });
       sgroup.append(bar, ring);

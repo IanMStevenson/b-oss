@@ -6,10 +6,10 @@
 // and the pop-ups all use the loaded data.
 
 import { dayOf } from './dayutil';
-import { h, setChildren } from './dom';
+import { h, s, setChildren } from './dom';
 import { renderHistory } from './history';
 import { renderLanes } from './lanes';
-import { isStale, nextAllowedFetch, snapshotUnchanged, timeOf, withShares } from './logic';
+import { nextAllowedFetch, snapshotUnchanged, timeOf, withShares } from './logic';
 import { bannerKind, lastCheckedText, renderNow } from './now';
 import { initShare } from './share';
 import { INCIDENT_PAGE, renderIncidents, renderUptime } from './tables';
@@ -49,12 +49,33 @@ let busy = false;
 
 const mobileQuery = window.matchMedia('(max-width: 639px)');
 
+/** The standard circular-arrow refresh icon. */
+function refreshIcon(): SVGElement {
+  return s(
+    'svg',
+    {
+      viewBox: '0 0 24 24',
+      width: 20,
+      height: 20,
+      fill: 'none',
+      stroke: 'currentColor',
+      'stroke-width': 2.2,
+      'stroke-linecap': 'round',
+      'stroke-linejoin': 'round',
+      'aria-hidden': 'true',
+    },
+    s('path', { d: 'M20 12a8 8 0 1 1-2.34-5.66' }),
+    s('path', { d: 'M20 4v5h-5' }),
+  );
+}
+
 function footer(): HTMLElement {
   const now = Date.now();
+  const label = failedToLoad ? 'Try again' : 'Refresh';
   const link = h(
     'button',
-    { type: 'button', class: 'st-refresh' },
-    failedToLoad ? 'Try again' : 'Refresh',
+    { type: 'button', class: 'st-refresh', 'aria-label': label, title: label },
+    refreshIcon(),
   );
   link.addEventListener('click', () => {
     void load(true);
@@ -63,20 +84,17 @@ function footer(): HTMLElement {
   if (!snap) left.push(failedToLoad ? 'No data yet' : 'Loading…');
   else if (failedToLoad) left.push('Couldn’t update');
   else left.push(lastCheckedText(snap, now));
-  left.push(' · ', busy ? 'Checking…' : link);
-  if (snap && !failedToLoad && !isStale(snap, now) && snap.next_refresh_at > now) {
-    left.push(` · Next check about ${timeOf(snap.next_refresh_at)}`);
-  }
+  left.push(' ', busy ? 'Checking…' : link);
   return h(
     'div',
     { class: 'st-banner-foot' },
     h(
       'span',
-      {},
+      { class: 'st-foot-left' },
       ...left,
-      note ? h('span', { class: 'st-note', role: 'status' }, ` ${note}`) : null,
+      note ? h('span', { class: 'st-note', role: 'status' }, note) : null,
     ),
-    h('a', { href: '#share', class: 'st-trouble' }, 'Share a problem ↓'),
+    h('a', { href: 'how-this-works.html', class: 'st-howlink' }, 'How this works'),
   );
 }
 
@@ -95,11 +113,16 @@ function renderAll(): void {
             h(
               'div',
               {},
-              h('h2', { id: 'st-now-title' }, 'Couldn’t load the status'),
-              h('p', {}, 'That doesn’t mean Blipfoto is down. We just don’t know.'),
+              h('h1', { id: 'st-now-title' }, 'Couldn’t load the status'),
+              h('p', {}, 'That doesn’t mean Blipfoto isn’t working. We just don’t know.'),
             ),
           )
-        : h('p', { class: 'st-loading' }, 'Loading current status…'),
+        : h(
+            'div',
+            {},
+            h('h1', { id: 'st-now-title' }, 'Blipfoto status'),
+            h('p', { class: 'st-loading' }, 'Loading…'),
+          ),
       footer(),
     );
     return;
@@ -133,7 +156,7 @@ async function load(manual: boolean): Promise<void> {
   if (busy) return;
   const wait = manual ? nextAllowedFetch(Date.now(), lastFetchAt) : null;
   if (wait !== null) {
-    note = `Just refreshed; try again after about ${timeOf(wait)}.`;
+    note = 'Just refreshed';
     renderAll();
     return;
   }
@@ -145,7 +168,7 @@ async function load(manual: boolean): Promise<void> {
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const next = (await res.json()) as StatusSnapshot;
     if (next.version !== 1) throw new Error('unknown snapshot version');
-    if (manual && snap && snapshotUnchanged(snap, next)) note = 'No change yet.';
+    if (manual && snap && snapshotUnchanged(snap, next)) note = 'No change yet';
     snap = next;
     failedToLoad = false;
   } catch {
