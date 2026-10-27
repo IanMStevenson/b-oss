@@ -11,6 +11,7 @@ import { describeError } from './log.js';
 import { runProbe } from './probe.js';
 import { handleStatus } from './serve.js';
 import { runMaintenance } from './maintain.js';
+import { runTriggeredCheck } from './recheck.js';
 import { handleShare } from './shares.js';
 import { storeSnapshot } from './snapshot.js';
 import type { Env } from './types.js';
@@ -31,13 +32,17 @@ function config(env: Env): ProbeConfig {
   };
 }
 
-export async function runScheduled(env: Env): Promise<void> {
-  const outcome = await runProbe(
+function probeOnce(env: Env) {
+  return runProbe(
     config(env),
     { fetch: (input, init) => fetch(input, init), now: () => Date.now() },
     (ms) => new Promise((r) => setTimeout(r, ms)),
     RETRY_DELAY_MS,
   );
+}
+
+export async function runScheduled(env: Env): Promise<void> {
+  const outcome = await probeOnce(env);
   await recordSample(env.DB, outcome);
   // After the sample is stored: fold finished days, then rebuild the page's snapshot from it.
   const { foldedDays: folded } = await runMaintenance(env.DB, outcome.ts);
@@ -56,13 +61,16 @@ export default {
       console.error(`[b-status] run failed: ${describeError(err)}`);
     }
   },
-  async fetch(request: Request, env: Env): Promise<Response> {
+  async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
     const path = new URL(request.url).pathname;
     if (path === '/v1/status') return handleStatus(request, env.DB, Date.now());
     if (path === '/v1/shares') {
       return handleShare(request, env, env.DB, {
         fetch: (input, init) => fetch(input, init),
         now: () => Date.now(),
+        waitUntil: (work) => ctx.waitUntil(work),
+        triggerCheck: () =>
+          runTriggeredCheck(env.DB, { probe: () => probeOnce(env), now: () => Date.now() }),
       });
     }
     return new Response(JSON.stringify({ error: 'Not found' }), {

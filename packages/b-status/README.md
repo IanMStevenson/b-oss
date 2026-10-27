@@ -7,7 +7,7 @@ b-oss#476 for the design and the page.
 ## Status
 
 Under construction (b-oss#483, #484, #486). The probe, retry, incident tracking, rollup, snapshot,
-`GET /v1/status` and `POST /v1/shares` exist and are tested. Not yet built: the page (b-oss#485). The API checks need the monitor's client id (b-oss#487) and
+`GET /v1/status` and `POST /v1/shares` exist and are tested. A visitor report triggers an immediate re-check (b-oss#561, approach A; see ARCHITECTURE.md). Not yet built: the page (b-oss#485). The API checks need the monitor's client id (b-oss#487) and
 are skipped without it.
 
 ## Develop
