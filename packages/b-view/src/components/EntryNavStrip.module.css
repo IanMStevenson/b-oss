@@ -14,8 +14,8 @@
 .tile {
   width: var(--strip-size);
   height: var(--strip-size);
-  background: var(--green-800);
-  color: #fff;
+  background: var(--brand-fill);
+  color: var(--on-brand-fill);
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -38,16 +38,16 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  background: var(--line, #e5e7eb);
-  color: var(--ink-2);
+  background: var(--button-secondary-bg);
+  color: var(--on-button-secondary);
   border: 0;
   cursor: pointer;
 }
 
 .stripBtn:hover:not(:disabled),
 .stripBtn[aria-expanded='true'] {
-  background: #d9dce1;
-  color: var(--green-800);
+  background: var(--button-secondary-bg-hover);
+  color: var(--accent);
 }
 
 .stripBtn:disabled {

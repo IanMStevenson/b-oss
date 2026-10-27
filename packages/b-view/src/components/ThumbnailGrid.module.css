@@ -38,7 +38,7 @@
 .zoomGroup {
   display: flex;
   align-items: center;
-  background: white;
+  background: var(--bg);
   border: 1px solid var(--line);
   border-radius: 8px;
   padding: 2px;
@@ -83,7 +83,7 @@
 }
 
 .thumbSelected {
-  outline-color: var(--green-800);
+  outline-color: var(--accent);
 }
 
 .thumb::after {
@@ -153,7 +153,7 @@
 .searchBox {
   display: flex;
   align-items: center;
-  background: white;
+  background: var(--bg);
   border: 1px solid var(--line);
   border-radius: 8px;
   padding: 2px 6px 2px 8px;

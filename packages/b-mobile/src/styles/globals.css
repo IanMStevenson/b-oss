@@ -117,8 +117,8 @@ ion-segment.settings-pill-segment {
 
 ion-segment.settings-pill-segment ion-segment-button {
   --color: var(--ink);
-  --color-checked: #ffffff;
-  --indicator-color: var(--green-800);
+  --color-checked: var(--on-accent);
+  --indicator-color: var(--accent);
   --border-radius: 999px;
   min-height: 34px;
 }
@@ -133,7 +133,7 @@ ion-segment.settings-pill-segment ion-segment-button::part(indicator) {
 ion-segment.settings-pill-segment ion-segment-button::part(indicator-background) {
   height: 100%;
   border-radius: 999px;
-  background: var(--green-800);
+  background: var(--accent);
 }
 
 ion-segment.settings-pill-segment ion-segment-button::part(native) {
@@ -166,7 +166,7 @@ ion-segment.settings-pill-segment ion-segment-button::part(native) {
   height: 8px;
   margin-top: -4px;
   border-radius: 50%;
-  background: var(--green-800);
+  background: var(--accent);
 }
 
 .inbox-row-leading {
@@ -207,14 +207,14 @@ ion-segment.settings-pill-segment ion-segment-button::part(native) {
 }
 
 .inbox-row-body a {
-  color: var(--green-800);
+  color: var(--accent);
   font-weight: 600;
 }
 
 .inbox-row-name {
   font: inherit;
   font-weight: 600;
-  color: var(--green-800);
+  color: var(--accent);
   padding: 0;
   text-align: left;
 }
@@ -274,8 +274,8 @@ ion-segment.settings-pill-segment ion-segment-button::part(native) {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  background: #ffffff;
-  color: var(--green-800);
+  background: var(--map-button-bg);
+  color: var(--accent);
   box-shadow: 0 1px 4px rgba(0, 0, 0, 0.3);
 }
 
@@ -376,4 +376,10 @@ ion-segment.settings-pill-segment ion-segment-button::part(native) {
 
 .load-failed-retry {
   margin-top: 16px;
+}
+
+/* The navigation drawer's panel. Same as the page in Light; its own token so a theme can set the
+   drawer apart from (or level with) the page. */
+ion-menu {
+  --background: var(--surface-drawer);
 }

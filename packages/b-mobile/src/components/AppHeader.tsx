@@ -60,11 +60,11 @@ export function AppHeader({
     <IonToolbar
       style={
         {
-          '--background': 'var(--green-800)',
+          '--background': 'var(--brand-fill)',
           // The button/back-arrow icon reads --ion-toolbar-color internally (confirmed via
           // computed style — a plain --color override here is never consumed), which theme.css
           // sets globally to --ink; this local override is what actually turns it white.
-          '--ion-toolbar-color': '#fff',
+          '--ion-toolbar-color': 'var(--on-brand-fill)',
           '--min-height': '48px',
           // Ionic 9 types `--background` on `style` as its own property, so a plain object literal
           // no longer fits CSSProperties.

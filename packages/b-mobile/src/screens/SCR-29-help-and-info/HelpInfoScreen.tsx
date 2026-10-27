@@ -218,7 +218,7 @@ function InlineLink({ url, children }: { url: string; children: ReactNode }) {
   return (
     <button
       onClick={() => void openUrl(url)}
-      style={{ color: 'var(--green-700)', textDecoration: 'underline', font: 'inherit' }}
+      style={{ color: 'var(--accent-alt)', textDecoration: 'underline', font: 'inherit' }}
     >
       {children}
     </button>

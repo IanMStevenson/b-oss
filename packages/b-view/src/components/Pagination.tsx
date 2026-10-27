@@ -115,8 +115,8 @@ export function Pagination({
 
   const activeStyle: CSSProperties = {
     ...btnStyle,
-    background: 'var(--green-800)',
-    color: '#fff',
+    background: 'var(--accent)',
+    color: 'var(--on-accent)',
     fontWeight: 600,
   };
 

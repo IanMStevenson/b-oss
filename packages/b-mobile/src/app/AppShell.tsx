@@ -68,8 +68,8 @@ function useLatestNavigate(): RefObject<NavigateFunction> {
 // highlighted in the same pale green, and three groups split by hairlines — go places, your
 // stuff, then the housekeeping set (Settings, Help, Accounts, Hidden members).
 const NAV_CURRENT_STYLE = {
-  '--background': 'var(--green-100, #eef2ee)',
-  '--color': 'var(--green-800, #1f4d3a)',
+  '--background': 'var(--selected-row-bg)',
+  '--color': 'var(--selected-row-text)',
   fontWeight: 600,
 } as CSSProperties;
 
@@ -100,7 +100,7 @@ function NavItem({
 }
 
 function NavDivider() {
-  return <div role="separator" style={{ borderTop: '1px solid var(--line, #e5e7eb)' }} />;
+  return <div role="separator" style={{ borderTop: '1px solid var(--line)' }} />;
 }
 
 function NavAccountBlock() {

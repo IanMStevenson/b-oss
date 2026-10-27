@@ -301,7 +301,7 @@
 }
 
 .pillBtn[aria-pressed='true'] {
-  color: var(--green-700);
+  color: var(--accent-alt);
 }
 
 /* Tags as chips (Blipfoto's chips are blue; ours keep the brand green). */
@@ -314,9 +314,9 @@
 }
 
 .tag {
-  background: var(--green-100);
-  color: var(--green-800);
-  border: 1px solid var(--green-700);
+  background: var(--accent-soft);
+  color: var(--accent);
+  border: 1px solid var(--accent-alt);
   border-radius: 3px;
   padding: 3px 8px;
   font-size: var(--text-xs, 12px);
@@ -474,7 +474,7 @@
   font: inherit;
   font-size: var(--text-md, 15px);
   font-weight: var(--font-weight-medium, 500);
-  color: var(--green-700);
+  color: var(--accent-alt);
   cursor: pointer;
 }
 

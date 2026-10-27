@@ -29,6 +29,30 @@
   --photo-bg: #f0f0f0;
   --color-danger: #d04545;
 
+  /* Semantic colour layer. The raw palette above says what a colour *is*; these say what it is
+     *for*, so a theme can re-point them (see themes.css) without touching any component. In the
+     default (Light) theme every one of them aliases a value that was already in use, so adopting
+     them changes nothing visually. The split that matters: --brand-fill is a green *area* with
+     white content on it (top bar, date box, selected row) and stays brand green in every theme;
+     --accent is green used as text, an icon, an outline, an indicator or a small fill drawn on the
+     page background, and is the one that has to lighten on a dark page. */
+  --brand-fill: var(--green-800);
+  --on-brand-fill: #ffffff;
+  --accent: var(--green-800);
+  --accent-alt: var(--green-700); /* secondary accent: links, hover fills, focus borders */
+  --on-accent: #ffffff; /* content on an --accent / --accent-alt fill (badges, selected day, …) */
+  --accent-soft: var(--green-100); /* tint behind accent text (chips, calendar "today") */
+  --selected-row-bg: var(--green-100);
+  --selected-row-text: var(--green-800);
+  --surface-drawer: var(--bg);
+  --button-secondary-bg: var(--line); /* the square entry-strip buttons */
+  --button-secondary-bg-hover: #d9dce1;
+  --on-button-secondary: var(--ink-2);
+  --map-button-bg: #ffffff; /* the map's round locate button */
+  --cell-disabled-bg: #ececec; /* calendar days with no entry */
+  --cell-disabled-ink: #b9bdc3;
+  --bg-veil: rgba(255, 255, 255, 0.75); /* translucent cover over loading content */
+
   /* Typography. Roboto first (self-hosted, see fonts.css), then the previous system stack so
      text never renders unstyled while a font file loads or for scripts Roboto doesn't cover. */
   --font-sans: 'Roboto', 'Helvetica Neue', Helvetica, Arial, sans-serif;

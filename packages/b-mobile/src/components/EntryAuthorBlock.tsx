@@ -195,5 +195,5 @@ const iconButtonStyle = {
   display: 'inline-flex',
   alignItems: 'center',
   padding: 4,
-  color: 'var(--green-700)',
+  color: 'var(--accent-alt)',
 } as const;
