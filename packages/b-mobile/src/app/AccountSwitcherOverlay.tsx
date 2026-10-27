@@ -4,7 +4,7 @@
 // The account switcher (BEHAVIOUR.md, Navigation shell): a popover listing every stored account
 // (avatar, username, mode, needs-reauth badge where relevant). Tapping an inactive account
 // switches to it instantly, per FLW-21 — the same underlying mechanism SCR-30 uses, just
-// reachable from anywhere. A Manage accounts row at the bottom opens SCR-30. This popover is not
+// reachable from anywhere. Notification settings opens the active account's notification settings (the double-tap on a row in SCR-30 isn't discoverable); a Manage accounts row at the bottom opens SCR-30. This popover is not
 // a new screen ID; it's a transient overlay over whatever screen is currently showing.
 //
 // A plain fixed-position panel + backdrop, not IonPopover — the same choice OverlayProvider's
@@ -64,6 +64,11 @@ export function AccountSwitcherOverlay({ onDismiss }: { onDismiss: () => void })
     navigate.push('/accounts');
   }
 
+  function openNotificationSettings(): void {
+    onDismiss();
+    navigate.push('/settings/notifications');
+  }
+
   return (
     <>
       <div
@@ -118,6 +123,9 @@ export function AccountSwitcherOverlay({ onDismiss }: { onDismiss: () => void })
             </button>
           );
         })}
+        <IonButton expand="block" fill="clear" onClick={openNotificationSettings}>
+          Notification settings
+        </IonButton>
         <IonButton expand="block" fill="clear" onClick={openManageAccounts}>
           Manage accounts
         </IonButton>
