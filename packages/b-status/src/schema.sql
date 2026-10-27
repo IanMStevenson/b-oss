@@ -42,7 +42,8 @@ CREATE TABLE IF NOT EXISTS snapshot (
 );
 
 /* Small key/value store: 'first_ts' (when monitoring began, set once), 'folded_through' (the last */
-/* UTC day folded into day_exceptions) and 'history' (the cached, rebuilt-once-a-day summary of */
+/* UTC day folded into day_exceptions), 'triggered_slot' and 'triggered_at' (the slot and time of the */
+/* last report-triggered re-check, recheck.ts) and 'history' (the cached, rebuilt-once-a-day summary of */
 /* folded days, see history.ts). */
 CREATE TABLE IF NOT EXISTS meta (
   key   TEXT PRIMARY KEY,

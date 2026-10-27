@@ -90,6 +90,44 @@ poster's page can redraw without another request. Other instances pick it up wit
 next probe rebuilds the snapshot from the `shares` table, which is the source of truth, so a lost
 update from two simultaneous shares can't persist.
 
+## A report triggers a re-check (`recheck.ts`, b-oss#561)
+
+A visitor's report is evidence that something may be wrong between scheduled checks, so an accepted
+report starts one extra check right away. **Approach A** (current): `POST /v1/shares` hands
+`runTriggeredCheck` to `ctx.waitUntil`, after the 201 body is built, so the poster never waits for it.
+
+**When it runs** (`decideTrigger`, pure, table-tested): the first report in a 15-minute cycle (the
+current slot) always triggers. A later one triggers only if at least 5 minutes have passed since the
+last check of any kind AND more than 5 minutes remain until the next scheduled check. "Next
+scheduled" is the next slot boundary **plus 30 s** (the cron fires about 30 s late); "last check" is
+the later of the snapshot's `generated_at` (last scheduled check) and the `meta` row `triggered_at`.
+`triggered_slot` (meta) remembers which slot last had a triggered check; both rows are written
+**before** probing, so a run that is cut off still uses up its turn (politeness over completeness).
+A cycle therefore sees at most about three triggered checks, usually none or one. Two reports in the
+same instant from different IPs can both pass the decision (no atomic claim); bounded and accepted.
+
+**What it may record**: it runs the normal `runProbe` (confirm-with-retry), then may only turn an UP
+into a confirmed DOWN, per component, in the **current slot's existing sample**: `UPDATE` that row
+(`retried = 1`, `checks` replaced), open an incident if none is open (`started_at` = the check's time;
+the same `incidentStatements` as the scheduled run) and rebuild the snapshot (which recomputes the
+visitor reports from `shares`). It never improves a state, never writes a second sample, and does
+nothing if the slot has no sample yet (the cron is seconds away; nothing is claimed either, so a later
+report is still the first). A check that finds nothing wrong writes only the two meta rows and does
+not rebuild the snapshot (so `generated_at` still means the last scheduled or changing check).
+
+**The risk, and how to tell**: on the free plan the request's 10 ms CPU limit covers `waitUntil` work
+too, so the probe may occasionally be cut off. It fails safe: the 201 has gone, writes are one small
+batch each, and a half-run leaves no partial state. Workers Logs shows
+`[b-status] triggered check start slot=N (reason)` and then either `triggered check done slot=N
+elapsed=…ms site=… api=… changed=…` or `triggered check failed …`; a **start with no matching done or
+failed** line means the isolate was cut off (also `skipped … reason` lines for reports that did not
+qualify). If starts regularly lack a done, move to approach B.
+
+**Approach B (fallback)**: a second cron trigger (`* * * * *`, once a minute) calls the same
+`runTriggeredCheck`, gated on "a share arrived since the last check" (one cheap D1 read), so the
+work has its own invocation and CPU budget. Cost: 1,440 extra invocations a day against the shared
+100k/day, and up to a minute of delay. `runTriggeredCheck(db, { probe, now })` needs no change.
+
 ## Free-tier budget
 
 The Cloudflare account is shared with b-push and its **Workers Free** quotas are account-wide: 100k

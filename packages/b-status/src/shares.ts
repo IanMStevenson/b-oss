@@ -40,6 +40,10 @@ export interface ShareInput {
 export interface ShareDeps {
   fetch: (input: string, init?: RequestInit) => Promise<Response>;
   now: () => number;
+  /** Keeps work running after the response is sent (`ctx.waitUntil`). */
+  waitUntil?: (work: Promise<unknown>) => void;
+  /** Runs the re-check a report triggers (b-oss#561); only used together with `waitUntil`. */
+  triggerCheck?: () => Promise<void>;
 }
 
 /** A validated share, or null if the body isn't one. Unknown tags are rejected, not dropped. */
@@ -165,6 +169,10 @@ export async function handleShare(
   // page can show it without another request.
   const shares = await bumpSnapshotShares(db, share.component, now);
   invalidateStatusCache();
+  // Then a re-check, off the response path: it must never delay or fail the 201.
+  if (deps.waitUntil && deps.triggerCheck) {
+    deps.waitUntil(deps.triggerCheck().catch(() => undefined));
+  }
   return jsonResponse({ ok: true, shares }, 201, origin);
 }
 
