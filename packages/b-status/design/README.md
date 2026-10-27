@@ -23,11 +23,10 @@ code it: do not try to reproduce any generated markup.
 1. **No "you can share again after 15:20".** The "already shared recently" state (G5) must not
    say when sharing is possible again: we don't want to encourage repeat shares. Say only that
    they've shared recently and that it still counts.
-2. **Privacy line.** The form's "No account needed and no personal information collected. We only
-   keep your answers and the time." is inaccurate once the 30-minute limit exists. Use: "No account
-   needed. We keep your answers and the time. To limit repeat shares, an anonymous marker is kept
-   for about half an hour, then deleted." The same applies to the Privacy section of How this works, which
-   should also not advertise the exact interval as an invitation to share again.
+2. **Privacy.** The form has **no privacy sentence** (design pass 3). A small centred "Privacy" link
+   under the Turnstile box points at the site-wide privacy policy, `privacy.html` (added separately).
+   The page and How this works must not claim anonymity or describe how the IP address is handled
+   beyond "used briefly to limit repeat reports"; the policy page is where the detail lives.
 3. **Footer tagline.** The mockups' "Blipfoto - Open Source Software" under "b-oss" reads as though
    Blipfoto is the product. Use wording that makes the relationship clear (e.g. "Open-source tools
    for Blipfoto users"). The site-wide fix is tracked separately; the status pages use the shared
@@ -39,17 +38,16 @@ code it: do not try to reproduce any generated markup.
 6. **Nav.** The mockup's header nav shows Home, b-ark, b-mobile, b-api, Status, Contact. Use the
    site's real nav from `Header.astro` and add Status.
 
-7. **Couldn't load the current status** (not in the mockups). If the snapshot can't be fetched,
-   the Now card says so in a distinct amber-marked state ("Couldn't load the current status … that
-   doesn't mean Blipfoto is down"), never shows Up, and keeps any earlier data visible below
-   marked "Out of date: this is the status as of HH:MM". With no earlier data it shows no Site/API
-   cards at all. "Try again" is the Refresh control.
-8. **Stale data.** A snapshot older than two sampling intervals is shown as Unknown ("No recent
-   data"), even if its last state was Up.
-9. **Refresh** is a button that makes no request before the snapshot's `next_refresh_at`; it shows
-   "Next check due about HH:MM" instead, and backs off if nothing newer arrives. There is no
-   auto-refresh.
-10. **Shared problems** in the mockups are drawn from an optional `shares` field in the snapshot
+7. **Can't tell (one state).** When the status can't be shown: a snapshot older than two sampling
+   intervals, no recent data from the monitor, or the page can't reach the status service at all. The
+   banner is hatched grey, headline "We can't tell if Blipfoto is working", both rows **Unknown**, with
+   ONE reason line by cause: "Our checks haven't reported recently." or "We couldn't reach the status
+   service. Refresh to try again." (When the service can't be reached the last data stays below, dated
+   in the banner footer: "Last data from HH:MM, day".) No amber or outline styling.
+8. _(Merged into item 7.)_
+9. **Refresh** is a button with no auto-refresh. (The original rule, no request before
+   `next_refresh_at` with a 60 s / 2 min / 5 min back-off, is superseded by item 13.)
+10. **User reports** (the mockups' "Shared" lane) are drawn from an optional `shares` field in the snapshot
     (b-oss#486); without it the Shared lanes are simply empty.
 
 11. **History is a fixed 30 days.** There is no 30d/90d/1y/All-time control and no weekly view; the
@@ -59,6 +57,47 @@ code it: do not try to reproduce any generated markup.
 
 12. **Percentages:** one decimal place, rounded down; 99.9x figures show up to three decimals so
     they are never rounded up to 100%; supersedes the two-decimal figures in the screenshots.
+
+13. **Shares appear immediately.** The 201 response carries the updated share aggregates, which the
+    page swaps in and redraws, so the poster sees their share counted at once. After Done the form's
+    hint line says so (no layout jump). The Refresh floor is 60 s after the last fetch, whatever
+    `next_refresh_at` says; `next_refresh_at` only drives the "Next check due about HH:MM" label and
+    the stale rule. Supersedes the previous refresh-gating rule.
+
+14. **Design pass 1 supersedes the mockups' look** (the screenshots are now only a record of the
+    original structure). The page has one solid status banner (green, red or hatched grey) with Website and API as compact
+    rows; no "How this is measured" section (a single "How this works" link instead); one
+    "Unofficial" notice at the top and one "reports stay on this page" line at the Share button
+    (no "Need help" aside, no repeated disclaimers); no repeated 30-day summary line (the figure is
+    in the Uptime table); and a single centred report column. See the terminology note below.
+    **Pass 2** removed more redundancy: the page title is the banner headline itself (the only h1);
+    no "Site and API are both up" sentence; no "Next check about HH:MM" (nothing shows when the next
+    check is due); no "Share a problem" link in the banner; "How this works" sits in the banner
+    footer; Refresh is the standard circular-arrow icon button; the Turnstile box sits under the
+    Share button; no visible "Answer both questions" hint (Share keeps an `aria-describedby`
+    reason); no "Resolved" chip on past incidents and no repeated "No downtime" under every 100%.
+
+15. **Three lozenges; the banner follows the website.** Each row (Website, API / apps) is coloured by
+    its own service: Working green, Not working red, Unknown hatched grey, as a light tinted lozenge
+    with a coloured border and a white outer ring so it stays distinct on any banner. The outer banner
+    takes the colour of the **Website** row: the website affects everyone; the API affects far fewer
+    people and the fallback is "use the website". So the API alone not working is a **green** banner
+    with a red API row and the words "Blipfoto is working, but apps may not connect". There is no
+    amber banner. The chart and legend colours do not change.
+
+## Terminology (visible text and docs; code identifiers and API field names such as `shares` are unchanged)
+
+- **Website** and **API**: the two monitored parts. In the status banner the rows read
+  "Website" and "API / apps" (compact, one line each); everywhere else "Website" and "API".
+- **Working / Not working / Unknown**: a part's state right now. Unknown = no recent data (the
+  monitor's fault, not necessarily Blipfoto's). Not "Up" / "Down" or "available".
+- **Downtime**: time spent not working ("21 h downtime", "No downtime"). **Incident**: one recorded
+  period of not working. Not "outage"; "problem" is not used for anything we measure.
+- **Check**: the automated test every 15 minutes. **No data**: a stretch of time we couldn't
+  check (shown striped).
+- **User report**: what a visitor submits; always "not verified". **Share** is the _action_ only
+  (the button; "you've shared a report recently"), never the thing.
+- The report section's heading is the invitation "Seeing a problem?" with "Share it with others."
 
 ## Files
 

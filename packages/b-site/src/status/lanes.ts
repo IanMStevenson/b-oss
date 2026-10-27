@@ -1,5 +1,5 @@
 // The "Last 48 hours" outage graph: one lane per component, drawn only where something was wrong,
-// each with a thin amber "Shared" lane beneath it, and a shared time axis. Widths are measured
+// each with a thin amber "User reports" lane beneath it, and a shared time axis. Widths are measured
 // from the live layout so the 6 px minimum block width is real pixels.
 
 import { h, hatch, ringFor, rove, s, setChildren, type MarkEl } from './dom';
@@ -8,6 +8,7 @@ import {
   MINUTE,
   aboutDuration,
   componentName,
+  componentThe,
   dayLabel,
   incidentTitle,
   laneBlocks,
@@ -18,8 +19,8 @@ import {
 import { Readout, type Mark } from './readout';
 import type { Component, StatusSnapshot } from './types';
 
-const LANE_H = 36;
-const SHARED_H = 18;
+const LANE_H = 40;
+const SHARED_H = 22;
 const COMPONENTS: Component[] = ['site', 'api'];
 
 const quantised = (ms: number): number => Math.max(15, Math.round(ms / MINUTE / 15) * 15);
@@ -46,7 +47,7 @@ export function renderLanes(
       h(
         'div',
         { class: 'st-lane-row st-lane-row-shared' },
-        h('div', { class: 'st-lane-label st-shared-label' }, 'Shared'),
+        h('div', { class: 'st-lane-label st-shared-label' }, 'User reports'),
         shared,
       ),
     );
@@ -128,7 +129,7 @@ export function renderLanes(
           : seg.failed?.includes('photo')
             ? 'Photos not loading affects both the website and the API.'
             : undefined
-        : 'A gap in our monitoring, not necessarily a problem with Blipfoto.';
+        : 'A gap in our monitoring, not necessarily downtime at Blipfoto.';
       const rect = s('rect', {
         x: b.x,
         y: 4,
@@ -148,10 +149,13 @@ export function renderLanes(
     if (blocks.length === 0) {
       const msg = s(
         'text',
-        { x: W / 2, y: LANE_H / 2 + 4, 'text-anchor': 'middle', class: 'st-lane-msg' },
-        unmonitoredW > 0
-          ? '✓ No problems since checking started'
-          : '✓ No problems in the last 48 hours',
+        {
+          x: W / 2,
+          y: LANE_H / 2 + 5,
+          'text-anchor': 'middle',
+          class: unmonitoredW > 0 ? 'st-lane-msg st-lane-msg-before' : 'st-lane-msg',
+        },
+        unmonitoredW > 0 ? 'No downtime' : '✓ No downtime',
       );
       svg.append(msg);
     }
@@ -176,7 +180,7 @@ export function renderLanes(
     );
     const sgroup = s('g', {
       role: 'group',
-      'aria-label': `${componentName(c)}, shared problems, last 48 hours: ${counts.length === 0 ? 'none' : `${counts.length} hour${counts.length === 1 ? '' : 's'} with shares`}`,
+      'aria-label': `${componentName(c)}, user reports, last 48 hours: ${counts.length === 0 ? 'none' : `${counts.length} hour${counts.length === 1 ? '' : 's'} with reports`}`,
     });
     const sharedMarks: MarkEl[] = [];
     const slot = W / 48;
@@ -192,7 +196,7 @@ export function renderLanes(
         height: bh,
         class: 'st-shared-bar',
         role: 'button',
-        'aria-label': `${n} shared for the ${componentName(c)}, ${timeOf(hourStart)} to ${timeOf(hourStart + HOUR)}. Not verified.`,
+        'aria-label': `${n} user report${n === 1 ? '' : 's'} for ${componentThe(c)}, ${timeOf(hourStart)} to ${timeOf(hourStart + HOUR)}. Not verified.`,
       });
       const ring = ringFor({ x: cx - bw / 2, y: SHARED_H - 1 - bh, w: bw, h: bh });
       sgroup.append(bar, ring);
@@ -200,8 +204,10 @@ export function renderLanes(
       marks.push({
         order: hourStart,
         el: bar,
-        title: `${n} shared for the ${componentName(c)}`,
-        lines: [`${dayLabel(hourStart)}, ${timeOf(hourStart)} to ${timeOf(hourStart + HOUR)}`],
+        title: `${n} user report${n === 1 ? '' : 's'}`,
+        lines: [
+          `${componentName(c)}, ${dayLabel(hourStart)}, ${timeOf(hourStart)} to ${timeOf(hourStart + HOUR)}`,
+        ],
         note: 'Not verified',
       });
     }

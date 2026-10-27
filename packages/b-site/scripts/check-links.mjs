@@ -20,9 +20,9 @@ for (const page of pages) {
     if (/^([a-z][a-z0-9+.-]*:|\/\/|\/)/i.test(url) || url === '') continue; // external or root-absolute
     const [path, fragment] = url.split('#');
     const target = path || page;
-    if (!existsSync(join(dist, target)))
+    if (!existsSync(join(dist, target))) {
       problems.push(`${page}: ${attr}="${url}" -> missing ${target}`);
-    else if (fragment && target.endsWith('.html') && !ids.get(target)?.has(fragment))
+    } else if (fragment && target.endsWith('.html') && !ids.get(target)?.has(fragment))
       problems.push(`${page}: ${attr}="${url}" -> no #${fragment} in ${target}`);
   }
 }

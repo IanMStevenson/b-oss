@@ -6,6 +6,8 @@ import type {
   Component,
   HistoryEntry,
   Segment,
+  Shares,
+  State,
   SnapshotIncident,
   StatusSnapshot,
   UptimeWindow,
@@ -16,7 +18,7 @@ export const HOUR = 60 * MINUTE;
 export const DAY = 24 * HOUR;
 /** Segments are never drawn narrower than this, so one 15-minute sample is always visible. */
 export const MIN_BLOCK_PX = 6;
-/** History bars are drawn on an absolute scale with this ceiling (minutes down per day). */
+/** History bars are drawn on an absolute scale with this ceiling (minutes of downtime per day). */
 export const HISTORY_CEILING_MIN = 240;
 export const HISTORY_MIN_BAR_PX = 3;
 
@@ -97,9 +99,10 @@ export function uptimeLabel(pct: number | null): string {
 
 export function windowDetail(w: UptimeWindow): string {
   if (w.uptime === null) return 'Not enough data yet';
-  if (w.down_minutes === 0 && w.incidents === 0) return 'No problems';
+  // 100% already says "no downtime"; only spell out downtime when there is some.
+  if (w.down_minutes === 0 && w.incidents === 0) return '';
   const inc = `${w.incidents} incident${w.incidents === 1 ? '' : 's'}`;
-  return `${durationLabel(w.down_minutes)} down · ${inc}`;
+  return `${durationLabel(w.down_minutes)} downtime · ${inc}`;
 }
 
 /** "6 minutes ago", "about 4 hours ago". */
@@ -113,39 +116,58 @@ export function agoLabel(ts: number, now: number): string {
   return `about ${d} days ago`;
 }
 
-// ---------- Refresh gating (no timers: the link only fetches when allowed) ----------
+// ---------- Refresh (no timers: the button only fetches when pressed, and not too often) ----------
 
-export const BACKOFF_MS = [60_000, 120_000, 300_000] as const;
+/** A manual refresh may hit the network once this long after the last fetch. Data can change
+ * between probes (shared problems), so this floor, not `next_refresh_at`, is what limits requests;
+ * `next_refresh_at` is not shown; the stale rule uses `generated_at`. */
+export const REFRESH_FLOOR_MS = 60_000;
 
-export interface RefreshState {
-  /** Consecutive fetches that brought nothing new (or failed). */
-  attempt: number;
-  /** No request before this time (epoch ms). 0 = unrestricted. */
-  notBefore: number;
-}
-
-export const initialRefresh: RefreshState = { attempt: 0, notBefore: 0 };
-
-/** The earliest moment a refresh may hit the network, or null if it may now. */
-export function nextAllowedFetch(
-  now: number,
-  nextRefreshAt: number | null,
-  s: RefreshState,
-): number | null {
-  const due = Math.max(nextRefreshAt ?? 0, s.notBefore);
+/** The earliest moment a manual refresh may hit the network, or null if it may now. */
+export function nextAllowedFetch(now: number, lastFetchAt: number | null): number | null {
+  if (lastFetchAt === null) return null;
+  const due = lastFetchAt + REFRESH_FLOOR_MS;
   return now >= due ? null : due;
 }
 
-/** State after a fetch: fresh data resets; the same `generated_at` (cron late) or a failure backs off. */
-export function afterFetch(
-  now: number,
-  s: RefreshState,
-  outcome: { ok: true; fresh: boolean } | { ok: false },
-): RefreshState {
-  if (outcome.ok && outcome.fresh) return { attempt: 0, notBefore: 0 };
-  const attempt = s.attempt + 1;
-  const delay = BACKOFF_MS[Math.min(attempt, BACKOFF_MS.length) - 1] ?? BACKOFF_MS[2];
-  return { attempt, notBefore: now + delay };
+/** True when a refetch brought nothing new: the same snapshot and the same share counts. */
+export function snapshotUnchanged(prev: StatusSnapshot, next: StatusSnapshot): boolean {
+  return (
+    prev.generated_at === next.generated_at &&
+    JSON.stringify(prev.shares ?? null) === JSON.stringify(next.shares ?? null)
+  );
+}
+
+const isHours = (v: unknown): v is [number, number][] =>
+  Array.isArray(v) &&
+  v.every((x) => Array.isArray(x) && typeof x[0] === 'number' && typeof x[1] === 'number');
+const isDays = (v: unknown): v is [string, number][] =>
+  Array.isArray(v) &&
+  v.every((x) => Array.isArray(x) && typeof x[0] === 'string' && typeof x[1] === 'number');
+
+/** The updated share aggregates from a 201 response body `{ ok: true, shares: {hours, days} }`, or
+ * null if it isn't in that shape (the page then simply doesn't update, and shows the thank-you). */
+export function parseShareResponse(body: unknown): Pick<Shares, 'hours' | 'days'> | null {
+  if (typeof body !== 'object' || body === null) return null;
+  const shares = (body as { shares?: unknown }).shares;
+  if (typeof shares !== 'object' || shares === null) return null;
+  const { hours, days } = shares as {
+    hours?: Record<string, unknown>;
+    days?: Record<string, unknown>;
+  };
+  if (!hours || !days) return null;
+  for (const c of ['site', 'api'] as const) {
+    if (!isHours(hours[c]) || !isDays(days[c])) return null;
+  }
+  return { hours: hours as Shares['hours'], days: days as Shares['days'] };
+}
+
+/** The snapshot with its share aggregates replaced (everything else untouched). */
+export function withShares(
+  snap: StatusSnapshot,
+  shares: Pick<Shares, 'hours' | 'days'>,
+): StatusSnapshot {
+  return { ...snap, shares: { hours: shares.hours, days: shares.days } };
 }
 
 /** Older than two sampling intervals: the monitor has no recent data. */
@@ -155,21 +177,40 @@ export function isStale(snap: StatusSnapshot, now: number): boolean {
 
 // ---------- Headline and incidents ----------
 
+/** The overall situation, from the two parts' states. The banner's colour follows the WEBSITE (it
+ * affects everyone); the API only changes the wording and its own row. */
 export type Overall =
-  'working' | 'site-down' | 'api-down' | 'both-down' | 'photos' | 'partly-unknown' | 'unknown';
+  | 'working'
+  | 'api-down' // website working, API not: still a green banner
+  | 'api-unknown' // website working, can't tell about the API
+  | 'site-down'
+  | 'site-down-api-unknown'
+  | 'both-down'
+  | 'photos' // both not working because photos aren't loading
+  | 'site-unknown' // can't tell about the website (the API is known)
+  | 'cant-tell'; // can't tell about either (no recent data, or the snapshot is stale)
+
+/** A part's state for display: stale data can't be vouched for, so it is Unknown. */
+export function effectiveState(snap: StatusSnapshot, c: Component, now: number): State {
+  return isStale(snap, now) ? 'unknown' : snap.now[c].state;
+}
 
 export function overallOf(snap: StatusSnapshot, now: number): Overall {
-  const stale = isStale(snap, now);
-  const s = stale ? 'unknown' : snap.now.site.state;
-  const a = stale ? 'unknown' : snap.now.api.state;
-  if (s === 'unknown' && a === 'unknown') return 'unknown';
-  if (s === 'down' && a === 'down') {
-    const photos = snap.now.site.failed.includes('photo') && snap.now.api.failed.includes('photo');
-    return photos ? 'photos' : 'both-down';
+  const s = effectiveState(snap, 'site', now);
+  const a = effectiveState(snap, 'api', now);
+  if (s === 'unknown' && a === 'unknown') return 'cant-tell';
+  if (s === 'unknown') return 'site-unknown';
+  if (s === 'down') {
+    if (a === 'unknown') return 'site-down-api-unknown';
+    if (a === 'down') {
+      const photos =
+        snap.now.site.failed.includes('photo') && snap.now.api.failed.includes('photo');
+      return photos ? 'photos' : 'both-down';
+    }
+    return 'site-down';
   }
-  if (s === 'down') return 'site-down';
   if (a === 'down') return 'api-down';
-  if (s === 'unknown' || a === 'unknown') return 'partly-unknown';
+  if (a === 'unknown') return 'api-unknown';
   return 'working';
 }
 
@@ -192,9 +233,11 @@ export function incidentTitle(i: Pick<SnapshotIncident, 'components' | 'failed'>
   return i.components[0] === 'api' ? 'API not responding' : 'Website not responding';
 }
 
-export const componentName = (c: Component): string => (c === 'site' ? 'Site' : 'API');
+export const componentName = (c: Component): string => (c === 'site' ? 'Website' : 'API');
+/** Mid-sentence form: "the website" / "the API". */
+export const componentThe = (c: Component): string => (c === 'site' ? 'the website' : 'the API');
 export const componentLabel = (cs: Component[]): string =>
-  cs.length === 2 ? 'Site and API' : componentName(cs[0] ?? 'site');
+  cs.length === 2 ? 'Website and API' : componentName(cs[0] ?? 'site');
 
 // ---------- Chart geometry ----------
 
@@ -323,12 +366,3 @@ export function historyBars(
 
 /** Scale for a Shared lane: bars are relative to max(5, busiest slot). */
 export const sharedScale = (counts: number[]): number => Math.max(5, ...counts, 0);
-
-/** Summary line over a window: "99.4% over the last 30 days · 15 min down · 1 incident". */
-export function windowSummary(words: string, w: UptimeWindow): string {
-  if (w.uptime === null) return `No data yet for ${words}`;
-  if (w.down_minutes === 0 && w.incidents === 0)
-    return `${uptimeLabel(w.uptime)} over ${words} · no problems`;
-  const inc = `${w.incidents} incident${w.incidents === 1 ? '' : 's'}`;
-  return `${uptimeLabel(w.uptime)} over ${words} · ${durationLabel(w.down_minutes)} down · ${inc}`;
-}

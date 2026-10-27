@@ -102,11 +102,27 @@ src/status/fixtures.ts  fixture snapshots (all-good, api-down, both-down, unknow
   box, and the Share button needs no token). Put them in `packages/b-site/.env`.
 - **Preview a state without a monitor:** `npm run dev -w @b-oss/b-site`, then open
   `/status.html?fixture=api-down` (any name in `fixtures.ts`). Fixtures are honoured in dev builds only.
-- **One request per load, no timers.** The Refresh button makes no request before the snapshot's
-  `next_refresh_at`, then backs off (60 s, 2 min, 5 min) while nothing newer arrives. If the data can't
-  be loaded the page says so and never shows "working".
+- **One request per load, no timers.** The refresh icon button may fetch again once 60 seconds have passed
+  since the last fetch (data can change between probes, because of user reports); `next_refresh_at`
+  is not shown, and the stale rule uses `generated_at`. If the data can't be loaded
+  the page says so and never shows "working".
+- **User reports appear immediately** (the action is "share", the thing is a "user report"; the API field is still `shares`). Visible words are plain: Working / Not working / Unknown, Website and API, downtime, incident (see the design README's terminology note). A 201 from the shares endpoint carries the full updated aggregates
+  (`{ ok: true, shares: { hours, days } }`); the page swaps them into its loaded snapshot and redraws
+  the Shared lanes, with no refetch.
 - **Share POST** goes to `<origin of PUBLIC_STATUS_URL>/v1/shares` as `text/plain` JSON, so the browser
   sends no CORS preflight.
 - **Blipfoto support links** are the two constants in `src/blipfoto-links.ts` (general help, and the
   support-request form); change them there. The Turnstile box stays a placeholder until
   `PUBLIC_TURNSTILE_SITE_KEY` is set.
+
+### Previewing the design offline
+
+`npm run preview:status -w @b-oss/b-site -- --out <dir>` builds self-contained HTML files
+(`status-<state>.html` for every fixture, plus `how-this-works.html`) that open straight from disk in
+a browser: CSS and JavaScript inlined, fixture data embedded, no network. The share form works
+against a built-in stand-in (the first share is counted, a second gets "already shared"). The
+production bundle is unaffected: the preview re-bundles the page script from
+`scripts/status-preview-entry.ts`, which is not part of the site.
+
+- **Privacy:** the report form carries only a small "Privacy" link to `privacy.html`, the site-wide
+  policy page.

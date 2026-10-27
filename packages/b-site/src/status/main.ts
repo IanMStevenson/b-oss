@@ -1,21 +1,16 @@
 // The status page's client script. It makes ONE request for the data on load (the snapshot
-// holds everything the page draws), then nothing: no timers, no auto-refresh. The Refresh link only
-// goes to the network once the snapshot says fresher data can exist (`next_refresh_at`), and backs
-// off if the monitor is late. "Show more" and the pop-ups all use the loaded data.
+// holds everything the page draws), then nothing: no timers, no auto-refresh. The Refresh button
+// may fetch again once 60 seconds have passed since the last fetch (data can change between probes,
+// because of shared problems). A successful share's response carries the updated share counts, which
+// replace the loaded ones so the poster sees their share straight away, with no refetch. "Show more"
+// and the pop-ups all use the loaded data.
 
 import { dayOf } from './dayutil';
-import { h, setChildren } from './dom';
+import { h, s, setChildren } from './dom';
 import { renderHistory } from './history';
 import { renderLanes } from './lanes';
-import {
-  afterFetch,
-  initialRefresh,
-  nextAllowedFetch,
-  timeOf,
-  updatedLabel,
-  type RefreshState,
-} from './logic';
-import { renderNow } from './now';
+import { nextAllowedFetch, snapshotUnchanged, timeOf, updatedLabel, withShares } from './logic';
+import { bannerKind, lastCheckedText, renderNow, renderUnavailable } from './now';
 import { initShare } from './share';
 import { INCIDENT_PAGE, renderIncidents, renderUptime } from './tables';
 import type { StatusSnapshot } from './types';
@@ -32,6 +27,8 @@ export interface StatusOptions {
   /** Dev builds only: loads the fixture snapshots for `?fixture=<name>`. Absent in production, so
    * the fixtures are not part of the built site. */
   loadFixtures?: () => Promise<typeof import('./fixtures')>;
+  /** Which fixture to show (the standalone preview sets this); defaults to the `?fixture=` query. */
+  fixture?: string;
 }
 
 let STATUS_URL = DEFAULT_URL;
@@ -44,79 +41,93 @@ const $ = <T extends HTMLElement>(sel: string): T => {
 
 let snap: StatusSnapshot | null = null;
 let failedToLoad = false;
-let refresh: RefreshState = initialRefresh;
+/** When the last fetch (successful or not) finished; the 60-second refresh floor counts from here. */
+let lastFetchAt: number | null = null;
 let shown = INCIDENT_PAGE;
 let note = '';
 let busy = false;
 
 const mobileQuery = window.matchMedia('(max-width: 639px)');
 
+/** The standard circular-arrow refresh icon. */
+function refreshIcon(): SVGElement {
+  return s(
+    'svg',
+    {
+      viewBox: '0 0 24 24',
+      width: 20,
+      height: 20,
+      fill: 'none',
+      stroke: 'currentColor',
+      'stroke-width': 2.2,
+      'stroke-linecap': 'round',
+      'stroke-linejoin': 'round',
+      'aria-hidden': 'true',
+    },
+    s('path', { d: 'M20 12a8 8 0 1 1-2.34-5.66' }),
+    s('path', { d: 'M20 4v5h-5' }),
+  );
+}
+
 function footer(): HTMLElement {
+  const now = Date.now();
+  const label = 'Refresh';
   const link = h(
     'button',
-    { type: 'button', class: 'st-refresh' },
-    failedToLoad ? 'Try again' : 'Refresh',
+    { type: 'button', class: 'st-refresh', 'aria-label': label, title: label },
+    refreshIcon(),
   );
   link.addEventListener('click', () => {
     void load(true);
   });
+  const left: (string | HTMLElement | null)[] = [];
+  if (!snap) left.push(failedToLoad ? 'No data yet' : 'Loading…');
+  else if (failedToLoad) left.push(`Last data from ${updatedLabel(snap.generated_at)}`);
+  else left.push(lastCheckedText(snap, now));
+  left.push(' ', busy ? 'Checking…' : link);
   return h(
     'div',
-    { class: 'st-now-foot' },
+    { class: 'st-banner-foot' },
     h(
       'span',
-      { class: 'st-sub' },
-      snap
-        ? (failedToLoad ? 'Last updated ' : 'Updated ') + updatedLabel(snap.generated_at)
-        : 'Loading…',
-      ' ',
-      busy ? h('span', { class: 'st-sub' }, 'Checking…') : link,
-      note ? h('span', { class: 'st-note', role: 'status' }, ` ${note}`) : null,
+      { class: 'st-foot-left' },
+      ...left,
+      note ? h('span', { class: 'st-note', role: 'status' }, note) : null,
     ),
-    h('a', { href: '#share', class: 'st-trouble' }, 'Having trouble? Share a problem ↓'),
+    h('a', { href: 'how-this-works.html', class: 'st-howlink' }, 'How this works'),
   );
 }
 
 function renderAll(): void {
   const now = Date.now();
   const nowHost = $('[data-now]');
+  nowHost.className = `st-banner st-banner-${bannerKind(snap, now, failedToLoad)}`;
   if (!snap) {
-    setChildren(
-      nowHost,
-      failedToLoad
-        ? h(
-            'div',
-            { class: 'st-headline st-headline-error' },
-            h('span', { class: 'st-icon st-icon-error', 'aria-hidden': 'true' }, '!'),
-            h(
-              'div',
-              {},
-              h('h2', { id: 'st-now-title' }, 'Couldn’t load the current status'),
-              h(
-                'p',
-                {},
-                'We couldn’t reach the monitor just now. That doesn’t mean Blipfoto is down. Nothing is shown as working, because we don’t know.',
-              ),
-            ),
-          )
-        : h('p', { class: 'st-loading' }, 'Loading current status…'),
-      footer(),
-    );
+    if (failedToLoad) {
+      setChildren(nowHost, ...renderUnavailable(footer()));
+    } else {
+      setChildren(
+        nowHost,
+        h(
+          'div',
+          {},
+          h('h1', { id: 'st-now-title' }, 'Blipfoto status'),
+          h('p', { class: 'st-loading' }, 'Loading…'),
+        ),
+        footer(),
+      );
+    }
     return;
   }
   setChildren(nowHost, ...renderNow(snap, now, failedToLoad, footer()));
   renderCharts();
   renderUptime($('[data-uptime]'), snap);
   renderIncidentList();
-  $('[data-collecting]').textContent = '';
   const since = snap.monitoring_since;
-  if (since !== null && since > snap.last48h.from) {
-    $('[data-collecting]').textContent =
-      `Started checking at ${timeOf(since)} ${dayOf(since) === dayOf(Date.now()) ? 'today' : ''}. Earlier time is shown blank.`.replace(
-        ' .',
-        '.',
-      );
-  }
+  $('[data-collecting]').textContent =
+    since !== null && since > snap.last48h.from
+      ? `Checking started at ${timeOf(since)}${dayOf(since) === dayOf(Date.now()) ? ' today' : ''}; earlier time is blank.`
+      : '';
 }
 
 function renderIncidentList(): void {
@@ -135,13 +146,9 @@ function renderCharts(): void {
 
 async function load(manual: boolean): Promise<void> {
   if (busy) return;
-  const now = Date.now();
-  const wait = manual ? nextAllowedFetch(now, snap?.next_refresh_at ?? null, refresh) : null;
+  const wait = manual ? nextAllowedFetch(Date.now(), lastFetchAt) : null;
   if (wait !== null) {
-    const backoff = refresh.notBefore > (snap?.next_refresh_at ?? 0);
-    note = backoff
-      ? `Nothing newer yet. Try again after about ${timeOf(wait)}.`
-      : `Next check due about ${timeOf(wait)}.`;
+    note = 'Just refreshed';
     renderAll();
     return;
   }
@@ -153,15 +160,13 @@ async function load(manual: boolean): Promise<void> {
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const next = (await res.json()) as StatusSnapshot;
     if (next.version !== 1) throw new Error('unknown snapshot version');
-    const fresh = !snap || next.generated_at !== snap.generated_at;
-    refresh = afterFetch(Date.now(), refresh, { ok: true, fresh });
+    if (manual && snap && snapshotUnchanged(snap, next)) note = 'No change yet';
     snap = next;
     failedToLoad = false;
-    if (!fresh && manual) note = 'Nothing newer yet.';
   } catch {
-    refresh = afterFetch(Date.now(), refresh, { ok: false });
     failedToLoad = true;
   }
+  lastFetchAt = Date.now();
   busy = false;
   renderAll();
 }
@@ -171,6 +176,13 @@ export function start(opts: StatusOptions): void {
   initShare($('[data-share]'), {
     endpoint: `${new URL(STATUS_URL).origin}/v1/shares`,
     siteKey: opts.turnstileKey,
+    // A share went through: swap in the updated counts and redraw the Shared lanes (only the
+    // charts, so nothing else on the page moves), with no refetch.
+    onShared: (shares) => {
+      if (!snap) return;
+      snap = withShares(snap, shares);
+      renderCharts();
+    },
   });
   renderAll();
 
@@ -192,12 +204,12 @@ export function start(opts: StatusOptions): void {
   void (async () => {
     if (opts.loadFixtures) {
       // `?fixture=<name>` in `npm run dev` only: preview any state without a monitor.
-      const name = new URLSearchParams(location.search).get('fixture');
+      const name = opts.fixture ?? new URLSearchParams(location.search).get('fixture');
       const { FIXTURE_NAMES, makeFixture } = await opts.loadFixtures();
       const found = FIXTURE_NAMES.find((n) => n === name);
       if (found) {
         snap = makeFixture(found, Date.now());
-        refresh = afterFetch(Date.now(), initialRefresh, { ok: true, fresh: true });
+        lastFetchAt = Date.now();
         renderAll();
         return;
       }
