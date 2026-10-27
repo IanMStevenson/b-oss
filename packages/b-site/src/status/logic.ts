@@ -146,10 +146,13 @@ export function nextAllowedFetch(now: number, lastFetchAt: number | null): numbe
   return now >= due ? null : due;
 }
 
-/** True when a refetch brought nothing new: the same snapshot and the same share counts. */
+/** True when a refetch brought nothing new: the same snapshot, the same share counts and the same
+ * "last checked" times (a report-triggered check moves those without a new `generated_at`). */
 export function snapshotUnchanged(prev: StatusSnapshot, next: StatusSnapshot): boolean {
   return (
     prev.generated_at === next.generated_at &&
+    prev.now.site.checked_at === next.now.site.checked_at &&
+    prev.now.api.checked_at === next.now.api.checked_at &&
     JSON.stringify(prev.shares ?? null) === JSON.stringify(next.shares ?? null)
   );
 }
