@@ -29,24 +29,29 @@ with the failure in the body.
 
 ## Data (`src/schema.sql`)
 
-| Table       | Rows                                                                                                                                                                                                              |
-| ----------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `samples`   | One per 15-minute slot (`slot` = floor(ms / 15 min), a duplicate cron is a no-op). A missing slot is "no data", never up or down. Per-check results kept as JSON, so an incident can say which check failed       |
-| `incidents` | One per component per outage; `ended_at` NULL while ongoing                                                                                                                                                       |
-| `day_rows`  | One per UTC day per component: up/down/unknown sample counts (unknown includes slots with no sample), incident count, longest incident, failed-check counts. Counts, not percentages, so days sum into any window |
-| `meta`      | `first_ts` (when monitoring began) and `history` (a cached summary of the folded days, rebuilt once a UTC day)                                                                                                    |
-| `snapshot`  | The page's whole data bundle, one row, rebuilt each run                                                                                                                                                           |
+| Table            | Rows                                                                                                                                                                                                                                                         |
+| ---------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `samples`        | One per 15-minute slot (`slot` = floor(ms / 15 min), a duplicate cron is a no-op). A missing slot is "no data", never up or down. Per-check results kept as JSON, so an incident can say which check failed                                                  |
+| `incidents`      | One per component per outage; `ended_at` NULL while ongoing                                                                                                                                                                                                  |
+| `day_exceptions` | **Sparse** long-term history: a row only for a UTC day and component that had down or unknown slots. "Up" is derived (a day has 96 slots), so a day with no row was a perfect day. Incident counts and what failed are not stored here: `incidents` has them |
+| `meta`           | `first_ts` (when monitoring began), `folded_through` (the last day folded) and `history` (a cached summary of the folded days, rebuilt once a UTC day)                                                                                                       |
+| `snapshot`       | The page's whole data bundle, one row, rebuilt each run                                                                                                                                                                                                      |
 
-Whole UTC days that ended at least 48 hours ago are **folded** into `day_rows` and their samples
-deleted, in one batch (`fold.ts`), so raw samples are kept for 48 to 72 hours. Incidents are kept
-for good. A day's definition is frozen when it is folded.
+Whole UTC days that ended at least 48 hours ago are **folded** into `day_exceptions` and their
+samples deleted, in one batch (`fold.ts`), so raw samples are kept for 48 to 72 hours. Only days
+with something to record get a row. Every day since the last fold is visited, so a day on which the
+monitor never ran is recorded as all-**unknown** instead of silently counting as up (uptime would
+otherwise be overstated). Incidents are kept for good. A day's definition is frozen when it is
+folded.
 
 ## The snapshot and the endpoint (`snapshot.ts`, `serve.ts`)
 
 After each probe, the run folds old days and rebuilds **one JSON snapshot** holding everything the
 page draws: current state, the 48-hour lanes (as down/no-data _segments_, not 192 samples), daily
-history for a year and weekly history for all time (non-empty days only; the page fills the gaps),
-the uptime table (rounded **down**, so 100 only when nothing was found down), and the incident list
+history for the **last 30 days** (non-empty days only; the page fills the gaps; anything older is
+covered by the uptime table and the incident list),
+the uptime table (rounded **down** to 3 decimal places, so 100 only when nothing was found down; the
+page decides how many to display), and the incident list
 (one row when one cause took both parts down). It carries `generated_at` and `next_refresh_at` so
 the page knows when fresher data can exist. `now.*.stale` only says the monitor itself has missed
 samples as of the build; a snapshot whose cron has stopped is not rewritten, so **the page must judge
@@ -56,10 +61,8 @@ staleness from `generated_at` against its own clock** (older than two intervals 
 case, and `Cache-Control: max-age` is the time remaining. If the cron is late the Worker still holds
 the old snapshot for a minute before looking again. Only the page's own origins get CORS headers.
 
-Known limit: the once-a-day history rebuild reads every `day_rows` row. Measured at about 12 ms in
-Node with three years of data (a steady-state run is about 1 ms). D1 waits don't count as Worker CPU,
-but before the history approaches that size the rebuild should become incremental (b-oss#484
-follow-up).
+The once-a-day history rebuild reads only the sparse `day_exceptions` rows and the incidents, so it
+stays small however many years accumulate (b-oss#510).
 
 ## Visitor shares (`shares.ts`)
 
@@ -77,8 +80,7 @@ cron run, so a hash can outlive its 30 minutes by up to one cron interval (15 mi
 half an hour" in user-facing copy, not "exactly 30 minutes then deleted".
 
 Whole days older than 48 hours fold into `share_days` counts and the raw rows (with their tags) are
-deleted. The snapshot carries hourly counts (48 hours), daily counts (a year) and weekly counts
-(all time) per part. The client should send the POST as `text/plain` so it is a simple request with
+deleted. The snapshot carries hourly counts (48 hours) and daily counts (30 days) per part. The client should send the POST as `text/plain` so it is a simple request with
 no CORS preflight.
 
 ## Free-tier budget

@@ -16,12 +16,6 @@ export const dayOf = (ts: number): string => new Date(ts).toISOString().slice(0,
 export const dayStartMs = (day: string): number => Date.parse(`${day}T00:00:00Z`);
 export const addDays = (day: string, n: number): string => dayOf(dayStartMs(day) + n * DAY_MS);
 
-/** The Monday on or before `day`. */
-export function weekStart(day: string): string {
-  const dow = new Date(dayStartMs(day)).getUTCDay(); // 0 = Sunday
-  return addDays(day, -((dow + 6) % 7));
-}
-
 /** The last UTC day whose samples have been folded into day rows at `now`: days that ended at
  * least 48 hours ago, so the 48-hour view is always drawn from raw samples. */
 export function foldedThrough(now: number): string {

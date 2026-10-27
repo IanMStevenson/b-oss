@@ -256,7 +256,6 @@ describe('shares in the snapshot', () => {
       ['2026-10-22', 2],
     ]);
     expect(s.shares.days.api).toEqual([['2026-10-23', 1]]);
-    expect(s.shares.weeks.site).toEqual([['2026-10-19', 4]]);
     expect(s.uptime).toEqual(withoutShares.uptime);
     expect(s.now).toEqual(withoutShares.now);
   });

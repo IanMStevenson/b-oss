@@ -20,9 +20,10 @@ const count = async (table: string): Promise<number> =>
 describe('uptimePercent', () => {
   it('rounds down: 100 only when nothing was found down', () => {
     expect(uptimePercent(0, 10)).toBe(100);
-    expect(uptimePercent(1, 100_000)).toBe(99.99);
+    expect(uptimePercent(1, 100_000)).toBe(99.999);
+    expect(uptimePercent(1, 10_000_000)).toBe(99.999); // never rounds up to 100
     expect(uptimePercent(1, 100)).toBe(99);
-    expect(uptimePercent(5, 525)).toBe(99.04);
+    expect(uptimePercent(5, 525)).toBe(99.047);
   });
   it('is null with no checked time', () => {
     expect(uptimePercent(0, 0)).toBeNull();
@@ -30,45 +31,59 @@ describe('uptimePercent', () => {
 });
 
 describe('foldCompleteDays', () => {
-  it('folds whole days ended 48+ hours ago into counts, and deletes their samples', async () => {
+  it('folds whole days ended 48+ hours ago into SPARSE exceptions, and deletes their samples', async () => {
     await simulate(db, WEEK);
     expect(await count('samples')).toBe(5 * 96 + 49 - 4);
     expect(await foldCompleteDays(db, NOW)).toBe(3); // 18th, 19th, 20th
-    expect(await count('day_rows')).toBe(6);
+    // Only the one day with a problem gets a row: the 18th and 20th were perfect.
+    const rows = (await db.prepare('SELECT * FROM day_exceptions').all()).results;
+    expect(rows).toEqual([
+      { day: '2026-10-19', component: 'site', down_samples: 2, unknown_samples: 0 },
+    ]);
     // 21st (92 samples: 4 missing), 22nd (96), 23rd (49) remain raw.
     expect(await count('samples')).toBe(92 + 96 + 49);
-    const d19 = await db
-      .prepare("SELECT * FROM day_rows WHERE day = '2026-10-19' AND component = 'site'")
-      .first<Record<string, unknown>>();
-    expect(d19).toMatchObject({
-      up_samples: 94,
-      down_samples: 2,
-      unknown_samples: 0,
-      incident_count: 1,
-      longest_incident_min: 30,
-      failed_checks: '{"website_browse":2}',
-    });
+    const done = await db.prepare("SELECT value FROM meta WHERE key = 'folded_through'").first();
+    expect(done).toEqual({ value: '2026-10-20' });
   });
 
   it('is idempotent: a second fold finds nothing and writes nothing', async () => {
     await simulate(db, WEEK);
     await foldCompleteDays(db, NOW);
     expect(await foldCompleteDays(db, NOW)).toBe(0);
-    expect(await count('day_rows')).toBe(6);
+    expect(await count('day_exceptions')).toBe(1);
   });
 
   it('counts slots with no sample as unknown, not up or down', async () => {
     await simulate(db, [{ from: at(19, 0), to: at(19, 2), skip: true }]);
     await foldCompleteDays(db, NOW);
-    const d19 = await db
-      .prepare("SELECT * FROM day_rows WHERE day = '2026-10-19' AND component = 'api'")
-      .first<Record<string, number>>();
-    expect(d19).toMatchObject({ up_samples: 88, unknown_samples: 8 });
+    const rows = (await db.prepare('SELECT * FROM day_exceptions ORDER BY component').all())
+      .results;
+    expect(rows).toEqual([
+      { day: '2026-10-19', component: 'api', down_samples: 0, unknown_samples: 8 },
+      { day: '2026-10-19', component: 'site', down_samples: 0, unknown_samples: 8 },
+    ]);
+  });
+
+  it('records a day on which the monitor never ran as all-unknown, not as a perfect day', async () => {
+    // Nothing at all on the 19th; samples resume on the 20th.
+    await simulate(db, [{ from: at(19, 0), to: at(20, 0), skip: true }]);
+    await foldCompleteDays(db, NOW);
+    const rows = (await db.prepare('SELECT * FROM day_exceptions ORDER BY component').all())
+      .results;
+    expect(rows).toEqual([
+      { day: '2026-10-19', component: 'api', down_samples: 0, unknown_samples: 96 },
+      { day: '2026-10-19', component: 'site', down_samples: 0, unknown_samples: 96 },
+    ]);
+  });
+
+  it('does nothing before monitoring has started', async () => {
+    expect(await foldCompleteDays(db, NOW)).toBe(0);
+    expect(await count('meta')).toBe(0);
   });
 });
 
 describe('history cache', () => {
-  it('summarises folded days, weekly, and totals', async () => {
+  it('summarises the folded chart days and the uptime totals', async () => {
     await simulate(db, WEEK);
     await foldCompleteDays(db, NOW);
     const h = await rebuildHistory(db, NOW);
@@ -76,17 +91,25 @@ describe('history cache', () => {
     expect(h.first_day).toBe('2026-10-18');
     expect(h.days.site).toEqual([['2026-10-19', 30, 1, 0]]);
     expect(h.days.api).toEqual([]);
-    expect(h.weeks.site).toEqual([['2026-10-19', 30, 1, 0]]);
+    // 3 folded days = 288 slots; the Site was down for 2 of them, in 1 incident.
     expect(h.totals.site.all).toEqual([2, 3 * 96, 1]);
+    expect(h.totals.api.all).toEqual([0, 3 * 96, 0]);
+  });
+
+  it('leaves unknown time out of the checked total', async () => {
+    await simulate(db, [{ from: at(19, 0), to: at(20, 0), skip: true }]);
+    await foldCompleteDays(db, NOW);
+    const h = await rebuildHistory(db, NOW);
+    expect(h.totals.site.all).toEqual([0, 2 * 96, 0]);
+    expect(h.days.site).toEqual([['2026-10-19', 0, 0, 1440]]);
   });
 
   it('is rebuilt only when missing or from before the current fold boundary', async () => {
     await simulate(db, WEEK);
     await foldCompleteDays(db, NOW);
-    await loadHistory(db, NOW);
-    await db.prepare("UPDATE meta SET value = replace(value, 'website_browse', 'x')").run(); // untouched marker
-    const again = await loadHistory(db, NOW);
-    expect(again.through).toBe('2026-10-20');
+    const first = await loadHistory(db, NOW);
+    expect(first.through).toBe('2026-10-20');
+    expect((await loadHistory(db, NOW)).through).toBe('2026-10-20');
     const later = await loadHistory(db, NOW + 24 * 3600_000);
     expect(later.through).toBe('2026-10-21');
   });
@@ -132,10 +155,10 @@ describe('buildSnapshot', () => {
   it('computes uptime, rounded down, with unchecked slots left out', async () => {
     const s = await snapshot();
     // 529 slots, 4 unchecked: 525 known, Site down in 3 of them.
-    expect(s.uptime.site.all).toEqual({ uptime: 99.42, down_minutes: 45, incidents: 2 });
+    expect(s.uptime.site.all).toEqual({ uptime: 99.428, down_minutes: 45, incidents: 2 });
     expect(s.uptime.site.d7).toEqual(s.uptime.site.all);
     // Last 24 hours is exact: API down for the final two samples of 97.
-    expect(s.uptime.api.h24).toMatchObject({ uptime: 97.93, down_minutes: 30 });
+    expect(s.uptime.api.h24).toMatchObject({ uptime: 97.938, down_minutes: 30 });
     // The 09:00 photo outage on the 22nd is outside the last 24 hours (cutoff 12:00 on the 22nd).
     expect(s.uptime.site.h24).toMatchObject({ uptime: 100, down_minutes: 0 });
   });
@@ -148,7 +171,6 @@ describe('buildSnapshot', () => {
       ['2026-10-21', 0, 0, 60],
       ['2026-10-22', 15, 1, 0],
     ]);
-    expect(s.history.weeks.site).toEqual([['2026-10-19', 45, 2, 60]]);
   });
 
   it('shows one incident row when a single cause took both parts down', async () => {

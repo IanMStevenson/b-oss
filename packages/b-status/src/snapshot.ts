@@ -19,7 +19,6 @@ import {
   dayOf,
   dayStartMs,
   slotOf,
-  weekStart,
 } from './time.js';
 import type { CheckId, Component, IncidentRow, State } from './types.js';
 
@@ -35,7 +34,8 @@ export interface Segment {
 }
 
 export interface UptimeWindow {
-  /** Percent rounded DOWN to 2 places; 100 only when nothing was measured down; null = no data. */
+  /** Percent rounded DOWN to 3 places (so the page can show fewer without ever rounding up); 100
+   * only when nothing was measured down; null = no data. */
   uptime: number | null;
   down_minutes: number;
   incidents: number;
@@ -69,10 +69,9 @@ export interface StatusSnapshot {
   last48h: { from: number; to: number } & Record<Component, Segment[]>;
   history: {
     first_day: string | null;
-    /** Daily entries for the last 365 days, non-empty days only (the page fills the gaps). */
+    /** The History chart: the last 30 UTC days (ending today), non-empty days only (the page fills
+     * the gaps). Longer periods are covered by `uptime` and `incidents`. */
     days: Record<Component, HistoryEntry[]>;
-    /** Weekly (Monday-start) entries for all time, non-empty weeks only. */
-    weeks: Record<Component, HistoryEntry[]>;
   };
   uptime: Record<Component, Record<'h24' | 'd7' | 'd30' | 'd365' | 'all', UptimeWindow>>;
   incidents: SnapshotIncident[];
@@ -80,10 +79,8 @@ export interface StatusSnapshot {
   shares: {
     /** [hour start epoch ms, count] for the last 48 hours. */
     hours: Record<Component, [number, number][]>;
-    /** [UTC day, count] for the last 365 days. */
+    /** [UTC day, count] for the last 30 days. */
     days: Record<Component, [string, number][]>;
-    /** [Monday UTC day, count] for all time. */
-    weeks: Record<Component, [string, number][]>;
   };
 }
 
@@ -91,11 +88,12 @@ interface LiveSample extends SampleStates {
   ts: number;
 }
 
-/** Uptime % rounded DOWN, so 100 means nothing at all was found down. */
+/** Uptime % rounded DOWN to 3 decimal places, so 100 means nothing at all was found down. The page
+ * decides how many to show (one, or up to three for 99.9x figures). */
 export function uptimePercent(down: number, known: number): number | null {
   if (known <= 0) return null;
   if (down <= 0) return 100;
-  return Math.floor((10000 * (known - down)) / known) / 100;
+  return Math.floor((100000 * (known - down)) / known) / 1000;
 }
 
 function window(totals: Totals): UptimeWindow {
@@ -166,12 +164,7 @@ export async function buildSnapshot(db: DbLike, now: number): Promise<StatusSnap
   const nowBlock = {} as StatusSnapshot['now'];
   const last48 = { from: now - 2 * DAY_MS, to: now } as StatusSnapshot['last48h'];
   const days = { site: [...history.days.site], api: [...history.days.api] };
-  const weeks = {
-    site: new Map(history.weeks.site.map((w) => [w[0], [...w] as HistoryEntry])),
-    api: new Map(history.weeks.api.map((w) => [w[0], [...w] as HistoryEntry])),
-  };
   const uptime = {} as StatusSnapshot['uptime'];
-  const yearStart = addDays(dayOf(now), -364);
 
   for (const c of COMPONENTS) {
     const open = incidents.find((i) => i.component === c && i.ended_at === null);
@@ -214,12 +207,6 @@ export async function buildSnapshot(db: DbLike, now: number): Promise<StatusSnap
       const noDataMin = counts.unknown * MINUTES_PER_SAMPLE;
       if (downMin > 0 || noDataMin > 0 || inc > 0) {
         days[c].push([day, downMin, inc, noDataMin]);
-        const wk = weekStart(day);
-        const w = weeks[c].get(wk) ?? [wk, 0, 0, 0];
-        w[1] += downMin;
-        w[2] += inc;
-        w[3] += noDataMin;
-        weeks[c].set(wk, w);
       }
       for (const k of ['w7', 'w30', 'w365', 'all'] as WindowKey[]) {
         totals[k][0] += counts.down;
@@ -240,14 +227,12 @@ export async function buildSnapshot(db: DbLike, now: number): Promise<StatusSnap
       d365: window(totals.w365),
       all: window(totals.all),
     };
-    days[c] = days[c].filter((d) => d[0] >= yearStart);
   }
 
   // Visitor shares: folded days from the cache, live (unfolded) rows bucketed here.
   const shares: StatusSnapshot['shares'] = {
     hours: { site: [], api: [] },
     days: { site: [], api: [] },
-    weeks: { site: [], api: [] },
   };
   const hourFrom = now - 2 * DAY_MS;
   for (const c of COMPONENTS) {
@@ -263,15 +248,9 @@ export async function buildSnapshot(db: DbLike, now: number): Promise<StatusSnap
     }
     shares.hours[c] = [...hours.entries()].sort((a, b) => a[0] - b[0]);
     shares.days[c] = [
-      ...history.shares.days[c].filter((d) => d[0] >= yearStart),
+      ...history.shares.days[c],
       ...[...liveDayCounts.entries()].sort((a, b) => (a[0] < b[0] ? -1 : 1)),
     ];
-    const weekly = new Map(history.shares.weeks[c]);
-    for (const [d, n] of liveDayCounts) {
-      const wk = weekStart(d);
-      weekly.set(wk, (weekly.get(wk) ?? 0) + n);
-    }
-    shares.weeks[c] = [...weekly.entries()].sort((a, b) => (a[0] < b[0] ? -1 : 1));
   }
 
   // One row per outage; a single cause that took both components down over the same period is one row.
@@ -317,7 +296,6 @@ export async function buildSnapshot(db: DbLike, now: number): Promise<StatusSnap
     history: {
       first_day: history.first_day,
       days,
-      weeks: { site: [...weeks.site.values()], api: [...weeks.api.values()] },
     },
     uptime,
     incidents: combined,

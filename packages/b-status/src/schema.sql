@@ -29,6 +29,9 @@ CREATE TABLE IF NOT EXISTS incidents (
   failed_checks TEXT NOT NULL            -- comma-separated check ids
 );
 CREATE INDEX IF NOT EXISTS idx_incidents_open ON incidents (component) WHERE ended_at IS NULL;
+-- The snapshot reads the newest 100 incidents every run: without this it scanned the whole table, and
+-- the table only grows. One extra write per incident, and incidents are rare.
+CREATE INDEX IF NOT EXISTS idx_incidents_started ON incidents (started_at);
 
 -- The page's whole data bundle, rebuilt each run (b-oss#484). A single row (id = 1).
 CREATE TABLE IF NOT EXISTS snapshot (
@@ -38,25 +41,24 @@ CREATE TABLE IF NOT EXISTS snapshot (
   next_refresh_at  INTEGER NOT NULL
 );
 
--- Small key/value store: 'first_ts' (when monitoring began, set once) and 'history' (the cached,
--- rebuilt-once-a-day summary of folded days, see history.ts).
+-- Small key/value store: 'first_ts' (when monitoring began, set once), 'folded_through' (the last
+-- UTC day folded into day_exceptions) and 'history' (the cached, rebuilt-once-a-day summary of
+-- folded days, see history.ts).
 CREATE TABLE IF NOT EXISTS meta (
   key   TEXT PRIMARY KEY,
   value TEXT NOT NULL
 );
 
--- One row per UTC day per component, folded from samples older than 48 hours (fold.ts).
--- Counts, not percentages, so days sum into any window. `unknown_samples` includes slots with no
--- sample at all. `failed_checks` is JSON {checkId: count of down samples it failed in}.
-CREATE TABLE IF NOT EXISTS day_rows (
-  day                   TEXT NOT NULL,   -- YYYY-MM-DD (UTC)
-  component             TEXT NOT NULL,   -- 'site' | 'api'
-  up_samples            INTEGER NOT NULL,
-  down_samples          INTEGER NOT NULL,
-  unknown_samples       INTEGER NOT NULL,
-  incident_count        INTEGER NOT NULL,
-  longest_incident_min  INTEGER NOT NULL,
-  failed_checks         TEXT NOT NULL,
+-- Long-term history is SPARSE: a row exists only for a UTC day that had something to record. Every
+-- day has 96 slots, so "up" is derived (96 - down - unknown, or fewer on the first day) and a day
+-- with no row was a perfect day. `unknown_samples` counts slots the monitor didn't run (or couldn't
+-- judge), kept so uptime never counts unchecked time as up. Per-day incident counts and what failed
+-- are NOT stored here: `incidents` is kept for good and has them.
+CREATE TABLE IF NOT EXISTS day_exceptions (
+  day              TEXT NOT NULL,   -- YYYY-MM-DD (UTC)
+  component        TEXT NOT NULL,   -- 'site' | 'api'
+  down_samples     INTEGER NOT NULL,
+  unknown_samples  INTEGER NOT NULL,
   PRIMARY KEY (day, component)
 ) WITHOUT ROWID;
 
@@ -72,7 +74,8 @@ CREATE TABLE IF NOT EXISTS shares (
 );
 CREATE INDEX IF NOT EXISTS idx_shares_ts ON shares (ts);
 
--- Daily share counts per component, folded from `shares` (same 48-hour boundary as day_rows).
+-- Daily share counts per component, folded from `shares` (same 48-hour boundary as day_exceptions).
+-- Already sparse: a row only for a day that had shares.
 CREATE TABLE IF NOT EXISTS share_days (
   day        TEXT NOT NULL,
   component  TEXT NOT NULL,
