@@ -19,7 +19,12 @@ import type { Env } from './types.js';
 /** Identifies the monitor and says where to find out more. The contact URL is revisited in b-oss#487. */
 const USER_AGENT =
   'b-oss-status-monitor/0.1 (+https://b-oss.dev; unofficial independent status monitor)';
-const RETRY_DELAY_MS = 5_000;
+/** Scheduled runs have plenty of wall time, so the confirming retry waits long enough for a short
+ * blip to clear. */
+const SCHEDULED_RETRY_DELAY_MS = 30_000;
+/** A triggered re-check runs in `ctx.waitUntil`, which Workers cap at about 30 s after the response
+ * is sent, and the two attempts can each take up to the 10 s timeout; so its delay stays short. */
+const TRIGGERED_RETRY_DELAY_MS = 5_000;
 
 function config(env: Env): ProbeConfig {
   return {
@@ -32,17 +37,17 @@ function config(env: Env): ProbeConfig {
   };
 }
 
-function probeOnce(env: Env) {
+function probeOnce(env: Env, retryDelayMs: number) {
   return runProbe(
     config(env),
     { fetch: (input, init) => fetch(input, init), now: () => Date.now() },
     (ms) => new Promise((r) => setTimeout(r, ms)),
-    RETRY_DELAY_MS,
+    retryDelayMs,
   );
 }
 
 export async function runScheduled(env: Env): Promise<void> {
-  const outcome = await probeOnce(env);
+  const outcome = await probeOnce(env, SCHEDULED_RETRY_DELAY_MS);
   await recordSample(env.DB, outcome);
   // After the sample is stored: fold finished days, then rebuild the page's snapshot from it.
   const { foldedDays: folded } = await runMaintenance(env.DB, outcome.ts);
@@ -70,7 +75,7 @@ export default {
         now: () => Date.now(),
         waitUntil: (work) => ctx.waitUntil(work),
         triggerCheck: () =>
-          runTriggeredCheck(env.DB, { probe: () => probeOnce(env), now: () => Date.now() }),
+          runTriggeredCheck(env.DB, { probe: () => probeOnce(env, TRIGGERED_RETRY_DELAY_MS), now: () => Date.now() }),
       });
     }
     return new Response(JSON.stringify({ error: 'Not found' }), {

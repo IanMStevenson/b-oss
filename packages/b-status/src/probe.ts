@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (C) 2026 Ian Stevenson
 
-// One probe run: the checks, then — if anything failed — ONE retry a few seconds later. A component
+// One probe run: the checks, then — if anything failed — ONE retry after a delay the caller chooses. A component
 // is only recorded down when it is down on both attempts, so a single blip never paints a red
 // sample (b-oss#476 design). The stored checks are those of the final attempt.
 
