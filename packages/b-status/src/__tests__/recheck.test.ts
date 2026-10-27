@@ -147,9 +147,32 @@ describe('runTriggeredCheck', () => {
     await run(2, outcome(S + 2 * MIN, 'up', 'up'));
     expect(await sample()).toMatchObject({ site_state: 'up', api_state: 'up', retried: 0 });
     expect(await incidents()).toEqual([]);
-    expect(await snapshot()).toEqual(before);
+    const after = await snapshot();
+    expect(after.now.site.checked_at).toBe(S + 2 * MIN);
+    expect(after.now.api.checked_at).toBe(S + 2 * MIN);
+    // nothing else moved
+    after.now.site.checked_at = before.now.site.checked_at;
+    after.now.api.checked_at = before.now.api.checked_at;
+    expect(after).toEqual(before);
     expect(await meta('triggered_slot')).toBe(String(slotOf(S)));
     expect(await meta('triggered_at')).not.toBeNull();
+  });
+
+  it('does not touch the last-checked time of an unknown component', async () => {
+    await scheduled();
+    await run(2, outcome(S + 2 * MIN, 'up', 'unknown'));
+    const snap = await snapshot();
+    expect(snap.now.site.checked_at).toBe(S + 2 * MIN);
+    expect(snap.now.api.checked_at).toBe(S + 30_000);
+  });
+
+  it('swallows and logs a failure while updating the last-checked time', async () => {
+    await scheduled();
+    await db.prepare("UPDATE snapshot SET json = 'not json' WHERE id = 1").run();
+    await run(2, outcome(S + 2 * MIN, 'up', 'up'));
+    expect(logs.some((l) => l.includes('could not update last-checked'))).toBe(true);
+    expect(logs.some((l) => l.includes('triggered check done'))).toBe(true);
+    expect(await meta('triggered_slot')).toBe(String(slotOf(S)));
   });
 
   it('never improves a state, and leaves down and unknown alone', async () => {

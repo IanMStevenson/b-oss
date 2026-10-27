@@ -127,6 +127,9 @@ describe('refresh', () => {
     expect(snapshotUnchanged(a, { ...structuredClone(a), generated_at: a.generated_at + 1 })).toBe(
       false,
     );
+    const rechecked = structuredClone(a);
+    rechecked.now.site.checked_at = (a.now.site.checked_at ?? 0) + 60_000;
+    expect(snapshotUnchanged(a, rechecked)).toBe(false);
     const none = makeFixture('new', NOW);
     expect(snapshotUnchanged(none, structuredClone(none))).toBe(true);
   });

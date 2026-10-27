@@ -15,6 +15,7 @@ import type { DbLike } from './db.js';
 import { describeError } from './log.js';
 import { incidentStatements, loadOpenIncidents } from './incidents.js';
 import type { ProbeOutcome } from './probe.js';
+import { invalidateStatusCache } from './serve.js';
 import { storeSnapshot } from './snapshot.js';
 import { INTERVAL_MS, slotOf } from './time.js';
 import type { Component, DerivedStates, SampleRow } from './types.js';
@@ -140,6 +141,7 @@ export async function runTriggeredCheck(db: DbLike, deps: TriggeredDeps): Promis
       if (current && changed.length > 0) await applyDown(db, current, outcome, changed);
     }
     if (changed.length > 0) await storeSnapshot(db, outcome.ts);
+    else await touchChecked(db, outcome, log);
     log(
       `[b-status] triggered check done slot=${slot} elapsed=${deps.now() - started}ms` +
         ` site=${outcome.states.site.state} api=${outcome.states.api.state}` +
@@ -177,4 +179,43 @@ async function applyDown(
       ),
     ...incidentStatements(db, open, { ts: outcome.ts, states }),
   ]);
+}
+
+/** A check that changed nothing leaves the snapshot's data alone but moves each answered
+ * component's `now.*.checked_at` to the check's time, so the page's "Last checked" shows that a
+ * check ran. A cheap read-modify-write like `bumpSnapshotShares`; `generated_at` (the staleness
+ * rule), `next_refresh_at`, state, uptime, lanes and shares are untouched, and an `unknown`
+ * component is not touched. Never throws: a failure is logged. */
+async function touchChecked(
+  db: DbLike,
+  outcome: ProbeOutcome,
+  log: (line: string) => void,
+): Promise<void> {
+  try {
+    const row = await db
+      .prepare('SELECT json, generated_at, next_refresh_at FROM snapshot WHERE id = 1')
+      .first<{ json: string; generated_at: number; next_refresh_at: number }>();
+    if (!row) return;
+    const snap = JSON.parse(row.json) as {
+      now?: Record<Component, { checked_at: number | null }>;
+    };
+    let touched = false;
+    for (const c of COMPONENTS) {
+      const entry = snap.now?.[c];
+      if (entry && outcome.states[c].state !== 'unknown') {
+        entry.checked_at = outcome.ts;
+        touched = true;
+      }
+    }
+    if (!touched) return;
+    await db
+      .prepare(
+        'INSERT OR REPLACE INTO snapshot (id, json, generated_at, next_refresh_at) VALUES (1, ?, ?, ?)',
+      )
+      .bind(JSON.stringify(snap), row.generated_at, row.next_refresh_at)
+      .run();
+    invalidateStatusCache();
+  } catch (err) {
+    log(`[b-status] triggered check could not update last-checked: ${describeError(err)}`);
+  }
 }

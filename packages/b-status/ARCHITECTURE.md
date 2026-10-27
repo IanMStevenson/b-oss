@@ -112,8 +112,12 @@ into a confirmed DOWN, per component, in the **current slot's existing sample**:
 the same `incidentStatements` as the scheduled run) and rebuild the snapshot (which recomputes the
 visitor reports from `shares`). It never improves a state, never writes a second sample, and does
 nothing if the slot has no sample yet (the cron is seconds away; nothing is claimed either, so a later
-report is still the first). A check that finds nothing wrong writes only the two meta rows and does
-not rebuild the snapshot (so `generated_at` still means the last scheduled or changing check).
+report is still the first). A check that finds nothing newly down does not rebuild the snapshot; it patches the stored one
+(read, set, write back, like `bumpSnapshotShares`) so each answered (non-`unknown`) component's
+`now.*.checked_at` becomes the check's time, and drops the in-memory cache. That is what the page's
+"Last checked" reads, so the reporter sees a check ran. `generated_at` (the staleness rule),
+`next_refresh_at`, state, uptime, lanes and shares are untouched, and a failed patch is logged, not
+thrown. The page's "nothing new" test (`snapshotUnchanged`) also compares `checked_at` for this.
 
 **The risk, and how to tell**: on the free plan the request's 10 ms CPU limit covers `waitUntil` work
 too, so the probe may occasionally be cut off. It fails safe: the 201 has gone, writes are one small
