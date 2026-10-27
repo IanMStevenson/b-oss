@@ -1,0 +1,115 @@
+---
+import Layout from '../layouts/Layout.astro';
+import Hero from '../components/Hero.astro';
+---
+
+<Layout
+  title="Privacy Policy · b-oss website"
+  description="Privacy policy for the b-oss website (b-oss.dev): what it collects, the contact form, and the Blipfoto status page."
+  narrow
+>
+  <Hero label="Privacy hero" title="Privacy Policy — the b-oss website">This policy covers this website, b-oss.dev, including the contact form and the unofficial
+      Blipfoto status page. The apps have their own policies, linked below.</Hero>
+
+  <section
+    class="block"
+    style="border-top: none; padding-top: 0"
+    data-screen-label="Privacy body"
+  >
+    <p><em>Last updated: 27 October 2026</em></p>
+
+    <h2>Who is responsible</h2>
+    <p>
+      This website is part of b-oss, an open-source project led by Ian Stevenson. It is
+      independent and is not affiliated with or endorsed by Blipfoto. Questions about this
+      policy can be sent to
+      <a href="mailto:b-oss@salientpoint.co.uk">b-oss@salientpoint.co.uk</a> or through the
+      <a href="contact.html">contact page</a>.
+    </p>
+
+    <h2>What the website itself collects</h2>
+    <p>
+      Nothing of its own. The pages use no analytics, no advertising, no cookies and no tracking,
+      and store nothing in your browser. The contact form and the status page involve other
+      services, described below.
+    </p>
+
+    <h2>Hosting</h2>
+    <p>
+      The site is hosted on Cloudflare. Like any host, Cloudflare handles technical data about
+      each request, such as your IP address, the page you asked for and the time, and may keep
+      it in its own logs under
+      <a href="https://www.cloudflare.com/privacypolicy/">Cloudflare's privacy policy</a>. We
+      do not use it to track visitors.
+    </p>
+
+    <h2>The contact form</h2>
+    <p>
+      If you use the <a href="contact.html">contact form</a>, your browser sends your name,
+      email address and message straight to
+      <a href="https://web3forms.com/privacy">Web3Forms</a>, which delivers them to us by email.
+      We use them only to read and reply to your message. Web3Forms handles the data under its
+      own policy. If you want a message deleted, ask through the contact page.
+    </p>
+
+    <h2>The status page</h2>
+    <p>
+      The <a href="status.html">status page</a> shows data from a small service the project runs
+      on Cloudflare. When you open the page, your browser asks that service for the latest
+      figures, so Cloudflare sees your IP address as it does for any request. Our own code does
+      not store it, and the service's own logs do not record visitors.
+    </p>
+    <p>
+      The page also loads Cloudflare's Turnstile anti-bot check, so that the Share a problem
+      form can tell people from bots. Cloudflare runs Turnstile under
+      <a href="https://www.cloudflare.com/privacypolicy/">its privacy policy</a>.
+    </p>
+
+    <h3>If you share a problem</h3>
+    <ul>
+      <li>
+        We store the time, which part had the problem (the Blipfoto website or its API), whether
+        it was offline or not working right, and any tags you tick (login, uploads, slow,
+        unreliable). There is no free text, and no name, account or email.
+      </li>
+      <li>
+        Those details are kept for a few days. After that only daily totals are kept.
+      </li>
+      <li>
+        We use your IP address briefly to limit repeat reports. It is turned into a salted
+        one-way hash, and we keep only that hash, not the address. The hash is kept for about
+        half an hour and deleted soon after, so at most about 45 minutes in total. It is still
+        personal data while we hold it.
+      </li>
+      <li>
+        Your IP address is also passed to Cloudflare to check the anti-bot result. Shared
+        problems are not sent to Blipfoto.
+      </li>
+    </ul>
+    <p>
+      The monitor's own checks of Blipfoto only read public pages and involve no visitor data.
+    </p>
+
+    <h2>The apps</h2>
+    <p>The apps have their own policies:</p>
+    <ul>
+      <li><a href="b-mobile-privacy.html">b-mobile for Blipfoto</a> (Android)</li>
+      <li><a href="b-ark-chrome-privacy.html">b-ark-chrome</a> (Chrome extension)</li>
+      <li>
+        b-ark (Windows desktop app) does not have its own policy page yet; see the
+        <a href="b-ark.html">b-ark page</a>.
+      </li>
+    </ul>
+
+    <h2>Questions</h2>
+    <p>
+      For anything about privacy on this site, use the <a href="contact.html">contact page</a>.
+    </p>
+
+    <h2>Changes to this policy</h2>
+    <p>
+      If this policy changes, the new version will be published at this address with a revised
+      date at the top.
+    </p>
+  </section>
+</Layout>
