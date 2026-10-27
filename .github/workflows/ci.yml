@@ -1,5 +1,10 @@
 name: CI
 
+# Pull requests only run the checks for the packages the change can affect (the changed packages
+# plus everything that depends on them); scripts/ci-scope.mjs decides which. Pushes to main/develop
+# run everything, as the safety net for cross-package effects the dependency graph cannot see.
+# The final `ci` job is the status check the main ruleset requires, so keep its name. See b-oss#557.
+
 on:
   push:
     branches: [main, develop]
@@ -11,7 +16,26 @@ on:
       - 'packages/b-site/**'
 
 jobs:
-  ci:
+  plan:
+    runs-on: ubuntu-latest
+    outputs:
+      packages: ${{ steps.plan.outputs.packages }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '22'
+      - id: plan
+        run: node scripts/ci-scope.mjs plan --base "$BASE_SHA"
+        env:
+          # Empty on push, which plans every package.
+          BASE_SHA: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || '' }}
+
+  typecheck:
+    needs: plan
+    if: needs.plan.outputs.packages != ''
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v7
@@ -20,6 +44,52 @@ jobs:
           node-version: '22'
           cache: 'npm'
       - run: npm ci
-      - run: npm run typecheck
-      - run: npm run lint
-      - run: npm test
+      - run: node scripts/ci-scope.mjs run typecheck --packages "$PACKAGES"
+        shell: bash
+        env:
+          PACKAGES: ${{ needs.plan.outputs.packages }}
+
+  lint:
+    needs: plan
+    if: needs.plan.outputs.packages != ''
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '22'
+          cache: 'npm'
+      - run: npm ci
+      - run: node scripts/ci-scope.mjs run lint --packages "$PACKAGES"
+        shell: bash
+        env:
+          PACKAGES: ${{ needs.plan.outputs.packages }}
+
+  test:
+    needs: plan
+    if: needs.plan.outputs.packages != ''
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '22'
+          cache: 'npm'
+      - run: npm ci
+      - run: node scripts/ci-scope.mjs run test --packages "$PACKAGES"
+        shell: bash
+        env:
+          PACKAGES: ${{ needs.plan.outputs.packages }}
+
+  # The required status check. Skipped jobs (nothing affected) count as passing; failed or
+  # cancelled ones do not.
+  ci:
+    needs: [plan, typecheck, lint, test]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - if: contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled')
+        run: |
+          echo "A required job failed or was cancelled."
+          exit 1
+      - run: echo "ci passed"
