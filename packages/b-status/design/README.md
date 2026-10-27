@@ -23,12 +23,10 @@ code it: do not try to reproduce any generated markup.
 1. **No "you can share again after 15:20".** The "already shared recently" state (G5) must not
    say when sharing is possible again: we don't want to encourage repeat shares. Say only that
    they've shared recently and that it still counts.
-2. **Privacy line.** The form's "No account needed and no personal information collected. We only
-   keep your answers and the time." is inaccurate once the repeat limit exists. Use (design pass 2):
-   "No account or personal details. Your address is kept only in scrambled form, briefly, to limit
-   repeats." The page must **not claim anonymity**: the address is kept as a salted hash, which is
-   pseudonymised and still personal data. The Privacy section of How this works matches and doesn't
-   advertise the exact interval as an invitation to share again.
+2. **Privacy.** The form has **no privacy sentence** (design pass 3). A small centred "Privacy" link
+   under the Turnstile box points at the site-wide privacy policy, `privacy.html` (added separately).
+   The page and How this works must not claim anonymity or describe how the IP address is handled
+   beyond "used briefly to limit repeat reports"; the policy page is where the detail lives.
 3. **Footer tagline.** The mockups' "Blipfoto - Open Source Software" under "b-oss" reads as though
    Blipfoto is the product. Use wording that makes the relationship clear (e.g. "Open-source tools
    for Blipfoto users"). The site-wide fix is tracked separately; the status pages use the shared
