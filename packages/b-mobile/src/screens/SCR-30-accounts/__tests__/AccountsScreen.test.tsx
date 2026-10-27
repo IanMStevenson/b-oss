@@ -523,7 +523,7 @@ describe('AccountsScreen', () => {
       renderScreen();
       const rows = document.querySelectorAll('ion-item');
       expect((rows[0] as HTMLElement).style.getPropertyValue('--background')).toBe(
-        'var(--green-100, #eef2ee)',
+        'var(--selected-row-bg)',
       );
       expect((rows[1] as HTMLElement).style.getPropertyValue('--background')).toBe('');
     });
