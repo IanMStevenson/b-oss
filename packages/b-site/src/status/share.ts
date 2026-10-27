@@ -51,6 +51,8 @@ export function initShare(root: HTMLElement, cfg: ShareConfig): void {
 
   if (cfg.siteKey) {
     tsBox.textContent = '';
+    // The dashed box is the placeholder for when there is no key; the real widget draws its own.
+    tsBox.classList.add('st-turnstile-live');
     const script = document.createElement('script');
     script.src = 'https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit';
     script.async = true;

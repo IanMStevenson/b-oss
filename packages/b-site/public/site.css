@@ -1573,6 +1573,13 @@ p.st-sub {
   font-size: 13px;
   color: var(--muted-strong);
 }
+/* The live Turnstile widget draws its own frame, so drop the placeholder's dashed box and padding. */
+.st-turnstile.st-turnstile-live {
+  border: 0;
+  padding: 0;
+  border-radius: 0;
+  width: auto;
+}
 .st-share-actions {
   display: flex;
   gap: 12px;
