@@ -9,7 +9,7 @@
 # the design keeps page views off D1 and the Worker — see ARCHITECTURE.md "Free-tier budget").
 #
 # Manual setup still to do (b-oss#487):
-#   - create the D1 database `b-status`, run src/schema.sql in its Console, and put its id below
+#   - D1 database `b-status` is created and its schema loaded (b-oss#487); its id is below
 #   - register the "status monitor" API app, set its client id as the Worker secret MONITOR_CLIENT_ID
 #   - Turnstile widget for the page's origin: its secret key is the Worker secret TURNSTILE_SECRET_KEY
 #   - SHARE_HASH_SALT: a long random string (Worker secret) salting the share-limiter IP hash
@@ -23,7 +23,7 @@ compatibility_date = "2026-08-04"
 [[d1_databases]]
 binding = "DB"
 database_name = "b-status"
-database_id = "REPLACE-WITH-D1-DATABASE-ID" # b-oss#487
+database_id = "f8244a93-0800-4454-9d1c-438432d9db89"
 
 # One cron trigger: the probe, every 15 minutes. (The account allows 5 in total; b-push uses 1.)
 [triggers]
