@@ -3,7 +3,7 @@
 What has been checked about the public site, API and image host, and what is still open. Findings
 are from plain anonymous requests made from a dev VM on 2026-10-23 (User-Agent
 `b-oss-status-monitor/0.1 (+https://b-oss.dev; unofficial independent status monitor)`), one
-request each, no credentials. **Partial: the items under "Still to verify" gate the final check list.**
+request each, no credentials. The items under "Still to verify" are the remaining open points.
 
 ## Verified
 
@@ -23,19 +23,29 @@ Blipfoto`, and `og:image` (a direct photo URL). That URL is the photo the photo 
 - The API reports failures in the body (`error` non-null) with HTTP 200, so the check must read the
   envelope, not the status code (as implemented in `src/checks.ts`).
 
-## Still to verify (needs a Worker run and/or the monitor client id, b-oss#487)
+## Verified on the live system (2026-10-27)
 
-- **Photo check from a Worker.** The dev VM's egress proxy blocks the image host, so `HEAD` on
-  the photo URL couldn't be tried here. Confirm a Worker gets 200 and an `image/*` content type.
-- **API checks with the monitor's client id**: how the client id is presented for anonymous app
-  calls (the code sends `client_id` as a query parameter, provisional), the shape of
-  `entries/recent` and `entry` responses, and what healthy latency looks like.
+- **API auth for the monitor:** the client id goes in an `Authorization: Bearer <client id>` header.
+  A `client_id` query parameter is **not** accepted: it answers `error.code 52, "The client is
+invalid."`, exactly as an unidentified call does. (The first deployed version sent the query
+  parameter, so its API check failed; fixed afterwards.)
+- `entries/recent?page_size=N` with that header returns 200 and `{error: null, data: {page, entries[]}}`
+  with `entry_id_str`, `thumbnail_url` and `image_url` per entry. `entry?entry_id=<id>` returns the
+  same entry (`data.entry.entry_id_str`). Both are what `api_recent` and `api_entry` check.
+- **Photo check from a Worker:** the website checks and the photo `HEAD` all pass from Cloudflare's
+  network (about 160 ms for the pages and 10 ms for the photo), so the site doesn't challenge or
+  block the Worker.
+- **Cron:** the first scheduled run of a new trigger is about one full cycle after deploy (nothing
+  ran at the first slot).
+
+## Still to verify
+
+- **CPU per run** against the free plan's 10 ms limit (check the Worker's metrics over a few days;
+  the runs so far completed normally).
 - **Thumbnail URL from the API** vs the entry page's `og:image`: whether to also check the API's
   thumbnail host. Currently only the entry page's image is checked.
-- **From a Worker:** that the site and API behave as they did from the VM (no challenge pages for
-  Cloudflare IP ranges), CPU time per run (limit 10 ms; waits don't count), subrequests per run
-  (limit 50; a run with a retry is at most 10).
-- **Thresholds:** `slowMs` is 8 s and `timeoutMs` 10 s as a first guess; set from observed latency.
+- **Thresholds:** `slowMs` is 8 s and `timeoutMs` 10 s as a first guess; set from observed latency
+  (so far: pages about 0.16 s, API about 0.6 s).
 - **Retry delay:** 5 s is a first guess.
 
 ## Check list as implemented

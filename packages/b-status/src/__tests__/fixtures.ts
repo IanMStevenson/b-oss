@@ -46,9 +46,14 @@ export function healthy(): Record<string, Stub> {
 }
 
 /** A fetch answering from `stubs` (matched on the URL without its query string). */
-export function fakeFetch(stubs: Record<string, Stub>, calls: string[] = []): FetchLike {
-  return (input) => {
+export function fakeFetch(
+  stubs: Record<string, Stub>,
+  calls: string[] = [],
+  headersSeen: Record<string, string>[] = [],
+): FetchLike {
+  return (input, init) => {
     calls.push(input);
+    headersSeen.push((init?.headers ?? {}) as Record<string, string>);
     const key = input.split('?')[0] ?? input;
     const stub = stubs[key];
     if (!stub) return Promise.resolve(new Response('not found', { status: 404 }));

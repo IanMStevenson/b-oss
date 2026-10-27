@@ -38,12 +38,13 @@ async function timed(
   cfg: ProbeConfig,
   url: string,
   method: 'GET' | 'HEAD',
+  extraHeaders: Record<string, string> = {},
 ): Promise<Timed> {
   const start = deps.now();
   try {
     const res = await deps.fetch(url, {
       method,
-      headers: { 'User-Agent': cfg.userAgent, Accept: '*/*' },
+      headers: { 'User-Agent': cfg.userAgent, Accept: '*/*', ...extraHeaders },
       signal: AbortSignal.timeout(cfg.timeoutMs),
     });
     return { res, ms: deps.now() - start };
@@ -79,8 +80,22 @@ function parseEnvelope(text: string): { error: unknown; data: unknown } | null {
 }
 
 function apiUrl(cfg: ProbeConfig, path: string, params: Record<string, string>): string {
-  const q = new URLSearchParams({ ...params, client_id: cfg.clientId ?? '' });
-  return `${cfg.apiBase}/${path}?${q.toString()}`;
+  return `${cfg.apiBase}/${path}?${new URLSearchParams(params).toString()}`;
+}
+
+/** The monitor app's credentials, sent the way the API expects for app-level (no user) access: the
+ * client id as a bearer token. A `client_id` query parameter is NOT accepted (it answers 52, "The
+ * client is invalid"). Verified against the live API (b-oss#482). */
+function apiAuth(cfg: ProbeConfig): Record<string, string> {
+  return { Authorization: `Bearer ${cfg.clientId ?? ''}` };
+}
+
+/** "API error 52: The client is invalid." for an envelope error, so a failing check says why. */
+function describeApiError(error: unknown): string {
+  const e = error as { code?: unknown; message?: unknown } | null;
+  const code = typeof e?.code === 'number' ? e.code : null;
+  const msg = typeof e?.message === 'string' ? e.message.slice(0, 80) : '';
+  return code === null ? 'API returned an error' : `API error ${code}${msg ? `: ${msg}` : ''}`;
 }
 
 export async function runChecks(cfg: ProbeConfig, deps: ProbeDeps): Promise<CheckResult[]> {
@@ -137,20 +152,25 @@ export async function runChecks(cfg: ProbeConfig, deps: ProbeDeps): Promise<Chec
   }
 
   // 4 + 5. API. The envelope's `error` field decides, not the HTTP status (the API answers 200
-  // with the failure in the body). PROVISIONAL until the monitor app exists: the client-id
-  // parameter and response shape are as the issue describes, to be verified in b-oss#482.
+  // with the failure in the body). Auth and response shapes verified against the live API.
   let apiEntryId: string | null = null;
   if (cfg.clientId === null) {
     out.push(skipped('api_recent', 'no monitor client id'));
   } else {
-    const t = await timed(deps, cfg, apiUrl(cfg, 'entries/recent', { page_size: '10' }), 'GET');
+    const t = await timed(
+      deps,
+      cfg,
+      apiUrl(cfg, 'entries/recent', { page_size: '10' }),
+      'GET',
+      apiAuth(cfg),
+    );
     if (!t.res) out.push(fail('api_recent', t.ms, t.error ?? 'no response'));
     else {
       const env = parseEnvelope(await t.res.text());
       const entries = (env?.data as { entries?: { entry_id_str?: string }[] } | null | undefined)
         ?.entries;
       if (!env) out.push(fail('api_recent', t.ms, `not an API response (HTTP ${t.res.status})`));
-      else if (env.error !== null) out.push(fail('api_recent', t.ms, 'API returned an error'));
+      else if (env.error !== null) out.push(fail('api_recent', t.ms, describeApiError(env.error)));
       else if (!entries || entries.length === 0 || !entries[0]?.entry_id_str)
         out.push(fail('api_recent', t.ms, 'no entries'));
       else if (t.ms > cfg.slowMs) out.push(fail('api_recent', t.ms, 'too slow'));
@@ -162,14 +182,20 @@ export async function runChecks(cfg: ProbeConfig, deps: ProbeDeps): Promise<Chec
   }
   if (!apiEntryId) out.push(skipped('api_entry', 'no entry id from api_recent'));
   else {
-    const t = await timed(deps, cfg, apiUrl(cfg, 'entry', { entry_id: apiEntryId }), 'GET');
+    const t = await timed(
+      deps,
+      cfg,
+      apiUrl(cfg, 'entry', { entry_id: apiEntryId }),
+      'GET',
+      apiAuth(cfg),
+    );
     if (!t.res) out.push(fail('api_entry', t.ms, t.error ?? 'no response'));
     else {
       const env = parseEnvelope(await t.res.text());
       const got = (env?.data as { entry?: { entry_id_str?: string } } | null | undefined)?.entry
         ?.entry_id_str;
       if (!env) out.push(fail('api_entry', t.ms, `not an API response (HTTP ${t.res.status})`));
-      else if (env.error !== null) out.push(fail('api_entry', t.ms, 'API returned an error'));
+      else if (env.error !== null) out.push(fail('api_entry', t.ms, describeApiError(env.error)));
       else if (got !== apiEntryId) out.push(fail('api_entry', t.ms, 'wrong entry returned'));
       else if (t.ms > cfg.slowMs) out.push(fail('api_entry', t.ms, 'too slow'));
       else out.push(pass('api_entry', t.ms));

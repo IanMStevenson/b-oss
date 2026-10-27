@@ -5,8 +5,12 @@ import { describe, expect, it } from 'vitest';
 import { runChecks } from '../checks.js';
 import { API_ENTRY, API_RECENT, CFG, fakeFetch, healthy, type Stub } from './fixtures.js';
 
-const run = (stubs: Record<string, Stub>, cfg = CFG, calls: string[] = []) =>
-  runChecks(cfg, { fetch: fakeFetch(stubs, calls), now: () => 0 });
+const run = (
+  stubs: Record<string, Stub>,
+  cfg = CFG,
+  calls: string[] = [],
+  headersSeen: Record<string, string>[] = [],
+) => runChecks(cfg, { fetch: fakeFetch(stubs, calls, headersSeen), now: () => 0 });
 const status = (results: Awaited<ReturnType<typeof run>>) =>
   Object.fromEntries(results.map((x) => [x.id, x.status]));
 
@@ -54,6 +58,33 @@ describe('runChecks', () => {
     );
     expect(s.photo).toBe('fail');
     expect(s.website_entry).toBe('pass');
+  });
+
+  it('sends the client id as a bearer token, never as a query parameter', async () => {
+    const calls: string[] = [];
+    const headers: Record<string, string>[] = [];
+    await run(healthy(), CFG, calls, headers);
+    const apiIdx = calls.map((c, i) => (c.includes('api.test') ? i : -1)).filter((i) => i >= 0);
+    expect(apiIdx).toHaveLength(2);
+    for (const i of apiIdx) {
+      expect(calls[i]).not.toContain('client_id');
+      expect(headers[i]?.Authorization).toBe('Bearer monitor-client');
+    }
+    // The website and photo requests carry no credentials.
+    const siteIdx = calls.map((c, i) => (c.includes('site.test') ? i : -1)).filter((i) => i >= 0);
+    for (const i of siteIdx) expect(headers[i]?.Authorization).toBeUndefined();
+  });
+
+  it('says which API error it got, so a failing check can be diagnosed from the stored sample', async () => {
+    const bad = JSON.stringify({
+      version: '4',
+      error: { object: 'Error', code: 52, message: 'The client is invalid.' },
+      data: null,
+    });
+    const results = await run({ ...healthy(), 'https://api.test/4/entries/recent': { body: bad } });
+    expect(results.find((x) => x.id === 'api_recent')?.detail).toBe(
+      'API error 52: The client is invalid.',
+    );
   });
 
   it('judges the API by the envelope error, not the HTTP status', async () => {
