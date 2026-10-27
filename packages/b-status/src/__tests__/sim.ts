@@ -40,7 +40,12 @@ export function outcomeAt(ts: number, events: Event[]): ProbeOutcome | null {
     state,
     failed: state === 'down' ? failed : [],
   });
-  const results: CheckResult[] = failed.map((id) => ({ id, status: 'fail', ms: 1 }));
+  const results: CheckResult[] = failed.map((id) => ({
+    id,
+    status: 'fail',
+    ms: 10_000,
+    detail: 'timeout',
+  }));
   return {
     ts,
     slot: slotOf(ts),

@@ -146,10 +146,21 @@ describe('buildSnapshot', () => {
     const s = await snapshot();
     expect(s.last48h.site).toEqual([
       { kind: 'nodata', start: at(21, 14), end: at(21, 15) },
-      { kind: 'down', start: at(22, 9), end: at(22, 9, 15), failed: ['photo'] },
+      {
+        kind: 'down',
+        start: at(22, 9),
+        end: at(22, 9, 15),
+        failed: ['photo'],
+        reason: 'timed out after 10 s',
+      },
     ]);
     // An ongoing outage has no end.
-    expect(s.last48h.api.at(-1)).toMatchObject({ kind: 'down', end: null, failed: ['api_recent'] });
+    expect(s.last48h.api.at(-1)).toMatchObject({
+      kind: 'down',
+      end: null,
+      failed: ['api_recent'],
+      reason: 'timed out after 10 s',
+    });
   });
 
   it('computes uptime, rounded down, with unchecked slots left out', async () => {

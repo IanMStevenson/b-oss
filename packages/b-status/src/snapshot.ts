@@ -20,7 +20,7 @@ import {
   dayStartMs,
   slotOf,
 } from './time.js';
-import type { CheckId, Component, IncidentRow, State } from './types.js';
+import type { CheckId, CheckResult, Component, IncidentRow, State } from './types.js';
 
 const COMPONENTS: Component[] = ['site', 'api'];
 const INCIDENT_CAP = 100;
@@ -31,6 +31,9 @@ export interface Segment {
   /** null = still going (a down segment drawn flush to "now"). */
   end: number | null;
   failed?: CheckId[];
+  /** Plain reason the first failed check gave ("timed out after 10 s"); absent once the raw samples
+   * have been folded away. */
+  reason?: string;
 }
 
 export interface UptimeWindow {
@@ -47,6 +50,7 @@ export interface SnapshotIncident {
   started_at: number;
   ended_at: number | null;
   failed: CheckId[];
+  reason?: string;
 }
 
 export interface StatusSnapshot {
@@ -104,6 +108,38 @@ function window(totals: Totals): UptimeWindow {
   };
 }
 
+/** A failed check's detail as a short plain phrase: "timed out after 10 s", "HTTP 503". */
+function describeFailure(r: CheckResult): string {
+  const secs = Math.round(r.ms / 1000);
+  switch (r.detail) {
+    case 'timeout':
+      return `timed out after ${secs} s`;
+    case 'network error':
+      return 'connection failed';
+    case 'too slow':
+      return `too slow (${(r.ms / 1000).toFixed(1)} s)`;
+    default:
+      return r.detail ?? 'failed';
+  }
+}
+
+/** The reason for an incident: what its failed checks said in the sample that opened it, deduped. */
+function reasonOf(checksJson: string | undefined, failed: CheckId[]): string | undefined {
+  if (!checksJson) return undefined;
+  let results: CheckResult[];
+  try {
+    results = JSON.parse(checksJson) as CheckResult[];
+  } catch {
+    return undefined;
+  }
+  const reasons = [
+    ...new Set(
+      results.filter((r) => r.status === 'fail' && failed.includes(r.id)).map(describeFailure),
+    ),
+  ];
+  return reasons.length > 0 ? reasons.slice(0, 2).join(', ') : undefined;
+}
+
 function stateOf(s: SampleStates, c: Component): State {
   return c === 'site' ? s.site_state : s.api_state;
 }
@@ -143,6 +179,21 @@ export async function buildSnapshot(db: DbLike, now: number): Promise<StatusSnap
       .bind(INCIDENT_CAP)
       .all<IncidentRow>()
   ).results;
+  // What each incident's opening sample said (raw samples only reach back a couple of days).
+  const openers = new Map<string, string>(
+    incidents.length === 0
+      ? []
+      : (
+          await db
+            .prepare(
+              `SELECT ts, checks FROM samples WHERE ts IN (${incidents.map(() => '?').join(',')})`,
+            )
+            .bind(...incidents.map((i) => i.started_at))
+            .all<{ ts: number; checks: string }>()
+        ).results.map((r) => [String(r.ts), r.checks]),
+  );
+  const reasonFor = (i: IncidentRow): string | undefined =>
+    reasonOf(openers.get(String(i.started_at)), i.failed_checks.split(',') as CheckId[]);
   const liveShares = (
     await db
       .prepare('SELECT ts, component FROM shares WHERE ts >= ?')
@@ -184,6 +235,7 @@ export async function buildSnapshot(db: DbLike, now: number): Promise<StatusSnap
         start: Math.max(i.started_at, last48.from),
         end: i.ended_at === null ? null : Math.min(i.ended_at, now),
         failed: i.failed_checks.split(',') as CheckId[],
+        reason: reasonFor(i),
       }))
       .sort((a, b) => a.start - b.start);
     last48[c] = [...down, ...noDataSegments(live, c, last48.from, now, firstSlot)].sort(
@@ -274,6 +326,7 @@ export async function buildSnapshot(db: DbLike, now: number): Promise<StatusSnap
         started_at: i.started_at,
         ended_at: i.ended_at,
         failed,
+        reason: reasonFor(i),
       });
     }
   }

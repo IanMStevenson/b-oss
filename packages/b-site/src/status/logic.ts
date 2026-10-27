@@ -82,6 +82,22 @@ export function durationLabel(minutes: number): string {
 /** "About 15 min" (durations are quantised to the 15-minute sampling interval). */
 export const aboutDuration = (minutes: number): string => `About ${durationLabel(minutes)}`;
 
+/** How many consecutive 15-minute checks an outage covers: its span over the sampling interval,
+ * counting the opening check (an open outage runs to the last check we have). */
+export function failedCheckCount(start: number, end: number | null, lastCheck: number): number {
+  const span = (end ?? lastCheck) - start;
+  return Math.max(1, Math.round(span / (15 * MINUTE)) + (end === null ? 1 : 0));
+}
+
+/** What to say about how long an outage lasted. Checks are 15 minutes apart, so n failed checks in a
+ * row mean real downtime between (n-1) and (n+1) intervals: one check is no duration at all, two or
+ * three are a floor ("More than 15 min"), and from four the spread is small enough for "About". */
+export function outageLength(n: number, start: number, ongoing: boolean): string {
+  if (n <= 1) return `Failed 1 check, at ${timeOf(start)}`;
+  if (n <= 3) return `More than ${(n - 1) * 15} min`;
+  return `${aboutDuration(n * 15)}${ongoing ? ' so far' : ''}`;
+}
+
 /** The one place a percentage is formatted. The server sends uptime already floored to 3 decimals.
  * One decimal, always rounded DOWN ("99.4%", "98.0%"); figures in the 99.9x range show up to three
  * decimals with trailing zeros trimmed ("99.9%", "99.95%", "99.999%") so a figure that isn't perfect

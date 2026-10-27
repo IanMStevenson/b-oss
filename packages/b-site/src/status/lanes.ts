@@ -5,25 +5,24 @@
 import { h, hatch, ringFor, rove, s, setChildren, type MarkEl } from './dom';
 import {
   HOUR,
-  MINUTE,
-  aboutDuration,
   componentName,
   componentThe,
   dayLabel,
   incidentTitle,
+  failedCheckCount,
   laneBlocks,
   laneTicks,
+  outageLength,
   sharedScale,
   timeOf,
 } from './logic';
+import { lastCheckedAt } from './now';
 import { Readout, type Mark } from './readout';
 import type { Component, StatusSnapshot } from './types';
 
 const LANE_H = 40;
 const SHARED_H = 22;
 const COMPONENTS: Component[] = ['site', 'api'];
-
-const quantised = (ms: number): number => Math.max(15, Math.round(ms / MINUTE / 15) * 15);
 
 export function renderLanes(
   host: HTMLElement,
@@ -116,12 +115,16 @@ export function renderLanes(
     const laneMarks: MarkEl[] = [];
     for (const b of blocks) {
       const seg = b.segment;
-      const mins = quantised((seg.end ?? now) - seg.start);
+      const n = failedCheckCount(seg.start, seg.end, lastCheckedAt(snap) ?? now);
       const range = `${dayLabel(seg.start)}, ${timeOf(seg.start)} to ${seg.end === null ? 'now' : timeOf(seg.end)}`;
       const down = seg.kind === 'down';
       const title = down ? incidentTitle({ components: [c], failed: seg.failed ?? [] }) : 'No data';
       const lines = down
-        ? [range, `${aboutDuration(mins)}${b.ongoing ? ' so far' : ''}`]
+        ? [
+            range,
+            outageLength(n, seg.start, b.ongoing),
+            ...(seg.reason ? [`Reason: ${seg.reason}`] : []),
+          ]
         : [range, 'We couldn’t check during this time.'];
       const note = down
         ? b.ongoing
