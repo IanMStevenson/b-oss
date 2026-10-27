@@ -23,6 +23,8 @@ const stubPort = process.env.STUB_PORT ?? '5192'; // where scripts/stub-api.mjs 
 // SAFE_AREA="34,48" (top,bottom px) imitates the system-bar insets Capacitor's SystemBars plugin
 // injects on a real phone, so clearance of bottom controls can be checked in the browser.
 const [insetTop, insetBottom] = (process.env.SAFE_AREA ?? '').split(',');
+// THEME=light|dark|mid|system picks the colour theme (b-oss#549); unset leaves the app's default.
+const theme = process.env.THEME;
 mkdirSync(outDir, { recursive: true });
 
 const browser = await chromium.launch();
@@ -32,6 +34,9 @@ const ctx = await browser.newContext({
   isMobile: true,
   hasTouch: true,
 });
+if (theme) {
+  await ctx.addInitScript((t) => localStorage.setItem('b-mobile:theme', t), theme);
+}
 if (insetBottom) {
   await ctx.addInitScript(
     ([t, b]) => {
@@ -145,9 +150,11 @@ const routes = [
   ['sign-in', '/sign-in'],
 ];
 
+// ONLY=/settings/app,/map captures just those routes (a quick re-check after a tweak).
+const only = process.env.ONLY?.split(',');
 const manifest = [];
 let i = 0;
-for (const [name, path] of routes) {
+for (const [name, path] of routes.filter(([, p]) => !only || only.includes(p))) {
   i++;
   const file = `${String(i).padStart(2, '0')}-${name}.png`;
   problems.length = 0;
@@ -156,6 +163,11 @@ for (const [name, path] of routes) {
   await page.screenshot({ path: join(outDir, file) });
   manifest.push({ file, path, title: await page.title(), problems: [...problems] });
   console.log(file, problems.length ? `(${problems.length} problems)` : '');
+}
+
+if (only) {
+  await browser.close();
+  process.exit(0);
 }
 
 // Screens that need a state rather than a URL.

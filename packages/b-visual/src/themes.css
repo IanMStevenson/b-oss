@@ -1,0 +1,97 @@
+/* SPDX-License-Identifier: GPL-3.0-or-later */
+/* Copyright (C) 2026 Ian Stevenson */
+
+/*
+ * Opt-in dark colour schemes for the shared tokens in tokens.css. Importing this file changes
+ * nothing by itself: the values below apply only under `<html data-theme="dark">` or
+ * `<html data-theme="mid">`, so a consumer that never sets the attribute (b-view's other hosts,
+ * b-ark, …) renders exactly as before. To offer the themes in an app: import this file after
+ * tokens.css, and set the attribute (b-mobile does it from its Theme setting).
+ *
+ *   dark — near-black page, brand-green bar, light-green accent.
+ *   mid  — the same on a mid-dark grey (--mid-base, the grey of the original Blipfoto site).
+ *
+ * Only colours are re-pointed; no layout, size or behaviour changes. The brand green (--brand-fill)
+ * is deliberately *not* overridden: a green area with white content on it reads on any page, but
+ * green as text/icon/outline on a dark page does not (1.95:1 on #121212), which is what --accent
+ * is for. Contrast notes (WCAG AA, 4.5:1 text / 3:1 non-text):
+ *   text on dark page 15.5:1 (--ink), 8.2:1 (--muted); accent 10.8:1;
+ *   text on mid page 7.1:1 (--ink), ~4.9:1 (--muted, --accent). Mid has little headroom: never put
+ *   text darker than #c4c4c4 on it.
+ */
+
+:root[data-theme='dark'],
+:root[data-theme='mid'] {
+  color-scheme: dark;
+
+  --accent: #8fd3af;
+  --accent-alt: #a8dfc3;
+  --accent-shade: #7ec0a0;
+  --accent-rgb: 143, 211, 175;
+  --on-accent: #0e2a1f;
+  --on-accent-rgb: 14, 42, 31;
+  --accent-soft: #1f4d3a;
+  --selected-row-bg: #1f4d3a;
+  --selected-row-text: #ffffff;
+
+  --ink: #e8eae9;
+  --ink-rgb: 232, 234, 233;
+  --ink-2: #e6e6e6;
+  --on-button-secondary: #e6e6e6;
+
+  --separator-line: #ffffff;
+  --color-danger: #ffb4ab;
+}
+
+:root[data-theme='dark'] {
+  --bg: #121212;
+  --bg-rgb: 18, 18, 18;
+  --bg-alt: #1c1f1d;
+  --surface-drawer: #1c1f1d;
+  --photo-bg: #121212;
+
+  --muted: #a8adaa;
+  --muted-2: #8a8f8c;
+  --ink-disabled: #4a4f4c;
+  --line: #2e312f;
+  --line-2: #262927;
+
+  --button-secondary-bg: #2a2d2b;
+  --button-secondary-bg-hover: #353937;
+  --map-button-bg: #2a2d2b;
+  --cell-disabled-bg: #1c1f1d;
+  --cell-disabled-ink: #5a5f5c;
+  --bg-veil: rgba(18, 18, 18, 0.75);
+}
+
+:root[data-theme='mid'] {
+  /* Everything that is "the base grey, lightened a bit" derives from this one value, so changing
+     the grey re-derives them. The hex before each color-mix() is the same colour for engines
+     without color-mix(). */
+  --mid-base: #4c4c4c;
+
+  --bg: var(--mid-base);
+  --bg-rgb: 76, 76, 76;
+  --bg-alt: #565656;
+  --surface-drawer: var(--mid-base);
+  --photo-bg: var(--mid-base);
+
+  --muted: #c4c4c4;
+  --muted-2: #b0b0b0;
+  --ink-disabled: #7a7a7a;
+
+  --line: #616161;
+  --line: color-mix(in srgb, white 12%, var(--mid-base));
+  --line-2: #575757;
+  --line-2: color-mix(in srgb, white 8%, var(--mid-base));
+
+  --button-secondary-bg: #616161;
+  --button-secondary-bg: color-mix(in srgb, white 12%, var(--mid-base));
+  --button-secondary-bg-hover: #6e6e6e;
+  --button-secondary-bg-hover: color-mix(in srgb, white 17%, var(--mid-base));
+  --map-button-bg: #616161;
+  --map-button-bg: color-mix(in srgb, white 12%, var(--mid-base));
+  --cell-disabled-bg: #424242;
+  --cell-disabled-ink: #8d8d8d;
+  --bg-veil: rgba(76, 76, 76, 0.75);
+}

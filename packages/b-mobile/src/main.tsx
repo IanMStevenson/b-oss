@@ -25,10 +25,10 @@ import './styles/globals.css';
 
 import { AppShell } from './app/AppShell.js';
 import { AppErrorBoundary } from './components/AppErrorBoundary.js';
-import { applySystemBarStyles } from './platform/systemBars.js';
+import { initTheme } from './theme/theme.js';
 
 setupIonicReact();
-void applySystemBarStyles();
+initTheme(); // also sets the system-bar styles
 
 createRoot(document.getElementById('root')!).render(
   <AppErrorBoundary>

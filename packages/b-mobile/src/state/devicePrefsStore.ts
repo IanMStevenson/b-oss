@@ -19,6 +19,7 @@
 import { create } from 'zustand';
 import { getPref, setPref } from '../platform/prefs.js';
 import { setBlipfotoLinksEnabled } from '../platform/blipfotoLinks.js';
+import { isThemePreference, type ThemePreference } from '../theme/themeTypes.js';
 
 const PREFS_KEY = 'b-mobile:device-prefs';
 
@@ -68,6 +69,8 @@ interface PersistedShape {
   /** What represents an account in the header indicator and account switcher: its Blipfoto
    * profile picture (default; falls back to the icon when it has none) or the generic user icon. */
   accountAvatarStyle: 'picture' | 'icon';
+  /** Colour theme (b-oss#549). 'system' follows Android's dark setting (light or dark, never mid). */
+  theme: ThemePreference;
 }
 
 interface DevicePrefsState extends PersistedShape {
@@ -86,6 +89,7 @@ interface DevicePrefsState extends PersistedShape {
   setThumbnailZoomPercent: (value: number) => void;
   setPhotoFit: (value: PersistedShape['photoFit']) => void;
   setAccountAvatarStyle: (value: PersistedShape['accountAvatarStyle']) => void;
+  setTheme: (value: ThemePreference) => void;
 }
 
 const defaults: PersistedShape = {
@@ -101,6 +105,7 @@ const defaults: PersistedShape = {
   thumbnailZoomPercent: 100,
   photoFit: 'full-width',
   accountAvatarStyle: 'picture',
+  theme: 'system',
 };
 
 function persist(state: PersistedShape): void {
@@ -116,6 +121,7 @@ export const useDevicePrefsStore = create<DevicePrefsState>((set) => ({
     if (raw) {
       try {
         const parsed = { ...defaults, ...(JSON.parse(raw) as Partial<PersistedShape>) };
+        if (!isThemePreference(parsed.theme)) parsed.theme = defaults.theme;
         set({ ...parsed, hydrated: true });
         // A fresh install always starts with the native <activity-alias> disabled (§16) — if a
         // restored/synced backup folder carries a previously-enabled toggle, the native side
@@ -243,6 +249,14 @@ export const useDevicePrefsStore = create<DevicePrefsState>((set) => ({
       return shape;
     });
   },
+
+  setTheme: (value) => {
+    set((prev) => {
+      const shape: PersistedShape = { ...toPersisted(prev), theme: value };
+      persist(shape);
+      return shape;
+    });
+  },
 }));
 
 function toPersisted(state: PersistedShape): PersistedShape {
@@ -259,5 +273,6 @@ function toPersisted(state: PersistedShape): PersistedShape {
     thumbnailZoomPercent: state.thumbnailZoomPercent,
     photoFit: state.photoFit,
     accountAvatarStyle: state.accountAvatarStyle,
+    theme: state.theme,
   };
 }

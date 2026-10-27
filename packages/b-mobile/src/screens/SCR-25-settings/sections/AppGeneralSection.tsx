@@ -109,6 +109,31 @@ function RemindersGroup() {
   );
 }
 
+function AppearanceGroup() {
+  const theme = useDevicePrefsStore((s) => s.theme);
+  const setTheme = useDevicePrefsStore((s) => s.setTheme);
+  return (
+    <>
+      <SectionHeader>Appearance</SectionHeader>
+      <SegmentRow
+        label="Theme"
+        value={theme}
+        options={[
+          { value: 'system', label: 'System default' },
+          { value: 'light', label: 'Light' },
+          { value: 'dark', label: 'Dark' },
+          { value: 'mid', label: 'Mid' },
+        ]}
+        onChange={setTheme}
+      />
+      <CaptionRow>
+        System default follows your phone&rsquo;s dark theme setting (Light or Dark). Mid is a
+        softer dark grey you can choose here.
+      </CaptionRow>
+    </>
+  );
+}
+
 function MultiAccountGroup() {
   const confirmAccountBeforeReaction = useDevicePrefsStore((s) => s.confirmAccountBeforeReaction);
   const setConfirmAccountBeforeReaction = useDevicePrefsStore(
@@ -148,6 +173,7 @@ export function AppGeneralSection() {
 
   return (
     <IonList>
+      <AppearanceGroup />
       <RemindersGroup />
       <MultiAccountGroup />
       <SectionHeader>Links</SectionHeader>

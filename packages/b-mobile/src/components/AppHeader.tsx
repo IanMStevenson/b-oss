@@ -58,6 +58,7 @@ export function AppHeader({
 }: AppHeaderProps) {
   return (
     <IonToolbar
+      className="app-header-toolbar"
       style={
         {
           '--background': 'var(--brand-fill)',

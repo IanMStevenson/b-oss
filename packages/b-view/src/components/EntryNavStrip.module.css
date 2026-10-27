@@ -16,6 +16,8 @@
   height: var(--strip-size);
   background: var(--brand-fill);
   color: var(--on-brand-fill);
+  /* The date box's outline in Dark/Mid, drawn inside so the box keeps its size (transparent in Light). */
+  box-shadow: inset 0 0 0 1px var(--separator-line);
   display: flex;
   flex-direction: column;
   align-items: center;

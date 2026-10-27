@@ -90,6 +90,7 @@ function NavItem({
       <IonItem
         routerLink={to}
         aria-current={current ? 'page' : undefined}
+        className={current ? 'nav-item-current' : undefined}
         style={current ? NAV_CURRENT_STYLE : undefined}
       >
         <IonLabel>{label}</IonLabel>
