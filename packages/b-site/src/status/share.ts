@@ -116,8 +116,8 @@ export function initShare(root: HTMLElement, cfg: ShareConfig): void {
   /** After Done: say, in the existing hint line (no layout jump), that the share is counted. */
   function showCounted(): void {
     hint.replaceChildren(
-      document.createTextNode('Your shared problem is counted in the Shared lanes above. '),
-      Object.assign(document.createElement('a'), { href: '#st-48-title', textContent: 'See them' }),
+      document.createTextNode('Your report is counted above. '),
+      Object.assign(document.createElement('a'), { href: '#st-48-title', textContent: 'See it' }),
     );
   }
   form.addEventListener('change', () => {

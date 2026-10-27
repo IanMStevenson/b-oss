@@ -9,15 +9,8 @@ import { dayOf } from './dayutil';
 import { h, setChildren } from './dom';
 import { renderHistory } from './history';
 import { renderLanes } from './lanes';
-import {
-  isStale,
-  nextAllowedFetch,
-  snapshotUnchanged,
-  timeOf,
-  updatedLabel,
-  withShares,
-} from './logic';
-import { renderNow } from './now';
+import { isStale, nextAllowedFetch, snapshotUnchanged, timeOf, withShares } from './logic';
+import { bannerKind, lastCheckedText, renderNow } from './now';
 import { initShare } from './share';
 import { INCIDENT_PAGE, renderIncidents, renderUptime } from './tables';
 import type { StatusSnapshot } from './types';
@@ -34,6 +27,8 @@ export interface StatusOptions {
   /** Dev builds only: loads the fixture snapshots for `?fixture=<name>`. Absent in production, so
    * the fixtures are not part of the built site. */
   loadFixtures?: () => Promise<typeof import('./fixtures')>;
+  /** Which fixture to show (the standalone preview sets this); defaults to the `?fixture=` query. */
+  fixture?: string;
 }
 
 let STATUS_URL = DEFAULT_URL;
@@ -55,6 +50,7 @@ let busy = false;
 const mobileQuery = window.matchMedia('(max-width: 639px)');
 
 function footer(): HTMLElement {
+  const now = Date.now();
   const link = h(
     'button',
     { type: 'button', class: 'st-refresh' },
@@ -63,46 +59,44 @@ function footer(): HTMLElement {
   link.addEventListener('click', () => {
     void load(true);
   });
+  const left: (string | HTMLElement | null)[] = [];
+  if (!snap) left.push(failedToLoad ? 'No data yet' : 'Loading…');
+  else if (failedToLoad) left.push('Couldn’t update');
+  else left.push(lastCheckedText(snap, now));
+  left.push(' · ', busy ? 'Checking…' : link);
+  if (snap && !failedToLoad && !isStale(snap, now) && snap.next_refresh_at > now) {
+    left.push(` · Next check about ${timeOf(snap.next_refresh_at)}`);
+  }
   return h(
     'div',
-    { class: 'st-now-foot' },
+    { class: 'st-banner-foot' },
     h(
       'span',
-      { class: 'st-sub' },
-      snap
-        ? (failedToLoad ? 'Last updated ' : 'Updated ') + updatedLabel(snap.generated_at)
-        : 'Loading…',
-      ' ',
-      busy ? h('span', { class: 'st-sub' }, 'Checking…') : link,
-      snap && !failedToLoad && !isStale(snap, Date.now()) && snap.next_refresh_at > Date.now()
-        ? ` · Next check due about ${timeOf(snap.next_refresh_at)}`
-        : null,
+      {},
+      ...left,
       note ? h('span', { class: 'st-note', role: 'status' }, ` ${note}`) : null,
     ),
-    h('a', { href: '#share', class: 'st-trouble' }, 'Having trouble? Share a problem ↓'),
+    h('a', { href: '#share', class: 'st-trouble' }, 'Share a problem ↓'),
   );
 }
 
 function renderAll(): void {
   const now = Date.now();
   const nowHost = $('[data-now]');
+  nowHost.className = `st-banner st-banner-${bannerKind(snap, now, failedToLoad)}`;
   if (!snap) {
     setChildren(
       nowHost,
       failedToLoad
         ? h(
             'div',
-            { class: 'st-headline st-headline-error' },
+            { class: 'st-banner-main st-banner-main-error' },
             h('span', { class: 'st-icon st-icon-error', 'aria-hidden': 'true' }, '!'),
             h(
               'div',
               {},
-              h('h2', { id: 'st-now-title' }, 'Couldn’t load the current status'),
-              h(
-                'p',
-                {},
-                'We couldn’t reach the monitor just now. That doesn’t mean Blipfoto is down. Nothing is shown as working, because we don’t know.',
-              ),
+              h('h2', { id: 'st-now-title' }, 'Couldn’t load the status'),
+              h('p', {}, 'That doesn’t mean Blipfoto is down. We just don’t know.'),
             ),
           )
         : h('p', { class: 'st-loading' }, 'Loading current status…'),
@@ -114,15 +108,11 @@ function renderAll(): void {
   renderCharts();
   renderUptime($('[data-uptime]'), snap);
   renderIncidentList();
-  $('[data-collecting]').textContent = '';
   const since = snap.monitoring_since;
-  if (since !== null && since > snap.last48h.from) {
-    $('[data-collecting]').textContent =
-      `Started checking at ${timeOf(since)} ${dayOf(since) === dayOf(Date.now()) ? 'today' : ''}. Earlier time is shown blank.`.replace(
-        ' .',
-        '.',
-      );
-  }
+  $('[data-collecting]').textContent =
+    since !== null && since > snap.last48h.from
+      ? `Checking started at ${timeOf(since)}${dayOf(since) === dayOf(Date.now()) ? ' today' : ''}; earlier time is blank.`
+      : '';
 }
 
 function renderIncidentList(): void {
@@ -143,7 +133,7 @@ async function load(manual: boolean): Promise<void> {
   if (busy) return;
   const wait = manual ? nextAllowedFetch(Date.now(), lastFetchAt) : null;
   if (wait !== null) {
-    note = `Just refreshed. Try again after about ${timeOf(wait)}.`;
+    note = `Just refreshed; try again after about ${timeOf(wait)}.`;
     renderAll();
     return;
   }
@@ -199,7 +189,7 @@ export function start(opts: StatusOptions): void {
   void (async () => {
     if (opts.loadFixtures) {
       // `?fixture=<name>` in `npm run dev` only: preview any state without a monitor.
-      const name = new URLSearchParams(location.search).get('fixture');
+      const name = opts.fixture ?? new URLSearchParams(location.search).get('fixture');
       const { FIXTURE_NAMES, makeFixture } = await opts.loadFixtures();
       const found = FIXTURE_NAMES.find((n) => n === name);
       if (found) {

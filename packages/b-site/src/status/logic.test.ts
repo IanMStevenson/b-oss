@@ -18,7 +18,6 @@ import {
   snapshotUnchanged,
   withShares,
   overallOf,
-  windowSummary,
   sharedScale,
   uptimeLabel,
   utcDayLabel,
@@ -73,7 +72,7 @@ describe('formatting', () => {
   });
 
   it('describes a window', () => {
-    expect(windowDetail({ uptime: 100, down_minutes: 0, incidents: 0 })).toBe('No problems');
+    expect(windowDetail({ uptime: 100, down_minutes: 0, incidents: 0 })).toBe('No downtime');
     expect(windowDetail({ uptime: 99.981, down_minutes: 60, incidents: 3 })).toBe(
       '1 h down · 3 incidents',
     );
@@ -318,20 +317,6 @@ describe('shared lane scale', () => {
     expect(sharedScale([1, 2])).toBe(5);
     expect(sharedScale([1, 9, 3])).toBe(9);
     expect(sharedScale([])).toBe(5);
-  });
-});
-
-describe('windowSummary', () => {
-  it('summarises the 30-day window, with plain wording when clean', () => {
-    expect(
-      windowSummary('the last 30 days', { uptime: 99.428, down_minutes: 105, incidents: 3 }),
-    ).toBe('99.4% over the last 30 days · 1 h 45 min down · 3 incidents');
-    expect(windowSummary('the last 30 days', { uptime: 100, down_minutes: 0, incidents: 0 })).toBe(
-      '100% over the last 30 days · no problems',
-    );
-    expect(windowSummary('the last 30 days', { uptime: null, down_minutes: 0, incidents: 0 })).toBe(
-      'No data yet for the last 30 days',
-    );
   });
 });
 

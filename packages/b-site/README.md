@@ -106,7 +106,7 @@ src/status/fixtures.ts  fixture snapshots (all-good, api-down, both-down, unknow
   since the last fetch (data can change between probes, because of shared problems); `next_refresh_at`
   only drives the "Next check due about HH:MM" label and the stale rule. If the data can't be loaded
   the page says so and never shows "working".
-- **Shares appear immediately.** A 201 from the shares endpoint carries the full updated aggregates
+- **User reports appear immediately** (the action is "share", the thing is a "user report"; the API field is still `shares`). A 201 from the shares endpoint carries the full updated aggregates
   (`{ ok: true, shares: { hours, days } }`); the page swaps them into its loaded snapshot and redraws
   the Shared lanes, with no refetch.
 - **Share POST** goes to `<origin of PUBLIC_STATUS_URL>/v1/shares` as `text/plain` JSON, so the browser
@@ -114,3 +114,12 @@ src/status/fixtures.ts  fixture snapshots (all-good, api-down, both-down, unknow
 - **Blipfoto support links** are the two constants in `src/blipfoto-links.ts` (general help, and the
   support-request form); change them there. The Turnstile box stays a placeholder until
   `PUBLIC_TURNSTILE_SITE_KEY` is set.
+
+### Previewing the design offline
+
+`npm run preview:status -w @b-oss/b-site -- --out <dir>` builds self-contained HTML files
+(`status-<state>.html` for every fixture, plus `how-this-works.html`) that open straight from disk in
+a browser: CSS and JavaScript inlined, fixture data embedded, no network. The share form works
+against a built-in stand-in (the first share is counted, a second gets "already shared"). The
+production bundle is unaffected: the preview re-bundles the page script from
+`scripts/status-preview-entry.ts`, which is not part of the site.

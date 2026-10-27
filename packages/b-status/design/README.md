@@ -48,7 +48,7 @@ code it: do not try to reproduce any generated markup.
    data"), even if its last state was Up.
 9. **Refresh** is a button with no auto-refresh. (The original rule, no request before
    `next_refresh_at` with a 60 s / 2 min / 5 min back-off, is superseded by item 13.)
-10. **Shared problems** in the mockups are drawn from an optional `shares` field in the snapshot
+10. **User reports** (the mockups' "Shared" lane) are drawn from an optional `shares` field in the snapshot
     (b-oss#486); without it the Shared lanes are simply empty.
 
 11. **History is a fixed 30 days.** There is no 30d/90d/1y/All-time control and no weekly view; the
@@ -64,6 +64,26 @@ code it: do not try to reproduce any generated markup.
     hint line says so (no layout jump). The Refresh floor is 60 s after the last fetch, whatever
     `next_refresh_at` says; `next_refresh_at` only drives the "Next check due about HH:MM" label and
     the stale rule. Supersedes the previous refresh-gating rule.
+
+14. **Design pass 1 supersedes the mockups' look** (the screenshots are now only a record of the
+    original structure). The page has one solid status banner (brand green when Up, red when
+    Down, hatched grey when Unknown, amber when it couldn't load) with Site and API as compact
+    rows; no "How this is measured" section (a single "How this works" link instead); one
+    "Unofficial" notice at the top and one "reports stay on this page" line at the Share button
+    (no "Need help" aside, no repeated disclaimers); no repeated 30-day summary line (the figure is
+    in the Uptime table); and a single centred report column. See the terminology note below.
+
+## Terminology (visible text and docs; code identifiers and API field names such as `shares` are unchanged)
+
+- **Site** and **API**: the two monitored parts (the website, and what apps use).
+- **Up / Down / Unknown**: a part's state right now. Unknown = no recent data (the monitor's
+  fault, not necessarily Blipfoto's).
+- **Downtime**: time spent Down. **Incident**: one recorded period of Down. Not "outage", and
+  "problem" is not used for measured things.
+- **Check**: the automated test every 15 minutes. **No data**: a stretch of time we couldn't
+  check (shown striped).
+- **User report**: what a visitor submits; always "not verified". **Share** is the _action_ only
+  (the button, "Share a problem", "you've shared a report recently"), never the thing.
 
 ## Files
 

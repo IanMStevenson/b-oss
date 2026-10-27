@@ -98,7 +98,7 @@ export function uptimeLabel(pct: number | null): string {
 
 export function windowDetail(w: UptimeWindow): string {
   if (w.uptime === null) return 'Not enough data yet';
-  if (w.down_minutes === 0 && w.incidents === 0) return 'No problems';
+  if (w.down_minutes === 0 && w.incidents === 0) return 'No downtime';
   const inc = `${w.incidents} incident${w.incidents === 1 ? '' : 's'}`;
   return `${durationLabel(w.down_minutes)} down · ${inc}`;
 }
@@ -343,12 +343,3 @@ export function historyBars(
 
 /** Scale for a Shared lane: bars are relative to max(5, busiest slot). */
 export const sharedScale = (counts: number[]): number => Math.max(5, ...counts, 0);
-
-/** Summary line over a window: "99.4% over the last 30 days · 15 min down · 1 incident". */
-export function windowSummary(words: string, w: UptimeWindow): string {
-  if (w.uptime === null) return `No data yet for ${words}`;
-  if (w.down_minutes === 0 && w.incidents === 0)
-    return `${uptimeLabel(w.uptime)} over ${words} · no problems`;
-  const inc = `${w.incidents} incident${w.incidents === 1 ? '' : 's'}`;
-  return `${uptimeLabel(w.uptime)} over ${words} · ${durationLabel(w.down_minutes)} down · ${inc}`;
-}

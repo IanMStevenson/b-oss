@@ -12,7 +12,8 @@
     "build:stubs": "astro build --config astro.stubs.config.mjs",
     "check-links": "node scripts/check-links.mjs",
     "check-stubs": "node scripts/check-stubs.mjs",
-    "test": "vitest run"
+    "test": "vitest run",
+    "preview:status": "node scripts/status-preview.mjs"
   },
   "dependencies": {
     "@astrojs/sitemap": "^3.7.4",

@@ -15,180 +15,116 @@ import StatusDisclaimer from '../components/StatusDisclaimer.astro';
 
   <div class="status-page">
     <header class="st-head">
-      <p class="st-eyebrow">Status</p>
       <h1>Is Blipfoto working?</h1>
-      <p class="st-sub-lead">
-        An independent check of the Blipfoto website and API. <a href="how-this-works.html">How this works</a>
-      </p>
+      <a class="st-howlink" href="how-this-works.html">How this works</a>
     </header>
 
-    <section class="st-card" aria-labelledby="st-now-title" data-now>
+    <section class="st-banner st-banner-loading" aria-labelledby="st-now-title" data-now>
       <noscript>
-        <p class="st-loading">
-          This page needs JavaScript to show live status. Without it, the unofficial notice above and
-          the explanation below still apply.
-        </p>
+        <p class="st-loading">This page needs JavaScript to show live status.</p>
       </noscript>
     </section>
 
     <section class="st-section" aria-labelledby="st-48-title">
       <h2 id="st-48-title">Last 48 hours</h2>
-      <p class="st-sub">An empty lane means no problems.</p>
       <ul class="st-legend" aria-label="Key">
-        <li><span class="st-key st-key-down"></span><strong>Down</strong> our checks found a problem</li>
-        <li><span class="st-key st-key-nodata"></span><strong>No data</strong> we couldn’t check</li>
-        <li><span class="st-key st-key-shared"></span><strong>Shared</strong> people shared a problem; not verified</li>
+        <li><span class="st-key st-key-down"></span><strong>Down</strong></li>
+        <li><span class="st-key st-key-nodata"></span><strong>No data</strong></li>
+        <li><span class="st-key st-key-shared"></span><strong>User reports</strong> (not verified)</li>
       </ul>
       <p class="st-sub st-collecting" data-collecting></p>
       <div data-lanes></div>
     </section>
 
     <section class="st-section" aria-labelledby="st-hist-title">
-      <h2 id="st-hist-title">History</h2>
-      <p class="st-sub">Time down each day over the last 30 days. Empty means no problems.</p>
+      <h2 id="st-hist-title">Last 30 days</h2>
       <div data-history></div>
     </section>
 
     <section class="st-section" id="uptime" aria-labelledby="st-uptime-title">
       <h2 id="st-uptime-title">Uptime</h2>
-      <p class="st-sub">How much of the time each part was working.</p>
       <div data-uptime></div>
     </section>
 
     <section class="st-section" id="incidents" aria-labelledby="st-inc-title">
       <h2 id="st-inc-title">Incidents</h2>
-      <p class="st-sub">Problems our checks found, newest first.</p>
       <div data-incidents></div>
     </section>
 
-    <section class="st-section" id="how-measured" aria-labelledby="st-how-title">
-      <h2 id="st-how-title">How this is measured</h2>
-      <details class="st-details">
-        <summary>What the checks do, and what they can’t tell you</summary>
-        <ul>
-          <li>We check every 15 minutes, from one place outside Blipfoto’s own network.</li>
-          <li>
-            <strong>Site</strong> is the blipfoto.com website in a web browser; <strong>API</strong> is what
-            apps such as b-ark and b-mobile use. If photos don’t load, both show as down.
-          </li>
-          <li>
-            A problem shorter than 15 minutes may not show at all, and start times and durations are
-            approximate, to the nearest 15 minutes.
-          </li>
-          <li>
-            Times of day are UK time. History shows the last 30 days; longer periods are in the uptime table
-            and incident list. History days, and the uptime figures, count each day from midnight to
-            midnight UTC.
-          </li>
-          <li>
-            Uptime is the share of checked time that each part worked. We always round down: 100% means we
-            found no problems at all, and very high figures show extra decimal places (such as 99.999%) so
-            they are never rounded up to 100%. Periods when we couldn’t check are left out, so they count
-            neither for nor against.
-          </li>
-        </ul>
-        <p><a href="how-this-works.html">Read the full explanation: how this works</a></p>
-      </details>
-    </section>
-
-    <section class="st-section" id="share" aria-labelledby="st-share-title">
+    <section class="st-section st-share" id="share" aria-labelledby="st-share-title">
       <h2 id="st-share-title">Share a problem</h2>
-      <p class="st-sub">
-        Something not working for you? Share it so other Blipfoto users can see they’re not alone. Shared
-        problems are anonymous and not verified.
-      </p>
-      <div class="st-share-grid">
-        <div class="st-form-card" data-share hidden>
-          <form novalidate>
-            <div data-error class="st-form-error" role="alert" hidden>
-              <strong>That didn’t work.</strong> Nothing was shared. Please try again.
-            </div>
-            <div data-fields>
-              <fieldset class="st-fieldset">
-                <legend class="st-legend-q">What are you using?</legend>
-                <div class="st-options">
-                  <label class="st-option">
-                    <input type="radio" name="using" value="website" />
-                    <span><strong>The website</strong><span class="st-sub">blipfoto.com in a browser</span></span>
-                  </label>
-                  <label class="st-option">
-                    <input type="radio" name="using" value="app" />
-                    <span><strong>An app</strong><span class="st-sub">b-ark, b-mobile or another app</span></span>
-                  </label>
-                </div>
-              </fieldset>
-              <fieldset class="st-fieldset">
-                <legend class="st-legend-q">What’s happening?</legend>
-                <div class="st-options">
-                  <label class="st-option">
-                    <input type="radio" name="what" value="offline" />
-                    <span><strong>It’s offline</strong><span class="st-sub">Won’t load at all, or can’t connect.</span></span>
-                  </label>
-                  <label class="st-option">
-                    <input type="radio" name="what" value="degraded" />
-                    <span><strong>It’s not working right</strong><span class="st-sub">It loads, but something isn’t right.</span></span>
-                  </label>
-                </div>
-              </fieldset>
-              <fieldset class="st-fieldset">
-                <legend class="st-legend-q">Anything specific? <span class="st-sub">Optional</span></legend>
-                <div class="st-chips">
-                  <label class="st-chip-opt"><input type="checkbox" name="tag" value="login" /><span>Login</span></label>
-                  <label class="st-chip-opt"><input type="checkbox" name="tag" value="uploads" /><span>Uploads</span></label>
-                  <label class="st-chip-opt"><input type="checkbox" name="tag" value="slow" /><span>Slow</span></label>
-                  <label class="st-chip-opt"><input type="checkbox" name="tag" value="unreliable" /><span>Unreliable</span></label>
-                </div>
-              </fieldset>
-              <div class="st-fieldset">
-                <p class="st-legend-q">Quick check that you’re a person</p>
-                <div class="st-turnstile" data-turnstile>
-                  Anti-bot check (Cloudflare Turnstile widget goes here)
-                </div>
-              </div>
-            </div>
-            <div class="st-share-actions">
-              <button type="submit" class="st-btn st-btn-primary" data-submit disabled>Share</button>
-              <p class="st-share-note">
-                Shared with other users on this page. It does not go to Blipfoto. To get help,
-                <a href={BLIPFOTO_SUPPORT_REQUEST}>contact Blipfoto Support</a>.
-              </p>
-            </div>
-            <p class="st-sub" data-hint>Choose what you’re using and what’s happening, then share.</p>
-            <p class="st-privacy">
-              No account needed. We keep your answers and the time. To limit repeat shares, an anonymous
-              marker is kept for about half an hour, then deleted.
-            </p>
-          </form>
-          <div class="st-already" data-already hidden>
-            <h3 tabindex="-1">You’ve shared a problem recently</h3>
-            <p>Thanks, it still counts.</p>
-            <p class="st-share-note">
-              Shared problems don’t go to Blipfoto. To get help, <a href={BLIPFOTO_SUPPORT_REQUEST}>contact Blipfoto Support</a>.
-            </p>
+      <p class="st-lead">Not working for you? Tell us. Anonymous, and counted as a user report.</p>
+      <div class="st-form-card" data-share hidden>
+        <form novalidate>
+          <div data-error class="st-form-error" role="alert" hidden>
+            <strong>That didn’t work.</strong> Nothing was shared. Please try again.
           </div>
-          <div class="st-thanks" data-thanks role="dialog" aria-modal="true" aria-labelledby="st-thanks-title" hidden>
-            <div class="st-thanks-card">
-              <span class="st-icon st-icon-up" aria-hidden="true">✓</span>
-              <h3 id="st-thanks-title" tabindex="-1">Thank you for sharing</h3>
-              <p>
-                Thank you for sharing your observation with the community. Please let Blipfoto Support know
-                about your problem so they have the chance to fix it.
-              </p>
-              <div class="st-thanks-actions">
-                <a class="st-btn st-btn-primary" href={BLIPFOTO_SUPPORT_REQUEST} target="_blank" rel="noopener">Contact Blipfoto Support ↗</a>
-                <button type="button" class="st-btn" data-done>Done</button>
+          <div data-fields>
+            <fieldset class="st-fieldset">
+              <legend class="st-legend-q">What are you using?</legend>
+              <div class="st-options">
+                <label class="st-option">
+                  <input type="radio" name="using" value="website" />
+                  <span><strong>The website</strong><span class="st-sub">blipfoto.com</span></span>
+                </label>
+                <label class="st-option">
+                  <input type="radio" name="using" value="app" />
+                  <span><strong>An app</strong><span class="st-sub">b-ark, b-mobile…</span></span>
+                </label>
               </div>
+            </fieldset>
+            <fieldset class="st-fieldset">
+              <legend class="st-legend-q">What’s happening?</legend>
+              <div class="st-options">
+                <label class="st-option">
+                  <input type="radio" name="what" value="offline" />
+                  <span><strong>It’s offline</strong><span class="st-sub">Won’t load or connect</span></span>
+                </label>
+                <label class="st-option">
+                  <input type="radio" name="what" value="degraded" />
+                  <span><strong>It’s not working right</strong><span class="st-sub">Loads, but something’s wrong</span></span>
+                </label>
+              </div>
+            </fieldset>
+            <fieldset class="st-fieldset">
+              <legend class="st-legend-q">Anything specific? <span class="st-sub">Optional</span></legend>
+              <div class="st-chips">
+                <label class="st-chip-opt"><input type="checkbox" name="tag" value="login" /><span>Login</span></label>
+                <label class="st-chip-opt"><input type="checkbox" name="tag" value="uploads" /><span>Uploads</span></label>
+                <label class="st-chip-opt"><input type="checkbox" name="tag" value="slow" /><span>Slow</span></label>
+                <label class="st-chip-opt"><input type="checkbox" name="tag" value="unreliable" /><span>Unreliable</span></label>
+              </div>
+            </fieldset>
+            <div class="st-fieldset">
+              <div class="st-turnstile" data-turnstile>Anti-bot check (Cloudflare Turnstile)</div>
             </div>
           </div>
-          <noscript><p class="st-sub">Sharing a problem needs JavaScript.</p></noscript>
-        </div>
-        <aside class="st-help">
-          <h3>Need help from Blipfoto?</h3>
-          <p>
-            Problems shared here don’t go to Blipfoto. To get something fixed, tell Blipfoto Support.
+          <button type="submit" class="st-btn st-btn-primary st-btn-wide" data-submit disabled>Share</button>
+          <p class="st-share-note">
+            Reports stay on this page and are not sent to Blipfoto.
+            <a href={BLIPFOTO_SUPPORT_REQUEST} target="_blank" rel="noopener">Contact Blipfoto Support</a>
           </p>
-          <a href={BLIPFOTO_SUPPORT_REQUEST} target="_blank" rel="noopener">Contact Blipfoto Support ↗</a>
-        </aside>
+          <p class="st-sub" data-hint>Answer both questions to share.</p>
+          <p class="st-privacy">
+            No account needed. We keep your answers and the time, and an anonymous marker for about half
+            an hour to limit repeats.
+          </p>
+        </form>
+        <div class="st-already" data-already hidden>
+          <h3 tabindex="-1">You’ve shared a report recently</h3>
+          <p>Thanks, it still counts.</p>
+        </div>
+        <div class="st-thanks" data-thanks role="dialog" aria-modal="true" aria-labelledby="st-thanks-title" hidden>
+          <div class="st-thanks-card">
+            <h3 id="st-thanks-title" tabindex="-1">Thanks, your report is counted</h3>
+            <p>To get it fixed, tell Blipfoto Support.</p>
+            <div class="st-thanks-actions">
+              <a class="st-btn st-btn-primary" href={BLIPFOTO_SUPPORT_REQUEST} target="_blank" rel="noopener">Contact Blipfoto Support ↗</a>
+              <button type="button" class="st-btn" data-done>Done</button>
+            </div>
+          </div>
+        </div>
+        <noscript><p class="st-sub">Sharing a problem needs JavaScript.</p></noscript>
       </div>
     </section>
   </div>

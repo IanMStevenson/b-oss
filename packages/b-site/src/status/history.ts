@@ -8,7 +8,6 @@ import {
   componentName,
   durationLabel,
   historyBars,
-  windowSummary,
   sharedScale,
   utcDayLabel,
 } from './logic';
@@ -23,7 +22,7 @@ const CHART_H = 80;
 const TOP = 18;
 const GAP_H = 8;
 const GUTTER = 30;
-const SHARED_H = 18;
+const SHARED_H = 22;
 const COMPONENTS: Component[] = ['site', 'api'];
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
@@ -61,14 +60,19 @@ export function renderHistory(host: HTMLElement, snap: StatusSnapshot, today: st
         h(
           'div',
           { class: 'st-lane-row st-hist-head' },
-          h('div', { class: 'st-lane-label' }, componentName(c)),
+          h('div', { class: 'st-lane-label' }),
           summary,
         ),
-        h('div', { class: 'st-lane-row' }, h('div', { class: 'st-lane-label' }), chart),
+        h(
+          'div',
+          { class: 'st-lane-row' },
+          h('div', { class: 'st-lane-label' }, componentName(c)),
+          chart,
+        ),
         h(
           'div',
           { class: 'st-lane-row st-lane-row-shared' },
-          h('div', { class: 'st-lane-label st-shared-label' }, 'Shared'),
+          h('div', { class: 'st-lane-label st-shared-label' }, 'User reports'),
           shared,
         ),
       ),
@@ -94,10 +98,11 @@ export function renderHistory(host: HTMLElement, snap: StatusSnapshot, today: st
     const monitoredDays = keys.length - before;
 
     // summary line
+    // (The 30-day uptime figure is in the Uptime table; only a young deployment needs a note here.)
     summary.textContent =
       first && monitoredDays > 0 && monitoredDays < 7
         ? `Collecting data since ${utcDayLabel(first)}`
-        : windowSummary(words, snap.uptime[c].d30);
+        : '';
 
     const H = TOP + CHART_H + GAP_H + 22;
     const svg = s('svg', { width: W, height: H, viewBox: `0 0 ${W} ${H}`, class: 'st-svg' });
@@ -139,8 +144,8 @@ export function renderHistory(host: HTMLElement, snap: StatusSnapshot, today: st
         const down =
           e && e[1] > 0
             ? `${durationLabel(e[1])} down${e[2] ? `, ${e[2]} incident${e[2] === 1 ? '' : 's'}` : ''}`
-            : 'no problems';
-        return `${componentName(x)}: ${down}${n > 0 ? `, ${n} shared` : ''}`;
+            : 'no downtime';
+        return `${componentName(x)}: ${down}${n > 0 ? `, ${n} user report${n === 1 ? '' : 's'}` : ''}`;
       });
       const e = entries.find((v) => v[0] === key);
       if (e && e[3] > 0) lines.push(`No data for ${durationLabel(e[3])}`);
@@ -150,9 +155,9 @@ export function renderHistory(host: HTMLElement, snap: StatusSnapshot, today: st
         lines,
         note:
           mine > 0 && !(e && e[1] > 0)
-            ? `Our checks found no problem with the ${componentName(c)}.`
+            ? `Our checks found no downtime for the ${componentName(c)}.`
             : mine > 0
-              ? 'Shared problems are not verified.'
+              ? 'User reports are not verified.'
               : undefined,
       };
     };
@@ -255,7 +260,7 @@ export function renderHistory(host: HTMLElement, snap: StatusSnapshot, today: st
     );
     const sgroup = s('g', {
       role: 'group',
-      'aria-label': `${componentName(c)}, shared problems, ${words}`,
+      'aria-label': `${componentName(c)}, user reports, ${words}`,
     });
     const sharedMarks: MarkEl[] = [];
     keys.forEach((k, i) => {
@@ -271,7 +276,7 @@ export function renderHistory(host: HTMLElement, snap: StatusSnapshot, today: st
         height: bh,
         class: 'st-shared-bar',
         role: 'button',
-        'aria-label': `${utcDayLabel(k)}: ${n} shared for the ${componentName(c)}. Not verified.`,
+        'aria-label': `${utcDayLabel(k)}: ${n} user report${n === 1 ? '' : 's'} for the ${componentName(c)}. Not verified.`,
       });
       const ring = ringFor({ x, y: SHARED_H - 1 - bh, w: bw, h: bh });
       sgroup.append(bar, ring);
