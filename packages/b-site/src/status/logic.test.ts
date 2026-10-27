@@ -22,6 +22,7 @@ import {
   sharedScale,
   uptimeLabel,
   utcDayLabel,
+  visibleUptimeKeys,
   whenLabel,
   windowDetail,
 } from './logic';
@@ -354,5 +355,24 @@ describe('shared fixtures sanity', () => {
     expect(makeFixture('busy', NOW).last48h.site.some((s) => s.kind === 'down')).toBe(true);
     expect(makeFixture('all-good', NOW).last48h.site).toEqual([]);
     expect(sharedScale([])).toBe(5);
+  });
+});
+
+describe('visibleUptimeKeys', () => {
+  const D = 24 * 60 * 60_000;
+  const at = (days: number, extraMs = 0) =>
+    visibleUptimeKeys(1_000 * D, 1_000 * D - days * D - extraMs);
+  it('has only 24 hours and all time without a start date', () => {
+    expect(visibleUptimeKeys(1_000 * D, null)).toEqual(['h24', 'all']);
+  });
+  it('adds each row exactly at its threshold', () => {
+    expect(at(0)).toEqual(['h24', 'all']);
+    expect(at(7, 1)).toEqual(['h24', 'd7', 'all']);
+    expect(at(7, -1)).toEqual(['h24', 'all']);
+    expect(at(7)).toEqual(['h24', 'd7', 'all']);
+    expect(at(30, -1)).toEqual(['h24', 'd7', 'all']);
+    expect(at(30)).toEqual(['h24', 'd7', 'd30', 'all']);
+    expect(at(365, -1)).toEqual(['h24', 'd7', 'd30', 'all']);
+    expect(at(365)).toEqual(['h24', 'd7', 'd30', 'd365', 'all']);
   });
 });

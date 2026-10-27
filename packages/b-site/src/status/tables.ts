@@ -9,6 +9,7 @@ import {
   longDate,
   timeOf,
   uptimeLabel,
+  visibleUptimeKeys,
   whenLabel,
   windowDetail,
 } from './logic';
@@ -51,7 +52,9 @@ export function renderUptime(host: HTMLElement, snap: StatusSnapshot): void {
     h(
       'tbody',
       {},
-      ...ROWS.map((r) =>
+      ...ROWS.filter((r) =>
+        visibleUptimeKeys(snap.generated_at, snap.monitoring_since).includes(r.key),
+      ).map((r) =>
         h(
           'tr',
           {},

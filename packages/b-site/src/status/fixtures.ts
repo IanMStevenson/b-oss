@@ -334,16 +334,16 @@ export function makeFixture(name: FixtureName, now: number): StatusSnapshot {
       s.uptime = {
         site: {
           h24: win(100, 0, 0),
-          d7: win(100, 0, 0),
-          d30: win(100, 0, 0),
-          d365: win(100, 0, 0),
+          d7: win(null, 0, 0),
+          d30: win(null, 0, 0),
+          d365: win(null, 0, 0),
           all: win(100, 0, 0),
         },
         api: {
           h24: win(100, 0, 0),
-          d7: win(100, 0, 0),
-          d30: win(100, 0, 0),
-          d365: win(100, 0, 0),
+          d7: win(null, 0, 0),
+          d30: win(null, 0, 0),
+          d365: win(null, 0, 0),
           all: win(100, 0, 0),
         },
       };
