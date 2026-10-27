@@ -197,6 +197,7 @@ describe('overall status', () => {
   it('derives the headline case from the fixtures', () => {
     expect(overallOf(makeFixture('all-good', NOW), NOW)).toBe('working');
     expect(overallOf(makeFixture('api-down', NOW), NOW)).toBe('api-down');
+    expect(overallOf(makeFixture('website-down', NOW), NOW)).toBe('site-down');
     expect(overallOf(makeFixture('both-down', NOW), NOW)).toBe('photos');
     expect(overallOf(makeFixture('unknown', NOW), NOW)).toBe('unknown');
   });

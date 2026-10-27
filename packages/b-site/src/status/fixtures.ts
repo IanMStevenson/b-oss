@@ -16,6 +16,7 @@ import type {
 export const FIXTURE_NAMES = [
   'all-good',
   'api-down',
+  'website-down',
   'both-down',
   'unknown',
   'busy',
@@ -169,6 +170,48 @@ export function makeFixture(name: FixtureName, now: number): StatusSnapshot {
           [1, 4],
           [0, 7],
         ],
+      );
+      return s;
+    }
+
+    case 'website-down': {
+      // The website has been failing for about an hour; the API is fine.
+      const since = now - 60 * MIN;
+      s.now.site = {
+        state: 'down',
+        checked_at: s.generated_at,
+        failed: ['website_browse'],
+        stale: false,
+      };
+      s.last48h.site = [
+        {
+          kind: 'down',
+          start: now - 30 * HOUR,
+          end: now - 30 * HOUR + 15 * MIN,
+          failed: ['website_entry'],
+        },
+        { kind: 'down', start: since, end: null, failed: ['website_browse'] },
+      ];
+      s.incidents = [inc(9, ['site'], 60 * MIN, null, now, ['website_browse']), ...s.incidents];
+      s.uptime.site = {
+        h24: win(95.833, 60, 1),
+        d7: win(99.256, 75, 2),
+        d30: win(99.751, 105, 3),
+        d365: win(99.964, 180, 6),
+        all: win(99.971, 180, 6),
+      };
+      s.history.days.site = history(now, [
+        [12, 30, 1],
+        [1, 15, 1],
+        [0, 60, 1],
+      ]);
+      s.shares = shares(
+        now,
+        [
+          [1, 4],
+          [0, 7],
+        ],
+        [[30, 1]],
       );
       return s;
     }

@@ -24,6 +24,13 @@ describe('banner headline', () => {
     );
   });
 
+  it('website not working: apps should still connect', () => {
+    const t = text('website-down');
+    expect(t.kind).toBe('down');
+    expect(t.title).toBe('The website isn’t working');
+    expect(t.body).toMatch(/^Apps should still connect\. Not working since about \d\d:\d\d\.$/);
+  });
+
   it('both not working: one cause, photos', () => {
     const t = text('both-down');
     expect(t.title).toBe('Blipfoto isn’t working');
@@ -47,7 +54,14 @@ describe('banner headline', () => {
   });
 
   it('uses plain words: no Up/Down/Site, no "outage", no "problem" for measured things', () => {
-    for (const n of ['all-good', 'api-down', 'both-down', 'unknown', 'stale'] as const) {
+    for (const n of [
+      'all-good',
+      'api-down',
+      'website-down',
+      'both-down',
+      'unknown',
+      'stale',
+    ] as const) {
       const t = text(n);
       expect(`${t.title} ${t.body}`).not.toMatch(/\b(up|down|site)\b|outage|problem/i);
     }

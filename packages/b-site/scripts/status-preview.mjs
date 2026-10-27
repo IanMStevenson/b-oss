@@ -45,7 +45,16 @@ if (!chunk || chunk.type !== 'chunk') throw new Error('preview bundle not produc
 const js = chunk.code.replaceAll('</script', '<\\/script');
 const css = readFileSync(join(dist, 'site.css'), 'utf8');
 
-const STATES = ['all-good', 'api-down', 'both-down', 'busy', 'new', 'unknown', 'stale'];
+const STATES = [
+  'all-good',
+  'api-down',
+  'website-down',
+  'both-down',
+  'busy',
+  'new',
+  'unknown',
+  'stale',
+];
 
 function inline(file, { fixture } = {}) {
   let html = readFileSync(join(dist, file), 'utf8');
