@@ -1,13 +1,17 @@
 name: CI
 
-# Pull requests only run the checks for the packages the change can affect (the changed packages
-# plus everything that depends on them); scripts/ci-scope.mjs decides which. Pushes to main/develop
-# run everything, as the safety net for cross-package effects the dependency graph cannot see.
-# The final `ci` job is the status check the main ruleset requires, so keep its name. See b-oss#557.
+# Pushes and pull requests only run the checks for the packages the change can affect (the changed
+# packages plus everything that depends on them); scripts/ci-scope.mjs decides which. Changes the
+# dependency graph cannot reason about (root config, lockfile, ...) run everything, as does a push
+# whose previous commit is unavailable. The final `ci` job is the status check the main ruleset
+# requires, so keep its name. See b-oss#557.
+#
+# Electron's binary download is skipped (ELECTRON_SKIP_BINARY_DOWNLOAD) except where the tests of
+# packages/b-ark, which load the real electron package, are in scope.
 
 on:
   push:
-    branches: [main, develop]
+    branches: [main]
     paths-ignore:
       - 'packages/b-site/**'
   pull_request:
@@ -30,8 +34,7 @@ jobs:
       - id: plan
         run: node scripts/ci-scope.mjs plan --base "$BASE_SHA"
         env:
-          # Empty on push, which plans every package.
-          BASE_SHA: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || '' }}
+          BASE_SHA: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || github.event.before }}
 
   typecheck:
     needs: plan
@@ -44,6 +47,8 @@ jobs:
           node-version: '22'
           cache: 'npm'
       - run: npm ci
+        env:
+          ELECTRON_SKIP_BINARY_DOWNLOAD: '1'
       - run: node scripts/ci-scope.mjs run typecheck --packages "$PACKAGES"
         shell: bash
         env:
@@ -60,6 +65,8 @@ jobs:
           node-version: '22'
           cache: 'npm'
       - run: npm ci
+        env:
+          ELECTRON_SKIP_BINARY_DOWNLOAD: '1'
       - run: node scripts/ci-scope.mjs run lint --packages "$PACKAGES"
         shell: bash
         env:
@@ -76,6 +83,8 @@ jobs:
           node-version: '22'
           cache: 'npm'
       - run: npm ci
+        env:
+          ELECTRON_SKIP_BINARY_DOWNLOAD: ${{ contains(format(',{0},', needs.plan.outputs.packages), ',b-ark,') && '0' || '1' }}
       - run: node scripts/ci-scope.mjs run test --packages "$PACKAGES"
         shell: bash
         env:
