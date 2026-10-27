@@ -1,6 +1,10 @@
 // The "Share a problem" form: client state only. It posts one small JSON body (as text/plain, so the
 // browser makes no CORS preflight) to the shares endpoint and shows the outcome. Nothing here ever
-// displays or works out a time after which sharing is possible again.
+// displays or works out a time after which sharing is possible again. On success the response carries
+// the updated share counts, handed to `onShared` so the page can show the share at once.
+
+import { parseShareResponse } from './logic';
+import type { Shares } from './types';
 
 interface Turnstile {
   render(
@@ -25,6 +29,8 @@ type Phase = 'idle' | 'sharing' | 'thanks' | 'already' | 'error';
 export interface ShareConfig {
   endpoint: string;
   siteKey: string;
+  /** Called with the updated share aggregates from a 201 response. */
+  onShared?: (shares: Pick<Shares, 'hours' | 'days'>) => void;
 }
 
 const q = <T extends Element>(root: ParentNode, sel: string): T => {
@@ -46,6 +52,10 @@ export function initShare(root: HTMLElement, cfg: ShareConfig): void {
   let token = '';
   let phase: Phase = 'idle';
   let widget: string | undefined;
+  let counted = false;
+  const hintDefault = hint.textContent ?? '';
+  hint.setAttribute('role', 'status');
+  hint.setAttribute('aria-live', 'polite');
 
   root.hidden = false;
 
@@ -103,7 +113,20 @@ export function initShare(root: HTMLElement, cfg: ShareConfig): void {
     if (p === 'thanks') done.focus();
   }
 
-  form.addEventListener('change', update);
+  /** After Done: say, in the existing hint line (no layout jump), that the share is counted. */
+  function showCounted(): void {
+    hint.replaceChildren(
+      document.createTextNode('Your shared problem is counted in the Shared lanes above. '),
+      Object.assign(document.createElement('a'), { href: '#st-48-title', textContent: 'See them' }),
+    );
+  }
+  form.addEventListener('change', () => {
+    if (counted) {
+      counted = false;
+      hint.textContent = hintDefault;
+    }
+    update();
+  });
   async function onSubmit(e: Event): Promise<void> {
     e.preventDefault();
     if (submit.disabled) return;
@@ -122,8 +145,12 @@ export function initShare(root: HTMLElement, cfg: ShareConfig): void {
         body,
         credentials: 'omit',
       });
-      if (res.status === 201) set('thanks');
-      else if (res.status === 429) set('already');
+      if (res.status === 201) {
+        const updated = parseShareResponse(await res.json().catch(() => null));
+        if (updated) cfg.onShared?.(updated);
+        counted = updated !== null;
+        set('thanks');
+      } else if (res.status === 429) set('already');
       else set('error');
     } catch {
       set('error');
@@ -142,7 +169,9 @@ export function initShare(root: HTMLElement, cfg: ShareConfig): void {
     form.reset();
     token = '';
     set('idle');
-    q<HTMLElement>(root, 'h3').focus();
+    if (counted) showCounted();
+    // Back to the form, where the reader was, without scrolling.
+    form.querySelector<HTMLInputElement>('input')?.focus({ preventScroll: true });
   });
   thanks.addEventListener('keydown', (e) => {
     if (e.key === 'Escape') done.click();

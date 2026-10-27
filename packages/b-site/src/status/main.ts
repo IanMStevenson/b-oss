@@ -1,19 +1,21 @@
 // The status page's client script. It makes ONE request for the data on load (the snapshot
-// holds everything the page draws), then nothing: no timers, no auto-refresh. The Refresh link only
-// goes to the network once the snapshot says fresher data can exist (`next_refresh_at`), and backs
-// off if the monitor is late. "Show more" and the pop-ups all use the loaded data.
+// holds everything the page draws), then nothing: no timers, no auto-refresh. The Refresh button
+// may fetch again once 60 seconds have passed since the last fetch (data can change between probes,
+// because of shared problems). A successful share's response carries the updated share counts, which
+// replace the loaded ones so the poster sees their share straight away, with no refetch. "Show more"
+// and the pop-ups all use the loaded data.
 
 import { dayOf } from './dayutil';
 import { h, setChildren } from './dom';
 import { renderHistory } from './history';
 import { renderLanes } from './lanes';
 import {
-  afterFetch,
-  initialRefresh,
+  isStale,
   nextAllowedFetch,
+  snapshotUnchanged,
   timeOf,
   updatedLabel,
-  type RefreshState,
+  withShares,
 } from './logic';
 import { renderNow } from './now';
 import { initShare } from './share';
@@ -44,7 +46,8 @@ const $ = <T extends HTMLElement>(sel: string): T => {
 
 let snap: StatusSnapshot | null = null;
 let failedToLoad = false;
-let refresh: RefreshState = initialRefresh;
+/** When the last fetch (successful or not) finished; the 60-second refresh floor counts from here. */
+let lastFetchAt: number | null = null;
 let shown = INCIDENT_PAGE;
 let note = '';
 let busy = false;
@@ -71,6 +74,9 @@ function footer(): HTMLElement {
         : 'Loading…',
       ' ',
       busy ? h('span', { class: 'st-sub' }, 'Checking…') : link,
+      snap && !failedToLoad && !isStale(snap, Date.now()) && snap.next_refresh_at > Date.now()
+        ? ` · Next check due about ${timeOf(snap.next_refresh_at)}`
+        : null,
       note ? h('span', { class: 'st-note', role: 'status' }, ` ${note}`) : null,
     ),
     h('a', { href: '#share', class: 'st-trouble' }, 'Having trouble? Share a problem ↓'),
@@ -135,13 +141,9 @@ function renderCharts(): void {
 
 async function load(manual: boolean): Promise<void> {
   if (busy) return;
-  const now = Date.now();
-  const wait = manual ? nextAllowedFetch(now, snap?.next_refresh_at ?? null, refresh) : null;
+  const wait = manual ? nextAllowedFetch(Date.now(), lastFetchAt) : null;
   if (wait !== null) {
-    const backoff = refresh.notBefore > (snap?.next_refresh_at ?? 0);
-    note = backoff
-      ? `Nothing newer yet. Try again after about ${timeOf(wait)}.`
-      : `Next check due about ${timeOf(wait)}.`;
+    note = `Just refreshed. Try again after about ${timeOf(wait)}.`;
     renderAll();
     return;
   }
@@ -153,15 +155,13 @@ async function load(manual: boolean): Promise<void> {
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const next = (await res.json()) as StatusSnapshot;
     if (next.version !== 1) throw new Error('unknown snapshot version');
-    const fresh = !snap || next.generated_at !== snap.generated_at;
-    refresh = afterFetch(Date.now(), refresh, { ok: true, fresh });
+    if (manual && snap && snapshotUnchanged(snap, next)) note = 'No change yet.';
     snap = next;
     failedToLoad = false;
-    if (!fresh && manual) note = 'Nothing newer yet.';
   } catch {
-    refresh = afterFetch(Date.now(), refresh, { ok: false });
     failedToLoad = true;
   }
+  lastFetchAt = Date.now();
   busy = false;
   renderAll();
 }
@@ -171,6 +171,13 @@ export function start(opts: StatusOptions): void {
   initShare($('[data-share]'), {
     endpoint: `${new URL(STATUS_URL).origin}/v1/shares`,
     siteKey: opts.turnstileKey,
+    // A share went through: swap in the updated counts and redraw the Shared lanes (only the
+    // charts, so nothing else on the page moves), with no refetch.
+    onShared: (shares) => {
+      if (!snap) return;
+      snap = withShares(snap, shares);
+      renderCharts();
+    },
   });
   renderAll();
 
@@ -197,7 +204,7 @@ export function start(opts: StatusOptions): void {
       const found = FIXTURE_NAMES.find((n) => n === name);
       if (found) {
         snap = makeFixture(found, Date.now());
-        refresh = afterFetch(Date.now(), initialRefresh, { ok: true, fresh: true });
+        lastFetchAt = Date.now();
         renderAll();
         return;
       }

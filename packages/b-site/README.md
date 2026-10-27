@@ -102,9 +102,13 @@ src/status/fixtures.ts  fixture snapshots (all-good, api-down, both-down, unknow
   box, and the Share button needs no token). Put them in `packages/b-site/.env`.
 - **Preview a state without a monitor:** `npm run dev -w @b-oss/b-site`, then open
   `/status.html?fixture=api-down` (any name in `fixtures.ts`). Fixtures are honoured in dev builds only.
-- **One request per load, no timers.** The Refresh button makes no request before the snapshot's
-  `next_refresh_at`, then backs off (60 s, 2 min, 5 min) while nothing newer arrives. If the data can't
-  be loaded the page says so and never shows "working".
+- **One request per load, no timers.** The Refresh button may fetch again once 60 seconds have passed
+  since the last fetch (data can change between probes, because of shared problems); `next_refresh_at`
+  only drives the "Next check due about HH:MM" label and the stale rule. If the data can't be loaded
+  the page says so and never shows "working".
+- **Shares appear immediately.** A 201 from the shares endpoint carries the full updated aggregates
+  (`{ ok: true, shares: { hours, days } }`); the page swaps them into its loaded snapshot and redraws
+  the Shared lanes, with no refetch.
 - **Share POST** goes to `<origin of PUBLIC_STATUS_URL>/v1/shares` as `text/plain` JSON, so the browser
   sends no CORS preflight.
 - **Blipfoto support links** are the two constants in `src/blipfoto-links.ts` (general help, and the
