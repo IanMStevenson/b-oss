@@ -9,7 +9,7 @@ import { dayOf } from './dayutil';
 import { h, s, setChildren } from './dom';
 import { renderHistory } from './history';
 import { renderLanes } from './lanes';
-import { nextAllowedFetch, snapshotUnchanged, timeOf, updatedLabel, withShares } from './logic';
+import { nextAllowedFetch, snapshotUnchanged, timeOf, updatedLabel } from './logic';
 import { bannerKind, lastCheckedText, renderNow, renderUnavailable } from './now';
 import { initShare } from './share';
 import { INCIDENT_PAGE, renderIncidents, renderUptime } from './tables';
@@ -176,13 +176,6 @@ export function start(opts: StatusOptions): void {
   initShare($('[data-share]'), {
     endpoint: `${new URL(STATUS_URL).origin}/v1/shares`,
     siteKey: opts.turnstileKey,
-    // A share went through: swap in the updated counts and redraw the Shared lanes (only the
-    // charts, so nothing else on the page moves), with no refetch.
-    onShared: (shares) => {
-      if (!snap) return;
-      snap = withShares(snap, shares);
-      renderCharts();
-    },
   });
   renderAll();
 

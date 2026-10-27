@@ -106,9 +106,7 @@ src/status/fixtures.ts  fixture snapshots (all-good, api-down, both-down, unknow
   since the last fetch (data can change between probes, because of user reports); `next_refresh_at`
   is not shown, and the stale rule uses `generated_at`. If the data can't be loaded
   the page says so and never shows "working".
-- **User reports appear immediately** (the action is "share", the thing is a "user report"; the API field is still `shares`). Visible words are plain: Working / Not working / Unknown, Website and API, downtime, incident (see `docs/status-page.md`). A 201 from the shares endpoint carries the full updated aggregates
-  (`{ ok: true, shares: { hours, days } }`); the page swaps them into its loaded snapshot and redraws
-  the Shared lanes, with no refetch.
+- **User reports are not drawn early:** the page shows only what the Worker has published (within a minute or two of a report); the thank-you dialog says so. The Worker's 201 response still carries updated counts, but the page ignores them. Visible words are plain: Working / Not working / Unknown, Website and API, downtime, incident (see `docs/status-page.md`).
 - **Share POST** goes to `<origin of PUBLIC_STATUS_URL>/v1/shares` as `text/plain` JSON, so the browser
   sends no CORS preflight.
 - **Blipfoto support links** are the two constants in `src/blipfoto-links.ts` (general help, and the
