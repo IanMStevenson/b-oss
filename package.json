@@ -12,7 +12,7 @@
     "prebuild": "npm run version:bump && npm run copy-icons",
     "build": "npm run build --workspaces --if-present",
     "build:release": "node scripts/build-release.mjs",
-    "typecheck": "tsc --build packages/b-api packages/backup-engine packages/b-ark-ui-components packages/b-ark-ui-electron packages/b-ark packages/b-ark-ui-chrome && tsc -p packages/b-visual --noEmit && tsc -p packages/b-view --noEmit && tsc -p packages/b-view-backup --noEmit && tsc -p packages/b-ark-chrome --noEmit && tsc -p packages/b-mobile --noEmit && tsc -p packages/b-mobile/tsconfig.node.json --noEmit && tsc -p packages/b-push --noEmit && tsc -p packages/b-status --noEmit",
+    "typecheck": "node scripts/ci-scope.mjs run typecheck --packages all",
     "lint": "eslint \"packages/**/*.{ts,tsx}\" --max-warnings 0",
     "test": "vitest run",
     "test:watch": "vitest",
@@ -20,7 +20,7 @@
     "format": "prettier --write \"packages/**/*.{ts,tsx,css,json}\"",
     "setup": "node scripts/setup.js",
     "fetch-entry": "node scripts/fetch-entry.mjs",
-    "postinstall": "node -e \"try{require('fs').accessSync('node_modules/electron/install.js')}catch{process.exit(0)}require('child_process').execFileSync(process.execPath,['node_modules/electron/install.js'],{stdio:'inherit'})\"",
+    "postinstall": "node -e \"if(process.env.ELECTRON_SKIP_BINARY_DOWNLOAD==='1')process.exit(0);try{require('fs').accessSync('node_modules/electron/install.js')}catch{process.exit(0)}require('child_process').execFileSync(process.execPath,['node_modules/electron/install.js'],{stdio:'inherit'})\"",
     "prepare": "husky"
   },
   "overrides": {

@@ -119,6 +119,11 @@ npm run build:release  # Build with RELEASE=1 — version shown as bare 1.0.0
                                             # the host — see RELEASING.md §3
 ```
 
+CI (PRs and pushes to `main`) runs typecheck, lint and test only for the packages a change can
+affect (changed packages plus their dependents), planned by `scripts/ci-scope.mjs`; root config
+changes run everything. Run the same scoped task locally with
+`node scripts/ci-scope.mjs run <typecheck|lint|test> --packages b-status,b-push`.
+
 ### Local Android build + lint check (b-mobile; no CI)
 
 Run before merging anything that touches `packages/b-mobile/android/**`, the manifest, or a Capacitor
