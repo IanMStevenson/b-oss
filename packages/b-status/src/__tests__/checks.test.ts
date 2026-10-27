@@ -3,6 +3,7 @@
 
 import { describe, expect, it } from 'vitest';
 import { runChecks } from '../checks.js';
+import { deriveStates } from '../derive.js';
 import { API_ENTRY, API_RECENT, CFG, fakeFetch, healthy, type Stub } from './fixtures.js';
 
 const run = (
@@ -78,17 +79,39 @@ describe('runChecks', () => {
   it('says which API error it got, so a failing check can be diagnosed from the stored sample', async () => {
     const bad = JSON.stringify({
       version: '4',
-      error: { object: 'Error', code: 52, message: 'The client is invalid.' },
+      error: { object: 'Error', code: 99, message: 'Something odd.' },
       data: null,
     });
     const results = await run({ ...healthy(), 'https://api.test/4/entries/recent': { body: bad } });
-    expect(results.find((x) => x.id === 'api_recent')?.detail).toBe(
-      'API error 52: The client is invalid.',
+    expect(results.find((x) => x.id === 'api_recent')?.detail).toBe('API error 99: Something odd.');
+  });
+
+  it.each([11, 50, 51, 52])(
+    'treats API error %i as a refusal of the monitor: skipped, not failed',
+    async (code) => {
+      const bad = JSON.stringify({ version: '4', error: { code, message: 'x' }, data: null });
+      const results = await run({
+        ...healthy(),
+        'https://api.test/4/entries/recent': { body: bad },
+      });
+      const s = status(results);
+      expect(s.api_recent).toBe('skipped');
+      expect(s.api_entry).toBe('skipped');
+      expect(results.find((x) => x.id === 'api_recent')?.detail).toContain('monitor refused: ');
+      expect(deriveStates(results).api.state).toBe('unknown');
+    },
+  );
+
+  it('still fails on an unrecognised API error code', async () => {
+    const bad = JSON.stringify({ version: '4', error: { code: 99, message: 'x' }, data: null });
+    const s = status(
+      await run({ ...healthy(), 'https://api.test/4/entries/recent': { body: bad } }),
     );
+    expect(s.api_recent).toBe('fail');
   });
 
   it('judges the API by the envelope error, not the HTTP status', async () => {
-    const bad = JSON.stringify({ version: '4', error: { code: 52, message: 'x' }, data: null });
+    const bad = JSON.stringify({ version: '4', error: { code: 99, message: 'x' }, data: null });
     const s = status(
       await run({ ...healthy(), 'https://api.test/4/entries/recent': { status: 200, body: bad } }),
     );

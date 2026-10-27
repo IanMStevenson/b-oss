@@ -98,6 +98,25 @@ function describeApiError(error: unknown): string {
   return code === null ? 'API returned an error' : `API error ${code}${msg ? `: ${msg}` : ''}`;
 }
 
+/** Envelope codes that say the monitor was refused, not that the service is unwell: rate-limited
+ * (11) and auth/client rejected (50, 51, 52; b-api/src/errors.ts). Any other error stays a failure. */
+const REFUSAL_CODES: readonly number[] = [11, 50, 51, 52];
+
+export const REFUSED_PREFIX = 'monitor refused: ';
+
+function isRefusal(error: unknown): boolean {
+  const code = (error as { code?: unknown } | null)?.code;
+  return typeof code === 'number' && REFUSAL_CODES.includes(code);
+}
+
+/** An API check's envelope error as a result: a refusal is `skipped` (it says nothing about the
+ * service, so the component derives Unknown), anything else a fail. */
+function apiErrorResult(id: CheckResult['id'], ms: number, error: unknown): CheckResult {
+  return isRefusal(error)
+    ? skipped(id, `${REFUSED_PREFIX}${describeApiError(error)}`)
+    : fail(id, ms, describeApiError(error));
+}
+
 export async function runChecks(cfg: ProbeConfig, deps: ProbeDeps): Promise<CheckResult[]> {
   const out: CheckResult[] = [];
   let entryId: string | null = null;
@@ -170,7 +189,7 @@ export async function runChecks(cfg: ProbeConfig, deps: ProbeDeps): Promise<Chec
       const entries = (env?.data as { entries?: { entry_id_str?: string }[] } | null | undefined)
         ?.entries;
       if (!env) out.push(fail('api_recent', t.ms, `not an API response (HTTP ${t.res.status})`));
-      else if (env.error !== null) out.push(fail('api_recent', t.ms, describeApiError(env.error)));
+      else if (env.error !== null) out.push(apiErrorResult('api_recent', t.ms, env.error));
       else if (!entries || entries.length === 0 || !entries[0]?.entry_id_str)
         out.push(fail('api_recent', t.ms, 'no entries'));
       else if (t.ms > cfg.slowMs) out.push(fail('api_recent', t.ms, 'too slow'));
@@ -195,7 +214,7 @@ export async function runChecks(cfg: ProbeConfig, deps: ProbeDeps): Promise<Chec
       const got = (env?.data as { entry?: { entry_id_str?: string } } | null | undefined)?.entry
         ?.entry_id_str;
       if (!env) out.push(fail('api_entry', t.ms, `not an API response (HTTP ${t.res.status})`));
-      else if (env.error !== null) out.push(fail('api_entry', t.ms, describeApiError(env.error)));
+      else if (env.error !== null) out.push(apiErrorResult('api_entry', t.ms, env.error));
       else if (got !== apiEntryId) out.push(fail('api_entry', t.ms, 'wrong entry returned'));
       else if (t.ms > cfg.slowMs) out.push(fail('api_entry', t.ms, 'too slow'));
       else out.push(pass('api_entry', t.ms));

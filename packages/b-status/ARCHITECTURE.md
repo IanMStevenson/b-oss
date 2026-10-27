@@ -25,7 +25,12 @@ on no other package. Design decisions and the visual targets are in b-oss#476 an
    one; an Unknown sample does neither.
 
 The API is judged by the **envelope's `error` field**, not the HTTP status: the API answers 200
-with the failure in the body.
+with the failure in the body. Envelope codes 11 (rate-limited) and 50/51/52 (auth/client
+rejected) mean the **monitor was refused**, not that the service is unwell: that check is
+**skipped** (detail `monitor refused: …`), so the API derives **Unknown** ("No data") and the slot
+leaves the uptime denominator. Everything else (timeout, non-API reply, 5xx, any other code) stays
+a failure, so the monitor fails safe. A refused run logs `MONITOR REFUSED` at warn level in
+Workers Logs; that is the operator alert (no push/email alert exists).
 
 ## Data (`src/schema.sql`)
 

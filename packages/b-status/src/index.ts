@@ -5,7 +5,7 @@
 // page's snapshot; `GET /v1/status` serves that snapshot, and `POST /v1/shares` takes visitor-shared problems. Deploys
 // are manual (see wrangler.toml and README.md); nothing in this repo runs `wrangler`.
 
-import type { ProbeConfig } from './checks.js';
+import { REFUSED_PREFIX, type ProbeConfig } from './checks.js';
 import { recordSample } from './incidents.js';
 import { describeError } from './log.js';
 import { runProbe } from './probe.js';
@@ -47,6 +47,13 @@ export async function runScheduled(env: Env): Promise<void> {
   // After the sample is stored: fold finished days, then rebuild the page's snapshot from it.
   const { foldedDays: folded } = await runMaintenance(env.DB, outcome.ts);
   await storeSnapshot(env.DB, outcome.ts);
+  // The operator alert: a refused monitor (bad token, rate limit) is Unknown on the page, so make
+  // it loud in the logs instead. Filter Workers Logs on "MONITOR REFUSED".
+  const refused = outcome.results.filter((r) => r.detail?.startsWith(REFUSED_PREFIX));
+  if (refused.length > 0)
+    console.warn(
+      `[b-status] MONITOR REFUSED slot ${outcome.slot}: ${refused.map((r) => `${r.id} ${r.detail}`).join('; ')}`,
+    );
   console.log(
     `[b-status] slot ${outcome.slot} site=${outcome.states.site.state} api=${outcome.states.api.state}` +
       `${outcome.retried ? ' (retried)' : ''}${folded > 0 ? ` folded ${folded} day(s)` : ''}`,
