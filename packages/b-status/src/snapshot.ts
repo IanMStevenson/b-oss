@@ -178,7 +178,7 @@ export async function buildSnapshot(db: DbLike, now: number): Promise<StatusSnap
 
     // 48-hour lanes: down periods from incidents, no-data periods from the slots.
     const down: Segment[] = incidents
-      .filter((i) => i.component === c && (i.ended_at ?? now) > last48.from && i.started_at < now)
+      .filter((i) => i.component === c && (i.ended_at ?? now) > last48.from && i.started_at <= now)
       .map((i) => ({
         kind: 'down' as const,
         start: Math.max(i.started_at, last48.from),

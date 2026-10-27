@@ -252,7 +252,7 @@ export function laneBlocks(
   for (const seg of segments) {
     const ongoing = seg.end === null;
     const endT = seg.end ?? to;
-    if (endT <= from || seg.start >= to) continue;
+    if (endT <= from || seg.start > to) continue;
     const x0 = px(seg.start);
     const x1 = px(endT);
     const w = Math.max(minPx, x1 - x0);

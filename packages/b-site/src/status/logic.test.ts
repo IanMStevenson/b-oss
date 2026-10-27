@@ -195,6 +195,12 @@ describe('laneBlocks', () => {
     expect(b?.w).toBe(6);
   });
 
+  it('draws an ongoing outage that began at the very last sample', () => {
+    const [b] = laneBlocks([seg(to, null)], from, to, 480);
+    expect(b?.ongoing).toBe(true);
+    expect(b?.x).toBe(474);
+  });
+
   it('an ongoing outage ends flush against "Now" (the right edge)', () => {
     const [b] = laneBlocks([seg(to - 70 * MINUTE, null)], from, to, 480);
     expect(b?.ongoing).toBe(true);

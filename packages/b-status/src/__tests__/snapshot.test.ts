@@ -182,6 +182,26 @@ describe('buildSnapshot', () => {
     ]);
   });
 
+  it('draws an incident opened by the newest sample in the 48-hour lane', async () => {
+    await db.batch([
+      db.prepare("INSERT INTO meta (key, value) VALUES ('first_ts', ?)").bind(String(NOW)),
+      db
+        .prepare(
+          "INSERT INTO samples (slot, ts, site_state, api_state, retried, checks) VALUES (?, ?, 'up', 'down', 0, '[]')",
+        )
+        .bind(Math.floor(NOW / 900_000), NOW),
+      db
+        .prepare(
+          "INSERT INTO incidents (component, started_at, ended_at, failed_checks) VALUES ('api', ?, NULL, 'api_recent')",
+        )
+        .bind(NOW),
+    ]);
+    const s = await buildSnapshot(db, NOW);
+    expect(s.last48h.api).toEqual([
+      { kind: 'down', start: NOW, end: null, failed: ['api_recent'] },
+    ]);
+  });
+
   it('is a small document', async () => {
     const s = await snapshot();
     expect(JSON.stringify(s).length).toBeLessThan(10_000);
