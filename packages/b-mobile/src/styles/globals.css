@@ -429,11 +429,3 @@ ion-item.nav-item-current::before {
 ion-item.nav-item-current::after {
   bottom: 0;
 }
-
-/* "System default" is longer than the other Theme options: let it wrap onto two lines rather than
-   being elided. */
-ion-segment.settings-pill-segment[aria-label='Theme'] ion-label {
-  white-space: normal;
-  text-align: center;
-  line-height: 1.15;
-}

@@ -119,7 +119,7 @@ function AppearanceGroup() {
         label="Theme"
         value={theme}
         options={[
-          { value: 'system', label: 'System default' },
+          { value: 'system', label: 'System' },
           { value: 'light', label: 'Light' },
           { value: 'dark', label: 'Dark' },
           { value: 'mid', label: 'Mid' },
@@ -127,8 +127,8 @@ function AppearanceGroup() {
         onChange={setTheme}
       />
       <CaptionRow>
-        System default follows your phone&rsquo;s dark theme setting (Light or Dark). Mid is a
-        softer dark grey you can choose here.
+        System follows your phone&rsquo;s dark theme setting (Light or Dark). Mid is a softer dark
+        grey you can choose here.
       </CaptionRow>
     </>
   );

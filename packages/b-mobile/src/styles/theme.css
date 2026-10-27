@@ -98,7 +98,7 @@ ion-button.button-clear:not(.in-buttons):not([color]) {
 
 /* Disabled looks disabled without turning into a different shape. */
 ion-button.button-disabled:not(.in-buttons) {
-  opacity: 0.45;
+  opacity: var(--disabled-opacity);
 }
 
 /*

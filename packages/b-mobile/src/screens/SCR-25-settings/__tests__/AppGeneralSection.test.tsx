@@ -215,7 +215,7 @@ describe('AppGeneralSection — theme', () => {
     )!;
   }
 
-  it('offers System default, Light, Dark and Mid even with one account, defaulting to System default', () => {
+  it('offers System, Light, Dark and Mid even with one account, defaulting to System', () => {
     render(<AppGeneralSection />);
     const segment = themeSegment();
     expect(segment.classList.contains('settings-pill-segment')).toBe(true);
@@ -223,7 +223,7 @@ describe('AppGeneralSection — theme', () => {
     const labels = Array.from(segment.querySelectorAll('ion-segment-button')).map(
       (b) => b.textContent,
     );
-    expect(labels).toEqual(['System default', 'Light', 'Dark', 'Mid']);
+    expect(labels).toEqual(['System', 'Light', 'Dark', 'Mid']);
   });
 
   it('persists the choice', () => {

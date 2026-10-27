@@ -67,7 +67,7 @@ Known Blipfoto API limits: [AppLimitations.md](AppLimitations.md). Paths are rel
   settings: Accounts, General (theme, daily reminder, confirm-account toggle, account picture style, open
   blipfoto.com links in app), Hidden members (always enabled), Browsing (zoom bar, pagination, margins, photo size).
   Server-backed sections use Save/Cancel; device settings apply at once.
-- **Theme** (App settings → General): System default (default), Light, Dark, Mid. System default
+- **Theme** (App settings → General): System (default), Light, Dark, Mid. System
   follows Android's dark-theme setting and picks Light or Dark, never Mid. Stored in device prefs and
   mirrored to `localStorage` so `index.html` can apply it before first paint. The theme is the
   `data-theme` attribute on `<html>`, which b-visual's opt-in `themes.css` re-points the colour

@@ -64,6 +64,9 @@
      row). Drawn with inset shadows / pseudo-elements, never borders, so they take no space. Nothing
      is drawn in Light. One token so they can be toned down in one place. */
   --separator-line: transparent;
+  /* How faded a disabled filled control is. Dark and Mid raise it: the accent fades into a dark page
+     much sooner than dark green fades into white. */
+  --disabled-opacity: 0.45;
 
   /* Typography. Roboto first (self-hosted, see fonts.css), then the previous system stack so
      text never renders unstyled while a font file loads or for scripts Roboto doesn't cover. */
