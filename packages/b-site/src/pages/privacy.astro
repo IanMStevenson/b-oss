@@ -23,7 +23,7 @@ import Hero from '../components/Hero.astro';
       This website is part of b-oss, an open-source project led by Ian Stevenson. It is
       independent and is not affiliated with or endorsed by Blipfoto. Questions about this
       policy can be sent to
-      <a href="mailto:b-oss@salientpoint.co.uk">b-oss@salientpoint.co.uk</a> or through the
+      <a href="mailto:info@b-oss.dev">info@b-oss.dev</a> or through the
       <a href="contact.html">contact page</a>.
     </p>
 
@@ -39,8 +39,7 @@ import Hero from '../components/Hero.astro';
       The site is hosted on Cloudflare. Like any host, Cloudflare handles technical data about
       each request, such as your IP address, the page you asked for and the time, and may keep
       it in its own logs under
-      <a href="https://www.cloudflare.com/privacypolicy/">Cloudflare's privacy policy</a>. We
-      do not use it to track visitors.
+      <a href="https://www.cloudflare.com/privacypolicy/">Cloudflare's privacy policy</a>.
     </p>
 
     <h2>The contact form</h2>
@@ -54,10 +53,12 @@ import Hero from '../components/Hero.astro';
 
     <h2>The status page</h2>
     <p>
-      The <a href="status.html">status page</a> shows data from a small service the project runs
-      on Cloudflare. When you open the page, your browser asks that service for the latest
-      figures, so Cloudflare sees your IP address as it does for any request. Our own code does
-      not store it.
+      The <a href="status.html">status page</a> shows data from a small service the project
+      runs on Cloudflare. When you open the page, your browser asks that service for the latest
+      figures. Cloudflare records requests to the service in logs that the project can view.
+      They can include your IP address, the page asked for and the time. We use those logs only
+      to run and troubleshoot the service. Cloudflare keeps them for a limited time and handles
+      them under <a href="https://www.cloudflare.com/privacypolicy/">its privacy policy</a>.
     </p>
     <p>
       The page also loads Cloudflare's Turnstile anti-bot check, so that the Share a problem
@@ -77,7 +78,8 @@ import Hero from '../components/Hero.astro';
       </li>
       <li>
         We use your IP address briefly to limit repeat reports. It is turned into a salted
-        one-way hash, and we keep only that hash, not the address. The hash is kept for about
+        one-way hash, and the service's own database keeps only that hash, not the address (the address can still
+        appear in the Cloudflare logs above). The hash is kept for about
         half an hour and deleted soon after, so at most about 45 minutes in total. It is still
         personal data while we hold it.
       </li>
@@ -95,9 +97,30 @@ import Hero from '../components/Hero.astro';
     <ul>
       <li><a href="b-mobile-privacy.html">b-mobile for Blipfoto</a> (Android)</li>
       <li><a href="b-ark-chrome-privacy.html">b-ark-chrome</a> (Chrome extension)</li>
+        </ul>
+
+    <h2>b-ark (Windows desktop app)</h2>
+    <ul>
       <li>
-        b-ark (Windows desktop app) does not have its own policy page yet; see the
-        <a href="b-ark.html">b-ark page</a>.
+        It connects to Blipfoto (its API, your pictures, and the Blipfoto website where a
+        backup needs it) to back up your journal. That traffic is between your computer and
+        Blipfoto, under Blipfoto's own policy.
+      </li>
+      <li>
+        On your computer it keeps your backups in the folder you choose, its settings, and your
+        Blipfoto sign-in details, which are encrypted using the operating system's secure
+        storage.
+      </li>
+      <li>
+        It has no analytics or crash reporting and sends nothing to the b-oss project. It
+        writes a log file on your computer only.
+      </li>
+      <li>
+        By default it checks for updates by contacting GitHub, where the b-oss releases are
+        published, and downloads a new version if there is one. GitHub can see that request
+        under
+        <a href="https://docs.github.com/en/site-policy/privacy-policies/github-general-privacy-statement">its privacy statement</a>.
+        You can turn this off in the app's settings.
       </li>
     </ul>
 
