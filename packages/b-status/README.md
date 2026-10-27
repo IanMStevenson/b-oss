@@ -53,6 +53,10 @@ origins may read the data is the `ALLOWED_ORIGINS` set in `src/cors.ts`.
 - **Logs:** Workers Logs (enabled in `wrangler.toml`), lines prefixed `[b-status]`, for example
   `[b-status] slot 1992343 site=up api=up`. Cloudflare keeps them for 3 days on the Free plan (7 on
   Paid). Each request's log entry can include the visitor's IP address (see the site privacy policy).
+- **Report-triggered re-checks** log `[b-status] triggered check start`, then `done` (with the elapsed
+  time and what changed), `failed` or `skipped` (with the reason). A `start` with no `done` or
+  `failed` after it means the run was cut off by the free plan's 10 ms CPU limit: switch to approach
+  B (a once-a-minute cron) as described in ARCHITECTURE.md.
 - **A check is failing:** the latest sample says why. In the D1 console:
   `SELECT checks FROM samples ORDER BY slot DESC LIMIT 1;` and read the failing check's `detail`
   (an API error shows its code, for example `API error 52: The client is invalid.`).
