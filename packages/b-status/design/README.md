@@ -38,13 +38,13 @@ code it: do not try to reproduce any generated markup.
 6. **Nav.** The mockup's header nav shows Home, b-ark, b-mobile, b-api, Status, Contact. Use the
    site's real nav from `Header.astro` and add Status.
 
-7. **Couldn't load the current status** (not in the mockups). If the snapshot can't be fetched,
-   the Now card says so in a distinct amber-marked state ("Couldn't load the current status … that
-   doesn't mean Blipfoto is down"), never shows Up, and keeps any earlier data visible below
-   marked "Out of date: this is the status as of HH:MM". With no earlier data it shows no Site/API
-   cards at all. "Try again" is the Refresh control.
-8. **Stale data.** A snapshot older than two sampling intervals is shown as Unknown ("No recent
-   data"), even if its last state was Up.
+7. **Can't tell (one state).** When the status can't be shown: a snapshot older than two sampling
+   intervals, no recent data from the monitor, or the page can't reach the status service at all. The
+   banner is hatched grey, headline "We can't tell if Blipfoto is working", both rows **Unknown**, with
+   ONE reason line by cause: "Our checks haven't reported recently." or "We couldn't reach the status
+   service. Refresh to try again." (When the service can't be reached the last data stays below, dated
+   in the banner footer: "Last data from HH:MM, day".) No amber or outline styling.
+8. _(Merged into item 7.)_
 9. **Refresh** is a button with no auto-refresh. (The original rule, no request before
    `next_refresh_at` with a 60 s / 2 min / 5 min back-off, is superseded by item 13.)
 10. **User reports** (the mockups' "Shared" lane) are drawn from an optional `shares` field in the snapshot
@@ -65,8 +65,7 @@ code it: do not try to reproduce any generated markup.
     the stale rule. Supersedes the previous refresh-gating rule.
 
 14. **Design pass 1 supersedes the mockups' look** (the screenshots are now only a record of the
-    original structure). The page has one solid status banner (brand green when Up, red when
-    Down, hatched grey when Unknown, amber when it couldn't load) with Site and API as compact
+    original structure). The page has one solid status banner (green, red or hatched grey) with Website and API as compact
     rows; no "How this is measured" section (a single "How this works" link instead); one
     "Unofficial" notice at the top and one "reports stay on this page" line at the Share button
     (no "Need help" aside, no repeated disclaimers); no repeated 30-day summary line (the figure is
@@ -78,11 +77,13 @@ code it: do not try to reproduce any generated markup.
     Share button; no visible "Answer both questions" hint (Share keeps an `aria-describedby`
     reason); no "Resolved" chip on past incidents and no repeated "No downtime" under every 100%.
 
-15. **Banner severity follows who is affected.** The website affects everyone, so the website (or both
-    parts) not working is a **red** banner. The API affects far fewer people and the fallback is simply
-    "use the website", so the API alone not working is an **amber** warning ("Blipfoto is working, but
-    apps may not connect"). Green = all working, hatched grey = no recent data, amber outline =
-    couldn't load (its rows show Unknown, never Working). The chart and legend colours do not change.
+15. **Three lozenges; the banner follows the website.** Each row (Website, API / apps) is coloured by
+    its own service: Working green, Not working red, Unknown hatched grey, as a light tinted lozenge
+    with a coloured border and a white outer ring so it stays distinct on any banner. The outer banner
+    takes the colour of the **Website** row: the website affects everyone; the API affects far fewer
+    people and the fallback is "use the website". So the API alone not working is a **green** banner
+    with a red API row and the words "Blipfoto is working, but apps may not connect". There is no
+    amber banner. The chart and legend colours do not change.
 
 ## Terminology (visible text and docs; code identifiers and API field names such as `shares` are unchanged)
 

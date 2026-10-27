@@ -194,16 +194,16 @@ describe('plain words for the parts', () => {
 });
 
 describe('overall status', () => {
-  it('derives the headline case from the fixtures', () => {
+  it('derives the case from the two parts', () => {
     expect(overallOf(makeFixture('all-good', NOW), NOW)).toBe('working');
     expect(overallOf(makeFixture('api-down', NOW), NOW)).toBe('api-down');
     expect(overallOf(makeFixture('website-down', NOW), NOW)).toBe('site-down');
     expect(overallOf(makeFixture('both-down', NOW), NOW)).toBe('photos');
-    expect(overallOf(makeFixture('unknown', NOW), NOW)).toBe('unknown');
+    expect(overallOf(makeFixture('unknown', NOW), NOW)).toBe('cant-tell');
   });
 
-  it('a stale snapshot is Unknown even if its last state was up', () => {
-    expect(overallOf(makeFixture('stale', NOW), NOW)).toBe('unknown');
+  it('a stale snapshot is "can’t tell" even if its last state was working', () => {
+    expect(overallOf(makeFixture('stale', NOW), NOW)).toBe('cant-tell');
   });
 });
 

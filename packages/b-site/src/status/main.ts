@@ -9,8 +9,8 @@ import { dayOf } from './dayutil';
 import { h, s, setChildren } from './dom';
 import { renderHistory } from './history';
 import { renderLanes } from './lanes';
-import { nextAllowedFetch, snapshotUnchanged, timeOf, withShares } from './logic';
-import { bannerKind, lastCheckedText, renderNow } from './now';
+import { nextAllowedFetch, snapshotUnchanged, timeOf, updatedLabel, withShares } from './logic';
+import { bannerKind, lastCheckedText, renderNow, renderUnavailable } from './now';
 import { initShare } from './share';
 import { INCIDENT_PAGE, renderIncidents, renderUptime } from './tables';
 import type { StatusSnapshot } from './types';
@@ -71,7 +71,7 @@ function refreshIcon(): SVGElement {
 
 function footer(): HTMLElement {
   const now = Date.now();
-  const label = failedToLoad ? 'Try again' : 'Refresh';
+  const label = 'Refresh';
   const link = h(
     'button',
     { type: 'button', class: 'st-refresh', 'aria-label': label, title: label },
@@ -82,7 +82,7 @@ function footer(): HTMLElement {
   });
   const left: (string | HTMLElement | null)[] = [];
   if (!snap) left.push(failedToLoad ? 'No data yet' : 'Loading…');
-  else if (failedToLoad) left.push('Couldn’t update');
+  else if (failedToLoad) left.push(`Last data from ${updatedLabel(snap.generated_at)}`);
   else left.push(lastCheckedText(snap, now));
   left.push(' ', busy ? 'Checking…' : link);
   return h(
@@ -103,28 +103,20 @@ function renderAll(): void {
   const nowHost = $('[data-now]');
   nowHost.className = `st-banner st-banner-${bannerKind(snap, now, failedToLoad)}`;
   if (!snap) {
-    setChildren(
-      nowHost,
-      failedToLoad
-        ? h(
-            'div',
-            { class: 'st-banner-main st-banner-main-error' },
-            h('span', { class: 'st-icon st-icon-error', 'aria-hidden': 'true' }, '!'),
-            h(
-              'div',
-              {},
-              h('h1', { id: 'st-now-title' }, 'Couldn’t load the status'),
-              h('p', {}, 'That doesn’t mean Blipfoto isn’t working. We just don’t know.'),
-            ),
-          )
-        : h(
-            'div',
-            {},
-            h('h1', { id: 'st-now-title' }, 'Blipfoto status'),
-            h('p', { class: 'st-loading' }, 'Loading…'),
-          ),
-      footer(),
-    );
+    if (failedToLoad) {
+      setChildren(nowHost, ...renderUnavailable(footer()));
+    } else {
+      setChildren(
+        nowHost,
+        h(
+          'div',
+          {},
+          h('h1', { id: 'st-now-title' }, 'Blipfoto status'),
+          h('p', { class: 'st-loading' }, 'Loading…'),
+        ),
+        footer(),
+      );
+    }
     return;
   }
   setChildren(nowHost, ...renderNow(snap, now, failedToLoad, footer()));

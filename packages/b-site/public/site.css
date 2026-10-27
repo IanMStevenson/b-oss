@@ -853,9 +853,6 @@ section.block:first-of-type {
 .st-banner-down :focus-visible {
   outline-color: #fff;
 }
-.st-banner-warn :focus-visible {
-  outline-color: #2b1a00;
-}
 .st-sr {
   position: absolute;
   width: 1px;
@@ -976,7 +973,12 @@ p.st-sub {
   border-top: 4px solid var(--green-800);
 }
 
-/* ---- Status banner ---- */
+/* ---- Status banner ----
+   Three lozenges: the banner, and the Website and API rows inside it. Each ROW is coloured by its own
+   service (Working green, Not working red, Unknown hatched grey); the BANNER takes the colour of the
+   WEBSITE row (the website affects everyone; the API only affects apps, and the fallback is "use the
+   website"). Rows are light, tinted lozenges with a coloured border and a white outer ring, so a green
+   row stays distinct on a green banner and a red row on a red one. */
 .st-banner {
   border-radius: 12px;
   padding: 26px 28px 18px;
@@ -986,23 +988,10 @@ p.st-sub {
 .st-banner-down {
   background: var(--down-text);
 }
-.st-banner-warn {
-  /* Amber: dark text (#2b1a00 on #f2b33d is 9.0:1), a dark border so the block holds against white. */
-  background: #f2b33d;
-  color: #2b1a00;
-  border: 2px solid #8a5a12;
-  padding: 24px 26px 16px;
-}
 .st-banner-unknown {
   background: repeating-linear-gradient(135deg, #eceef1 0 10px, #dfe3e8 10px 20px);
   color: #161616;
   border: 2px dashed #55606c;
-  padding: 24px 26px 16px;
-}
-.st-banner-error {
-  background: #fff1cc;
-  color: #3d2a00;
-  border: 2px solid var(--report);
   padding: 24px 26px 16px;
 }
 .st-banner-loading {
@@ -1051,17 +1040,9 @@ p.st-sub {
 .st-icon-down {
   color: var(--down-text);
 }
-.st-icon-warn {
-  background: #2b1a00;
-  color: #f2b33d;
-}
 .st-icon-unknown {
   color: var(--muted-strong);
   border: 2px dashed var(--control);
-}
-.st-icon-error {
-  color: var(--report-text);
-  border: 2px solid var(--report);
 }
 .st-parts {
   list-style: none;
@@ -1069,31 +1050,32 @@ p.st-sub {
   padding: 0;
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 12px;
+  gap: 14px;
 }
 .st-part {
   display: flex;
   justify-content: space-between;
   align-items: center;
   gap: 12px;
-  padding: 12px 16px;
+  padding: 10px 14px;
+  border: 2px solid;
   border-radius: 8px;
-  background: rgba(255, 255, 255, 0.14);
+  box-shadow: 0 0 0 2px #fff;
+}
+.st-part-up {
+  background: #e3efe7;
+  border-color: var(--up);
+  color: #143729;
 }
 .st-part-down {
-  box-shadow: inset 0 0 0 2px #fff;
+  background: #fbe4e4;
+  border-color: var(--down-text);
+  color: #5c0f0f;
 }
-.st-banner-warn .st-part {
-  background: rgba(255, 255, 255, 0.5);
-}
-.st-banner-warn .st-part-down {
-  box-shadow: inset 0 0 0 2px #2b1a00;
-}
-.st-banner-unknown .st-part,
-.st-banner-error .st-part {
-  background: #fff;
-  border: 1px solid var(--control);
-  box-shadow: none;
+.st-part-unknown {
+  background: repeating-linear-gradient(135deg, #fff 0 6px, #e6e9ed 6px 12px);
+  border: 2px dashed #55606c;
+  color: #161616;
 }
 .st-part-name {
   font-size: 17px;
@@ -1112,8 +1094,8 @@ p.st-sub {
   gap: 4px;
 }
 .st-badge-up {
-  background: var(--up-bg);
-  color: var(--up);
+  background: var(--up);
+  color: #fff;
 }
 .st-badge-down {
   background: var(--down-text);
@@ -1123,25 +1105,6 @@ p.st-sub {
   background: #fff;
   color: var(--muted-strong);
   border: 1.5px dashed var(--control);
-}
-.st-banner-up .st-badge,
-.st-banner-down .st-badge,
-.st-banner-warn .st-badge {
-  background: #fff;
-}
-/* On amber, "Not working" is a dark pill (a red pill on amber would be weak). */
-.st-banner-warn .st-badge-down {
-  background: #2b1a00;
-  color: #fff;
-}
-.st-banner-up .st-badge-up {
-  color: var(--up);
-}
-.st-banner-down .st-badge-up {
-  color: var(--up);
-}
-.st-banner-down .st-badge-down {
-  color: var(--down-text);
 }
 .st-banner-foot {
   display: flex;
@@ -1153,44 +1116,14 @@ p.st-sub {
   border-top: 1px solid rgba(255, 255, 255, 0.35);
   font-size: 15px;
 }
-.st-banner-warn .st-banner-foot,
 .st-banner-unknown .st-banner-foot,
-.st-banner-error .st-banner-foot,
 .st-banner-loading .st-banner-foot {
   border-top-color: rgba(0, 0, 0, 0.25);
 }
 .st-banner-foot a {
   color: inherit;
 }
-.st-refresh {
-  /* One look in every banner state: an outlined circle in the banner's own text colour, so contrast
-     follows the banner (white on green and red, dark on amber and the grey and amber-outline ones). */
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 34px;
-  height: 34px;
-  margin: -6px 2px -6px 6px;
-  padding: 0;
-  border: 1.5px solid currentColor;
-  border-radius: 50%;
-  background: transparent;
-  color: inherit;
-  font: inherit;
-  vertical-align: middle;
-  cursor: pointer;
-}
-.st-refresh:hover {
-  background: color-mix(in srgb, currentColor 18%, transparent);
-}
-.st-foot-left {
-  display: inline-flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 0 4px;
-}
 .st-banner-unknown a,
-.st-banner-error a,
 .st-banner-loading a {
   color: var(--green-800);
 }
@@ -1198,6 +1131,31 @@ p.st-sub {
   font-weight: 700;
   text-decoration: underline;
   text-underline-offset: 3px;
+}
+.st-refresh {
+  /* Just the icon, in the banner's own text colour: no circle, border or background. The 44px phone
+     target is padding. Contrast follows the banner; the focus ring is the standard 3px one. */
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin: -6px -2px -6px 2px;
+  padding: 6px;
+  border: 0;
+  border-radius: 6px;
+  background: none;
+  color: inherit;
+  font: inherit;
+  vertical-align: middle;
+  cursor: pointer;
+}
+.st-refresh:hover {
+  opacity: 0.75;
+}
+.st-foot-left {
+  display: inline-flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0 4px;
 }
 .st-note {
   font-weight: 500;
@@ -1789,9 +1747,7 @@ p.st-sub {
     font-size: 23px;
   }
   .st-banner,
-  .st-banner-warn,
-  .st-banner-unknown,
-  .st-banner-error {
+  .st-banner-unknown {
     padding: 20px 18px 14px;
   }
   .status-page .st-banner h1 {
@@ -1880,9 +1836,8 @@ p.st-sub {
     min-height: 44px;
   }
   .st-refresh {
-    width: 44px;
-    height: 44px;
-    margin: -8px 0 -8px 4px;
+    padding: 12px;
+    margin: -12px -8px -12px 0;
   }
   .st-howlink {
     display: inline-block;

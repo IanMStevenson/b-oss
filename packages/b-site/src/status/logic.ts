@@ -7,6 +7,7 @@ import type {
   HistoryEntry,
   Segment,
   Shares,
+  State,
   SnapshotIncident,
   StatusSnapshot,
   UptimeWindow,
@@ -176,21 +177,40 @@ export function isStale(snap: StatusSnapshot, now: number): boolean {
 
 // ---------- Headline and incidents ----------
 
+/** The overall situation, from the two parts' states. The banner's colour follows the WEBSITE (it
+ * affects everyone); the API only changes the wording and its own row. */
 export type Overall =
-  'working' | 'site-down' | 'api-down' | 'both-down' | 'photos' | 'partly-unknown' | 'unknown';
+  | 'working'
+  | 'api-down' // website working, API not: still a green banner
+  | 'api-unknown' // website working, can't tell about the API
+  | 'site-down'
+  | 'site-down-api-unknown'
+  | 'both-down'
+  | 'photos' // both not working because photos aren't loading
+  | 'site-unknown' // can't tell about the website (the API is known)
+  | 'cant-tell'; // can't tell about either (no recent data, or the snapshot is stale)
+
+/** A part's state for display: stale data can't be vouched for, so it is Unknown. */
+export function effectiveState(snap: StatusSnapshot, c: Component, now: number): State {
+  return isStale(snap, now) ? 'unknown' : snap.now[c].state;
+}
 
 export function overallOf(snap: StatusSnapshot, now: number): Overall {
-  const stale = isStale(snap, now);
-  const s = stale ? 'unknown' : snap.now.site.state;
-  const a = stale ? 'unknown' : snap.now.api.state;
-  if (s === 'unknown' && a === 'unknown') return 'unknown';
-  if (s === 'down' && a === 'down') {
-    const photos = snap.now.site.failed.includes('photo') && snap.now.api.failed.includes('photo');
-    return photos ? 'photos' : 'both-down';
+  const s = effectiveState(snap, 'site', now);
+  const a = effectiveState(snap, 'api', now);
+  if (s === 'unknown' && a === 'unknown') return 'cant-tell';
+  if (s === 'unknown') return 'site-unknown';
+  if (s === 'down') {
+    if (a === 'unknown') return 'site-down-api-unknown';
+    if (a === 'down') {
+      const photos =
+        snap.now.site.failed.includes('photo') && snap.now.api.failed.includes('photo');
+      return photos ? 'photos' : 'both-down';
+    }
+    return 'site-down';
   }
-  if (s === 'down') return 'site-down';
   if (a === 'down') return 'api-down';
-  if (s === 'unknown' || a === 'unknown') return 'partly-unknown';
+  if (a === 'unknown') return 'api-unknown';
   return 'working';
 }
 
