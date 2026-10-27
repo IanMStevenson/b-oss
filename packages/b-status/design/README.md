@@ -40,6 +40,27 @@ code it: do not try to reproduce any generated markup.
 6. **Nav.** The mockup's header nav shows Home, b-ark, b-mobile, b-api, Status, Contact. Use the
    site's real nav from `Header.astro` and add Status.
 
+7. **Couldn't load the current status** (not in the mockups). If the snapshot can't be fetched,
+   the Now card says so in a distinct amber-marked state ("Couldn't load the current status … that
+   doesn't mean Blipfoto is down"), never shows Up, and keeps any earlier data visible below
+   marked "Out of date: this is the status as of HH:MM". With no earlier data it shows no Site/API
+   cards at all. "Try again" is the Refresh control.
+8. **Stale data.** A snapshot older than two sampling intervals is shown as Unknown ("No recent
+   data"), even if its last state was Up.
+9. **Refresh** is a button that makes no request before the snapshot's `next_refresh_at`; it shows
+   "Next check due about HH:MM" instead, and backs off if nothing newer arrives. There is no
+   auto-refresh.
+10. **Shared problems** in the mockups are drawn from an optional `shares` field in the snapshot
+    (b-oss#486); without it the Shared lanes are simply empty.
+
+11. **History is a fixed 30 days.** There is no 30d/90d/1y/All-time control and no weekly view; the
+    mockups `05b` and the range buttons are superseded. Longer periods are covered by the uptime
+    table and the incident list. With 30 columns the bars are slim (capped at 18 px) and the axis
+    labels a date every 7 days, plus "Today".
+
+12. **Percentages:** one decimal place, rounded down; 99.9x figures show up to three decimals so
+    they are never rounded up to 100%; supersedes the two-decimal figures in the screenshots.
+
 ## Files
 
 | File                                             | What it shows                                                                                                                                                                        |

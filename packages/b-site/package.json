@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "The b-oss project website (static Astro site) — see README.md.",
+  "description": "The b-oss project website (static Astro site) \u2014 see README.md.",
   "scripts": {
     "dev": "astro dev",
     "build": "astro build",
@@ -11,7 +11,8 @@
     "typecheck": "astro check",
     "build:stubs": "astro build --config astro.stubs.config.mjs",
     "check-links": "node scripts/check-links.mjs",
-    "check-stubs": "node scripts/check-stubs.mjs"
+    "check-stubs": "node scripts/check-stubs.mjs",
+    "test": "vitest run"
   },
   "dependencies": {
     "@astrojs/sitemap": "^3.7.4",
@@ -19,6 +20,7 @@
   },
   "devDependencies": {
     "@astrojs/check": "^0.9.12",
+    "vitest": "^5.0.5",
     "wrangler": "^4.152.0"
   }
 }
