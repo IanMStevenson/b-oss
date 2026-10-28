@@ -154,11 +154,11 @@ export function agoLabel(ts: number, now: number): string {
   return `about ${d} days ago`;
 }
 
-// ---------- Refresh (no timers: the button only fetches when pressed, and not too often) ----------
+// ---------- Refresh (the button, plus one timed fetch per snapshot while the tab is visible) ----------
 
 /** A manual refresh may hit the network once this long after the last fetch. Data can change
- * between probes (shared problems), so this floor, not `next_refresh_at`, is what limits requests;
- * `next_refresh_at` is not shown; the stale rule uses `generated_at`. */
+ * between probes (shared problems), so this floor limits manual requests. The automatic fetch also
+ * honours it, and never goes earlier than the snapshot's `next_refresh_at`. */
 export const REFRESH_FLOOR_MS = 60_000;
 
 /** The earliest moment a manual refresh may hit the network, or null if it may now. */
@@ -166,6 +166,31 @@ export function nextAllowedFetch(now: number, lastFetchAt: number | null): numbe
   if (lastFetchAt === null) return null;
   const due = lastFetchAt + REFRESH_FLOOR_MS;
   return now >= due ? null : due;
+}
+
+/** Redraw from the loaded snapshot this often while the tab is visible, so "N minutes ago" and the
+ * stale rule keep up. No requests. */
+export const TICK_MS = 30_000;
+/** The automatic fetch waits up to this much past `next_refresh_at`, so open tabs don't all fire together. */
+export const REFETCH_JITTER_MS = 8_000;
+/** After failed fetches the automatic retry waits 60 s, then doubles, up to this. */
+export const MAX_BACKOFF_MS = 10 * 60_000;
+
+/** When the automatic fetch should run: at the snapshot's `next_refresh_at` plus `jitterMs`, never
+ * inside the floor after the last fetch. After `failures` failed fetches in a row the old snapshot's
+ * time has passed, so retry with a doubling back-off from the last attempt instead. */
+export function nextAutoFetchAt(
+  snap: StatusSnapshot | null,
+  lastFetchAt: number | null,
+  failures: number,
+  jitterMs: number,
+): number {
+  const floor = lastFetchAt === null ? 0 : lastFetchAt + REFRESH_FLOOR_MS;
+  if (failures > 0 || !snap) {
+    const back = Math.min(REFRESH_FLOOR_MS * 2 ** Math.max(0, failures - 1), MAX_BACKOFF_MS);
+    return (lastFetchAt ?? 0) + back;
+  }
+  return Math.max(snap.next_refresh_at + jitterMs, floor);
 }
 
 /** True when a refetch brought nothing new: the same snapshot, the same share counts and the same

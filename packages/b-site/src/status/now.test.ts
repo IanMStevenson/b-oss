@@ -10,7 +10,7 @@ import {
   lastCheckedText,
   rowStates,
 } from './now';
-import { overallOf } from './logic';
+import { overallOf, timeOf } from './logic';
 
 const NOW = Date.UTC(2026, 9, 22, 14, 57);
 const text = (name: Parameters<typeof makeFixture>[0], failed = false) => {
@@ -146,9 +146,13 @@ describe('last checked', () => {
   it('is the most recent check across both parts, said once', () => {
     const snap = makeFixture('all-good', NOW);
     expect(lastCheckedAt(snap)).toBe(snap.now.site.checked_at);
-    expect(lastCheckedText(snap, NOW)).toBe('Last checked 6 minutes ago');
+    expect(lastCheckedText(snap, NOW)).toBe(
+      `Last checked ${timeOf(snap.now.site.checked_at ?? 0)} (6 minutes ago)`,
+    );
     snap.now.api.checked_at = NOW - 2 * MINUTE;
-    expect(lastCheckedText(snap, NOW)).toBe('Last checked 2 minutes ago');
+    expect(lastCheckedText(snap, NOW)).toBe(
+      `Last checked ${timeOf(NOW - 2 * MINUTE)} (2 minutes ago)`,
+    );
   });
 
   it('says so when nothing has been checked', () => {

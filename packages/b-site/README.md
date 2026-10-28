@@ -102,9 +102,11 @@ src/status/fixtures.ts  fixture snapshots (all-good, api-down, both-down, unknow
   box, and the Share button needs no token). Put them in `packages/b-site/.env`.
 - **Preview a state without a monitor:** `npm run dev -w @b-oss/b-site`, then open
   `/status.html?fixture=api-down` (any name in `fixtures.ts`). Fixtures are honoured in dev builds only.
-- **One request per load, no timers.** The refresh icon button may fetch again once 60 seconds have passed
-  since the last fetch (data can change between probes, because of user reports); `next_refresh_at`
-  is not shown, and the stale rule uses `generated_at`. If the data can't be loaded
+- **One fetch per snapshot while the tab is visible.** A visible tab refetches at `next_refresh_at` plus
+  jitter (never earlier, never inside the 60 s floor), redraws every 30 s from the loaded data, and does
+  nothing while hidden. The refresh icon button may fetch again once 60 seconds have passed
+  since the last fetch (data can change between probes, because of user reports); the stale rule
+  uses `generated_at`. If the data can't be loaded
   the page says so and never shows "working".
 - **User reports are not drawn early:** the page shows only what the Worker has published (within a minute or two of a report); the thank-you dialog says so. The Worker's 201 response still carries updated counts, but the page ignores them. Visible words are plain: Working / Not working / Unknown, Website and API, downtime, incident (see `docs/status-page.md`).
 - **Share POST** goes to `<origin of PUBLIC_STATUS_URL>/v1/shares` as `text/plain` JSON, so the browser

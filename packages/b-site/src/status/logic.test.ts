@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { FIXTURE_NAMES, makeFixture } from './fixtures';
 import { componentLabel, componentName, componentThe } from './logic';
+import type { StatusSnapshot } from './types';
 import {
   HISTORY_CEILING_MIN,
   HOUR,
@@ -16,6 +17,8 @@ import {
   isStale,
   laneBlocks,
   laneTicks,
+  MAX_BACKOFF_MS,
+  nextAutoFetchAt,
   REFRESH_FLOOR_MS,
   nextAllowedFetch,
   snapshotUnchanged,
@@ -367,5 +370,26 @@ describe('outage length', () => {
     expect(outageLength(3, start, true)).toBe('More than 30 min');
     expect(outageLength(4, start, false)).toBe('About 1 h');
     expect(outageLength(10, start, true)).toBe('About 2 h 30 min so far');
+  });
+});
+
+describe('nextAutoFetchAt', () => {
+  const snap = { next_refresh_at: 1_000_000 } as StatusSnapshot;
+  it('waits for next_refresh_at plus jitter, never earlier', () => {
+    expect(nextAutoFetchAt(snap, 900_000, 0, 5000)).toBe(1_005_000);
+    expect(nextAutoFetchAt(snap, null, 0, 0)).toBe(1_000_000);
+  });
+  it('never goes inside the floor after the last fetch', () => {
+    expect(nextAutoFetchAt(snap, 990_000, 0, 0)).toBe(1_050_000);
+    expect(nextAutoFetchAt(snap, 999_999, 0, 0)).toBe(1_059_999);
+  });
+  it('backs off after failures: 60 s, doubling, capped', () => {
+    expect(nextAutoFetchAt(snap, 2_000_000, 1, 0)).toBe(2_060_000);
+    expect(nextAutoFetchAt(snap, 2_000_000, 2, 0)).toBe(2_120_000);
+    expect(nextAutoFetchAt(snap, 2_000_000, 3, 0)).toBe(2_240_000);
+    expect(nextAutoFetchAt(snap, 2_000_000, 20, 0)).toBe(2_000_000 + MAX_BACKOFF_MS);
+  });
+  it('retries from the last attempt when there is no snapshot', () => {
+    expect(nextAutoFetchAt(null, 500, 1, 0)).toBe(60_500);
   });
 });
