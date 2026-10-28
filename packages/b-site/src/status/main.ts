@@ -16,9 +16,9 @@ import {
   nextAllowedFetch,
   nextAutoFetchAt,
   REFETCH_JITTER_MS,
+  sinceLabel,
   snapshotUnchanged,
   TICK_MS,
-  timeOf,
   updatedLabel,
 } from './logic';
 import { bannerKind, lastCheckedText, renderNow, renderUnavailable } from './now';
@@ -142,7 +142,7 @@ function renderAll(): void {
   const since = snap.monitoring_since;
   $('[data-collecting]').textContent =
     since !== null && since > snap.last48h.from
-      ? `Checking started at ${timeOf(since)}${dayOf(since) === dayOf(Date.now()) ? ' today' : ''}; earlier time is blank.`
+      ? `Checking started ${sinceLabel(since, now)}; earlier time is blank.`
       : '';
 }
 

@@ -51,6 +51,14 @@ export function whenLabel(ts: number, now: number): string {
   return `${dayLabel(ts)}, ${timeOf(ts)}`;
 }
 
+/** "today at 15:00", "yesterday at 15:00" or "Sat 10 Oct at 09:15" (UK time), for mid-sentence use. */
+export function sinceLabel(ts: number, now: number): string {
+  const key = ukDateKey(ts);
+  if (key === ukDateKey(now)) return `today at ${timeOf(ts)}`;
+  if (key === ukDateKey(now - DAY)) return `yesterday at ${timeOf(ts)}`;
+  return `${dayLabel(ts)} at ${timeOf(ts)}`;
+}
+
 /** "14:51, Thu 22 Oct" */
 export const updatedLabel = (ts: number): string => `${timeOf(ts)}, ${dayLabel(ts)}`;
 

@@ -27,6 +27,7 @@ import {
   uptimeLabel,
   utcDayLabel,
   visibleUptimeKeys,
+  sinceLabel,
   whenLabel,
   windowDetail,
 } from './logic';
@@ -102,6 +103,12 @@ describe('formatting', () => {
     expect(whenLabel(NOW, NOW)).toBe('Today, 15:57');
     expect(whenLabel(NOW - 24 * HOUR, NOW)).toBe('Yesterday, 15:57');
     expect(whenLabel(Date.UTC(2026, 9, 10, 8, 15), NOW)).toBe('Sat 10 Oct, 09:15');
+  });
+
+  it('says which day checking started on, for the blank-time note', () => {
+    expect(sinceLabel(NOW - HOUR, NOW)).toBe('today at 14:57');
+    expect(sinceLabel(NOW - 24 * HOUR, NOW)).toBe('yesterday at 15:57');
+    expect(sinceLabel(Date.UTC(2026, 9, 10, 8, 15), NOW)).toBe('Sat 10 Oct at 09:15');
   });
 
   it('writes UTC day labels as the day itself', () => {
