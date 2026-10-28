@@ -5,6 +5,18 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [b-mobile 1.0.3] - 2026-10-27
+
+### Added
+
+- b-mobile: a Notification settings row in the account menu, so you no longer have to know to
+  double-tap an account to reach them.
+
+### Fixed
+
+- b-mobile: signing in your first account with Read-write and notifications could leave you on a
+  fresh sign-in screen instead of finishing; the notification step now completes properly.
+
 ## [b-mobile 1.0.2] - 2026-10-26
 
 ### Changed
