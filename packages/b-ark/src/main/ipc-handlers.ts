@@ -152,7 +152,7 @@ export function registerIpcHandlers(
     for (let networkAttempt = 0; ;) {
       let engineStarted = false;
       try {
-        const rawToken = decryptToken(account.access_token);
+        const rawToken = await decryptToken(account.access_token);
         const client = new BlipfotoClient(rawToken);
 
         const engine = new BackupEngine(
@@ -321,7 +321,7 @@ export function registerIpcHandlers(
     if (existing) {
       await saveAccount({
         ...existing,
-        access_token: encryptToken(rawToken),
+        access_token: await encryptToken(rawToken),
         journal_entry_total: profile.details?.entry_total ?? existing.journal_entry_total,
         avatar_url: profile.user.avatar_url,
         journal_title: profile.details?.journal_title ?? existing.journal_title,
@@ -352,7 +352,7 @@ export function registerIpcHandlers(
       username: profile.user.username,
       journal_title: profile.details?.journal_title ?? profile.user.username,
       avatar_url: profile.user.avatar_url,
-      access_token: encryptToken(rawToken),
+      access_token: await encryptToken(rawToken),
       backup_folder: template?.backup_folder ?? '',
       schedule: template?.schedule ?? {
         enabled: true,
@@ -426,7 +426,7 @@ export function registerIpcHandlers(
     const profile = await client.getUserProfile({ returnDetails: true });
     await saveAccount({
       ...account,
-      access_token: encryptToken(rawToken),
+      access_token: await encryptToken(rawToken),
       journal_entry_total: profile.details?.entry_total ?? account.journal_entry_total,
       rag_state: 'amber',
       error_message: null,

@@ -1,8 +1,9 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (C) 2026 Ian Stevenson
 
-import { BrowserWindow, session, shell, safeStorage } from 'electron';
+import { BrowserWindow, session, shell } from 'electron';
 import { randomUUID } from 'node:crypto';
+import { encryptSecret, decryptSecret } from './secret-store.js';
 import {
   buildImplicitGrantUrl,
   parseImplicitGrantCallback,
@@ -190,20 +191,15 @@ export function handleOAuthCallback(uri: string): void {
   }
 }
 
-export function encryptToken(token: string): string {
-  if (!safeStorage.isEncryptionAvailable()) {
-    throw new Error('safeStorage encryption is not available on this platform');
-  }
-  return safeStorage.encryptString(token).toString('base64');
+export async function encryptToken(token: string): Promise<string> {
+  return encryptSecret(token);
 }
 
-export function decryptToken(encrypted: string): string {
-  if (!safeStorage.isEncryptionAvailable()) {
-    throw new Error('safeStorage encryption is not available — cannot decrypt access token');
-  }
+export async function decryptToken(encrypted: string): Promise<string> {
   try {
-    return safeStorage.decryptString(Buffer.from(encrypted, 'base64'));
-  } catch {
+    return await decryptSecret(encrypted);
+  } catch (err) {
+    if (err instanceof Error && err.message.includes('not available')) throw err;
     throw new Error('Failed to decrypt access token — re-authorise this account in setttings');
   }
 }

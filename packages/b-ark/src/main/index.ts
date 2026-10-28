@@ -19,6 +19,7 @@ import {
   getAccounts,
   store,
   loadPortableFromStoredFolder,
+  loadWebSessionStates,
   getPortableSettings,
   ensureAppDefaults,
 } from './store.js';
@@ -167,6 +168,7 @@ void app.whenReady().then(async () => {
   await migrateFromV1IfNeeded();
   ensureAppDefaults();
   await loadPortableFromStoredFolder();
+  await loadWebSessionStates();
 
   mainWindow = createWindow();
 

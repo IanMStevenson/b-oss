@@ -48,7 +48,9 @@ export function isLoginUrl(url: string): boolean {
   } catch {
     return false;
   }
-  return LOGIN_PATH_PREFIXES.some((p) => path === p || path.startsWith(p + '/') || path === p + '/');
+  return LOGIN_PATH_PREFIXES.some(
+    (p) => path === p || path.startsWith(p + '/') || path === p + '/',
+  );
 }
 
 /**
@@ -68,6 +70,22 @@ export function isSignedInFromCookies(cookies: WebCookie[], nowMs: number = Date
       c.value.length > 0 &&
       (c.expirationDate === undefined || c.expirationDate * 1000 > nowMs),
   );
+}
+
+/**
+ * Latest moment (epoch ms) at which the jar still carries a Blipfoto session
+ * cookie: `Infinity` for a browser-session cookie, `null` when there is none.
+ * Lets the signed-in state be re-evaluated against the clock without keeping
+ * the decrypted cookies in memory.
+ */
+export function sessionValidUntilMs(cookies: WebCookie[]): number | null {
+  let latest: number | null = null;
+  for (const c of cookies) {
+    if (!BLIPFOTO_SESSION_COOKIE_NAMES.includes(c.name) || c.value.length === 0) continue;
+    const until = c.expirationDate === undefined ? Infinity : c.expirationDate * 1000;
+    if (latest === null || until > latest) latest = until;
+  }
+  return latest;
 }
 
 /**
@@ -105,8 +123,7 @@ export function deserializeCookies(serialised: string): WebCookie[] {
       path: typeof c['path'] === 'string' ? c['path'] : '/',
       secure: c['secure'] === true,
       httpOnly: c['httpOnly'] === true,
-      expirationDate:
-        typeof c['expirationDate'] === 'number' ? c['expirationDate'] : undefined,
+      expirationDate: typeof c['expirationDate'] === 'number' ? c['expirationDate'] : undefined,
       sameSite:
         c['sameSite'] === 'no_restriction' ||
         c['sameSite'] === 'lax' ||

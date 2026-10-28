@@ -8,6 +8,7 @@ import {
   deserializeCookies,
   isLoginUrl,
   isSignedInFromCookies,
+  sessionValidUntilMs,
   looksLikeLoginPage,
   serializeCookies,
   type WebCookie,
@@ -25,7 +26,8 @@ const sessionCookie = (over: Partial<WebCookie> = {}): WebCookie => ({
 
 const LOGIN_HTML =
   '<form method="post"><input type="email" name="email"><input type="password" name="password"></form>';
-const ENTRY_HTML = '<html><body><script>blipfoto.data.gallery = {"items":[]};</script></body></html>';
+const ENTRY_HTML =
+  '<html><body><script>blipfoto.data.gallery = {"items":[]};</script></body></html>';
 
 describe('isLoginUrl', () => {
   it('is true for the sign-in path and its children', () => {
@@ -90,7 +92,11 @@ describe('classifyScrapeResponse', () => {
   });
   it('expired on 401/403', () => {
     expect(
-      classifyScrapeResponse({ status: 403, finalUrl: 'https://www.blipfoto.com/entry/1', body: '' }),
+      classifyScrapeResponse({
+        status: 403,
+        finalUrl: 'https://www.blipfoto.com/entry/1',
+        body: '',
+      }),
     ).toBe('expired');
   });
   it('expired when a 200 body is actually the sign-in form', () => {
@@ -108,7 +114,15 @@ describe('cookie (de)serialisation', () => {
   it('round-trips a cookie array', () => {
     const cookies: WebCookie[] = [
       sessionCookie({ expirationDate: 1893456000 }),
-      { name: 'pref', value: 'x', domain: '.blipfoto.com', path: '/', secure: true, httpOnly: false, sameSite: 'lax' },
+      {
+        name: 'pref',
+        value: 'x',
+        domain: '.blipfoto.com',
+        path: '/',
+        secure: true,
+        httpOnly: false,
+        sameSite: 'lax',
+      },
     ];
     expect(deserializeCookies(serializeCookies(cookies))).toEqual(cookies);
   });
@@ -124,12 +138,42 @@ describe('cookie (de)serialisation', () => {
 describe('cookieSetUrl', () => {
   it('builds an https URL from a secure leading-dot-domain cookie', () => {
     expect(
-      cookieSetUrl({ name: 'a', value: 'b', domain: '.blipfoto.com', path: '/x', secure: true, httpOnly: false }),
+      cookieSetUrl({
+        name: 'a',
+        value: 'b',
+        domain: '.blipfoto.com',
+        path: '/x',
+        secure: true,
+        httpOnly: false,
+      }),
     ).toBe('https://blipfoto.com/x');
   });
   it('uses http when the cookie is not secure and defaults a blank path', () => {
     expect(
-      cookieSetUrl({ name: 'a', value: 'b', domain: 'blipfoto.com', path: '', secure: false, httpOnly: false }),
+      cookieSetUrl({
+        name: 'a',
+        value: 'b',
+        domain: 'blipfoto.com',
+        path: '',
+        secure: false,
+        httpOnly: false,
+      }),
     ).toBe('http://blipfoto.com/');
+  });
+});
+
+describe('sessionValidUntilMs', () => {
+  it('is null with no session cookie or an empty one', () => {
+    expect(sessionValidUntilMs([])).toBeNull();
+    expect(sessionValidUntilMs([sessionCookie({ name: 'other' })])).toBeNull();
+    expect(sessionValidUntilMs([sessionCookie({ value: '' })])).toBeNull();
+  });
+  it('is Infinity for a browser-session cookie', () => {
+    expect(sessionValidUntilMs([sessionCookie()])).toBe(Infinity);
+  });
+  it('is the expiry in ms for a persistent cookie', () => {
+    expect(sessionValidUntilMs([sessionCookie({ expirationDate: 2_000_000_000 })])).toBe(
+      2_000_000_000_000,
+    );
   });
 });
