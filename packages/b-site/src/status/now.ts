@@ -2,7 +2,7 @@
 // compact rows that carry their own state. The "last checked · Refresh" line is passed in (main.ts).
 
 import { h } from './dom';
-import { agoLabel, effectiveState, overallOf, whenLabel, type Overall } from './logic';
+import { agoLabel, effectiveState, overallOf, timeOf, whenLabel, type Overall } from './logic';
 import type { Component, State, StatusSnapshot } from './types';
 
 /** Row names in the banner (compact): the website, and the API that apps use. */
@@ -113,10 +113,11 @@ export function lastCheckedAt(snap: StatusSnapshot): number | null {
   return times.length === 0 ? null : Math.max(...times);
 }
 
-/** "Last checked 6 minutes ago" (or "Not checked yet"). */
+/** "Last checked 15:00 (6 minutes ago)" (or "Not checked yet"): when the service last checked, not
+ * when this page loaded. */
 export function lastCheckedText(snap: StatusSnapshot, now: number): string {
   const t = lastCheckedAt(snap);
-  return t === null ? 'Not checked yet' : `Last checked ${agoLabel(t, now)}`;
+  return t === null ? 'Not checked yet' : `Last checked ${timeOf(t)} (${agoLabel(t, now)})`;
 }
 
 /** What each row shows. A failed update means we can't vouch for either part. */

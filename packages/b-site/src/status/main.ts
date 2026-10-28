@@ -1,7 +1,10 @@
-// The status page's client script. It makes ONE request for the data on load (the snapshot
-// holds everything the page draws), then nothing: no timers, no auto-refresh. The Refresh button
-// may fetch again once 60 seconds have passed since the last fetch (data can change between probes,
-// because of shared problems). A successful share's response carries the updated share counts, which
+// The status page's client script. It fetches the snapshot on load (it holds everything the page
+// draws). While the tab is visible it then redraws from that snapshot every 30 s (no request, so the
+// "N minutes ago" and the stale rule keep up) and fetches once more at the snapshot's
+// `next_refresh_at` plus a little jitter, retrying with a back-off on failure. A hidden tab does
+// nothing; becoming visible redraws and refetches if that time has passed. Fixture previews never
+// fetch. The Refresh button may fetch again once 60 seconds have passed since the last fetch (data
+// can change between probes, because of shared problems). A successful share's response carries the updated share counts, which
 // replace the loaded ones so the poster sees their share straight away, with no refetch. "Show more"
 // and the pop-ups all use the loaded data.
 
@@ -9,7 +12,15 @@ import { dayOf } from './dayutil';
 import { h, s, setChildren } from './dom';
 import { renderHistory } from './history';
 import { renderLanes } from './lanes';
-import { nextAllowedFetch, snapshotUnchanged, timeOf, updatedLabel } from './logic';
+import {
+  nextAllowedFetch,
+  nextAutoFetchAt,
+  REFETCH_JITTER_MS,
+  snapshotUnchanged,
+  TICK_MS,
+  timeOf,
+  updatedLabel,
+} from './logic';
 import { bannerKind, lastCheckedText, renderNow, renderUnavailable } from './now';
 import { initShare } from './share';
 import { INCIDENT_PAGE, renderIncidents, renderUptime } from './tables';
@@ -46,6 +57,11 @@ let lastFetchAt: number | null = null;
 let shown = INCIDENT_PAGE;
 let note = '';
 let busy = false;
+let failures = 0;
+/** True for a `?fixture=` preview: there is no service to poll. */
+let fixtureMode = false;
+let fetchTimer: ReturnType<typeof setTimeout> | undefined;
+let tickTimer: ReturnType<typeof setInterval> | undefined;
 
 const mobileQuery = window.matchMedia('(max-width: 639px)');
 
@@ -167,8 +183,31 @@ async function load(manual: boolean): Promise<void> {
     failedToLoad = true;
   }
   lastFetchAt = Date.now();
+  failures = failedToLoad ? failures + 1 : 0;
   busy = false;
   renderAll();
+  scheduleFetch();
+}
+
+/** (Re)arm the single automatic fetch; only while the tab is visible and the data is real. */
+function scheduleFetch(): void {
+  clearTimeout(fetchTimer);
+  if (fixtureMode || document.hidden) return;
+  const jitter = Math.random() * REFETCH_JITTER_MS;
+  const at = nextAutoFetchAt(snap, lastFetchAt, failures, jitter);
+  fetchTimer = setTimeout(() => void load(false), Math.max(0, at - Date.now()));
+}
+
+/** Visible: redraw every TICK_MS and keep the fetch armed. Hidden: both timers off. */
+function syncVisibility(): void {
+  clearInterval(tickTimer);
+  clearTimeout(fetchTimer);
+  if (fixtureMode || document.hidden) return;
+  tickTimer = setInterval(() => {
+    if (!busy) renderAll();
+  }, TICK_MS);
+  if (snap || failedToLoad) renderAll();
+  scheduleFetch();
 }
 
 export function start(opts: StatusOptions): void {
@@ -194,6 +233,8 @@ export function start(opts: StatusOptions): void {
   }).observe($('[data-lanes]'));
   mobileQuery.addEventListener('change', renderCharts);
 
+  document.addEventListener('visibilitychange', syncVisibility);
+
   void (async () => {
     if (opts.loadFixtures) {
       // `?fixture=<name>` in `npm run dev` only: preview any state without a monitor.
@@ -201,6 +242,7 @@ export function start(opts: StatusOptions): void {
       const { FIXTURE_NAMES, makeFixture } = await opts.loadFixtures();
       const found = FIXTURE_NAMES.find((n) => n === name);
       if (found) {
+        fixtureMode = true;
         snap = makeFixture(found, Date.now());
         lastFetchAt = Date.now();
         renderAll();
@@ -208,5 +250,6 @@ export function start(opts: StatusOptions): void {
       }
     }
     await load(false);
+    syncVisibility();
   })();
 }

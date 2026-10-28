@@ -44,7 +44,12 @@ them.
 
 ## Behaviour
 
-- **No auto-refresh**, nothing moves under the reader. Refresh may fetch again 60 s after the last
+- **Live while visible, idle while hidden.** A 30 s tick redraws from the loaded snapshot (no
+  requests), so "Last checked 15:00 (4 minutes ago)" and the stale rule keep up. One fetch is
+  scheduled at the snapshot's `next_refresh_at` plus a few seconds' jitter (about 4 requests an hour),
+  never earlier, never inside the 60 s floor; a failure keeps the old snapshot and retries with a
+  doubling back-off (60 s up to 10 min). Hidden tabs do nothing; becoming visible redraws at once and
+  refetches if `next_refresh_at` has passed. Fixtures (`?fixture=`) never poll. Refresh may fetch again 60 s after the last
   fetch; the Worker serves from memory and re-reads its store at most once a minute, and the browser
   may cache the data for up to a minute.
 - **A user report appears within a minute or two, and the page never draws it early.** The page only
