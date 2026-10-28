@@ -13,7 +13,7 @@ import type {
 import { PortableSettingsManager } from './portable-settings.js';
 import { decryptSecret } from './secret-store.js';
 import { effectiveStatus } from './rag-reasons.js';
-import { deserializeCookies, isSignedInFromCookies } from './web-session-pure.js';
+import { deserializeCookies, sessionValidUntilMs, type WebCookie } from './web-session-pure.js';
 
 const DEFAULT_STATUS: AccountStatus = {
   last_backup_at: null,
@@ -184,22 +184,45 @@ export function deleteWebSessionBlob(accountId: string): void {
   const all = { ...webSessions() };
   delete all[accountId];
   store.set('web_sessions', all);
+  webSessionValidUntil.delete(accountId);
+}
+
+// Decrypting the stored website session is async (safeStorage), but the store
+// is composed synchronously, so the signed-in state is derived once — at startup
+// and whenever the session changes — and kept as a validity deadline (epoch ms).
+// Only the deadline is held, never the decrypted cookies.
+const webSessionValidUntil = new Map<string, number | null>();
+
+/** Record the signed-in state for an account from its (plaintext) cookies. */
+export function noteWebSessionCookies(accountId: string, cookies: WebCookie[]): void {
+  webSessionValidUntil.set(accountId, sessionValidUntilMs(cookies));
 }
 
 /**
- * Whether the stored website session for an account decrypts and still carries
- * a live (non-expired) Blipfoto session cookie. Best-effort and side-effect
- * free — any failure (missing blob, keychain unavailable, corrupt data) reads
- * as "not signed in". Called synchronously while composing the store.
+ * Decrypt every stored website session once and cache its signed-in state.
+ * Best-effort — any failure (corrupt data, keychain unavailable) reads as
+ * "not signed in".
+ */
+export async function loadWebSessionStates(): Promise<void> {
+  await Promise.all(
+    Object.entries(webSessions()).map(async ([accountId, blob]) => {
+      try {
+        noteWebSessionCookies(accountId, deserializeCookies(await decryptSecret(blob)));
+      } catch {
+        webSessionValidUntil.delete(accountId);
+      }
+    }),
+  );
+}
+
+/**
+ * Whether the stored website session for an account still carries a live
+ * (non-expired) Blipfoto session cookie. Reads the cache kept by
+ * `loadWebSessionStates` / `noteWebSessionCookies`; side-effect free.
  */
 export function deriveWebSessionSignedIn(accountId: string): boolean {
-  const blob = getWebSessionBlob(accountId);
-  if (!blob) return false;
-  try {
-    return isSignedInFromCookies(deserializeCookies(decryptSecret(blob)));
-  } catch {
-    return false;
-  }
+  const until = webSessionValidUntil.get(accountId);
+  return until != null && until > Date.now();
 }
 
 // ---------------------------------------------------------------------------

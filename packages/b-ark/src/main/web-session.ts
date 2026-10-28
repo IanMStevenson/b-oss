@@ -15,7 +15,13 @@
 
 import { BrowserWindow, session, shell, type Session } from 'electron';
 import { randomUUID } from 'node:crypto';
-import { getWebSessionBlob, setWebSessionBlob, deleteWebSessionBlob } from './store.js';
+import {
+  getWebSessionBlob,
+  setWebSessionBlob,
+  deleteWebSessionBlob,
+  deriveWebSessionSignedIn,
+  noteWebSessionCookies,
+} from './store.js';
 import { encryptSecret, decryptSecret } from './secret-store.js';
 import {
   BLIPFOTO_COOKIE_DOMAIN,
@@ -63,8 +69,9 @@ async function readBlipfotoCookies(sess: Session): Promise<WebCookie[]> {
   return toWebCookies(raw);
 }
 
-function persistCookies(accountId: string, cookies: WebCookie[]): void {
-  setWebSessionBlob(accountId, encryptSecret(serializeCookies(cookies)));
+async function persistCookies(accountId: string, cookies: WebCookie[]): Promise<void> {
+  setWebSessionBlob(accountId, await encryptSecret(serializeCookies(cookies)));
+  noteWebSessionCookies(accountId, cookies);
 }
 
 /**
@@ -80,13 +87,15 @@ export function openWebLoginWindow(
   const already = openLoginWindows.get(accountId);
   if (already && !already.isDestroyed()) {
     already.focus();
-    return Promise.resolve(deriveSignedInSync(accountId));
+    return Promise.resolve(deriveWebSessionSignedIn(accountId));
   }
 
   return new Promise<boolean>((resolve) => {
     // Ephemeral partition — unique name, no `persist:` prefix, so nothing is
     // written to disk. We lift the cookies out ourselves on success.
-    const loginSession = session.fromPartition(`${LOGIN_PARTITION_PREFIX}${accountId}-${randomUUID()}`);
+    const loginSession = session.fromPartition(
+      `${LOGIN_PARTITION_PREFIX}${accountId}-${randomUUID()}`,
+    );
     stripUaIfNeeded(loginSession);
 
     const win = new BrowserWindow({
@@ -120,8 +129,9 @@ export function openWebLoginWindow(
       });
     };
 
+    let saving = false;
     const checkSignedIn = async (): Promise<void> => {
-      if (settled || win.isDestroyed()) return;
+      if (settled || saving || win.isDestroyed()) return;
       let cookies: WebCookie[];
       try {
         cookies = await readBlipfotoCookies(loginSession);
@@ -130,8 +140,15 @@ export function openWebLoginWindow(
       }
       const currentUrl = win.isDestroyed() ? '' : win.webContents.getURL();
       if (isSignedInFromCookies(cookies) && !isLoginUrl(currentUrl)) {
-        persistCookies(accountId, cookies);
-        finish(true);
+        saving = true;
+        try {
+          await persistCookies(accountId, cookies);
+          finish(true);
+        } catch {
+          // Encryption unavailable — leave the window open; the next poll retries.
+        } finally {
+          saving = false;
+        }
       }
     };
 
@@ -151,9 +168,9 @@ export function openWebLoginWindow(
       // One last look — the user may have finished signing in and then just
       // closed the window before the poll caught it.
       readBlipfotoCookies(loginSession)
-        .then((cookies) => {
+        .then(async (cookies) => {
           const signedIn = isSignedInFromCookies(cookies);
-          if (signedIn) persistCookies(accountId, cookies);
+          if (signedIn) await persistCookies(accountId, cookies);
           finish(signedIn);
         })
         .catch(() => finish(false));
@@ -161,16 +178,6 @@ export function openWebLoginWindow(
 
     void win.loadURL(BLIPFOTO_LOGIN_URL);
   });
-}
-
-function deriveSignedInSync(accountId: string): boolean {
-  const blob = getWebSessionBlob(accountId);
-  if (!blob) return false;
-  try {
-    return isSignedInFromCookies(deserializeCookies(decryptSecret(blob)));
-  } catch {
-    return false;
-  }
 }
 
 function cookieSetDetails(c: WebCookie): Electron.CookiesSetDetails {
@@ -202,7 +209,7 @@ export async function loadRunSession(accountId: string): Promise<Session | null>
 
   let cookies: WebCookie[];
   try {
-    cookies = deserializeCookies(decryptSecret(blob));
+    cookies = deserializeCookies(await decryptSecret(blob));
   } catch {
     return null;
   }
@@ -230,7 +237,7 @@ export async function snapshotRunSession(accountId: string, sess: Session): Prom
   try {
     const cookies = await readBlipfotoCookies(sess);
     if (isSignedInFromCookies(cookies)) {
-      persistCookies(accountId, cookies);
+      await persistCookies(accountId, cookies);
     }
   } catch {
     /* best-effort */
