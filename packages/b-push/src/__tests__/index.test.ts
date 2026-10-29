@@ -122,3 +122,40 @@ describe('scheduled handler', () => {
     expect(runActivityPoll).toHaveBeenCalledTimes(2);
   });
 });
+
+describe('plain HTTP is refused (b-oss#596)', () => {
+  it('http GET -> 301 to the same path and query on https', async () => {
+    const res = await worker.default.fetch(
+      new Request('http://example.com/v1/registrations/r1?x=1'),
+      testEnv(),
+    );
+    expect(res.status).toBe(301);
+    expect(res.headers.get('location')).toBe('https://example.com/v1/registrations/r1?x=1');
+    expect(mocks.getRegistrationStatus).not.toHaveBeenCalled();
+  });
+
+  it('http POST (valid-looking registration) -> 403 and nothing is processed', async () => {
+    mocks.createRegistration.mockClear();
+    const res = await worker.default.fetch(
+      new Request('http://example.com/v1/registrations', {
+        method: 'POST',
+        headers: { Authorization: 'Bearer s' },
+        body: JSON.stringify({ blipfotoUserId: 'u' }),
+      }),
+      testEnv(),
+    );
+    expect(res.status).toBe(403);
+    expect(await res.text()).toBe('HTTPS required\n');
+    expect(res.headers.get('location')).toBeNull();
+    expect(mocks.createRegistration).not.toHaveBeenCalled();
+  });
+
+  it('https is unaffected', async () => {
+    mocks.createRegistration.mockResolvedValue({ registrationId: 'r1', registrationSecret: 's1' });
+    const res = await worker.default.fetch(
+      new Request('https://example.com/v1/registrations', { method: 'POST', body: '{}' }),
+      testEnv(),
+    );
+    expect(res.status).toBe(201);
+  });
+});

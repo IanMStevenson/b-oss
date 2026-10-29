@@ -61,6 +61,10 @@ jobs:
           for v in BLIPFOTO_CLIENT_ID NOTIFY_SERVICE_URL NOTIFY_REGISTRATION_SECRET GOOGLE_SERVICES_JSON; do
             if [ -z "${!v}" ]; then echo "::error::Environment value for $v is not set"; exit 1; fi
           done
+          case "$NOTIFY_SERVICE_URL" in
+            https://*) ;;
+            *) echo "::error::VITE_NOTIFY_SERVICE_URL must start with https:// (b-oss#596)"; exit 1 ;;
+          esac
           {
             echo "VITE_BLIPFOTO_CLIENT_ID=$BLIPFOTO_CLIENT_ID"
             echo "VITE_OAUTH_REDIRECT_URI=${OAUTH_REDIRECT_URI:-bmobile://oauth/}"

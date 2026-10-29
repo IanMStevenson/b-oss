@@ -10,7 +10,6 @@
 
 import { platformFetch } from '../platform/http.js';
 
-const SERVICE_URL = import.meta.env.VITE_NOTIFY_SERVICE_URL ?? '';
 const REGISTRATION_SECRET = import.meta.env.VITE_NOTIFY_REGISTRATION_SECRET ?? '';
 
 export class PushServiceError extends Error {
@@ -23,11 +22,28 @@ export class PushServiceError extends Error {
   }
 }
 
+/** The b-push base URL, which must be https:// (b-oss#596): requests carry the shared registration
+ * secret and push tokens, and a Worker on workers.dev also answers plain http://. Android blocks
+ * cleartext by default (a platform default, not our code), so this makes the failure explicit and
+ * immediate on every platform. Read per request so a bad value fails the first call clearly rather
+ * than at import time; an unset value is still allowed (dev), as the requests then fail on their
+ * own. `release-android.yml` also refuses a non-https value at build time. */
+export function notifyServiceUrl(): string {
+  const url = import.meta.env.VITE_NOTIFY_SERVICE_URL ?? '';
+  if (url !== '' && !/^https:\/\//i.test(url)) {
+    throw new PushServiceError(
+      0,
+      'VITE_NOTIFY_SERVICE_URL must start with https:// (refusing to send registration secrets over plain HTTP)',
+    );
+  }
+  return url;
+}
+
 async function request<T>(
   path: string,
   init: { method?: string; body?: unknown; bearer?: string } = {},
 ): Promise<T> {
-  const response = await platformFetch(`${SERVICE_URL}${path}`, {
+  const response = await platformFetch(`${notifyServiceUrl()}${path}`, {
     method: init.method ?? 'GET',
     headers: {
       // `!== undefined`, not truthy — every call site below always passes *some* bearer value,

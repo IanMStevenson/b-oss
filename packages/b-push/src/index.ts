@@ -15,6 +15,7 @@ import {
   HttpError,
 } from './routes/registrations.js';
 import { runActivityPoll } from './poll.js';
+import { refuseInsecure } from './https-guard.js';
 import { describeError } from './log.js';
 
 function json(body: unknown, status = 200): Response {
@@ -29,6 +30,9 @@ function noContent(): Response {
 }
 
 async function handleRequest(request: Request, env: Env): Promise<Response> {
+  const insecure = refuseInsecure(request);
+  if (insecure) return insecure;
+
   const url = new URL(request.url);
   const parts = url.pathname.split('/').filter(Boolean); // ['v1', 'registrations', ...]
 

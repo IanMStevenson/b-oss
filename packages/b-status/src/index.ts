@@ -7,6 +7,7 @@
 
 import { REFUSED_PREFIX, type ProbeConfig } from './checks.js';
 import { recordSample } from './incidents.js';
+import { refuseInsecure } from './https-guard.js';
 import { describeError } from './log.js';
 import { runProbe } from './probe.js';
 import { handleStatus } from './serve.js';
@@ -74,6 +75,9 @@ export default {
     }
   },
   async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
+    const insecure = refuseInsecure(request);
+    if (insecure) return insecure;
+
     const path = new URL(request.url).pathname;
     if (path === '/v1/status') return handleStatus(request, env.DB, Date.now());
     if (path === '/v1/shares') {
@@ -82,7 +86,10 @@ export default {
         now: () => Date.now(),
         waitUntil: (work) => ctx.waitUntil(work),
         triggerCheck: () =>
-          runTriggeredCheck(env.DB, { probe: () => probeOnce(env, TRIGGERED_RETRY_DELAY_MS), now: () => Date.now() }),
+          runTriggeredCheck(env.DB, {
+            probe: () => probeOnce(env, TRIGGERED_RETRY_DELAY_MS),
+            now: () => Date.now(),
+          }),
       });
     }
     return new Response(JSON.stringify({ error: 'Not found' }), {

@@ -5,6 +5,11 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Changed
+
+- b-status and b-push Workers: plain `http://` requests are refused (GET/HEAD redirect to https, anything else gets 403) instead of being served.
+- b-mobile: refuses a non-`https://` push service URL (build-time check in the release workflow, and a clear error on the first request).
+
 ## [b-mobile 1.0.2] - 2026-10-26
 
 ### Changed
