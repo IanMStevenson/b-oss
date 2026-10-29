@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (C) 2026 Ian Stevenson
 
-import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 
 const platformFetch = vi.fn<(...args: unknown[]) => Promise<Response>>();
 vi.mock('../../platform/http.js', () => ({
@@ -14,6 +14,7 @@ const {
   getRegistrationStatus,
   deleteRegistration,
   PushServiceError,
+  notifyServiceUrl,
 } = await import('../pushService.js');
 
 beforeEach(() => {
@@ -145,5 +146,23 @@ describe('deleteRegistration', () => {
     const [url, init] = platformFetch.mock.calls[0] as [string, RequestInit];
     expect(url).toContain('/v1/registrations/r1');
     expect(init.method).toBe('DELETE');
+  });
+});
+
+describe('service URL scheme (b-oss#596)', () => {
+  afterEach(() => vi.unstubAllEnvs());
+
+  it('refuses a non-https VITE_NOTIFY_SERVICE_URL before any request is made', async () => {
+    vi.stubEnv('VITE_NOTIFY_SERVICE_URL', 'http://b-push.example.workers.dev');
+    await expect(deleteRegistration('r1', 's1')).rejects.toThrow(/must start with https:\/\//);
+    await expect(deleteRegistration('r1', 's1')).rejects.toBeInstanceOf(PushServiceError);
+    expect(platformFetch).not.toHaveBeenCalled();
+  });
+
+  it('accepts https:// and an unset value', () => {
+    vi.stubEnv('VITE_NOTIFY_SERVICE_URL', 'https://b-push.example.workers.dev');
+    expect(notifyServiceUrl()).toBe('https://b-push.example.workers.dev');
+    vi.stubEnv('VITE_NOTIFY_SERVICE_URL', '');
+    expect(notifyServiceUrl()).toBe('');
   });
 });
