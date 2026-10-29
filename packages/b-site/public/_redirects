@@ -1,1 +1,4 @@
 / /index.html 200
+# Stable short link baked into the b-mobile, b-ark and b-ark-chrome apps (b-oss#488): it must keep
+# working if the status page is renamed, so change the target here, never the URL.
+/b-status /status.html 302

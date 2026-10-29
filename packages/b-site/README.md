@@ -38,9 +38,10 @@ public/                    copied verbatim: site.css, site.js, assets/
 Cloudflare account as b-push. Two files in `public/` configure it:
 
 - `_headers`: security headers on every response, and a day of caching for `/assets/*`.
-- `_redirects`: one rewrite, `/ /index.html 200`. With `html_handling: "none"` (needed so that
-  `/b-api.html` is served as is rather than redirected to `/b-api`) the bare `/` has no file to
-  serve otherwise.
+- `_redirects`: the rewrite `/ /index.html 200` and the short link `/b-status` -> `/status.html`.
+  With `html_handling: "none"` (needed so that `/b-api.html` is served as is rather than redirected
+  to `/b-api`) the bare `/` has no file to serve otherwise. `https://b-oss.dev/b-status` is linked
+  from the apps ("Blipfoto status (unofficial)"), so keep it working if the status page moves.
 
 Check changes locally on Cloudflare's runtime: `npm run build -w @b-oss/b-site`, then
 `npx wrangler dev` in this folder. Its compatibility date must not be newer than the installed
