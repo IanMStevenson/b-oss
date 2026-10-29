@@ -162,14 +162,6 @@ live API response identifies it. The permission is scoped to the single AWS regi
 Blipfoto's infrastructure operates in; the extension makes no speculative requests and
 only fetches URLs supplied directly by the Blipfoto API.
 
-### Connectivity check (no permission needed)
-
-After a backup fails to reach Blipfoto, the extension makes one `no-cors` `fetch` to
-`https://1.1.1.1/dns-query?name=cloudflare.com&type=A` (4 s timeout) to tell "this device is
-offline" from "Blipfoto isn't answering" (b-oss#488). A `no-cors` request needs neither a host
-permission nor CORS, and the opaque response is discarded: only whether a connection was made
-matters. It sends no user data or credentials, and is not made during a healthy backup.
-
 ---
 
 ## Summary table (for the submission form)
