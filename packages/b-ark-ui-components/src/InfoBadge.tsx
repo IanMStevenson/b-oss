@@ -3,6 +3,7 @@
 
 import { useState, useRef, useEffect } from 'react';
 import { Info, X } from 'lucide-react';
+import { BLIPFOTO_STATUS_URL } from './statusLink.js';
 
 const YEAR = new Date().getFullYear();
 
@@ -92,6 +93,16 @@ export function InfoBadge({
               style={{ color: 'var(--green-700)' }}
             >
               github.com/ianstevenson/b-oss
+            </a>
+          </p>
+          <p style={{ marginTop: 6, fontSize: 12 }}>
+            <a
+              href={BLIPFOTO_STATUS_URL}
+              target="_blank"
+              rel="noreferrer"
+              style={{ color: 'var(--green-700)' }}
+            >
+              Blipfoto status (unofficial)
             </a>
           </p>
         </div>
