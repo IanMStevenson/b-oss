@@ -85,3 +85,61 @@ describe('AmberBanner', () => {
     expect(container.firstChild).toBeNull();
   });
 });
+
+describe('network failure wording and actions', () => {
+  const failed = { code: 'last_run_failed' as const, message: 'fetch failed' };
+
+  it('offers Retry only when the machine itself was offline', () => {
+    const [r] = describeReasons({
+      rag_state: 'amber',
+      error_message: null,
+      rag_reasons: [failed],
+      network_failure: 'offline',
+    });
+    expect(r?.text).toMatch(/offline/);
+    expect(r?.actions).toEqual(['backup_now']);
+  });
+
+  it('adds Check Blipfoto Status when the connection is fine but Blipfoto is not answering', () => {
+    const [r] = describeReasons({
+      rag_state: 'amber',
+      error_message: null,
+      rag_reasons: [failed],
+      network_failure: 'blipfoto',
+    });
+    expect(r?.text).toMatch(/Blipfoto isn't answering/);
+    expect(r?.actions).toEqual(['backup_now', 'status']);
+  });
+
+  it('keeps the raw message and no actions for other failures', () => {
+    const [r] = describeReasons({
+      rag_state: 'amber',
+      error_message: null,
+      rag_reasons: [failed],
+      network_failure: null,
+    });
+    expect(r?.text).toBe('fetch failed');
+    expect(r?.actions).toEqual([]);
+  });
+
+  it('AmberBanner opens the status page itself and forwards Retry', () => {
+    const open = vi.spyOn(window, 'open').mockImplementation(() => null);
+    const onAction = vi.fn();
+    render(
+      <AmberBanner
+        reasons={[{ key: 'network', text: 'x', actions: ['backup_now', 'status'] }]}
+        onAction={onAction}
+      />,
+    );
+    fireEvent.click(screen.getByText('Check Blipfoto Status'));
+    expect(open).toHaveBeenCalledWith(
+      'https://b-oss.dev/b-status',
+      '_blank',
+      'noopener,noreferrer',
+    );
+    expect(onAction).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByText('Retry'));
+    expect(onAction).toHaveBeenCalledWith('backup_now');
+    open.mockRestore();
+  });
+});

@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (C) 2026 Ian Stevenson
 
-import type { AccountConfig, RagReason } from './backend.js';
+import type { AccountConfig, NetworkFailure, RagReason } from './backend.js';
 
 /** What the user can do about a reason, from the amber banner. */
-export type ReasonAction = 'sign_in' | 'retry' | 'dismiss';
+export type ReasonAction = 'sign_in' | 'retry' | 'dismiss' | 'backup_now' | 'status';
 
 export interface DescribedReason {
   key: string;
@@ -18,7 +18,22 @@ function plural(n: number, one: string, many: string): string {
   return `${n} ${n === 1 ? one : many}`;
 }
 
-function describe(reason: RagReason): DescribedReason {
+/** The wording for a run that stopped because Blipfoto could not be reached. */
+function describeNetworkFailure(failure: NetworkFailure): DescribedReason {
+  return failure === 'offline'
+    ? {
+        key: 'network',
+        text: "You seem to be offline, so the last backup couldn't reach Blipfoto.",
+        actions: ['backup_now'],
+      }
+    : {
+        key: 'network',
+        text: "Your connection looks fine, but Blipfoto isn't answering.",
+        actions: ['backup_now', 'status'],
+      };
+}
+
+function describe(reason: RagReason, networkFailure?: NetworkFailure | null): DescribedReason {
   switch (reason.code) {
     case 'incomplete':
       return {
@@ -33,6 +48,7 @@ function describe(reason: RagReason): DescribedReason {
         actions: ['sign_in'],
       };
     case 'last_run_failed':
+      if (networkFailure) return describeNetworkFailure(networkFailure);
       return { key: 'last_run_failed', text: reason.message, actions: [] };
     case 'outstanding': {
       const parts: string[] = [];
@@ -63,14 +79,19 @@ function describe(reason: RagReason): DescribedReason {
  * `error_message`, which is shown as a failed-run reason until the next run replaces it.
  */
 export function describeReasons(
-  account: Pick<AccountConfig, 'rag_state' | 'rag_reasons' | 'error_message'>,
+  account: Pick<AccountConfig, 'rag_state' | 'rag_reasons' | 'error_message' | 'network_failure'>,
 ): DescribedReason[] {
   if (account.rag_state !== 'amber') return [];
   if (account.rag_reasons && account.rag_reasons.length > 0) {
-    return account.rag_reasons.map(describe);
+    return account.rag_reasons.map((r) => describe(r, account.network_failure));
   }
   if (account.error_message) {
-    return [describe({ code: 'last_run_failed', message: account.error_message })];
+    return [
+      describe(
+        { code: 'last_run_failed', message: account.error_message },
+        account.network_failure,
+      ),
+    ];
   }
   return [];
 }

@@ -54,6 +54,7 @@ import { toCsv } from './log-csv.js';
 import { rebuildTrayMenu, refreshTrayIcon } from './tray.js';
 import { showBackupFailedNotification } from './notifications.js';
 import { completedStatus, withOutstanding } from './rag-reasons.js';
+import { diagnoseNetworkFailure } from './connectivity.js';
 
 interface BackupErrorLike {
   payload?: { kind: string };
@@ -221,6 +222,7 @@ export function registerIpcHandlers(
             journal_entry_total: journal?.entry_total ?? updated.journal_entry_total,
             ...completed,
             error_message: null,
+            network_failure: null,
           });
           emitStoreChanged();
         }
@@ -254,6 +256,9 @@ export function registerIpcHandlers(
             referenceDate !== null &&
             (Date.now() - new Date(referenceDate).getTime()) / 86_400_000 >= 7;
           const ragState: 'red' | 'amber' = isAuthExpired || isStale ? 'red' : 'amber';
+          // Retries are used up, so tell "this machine is offline" from "Blipfoto isn't answering".
+          const networkFailure =
+            e?.payload?.kind === 'network' ? await diagnoseNetworkFailure() : null;
           const errorMessage = isAuthExpired
             ? 'Access token expired — reauthorise account'
             : (e?.message ?? 'Backup failed');
@@ -263,6 +268,7 @@ export function registerIpcHandlers(
             ...updated,
             rag_state: ragState,
             error_message: ragState === 'red' ? errorMessage : null,
+            network_failure: networkFailure,
             rag_reasons:
               ragState === 'red'
                 ? []

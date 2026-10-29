@@ -4,3 +4,11 @@
 // The unofficial Blipfoto status page (b-status, hosted on b-site). A short redirect rather than the
 // page's own URL so shipped builds keep working if the page is renamed (b-oss#488).
 export const BLIPFOTO_STATUS_URL = 'https://b-oss.dev/b-status';
+
+/**
+ * Opens the status page in the user's browser. A plain new-window request: b-ark's window-open
+ * handler hands it to the OS browser, and the Chrome extension page opens a tab (no permissions).
+ */
+export function openStatusPage(): void {
+  window.open(BLIPFOTO_STATUS_URL, '_blank', 'noopener,noreferrer');
+}

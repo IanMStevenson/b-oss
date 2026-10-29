@@ -260,6 +260,7 @@ function composeAccountConfig(p: PortableAccount): AccountConfig {
     rag_state: effective.rag_state,
     error_message: status.error_message,
     rag_reasons: effective.rag_reasons,
+    network_failure: status.network_failure ?? null,
     account_added_at: status.account_added_at,
     enable_web_scrape: settings.enable_web_scrape,
     download_hires: settings.download_hires,
@@ -325,6 +326,7 @@ export async function saveAccount(account: AccountConfig): Promise<void> {
     rag_state: account.rag_state,
     error_message: account.error_message,
     rag_reasons: account.rag_reasons,
+    network_failure: account.network_failure ?? null,
     account_added_at: account.account_added_at,
   });
 }

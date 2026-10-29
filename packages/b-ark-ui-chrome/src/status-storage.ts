@@ -14,7 +14,7 @@
 //   GREEN = a run reached `completed` with nothing outstanding.
 
 import type { BackupErrorPayload, OutstandingCounts } from '@b-oss/backup-engine';
-import type { RagReason } from '@b-oss/b-ark-ui-components';
+import type { NetworkFailure, RagReason } from '@b-oss/b-ark-ui-components';
 
 // ── Persisted shapes ────────────────────────────────────────────────────────
 
@@ -34,6 +34,8 @@ export interface ChromeStatus {
   error_message: string | null;
   /** Why the journal is amber; see RagReason. */
   rag_reasons?: RagReason[];
+  /** The last run stopped because Blipfoto couldn't be reached; see NetworkFailure. */
+  network_failure?: NetworkFailure | null;
 }
 
 /** Every chip_* key this module owns — the single list used to clear chip state. */
@@ -78,7 +80,12 @@ function chipKindFor(kind: BackupErrorPayload['kind']): ChipErrorKind {
 
 /** A run started / resumed — the first successful network transaction proves it works. */
 export async function setWorking(): Promise<void> {
-  await patchStatus({ rag_state: 'amber', error_message: null, rag_reasons: [] });
+  await patchStatus({
+    rag_state: 'amber',
+    error_message: null,
+    rag_reasons: [],
+    network_failure: null,
+  });
   await chrome.storage.local.set({
     chip_rag: 'amber',
     chip_incomplete: true,
@@ -121,6 +128,7 @@ export async function setCompleted(
     rag_state: rag,
     error_message: null,
     rag_reasons: outstandingReasons(outstanding),
+    network_failure: null,
   });
   await chrome.storage.local.set({
     chip_rag: rag,
@@ -137,6 +145,7 @@ export async function setCancelledIncomplete(): Promise<void> {
     rag_state: 'amber',
     error_message: null,
     rag_reasons: [{ code: 'incomplete' }],
+    network_failure: null,
   });
   await chrome.storage.local.set({
     chip_rag: 'amber',
@@ -153,8 +162,17 @@ export async function setRateLimited(): Promise<void> {
 }
 
 /** A run aborted with an error — goes red with the correct chip label. */
-export async function setFailed(kind: BackupErrorPayload['kind'], message: string): Promise<void> {
-  await patchStatus({ rag_state: 'red', error_message: message, rag_reasons: [] });
+export async function setFailed(
+  kind: BackupErrorPayload['kind'],
+  message: string,
+  networkFailure: NetworkFailure | null = null,
+): Promise<void> {
+  await patchStatus({
+    rag_state: 'red',
+    error_message: message,
+    rag_reasons: [],
+    network_failure: kind === 'network' ? networkFailure : null,
+  });
   await chrome.storage.local.set({
     chip_rag: 'red',
     chip_error_kind: chipKindFor(kind),
@@ -168,6 +186,7 @@ export async function clearError(): Promise<void> {
     rag_state: 'amber',
     error_message: null,
     rag_reasons: [{ code: 'incomplete' }],
+    network_failure: null,
   });
   await chrome.storage.local.set({
     chip_rag: 'amber',

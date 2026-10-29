@@ -109,3 +109,24 @@ describe('status-storage transitions', () => {
     expect(fake.store.has('chip_avatar_url')).toBe(false);
   });
 });
+
+describe('network_failure', () => {
+  it('is recorded for a network failure and ignored for any other kind', async () => {
+    await setFailed('network', 'Network error', 'blipfoto');
+    expect((await readStatus()).network_failure).toBe('blipfoto');
+    await setFailed('api_error', 'boom', 'blipfoto');
+    expect((await readStatus()).network_failure).toBeNull();
+  });
+
+  it('is cleared when a run starts, is cancelled or completes', async () => {
+    for (const next of [
+      setWorking,
+      setCancelledIncomplete,
+      () => setCompleted('2024-02-03T10:00:00Z', 1),
+    ]) {
+      await setFailed('network', 'Network error', 'offline');
+      await next();
+      expect((await readStatus()).network_failure).toBeNull();
+    }
+  });
+});
