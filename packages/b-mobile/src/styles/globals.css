@@ -378,6 +378,11 @@ ion-segment.settings-pill-segment ion-segment-button::part(native) {
   margin-top: 16px;
 }
 
+.load-failed-status {
+  margin-top: 4px;
+  text-transform: none;
+}
+
 /* The navigation drawer's panel. Same as the page in Light; its own token so a theme can set the
    drawer apart from (or level with) the page. */
 ion-menu {
