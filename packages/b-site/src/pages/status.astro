@@ -1,5 +1,5 @@
 ---
-import { BLIPFOTO_SUPPORT_REQUEST } from '../blipfoto-links';
+import { BLIPFOTO_FACEBOOK_PAGE, BLIPFOTO_FRIENDS_GROUP, BLIPFOTO_SUPPORT_REQUEST } from '../blipfoto-links';
 import Layout from '../layouts/Layout.astro';
 import StatusDisclaimer from '../components/StatusDisclaimer.astro';
 ---
@@ -20,6 +20,11 @@ import StatusDisclaimer from '../components/StatusDisclaimer.astro';
         <p class="st-loading">This page needs JavaScript to show live status.</p>
       </noscript>
     </section>
+
+    <p class="st-more">
+      For more information see the official <a href={BLIPFOTO_FACEBOOK_PAGE} target="_blank" rel="noopener">Blipfoto Facebook page</a>,
+      or <a href={BLIPFOTO_FRIENDS_GROUP} target="_blank" rel="noopener">Blipfoto Friends</a>.
+    </p>
 
     <section class="st-section" aria-labelledby="st-48-title">
       <h2 id="st-48-title">Last 48 hours</h2>
