@@ -97,7 +97,7 @@ New: host permission: \*.s3.eu-west-1.amazonaws.com. Some images use subdomain-s
 
 Unchanged: b-ark needs four host permissions to back up a Blipfoto journal. api.blipfoto.com is the Blipfoto REST API used to list and download journal entries. \*.blipfoto.com covers the on-page status chip and publish-watcher content scripts (which run on Blipfoto pages), plus the OAuth sign-in flow. \*.cloudfront.net is required to download entry images: Blipfoto serves images via multiple CloudFront distributions whose hostnames are assigned by AWS and are only known at runtime from API responses. s3.eu-west-1.amazonaws.com is required for original-resolution images, which Blipfoto serves as short-lived presigned S3 URLs rather than via CloudFront.
 
-All backup requests are made to URLs supplied by Blipfoto. One further request exists: only after a backup fails to reach Blipfoto, the extension sends a single content-free DNS lookup (for cloudflare.com) to Cloudflare's public resolver at https://1.1.1.1, in `no-cors` mode so it needs no host permission, to tell "your device is offline" from "Blipfoto isn't answering". It carries no user data or credentials. Update the Data usage / privacy fields in the dashboard to match when this ships (b-oss#488).
+All requests are made to URLs supplied by Blipfoto; no speculative/unrelated requests are made to any host.
 
 ### Data usage declarations
 
