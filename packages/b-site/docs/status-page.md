@@ -29,14 +29,14 @@ them.
 ## Banner (the top block)
 
 - The headline is the page's only h1. Two compact rows (Website, API / apps), each coloured by its own
-  service (Working green, Not working red, Unknown hatched grey). The **outer banner takes the colour of
+  service (Working green, Not working red, Unknown plain grey). The **outer banner takes the colour of
   the Website row**: the website affects everyone; the API affects far fewer people and the fallback is
   "use the website". So the API alone not working is a **green** banner with a red API row and the
   headline "Blipfoto is working, but apps may not connect". No amber banner.
 - Headlines: "Blipfoto is working", "The website isn't working" ("Apps should still connect."),
   "Blipfoto is working, but apps may not connect", "Blipfoto isn't working" (photos failing take both
   parts down, and the line says so).
-- **One can't-tell state** (hatched grey, "We can't tell if Blipfoto is working", both rows Unknown)
+- **One can't-tell state** (plain grey, "We can't tell if Blipfoto is working", both rows Unknown)
   covers "no recent data from the monitor / snapshot older than two intervals" and "couldn't reach the
   status service" (with the last data kept below, dated); the reason line differs by cause.
 - Footer line: "Last checked N minutes ago", a plain circular-arrow Refresh icon button (no circle, with a

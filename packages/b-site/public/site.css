@@ -954,6 +954,18 @@ section.block:first-of-type {
 p.st-sub {
   display: block;
 }
+.st-elsewhere {
+  margin: 16px 0 0;
+  color: var(--muted-strong);
+  font-size: 14px;
+  text-align: center;
+}
+.st-elsewhere a {
+  text-decoration: underline;
+}
+.st-elsewhere + .st-section {
+  margin-top: 28px;
+}
 .st-lead {
   margin: -8px 0 20px;
   color: var(--muted-strong);
@@ -989,10 +1001,9 @@ p.st-sub {
   background: var(--down-text);
 }
 .st-banner-unknown {
-  background: repeating-linear-gradient(135deg, #eceef1 0 10px, #dfe3e8 10px 20px);
+  background: #e6e9ed;
   color: #161616;
-  border: 2px dashed #55606c;
-  padding: 24px 26px 16px;
+  padding: 26px 28px 18px;
 }
 .st-banner-loading {
   background: #fff;
@@ -1042,7 +1053,7 @@ p.st-sub {
 }
 .st-icon-unknown {
   color: var(--muted-strong);
-  border: 2px dashed var(--control);
+  border: 2px solid var(--control);
 }
 .st-parts {
   list-style: none;
@@ -1073,8 +1084,8 @@ p.st-sub {
   color: #5c0f0f;
 }
 .st-part-unknown {
-  background: repeating-linear-gradient(135deg, #fff 0 6px, #e6e9ed 6px 12px);
-  border: 2px dashed #55606c;
+  background: #f3f4f6;
+  border: 2px solid var(--control);
   color: #161616;
 }
 .st-part-name {
@@ -1104,7 +1115,7 @@ p.st-sub {
 .st-badge-unknown {
   background: #fff;
   color: var(--muted-strong);
-  border: 1.5px dashed var(--control);
+  border: 1.5px solid var(--control);
 }
 .st-banner-foot {
   display: flex;
