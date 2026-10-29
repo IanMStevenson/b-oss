@@ -963,6 +963,9 @@ p.st-sub {
 .st-elsewhere a {
   text-decoration: underline;
 }
+.st-elsewhere + .st-section {
+  margin-top: 28px;
+}
 .st-lead {
   margin: -8px 0 20px;
   color: var(--muted-strong);
@@ -998,7 +1001,7 @@ p.st-sub {
   background: var(--down-text);
 }
 .st-banner-unknown {
-  background: repeating-linear-gradient(135deg, #eceef1 0 10px, #dfe3e8 10px 20px);
+  background: #e6e9ed;
   color: #161616;
   border: 2px dashed #55606c;
   padding: 24px 26px 16px;
@@ -1082,7 +1085,7 @@ p.st-sub {
   color: #5c0f0f;
 }
 .st-part-unknown {
-  background: repeating-linear-gradient(135deg, #fff 0 6px, #e6e9ed 6px 12px);
+  background: #f3f4f6;
   border: 2px dashed #55606c;
   color: #161616;
 }
