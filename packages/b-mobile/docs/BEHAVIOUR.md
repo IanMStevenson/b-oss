@@ -188,7 +188,9 @@ Known Blipfoto API limits: [AppLimitations.md](AppLimitations.md). Paths are rel
 - A feed that fails to load shows `components/LoadFailed` with swipe-down-to-refresh (plus a "Try
   again" button). A transport failure (`usePagedResource.errorIsTransport`) asks
   `platform/connectivity.ts` — a DNS-over-HTTPS query to 1.1.1.1, 4 s timeout — and reads "You seem
-  to be offline" or "Can't reach Blipfoto"; any other failure shows the error's own message. No
+  to be offline" or "Can't reach Blipfoto" (the latter adds "Is Blipfoto down? Check the unofficial
+  status page", opening `https://b-oss.dev/b-status`; Help & about carries an always-there "Blipfoto
+  status (unofficial)" row to the same page); any other failure shows the error's own message. No
   offline mode or banner. Upload failures add detail (HTTP status and body start, 413 "too large",
   network cause).
 - Rate limit: public browsing (Recent, Popular, Milestones, New Blippers, Nearby, tag, entry and

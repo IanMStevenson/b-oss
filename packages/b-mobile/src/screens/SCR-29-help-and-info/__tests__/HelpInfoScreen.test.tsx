@@ -51,6 +51,7 @@ describe('HelpInfoScreen hub — works with no account signed in (SCR-29 is not 
       'About',
       'Icon guide',
       'Safety & privacy',
+      'Blipfoto status (unofficial)',
       'Blipfoto terms & legal',
       'Blipfoto privacy policy',
       'App version',
@@ -73,6 +74,7 @@ describe('HelpInfoScreen hub — works with no account signed in (SCR-29 is not 
     const expected: Record<string, string> = {
       'Blipfoto terms & legal': 'https://www.blipfoto.com/legal/terms',
       'Blipfoto privacy policy': 'https://www.blipfoto.com/legal/privacy',
+      'Blipfoto status (unofficial)': 'https://b-oss.dev/b-status',
       'b-mobile privacy policy': 'https://b-oss.dev/b-mobile-privacy.html',
     };
     for (const [label, url] of Object.entries(expected)) {
@@ -83,7 +85,7 @@ describe('HelpInfoScreen hub — works with no account signed in (SCR-29 is not 
     const helpRow = screen.getAllByText('Help')[1];
     await userEvent.click(helpRow);
     expect(openUrl).toHaveBeenLastCalledWith('https://www.blipfoto.com/help');
-    expect(openUrl).toHaveBeenCalledTimes(4);
+    expect(openUrl).toHaveBeenCalledTimes(5);
   });
 
   it('Icon guide / Safety & privacy / Open source licences navigate in-app, not to the browser', async () => {

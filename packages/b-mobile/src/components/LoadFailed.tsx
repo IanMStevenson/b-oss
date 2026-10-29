@@ -6,13 +6,16 @@
 // failure (an HTTP or API error — we did reach Blipfoto) shows the error's own message. All three
 // say that swiping down checks again, and the pane carries its own refresher for that since the
 // EntryGrid one isn't mounted while the load is in error. A "Try again" button stays for anyone who
-// can't swipe.
+// can't swipe. When Blipfoto itself isn't answering it also links to the unofficial status page
+// (b-oss#488).
 
 import { useEffect, useState } from 'react';
 import { IonButton, IonRefresher, IonRefresherContent, IonSpinner } from '@ionic/react';
 import type { RefresherEventDetail } from '@ionic/core';
 import { CloudOff, WifiOff } from 'lucide-react';
 import { isOnline } from '../platform/connectivity.js';
+import { openUrl } from '../platform/browser.js';
+import { BLIPFOTO_STATUS_URL } from '../statusLink.js';
 
 interface LoadFailedProps {
   /** The failure was at the transport level (no response at all), so connectivity is worth asking. */
@@ -78,6 +81,16 @@ export function LoadFailed({ transport, message, onRefresh }: LoadFailedProps) {
         <IonButton fill="outline" size="small" onClick={onRefresh} className="load-failed-retry">
           Try again
         </IonButton>
+        {diagnosis === 'blipfoto' && (
+          <IonButton
+            fill="clear"
+            size="small"
+            onClick={() => void openUrl(BLIPFOTO_STATUS_URL)}
+            className="load-failed-status"
+          >
+            Is Blipfoto down? Check the unofficial status page
+          </IonButton>
+        )}
       </div>
     </>
   );

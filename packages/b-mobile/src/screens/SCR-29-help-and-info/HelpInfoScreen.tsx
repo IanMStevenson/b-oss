@@ -34,6 +34,7 @@ import { AppHeader } from '../../components/AppHeader.js';
 import { CachedImage } from '../../components/CachedImage.js';
 import { useAppNavigate } from '../../app/routes/useAppNavigate.js';
 import { openUrl } from '../../platform/browser.js';
+import { BLIPFOTO_STATUS_URL } from '../../statusLink.js';
 
 const HELP_URL = 'https://www.blipfoto.com/help';
 const TERMS_URL = 'https://www.blipfoto.com/legal/terms';
@@ -376,6 +377,11 @@ function HelpInfoHub() {
         <IonList>
           <SectionHeader>Help</SectionHeader>
           <NavRow label="Help" kind="external" onClick={() => void openUrl(HELP_URL)} />
+          <NavRow
+            label="Blipfoto status (unofficial)"
+            kind="external"
+            onClick={() => void openUrl(BLIPFOTO_STATUS_URL)}
+          />
           <NavRow
             label="Icon guide"
             kind="push"
