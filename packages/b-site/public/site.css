@@ -954,13 +954,13 @@ section.block:first-of-type {
 p.st-sub {
   display: block;
 }
-.st-more {
+.st-elsewhere {
   margin: 16px 0 0;
   color: var(--muted-strong);
   font-size: 14px;
   text-align: center;
 }
-.st-more a {
+.st-elsewhere a {
   text-decoration: underline;
 }
 .st-lead {
