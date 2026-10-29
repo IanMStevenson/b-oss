@@ -60,6 +60,12 @@ export type RagReason =
   /** The last run stopped with an error that is expected to clear on its own. */
   | { code: 'last_run_failed'; message: string };
 
+/**
+ * Why the last run stopped when Blipfoto could not be reached at all: the machine itself was
+ * offline, or it was online but Blipfoto did not answer. Absent/null for any other outcome.
+ */
+export type NetworkFailure = 'offline' | 'blipfoto';
+
 export interface AccountStatus {
   last_backup_at: string | null;
   last_entry_date: string | null;
@@ -69,6 +75,8 @@ export interface AccountStatus {
   error_message: string | null;
   /** Why the journal is amber; absent on status written before reasons existed. */
   rag_reasons?: RagReason[];
+  /** Set when the last run stopped because the network call failed; cleared by the next run. */
+  network_failure?: NetworkFailure | null;
   account_added_at: string | null;
 }
 
@@ -113,6 +121,8 @@ export interface AccountConfig {
   error_message: string | null;
   /** Why the journal is amber; see `RagReason`. */
   rag_reasons?: RagReason[];
+  /** See `NetworkFailure`; drives the Retry / Check Blipfoto Status buttons on the banners. */
+  network_failure?: NetworkFailure | null;
   account_added_at: string | null;
   /**
    * Optional override for the "next backup" caption. When set (e.g. the Chrome

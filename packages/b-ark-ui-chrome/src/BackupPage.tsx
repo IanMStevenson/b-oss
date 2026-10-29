@@ -830,6 +830,10 @@ function BackupPageRoot() {
             errorMessage={account.error_message}
             highlighted={false}
             actionLabel={chipErrorKind === 'permission' ? 'Open Settings' : 'Reauthorise'}
+            networkFailure={account.network_failure}
+            onRetry={() => {
+              void backend.startBackup(account.id);
+            }}
             onReauthorise={
               chipErrorKind === 'permission'
                 ? () => dispatch({ type: 'panel:open', panel: 'settings' })
@@ -847,6 +851,7 @@ function BackupPageRoot() {
           reasons={describeReasons(account)}
           onAction={(action) => {
             if (action === 'retry') void backend.retryOutstanding(account.id);
+            else if (action === 'backup_now') void backend.startBackup(account.id);
             else if (action === 'dismiss') void backend.dismissOutstanding(account.id);
           }}
         />

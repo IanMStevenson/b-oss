@@ -41,6 +41,7 @@ import {
   setAvatar,
   clearAll as clearStatus,
 } from './status-storage.js';
+import { diagnoseNetworkFailure } from './connectivity.js';
 import {
   readLifecycle,
   clearLifecycle,
@@ -436,7 +437,9 @@ export class BrowserBackend implements BackendContext {
 
       if (event.type === 'failed') {
         void (async () => {
-          await setFailed(event.error.kind, describeBackupError(event));
+          const networkFailure =
+            event.error.kind === 'network' ? await diagnoseNetworkFailure() : null;
+          await setFailed(event.error.kind, describeBackupError(event), networkFailure);
           this._notifySwOnFailure();
           await this._reloadAndEmitStore();
         })();

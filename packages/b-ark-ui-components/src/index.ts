@@ -13,6 +13,7 @@ export type {
   UserDataStore,
   AccountConfig,
   RagReason,
+  NetworkFailure,
   AppStore,
   LogEntry,
   BackupErrorPayload,
@@ -38,7 +39,7 @@ export { BackupButton } from './BackupButton.js';
 export type { BackupButtonProps } from './BackupButton.js';
 export { Avatar } from './Avatar.js';
 export { StatusBar } from './StatusBar.js';
-export { BLIPFOTO_STATUS_URL } from './statusLink.js';
+export { BLIPFOTO_STATUS_URL, openStatusPage } from './statusLink.js';
 export { AuthErrorBanner } from './AuthErrorBanner.js';
 export { AmberBanner } from './AmberBanner.js';
 export { describeReasons } from './ragReasons.js';

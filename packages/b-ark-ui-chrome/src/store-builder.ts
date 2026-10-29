@@ -134,6 +134,7 @@ export function buildAppStore({
           rag_state: status.rag_state ?? 'green',
           error_message: status.error_message ?? null,
           rag_reasons: status.rag_reasons,
+          network_failure: status.network_failure ?? null,
           account_added_at: settings.account_added_at ?? null,
         },
       ]

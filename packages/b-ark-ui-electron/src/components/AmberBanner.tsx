@@ -19,7 +19,8 @@ export function AmberBanner({ account }: Props) {
   function onAction(action: ReasonAction): void {
     if (action === 'sign_in') dispatch({ type: 'panel:open', panel: 'settings' });
     else if (action === 'retry') void backend.retryOutstanding(account.id);
-    else void backend.dismissOutstanding(account.id);
+    else if (action === 'backup_now') void backend.startBackup(account.id);
+    else if (action === 'dismiss') void backend.dismissOutstanding(account.id);
   }
 
   return <AmberBannerView reasons={reasons} onAction={onAction} />;

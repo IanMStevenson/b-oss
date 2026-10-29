@@ -3,6 +3,7 @@
 
 import { AlertTriangle } from 'lucide-react';
 import type { DescribedReason, ReasonAction } from './ragReasons.js';
+import { openStatusPage } from './statusLink.js';
 
 interface Props {
   reasons: DescribedReason[];
@@ -13,6 +14,8 @@ const ACTION_LABEL: Record<ReasonAction, string> = {
   sign_in: 'Sign in',
   retry: 'Retry',
   dismiss: 'Dismiss',
+  backup_now: 'Retry',
+  status: 'Check Blipfoto Status',
 };
 
 /**
@@ -49,7 +52,7 @@ export function AmberBanner({ reasons, onAction }: Props) {
             {r.actions.map((a) => (
               <button
                 key={a}
-                onClick={() => onAction(a)}
+                onClick={() => (a === 'status' ? openStatusPage() : onAction(a))}
                 style={{
                   flexShrink: 0,
                   height: 26,

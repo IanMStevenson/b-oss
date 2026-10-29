@@ -28,6 +28,8 @@ export const AuthErrorBanner = forwardRef<HTMLDivElement, Props>(function AuthEr
       ref={ref}
       errorMessage={account.error_message}
       highlighted={highlighted}
+      networkFailure={account.network_failure}
+      onRetry={() => void backend.startBackup(account.id)}
       onReauthorise={() =>
         void addAccountWithToast(() => backend.reauthoriseAccount(account.id), showToast)
       }
