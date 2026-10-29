@@ -1003,8 +1003,7 @@ p.st-sub {
 .st-banner-unknown {
   background: #e6e9ed;
   color: #161616;
-  border: 2px dashed #55606c;
-  padding: 24px 26px 16px;
+  padding: 26px 28px 18px;
 }
 .st-banner-loading {
   background: #fff;
@@ -1054,7 +1053,7 @@ p.st-sub {
 }
 .st-icon-unknown {
   color: var(--muted-strong);
-  border: 2px dashed var(--control);
+  border: 2px solid var(--control);
 }
 .st-parts {
   list-style: none;
@@ -1086,7 +1085,7 @@ p.st-sub {
 }
 .st-part-unknown {
   background: #f3f4f6;
-  border: 2px dashed #55606c;
+  border: 2px solid var(--control);
   color: #161616;
 }
 .st-part-name {
@@ -1116,7 +1115,7 @@ p.st-sub {
 .st-badge-unknown {
   background: #fff;
   color: var(--muted-strong);
-  border: 1.5px dashed var(--control);
+  border: 1.5px solid var(--control);
 }
 .st-banner-foot {
   display: flex;
