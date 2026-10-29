@@ -18,7 +18,7 @@ import Hero from '../components/Hero.astro';
     data-screen-label="Privacy body"
   >
     <div class="prose">
-      <p><strong>Last updated:</strong> October 2026</p>
+      <p><strong>Last updated:</strong> June 2026</p>
 
       <h2>Who is responsible for this extension</h2>
       <p>
@@ -51,15 +51,6 @@ import Hero from '../components/Hero.astro';
         retrieve your content. It does not send your data, your blipfoto credentials,
         your journal content, or any usage information to the developer or any third
         party. No analytics, crash reporting, or telemetry of any kind is collected.
-      </p>
-      <p>
-        One exception, only after a backup has failed to reach blipfoto: the extension
-        checks whether your device is online at all, so it can say "you seem to be
-        offline" rather than "blipfoto isn't answering". It does this by sending one
-        standard DNS lookup request (for <code>cloudflare.com</code>) to Cloudflare's
-        public resolver at <code>1.1.1.1</code>. The request contains none of your
-        data or credentials, but Cloudflare can see your IP address, under
-        <a href="https://www.cloudflare.com/privacypolicy/">its privacy policy</a>.
       </p>
 
       <h2>What is stored and where</h2>
