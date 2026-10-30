@@ -57,6 +57,11 @@ export class NotifyShell {
     });
   }
 
+  /** The OS is ending the session (logoff, shutdown, restart): let windows close for real. */
+  markQuitting(): void {
+    this.quitting = true;
+  }
+
   /** The poller's `show`: tell the page (so it refreshes its counts) and show the OS notification.
    * Always shown, whether or not the window has focus. */
   show = async (item: ToShow): Promise<void> => {
