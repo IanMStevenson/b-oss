@@ -25,10 +25,12 @@ import './styles/globals.css';
 
 import { AppShell } from './app/AppShell.js';
 import { AppErrorBoundary } from './components/AppErrorBoundary.js';
+import { installGlobalErrorLogging } from './platform/diagnostics.js';
 import { initTheme } from './theme/theme.js';
 
 setupIonicReact();
 initTheme(); // also sets the system-bar styles
+installGlobalErrorLogging(); // desktop shell only; a no-op elsewhere
 
 createRoot(document.getElementById('root')!).render(
   <AppErrorBoundary>
