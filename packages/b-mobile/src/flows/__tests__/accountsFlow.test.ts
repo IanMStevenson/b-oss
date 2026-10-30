@@ -78,7 +78,11 @@ vi.mock('../pushFlow.js', () => ({
 
 // Off-native by default (a desktop/CI run); the b-oss#240 browser-default tests flip it.
 let isNative = false;
-vi.mock('../../platform/appState.js', () => ({ isNativePlatform: () => isNative }));
+let kindOverride: 'desktop' | null = null;
+vi.mock('../../platform/platformKind.js', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../../platform/platformKind.js')>()),
+  platformKind: () => kindOverride ?? (isNative ? 'android' : 'web'),
+}));
 
 const { useAccountsStore } = await import('../../state/accountsStore.js');
 const { getToken } = await import('../../platform/secureStorage.js');
@@ -101,6 +105,7 @@ function resetStore() {
   tokenStore.clear();
   revokedTokens.length = 0;
   isNative = false;
+  kindOverride = null;
   useAccountsStore.setState({ accounts: [], activeAccountId: null, hydrated: true });
   vi.clearAllMocks();
 }
@@ -909,6 +914,13 @@ describe('token-change browser default (b-oss#240)', () => {
     useAccountsStore.setState({ accounts: [rw('alice')], activeAccountId: 'alice' });
     await changeAccountMode('alice', { scope: 'read,write', notifications: true });
     expect(runOAuthRound).toHaveBeenCalledWith('read', { useEmbedded: false });
+  });
+
+  it('desktop: always the in-app window, even with exactly one account (there is no system-browser round trip)', async () => {
+    kindOverride = 'desktop';
+    useAccountsStore.setState({ accounts: [rw('alice')], activeAccountId: 'alice' });
+    await changeAccountMode('alice', { scope: 'read,write', notifications: true });
+    expect(runOAuthRound).toHaveBeenCalledWith('read', { useEmbedded: true });
   });
 
   it('a single account that signed in through the in-app browser stays there (b-oss#375)', async () => {

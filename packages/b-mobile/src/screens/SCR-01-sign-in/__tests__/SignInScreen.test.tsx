@@ -95,7 +95,10 @@ vi.mock('../../../platform/browser.js', () => ({ openUrl: (url: string) => openU
 // file exercises the same "toggle hidden" shape it always has — only the tests that explicitly
 // flip this to true are testing the native-only toggle.
 let isNative = false;
-vi.mock('../../../platform/appState.js', () => ({ isNativePlatform: () => isNative }));
+vi.mock('../../../platform/platformKind.js', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../../../platform/platformKind.js')>()),
+  platformKind: () => (isNative ? 'android' : 'web'),
+}));
 
 // Defaults true: a Firebase-configured build, so the notifications toggle is usable.
 let pushAvailable = true;

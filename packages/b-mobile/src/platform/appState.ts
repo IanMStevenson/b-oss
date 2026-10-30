@@ -13,10 +13,6 @@
 import { App } from '@capacitor/app';
 import { isCapacitorNative } from './platformKind.js';
 
-export function isNativePlatform(): boolean {
-  return isCapacitorNative();
-}
-
 /** Fires on every foreground/background transition — `isActive` is `true` on resume, `false` on
  * backgrounding. Never fires for the initial launch state (only for later transitions), so a
  * caller that already runs its own launch-time check doesn't need to guard against a duplicate

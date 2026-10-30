@@ -27,7 +27,10 @@ vi.mock('@b-oss/b-api', async (importOriginal) => {
 // Native path (no `window` needed) — the test never makes a real request, so the actual base URL
 // doesn't matter; this just avoids resolveBaseUrl's browser-dev-proxy branch, which needs
 // `window` and this plain (non-jsdom) test environment doesn't have one.
-vi.mock('../../platform/appState.js', () => ({ isNativePlatform: () => true }));
+vi.mock('../../platform/platformKind.js', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../../platform/platformKind.js')>()),
+  platformKind: () => 'android',
+}));
 const platformFetch = vi.fn<(...args: unknown[]) => Promise<Response>>();
 vi.mock('../../platform/http.js', () => ({
   platformFetch: (...args: unknown[]) => platformFetch(...args),

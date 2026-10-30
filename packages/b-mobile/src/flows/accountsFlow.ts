@@ -34,7 +34,7 @@ import { refreshAccountAvatar } from './avatarFlow.js';
 import { runOAuthRound, OAuthCancelledError } from './oauthRound.js';
 import type { OAuthResult } from './oauthRound.js';
 import { AccountMismatchError, sameUsername } from './accountMismatch.js';
-import { isNativePlatform } from '../platform/appState.js';
+import { capabilities } from '../platform/capabilities.js';
 import { cancelReminderForAccount } from './reminderFlow.js';
 import {
   ensurePushPermission,
@@ -76,7 +76,10 @@ async function storeAppToken(result: OAuthResult): Promise<StoredAccount> {
  * one of them, so the clean in-app browser is forced; with a single account the system browser is
  * fine (and saves typing a password). The owner check in runRoundForAccount() applies either way. */
 export function tokenChangeUsesEmbedded(account?: StoredAccount): boolean {
-  if (!isNativePlatform()) return false;
+  const { auth } = capabilities();
+  if (!auth.embeddedAvailable) return false;
+  // Where the system browser is not an option (desktop), embedded is the only way.
+  if (!auth.userCanChooseBrowser) return true;
   // b-oss#375: an account that signed in through the in-app browser stays there.
   if (account?.usesInAppBrowser) return true;
   return useAccountsStore.getState().accounts.length > 1;

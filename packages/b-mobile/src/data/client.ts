@@ -9,7 +9,7 @@
 // so nothing above this module knows about Capacitor.
 
 import { BlipfotoClient, BlipfotoError } from '@b-oss/b-api';
-import { isNativePlatform } from '../platform/appState.js';
+import { capabilities } from '../platform/capabilities.js';
 import { platformFetch } from '../platform/http.js';
 import { getMultipartImpl } from '../platform/upload.js';
 import { getToken } from '../platform/secureStorage.js';
@@ -17,11 +17,12 @@ import type { TokenPurpose } from '../platform/secureStorage.js';
 import { useAccountsStore } from '../state/accountsStore.js';
 import { authReady } from '../state/authReady.js';
 
-// Blipfoto serves no CORS headers, so a browser fetch() is blocked outside the dev proxy
-// vite.config.ts sets up. On device, platform/http.ts's CapacitorHttp path has no such
-// restriction, so it always talks to the real host.
+// Blipfoto serves no CORS headers, so a browser fetch() is blocked outside a same-origin proxy:
+// the dev proxy vite.config.ts sets up, or the desktop shell's (packages/b-mobile-pc). On device,
+// platform/http.ts's CapacitorHttp path has no such restriction, so it talks to the real host.
+// capabilities().api.access says which applies.
 function resolveBaseUrl(): string {
-  if (isNativePlatform() || !import.meta.env.DEV) {
+  if (capabilities().api.access === 'direct') {
     return 'https://api.blipfoto.com/4/';
   }
   // Must be absolute — b-api's buildUrl() does `new URL(path, baseUrl)`, and the WHATWG URL

@@ -6,10 +6,12 @@
 // an app-owned WebView with cookies cleared up front, rather than the system browser's Custom
 // Tabs (platform/browser.ts), so it forces a fresh Blipfoto login even when another account is
 // already signed in on the system browser — flows/oauthRound.ts's `useEmbedded` option. Android
-// only for now (no ios/ project in this app yet); calling this off-native or on a platform with
-// no registered implementation rejects rather than silently hanging.
+// and the desktop shell (platform/desktop.ts: a throwaway window with its own session, behind the
+// shell's bridge); no ios/ project yet. Calling this on a platform with no implementation rejects
+// rather than silently hanging.
 
 import { registerPlugin } from '@capacitor/core';
+import { desktopBridge } from './desktop.js';
 import { isCapacitorNative } from './platformKind.js';
 
 interface EmbeddedAuthPlugin {
@@ -38,8 +40,10 @@ export class EmbeddedAuthUnavailableError extends Error {
  * EmbeddedAuthCancelledError if the user backs out without completing, or
  * EmbeddedAuthUnavailableError off-native. */
 export async function openEmbeddedAuth(url: string, redirectPrefix: string): Promise<string> {
-  if (!isCapacitorNative()) throw new EmbeddedAuthUnavailableError();
+  const desktop = desktopBridge();
+  if (!desktop && !isCapacitorNative()) throw new EmbeddedAuthUnavailableError();
   try {
+    if (desktop) return await desktop.openAuth(url, redirectPrefix);
     const result = await EmbeddedAuth.open({ url, redirectPrefix });
     return result.redirectUrl;
   } catch (err) {

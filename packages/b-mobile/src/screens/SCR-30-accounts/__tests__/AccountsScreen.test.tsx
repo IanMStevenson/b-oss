@@ -96,7 +96,10 @@ const openUrl = vi.hoisted(() => vi.fn<(url: string) => Promise<void>>());
 vi.mock('../../../platform/browser.js', () => ({ openUrl }));
 
 let isNative = false;
-vi.mock('../../../platform/appState.js', () => ({ isNativePlatform: () => isNative }));
+vi.mock('../../../platform/platformKind.js', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../../../platform/platformKind.js')>()),
+  platformKind: () => (isNative ? 'android' : 'web'),
+}));
 
 const {
   MockNeedsReauthError,
