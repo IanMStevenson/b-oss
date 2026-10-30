@@ -25,7 +25,7 @@ vi.mock('../../../flows/composeFlow.js', () => ({ enqueueDraft }));
 
 // react-easy-crop is rendering-heavy (canvas/pointer gesture handling) and irrelevant to this
 // screen's own logic under test — mocked wholesale, same "mock at the boundary" principle
-// MapScreen's tests apply to maplibre-gl.
+// MapScreen's tests apply to leaflet.
 vi.mock('../../../components/PhotoCropper.js', () => ({
   PhotoCropper: () => <div data-testid="photo-cropper" />,
 }));
@@ -166,13 +166,13 @@ describe('ComposeEntryScreen', () => {
       latestEntry: null,
     });
     renderScreen();
-    expect(await screen.findByText('Crop')).toBeDefined();
+    expect(await screen.findByText('Select thumbnail')).toBeDefined();
   });
 
   it('does not offer the crop button to non-members', async () => {
     renderScreen();
     await waitFor(() => expect(fetchUserProfile).toHaveBeenCalled());
-    expect(screen.queryByText('Crop')).toBeNull();
+    expect(screen.queryByText('Select thumbnail')).toBeNull();
   });
 
   it('navigating to add a location without one first pushes to the location picker', () => {

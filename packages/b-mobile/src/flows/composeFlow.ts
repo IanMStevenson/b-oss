@@ -57,7 +57,12 @@ export async function enqueueDraft(draft: ComposeDraft): Promise<string> {
           gmt_offset: gmtOffsetMinutes(),
         }
       : // SCR-13 has no date field — the draft's `date` is carried only for display, never sent.
-        commonFields;
+        // A thumbnail selection only means something alongside a replacement photo.
+        {
+          ...commonFields,
+          thumbnail_crop:
+            photo && draft.thumbnailCrop ? thumbnailCropToField(draft.thumbnailCrop) : undefined,
+        };
 
   const item: UploadQueueItem = {
     id,

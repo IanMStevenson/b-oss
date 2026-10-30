@@ -25,6 +25,11 @@ vi.mock('../../../data/entryLocation.js', async (importOriginal) => ({
   revealStoredPosition,
 }));
 
+const { fetchUserProfile } = vi.hoisted(() => ({
+  fetchUserProfile: vi.fn(),
+}));
+vi.mock('../../../data/users.js', () => ({ fetchUserProfile }));
+
 const { enqueueDraft } = vi.hoisted(() => ({ enqueueDraft: vi.fn() }));
 vi.mock('../../../flows/composeFlow.js', () => ({ enqueueDraft }));
 
@@ -36,6 +41,7 @@ vi.mock('../../../app/routes/useAppNavigate.js', () => ({
 }));
 
 beforeEach(() => {
+  fetchUserProfile.mockResolvedValue({ details: { member: 1 } });
   useAccountsStore.setState({
     accounts: [
       {
@@ -141,7 +147,7 @@ describe('EditEntryScreen', () => {
         },
       });
     });
-    expect(await screen.findByAltText('New photo')).toBeDefined();
+    expect(await screen.findByAltText('Thumbnail')).toBeDefined();
     // Details form is still there.
     expect(screen.getByDisplayValue('Sunrise')).toBeDefined();
   });

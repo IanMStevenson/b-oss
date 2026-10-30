@@ -13,7 +13,7 @@ import { useComposeDraftStore } from '../../../state/composeDraftStore.js';
 
 // Full replacement, not a partial importOriginal spread — platform/camera.ts imports
 // @capacitor/camera at module scope, which this avoids ever loading in jsdom (same "mock at the
-// boundary" convention every other platform/** consumer test uses, e.g. MapScreen's maplibre-gl
+// boundary" convention every other platform/** consumer test uses, e.g. MapScreen's map library
 // mock and every screen's platform/prefs.js mock below).
 const { takePhoto, pickPhoto, CameraPermissionDeniedError } = vi.hoisted(() => {
   class CameraPermissionDeniedError extends Error {

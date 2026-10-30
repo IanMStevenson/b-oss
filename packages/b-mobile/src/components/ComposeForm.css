@@ -112,7 +112,7 @@
   background: var(--bg-alt);
 }
 
-.compose-photo-frame img {
+.compose-photo-frame > img {
   display: block;
   width: 100%;
   max-height: 240px;
@@ -134,10 +134,31 @@
   background: var(--bg-alt);
 }
 
-.compose-crop-button {
+.compose-thumb-frame {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  margin: 16px 16px 0;
+}
+
+.compose-thumb-frame .compose-photo-frame {
+  align-self: stretch;
+  margin: 0;
+}
+
+.compose-thumb-preview {
+  position: relative;
+  overflow: hidden;
+  border-radius: 10px;
+  background: var(--bg-alt);
+}
+
+/* Positioned by ThumbnailPhotoFrame so the selected square fills the preview. */
+.compose-thumb-preview img {
   position: absolute;
-  bottom: 8px;
-  right: 8px;
+  max-width: none;
+  height: auto;
 }
 
 /* Compact date field: a single row that expands to a small calendar. */
@@ -373,12 +394,6 @@ ion-progress-bar.upload-progress {
   position: relative;
   flex: 1;
   min-height: 0;
-}
-
-/* Doubled class: maplibre-gl.css sets `.maplibregl-map {position: relative}` on this element. */
-.location-map-canvas.location-map-canvas {
-  position: absolute;
-  inset: 0;
 }
 
 .location-footer {

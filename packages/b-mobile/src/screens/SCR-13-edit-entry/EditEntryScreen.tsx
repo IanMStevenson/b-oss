@@ -35,6 +35,10 @@ import { useActiveAccount } from '../../state/accountsStore.js';
 import { fetchEntry, deleteEntry } from '../../data/entries.js';
 import { enqueueDraft } from '../../flows/composeFlow.js';
 import { revealStoredPosition, StillVisibleError } from '../../data/entryLocation.js';
+import { ThumbnailPhotoFrame } from '../../components/ThumbnailPhotoFrame.js';
+import { cropToProportions } from '../../data/imageCrop.js';
+import { fetchUserProfile } from '../../data/users.js';
+import type { Area } from 'react-easy-crop';
 import { describeError, mapApiError } from '../../data/errors.js';
 
 interface EditEntryScreenProps {
@@ -49,6 +53,7 @@ export function EditEntryScreen({ entryId }: EditEntryScreenProps) {
   const patchDraft = useComposeDraftStore((s) => s.patchDraft);
   const clearDraft = useComposeDraftStore((s) => s.clearDraft);
 
+  const [isMember, setIsMember] = useState(false);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
   // The entry's current photo (its thumbnail, like the site's edit page), shown until a replacement is picked. Only known when this screen
@@ -76,6 +81,13 @@ export function EditEntryScreen({ entryId }: EditEntryScreenProps) {
   // change unmounts it) — re-trigger a pointless refetch-and-reseed race straight after saving.
   // A ref survives that state change without re-running the effect, since it isn't a dependency.
   const hasSeededRef = useRef(isCurrentDraft);
+
+  useEffect(() => {
+    fetchUserProfile().then(
+      (profile) => setIsMember(profile.details?.member === 1),
+      () => setIsMember(false),
+    );
+  }, []);
 
   useEffect(() => {
     if (hasSeededRef.current) {
@@ -206,16 +218,25 @@ export function EditEntryScreen({ entryId }: EditEntryScreenProps) {
     );
   }
 
+  function handleCropComplete(percent: Area): void {
+    patchDraft({ thumbnailCrop: cropToProportions(percent) });
+  }
+
   const photoSrc = draft.photo?.webPath ?? currentImage;
-  const photoFrame = photoSrc && (
-    <div className="compose-photo-thumb">
-      {draft.photo ? (
-        <img src={photoSrc} alt="New photo" />
-      ) : (
+  const photoFrame =
+    photoSrc &&
+    (draft.photo ? (
+      <ThumbnailPhotoFrame
+        photo={draft.photo}
+        crop={draft.thumbnailCrop}
+        canSelect={isMember}
+        onCropChange={handleCropComplete}
+      />
+    ) : (
+      <div className="compose-photo-thumb">
         <CachedImage src={photoSrc} alt="Current photo" />
-      )}
-    </div>
-  );
+      </div>
+    ));
 
   return (
     <IonPage>

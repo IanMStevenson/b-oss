@@ -2,17 +2,15 @@
 // Copyright (C) 2026 Ian Stevenson
 // @vitest-environment jsdom
 
-// jsdom has no WebGL/canvas support, so maplibre-gl itself can't run here (same class of gap as
-// "no headless browser available in this sandbox"). `maplibre-gl` is
-// mocked wholesale with a minimal fake Map/Marker/Popup that records what the component asked of
-// it, which is enough to test MapScreen's own logic (bounds -> fetch -> markers, focused-mode
-// centring, hidden-member filtering, my-location) without needing a real renderer — the same
-// "mock the thing at the boundary" approach every platform/** consumer test already uses, applied
-// to a WebView-rendered library instead of a Capacitor plugin.
+// Leaflet runs in jsdom (it only needs a DOM, no WebGL), so the real library is used and MapScreen's
+// own logic (bounds -> fetch -> markers, focused-mode centring, hidden-member filtering,
+// my-location) is tested against real map instances. `createLeafletMap` is wrapped only to hand
+// the tests the maps it creates, and to simulate a map that can't be created.
 
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { render, screen, cleanup, waitFor, act } from '@testing-library/react';
-import { MAP_FAILED_MESSAGE } from '../../../components/createMap.js';
+import * as L from 'leaflet';
+import { MAP_FAILED_MESSAGE } from '../../../components/leafletMap.js';
 import { createTrackedRouter } from '../../../app/routes/test-router.js';
 import { MapScreen } from '../MapScreen.js';
 import { OverlayProvider, OverlayHost } from '../../../app/OverlayProvider.js';
@@ -20,116 +18,30 @@ import { useHiddenMembersStore } from '../../../state/hiddenMembersStore.js';
 import { useAccountsStore } from '../../../state/accountsStore.js';
 import type { MapEntry } from '../../../data/map.js';
 
-const { MockMap, MockMarker, MockPopup, mapInstances, markerInstances } = vi.hoisted(() => {
-  const mapInstances: InstanceType<typeof MockMapImpl>[] = [];
-  const markerInstances: InstanceType<typeof MockMarkerImpl>[] = [];
+const { mapInstances, failure } = vi.hoisted(() => ({
+  mapInstances: [] as L.Map[],
+  /** Set by a test to make the next creation fail, as Leaflet does when it can't start. */
+  failure: { createFails: false },
+}));
 
-  class MockPopupImpl {
-    content: HTMLElement | null = null;
-    setDOMContent(el: HTMLElement) {
-      this.content = el;
-      return this;
-    }
-  }
-
-  class MockMarkerImpl {
-    lngLat: [number, number] = [0, 0];
-    popup: MockPopupImpl | null = null;
-    toggled = 0;
-    removed = false;
-    options: { color?: string; element?: HTMLElement };
-    constructor(options: { color?: string; element?: HTMLElement } = {}) {
-      this.options = options;
-      markerInstances.push(this);
-    }
-    setLngLat(ll: [number, number]) {
-      this.lngLat = ll;
-      return this;
-    }
-    setPopup(p: MockPopupImpl) {
-      this.popup = p;
-      return this;
-    }
-    addTo() {
-      return this;
-    }
-    togglePopup() {
-      this.toggled += 1;
-      return this;
-    }
-    remove() {
-      this.removed = true;
-    }
-  }
-
-  class MockMapImpl {
-    options: {
-      container: HTMLElement;
-      style: string;
-      center: [number, number];
-      zoom: number;
-      attributionControl?: { customAttribution?: string[] };
-    };
-    /** Set by a test to make the next construction throw, as MapLibre does without WebGL2. */
-    static constructError: Error | null = null;
-    handlers: Record<string, Array<(e?: unknown) => void>> = {};
-    removed = false;
-    jumpToCalls: Array<{ center: [number, number]; zoom: number }> = [];
-    constructor(options: MockMapImpl['options']) {
-      if (MockMapImpl.constructError) throw MockMapImpl.constructError;
-      this.options = options;
-      mapInstances.push(this);
-    }
-    on(event: string, handler: (e?: unknown) => void) {
-      (this.handlers[event] ??= []).push(handler);
-      return this;
-    }
-    getBounds() {
-      return { getSouth: () => -1, getNorth: () => 1, getWest: () => -1, getEast: () => 1 };
-    }
-    /** What a pan/zoom would have moved the map to; defaults to where it was constructed. */
-    view: { center: [number, number]; zoom: number } | null = null;
-    getCenter() {
-      const [lng, lat] = (this.view ?? this.options).center;
-      return { lng, lat };
-    }
-    getZoom() {
-      return (this.view ?? this.options).zoom;
-    }
-    jumpTo(opts: { center: [number, number]; zoom: number }) {
-      this.jumpToCalls.push(opts);
-    }
-    remove() {
-      this.removed = true;
-    }
-    trigger(event: string, payload?: unknown): void {
-      (this.handlers[event] ?? []).forEach((h) => h(payload));
-    }
-  }
-
+vi.mock('../../../components/leafletMap.js', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../../../components/leafletMap.js')>();
   return {
-    MockMap: MockMapImpl,
-    MockMarker: MockMarkerImpl,
-    MockPopup: MockPopupImpl,
-    mapInstances,
-    markerInstances,
+    ...actual,
+    createLeafletMap: (...args: Parameters<typeof actual.createLeafletMap>) => {
+      if (failure.createFails) {
+        args[3].onFailed();
+        return null;
+      }
+      const map = actual.createLeafletMap(...args);
+      if (map) mapInstances.push(map);
+      return map;
+    },
   };
 });
 
-vi.mock('maplibre-gl', () => ({
-  Map: MockMap,
-  Marker: MockMarker,
-  Popup: MockPopup,
-  setWorkerUrl: vi.fn(),
-}));
-
-vi.mock('maplibre-gl/dist/maplibre-gl-worker.mjs?worker&url', () => ({
-  default: 'mock-worker-url',
-}));
-
 vi.mock('../../../platform/mapTiles.js', () => ({
-  getMapStyleUrl: vi.fn(),
-  MAP_ATTRIBUTION: ['mock credit'],
+  getTileLayerConfig: vi.fn(),
 }));
 
 vi.mock('../../../platform/geolocation.js', () => ({
@@ -150,6 +62,33 @@ vi.mock('../../../platform/prefs.js', () => ({
   deletePref: vi.fn().mockResolvedValue(undefined),
 }));
 
+const TILES = {
+  urlTemplate: 'https://tiles.example/{z}/{x}/{y}{r}.png',
+  maxZoom: 20,
+  attribution: 'mock credit',
+};
+
+/** The entry pins on a map (Leaflet markers that carry a popup; the my-location dot has none). */
+function pins(map: L.Map): L.Marker[] {
+  const found: L.Marker[] = [];
+  map.eachLayer((l) => {
+    if (l instanceof L.Marker && l.getPopup()) found.push(l);
+  });
+  return found;
+}
+
+function tileLayerOf(map: L.Map): L.TileLayer {
+  let found: L.TileLayer | undefined;
+  map.eachLayer((l) => {
+    if (l instanceof L.TileLayer) found = l;
+  });
+  return found!;
+}
+
+function popupContent(marker: L.Marker): HTMLElement {
+  return marker.getPopup()!.getContent() as HTMLElement;
+}
+
 const entryMarker: MapEntry = {
   entry_id: 'e1',
   title: 'Sunrise',
@@ -160,15 +99,15 @@ const entryMarker: MapEntry = {
 };
 
 beforeEach(() => {
-  MockMap.constructError = null;
+  failure.createFails = false;
   mapInstances.length = 0;
-  markerInstances.length = 0;
   useHiddenMembersStore.setState({ hidden: [], hydrated: true });
   useAccountsStore.setState({ accounts: [], activeAccountId: null, hydrated: true });
 });
 
 afterEach(() => {
   cleanup();
+  document.body.innerHTML = '';
   vi.resetAllMocks();
 });
 
@@ -189,54 +128,53 @@ function renderScreen(focusedEntryId?: string) {
 
 describe('MapScreen', () => {
   it('shows the "unavailable" message instead of a blank screen when no tile key is configured', async () => {
-    const { getMapStyleUrl } = await import('../../../platform/mapTiles.js');
-    vi.mocked(getMapStyleUrl).mockReturnValue(null);
+    const { getTileLayerConfig } = await import('../../../platform/mapTiles.js');
+    vi.mocked(getTileLayerConfig).mockReturnValue(null);
     renderScreen();
     expect(screen.getByText('The map isn’t available right now.')).toBeDefined();
     expect(mapInstances.length).toBe(0);
   });
 
-  it('credits the map tiles and OpenStreetMap explicitly', async () => {
-    const { getMapStyleUrl } = await import('../../../platform/mapTiles.js');
+  it('shows the provider attribution on the map', async () => {
+    const { getTileLayerConfig } = await import('../../../platform/mapTiles.js');
     const { fetchEntriesInBounds } = await import('../../../data/map.js');
-    vi.mocked(getMapStyleUrl).mockReturnValue('https://example.com/style.json');
+    vi.mocked(getTileLayerConfig).mockReturnValue(TILES);
     vi.mocked(fetchEntriesInBounds).mockResolvedValue([]);
     renderScreen();
     await waitFor(() => expect(mapInstances.length).toBe(1));
-    expect(mapInstances[0].options.attributionControl).toEqual({
-      customAttribution: ['mock credit'],
-    });
+    expect(document.querySelector('.leaflet-control-attribution')?.textContent).toContain(
+      'mock credit',
+    );
   });
 
   it('remembers where you panned to, and reopens there after Back from an entry (b-oss#190)', async () => {
-    const { getMapStyleUrl } = await import('../../../platform/mapTiles.js');
+    const { getTileLayerConfig } = await import('../../../platform/mapTiles.js');
     const { fetchEntriesInBounds } = await import('../../../data/map.js');
-    vi.mocked(getMapStyleUrl).mockReturnValue('https://example.com/style.json');
+    vi.mocked(getTileLayerConfig).mockReturnValue(TILES);
     vi.mocked(fetchEntriesInBounds).mockResolvedValue([]);
     const first = renderScreen();
     await waitFor(() => expect(mapInstances.length).toBe(1));
-    expect(mapInstances[0].options.zoom).toBe(1.5); // the world view the first time
+    expect(mapInstances[0].getZoom()).toBe(2); // the world view the first time
 
-    mapInstances[0].view = { center: [-3.2, 55.9], zoom: 11 }; // the user pans and zooms in
-    mapInstances[0].trigger('moveend');
+    mapInstances[0].setView([55.9, -3.2], 11, { animate: false }); // the user pans and zooms in
     first.unmount(); // opening an entry from a pin unmounts the map screen
 
     renderScreen(); // Back
     await waitFor(() => expect(mapInstances.length).toBe(2));
-    expect(mapInstances[1].options.center).toEqual([-3.2, 55.9]);
-    expect(mapInstances[1].options.zoom).toBe(11);
+    expect(mapInstances[1].getCenter().lat).toBeCloseTo(55.9);
+    expect(mapInstances[1].getCenter().lng).toBeCloseTo(-3.2);
+    expect(mapInstances[1].getZoom()).toBe(11);
   });
 
   it('focused mode ignores the remembered view and centres on its own entry', async () => {
-    const { getMapStyleUrl } = await import('../../../platform/mapTiles.js');
+    const { getTileLayerConfig } = await import('../../../platform/mapTiles.js');
     const { fetchEntriesInBounds } = await import('../../../data/map.js');
     const { fetchEntry } = await import('../../../data/entries.js');
-    vi.mocked(getMapStyleUrl).mockReturnValue('https://example.com/style.json');
+    vi.mocked(getTileLayerConfig).mockReturnValue(TILES);
     vi.mocked(fetchEntriesInBounds).mockResolvedValue([]);
     const first = renderScreen();
     await waitFor(() => expect(mapInstances.length).toBe(1));
-    mapInstances[0].view = { center: [10, 10], zoom: 6 };
-    mapInstances[0].trigger('moveend');
+    mapInstances[0].setView([10, 10], 6, { animate: false });
     first.unmount();
 
     vi.mocked(fetchEntry).mockResolvedValue({
@@ -267,98 +205,91 @@ describe('MapScreen', () => {
     });
     renderScreen('e1');
     await waitFor(() => expect(mapInstances.length).toBe(2));
-    expect(mapInstances[1].options.center).toEqual([-0.1, 51.5]);
-    expect(mapInstances[1].options.zoom).toBe(13);
+    expect(mapInstances[1].getCenter().lat).toBeCloseTo(51.5);
+    expect(mapInstances[1].getCenter().lng).toBeCloseTo(-0.1);
+    expect(mapInstances[1].getZoom()).toBe(14);
   });
 
   it('fetches and renders markers for the visible region once the map settles', async () => {
-    const { getMapStyleUrl } = await import('../../../platform/mapTiles.js');
+    const { getTileLayerConfig } = await import('../../../platform/mapTiles.js');
     const { fetchEntriesInBounds } = await import('../../../data/map.js');
-    vi.mocked(getMapStyleUrl).mockReturnValue('https://example.com/style.json');
+    vi.mocked(getTileLayerConfig).mockReturnValue(TILES);
     vi.mocked(fetchEntriesInBounds).mockResolvedValue([entryMarker]);
     renderScreen();
 
     await waitFor(() => expect(mapInstances.length).toBe(1));
-    mapInstances[0].trigger('load');
 
-    await waitFor(() =>
-      expect(fetchEntriesInBounds).toHaveBeenCalledWith({
-        minLat: -1,
-        maxLat: 1,
-        minLon: -1,
-        maxLon: 1,
-      }),
-    );
-    await waitFor(() => expect(markerInstances.length).toBe(1));
+    await waitFor(() => expect(fetchEntriesInBounds).toHaveBeenCalled());
+    const bounds = vi.mocked(fetchEntriesInBounds).mock.calls[0][0];
+    expect(bounds.minLat).toBeLessThanOrEqual(bounds.maxLat);
+    expect(bounds.minLon).toBeLessThanOrEqual(bounds.maxLon);
+    await waitFor(() => expect(pins(mapInstances[0]).length).toBe(1));
   });
 
   it('entry markers use b-oss green, not the default marker colour', async () => {
-    const { getMapStyleUrl } = await import('../../../platform/mapTiles.js');
+    const { getTileLayerConfig } = await import('../../../platform/mapTiles.js');
     const { fetchEntriesInBounds } = await import('../../../data/map.js');
-    vi.mocked(getMapStyleUrl).mockReturnValue('https://example.com/style.json');
+    vi.mocked(getTileLayerConfig).mockReturnValue(TILES);
     vi.mocked(fetchEntriesInBounds).mockResolvedValue([entryMarker]);
     renderScreen();
 
     await waitFor(() => expect(mapInstances.length).toBe(1));
-    mapInstances[0].trigger('load');
 
-    await waitFor(() => expect(markerInstances.length).toBe(1));
-    expect(markerInstances[0].options.color).toBe('#1f4d3a');
+    await waitFor(() => expect(pins(mapInstances[0]).length).toBe(1));
+    expect((pins(mapInstances[0])[0].options.icon as L.DivIcon).options.html).toContain(
+      'fill="#1f4d3a"',
+    );
   });
 
   it('an entry with a thumbnail shows an image in its popup', async () => {
-    const { getMapStyleUrl } = await import('../../../platform/mapTiles.js');
+    const { getTileLayerConfig } = await import('../../../platform/mapTiles.js');
     const { fetchEntriesInBounds } = await import('../../../data/map.js');
-    vi.mocked(getMapStyleUrl).mockReturnValue('https://example.com/style.json');
+    vi.mocked(getTileLayerConfig).mockReturnValue(TILES);
     vi.mocked(fetchEntriesInBounds).mockResolvedValue([
       { ...entryMarker, thumbnailUrl: 'https://example.com/thumb.jpg' },
     ]);
     renderScreen();
 
     await waitFor(() => expect(mapInstances.length).toBe(1));
-    mapInstances[0].trigger('load');
 
-    await waitFor(() => expect(markerInstances.length).toBe(1));
-    const img = markerInstances[0].popup?.content?.querySelector('img');
+    await waitFor(() => expect(pins(mapInstances[0]).length).toBe(1));
+    const img = popupContent(pins(mapInstances[0])[0]).querySelector('img');
     expect(img).not.toBeNull();
   });
 
   it('an entry with no thumbnail shows no image in its popup', async () => {
-    const { getMapStyleUrl } = await import('../../../platform/mapTiles.js');
+    const { getTileLayerConfig } = await import('../../../platform/mapTiles.js');
     const { fetchEntriesInBounds } = await import('../../../data/map.js');
-    vi.mocked(getMapStyleUrl).mockReturnValue('https://example.com/style.json');
+    vi.mocked(getTileLayerConfig).mockReturnValue(TILES);
     vi.mocked(fetchEntriesInBounds).mockResolvedValue([entryMarker]); // thumbnailUrl: ''
     renderScreen();
 
     await waitFor(() => expect(mapInstances.length).toBe(1));
-    mapInstances[0].trigger('load');
 
-    await waitFor(() => expect(markerInstances.length).toBe(1));
-    expect(markerInstances[0].popup?.content?.querySelector('img')).toBeNull();
+    await waitFor(() => expect(pins(mapInstances[0]).length).toBe(1));
+    expect(popupContent(pins(mapInstances[0])[0]).querySelector('img')).toBeNull();
   });
 
   it('shows no markers and no error for an empty region', async () => {
-    const { getMapStyleUrl } = await import('../../../platform/mapTiles.js');
+    const { getTileLayerConfig } = await import('../../../platform/mapTiles.js');
     const { fetchEntriesInBounds } = await import('../../../data/map.js');
-    vi.mocked(getMapStyleUrl).mockReturnValue('https://example.com/style.json');
+    vi.mocked(getTileLayerConfig).mockReturnValue(TILES);
     vi.mocked(fetchEntriesInBounds).mockResolvedValue([]);
     renderScreen();
     await waitFor(() => expect(mapInstances.length).toBe(1));
-    mapInstances[0].trigger('load');
 
     await waitFor(() => expect(fetchEntriesInBounds).toHaveBeenCalled());
-    expect(markerInstances.length).toBe(0);
+    expect(pins(mapInstances[0]).length).toBe(0);
     expect(screen.queryByText(/couldn.?t|error|failed/i)).toBeNull();
   });
 
   it('shows a non-blocking error message when the region fetch fails', async () => {
-    const { getMapStyleUrl } = await import('../../../platform/mapTiles.js');
+    const { getTileLayerConfig } = await import('../../../platform/mapTiles.js');
     const { fetchEntriesInBounds } = await import('../../../data/map.js');
-    vi.mocked(getMapStyleUrl).mockReturnValue('https://example.com/style.json');
+    vi.mocked(getTileLayerConfig).mockReturnValue(TILES);
     vi.mocked(fetchEntriesInBounds).mockRejectedValue(new Error('Network down'));
     renderScreen();
     await waitFor(() => expect(mapInstances.length).toBe(1));
-    mapInstances[0].trigger('load');
 
     expect(await screen.findByText('Network down')).toBeDefined();
   });
@@ -380,22 +311,21 @@ describe('MapScreen', () => {
       hydrated: true,
     });
     useHiddenMembersStore.setState({ hidden: ['alice'], hydrated: true });
-    const { getMapStyleUrl } = await import('../../../platform/mapTiles.js');
+    const { getTileLayerConfig } = await import('../../../platform/mapTiles.js');
     const { fetchEntriesInBounds } = await import('../../../data/map.js');
-    vi.mocked(getMapStyleUrl).mockReturnValue('https://example.com/style.json');
+    vi.mocked(getTileLayerConfig).mockReturnValue(TILES);
     vi.mocked(fetchEntriesInBounds).mockResolvedValue([entryMarker]);
     renderScreen();
     await waitFor(() => expect(mapInstances.length).toBe(1));
-    mapInstances[0].trigger('load');
 
     await waitFor(() => expect(fetchEntriesInBounds).toHaveBeenCalled());
-    expect(markerInstances.length).toBe(0);
+    expect(pins(mapInstances[0]).length).toBe(0);
   });
 
   it('focused mode centres on the entry at close zoom instead of the default region', async () => {
-    const { getMapStyleUrl } = await import('../../../platform/mapTiles.js');
+    const { getTileLayerConfig } = await import('../../../platform/mapTiles.js');
     const { fetchEntry } = await import('../../../data/entries.js');
-    vi.mocked(getMapStyleUrl).mockReturnValue('https://example.com/style.json');
+    vi.mocked(getTileLayerConfig).mockReturnValue(TILES);
     vi.mocked(fetchEntry).mockResolvedValue({
       entry: {
         entry_id: 'e1',
@@ -425,15 +355,16 @@ describe('MapScreen', () => {
     renderScreen('e1');
 
     await waitFor(() => expect(mapInstances.length).toBe(1));
-    expect(mapInstances[0].options.center).toEqual([-0.1, 51.5]);
-    expect(mapInstances[0].options.zoom).toBe(13);
+    expect(mapInstances[0].getCenter().lat).toBeCloseTo(51.5);
+    expect(mapInstances[0].getCenter().lng).toBeCloseTo(-0.1);
+    expect(mapInstances[0].getZoom()).toBe(14);
   });
 
   it('focused mode shows only the entry you came from, not every nearby entry (b-oss#142)', async () => {
-    const { getMapStyleUrl } = await import('../../../platform/mapTiles.js');
+    const { getTileLayerConfig } = await import('../../../platform/mapTiles.js');
     const { fetchEntry } = await import('../../../data/entries.js');
     const { fetchEntriesInBounds } = await import('../../../data/map.js');
-    vi.mocked(getMapStyleUrl).mockReturnValue('https://example.com/style.json');
+    vi.mocked(getTileLayerConfig).mockReturnValue(TILES);
     vi.mocked(fetchEntry).mockResolvedValue({
       entry: {
         entry_id: 'e1',
@@ -462,9 +393,11 @@ describe('MapScreen', () => {
     });
     renderScreen('e1');
 
-    await waitFor(() => expect(markerInstances.length).toBe(1));
-    expect(markerInstances[0].lngLat).toEqual([-0.1, 51.5]);
-    expect(markerInstances[0].toggled).toBe(1);
+    await waitFor(() => expect(pins(mapInstances[0]).length).toBe(1));
+    const pin = pins(mapInstances[0])[0];
+    expect(pin.getLatLng().lat).toBeCloseTo(51.5);
+    expect(pin.getLatLng().lng).toBeCloseTo(-0.1);
+    expect(pin.isPopupOpen()).toBe(true);
     // Panning/moving the map would normally trigger a bounds fetch (see the 'moveend' handler in
     // general Map-tab mode) — focused mode never registers that handler at all, so triggering it
     // here (if it existed) would be a no-op regardless; the real assertion is that the fetch never
@@ -473,10 +406,10 @@ describe('MapScreen', () => {
   });
 
   it('recentres on the device location when My location is tapped', async () => {
-    const { getMapStyleUrl } = await import('../../../platform/mapTiles.js');
+    const { getTileLayerConfig } = await import('../../../platform/mapTiles.js');
     const { getCurrentPosition } = await import('../../../platform/geolocation.js');
     const { fetchEntriesInBounds } = await import('../../../data/map.js');
-    vi.mocked(getMapStyleUrl).mockReturnValue('https://example.com/style.json');
+    vi.mocked(getTileLayerConfig).mockReturnValue(TILES);
     vi.mocked(fetchEntriesInBounds).mockResolvedValue([]);
     vi.mocked(getCurrentPosition).mockResolvedValue({ lat: 10, lon: 20 });
     renderScreen();
@@ -485,16 +418,16 @@ describe('MapScreen', () => {
     const { default: userEvent } = await import('@testing-library/user-event');
     await userEvent.click(screen.getByRole('button', { name: 'My location' }));
 
-    await waitFor(() =>
-      expect(mapInstances[0].jumpToCalls).toContainEqual({ center: [20, 10], zoom: 13 }),
-    );
+    await waitFor(() => expect(mapInstances[0].getZoom()).toBe(14));
+    expect(mapInstances[0].getCenter().lat).toBeCloseTo(10);
+    expect(mapInstances[0].getCenter().lng).toBeCloseTo(20);
   });
 
   it('"My location" shows a plain dot, not an entry-style pin', async () => {
-    const { getMapStyleUrl } = await import('../../../platform/mapTiles.js');
+    const { getTileLayerConfig } = await import('../../../platform/mapTiles.js');
     const { getCurrentPosition } = await import('../../../platform/geolocation.js');
     const { fetchEntriesInBounds } = await import('../../../data/map.js');
-    vi.mocked(getMapStyleUrl).mockReturnValue('https://example.com/style.json');
+    vi.mocked(getTileLayerConfig).mockReturnValue(TILES);
     vi.mocked(fetchEntriesInBounds).mockResolvedValue([]);
     vi.mocked(getCurrentPosition).mockResolvedValue({ lat: 10, lon: 20 });
     renderScreen();
@@ -504,17 +437,16 @@ describe('MapScreen', () => {
     await userEvent.click(screen.getByRole('button', { name: 'My location' }));
 
     await waitFor(() => {
-      const dotMarker = markerInstances.find((m) => m.options.element);
-      expect(dotMarker).toBeDefined();
-      expect(dotMarker?.options.color).toBeUndefined();
-      expect(dotMarker?.lngLat).toEqual([20, 10]);
+      expect(document.querySelector('.map-my-location')).not.toBeNull();
     });
+    // The dot has no popup, so it isn't counted as an entry pin.
+    expect(pins(mapInstances[0]).length).toBe(0);
   });
 
   it('puts the locate control over the map (shared with the location picker), not in the header', async () => {
-    const { getMapStyleUrl } = await import('../../../platform/mapTiles.js');
+    const { getTileLayerConfig } = await import('../../../platform/mapTiles.js');
     const { fetchEntriesInBounds } = await import('../../../data/map.js');
-    vi.mocked(getMapStyleUrl).mockReturnValue('https://example.com/style.json');
+    vi.mocked(getTileLayerConfig).mockReturnValue(TILES);
     vi.mocked(fetchEntriesInBounds).mockResolvedValue([]);
     renderScreen();
     await waitFor(() => expect(mapInstances.length).toBe(1));
@@ -524,46 +456,33 @@ describe('MapScreen', () => {
     expect(locate.closest('ion-header')).toBeNull();
   });
 
-  describe('when the map can\u2019t draw (b-oss#537)', () => {
-    function gpuError(): Error {
-      const e = new Error('WebGL2 is required to display this map.');
-      e.name = 'GPUInitializationError';
-      return e;
-    }
-
+  describe('when the map can\u2019t draw (b-oss#537, #655)', () => {
     it('says so, instead of a blank area, when the map can\u2019t be created', async () => {
-      const { getMapStyleUrl } = await import('../../../platform/mapTiles.js');
-      vi.mocked(getMapStyleUrl).mockReturnValue('https://example.com/style.json');
-      MockMap.constructError = gpuError();
+      const { getTileLayerConfig } = await import('../../../platform/mapTiles.js');
+      vi.mocked(getTileLayerConfig).mockReturnValue(TILES);
+      failure.createFails = true;
       renderScreen();
       expect(await screen.findByText(MAP_FAILED_MESSAGE)).toBeDefined();
       expect(mapInstances.length).toBe(0);
     });
 
-    it('says so when the WebGL context is lost, and clears it once restored', async () => {
-      const { getMapStyleUrl } = await import('../../../platform/mapTiles.js');
+    it('says so when tiles keep failing and none has loaded, and clears it once one loads', async () => {
+      const { getTileLayerConfig } = await import('../../../platform/mapTiles.js');
       const { fetchEntriesInBounds } = await import('../../../data/map.js');
-      vi.mocked(getMapStyleUrl).mockReturnValue('https://example.com/style.json');
+      vi.mocked(getTileLayerConfig).mockReturnValue(TILES);
       vi.mocked(fetchEntriesInBounds).mockResolvedValue([]);
       renderScreen();
       await waitFor(() => expect(mapInstances.length).toBe(1));
 
-      act(() => mapInstances[0].trigger('webglcontextlost'));
+      const layer = tileLayerOf(mapInstances[0]);
+      act(() => {
+        for (let i = 0; i < 4; i++) layer.fire('tileerror');
+      });
       expect(await screen.findByText(MAP_FAILED_MESSAGE)).toBeDefined();
-      act(() => mapInstances[0].trigger('webglcontextrestored'));
+      act(() => {
+        layer.fire('tileload');
+      });
       await waitFor(() => expect(screen.queryByText(MAP_FAILED_MESSAGE)).toBeNull());
-    });
-
-    it('says so when restoring a lost context fails', async () => {
-      const { getMapStyleUrl } = await import('../../../platform/mapTiles.js');
-      const { fetchEntriesInBounds } = await import('../../../data/map.js');
-      vi.mocked(getMapStyleUrl).mockReturnValue('https://example.com/style.json');
-      vi.mocked(fetchEntriesInBounds).mockResolvedValue([]);
-      renderScreen();
-      await waitFor(() => expect(mapInstances.length).toBe(1));
-
-      act(() => mapInstances[0].trigger('error', { error: gpuError() }));
-      expect(await screen.findByText(MAP_FAILED_MESSAGE)).toBeDefined();
     });
   });
 });

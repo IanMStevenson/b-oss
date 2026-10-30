@@ -39,7 +39,7 @@ tokens (no CSS Modules of its own, no Tailwind or CSS-in-JS). The `dev`/`build` 
 ## 3. Runtime stack
 
 Capacitor 8 · React 19 · Ionic React 9 + `@ionic/react-router` 9 · `react-router(-dom)` **6**
-(Ionic 9 requires `>=6.4 <7`; don't move to 7 until Ionic supports it) · Zustand 5 · MapLibre GL JS
+(Ionic 9 requires `>=6.4 <7`; don't move to 7 until Ionic supports it) · Zustand 5 · Leaflet
 (§13) · `@bbob/react` and ProseMirror via b-view (§14) · `react-easy-crop` (§15) ·
 `react-zoom-pan-pinch` (full-screen photo) · `lucide-react` icons · Vitest + Testing Library + jsdom.
 Capacitor plugins: `app`, `browser`, `camera`, `filesystem`, `file-transfer`, `geolocation`,
@@ -59,7 +59,7 @@ One module per capability, exposing an app-shaped API: `secureStorage` (§8), `h
 `camera` (§15), `geolocation` + `mapTiles` (§13), `browser` + `embeddedAuth` (§8), `deepLinks` +
 `shareIntent` + `blipfotoLinks` (§16), `mediaSave` (save to gallery), `accessibility` (§20),
 `systemBars`, `prefs`, `appState`. Pure Web-API helpers (`data/binary.ts`, `data/multipartBody.ts`, `data/imageCrop.ts`) live in
-`data/`. MapLibre is not a Capacitor plugin, so `MapScreen` imports it directly.
+`data/`. Leaflet is not a Capacitor plugin, so `MapScreen` imports it directly.
 
 ## 5. Navigation and routing
 
@@ -116,7 +116,7 @@ id; `/` redirects to `/browse`). Not obvious from the paths:
   affordances go through `flows/useReport.tsx`, which only routes to `/report` with write access and
   otherwise opens Blipfoto's support request form.
   **Account-gated** (`AccountGuardRoute`): `/notifications`, `/comments` (push targets).
-- **Lazy-loaded:** `/map`, `/compose/location` (MapLibre), `/compose/details` (react-easy-crop).
+- **Lazy-loaded:** `/map`, `/compose/location` (Leaflet), `/compose/details` (react-easy-crop).
 - **Query/state:** `/map?entry=<id>` (focused mode); `/accounts?reauth=<accountId>` (opens that
   account's sign-in-again dialog); `/entry/:id` takes router state `replyToCommentId`; `/report`
   takes the target user/comment/member via router state.
@@ -377,13 +377,30 @@ the inboxes filter what they fetch. The hidden list never leaves the device.
 
 ## 13. Maps and location
 
-`SCR-04` (entries by viewport) and `SCR-12` (place a marker) use **MapLibre GL JS in the WebView**,
-not a native plugin: no billing account, works in `vite dev`, one implementation, DOM overlays work.
+`SCR-04` (entries by viewport) and `SCR-12` (place a marker) use **Leaflet over raster tiles in the
+WebView** (b-oss#651, #655), not a native plugin: no WebGL, shaders or web workers, so a map that
+can't draw can't fail silently, and no billing account. It replaced MapLibre GL JS, whose map drew
+nothing on some devices; `components/createMap.ts` (MapLibre) is kept, unused, for a possible later
+"richer mode" (#653), and the `maplibre-gl` dependency stays for that.
 
-- **Tiles:** `platform/mapTiles.ts#getMapStyleUrl()`, MapTiler `streets-v2` with
-  `VITE_MAP_TILES_KEY`; no key → `null` → the "map unavailable" state.
-- **Worker:** `MapScreen` imports `maplibre-gl/dist/maplibre-gl-worker.mjs?worker&url` and calls
-  `setWorkerUrl()`. Without it the production build never emits the worker and tiles silently fail.
+- **Tiles:** `platform/mapTiles.ts#getTileLayerConfig()`, Geoapify raster tiles (`osm-liberty`, `@2x` on high-density
+  screens via Leaflet's `{r}`, max zoom 20) with `VITE_GEOAPIFY_KEY`; no key →
+  `null` → the "map unavailable" state. The map is always the light style (no dark map). Liberty is
+  used because it labels places in English; Geoapify's raster tiles have no language parameter and
+  `osm-bright` shows local names. Geoapify's
+  Free plan requires its attribution (Geoapify, OpenStreetMap contributors, OpenMapTiles), which is
+  the map's attribution control, and the same credits are in Help & about → Licences.
+- **Links:** the attribution links are opened through `platform/browser.ts` (`openUrl`), not as
+  `target=_blank` links in the WebView.
+- **Failure:** `components/leafletMap.ts` makes the map and reports `onFailed` if Leaflet throws, or
+  if the first four tiles all error (`tileerror`) with none loaded (`tileload`); a later loaded tile
+  clears it. The screens then show "The map couldn't be displayed on this device." The fuller "can't
+  load tiles" message is b-oss#656.
+- **Tile requests:** the provider sends `cache-control: private, max-age=0, no-cache` with an ETag,
+  so a tile is revalidated each time it is requested. Leaflet is set to load once a pan ends
+  (`updateWhenIdle`) and not during a pinch (`updateWhenZooming: false`), and keeps tiles one extra
+  ring beyond the view (`keepBuffer: 2`), so panning back over seen tiles asks for nothing again.
+- **Pins:** an inline-SVG `divIcon` (`components/mapPin.ts`), the brand green on every theme.
 - **Fetching:** bounds debounced 450 ms, request-id supersession, one `entries/search` page per
   bounds change, no clustering; hidden members' entries get no marker.
 - **Location** (`platform/geolocation.ts`, coarse) for my-location on `SCR-04`/`SCR-12` and
@@ -493,7 +510,7 @@ typed in `src/env.d.ts`.
 Not secret: `VITE_BLIPFOTO_CLIENT_ID` (also the anonymous bearer), `VITE_OAUTH_REDIRECT_URI`
 (`bmobile://oauth/`, the default if unset), `VITE_NOTIFY_SERVICE_URL` (b-push base URL),
 `VITE_FEED_PROBE` (`1` builds the feed-depth probe, b-oss#196; unset for releases). Never commit a
-real value: `VITE_NOTIFY_REGISTRATION_SECRET`, `VITE_MAP_TILES_KEY`, `VITE_DEV_TOKEN` (dev only,
+real value: `VITE_NOTIFY_REGISTRATION_SECRET`, `VITE_GEOAPIFY_KEY`, `VITE_DEV_TOKEN` (dev only,
 auto-applied at launch in development mode, §19).
 
 Anything in the bundle is extractable: the registration secret is a coarse gate, not a credential,
@@ -533,7 +550,7 @@ OAuth redirect, so in development mode `AppShell` verifies and applies `VITE_DEV
 - **Responsiveness.** One navigation model at every size; grids size columns from available width;
   nothing is portrait-locked, and state in stores and route params survives rotation.
 - **Performance.** Thumbnails in grids, full size only on entry/photo screens; `CachedImage`
-  lazy-loads; MapLibre (the largest dependency) and react-easy-crop sit behind lazy routes; no list
+  lazy-loads; Leaflet and react-easy-crop sit behind lazy routes; no list
   virtualisation (grids are image-bound).
 
 ## Gotchas
@@ -551,7 +568,7 @@ run`) break the root `vitest.config.ts` `setupFiles` path, which resolves agains
 - `@capacitor/assets` defaults the adaptive-icon/splash background to white. Pass
   `--iconBackgroundColor`/`--splashBackgroundColor` and check the rendered output.
 - A large dependency pulled in by one screen needs a lazy-loading check against `npm run build`'s
-  chunk output (`maplibre-gl` and `@ionic/react` are the known >500 KB chunks).
+  chunk output (`@ionic/react` is the known >500 KB chunk).
 - The manifest permission list in `android/` is deliberately redundant with what plugin manifests
   merge in, so the §17 table stays satisfied if a plugin changes.
 - No Android device or emulator is available on the dev VM. Compilation (`./gradlew
