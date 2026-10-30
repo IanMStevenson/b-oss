@@ -324,7 +324,9 @@ describe('NotifyPoller observability (b-oss#677, #673)', () => {
     await h.poller.start();
     await h.poller.configure([{ accountId: 'ann', streams: BOTH }]);
     await tickOnce();
-    expect(lines(log).join('\n')).toContain('poll skipped: the system reports no network connection');
+    expect(lines(log).join('\n')).toContain(
+      'poll skipped: the system reports no network connection',
+    );
     expect(h.poller.getStatus().accounts[0].result?.kind).toBe('offline');
     online = true;
     h.tokens.ann = null;
@@ -358,7 +360,10 @@ describe('NotifyPoller observability (b-oss#677, #673)', () => {
     await h.poller.start();
     await h.poller.configure([{ accountId: 'ann', streams: BOTH }]);
     await tickOnce();
-    const limited = Object.assign(new Error('slow down ann-token'), { name: 'BlipfotoError', code: 11 });
+    const limited = Object.assign(new Error('slow down ann-token'), {
+      name: 'BlipfotoError',
+      code: 11,
+    });
     h.fetchTotals.mockRejectedValueOnce(limited);
     await tickOnce(POLL_INTERVAL_MS);
     expect(h.poller.getStatus().accounts[0].result?.kind).toBe('rate-limited');

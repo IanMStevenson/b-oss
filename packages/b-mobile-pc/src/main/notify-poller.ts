@@ -262,7 +262,9 @@ export class NotifyPoller {
     if (ids.length === 0) return;
     if (!this.deps.isOnline()) {
       if (!forced) {
-        this.deps.log(`poll skipped: the system reports no network connection (${ids.length} account(s))`);
+        this.deps.log(
+          `poll skipped: the system reports no network connection (${ids.length} account(s))`,
+        );
         for (const id of ids) {
           this.record(id, { kind: 'offline', text: 'Waiting for a network connection' });
         }
@@ -278,7 +280,8 @@ export class NotifyPoller {
           continue;
         }
         const last = this.lastAttemptAt.get(accountId) ?? 0;
-        if (Date.now() - last < MIN_CHECK_GAP_MS) {
+        // Never longer than half the interval, so a fast test interval still lets it through.
+        if (Date.now() - last < Math.min(MIN_CHECK_GAP_MS, this.intervalMs / 2)) {
           this.deps.log(`check now skipped for ${accountId}: checked a moment ago`);
           continue;
         }
@@ -287,7 +290,9 @@ export class NotifyPoller {
         const skip = this.skip.get(accountId) ?? 0;
         if (skip > 0) {
           this.skip.set(accountId, skip - 1);
-          this.deps.log(`poll skipped for ${accountId}: backing off after errors (${skip} tick(s) left)`);
+          this.deps.log(
+            `poll skipped for ${accountId}: backing off after errors (${skip} tick(s) left)`,
+          );
           continue;
         }
       }
@@ -330,7 +335,9 @@ export class NotifyPoller {
     // Signed out in the meantime: the app will drop the account at its next configure.
     if (token === null) {
       this.record(accountId, { kind: 'no-token', text: 'No saved sign-in for this account' });
-      this.deps.log(`poll skipped for ${accountId}: no saved sign-in in the secure store (read ${keystoreMs} ms)`);
+      this.deps.log(
+        `poll skipped for ${accountId}: no saved sign-in in the secure store (read ${keystoreMs} ms)`,
+      );
       return;
     }
 
@@ -340,7 +347,9 @@ export class NotifyPoller {
       totals = await this.deps.fetchTotals(token);
     } catch (err) {
       if (err instanceof TokenInvalidError) {
-        this.deps.log(`poll account=${accountId}: Blipfoto rejected the sign-in; showing sign-in-again`);
+        this.deps.log(
+          `poll account=${accountId}: Blipfoto rejected the sign-in; showing sign-in-again`,
+        );
         await this.reauthRequired(accountId);
         this.record(accountId, describeFailure(err).result);
         return;
@@ -378,9 +387,13 @@ export class NotifyPoller {
       const delta = totals[stream] - lastSeen[stream];
       if (delta > 0) newItems += delta;
       if (delta > 0 && !current.streams[stream]) {
-        this.deps.log(`decision account=${accountId} stream=${stream} new=${delta}: suppressed, stream is switched off`);
+        this.deps.log(
+          `decision account=${accountId} stream=${stream} new=${delta}: suppressed, stream is switched off`,
+        );
       } else if (delta < 0) {
-        this.deps.log(`decision account=${accountId} stream=${stream}: count fell by ${-delta}, nothing to show`);
+        this.deps.log(
+          `decision account=${accountId} stream=${stream}: count fell by ${-delta}, nothing to show`,
+        );
       }
     }
     const result = await settle(decision, lastSeen, async (n: Notify) => {

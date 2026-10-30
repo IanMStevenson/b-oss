@@ -23,7 +23,10 @@ export function describeFailure(err: unknown): Failure {
 
   if (name === 'TokenInvalidError') {
     return {
-      result: { kind: 'sign-in-needed', text: 'Sign-in needed: Blipfoto rejected the saved sign-in' },
+      result: {
+        kind: 'sign-in-needed',
+        text: 'Sign-in needed: Blipfoto rejected the saved sign-in',
+      },
       logText: 'sign-in rejected by Blipfoto',
     };
   }

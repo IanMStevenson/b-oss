@@ -50,7 +50,10 @@ export function createElectronPresenter(log: (message: string) => void): Present
     const supported = Notification.isSupported();
     log(`toast ${label}: Notification.isSupported()=${supported}`);
     if (!supported) {
-      return Promise.resolve({ ok: false, detail: 'The system says OS notifications are not supported here.' });
+      return Promise.resolve({
+        ok: false,
+        detail: 'The system says OS notifications are not supported here.',
+      });
     }
     return new Promise((resolve) => {
       const id = ++serial;
@@ -64,7 +67,10 @@ export function createElectronPresenter(log: (message: string) => void): Present
       };
       const timer = setTimeout(() => {
         log(`toast ${tag}: no show or failed event within ${EVENT_WAIT_MS / 1000}s`);
-        done({ ok: true, detail: 'The system gave no answer within 5 seconds; it may still appear.' });
+        done({
+          ok: true,
+          detail: 'The system gave no answer within 5 seconds; it may still appear.',
+        });
       }, EVENT_WAIT_MS);
       const n = new Notification({ title, body });
       live.add(n);
@@ -167,7 +173,9 @@ export class NotifyShell {
   /** Notifications on (some account is watched) or off: the tray exists, and the app starts with
    * the user's login, exactly while they are on. */
   setActive(active: boolean): void {
-    this.log(`notifications ${active ? 'on' : 'off'}: ${this.watchedAccounts()} account(s) watched`);
+    this.log(
+      `notifications ${active ? 'on' : 'off'}: ${this.watchedAccounts()} account(s) watched`,
+    );
     if (active && !this.tray) this.createTray();
     if (!active && this.tray) {
       this.tray.destroy();
@@ -187,7 +195,9 @@ export class NotifyShell {
 
   private createTray(): void {
     const icon = this.trayIcon();
-    this.log(`tray: creating (icon ${icon.isEmpty() ? 'MISSING, using an empty image' : 'loaded'})`);
+    this.log(
+      `tray: creating (icon ${icon.isEmpty() ? 'MISSING, using an empty image' : 'loaded'})`,
+    );
     const tray = new Tray(icon);
     this.tray = tray;
     this.log('tray: created');
@@ -224,7 +234,9 @@ function setLoginItem(wanted: boolean, log: (message: string) => void): void {
   try {
     app.setLoginItemSettings({ openAtLogin: wanted, args: [HIDDEN_ARG] });
     const now = app.getLoginItemSettings({ args: [HIDDEN_ARG] });
-    log(`login item: wanted=${wanted} openAtLogin=${now.openAtLogin} executableWillLaunchAtLogin=${now.executableWillLaunchAtLogin}`);
+    log(
+      `login item: wanted=${wanted} openAtLogin=${now.openAtLogin} executableWillLaunchAtLogin=${now.executableWillLaunchAtLogin}`,
+    );
   } catch (err) {
     log(`login item: failed to set: ${err instanceof Error ? err.message : 'error'}`);
   }

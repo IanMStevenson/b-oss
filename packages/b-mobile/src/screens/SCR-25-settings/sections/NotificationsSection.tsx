@@ -62,6 +62,14 @@ import { AccountMismatchAlert, canRetryInApp } from '../../../components/Account
 import { useServiceRoundExplainer } from '../../../components/ServiceRoundExplainer.js';
 import { updatePollingInterval, updatePushStreams } from '../../../flows/pushFlow.js';
 import { usesPolling } from '../../../flows/pollingNotifications.js';
+import {
+  checkDesktopNotificationsNow,
+  getDesktopNotifyStatus,
+  sendDesktopTestNotification,
+  type DesktopAccountStatus,
+  type DesktopTestNotifyResult,
+} from '../../../platform/desktopNotify.js';
+import { isProblem, statusLine } from '../../../flows/notifyStatusText.js';
 import { useDevicePrefsStore } from '../../../state/devicePrefsStore.js';
 import { t, type StringKey } from '../../../strings/index.js';
 
@@ -111,16 +119,118 @@ export function feedHint(saved: Record<string, 0 | 1>): string | null {
   return t('SCR-25.notifications.feed_hint.some', { types: joinList(types) });
 }
 
-/** Desktop only (b-oss#610): what keeps notifications coming with the window closed. */
-function DesktopExtras() {
+/** How often the open settings screen re-reads the shell's polling status. */
+const STATUS_REFRESH_MS = 5_000;
+
+/** Desktop only (b-oss#610, #673, #677): what keeps notifications coming with the window closed,
+ * whether polling is running and how the last check went, "Check now", and a test toast that does
+ * not depend on the API (so a toast problem can be told apart from a polling problem). */
+function DesktopExtras({ accountId, on }: { accountId: string; on: boolean }) {
+  const [status, setStatus] = useState<DesktopAccountStatus | null>(null);
+  const [now, setNow] = useState(() => Date.now());
+  const [checking, setChecking] = useState(false);
+  const [testing, setTesting] = useState(false);
+  const [testResult, setTestResult] = useState<DesktopTestNotifyResult | null>(null);
+
+  useEffect(() => {
+    if (!on) {
+      setStatus(null);
+      return;
+    }
+    let cancelled = false;
+    const refresh = (): void => {
+      void getDesktopNotifyStatus().then(
+        (s) => {
+          if (cancelled) return;
+          setStatus(s?.accounts.find((a) => a.accountId === accountId) ?? null);
+          setNow(Date.now());
+        },
+        () => undefined,
+      );
+    };
+    refresh();
+    const timer = setInterval(refresh, STATUS_REFRESH_MS);
+    return () => {
+      cancelled = true;
+      clearInterval(timer);
+    };
+  }, [accountId, on]);
+
+  async function checkNow(): Promise<void> {
+    setChecking(true);
+    try {
+      const s = await checkDesktopNotificationsNow();
+      setStatus(s?.accounts.find((a) => a.accountId === accountId) ?? null);
+      setNow(Date.now());
+    } catch {
+      // The status line keeps showing the last known state.
+    } finally {
+      setChecking(false);
+    }
+  }
+
+  async function sendTest(): Promise<void> {
+    setTesting(true);
+    setTestResult(null);
+    try {
+      setTestResult(
+        (await sendDesktopTestNotification()) ?? { ok: false, detail: 'Not available here.' },
+      );
+    } catch (err) {
+      setTestResult({
+        ok: false,
+        detail: err instanceof Error && err.message ? err.message : 'Could not show it.',
+      });
+    } finally {
+      setTesting(false);
+    }
+  }
+
   return (
-    <IonItem lines="none">
-      <IonText color="medium" className="ion-text-wrap">
-        <p style={{ margin: '0 0 4px', fontSize: 13 }}>
-          {t('SCR-25.notifications.desktop.caption')}
-        </p>
-      </IonText>
-    </IonItem>
+    <>
+      <IonItem lines="none">
+        <IonText color="medium" className="ion-text-wrap">
+          <p style={{ margin: '0 0 4px', fontSize: 13 }}>
+            {t('SCR-25.notifications.desktop.caption')}
+          </p>
+        </IonText>
+      </IonItem>
+      {on && (
+        <IonItem lines="none">
+          <IonText color={isProblem(status) ? 'warning' : 'medium'} className="ion-text-wrap">
+            <p data-testid="notify-status" style={{ margin: '0 0 4px', fontSize: 13 }}>
+              {statusLine(status, now)}
+            </p>
+          </IonText>
+        </IonItem>
+      )}
+      <div className="ion-padding-horizontal" style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+        {on && (
+          <IonButton
+            size="small"
+            fill="outline"
+            disabled={checking}
+            onClick={() => void checkNow()}
+          >
+            {checking ? <IonSpinner name="dots" /> : 'Check now'}
+          </IonButton>
+        )}
+        <IonButton size="small" fill="outline" disabled={testing} onClick={() => void sendTest()}>
+          {testing ? <IonSpinner name="dots" /> : 'Send a test notification'}
+        </IonButton>
+      </div>
+      {testResult && (
+        <IonItem lines="none">
+          <IonText color={testResult.ok ? 'medium' : 'danger'} className="ion-text-wrap">
+            <p data-testid="notify-test-result" style={{ margin: '4px 0', fontSize: 13 }}>
+              {testResult.ok
+                ? `Sent. ${testResult.detail} If nothing appeared, check Windows Settings > System > Notifications and that Focus Assist / Do Not Disturb is off.`
+                : `Not shown. ${testResult.detail}`}
+            </p>
+          </IonText>
+        </IonItem>
+      )}
+    </>
   );
 }
 
@@ -289,7 +399,7 @@ function PushSection({
           onIonChange={(e) => handleToggle('notifications', e.detail.checked)}
         />
       </IonItem>
-      {usesPolling() && <DesktopExtras />}
+      {usesPolling() && <DesktopExtras accountId={account.id} on={on} />}
       {hint && (
         <IonItem>
           <IonText color="medium" className="ion-text-wrap">

@@ -89,6 +89,39 @@ toasts for an app whose AppUserModelID matches its Start Menu shortcut: the shel
 creates the shortcut. Running the unpacked folder or the portable exe directly has no such shortcut, so
 toasts may not appear there (b-oss#674).
 
+### Checking notifications on Windows (b-oss#677)
+
+How the installer ties the two together (read from electron-builder's NSIS template, not guessed): the
+NSIS target creates the Start Menu shortcut `b-mobile` (the `productName`) and tags it with
+`WinShell::SetLnkAUMI "<shortcut>" "${APP_ID}"`, where `APP_ID` is `appId` from `electron-builder.json`
+(`co.salientpoint.b-mobile-pc`); the same call tags the desktop shortcut. The shell calls
+`app.setAppUserModelId` with the same string on Windows, before any window exists. So installed and
+running ids match. The portable exe and `win-unpacked` never create the shortcut.
+
+To verify on a PC with the installer build:
+
+1. Install with `b-mobile-Setup-<version>.exe` (not the portable exe). Find `b-mobile` in the Start Menu.
+2. Settings > Notifications > **Send a test notification**. A toast should appear, and the app log
+   gets `toast test: ... show event` and `test notification: ok`. This works without the API or any
+   account setting, so it separates "Windows does not show our toasts" from "polling found nothing".
+   If it says `failed`, the log has Electron's reason. If it says ok but nothing was seen, look at
+   Windows Settings > System > Notifications (is **b-mobile** listed and on?) and Focus Assist / Do
+   Not Disturb.
+3. Turn a stream on, then read the status line under it ("Checked ... ago · next check in about ...
+   minutes · ..."). **Check now** polls at once. The first check only records the starting counts;
+   a toast needs something new after it (a comment or star from another account).
+4. Optional: in PowerShell, `Get-StartApps | Where-Object Name -eq b-mobile` should list the shortcut
+   with AppID `co.salientpoint.b-mobile-pc`. (Written from how Windows lists shortcut AppIDs, not run
+   on a PC yet; the app log's start line also prints the id the shell set.)
+
+The app log is `%APPDATA%\b-mobile\logs\app.log` (tray menu: **Open log folder**), one JSON object per
+line, redacted. Notification lines have `"source":"notify"`: start-up facts (version, packaged,
+AppUserModelID, `Notification.isSupported()`, `net.isOnline()`), the poller starting and stopping, every
+poll (account, counts before and after, how long the secure-store read and the request took), every
+show / suppress decision, why a poll did not happen (offline, no saved sign-in, backing off), each of
+Electron's toast events (`show`, `failed`, `click`, `close`), the tray and login-item state. Never
+tokens.
+
 ```bash
 packages/b-mobile-pc/scripts/build-win-docker.sh
 ```

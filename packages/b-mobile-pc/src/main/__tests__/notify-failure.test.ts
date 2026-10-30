@@ -22,13 +22,16 @@ describe('describeFailure', () => {
   });
 
   it('keeps the HTTP status and API code, and the network cause, in the log text', () => {
-    expect(describeFailure(named('HttpError', 'm', { status: 502 })).logText).toContain('status=502');
+    expect(describeFailure(named('HttpError', 'm', { status: 502 })).logText).toContain(
+      'status=502',
+    );
     expect(describeFailure(named('BlipfotoError', 'bad thing', { code: 3 })).logText).toContain(
       'code=3 message=bad thing',
     );
     expect(
-      describeFailure(named('NetworkError', 'm', { cause: new TypeError('net::ERR_NAME_NOT_RESOLVED') }))
-        .logText,
+      describeFailure(
+        named('NetworkError', 'm', { cause: new TypeError('net::ERR_NAME_NOT_RESOLVED') }),
+      ).logText,
     ).toContain('net::ERR_NAME_NOT_RESOLVED');
   });
 
@@ -38,7 +41,10 @@ describe('describeFailure', () => {
 
   it('what reaches app.log is redacted even if a line did carry a credential', () => {
     const line = formatLine(
-      { source: 'notify', message: 'poll failed Authorization: Bearer abcdefghijklmnopqrstuvwxyz0123456789' },
+      {
+        source: 'notify',
+        message: 'poll failed Authorization: Bearer abcdefghijklmnopqrstuvwxyz0123456789',
+      },
       new Date(0),
     );
     expect(line).not.toContain('abcdefghijklmnopqrstuvwxyz0123456789');

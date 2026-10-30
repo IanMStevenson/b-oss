@@ -210,7 +210,7 @@ interface Shown {
   title: string;
   body: string;
   count: number;
-  payload: { kind: string; stream?: string; accountId: string };
+  payload: { kind: string; stream?: string; accountId: string } | null;
 }
 const shown = async (): Promise<Shown[]> =>
   (await fetch(`${NOTIFY}/shown`)).json() as Promise<Shown[]>;
@@ -289,15 +289,66 @@ describe('desktop notifications by polling', () => {
     expect(list.at(-1)?.payload).toMatchObject({ stream: 'comments' });
   });
 
+  it('shows when it last checked and when it will next, and Check now polls at once (b-oss#673)', async () => {
+    await go('/settings/notifications', 4000);
+    const line = (): Promise<string> =>
+      page.evaluate(
+        () => document.querySelector('[data-testid="notify-status"]')?.textContent ?? '',
+      );
+    expect(await line()).toMatch(/^Checked (just now|a minute ago|\d+ minutes? ago) · next check /);
+    expect(await line()).toContain('Nothing new');
+    await shot('7-notification-status');
+    const before = (await shown()).length;
+    await setUnread(7, 9); // +1 comment
+    await page.getByRole('button', { name: 'Check now' }).click();
+    await page.waitForTimeout(1500);
+    expect(await shown()).toHaveLength(before + 1);
+    expect(await line()).toMatch(/1 new, 1 notification\(s\) shown|Nothing new/);
+  });
+
+  it('Send a test notification shows a toast with no API involved, and logs the result (b-oss#677)', async () => {
+    const before = (await shown()).length;
+    await page.getByRole('button', { name: 'Send a test notification' }).click();
+    await page.waitForSelector('[data-testid="notify-test-result"]', { timeout: 10_000 });
+    const list = await shown();
+    expect(list).toHaveLength(before + 1);
+    expect(list.at(-1)).toMatchObject({ title: 'b-mobile test notification', payload: null });
+    await shot('8-test-notification');
+  });
+
+  it('writes the pipeline to app.log: start-up facts, polls, decisions, the test toast; no secrets', () => {
+    expect(USER_DATA, 'run through e2e/run.sh').toBeTruthy();
+    const log = readFileSync(join(USER_DATA ?? '', 'logs', 'app.log'), 'utf8');
+    for (const expected of [
+      '"source":"notify"',
+      'start: version=',
+      'Notification.isSupported()=',
+      'poller started',
+      'configured: accounts=[cyclopstest(comments,notifications)]',
+      'poll baseline account=cyclopstest',
+      'poll ok account=cyclopstest',
+      'stream=comments new=3: showing',
+      'stream=notifications new=',
+      'suppressed, stream is switched off',
+      'notifications on: 1 account(s) watched',
+      'login item: left alone',
+      'check now requested',
+      'test notification: ok',
+    ]) {
+      expect(log, expected).toContain(expected);
+    }
+    expect(log).not.toMatch(/Bearer|access_token/i);
+  });
+
   it('a click routes to the right screen', async () => {
     await go('/browse', 2500);
     const list = await shown();
-    const index = list.findIndex((n) => n.payload.stream === 'notifications');
+    const index = list.findIndex((n) => n.payload?.stream === 'notifications');
     expect((await fetch(`${NOTIFY}/click/${index}`, { method: 'POST' })).status).toBe(200);
     await page.waitForFunction(() => location.pathname === '/notifications', undefined, {
       timeout: 10_000,
     });
-    const last = list.length - 1;
+    const last = list.map((n) => n.payload?.stream).lastIndexOf('comments');
     await fetch(`${NOTIFY}/click/${last}`, { method: 'POST' });
 
     await page.waitForFunction(() => location.pathname === '/comments', undefined, {
@@ -310,14 +361,14 @@ describe('desktop notifications by polling', () => {
     await fetch(`${STUB}/__token-dead?on=1`);
     await settle(5000);
     const after = await shown();
-    const reauth = after.slice(before).filter((n) => n.payload.kind === 'reauth-required');
+    const reauth = after.slice(before).filter((n) => n.payload?.kind === 'reauth-required');
     expect(reauth).toHaveLength(1);
     expect(reauth[0]?.body).toMatch(/Sign in again/);
     await settle(); // polling that account has stopped: still just the one
-    expect((await shown()).filter((n) => n.payload.kind === 'reauth-required')).toHaveLength(1);
+    expect((await shown()).filter((n) => n.payload?.kind === 'reauth-required')).toHaveLength(1);
     await fetch(`${STUB}/__token-dead?on=0`);
 
-    const index = after.findIndex((n) => n.payload.kind === 'reauth-required');
+    const index = after.findIndex((n) => n.payload?.kind === 'reauth-required');
     await fetch(`${NOTIFY}/click/${index}`, { method: 'POST' });
     await page.waitForFunction(() => location.pathname === '/accounts', undefined, {
       timeout: 10_000,
