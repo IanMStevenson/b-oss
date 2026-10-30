@@ -323,7 +323,7 @@ export function MapScreen({ focusedEntryId }: MapScreenProps) {
       (err: unknown) => {
         if (id !== requestIdRef.current) return;
         // Non-blocking per SCR-04: the map (and its already-shown markers, if any) stay usable;
-        // the next pan/zoom tries again on its own, no explicit retry action.
+        // the next pan/zoom tries again on its own, and "Try again" re-requests the same area.
         // Never the API's own text above the map (b-oss#669): a fixed message, the detail logged.
         console.warn('[map] entries request failed', errorMessageOf(err, 'unknown error'));
         setEntriesStatus('error');
