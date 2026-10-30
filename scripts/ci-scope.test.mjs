@@ -65,6 +65,7 @@ describe('typecheckSteps', () => {
       [
         '--build',
         'packages/b-api',
+        'packages/b-notify-core',
         'packages/backup-engine',
         'packages/b-ark-ui-components',
         'packages/b-ark-ui-electron',

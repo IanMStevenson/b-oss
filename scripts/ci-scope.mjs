@@ -44,6 +44,7 @@ const GLOBAL_FILES = ['packages/b-mobile/src/test-setup.ts'];
 // emitted dist/ (their package `main` points at it), so a scoped run builds the upstream closure.
 const BUILD_GROUP = [
   'b-api',
+  'b-notify-core',
   'backup-engine',
   'b-ark-ui-components',
   'b-ark-ui-electron',

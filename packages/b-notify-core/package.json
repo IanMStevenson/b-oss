@@ -1,0 +1,20 @@
+{
+  "name": "@b-oss/b-notify-core",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Shared, pure notification-polling rules: the unread-totals fetch and the count-diff rule (used by the desktop shell).",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@b-oss/b-api": "*"
+  },
+  "devDependencies": {
+    "vitest": "^5.0.5"
+  }
+}
