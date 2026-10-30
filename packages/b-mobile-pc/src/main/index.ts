@@ -221,6 +221,10 @@ async function createWindow(showWindow: boolean): Promise<void> {
     if (event.isMainFrame && !event.isSameDocument) notifyShell?.pageReset();
   });
 
+  // Windows logoff or shutdown can arrive as a window close; hiding to the tray must not hold it up.
+  win.on('query-session-end', () => notifyShell?.markQuitting());
+  win.on('session-end', () => notifyShell?.markQuitting());
+
   win.on('close', (event) => {
     // While notifications are being polled for, closing the window hides it to the tray.
     const hide = notifyShell?.shouldHideInsteadOfClose(notifyPoller?.hasAccounts() ?? false);
