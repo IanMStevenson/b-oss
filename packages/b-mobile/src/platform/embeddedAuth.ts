@@ -9,7 +9,8 @@
 // only for now (no ios/ project in this app yet); calling this off-native or on a platform with
 // no registered implementation rejects rather than silently hanging.
 
-import { Capacitor, registerPlugin } from '@capacitor/core';
+import { registerPlugin } from '@capacitor/core';
+import { isCapacitorNative } from './platformKind.js';
 
 interface EmbeddedAuthPlugin {
   open(options: { url: string; redirectPrefix: string }): Promise<{ redirectUrl: string }>;
@@ -37,7 +38,7 @@ export class EmbeddedAuthUnavailableError extends Error {
  * EmbeddedAuthCancelledError if the user backs out without completing, or
  * EmbeddedAuthUnavailableError off-native. */
 export async function openEmbeddedAuth(url: string, redirectPrefix: string): Promise<string> {
-  if (!Capacitor.isNativePlatform()) throw new EmbeddedAuthUnavailableError();
+  if (!isCapacitorNative()) throw new EmbeddedAuthUnavailableError();
   try {
     const result = await EmbeddedAuth.open({ url, redirectPrefix });
     return result.redirectUrl;

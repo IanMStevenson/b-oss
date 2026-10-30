@@ -9,7 +9,8 @@
 // project) — every export is a no-op off native, same stance every other platform/*.ts module
 // takes.
 
-import { Capacitor, registerPlugin } from '@capacitor/core';
+import { registerPlugin } from '@capacitor/core';
+import { isCapacitorNative } from './platformKind.js';
 
 interface BlipfotoLinksPlugin {
   setEnabled(options: { enabled: boolean }): Promise<void>;
@@ -18,6 +19,6 @@ interface BlipfotoLinksPlugin {
 const BlipfotoLinks = registerPlugin<BlipfotoLinksPlugin>('BlipfotoLinks');
 
 export async function setBlipfotoLinksEnabled(enabled: boolean): Promise<void> {
-  if (!Capacitor.isNativePlatform()) return;
+  if (!isCapacitorNative()) return;
   await BlipfotoLinks.setEnabled({ enabled });
 }

@@ -22,7 +22,8 @@
 // multipart seam (`platform/upload.ts`, via `@capacitor/file-transfer`), because CapacitorHttp
 // mishandles `FormData` (see platform/upload.ts's own header comment).
 
-import { Capacitor, CapacitorHttp } from '@capacitor/core';
+import { CapacitorHttp } from '@capacitor/core';
+import { isCapacitorNative } from './platformKind.js';
 
 function toHeaderRecord(headers: HeadersInit | undefined): Record<string, string> {
   const record: Record<string, string> = {};
@@ -90,7 +91,7 @@ async function nativeFetch(
 const NULL_BODY_STATUSES = new Set([101, 103, 204, 205, 304]);
 
 export const platformFetch: typeof fetch = (input, init) => {
-  if (Capacitor.isNativePlatform()) {
+  if (isCapacitorNative()) {
     return nativeFetch(input, init);
   }
   return fetch(input, init);

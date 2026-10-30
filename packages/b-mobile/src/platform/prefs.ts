@@ -5,17 +5,17 @@
 // Web fallback uses localStorage directly, which is genuinely usable for desktop-browser
 // development, not just a placeholder.
 
-import { Capacitor } from '@capacitor/core';
 import { Preferences } from '@capacitor/preferences';
+import { isCapacitorNative } from './platformKind.js';
 
 export async function getPref(key: string): Promise<string | null> {
-  if (!Capacitor.isNativePlatform()) return localStorage.getItem(key);
+  if (!isCapacitorNative()) return localStorage.getItem(key);
   const { value } = await Preferences.get({ key });
   return value;
 }
 
 export async function setPref(key: string, value: string): Promise<void> {
-  if (!Capacitor.isNativePlatform()) {
+  if (!isCapacitorNative()) {
     localStorage.setItem(key, value);
     return;
   }
@@ -23,7 +23,7 @@ export async function setPref(key: string, value: string): Promise<void> {
 }
 
 export async function deletePref(key: string): Promise<void> {
-  if (!Capacitor.isNativePlatform()) {
+  if (!isCapacitorNative()) {
     localStorage.removeItem(key);
     return;
   }

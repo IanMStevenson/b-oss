@@ -10,8 +10,9 @@
 // Web/iOS have no such mechanism, so every export is a no-op off native, like the other
 // platform/*.ts modules.
 
-import { Capacitor, registerPlugin } from '@capacitor/core';
+import { registerPlugin } from '@capacitor/core';
 import type { ThemePreference } from '../theme/themeTypes.js';
+import { isCapacitorNative } from './platformKind.js';
 
 interface ThemePlugin {
   setTheme(options: { preference: ThemePreference }): Promise<void>;
@@ -20,7 +21,7 @@ interface ThemePlugin {
 const Theme = registerPlugin<ThemePlugin>('Theme');
 
 export async function setNativeTheme(preference: ThemePreference): Promise<void> {
-  if (!Capacitor.isNativePlatform()) return;
+  if (!isCapacitorNative()) return;
   try {
     await Theme.setTheme({ preference });
   } catch {

@@ -15,8 +15,8 @@
 // platform/geolocation.ts's device-location path instead — a deliberate, documented scope
 // reduction rather than a hand-rolled EXIF GPS parser.
 
-import { Capacitor } from '@capacitor/core';
 import { Camera, CameraDirection } from '@capacitor/camera';
+import { isCapacitorNative } from './platformKind.js';
 
 export interface PickedPhoto {
   /** Native file URI — absent on web, where webPath is the only usable source. */
@@ -136,5 +136,5 @@ export async function pickPhoto(): Promise<PickedPhoto | null> {
  * fallback for chooseFromGallery/takePhoto needs none, so SCR-09 can skip rendering permission-
  * specific copy there. */
 export function isNativeCamera(): boolean {
-  return Capacitor.isNativePlatform();
+  return isCapacitorNative();
 }
