@@ -6,7 +6,8 @@
   "files": ["dist/**/*", "package.json"],
   "extraResources": [
     { "from": "../b-mobile/dist/", "to": "web/" },
-    { "from": "build/tray/", "to": "tray/" }
+    { "from": "build/tray/", "to": "tray/" },
+    { "from": "build/icon.png", "to": "tray/app-icon.png" }
   ],
   "win": {
     "target": [

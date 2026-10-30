@@ -7,13 +7,12 @@
 // unit tests. The tray is copied in small from b-ark's rather than shared: two consumers.
 
 import { app, dialog, Menu, nativeImage, Notification, Tray, type BrowserWindow } from 'electron';
-import { join } from 'node:path';
 import { CHANNELS } from '../shared/bridge.js';
 import type { NotifyPayload } from '../shared/notify.js';
 import { notificationText } from './notify-text.js';
 import type { ToShow } from './notify-poller.js';
 import { TapQueue } from './tap-queue.js';
-import { trayIconPath } from './tray-icon.js';
+import { appIconPath, trayIconPath } from './tray-icon.js';
 import { loginItemWanted, requestExit, shouldHideOnClose } from './tray-policy.js';
 
 /** Argument added to the login item so a start at login goes straight to the tray. */
@@ -111,26 +110,28 @@ export class NotifyShell {
     setLoginItem(loginItemWanted(this.watchedAccounts()));
   }
 
-  /** b-mobile's own tray icon; if it cannot be loaded, the app icon, so the tray is never blank. */
-  private trayIcon(): Electron.NativeImage {
-    const path = trayIconPath({
+  /** b-mobile's own tray icon; if it cannot be loaded, the app icon; null if neither can (the tray is
+   * then skipped rather than drawn blank). */
+  private trayIcon(): Electron.NativeImage | null {
+    const paths = {
       packaged: app.isPackaged,
       resourcesPath: process.resourcesPath,
       mainDir: __dirname,
-    });
+    };
+    const path = trayIconPath(paths);
     const image = nativeImage.createFromPath(path);
     if (!image.isEmpty()) return image;
-    const fallback = nativeImage.createFromPath(
-      app.isPackaged ? process.execPath : join(__dirname, '../../build/icon.png'),
-    );
+    const fallback = nativeImage.createFromPath(appIconPath(paths));
     console.error(
-      `[tray] icon not loaded from ${path}; ${fallback.isEmpty() ? 'no fallback either' : 'using the app icon'}`,
+      `[tray] icon not loaded from ${path}; ${fallback.isEmpty() ? 'no fallback either, no tray' : 'using the app icon'}`,
     );
-    return fallback;
+    return fallback.isEmpty() ? null : fallback.resize({ width: 32, height: 32 });
   }
 
   private createTray(): void {
-    const tray = new Tray(this.trayIcon());
+    const icon = this.trayIcon();
+    if (!icon) return;
+    const tray = new Tray(icon);
     this.tray = tray;
     tray.setToolTip('b-mobile');
     tray.setContextMenu(

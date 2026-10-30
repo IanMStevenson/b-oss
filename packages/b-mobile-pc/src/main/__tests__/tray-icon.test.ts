@@ -5,7 +5,7 @@ import { existsSync, readFileSync } from 'node:fs';
 import { dirname, join, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
-import { trayIconPath } from '../tray-icon.js';
+import { appIconPath, trayIconPath } from '../tray-icon.js';
 
 const pkgDir = resolve(dirname(fileURLToPath(import.meta.url)), '../../..');
 const builder = JSON.parse(readFileSync(join(pkgDir, 'electron-builder.json'), 'utf8')) as {
@@ -27,6 +27,15 @@ describe('tray icon packaging (b-oss#640)', () => {
     }
   });
 
+  it('the fallback app icon is packaged too, and exists', () => {
+    const rel = relative('/r', appIconPath({ packaged: true, resourcesPath: '/r', mainDir: '/x' }))
+      .split('\\')
+      .join('/');
+    const entry = builder.extraResources.find((e) => e.to === rel);
+    expect(entry, `no extraResources entry delivers ${rel}`).toBeDefined();
+    expect(existsSync(join(pkgDir, entry!.from))).toBe(true);
+  });
+
   it('the dev path resolves to the same committed file', () => {
     const dev = trayIconPath({
       packaged: false,
@@ -34,5 +43,11 @@ describe('tray icon packaging (b-oss#640)', () => {
       mainDir: join(pkgDir, 'dist/main'),
     });
     expect(existsSync(dev)).toBe(true);
+    const app = appIconPath({
+      packaged: false,
+      resourcesPath: '/r',
+      mainDir: join(pkgDir, 'dist/main'),
+    });
+    expect(existsSync(app)).toBe(true);
   });
 });

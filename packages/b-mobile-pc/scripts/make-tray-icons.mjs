@@ -6,6 +6,8 @@
 // Windows: an .ico loaded as empty in Electron on Linux, so it was not shipped untested.
 // Committed output; run with
 //   node packages/b-mobile-pc/scripts/make-tray-icons.mjs
+// Needs `sharp` (not a dependency of this package; present in the root node_modules via the build
+// tooling, or `npm i --no-save sharp`).
 import sharp from 'sharp';
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';

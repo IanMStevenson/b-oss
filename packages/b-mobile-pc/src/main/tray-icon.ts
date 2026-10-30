@@ -13,12 +13,22 @@ export const TRAY_DIR = 'tray';
  * .ico was tried and loaded empty on Linux, so PNG is used on every platform. */
 export const TRAY_ICON_FILE = 'tray-icon.png';
 
-export function trayIconPath(opts: {
+/** The app icon, used if the tray icon cannot be loaded: shipped beside it when packaged (an .exe is
+ * not an image `nativeImage.createFromPath` can read), `build/icon.png` in dev. */
+export function appIconPath(opts: TrayIconPaths): string {
+  return opts.packaged
+    ? join(opts.resourcesPath, TRAY_DIR, 'app-icon.png')
+    : join(opts.mainDir, '../../build/icon.png');
+}
+
+export interface TrayIconPaths {
   packaged: boolean;
   resourcesPath: string;
   /** The compiled main bundle's directory (`dist/main`). */
   mainDir: string;
-}): string {
+}
+
+export function trayIconPath(opts: TrayIconPaths): string {
   return opts.packaged
     ? join(opts.resourcesPath, TRAY_DIR, TRAY_ICON_FILE)
     : join(opts.mainDir, '../../build', TRAY_DIR, TRAY_ICON_FILE);
