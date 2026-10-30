@@ -6,6 +6,7 @@
 // Milestones, New Blippers, Nearby) are in-screen state, not routes.
 
 import { useEffect, useRef } from 'react';
+import { installKeyboardScroll } from './keyboardScroll.js';
 import {
   IonApp,
   IonMenu,
@@ -341,6 +342,8 @@ function NavSplitPane({ children }: { children: ReactNode }) {
 
 export function AppShell() {
   const activeAccountId = useAccountsStore((s) => s.activeAccountId);
+
+  useEffect(() => installKeyboardScroll(), []);
 
   useEffect(() => {
     void applyFontScale();
