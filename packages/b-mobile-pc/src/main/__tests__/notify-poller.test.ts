@@ -147,6 +147,33 @@ describe('NotifyPoller', () => {
     expect(h.shown).toHaveLength(1);
   });
 
+  it('records the dead-token flag on the current state even if the account was reconfigured meanwhile', async () => {
+    let release!: () => void;
+    const gate = new Promise<void>((resolve) => (release = resolve));
+    const h = harness({
+      show: async (item) => {
+        h.shown.push(item);
+        await gate;
+      },
+    });
+    await h.poller.start();
+    await h.poller.configure([{ accountId: 'ann', streams: BOTH }]);
+    await tickOnce();
+    h.fetchTotals.mockRejectedValue(new TokenInvalidError());
+    await tickOnce(POLL_INTERVAL_MS); // blocked inside show()
+    await h.poller.configure([
+      { accountId: 'ann', streams: { comments: true, notifications: false } },
+    ]);
+    release();
+    await tickOnce();
+    const saved = JSON.parse(h.file.contents ?? '{}') as {
+      accounts: Record<string, { reauthShown: boolean }>;
+    };
+    expect(saved.accounts.ann.reauthShown).toBe(true);
+    await tickOnce(POLL_INTERVAL_MS * 3);
+    expect(h.shown).toHaveLength(1);
+  });
+
   it('forgets the dead-token flag once the app removes the account, so a fresh sign-in polls again', async () => {
     const h = harness();
     await h.poller.start();
