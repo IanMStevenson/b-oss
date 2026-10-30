@@ -54,6 +54,13 @@ export function isAllowedNavigation(target: string, allowInsecureHttp = false): 
   }
 }
 
+/** Test hook: the same sign-in page path and query on another origin (a fake authorize server).
+ * Only index.ts's non-packaged test mode calls this. */
+export function withOrigin(url: string, origin: string): string {
+  const source = new URL(url);
+  return new URL(source.pathname + source.search, origin).toString();
+}
+
 export function reachedRedirect(target: string, redirectPrefix: string): boolean {
   return target.toLowerCase().startsWith(redirectPrefix.toLowerCase());
 }

@@ -5,6 +5,7 @@ import { describe, it, expect } from 'vitest';
 import {
   AuthRequestError,
   isAllowedNavigation,
+  withOrigin,
   reachedRedirect,
   validateAuthRequest,
 } from '../auth-request.js';
@@ -92,5 +93,16 @@ describe('isAllowedNavigation', () => {
     ]) {
       expect(isAllowedNavigation(target, true)).toBe(false);
     }
+  });
+});
+
+describe('withOrigin (test hook)', () => {
+  it('keeps the path and query and swaps the origin', () => {
+    expect(
+      withOrigin(
+        'https://www.blipfoto.com/oauth/authorize?state=s&scope=read',
+        'http://127.0.0.1:5193',
+      ),
+    ).toBe('http://127.0.0.1:5193/oauth/authorize?state=s&scope=read');
   });
 });
