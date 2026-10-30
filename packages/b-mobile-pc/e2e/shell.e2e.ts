@@ -496,6 +496,8 @@ describe('the error log and copyable details (b-oss#639)', () => {
 // keep stepping, Ctrl+wheel and Ctrl +/-/0 drive the app's own zoom, and Chromium's page zoom
 // (devicePixelRatio) never moves. Chromium's own page-zoom accelerators come from the application
 // menu, which CDP key events bypass, so that half is covered by app-menu.test.ts, not here.
+});
+
 describe('browse zoom', () => {
   const percent = async (): Promise<number> => {
     const label = page.getByText(/^\d+%$/).first();
