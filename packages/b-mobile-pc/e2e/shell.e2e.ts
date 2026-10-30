@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (C) 2026 Ian Stevenson
 
-// End-to-end tests for the real shell. e2e/run.sh starts Electron in Docker (CDP on :9222) with
+// End-to-end tests for the real shell. e2e/run.sh starts Electron in Docker (CDP port from BMPC_CDP, default :9222) with
 // b-mobile's stub API behind the proxy and a fake sign-in server; these tests drive its window with
 // Playwright over CDP. The tests share one window and run in order: the later ones build on the
 // signed-in state the sign-in test leaves.
@@ -304,8 +304,8 @@ describe('uploads through the proxy', () => {
 // (BMPC_TEST_POLL_INTERVAL_MS) and records what it would have shown instead of showing it
 // (BMPC_TEST_NOTIFY_PORT); the stub's counts are raised and lowered over its /__unread control URL.
 // The tests run in order and build on the account the sign-in tests left signed in.
-const STUB = 'http://127.0.0.1:5192';
-const NOTIFY = 'http://127.0.0.1:5194';
+const STUB = process.env.BMPC_STUB ?? 'http://127.0.0.1:5192';
+const NOTIFY = process.env.BMPC_NOTIFY ?? 'http://127.0.0.1:5194';
 
 interface Shown {
   title: string;
