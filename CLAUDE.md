@@ -117,6 +117,15 @@ and the repoint command for "make that worktree available via Mutagen."
   `b-ark-chrome-relay` → `~/live/b-ark-chrome-dist` (built `dist/`, needs
   `npm run dev` running in whichever worktree feeds it) → Windows
   `D:\Dev\chrome-live\b-ark-chrome-build`.
+- **b-mobile-pc** (Windows testing of the desktop shell; on the `integration/b-mobile-pc` branch only):
+  local relay `b-mobile-pc-relay` → `~/live/b-mobile-pc-repo` (the **whole monorepo**, created with
+  `--ignore-vcs --ignore=node_modules/ --ignore=e2e-out/` like b-ark's) → Windows
+  `D:\Dev\debugging\b-mobile-pc-build` through `b-mobile-pc-live` (Ian creates that session once). It
+  runs `electron.cmd` against the synced `packages/b-mobile-pc/dist`, which serves
+  `packages/b-mobile/dist`, so build **both** (`npm run build -w @b-oss/b-mobile -w @b-oss/b-mobile-pc`)
+  on the VM in the feeding worktree. Steps and the VS Code launch config:
+  `packages/b-mobile-pc/README.md`. The relay's source is whichever worktree was last pointed at it
+  (repoint with the terminate/create pair above).
 
 ## Commands
 
