@@ -10,13 +10,14 @@
 // creationDate, format) when `includeMetadata: true` is passed, which is what SCR-10 uses for its
 // "defaults from photo EXIF date, else today" and too-small validation without needing a
 // hand-rolled binary EXIF parser: `creationDate` is the plugin's own EXIF-or-file-mtime read.
-// GPS coordinates are not exposed structurally by MediaMetadata (only a raw, unparsed `exif`
-// string), so SCR-10/SCR-12's "location pre-filled from EXIF... when available" is satisfied via
-// platform/geolocation.ts's device-location path instead — a deliberate, documented scope
-// reduction rather than a hand-rolled EXIF GPS parser.
+// The plugin's gallery picker returns a copy with the photo's GPS redacted by Android, so on
+// Android gallery picks go through platform/photoPick.ts instead, which returns the embedded
+// position (`gps`). The app never substitutes the phone's own position for a photo's (b-oss#650).
 
 import { Capacitor } from '@capacitor/core';
 import { Camera, CameraDirection } from '@capacitor/camera';
+import { hasNativePhotoPick, pickNativePhoto, readPhotoGps } from './photoPick.js';
+import { requestGeotagAccess } from './geolocation.js';
 
 export interface PickedPhoto {
   /** Native file URI — absent on web, where webPath is the only usable source. */
@@ -32,6 +33,9 @@ export interface PickedPhoto {
    * fallback paths), so `data/photoValidation.ts`'s max-file-size check treats null as unknown
    * rather than a rejection. */
   sizeBytes: number | null;
+  /** The position embedded in the photo, when the platform let it through. Never the phone's
+   * own location. Absent for camera captures, shared images and the web fallback. */
+  gps?: { lat: number; lon: number } | null;
 }
 
 export class CameraPermissionDeniedError extends Error {
@@ -102,8 +106,15 @@ async function ensureCameraPermission(): Promise<void> {
   throw new CameraPermissionDeniedError(requested.camera !== 'denied');
 }
 
-export async function takePhoto(): Promise<PickedPhoto | null> {
+export interface TakePhotoOptions {
+  /** Ask for location access first, so the system camera embeds where the photo was taken, and
+   * return that position in `gps` (entries only; not wanted for a profile photo). */
+  geotag?: boolean;
+}
+
+export async function takePhoto(options: TakePhotoOptions = {}): Promise<PickedPhoto | null> {
   await ensureCameraPermission();
+  if (options.geotag) await requestGeotagAccess();
   try {
     const result = await Camera.takePhoto({
       quality: 90,
@@ -111,7 +122,28 @@ export async function takePhoto(): Promise<PickedPhoto | null> {
       cameraDirection: CameraDirection.Rear,
       includeMetadata: true,
     });
-    return toPickedPhoto(result);
+    const photo = toPickedPhoto(result);
+    if (options.geotag && result.uri) photo.gps = await readPhotoGps(result.uri);
+    return photo;
+  } catch (err) {
+    if (isUserCancelled(err)) return null;
+    throw err;
+  }
+}
+
+async function pickNative(): Promise<PickedPhoto | null> {
+  try {
+    const picked = await pickNativePhoto();
+    return {
+      uri: picked.path,
+      webPath: Capacitor.convertFileSrc(picked.path),
+      mimeType: picked.mimeType,
+      width: picked.width ?? null,
+      height: picked.height ?? null,
+      createdAt: picked.createdAt ?? null,
+      sizeBytes: picked.sizeBytes,
+      gps: picked.lat != null && picked.lon != null ? { lat: picked.lat, lon: picked.lon } : null,
+    };
   } catch (err) {
     if (isUserCancelled(err)) return null;
     throw err;
@@ -119,6 +151,7 @@ export async function takePhoto(): Promise<PickedPhoto | null> {
 }
 
 export async function pickPhoto(): Promise<PickedPhoto | null> {
+  if (hasNativePhotoPick()) return pickNative();
   // No permission requested for this path (§15/SCR-09) — the system picker grants access to the
   // chosen item only, which chooseFromGallery relies on natively.
   try {

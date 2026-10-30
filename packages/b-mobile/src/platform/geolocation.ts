@@ -51,3 +51,20 @@ export async function getCurrentPosition(): Promise<Coordinates | null> {
     return null;
   }
 }
+
+/** Asks for location access so the system camera will geotag a photo taken for an entry: the
+ * camera app embeds the position only when the app that asked for the photo holds a location
+ * permission (b-oss#650). Approximate access is enough; the position itself comes from the camera
+ * app's own fix, not from this app. Never throws and never blocks the photo: a refusal (or an OS
+ * that will no longer prompt) just means the photo carries no position. */
+export async function requestGeotagAccess(): Promise<boolean> {
+  try {
+    const current = await Geolocation.checkPermissions();
+    if (current.location === 'granted' || current.coarseLocation === 'granted') return true;
+    if (current.location === 'denied' && current.coarseLocation === 'denied') return false;
+    const requested = await Geolocation.requestPermissions({ permissions: ['coarseLocation'] });
+    return requested.location === 'granted' || requested.coarseLocation === 'granted';
+  } catch {
+    return false;
+  }
+}
