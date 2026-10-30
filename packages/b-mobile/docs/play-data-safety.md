@@ -9,7 +9,7 @@ unverified), so wording of options below is from memory of the form; confirm aga
 
 - "Collected" = transmitted off the device by the app, **whoever receives it** (Google's
   definition: [Data safety help](https://support.google.com/googleplay/android-developer/answer/10787469)).
-  So what Blipfoto, MapTiler or Google do with data afterwards doesn't change whether the app
+  So what Blipfoto, Geoapify or Google do with data afterwards doesn't change whether the app
   collected it, and we don't describe their practices here. Data only processed on the device
   (tokens, settings, hidden list, cache, drafts, queue) is **not** collected.
 - **Ephemeral** = only held in memory and kept no longer than the specific real-time request
@@ -31,7 +31,7 @@ unverified), so wording of options below is from memory of the form; confirm aga
 | Question                                       | Answer                                                    |
 | ---------------------------------------------- | --------------------------------------------------------- |
 | Does the app collect or share user data?       | Yes                                                       |
-| Is all data encrypted in transit?              | Yes (HTTPS to Blipfoto, MapTiler, b-push, FCM)            |
+| Is all data encrypted in transit?              | Yes (HTTPS to Blipfoto, Geoapify, b-push, FCM)            |
 | Can users request data deletion?               | Yes: see the data deletion page below                     |
 | Account creation / sign-in inside the app?     | Sign-in with a Blipfoto account (OAuth); links to sign-up |
 | Independent security review                    | No                                                        |
@@ -46,7 +46,7 @@ unverified), so wording of options below is from memory of the form; confirm aga
 | Personal info: email, address, phone, race or ethnicity, political or religious beliefs, sexual orientation | No        | No     |               |                   | Never asked for or sent (the app also never writes Blipfoto's email or push preferences)                               |
 | Personal info: **User IDs**                                                                                 | Yes       | No     | Yes           | App functionality | Blipfoto user ID in the b-push record; only if notifications are on                                                    |
 | Device or other IDs                                                                                         | Yes       | No     | Yes           | App functionality | FCM push token in the b-push record; only once notifications are turned on                                             |
-| Location: **Approximate location**                                                                          | Yes       | No ⚠   | Yes           | App functionality | Nearby search and entry location go to Blipfoto; map area to MapTiler                                                  |
+| Location: **Approximate location**                                                                          | Yes       | No ⚠   | Yes           | App functionality | Nearby search and entry location go to Blipfoto; map area to Geoapify                                                  |
 | Location: **Precise location**                                                                              | Yes       | No ⚠   | Yes           | App functionality | As above when precise access is allowed; also camera photos' EXIF location, uploaded with the photo (b-oss#395)        |
 | Photos and videos: **Photos**                                                                               | Yes       | No ⚠   | Yes           | App functionality | Photos the user posts, uploaded to Blipfoto unchanged (EXIF included); nothing to the developer                        |
 | App activity: **Other user-generated content**                                                              | Yes       | No ⚠   | Yes           | App functionality | Comments, entry titles, descriptions and tags posted to Blipfoto                                                       |
