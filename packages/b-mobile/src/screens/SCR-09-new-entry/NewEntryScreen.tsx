@@ -34,6 +34,7 @@ import {
 } from '../../platform/camera.js';
 import type { PickedPhoto } from '../../platform/camera.js';
 import { takePendingSharedPhoto } from '../../platform/shareIntent.js';
+import { SpikeGps } from './SpikeGps.js';
 import { useAppNavigate } from '../../app/routes/useAppNavigate.js';
 import { useActiveAccount } from '../../state/accountsStore.js';
 import { useComposeDraftStore } from '../../state/composeDraftStore.js';
@@ -162,6 +163,7 @@ export function NewEntryScreen({ replaceEntryId }: NewEntryScreenProps = {}) {
         )}
       </IonHeader>
       <IonContent>
+        <SpikeGps />
         <div className="new-entry-tiles">
           <IonButton
             className="new-entry-tile"
