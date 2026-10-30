@@ -38,6 +38,7 @@ export default defineConfig({
       { find: /^@b-oss\/b-ark-ui-components$/, replacement: uiKitSrc('b-ark-ui-components') },
       { find: /^@b-oss\/b-ark-ui-chrome$/, replacement: uiKitSrc('b-ark-ui-chrome') },
       { find: /^@b-oss\/b-api$/, replacement: uiKitSrc('b-api') },
+      { find: /^@b-oss\/b-notify-core$/, replacement: uiKitSrc('b-notify-core') },
       { find: /^@b-oss\/backup-engine$/, replacement: uiKitSrc('backup-engine') },
     ],
     // jsdom has no scroll implementation; Ionic components (b-mobile only, so far) that scroll

@@ -39,6 +39,20 @@ describe('fetchUnreadTotals', () => {
     expect(url.searchParams.get('return_notifications')).toBe('1');
   });
 
+  it('uses the given base URL and fetch when provided', async () => {
+    const custom = vi
+      .fn<typeof fetch>()
+      .mockResolvedValue(new Response(envelope({ comments: 1, notifications: 2 })));
+    const totals = await fetchUnreadTotals('t', {
+      baseUrl: 'http://stub.test/4/',
+      fetch: custom,
+    });
+    expect(totals).toEqual({ comments: 1, notifications: 2 });
+    expect(String(custom.mock.calls[0][0] as string)).toMatch(
+      /^http:\/\/stub\.test\/4\/messages\/totals\/unread\.json/,
+    );
+  });
+
   it('throws TokenInvalidError on a token-invalid error code', async () => {
     mockFetchOnce(errorEnvelope(51, 'Invalid token'));
     await expect(fetchUnreadTotals('dead')).rejects.toBeInstanceOf(TokenInvalidError);

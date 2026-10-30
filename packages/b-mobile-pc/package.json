@@ -17,6 +17,7 @@
     "dist:win": "electron-vite build && electron-builder --win"
   },
   "devDependencies": {
+    "@b-oss/b-notify-core": "*",
     "electron": "45.0.0",
     "electron-builder": "^26.18.0",
     "electron-vite": "^6.0.0",
