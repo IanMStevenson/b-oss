@@ -19,8 +19,6 @@ export const CHANNELS = {
   notifyReceived: 'notify:received',
   notifyTapped: 'notify:tapped',
   notifyTappedReady: 'notify:tapped-ready',
-  launchAtLoginGet: 'notify:launch-at-login-get',
-  launchAtLoginSet: 'notify:launch-at-login-set',
 } as const;
 
 export interface DesktopBridge {
@@ -44,8 +42,5 @@ export interface DesktopBridge {
     /** The user clicked a notification; the window has already been brought to the front. A click
      * that happened before anyone listened is delivered to the first listener. */
     onTapped(handler: (payload: NotifyPayload) => void): () => void;
-    /** `supported` is false when running unpackaged, where a login item would point at Electron. */
-    getLaunchAtLogin(): Promise<{ supported: boolean; enabled: boolean }>;
-    setLaunchAtLogin(enabled: boolean): Promise<void>;
   };
 }

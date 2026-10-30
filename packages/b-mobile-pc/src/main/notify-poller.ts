@@ -130,6 +130,10 @@ export class NotifyPoller {
     this.timer = null;
   }
 
+  watchedCount(): number {
+    return Object.keys(this.state.accounts).length;
+  }
+
   /** True while there is at least one account to watch: the shell stays in the tray for it. */
   hasAccounts(): boolean {
     return Object.keys(this.state.accounts).length > 0;

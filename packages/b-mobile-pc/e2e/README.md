@@ -36,7 +36,7 @@ token raises exactly one sign-in-again notification.
   encrypted at rest (DPAPI, Keychain, libsecret) and the refusal when they cannot be needs a real
   Windows, macOS or Linux desktop session.
 - Windows- or macOS-specific behaviour (installer, protocol registration, tray, updates), real OS
-  notifications (the harness swaps in a recorder), hide-to-tray on close, and launch at login.
+  notifications (the harness swaps in a recorder), hide-to-tray on close, the login item and the tray Exit dialog (their decisions are unit-tested in `tray-policy.test.ts`).
 - The real Blipfoto API and a real account.
 
 ## Notes from building it

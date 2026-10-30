@@ -228,8 +228,7 @@ export const STRINGS = {
   'SCR-25.notifications.app.caption': 'Notifications from b-mobile on this device',
   'SCR-25.notifications.app.title': 'b-mobile notifications',
   'SCR-25.notifications.desktop.caption':
-    'While notifications are on, b-mobile keeps running in the system tray when you close its window, and checks for new activity every 5 minutes. Quit it from the tray icon to stop.',
-  'SCR-25.notifications.desktop.launch_at_login': 'Start b-mobile when I sign in to this computer',
+    "While notifications are on, b-mobile starts when you sign in to this computer and keeps running in the system tray when you close its window, checking for new activity every 5 minutes. Use Exit in the tray icon's menu to stop it; notifications stay on and resume next time b-mobile starts.",
   'SCR-25.notifications.feed_hint.all':
     'Your Blipfoto feed has every notification type turned off, so this app will never have any notifications to tell you about.',
   'SCR-25.notifications.feed_hint.some':

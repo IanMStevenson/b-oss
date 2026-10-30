@@ -30,8 +30,6 @@ export interface DesktopBridge {
     configure(settings: DesktopNotifySettings): Promise<void>;
     onReceived(handler: (payload: DesktopNotifyPayload) => void): () => void;
     onTapped(handler: (payload: DesktopNotifyPayload) => void): () => void;
-    getLaunchAtLogin(): Promise<{ supported: boolean; enabled: boolean }>;
-    setLaunchAtLogin(enabled: boolean): Promise<void>;
   };
 }
 

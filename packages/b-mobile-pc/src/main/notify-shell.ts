@@ -6,13 +6,14 @@
 // pure modules; this file only connects them to Electron, so it is covered by the e2e harness, not
 // unit tests. The tray is copied in small from b-ark's rather than shared: two consumers.
 
-import { app, Menu, nativeImage, Notification, Tray, type BrowserWindow } from 'electron';
+import { app, dialog, Menu, nativeImage, Notification, Tray, type BrowserWindow } from 'electron';
 import { join } from 'node:path';
 import { CHANNELS } from '../shared/bridge.js';
 import type { NotifyPayload } from '../shared/notify.js';
 import { notificationText } from './notify-text.js';
 import type { ToShow } from './notify-poller.js';
 import { TapQueue } from './tap-queue.js';
+import { loginItemWanted, requestExit, shouldHideOnClose } from './tray-policy.js';
 
 /** Argument added to the login item so a start at login goes straight to the tray. */
 export const HIDDEN_ARG = '--hidden';
@@ -51,6 +52,7 @@ export class NotifyShell {
   constructor(
     private readonly getWindow: () => BrowserWindow | null,
     private readonly presenter: Presenter,
+    private readonly watchedAccounts: () => number,
   ) {
     app.on('before-quit', () => {
       this.quitting = true;
@@ -92,19 +94,20 @@ export class NotifyShell {
     win.focus();
   }
 
-  /** Closing the window hides it while something is being polled for; Exit in the tray quits.
-   * Returns true when the close was turned into a hide. */
-  shouldHideInsteadOfClose(active: boolean): boolean {
-    return active && !this.quitting;
+  /** The window's close button: hide to the tray while notifications are on. */
+  shouldHideInsteadOfClose(): boolean {
+    return shouldHideOnClose(this.watchedAccounts() > 0, this.quitting);
   }
 
-  /** The tray exists exactly while there is something to poll for. */
+  /** Notifications on (some account is watched) or off: the tray exists, and the app starts with
+   * the user's login, exactly while they are on. */
   setActive(active: boolean): void {
     if (active && !this.tray) this.createTray();
     if (!active && this.tray) {
       this.tray.destroy();
       this.tray = null;
     }
+    setLoginItem(loginItemWanted(this.watchedAccounts()));
   }
 
   private trayIcon(): Electron.NativeImage {
@@ -119,42 +122,30 @@ export class NotifyShell {
     const tray = new Tray(this.trayIcon());
     this.tray = tray;
     tray.setToolTip('b-mobile');
-    const build = (): void => {
-      tray.setContextMenu(
-        Menu.buildFromTemplate([
-          { label: 'Open b-mobile', click: () => this.reveal() },
-          { type: 'separator' },
-          {
-            label: 'Start at login',
-            type: 'checkbox',
-            checked: getLaunchAtLogin().enabled,
-            enabled: getLaunchAtLogin().supported,
-            click: (item) => {
-              setLaunchAtLogin(item.checked);
-              build();
-            },
-          },
-          { type: 'separator' },
-          { label: 'Exit', click: () => app.quit() },
-        ]),
-      );
-    };
-    build();
+    tray.setContextMenu(
+      Menu.buildFromTemplate([
+        { label: 'Open b-mobile', click: () => this.reveal() },
+        { type: 'separator' },
+        {
+          label: 'Exit',
+          // Asks first while notifications are on; the setting itself is not changed.
+          click: () =>
+            void requestExit(
+              this.watchedAccounts() > 0,
+              (options) => dialog.showMessageBox({ ...options, buttons: [...options.buttons] }),
+              () => app.quit(),
+            ),
+        },
+      ]),
+    );
     tray.on('click', () => this.reveal());
     tray.on('double-click', () => this.reveal());
   }
 }
 
-/** Off unless the user turns it on. Unpackaged, a login item would launch bare Electron. */
-export function getLaunchAtLogin(): { supported: boolean; enabled: boolean } {
-  if (!app.isPackaged) return { supported: false, enabled: false };
-  return {
-    supported: true,
-    enabled: app.getLoginItemSettings({ args: [HIDDEN_ARG] }).openAtLogin,
-  };
-}
-
-export function setLaunchAtLogin(enabled: boolean): void {
+/** The login item follows the notifications setting (on while any account is watched). Unpackaged,
+ * it would launch bare Electron, so it is left alone. */
+function setLoginItem(wanted: boolean): void {
   if (!app.isPackaged) return;
-  app.setLoginItemSettings({ openAtLogin: enabled, args: [HIDDEN_ARG] });
+  app.setLoginItemSettings({ openAtLogin: wanted, args: [HIDDEN_ARG] });
 }

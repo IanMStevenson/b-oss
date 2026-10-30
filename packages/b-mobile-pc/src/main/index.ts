@@ -35,14 +35,7 @@ import {
 } from './app-protocol.js';
 import { openAuthWindow } from './auth-window.js';
 import { DEFAULT_AUTH_HOSTS, validateAuthRequest, withOrigin } from './auth-request.js';
-import {
-  electronPresenter,
-  getLaunchAtLogin,
-  NotifyShell,
-  type Presenter,
-  setLaunchAtLogin,
-  startedHidden,
-} from './notify-shell.js';
+import { electronPresenter, NotifyShell, type Presenter, startedHidden } from './notify-shell.js';
 import { NotifyPoller, POLL_INTERVAL_MS } from './notify-poller.js';
 import { RecordingPresenter, serveRecordingPresenter } from './notify-test-presenter.js';
 import { SecureStore, type SecretCrypto } from './secure-store.js';
@@ -227,7 +220,7 @@ async function createWindow(showWindow: boolean): Promise<void> {
 
   win.on('close', (event) => {
     // While notifications are being polled for, closing the window hides it to the tray.
-    const hide = notifyShell?.shouldHideInsteadOfClose(notifyPoller?.hasAccounts() ?? false);
+    const hide = notifyShell?.shouldHideInsteadOfClose();
     if (hide) event.preventDefault();
     const b = win.getNormalBounds();
     // Synchronous: the app quits as soon as the last window closes, so an async write could be lost.
@@ -317,7 +310,11 @@ if (!app.requestSingleInstanceLock()) {
       serveRecordingPresenter(recording, testNotifyPort);
       presenter = recording;
     }
-    const shell = new NotifyShell(() => mainWindow, presenter);
+    const shell = new NotifyShell(
+      () => mainWindow,
+      presenter,
+      () => notifyPoller?.watchedCount() ?? 0,
+    );
     notifyShell = shell;
     const stateFile = atomicFile(join(app.getPath('userData'), 'notify-state.json'));
     const poller = new NotifyPoller({
@@ -346,11 +343,6 @@ if (!app.requestSingleInstanceLock()) {
       poller.configure(parseNotifySettings(settings).accounts),
     );
     handle(CHANNELS.notifyTappedReady, () => shell.tappedReady());
-    handle(CHANNELS.launchAtLoginGet, () => getLaunchAtLogin());
-    handle(CHANNELS.launchAtLoginSet, (enabled) => {
-      if (typeof enabled !== 'boolean') throw new TypeError('Invalid launch-at-login value');
-      setLaunchAtLogin(enabled);
-    });
     await poller.start();
 
     await createWindow(!(startedHidden() && poller.hasAccounts()));

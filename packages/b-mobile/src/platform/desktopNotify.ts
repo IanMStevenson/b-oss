@@ -30,11 +30,3 @@ export function onDesktopNotificationTapped(
 ): () => void {
   return desktopBridge()?.notify.onTapped(handler) ?? (() => {});
 }
-
-export async function getLaunchAtLogin(): Promise<{ supported: boolean; enabled: boolean }> {
-  return (await desktopBridge()?.notify.getLaunchAtLogin()) ?? { supported: false, enabled: false };
-}
-
-export async function setLaunchAtLogin(enabled: boolean): Promise<void> {
-  await desktopBridge()?.notify.setLaunchAtLogin(enabled);
-}

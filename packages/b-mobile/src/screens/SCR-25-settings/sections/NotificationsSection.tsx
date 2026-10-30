@@ -62,7 +62,6 @@ import { AccountMismatchAlert, canRetryInApp } from '../../../components/Account
 import { useServiceRoundExplainer } from '../../../components/ServiceRoundExplainer.js';
 import { updatePollingInterval, updatePushStreams } from '../../../flows/pushFlow.js';
 import { usesPolling } from '../../../flows/pollingNotifications.js';
-import { getLaunchAtLogin, setLaunchAtLogin } from '../../../platform/desktopNotify.js';
 import { useDevicePrefsStore } from '../../../state/devicePrefsStore.js';
 import { t, type StringKey } from '../../../strings/index.js';
 
@@ -112,46 +111,16 @@ export function feedHint(saved: Record<string, 0 | 1>): string | null {
   return t('SCR-25.notifications.feed_hint.some', { types: joinList(types) });
 }
 
-/** Desktop only (b-oss#610): what keeps notifications coming with the window closed, and the
- * launch-at-login choice (off until the user turns it on). Hidden where the shell reports it
- * cannot offer a login item (an unpackaged build). */
+/** Desktop only (b-oss#610): what keeps notifications coming with the window closed. */
 function DesktopExtras() {
-  const [login, setLogin] = useState<{ supported: boolean; enabled: boolean } | null>(null);
-  useEffect(() => {
-    let cancelled = false;
-    void getLaunchAtLogin().then((v) => {
-      if (!cancelled) setLogin(v);
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, []);
   return (
-    <>
-      <IonItem lines="none">
-        <IonText color="medium" className="ion-text-wrap">
-          <p style={{ margin: '0 0 4px', fontSize: 13 }}>
-            {t('SCR-25.notifications.desktop.caption')}
-          </p>
-        </IonText>
-      </IonItem>
-      {login?.supported && (
-        <IonItem>
-          <span>{t('SCR-25.notifications.desktop.launch_at_login')}</span>
-          <IonToggle
-            slot="end"
-            aria-label={t('SCR-25.notifications.desktop.launch_at_login')}
-            checked={login.enabled}
-            onIonChange={(e) => {
-              const enabled = e.detail.checked;
-              if (enabled === login.enabled) return;
-              setLogin({ ...login, enabled });
-              void setLaunchAtLogin(enabled).catch(() => setLogin(login));
-            }}
-          />
-        </IonItem>
-      )}
-    </>
+    <IonItem lines="none">
+      <IonText color="medium" className="ion-text-wrap">
+        <p style={{ margin: '0 0 4px', fontSize: 13 }}>
+          {t('SCR-25.notifications.desktop.caption')}
+        </p>
+      </IonText>
+    </IonItem>
   );
 }
 
