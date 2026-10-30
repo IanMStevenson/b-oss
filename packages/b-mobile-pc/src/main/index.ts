@@ -11,6 +11,7 @@ import {
   clipboard,
   ipcMain,
   net,
+  Notification,
   protocol,
   safeStorage,
   screen,
@@ -19,7 +20,7 @@ import {
 } from 'electron';
 import { mkdirSync, renameSync, writeFileSync } from 'node:fs';
 import { appendFile, mkdir, readFile, rename, rm, stat, writeFile } from 'node:fs/promises';
-import { dirname, join, resolve } from 'node:path';
+import { basename, dirname, join, resolve } from 'node:path';
 import { fetchUnreadTotals } from '@b-oss/b-notify-core';
 import { CHANNELS } from '../shared/bridge.js';
 import { appTokenKey, parseNotifySettings } from '../shared/notify.js';
@@ -38,7 +39,12 @@ import { ErrorLog, parseErrorEntry, type LogFs } from './error-log.js';
 import { APP_USER_MODEL_ID } from './app-id.js';
 import { openAuthWindow } from './auth-window.js';
 import { DEFAULT_AUTH_HOSTS, validateAuthRequest, withOrigin } from './auth-request.js';
-import { electronPresenter, NotifyShell, type Presenter, startedHidden } from './notify-shell.js';
+import {
+  createElectronPresenter,
+  NotifyShell,
+  type Presenter,
+  startedHidden,
+} from './notify-shell.js';
 import { NotifyPoller, POLL_INTERVAL_MS } from './notify-poller.js';
 import { RecordingPresenter, serveRecordingPresenter } from './notify-test-presenter.js';
 import { SecureStore, type SecretCrypto } from './secure-store.js';
@@ -305,6 +311,18 @@ if (!app.requestSingleInstanceLock()) {
       await openFolder(logDir);
     };
     const errorLog = new ErrorLog(logFs, (name) => join(logDir, name));
+    // Everything the notification pipeline does goes to the app log too (b-oss#677): redacted by
+    // the log itself, and never given a token by its callers. Also on the console for dev runs.
+    const notifyLog = (message: string): void => {
+      console.warn(`[b-mobile-pc] ${message}`);
+      void errorLog.write({ source: 'notify', message });
+    };
+    notifyLog(
+      `start: version=${app.getVersion()} electron=${process.versions.electron} platform=${process.platform} ` +
+        `packaged=${app.isPackaged} appUserModelId=${process.platform === 'win32' ? APP_USER_MODEL_ID : 'n/a'} ` +
+        `startedHidden=${startedHidden()} Notification.isSupported()=${Notification.isSupported()} ` +
+        `net.isOnline()=${net.isOnline()} exe=${basename(process.execPath)}`,
+    );
     const handle = (channel: string, fn: (...args: unknown[]) => unknown): void => {
       ipcMain.handle(channel, (event, ...args: unknown[]) => {
         if (!isTrustedSender(event.senderFrame?.url)) throw new Error('Untrusted sender');
@@ -342,7 +360,7 @@ if (!app.requestSingleInstanceLock()) {
     // Test hook (ignored when packaged): record notifications instead of showing them, and serve
     // them on a local port for the e2e tests.
     const testNotifyPort = testMode ? Number(process.env.BMPC_TEST_NOTIFY_PORT) : 0;
-    let presenter: Presenter = electronPresenter;
+    let presenter: Presenter = createElectronPresenter(notifyLog);
     if (testNotifyPort > 0) {
       const recording = new RecordingPresenter();
       serveRecordingPresenter(recording, testNotifyPort);
@@ -353,6 +371,7 @@ if (!app.requestSingleInstanceLock()) {
       presenter,
       () => notifyPoller?.watchedCount() ?? 0,
       () => void openLogFolder(),
+      notifyLog,
     );
     notifyShell = shell;
     const stateFile = atomicFile(join(app.getPath('userData'), 'notify-state.json'));
@@ -372,7 +391,7 @@ if (!app.requestSingleInstanceLock()) {
         }),
       show: shell.show,
       isOnline: () => net.isOnline(),
-      log: (message) => console.warn(`[b-mobile-pc] ${message}`),
+      log: notifyLog,
       // Test hook (ignored when packaged): poll faster than every five minutes.
       intervalMs: (testMode && Number(process.env.BMPC_TEST_POLL_INTERVAL_MS)) || POLL_INTERVAL_MS,
     });
@@ -381,6 +400,9 @@ if (!app.requestSingleInstanceLock()) {
     handle(CHANNELS.notifyConfigure, (settings) =>
       poller.configure(parseNotifySettings(settings).accounts),
     );
+    handle(CHANNELS.notifyStatus, () => poller.getStatus());
+    handle(CHANNELS.notifyCheckNow, () => poller.checkNow());
+    handle(CHANNELS.notifyTest, () => shell.showTest());
     handle(CHANNELS.notifyTappedReady, () => shell.tappedReady());
     await poller.start();
 

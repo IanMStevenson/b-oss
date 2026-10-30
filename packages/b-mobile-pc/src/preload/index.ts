@@ -3,7 +3,7 @@
 
 import { contextBridge, ipcRenderer, type IpcRendererEvent } from 'electron';
 import { BRIDGE_GLOBAL, CHANNELS, type DesktopBridge } from '../shared/bridge.js';
-import type { NotifyPayload } from '../shared/notify.js';
+import type { NotifyPayload, NotifyStatus, TestNotifyResult } from '../shared/notify.js';
 
 function subscribe(
   channel: string,
@@ -28,6 +28,9 @@ const bridge: DesktopBridge = {
   notify: {
     configure: (settings) =>
       ipcRenderer.invoke(CHANNELS.notifyConfigure, settings) as Promise<void>,
+    status: () => ipcRenderer.invoke(CHANNELS.notifyStatus) as Promise<NotifyStatus>,
+    checkNow: () => ipcRenderer.invoke(CHANNELS.notifyCheckNow) as Promise<NotifyStatus>,
+    sendTest: () => ipcRenderer.invoke(CHANNELS.notifyTest) as Promise<TestNotifyResult>,
     onReceived: (handler) => subscribe(CHANNELS.notifyReceived, handler),
     // Asking main to flush any click that arrived before a listener existed.
     onTapped: (handler) =>
