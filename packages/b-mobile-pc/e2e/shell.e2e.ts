@@ -326,3 +326,69 @@ describe('desktop notifications by polling', () => {
     await shot('5-reauth');
   });
 });
+
+// Browse zoom (b-oss#635): on a wide window with the desktop profile's 156px tile the control must
+// keep stepping, Ctrl+wheel and Ctrl +/-/0 drive the app's own zoom, and Chromium's page zoom
+// (devicePixelRatio) never moves. Chromium's own page-zoom accelerators come from the application
+// menu, which CDP key events bypass, so that half is covered by app-menu.test.ts, not here.
+describe('browse zoom', () => {
+  const percent = async (): Promise<number> => {
+    const label = page.getByText(/^\d+%$/).first();
+    return Number.parseInt((await label.innerText()).replace('%', ''), 10);
+  };
+  const click = (name: string): Promise<void> => page.getByLabel(name).first().click();
+  let dpr = 1;
+
+  it('steps through values on a wide window and never sticks between two values', async () => {
+    await page.setViewportSize({ width: 2600, height: 900 });
+    await go('/browse', 5000);
+    dpr = await page.evaluate(() => window.devicePixelRatio);
+    for (let i = 0; i < 25; i++) await click('Zoom in');
+    expect(await percent()).toBe(200);
+    const seen = new Set<number>();
+    for (let i = 0; i < 6; i++) {
+      const before = await percent();
+      await click('Zoom out');
+      const after = await percent();
+      expect(after).toBeLessThan(before);
+      seen.add(after);
+    }
+    expect(seen.size).toBe(6);
+    await click('Zoom in');
+    await shot('6-browse-wide-zoom');
+  });
+
+  it('Ctrl+wheel changes the app zoom', async () => {
+    await click('Reset zoom');
+    await page.mouse.move(1300, 500);
+    await page.keyboard.down('Control');
+    await page.mouse.wheel(0, -100);
+    await page.keyboard.up('Control');
+    await page.waitForTimeout(300);
+    expect(await percent()).toBe(110);
+    await page.keyboard.down('Control');
+    await page.mouse.wheel(0, 100);
+    await page.keyboard.up('Control');
+    await page.waitForTimeout(300);
+    expect(await percent()).toBe(100);
+  });
+
+  it('Ctrl +, -, 0 and the numpad keys change the app zoom', async () => {
+    await page.keyboard.press('Control+Equal');
+    expect(await percent()).toBe(110);
+    await page.keyboard.press('Control+NumpadAdd');
+    expect(await percent()).toBe(120);
+    await page.keyboard.press('Control+Minus');
+    expect(await percent()).toBe(110);
+    await page.keyboard.press('Control+NumpadSubtract');
+    expect(await percent()).toBe(100);
+    await page.keyboard.press('Control+Equal');
+    await page.keyboard.press('Control+0');
+    expect(await percent()).toBe(100);
+  });
+
+  it('leaves the page zoom alone', async () => {
+    expect(await page.evaluate(() => window.devicePixelRatio)).toBe(dpr);
+    expect(await page.evaluate(() => window.visualViewport?.scale ?? 1)).toBe(1);
+  });
+});

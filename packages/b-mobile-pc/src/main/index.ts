@@ -40,6 +40,7 @@ import { NotifyPoller, POLL_INTERVAL_MS } from './notify-poller.js';
 import { RecordingPresenter, serveRecordingPresenter } from './notify-test-presenter.js';
 import { SecureStore, type SecretCrypto } from './secure-store.js';
 import { MIN_HEIGHT, MIN_WIDTH, parseWindowState } from './window-state.js';
+import { lockPageZoom } from './page-zoom-lock.js';
 
 // Test hooks (e2e runs against a stub API and a fake sign-in page). Ignored in a packaged app.
 const testMode = !app.isPackaged;
@@ -194,6 +195,7 @@ async function createWindow(showWindow: boolean): Promise<void> {
     },
   });
   mainWindow = win;
+  lockPageZoom(win.webContents);
   if (saved.maximized) win.maximize();
 
   // Links leave the app: https opens in the system browser, anything else is dropped.
