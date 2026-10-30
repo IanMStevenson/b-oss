@@ -129,7 +129,7 @@ and the repoint command for "make that worktree available via Mutagen."
   (repoint with the terminate/create pair above).
   The same relay also carries the packaged app's `dist-electron/win-unpacked/` (installers, `*.blockmap`,
   `*.yml` and `linux-unpacked/` are ignored), so on Windows run
-  `packages\\b-mobile-pc\\dist-electron\\win-unpacked\\b-mobile.exe` from the synced folder: fast launch,
+  `packages\b-mobile-pc\dist-electron\win-unpacked\b-mobile.exe` from the synced folder: fast launch,
   no unpacking, a few MB per rebuild. See `packages/b-mobile-pc/README.md`.
 
 ## Commands
