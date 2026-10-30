@@ -2,7 +2,7 @@
 // Copyright (C) 2026 Ian Stevenson
 
 /* eslint-disable @typescript-eslint/require-await -- the fakes implement async interfaces */
-import { describe, it, expect } from 'vitest';
+import { afterEach, describe, it, expect, vi } from 'vitest';
 import {
   SecureStorageUnavailableError,
   SecureStore,
@@ -121,5 +121,48 @@ describe('SecureStore', () => {
     const store = new SecureStore(fakeCrypto(), file);
     await expect(store.set('k', 'v')).rejects.toThrow('unrecognised format');
     expect(file.contents).toBe('{"v":2,"items":{}}');
+  });
+});
+
+describe('SecureStore when the keystore never answers', () => {
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it('fails with SecureStorageUnavailableError instead of hanging, and recovers afterwards', async () => {
+    vi.useFakeTimers();
+    const crypto = fakeCrypto();
+    const file = memoryFile();
+    const store = new SecureStore(crypto, file, 1000);
+
+    crypto.isAvailable = () => new Promise<boolean>(() => {}); // a locked keyring: never settles
+    const stuck = store.set('k', 'v');
+    const assertion = expect(stuck).rejects.toThrow('did not respond');
+    await vi.advanceTimersByTimeAsync(1000);
+    await assertion;
+    expect(file.writes).toBe(0);
+
+    crypto.isAvailable = async () => true;
+    await store.set('k', 'v');
+    expect(await store.get('k')).toBe('v');
+  });
+
+  it('also times out a stuck encrypt or decrypt', async () => {
+    vi.useFakeTimers();
+    const crypto = fakeCrypto();
+    const store = new SecureStore(crypto, memoryFile(), 500);
+    await store.set('k', 'v');
+
+    crypto.decrypt = () => new Promise(() => {});
+    const read = expect(store.get('k')).rejects.toBeInstanceOf(SecureStorageUnavailableError);
+    await vi.advanceTimersByTimeAsync(500);
+    await read;
+
+    crypto.encrypt = () => new Promise(() => {});
+    const write = expect(store.set('k2', 'v2')).rejects.toBeInstanceOf(
+      SecureStorageUnavailableError,
+    );
+    await vi.advanceTimersByTimeAsync(500);
+    await write;
   });
 });

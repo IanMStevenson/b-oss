@@ -3,7 +3,7 @@
 
 import { BrowserWindow } from 'electron';
 import { randomUUID } from 'node:crypto';
-import { reachedRedirect } from './auth-request.js';
+import { isAllowedNavigation, reachedRedirect } from './auth-request.js';
 
 /** Opens `url` in a clean window (its own in-memory session, so no cookies carry over: a second
  * account always sees the login form) and resolves with the first navigation that reaches
@@ -13,6 +13,7 @@ export function openAuthWindow(
   parent: BrowserWindow | null,
   url: string,
   redirectPrefix: string,
+  allowInsecureHttp = false,
 ): Promise<string> {
   return new Promise((resolve, reject) => {
     const win = new BrowserWindow({
@@ -40,9 +41,14 @@ export function openAuthWindow(
     };
 
     const onNavigate = (event: { preventDefault: () => void }, target: string): void => {
-      if (!reachedRedirect(target, redirectPrefix)) return;
-      event.preventDefault();
-      finish(() => resolve(target));
+      if (reachedRedirect(target, redirectPrefix)) {
+        event.preventDefault();
+        finish(() => resolve(target));
+      } else if (!isAllowedNavigation(target, allowInsecureHttp)) {
+        // The page may follow https links (the sign-in flow can span hosts) but never file:, app:,
+        // data:, javascript: or any other scheme.
+        event.preventDefault();
+      }
     };
     win.webContents.on('will-redirect', onNavigate);
     win.webContents.on('will-navigate', onNavigate);

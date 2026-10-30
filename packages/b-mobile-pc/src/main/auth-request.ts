@@ -43,6 +43,17 @@ export function validateAuthRequest(
   return { url: parsed.toString(), redirectPrefix };
 }
 
+/** In the sign-in window, which navigations other than the final redirect are allowed: https
+ * (plain http only when a test asks for it). */
+export function isAllowedNavigation(target: string, allowInsecureHttp = false): boolean {
+  try {
+    const { protocol } = new URL(target);
+    return protocol === 'https:' || (allowInsecureHttp && protocol === 'http:');
+  } catch {
+    return false;
+  }
+}
+
 export function reachedRedirect(target: string, redirectPrefix: string): boolean {
   return target.toLowerCase().startsWith(redirectPrefix.toLowerCase());
 }
