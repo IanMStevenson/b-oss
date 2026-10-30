@@ -63,6 +63,7 @@ import { resumeGet, resumeSet } from '../../data/resumeCache.js';
 import { useHiddenMembers } from '../../state/hiddenMembersStore.js';
 import { useAppNavigate } from '../../app/routes/useAppNavigate.js';
 import { errorMessageOf } from '../../data/errors.js';
+import { capabilities } from '../../platform/capabilities.js';
 
 interface MapScreenProps {
   /** From the `?entry=<id>` query param (app-architecture.md §5's route table) — AppRoutes.tsx
@@ -371,14 +372,16 @@ export function MapScreen({ focusedEntryId }: MapScreenProps) {
         ) : (
           <div style={{ position: 'relative', height: '100%' }}>
             <div ref={containerRef} style={{ position: 'absolute', inset: 0 }} />
-            <button
-              type="button"
-              className="map-locate"
-              onClick={() => void handleMyLocation()}
-              aria-label="My location"
-            >
-              <LocateFixed size={22} aria-hidden="true" />
-            </button>
+            {capabilities().location === 'os' && (
+              <button
+                type="button"
+                className="map-locate"
+                onClick={() => void handleMyLocation()}
+                aria-label="My location"
+              >
+                <LocateFixed size={22} aria-hidden="true" />
+              </button>
+            )}
             {(mapFailed || mapError) && (
               <div
                 className="ion-padding"

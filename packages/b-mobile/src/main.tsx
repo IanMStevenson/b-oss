@@ -27,10 +27,12 @@ import { AppShell } from './app/AppShell.js';
 import { AppErrorBoundary } from './components/AppErrorBoundary.js';
 import { installGlobalErrorLogging } from './platform/diagnostics.js';
 import { initTheme } from './theme/theme.js';
+import { initPointerDensity } from './theme/pointerDensity.js';
 
 setupIonicReact();
 initTheme(); // also sets the system-bar styles
 installGlobalErrorLogging(); // desktop shell only; a no-op elsewhere
+initPointerDensity(); // compact controls for a mouse, touch sizes otherwise (b-oss#637)
 
 createRoot(document.getElementById('root')!).render(
   <AppErrorBoundary>

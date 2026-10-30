@@ -16,6 +16,8 @@ the production browser build (a dev server proxies the API like the desktop shel
 | `auth.embeddedAvailable` | `true` | `true` | `true` | `false` |
 | `auth.userCanChooseBrowser` | `true` | `true` | `false` | `false` |
 | `notifications.mechanism` | `"push"` | `"push"` | `"polling"` | `"none"` |
+| `location` | `"os"` | `"os"` | `"pick-only"` | `"os"` |
+| `media.capture` | `"camera"` | `"camera"` | `"files-only"` | `"camera"` |
 
 ## Profile defaults
 
@@ -32,9 +34,13 @@ on top as overrides.
 | `prefs.seenFirstRunExplainer` | `false` | `false` |
 | `prefs.showZoomBar` | `true` | `true` |
 | `prefs.showPagination` | `true` | `true` |
-| `prefs.thumbnailMargins` | `"none"` | `"none"` |
+| `prefs.thumbnailMargins` | `"none"` | `"normal"` |
 | `prefs.thumbnailZoomPercent` | `100` | `100` |
-| `prefs.photoFit` | `"full-width"` | `"full-width"` |
+| `prefs.photoFit` | `"full-width"` | `"capped"` |
 | `prefs.accountAvatarStyle` | `"picture"` | `"picture"` |
 | `prefs.theme` | `"system"` | `"system"` |
-| `grid.baseTilePx` | `86` | `86` |
+| `prefs.navPinned` | `"auto"` | `"auto"` |
+| `grid.baseTilePx` | `86` | `156` |
+| `grid.widthDerivedMinZoom` | `true` | `false` |
+| `keyboardWheelZoom` | `false` | `true` |
+| `nav.split` | `"off"` | `"auto"` |

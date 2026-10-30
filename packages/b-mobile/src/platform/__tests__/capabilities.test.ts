@@ -24,6 +24,8 @@ describe('capabilities', () => {
       api: { access: 'direct' },
       auth: { embeddedAvailable: true, userCanChooseBrowser: true },
       notifications: { mechanism: 'push' },
+      location: 'os',
+      media: { capture: 'camera' },
     });
   });
 
@@ -33,6 +35,8 @@ describe('capabilities', () => {
       api: { access: 'same-origin-proxy' },
       auth: { embeddedAvailable: true, userCanChooseBrowser: false },
       notifications: { mechanism: 'polling' },
+      location: 'pick-only',
+      media: { capture: 'files-only' },
     });
   });
 
@@ -42,6 +46,8 @@ describe('capabilities', () => {
     expect(caps.notifications.mechanism).toBe('push');
     expect(caps.api.access).toBe('direct');
     expect(caps.auth.embeddedAvailable).toBe(true);
+    expect(caps.location).toBe('os');
+    expect(caps.media.capture).toBe('camera');
   });
 
   it('web under the dev server: the API is proxied; there is no embedded sign-in or push', () => {
@@ -52,6 +58,8 @@ describe('capabilities', () => {
       api: { access: 'same-origin-proxy' },
       auth: { embeddedAvailable: false, userCanChooseBrowser: false },
       notifications: { mechanism: 'none' },
+      location: 'os',
+      media: { capture: 'camera' },
     });
   });
 

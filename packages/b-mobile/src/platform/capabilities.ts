@@ -31,6 +31,17 @@ export interface PlatformCapabilities {
      * not offered (a plain browser). */
     mechanism: 'push' | 'polling' | 'none';
   };
+  /** Where "my location" comes from. `os`: the device reports it (Android, iOS, a browser, with
+   * the usual permission prompt). `pick-only`: no usable OS location, so "my location" is hidden
+   * and places are chosen on the map (the desktop shell: it denies browser permission prompts, and
+   * Electron's own location needs a provider key). */
+  location: 'os' | 'pick-only';
+  media: {
+    /** Whether a photo can be taken with a camera. `camera`: yes (the system camera, or a
+     * browser's file input that offers it). `files-only`: choosing an existing file is the only
+     * route (the desktop shell, whose "camera" would just be a file picker). */
+    capture: 'camera' | 'files-only';
+  };
 }
 
 const TABLE: Record<PlatformKind, PlatformCapabilities> = {
@@ -38,22 +49,30 @@ const TABLE: Record<PlatformKind, PlatformCapabilities> = {
     api: { access: 'direct' },
     auth: { embeddedAvailable: true, userCanChooseBrowser: true },
     notifications: { mechanism: 'push' },
+    location: 'os',
+    media: { capture: 'camera' },
   },
   ios: {
     api: { access: 'direct' },
     auth: { embeddedAvailable: true, userCanChooseBrowser: true },
     notifications: { mechanism: 'push' },
+    location: 'os',
+    media: { capture: 'camera' },
   },
   desktop: {
     api: { access: 'same-origin-proxy' },
     auth: { embeddedAvailable: true, userCanChooseBrowser: false },
     notifications: { mechanism: 'polling' },
+    location: 'pick-only',
+    media: { capture: 'files-only' },
   },
   web: {
     // Overridden below: a dev server proxies the API, a production browser build cannot.
     api: { access: 'direct' },
     auth: { embeddedAvailable: false, userCanChooseBrowser: false },
     notifications: { mechanism: 'none' },
+    location: 'os',
+    media: { capture: 'camera' },
   },
 };
 

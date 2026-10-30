@@ -153,6 +153,103 @@ describe('sign-in and secrets', () => {
   });
 });
 
+// Capabilities on desktop (b-oss#636): no OS location and no camera, so those controls are absent
+// rather than dead, and the location picker (lazy chunk, map) opens without the error screen.
+describe('desktop capabilities: location and camera', () => {
+  it('New entry offers only choosing a file, and no Android picker copy', async () => {
+    await page.setViewportSize({ width: 1200, height: 800 });
+    await go('/compose', 3000);
+    const body = await text();
+    expect(body).toContain('Choose a photo');
+    expect(body).not.toMatch(/Take a photo|Choose from device|system picker/i);
+    await shot('7-new-entry');
+  });
+
+  it('the location picker opens (no error screen) and has no "My location" control', async () => {
+    await go('/compose/location', 4000);
+    expect(await text()).not.toMatch(/Something went wrong/i);
+    expect(await page.getByLabel('My location').count()).toBe(0);
+    await shot('8-location-picker');
+  });
+
+  it('the map has no "My location" control', async () => {
+    await go('/map', 4000);
+    expect(await text()).not.toMatch(/Something went wrong/i);
+    expect(await page.getByLabel('My location').count()).toBe(0);
+  });
+
+  it('Nearby explains there is no location here and offers the map instead of "Allow location"', async () => {
+    await go('/browse', 4000);
+    await page.evaluate(() => {
+      document
+        .querySelector('ion-segment')
+        ?.dispatchEvent(new CustomEvent('ionChange', { detail: { value: 'nearby' } }));
+    });
+    await page.waitForTimeout(1000);
+    const body = await text();
+    expect(body).toContain('Open the map');
+    expect(body).not.toContain('Allow location');
+  });
+});
+
+// Responsive navigation (b-oss#638): beside the page on a wide window, collapsed on Browse and
+// Entry, a remembered pin overrides both ways, and the drawer below the breakpoint.
+describe('responsive navigation menu', () => {
+  const visible = (): Promise<boolean> =>
+    page.evaluate(() => document.querySelector('ion-split-pane')?.classList.contains('split-pane-visible') ?? false);
+  const pin = async (label: string): Promise<void> => {
+    await page.getByText(label, { exact: true }).first().click();
+    await page.waitForTimeout(500);
+  };
+
+  it('is open beside the page on Accounts and Settings, collapsed on Browse', async () => {
+    await page.setViewportSize({ width: 1300, height: 800 });
+    await go('/accounts', 2500);
+    expect(await visible()).toBe(true);
+    expect(await text()).toContain('Collapse menu');
+    await shot('9-nav-accounts-open');
+    await go('/settings', 2500);
+    expect(await visible()).toBe(true);
+    await shot('10-nav-settings-open');
+    await go('/browse', 4000);
+    expect(await visible()).toBe(false);
+    await shot('11-nav-browse-collapsed');
+  });
+
+  it('a pin forces it open on Browse, closed on Accounts, and is remembered across a reload', async () => {
+    await go('/browse', 3000);
+    await page.locator('ion-menu-button').first().click(); // the drawer, from the header
+    await page.waitForTimeout(600);
+    await shot('12a-nav-drawer-opened');
+    await pin('Keep menu open');
+    expect(await visible()).toBe(true);
+    await shot('12-nav-browse-pinned-open');
+    await page.reload();
+    await page.waitForLoadState('load');
+    await go('/browse', 3500);
+    expect(await visible()).toBe(true);
+
+    await pin('Collapse menu'); // undo: back to automatic
+    await go('/accounts', 2500);
+    expect(await visible()).toBe(true);
+    await pin('Collapse menu');
+    expect(await visible()).toBe(false);
+    await shot('13-nav-accounts-pinned-closed');
+    await page.locator('ion-menu-button').first().click();
+    await page.waitForTimeout(600);
+    await pin('Keep menu open'); // back to automatic again
+    expect(await visible()).toBe(true);
+  });
+
+  it('is the drawer on a narrow window', async () => {
+    await page.setViewportSize({ width: 800, height: 800 });
+    await go('/accounts', 2500);
+    expect(await visible()).toBe(false);
+    expect(await text()).not.toContain('Collapse menu');
+    await page.setViewportSize({ width: 1300, height: 800 });
+  });
+});
+
 // The stub API logs every avatar upload it receives ("avatar upload: N bytes body, filename=...,
 // type=..., content-type header=..."); run.sh writes that log to e2e-out/stub-api.log.
 function stubUploads(): { bytes: number; type: string; contentType: string }[] {
@@ -395,5 +492,68 @@ describe('the error log and copyable details (b-oss#639)', () => {
     await page.waitForFunction(() => document.body.innerText.includes('Copied'), undefined, {
       timeout: 5000,
     });
+// Browse zoom (b-oss#635): on a wide window with the desktop profile's 156px tile the control must
+// keep stepping, Ctrl+wheel and Ctrl +/-/0 drive the app's own zoom, and Chromium's page zoom
+// (devicePixelRatio) never moves. Chromium's own page-zoom accelerators come from the application
+// menu, which CDP key events bypass, so that half is covered by app-menu.test.ts, not here.
+describe('browse zoom', () => {
+  const percent = async (): Promise<number> => {
+    const label = page.getByText(/^\d+%$/).first();
+    return Number.parseInt((await label.innerText()).replace('%', ''), 10);
+  };
+  const click = (name: string): Promise<void> => page.getByLabel(name).first().click();
+  let dpr = 1;
+
+  it('steps through values on a wide window and never sticks between two values', async () => {
+    await page.setViewportSize({ width: 2600, height: 900 });
+    await go('/browse', 5000);
+    dpr = await page.evaluate(() => window.devicePixelRatio);
+    for (let i = 0; i < 25; i++) await click('Zoom in');
+    expect(await percent()).toBe(200);
+    const seen = new Set<number>();
+    for (let i = 0; i < 6; i++) {
+      const before = await percent();
+      await click('Zoom out');
+      const after = await percent();
+      expect(after).toBeLessThan(before);
+      seen.add(after);
+    }
+    expect(seen.size).toBe(6);
+    await click('Zoom in');
+    await shot('6-browse-wide-zoom');
+  });
+
+  it('Ctrl+wheel changes the app zoom', async () => {
+    await click('Reset zoom');
+    await page.mouse.move(1300, 500);
+    await page.keyboard.down('Control');
+    await page.mouse.wheel(0, -100);
+    await page.keyboard.up('Control');
+    await page.waitForTimeout(300);
+    expect(await percent()).toBe(110);
+    await page.keyboard.down('Control');
+    await page.mouse.wheel(0, 100);
+    await page.keyboard.up('Control');
+    await page.waitForTimeout(300);
+    expect(await percent()).toBe(100);
+  });
+
+  it('Ctrl +, -, 0 and the numpad keys change the app zoom', async () => {
+    await page.keyboard.press('Control+Equal');
+    expect(await percent()).toBe(110);
+    await page.keyboard.press('Control+NumpadAdd');
+    expect(await percent()).toBe(120);
+    await page.keyboard.press('Control+Minus');
+    expect(await percent()).toBe(110);
+    await page.keyboard.press('Control+NumpadSubtract');
+    expect(await percent()).toBe(100);
+    await page.keyboard.press('Control+Equal');
+    await page.keyboard.press('Control+0');
+    expect(await percent()).toBe(100);
+  });
+
+  it('leaves the page zoom alone', async () => {
+    expect(await page.evaluate(() => window.devicePixelRatio)).toBe(dpr);
+    expect(await page.evaluate(() => window.visualViewport?.scale ?? 1)).toBe(1);
   });
 });

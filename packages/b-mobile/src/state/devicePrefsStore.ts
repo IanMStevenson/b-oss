@@ -55,6 +55,7 @@ interface DevicePrefsState extends PersistedShape {
   setPhotoFit: (value: PersistedShape['photoFit']) => void;
   setAccountAvatarStyle: (value: PersistedShape['accountAvatarStyle']) => void;
   setTheme: (value: PersistedShape['theme']) => void;
+  setNavPinned: (value: PersistedShape['navPinned']) => void;
 }
 
 const KEYS = Object.keys(HANDHELD_PREFS) as (keyof PersistedShape)[];
@@ -83,6 +84,7 @@ function readOverrides(raw: string): { overrides: Overrides; migrated: boolean }
     if (!(key in source)) continue;
     const value = (source as Record<string, unknown>)[key];
     if (key === 'theme' && !isThemePreference(value)) continue;
+    if (key === 'navPinned' && value !== 'auto' && typeof value !== 'boolean') continue;
     if (!current && sameValue(value, HANDHELD_PREFS[key])) continue;
     Object.assign(overrides, { [key]: value });
   }
@@ -155,5 +157,6 @@ export const useDevicePrefsStore = create<DevicePrefsState>((set, get) => {
     setPhotoFit: (value) => change({ photoFit: value }),
     setAccountAvatarStyle: (value) => change({ accountAvatarStyle: value }),
     setTheme: (value) => change({ theme: value }),
+    setNavPinned: (value) => change({ navPinned: value }),
   };
 });

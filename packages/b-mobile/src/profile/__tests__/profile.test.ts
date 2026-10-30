@@ -32,11 +32,27 @@ describe('profile', () => {
       photoFit: 'full-width',
       accountAvatarStyle: 'picture',
       theme: 'system',
+      // added with the responsive menu (b-oss#638); only read where the profile's nav.split is 'auto'
+      navPinned: 'auto',
     });
   });
 
   it('handheld grid base tile is the 86px EntryGrid used before', () => {
-    expect(PROFILES.handheld.grid.baseTilePx).toBe(86);
+    expect(PROFILES.handheld.grid).toEqual({ baseTilePx: 86, widthDerivedMinZoom: true });
+  });
+
+  it('handheld grid has no keyboard/wheel zoom (touch pinch is the zoom)', () => {
+    expect(PROFILES.handheld.keyboardWheelZoom).toBe(false);
+  });
+
+  it('desktop differs from handheld only in the browse defaults, the PC tile and keyboard zoom (b-oss#635)', () => {
+    expect(PROFILES.desktop.prefs).toEqual({
+      ...PROFILES.handheld.prefs,
+      thumbnailMargins: 'normal',
+      photoFit: 'capped',
+    });
+    expect(PROFILES.desktop.grid).toEqual({ baseTilePx: 156, widthDerivedMinZoom: false });
+    expect(PROFILES.desktop.keyboardWheelZoom).toBe(true);
   });
 
   it('android, ios and web are handheld; the desktop shell is desktop', () => {

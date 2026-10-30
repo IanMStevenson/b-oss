@@ -177,6 +177,8 @@ export function EntryGrid({
           sizePercent={sizePercent}
           onSizeChange={setSizePercent}
           baseTileSize={profile().grid.baseTilePx}
+          minZoomFromWidth={profile().grid.widthDerivedMinZoom}
+          keyboardWheelZoom={profile().keyboardWheelZoom}
           resolveAsset={resolveAsset}
           invalidateAsset={invalidateAsset}
           onSearchClick={() => navigate.push('/search')}

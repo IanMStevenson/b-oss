@@ -9,6 +9,8 @@ import { DatePicker } from './DatePicker.js';
 import { Pagination } from './Pagination.js';
 import { useSwipeNav } from '../useSwipeNav.js';
 import { usePinchZoom } from '../usePinchZoom.js';
+import { useKeyWheelZoom } from '../useKeyWheelZoom.js';
+import { stepZoom, zoomLimits, ZOOM_MAX_PERCENT } from '../zoomLimits.js';
 import styles from './ThumbnailGrid.module.css';
 
 // Matches CSS constants: grid padding:18px top/bottom 24px sides,
@@ -20,8 +22,6 @@ const V_PAD = 36; // 18px each side
 const CONTROLS_H = 45;
 const PAGINATION_H = 52;
 const BASE_TILE_PX = 156;
-const ZOOM_MIN_PERCENT = 30;
-const ZOOM_MAX_PERCENT = 200;
 // A flat zoom-percentage floor doesn't scale across device widths — on a wide/landscape screen it
 // let zoom-out show far more columns than fit comfortably (confirmed live on a real device,
 // b-oss#140). Cap zoom-out by minimum tile size as a fraction of the viewport instead, which
@@ -141,6 +141,15 @@ interface ThumbnailGridProps {
    * sensible default reads as a clean "100%" — rather than always inheriting the desktop
    * reference size and looking like an odd fraction. */
   baseTileSize?: number;
+  /** Whether the minimum zoom follows the container width (a tile is never smaller than a fraction
+   * of it, b-oss#140). Default true. A host on a large pointer screen turns it off: there the
+   * derived floor can sit above the default 100%, so the first zoom-out would jump to a bigger
+   * tile. The flat 30% floor applies instead. */
+  minZoomFromWidth?: boolean;
+  /** Ctrl+wheel over the grid and Ctrl +/-/0 change `sizePercent` (and cancel the browser's own
+   * page zoom, so there is exactly one zoom). For a host with a mouse and keyboard whose page zoom
+   * is disabled; off by default so a plain browser keeps its own page zoom. Needs `onSizeChange`. */
+  keyboardWheelZoom?: boolean;
   /** Hides the ZoomIn/ZoomOut/%/Reset button group even when `onSizeChange` is given, for a host
    * that offers pinch-to-zoom (always wired up below when `onSizeChange` is present) as the only
    * zoom affordance. Home/search/DatePicker in the same controls bar are unaffected — this only
@@ -350,6 +359,8 @@ export function ThumbnailGrid({
   assetRevision,
   onSearchClick,
   baseTileSize = BASE_TILE_PX,
+  minZoomFromWidth = true,
+  keyboardWheelZoom = false,
   showZoomControls = true,
   showControls = true,
   showCalendar = true,
@@ -507,14 +518,21 @@ export function ThumbnailGrid({
 
   const isLandscape = width > 0 && height > 0 && width > height;
   const minColumns = isLandscape ? MIN_COLUMNS_LANDSCAPE : MIN_COLUMNS_PORTRAIT;
-  const dynamicMinPercent =
-    width > 0 ? Math.round((width / minColumns / baseTileSize) * 100) : ZOOM_MIN_PERCENT;
+  const limits = zoomLimits(minZoomFromWidth ? width : 0, minColumns, baseTileSize);
+  const dynamicMinPercent = limits.min;
 
   const pinch = usePinchZoom({
     sizePercent,
     onSizeChange,
     min: dynamicMinPercent,
     max: ZOOM_MAX_PERCENT,
+  });
+
+  useKeyWheelZoom({
+    enabled: keyboardWheelZoom && onSizeChange !== undefined,
+    target: containerRef,
+    onZoom: (command) =>
+      onSizeChange?.(command === 'reset' ? 100 : stepZoom(sizePercent, command === 'in' ? 1 : -1, limits)),
   });
 
   // Track the top-left entry date for the internal calendar and external callback. A negative or
@@ -616,7 +634,7 @@ export function ThumbnailGrid({
             <div className={styles.zoomGroup}>
               <button
                 className={styles.iconBtn}
-                onClick={() => onSizeChange(Math.max(dynamicMinPercent, sizePercent - 10))}
+                onClick={() => onSizeChange(stepZoom(sizePercent, -1, limits))}
                 aria-label="Zoom out"
               >
                 <ZoomOut size={14} strokeWidth={1.6} />
@@ -624,7 +642,7 @@ export function ThumbnailGrid({
               <span className={styles.zoomLabel}>{sizePercent}%</span>
               <button
                 className={styles.iconBtn}
-                onClick={() => onSizeChange(Math.min(ZOOM_MAX_PERCENT, sizePercent + 10))}
+                onClick={() => onSizeChange(stepZoom(sizePercent, 1, limits))}
                 aria-label="Zoom in"
               >
                 <ZoomIn size={14} strokeWidth={1.6} />
