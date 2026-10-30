@@ -618,57 +618,6 @@ describe('browse zoom', () => {
   });
 });
 
-describe('the page going away mid-IPC (disposed render frame)', () => {
-  it('reloads under a storm of IPC calls without an unhandled rejection in the main process', async () => {
-    const callers = page.evaluate(async () => {
-      const bridge = window.bMobileDesktop;
-      const calls: Promise<unknown>[] = [];
-      for (let i = 0; i < 200; i++) {
-        calls.push(Promise.resolve(bridge?.secure.get('k')).catch(() => undefined));
-        calls.push(
-          Promise.resolve(bridge?.notify.configure({ accounts: [] })).catch(() => undefined),
-        );
-      }
-      location.reload();
-      await Promise.allSettled(calls);
-    });
-    await callers.catch(() => undefined); // the page is torn down under it: expected
-    // Notifications fire (counts keep rising) and clicks arrive while the page is being reloaded, so the
-    // shell sends to the renderer exactly as its frame is replaced.
-    for (let i = 0; i < 14; i++) {
-      await setUnread(20 + i, 20 + i);
-      await page.waitForTimeout(700);
-      await fetch(`${NOTIFY}/click/0`, { method: 'POST' }).catch(() => undefined);
-      await page.evaluate(() => location.reload()).catch(() => undefined);
-    }
-    await setUnread(0, 0);
-    await page.waitForLoadState('load');
-    await page.waitForTimeout(2000);
-    expect(await page.evaluate(() => window.bMobileDesktop?.version)).toBe(1);
-
-    const logs = execFileSync('docker', ['logs', CONTAINER], {
-      encoding: 'utf8',
-      stdio: ['ignore', 'pipe', 'pipe'],
-    });
-    expect(logs).not.toMatch(/UnhandledPromiseRejection|unhandled rejection|disposed before/i);
-  });
-
-  it('survives the renderer crashing while notifications and clicks arrive', async () => {
-    await page.goto('chrome://crash').catch(() => undefined);
-    for (let i = 0; i < 6; i++) {
-      await setUnread(60 + i, 60 + i);
-      await fetch(`${NOTIFY}/click/0`, { method: 'POST' }).catch(() => undefined);
-      await settle(1000);
-    }
-    await setUnread(0, 0);
-    const logs = execFileSync('docker', ['logs', CONTAINER], {
-      encoding: 'utf8',
-      stdio: ['ignore', 'pipe', 'pipe'],
-    });
-    expect(logs).not.toMatch(/UnhandledPromiseRejection|unhandled rejection|disposed before/i);
-  });
-});
-
 describe('keyboard scrolling (b-oss#668)', () => {
   const scrollTop = (): Promise<number> =>
     page.evaluate(async () => {
@@ -738,5 +687,58 @@ describe('a stale session (b-oss#678)', () => {
     await page.evaluate(() => sessionStorage.removeItem('bmpc-stale-chunk-reload'));
     await go('/map', 4000);
     expect(await text()).not.toMatch(/something went wrong/i);
+  });
+});
+
+// Destructive tests (they crash or reload the renderer) must stay LAST in this file: every test after them
+// would run against a page that is gone.
+describe('the page going away mid-IPC (disposed render frame)', () => {
+  it('reloads under a storm of IPC calls without an unhandled rejection in the main process', async () => {
+    const callers = page.evaluate(async () => {
+      const bridge = window.bMobileDesktop;
+      const calls: Promise<unknown>[] = [];
+      for (let i = 0; i < 200; i++) {
+        calls.push(Promise.resolve(bridge?.secure.get('k')).catch(() => undefined));
+        calls.push(
+          Promise.resolve(bridge?.notify.configure({ accounts: [] })).catch(() => undefined),
+        );
+      }
+      location.reload();
+      await Promise.allSettled(calls);
+    });
+    await callers.catch(() => undefined); // the page is torn down under it: expected
+    // Notifications fire (counts keep rising) and clicks arrive while the page is being reloaded, so the
+    // shell sends to the renderer exactly as its frame is replaced.
+    for (let i = 0; i < 14; i++) {
+      await setUnread(20 + i, 20 + i);
+      await page.waitForTimeout(700);
+      await fetch(`${NOTIFY}/click/0`, { method: 'POST' }).catch(() => undefined);
+      await page.evaluate(() => location.reload()).catch(() => undefined);
+    }
+    await setUnread(0, 0);
+    await page.waitForLoadState('load');
+    await page.waitForTimeout(2000);
+    expect(await page.evaluate(() => window.bMobileDesktop?.version)).toBe(1);
+
+    const logs = execFileSync('docker', ['logs', CONTAINER], {
+      encoding: 'utf8',
+      stdio: ['ignore', 'pipe', 'pipe'],
+    });
+    expect(logs).not.toMatch(/UnhandledPromiseRejection|unhandled rejection|disposed before/i);
+  });
+
+  it('survives the renderer crashing while notifications and clicks arrive', async () => {
+    await page.goto('chrome://crash').catch(() => undefined);
+    for (let i = 0; i < 6; i++) {
+      await setUnread(60 + i, 60 + i);
+      await fetch(`${NOTIFY}/click/0`, { method: 'POST' }).catch(() => undefined);
+      await settle(1000);
+    }
+    await setUnread(0, 0);
+    const logs = execFileSync('docker', ['logs', CONTAINER], {
+      encoding: 'utf8',
+      stdio: ['ignore', 'pipe', 'pipe'],
+    });
+    expect(logs).not.toMatch(/UnhandledPromiseRejection|unhandled rejection|disposed before/i);
   });
 });
