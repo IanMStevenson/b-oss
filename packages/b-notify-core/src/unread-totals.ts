@@ -28,8 +28,18 @@ export interface UnreadTotals {
 /** `messages/totals/unread` with both return flags set. Never use
  * `messages/notifications/unread/Total` instead: it reports the notification count under both
  * keys. A missing key counts as 0. */
-export async function fetchUnreadTotals(token: string): Promise<UnreadTotals> {
-  const client = new BlipfotoClient(token);
+export interface FetchOptions {
+  /** API base URL including the version path; defaults to the real API. A host with its own
+   * network stack or a test stub passes its own. */
+  baseUrl?: string;
+  fetch?: typeof fetch;
+}
+
+export async function fetchUnreadTotals(
+  token: string,
+  options: FetchOptions = {},
+): Promise<UnreadTotals> {
+  const client = new BlipfotoClient(token, options.baseUrl, options.fetch);
   try {
     const result = await client.getUnreadTotals({
       returnComments: true,

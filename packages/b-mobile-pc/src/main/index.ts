@@ -19,7 +19,9 @@ import {
 import { mkdirSync, renameSync, writeFileSync } from 'node:fs';
 import { mkdir, readFile, rename, writeFile } from 'node:fs/promises';
 import { dirname, join, resolve } from 'node:path';
+import { fetchUnreadTotals } from '@b-oss/b-notify-core';
 import { CHANNELS } from '../shared/bridge.js';
+import { appTokenKey, parseNotifySettings } from '../shared/notify.js';
 import {
   APP_ORIGIN,
   APP_SCHEME,
@@ -33,6 +35,14 @@ import {
 } from './app-protocol.js';
 import { openAuthWindow } from './auth-window.js';
 import { DEFAULT_AUTH_HOSTS, validateAuthRequest, withOrigin } from './auth-request.js';
+import {
+  electronPresenter,
+  getLaunchAtLogin,
+  NotifyShell,
+  setLaunchAtLogin,
+  startedHidden,
+} from './notify-shell.js';
+import { NotifyPoller, POLL_INTERVAL_MS } from './notify-poller.js';
 import { SecureStore, type SecretCrypto } from './secure-store.js';
 import { MIN_HEIGHT, MIN_WIDTH, parseWindowState } from './window-state.js';
 
@@ -162,9 +172,11 @@ async function handleAppRequest(request: Request): Promise<Response> {
 // --- window ---------------------------------------------------------------------------------
 
 let mainWindow: BrowserWindow | null = null;
+let notifyShell: NotifyShell | null = null;
+let notifyPoller: NotifyPoller | null = null;
 const statePath = (): string => join(app.getPath('userData'), 'window-state.json');
 
-async function createWindow(): Promise<void> {
+async function createWindow(showWindow: boolean): Promise<void> {
   const saved = parseWindowState(
     await readFile(statePath(), 'utf8').catch(() => null),
     screen.getAllDisplays().map((d) => d.workArea),
@@ -177,6 +189,7 @@ async function createWindow(): Promise<void> {
     minWidth: MIN_WIDTH,
     minHeight: MIN_HEIGHT,
     title: 'b-mobile',
+    show: showWindow,
     autoHideMenuBar: true,
     webPreferences: {
       preload: join(__dirname, '../preload/index.js'),
@@ -201,7 +214,12 @@ async function createWindow(): Promise<void> {
   win.webContents.on('will-navigate', keepInApp);
   win.webContents.on('will-redirect', keepInApp);
 
-  win.on('close', () => {
+  win.webContents.on('did-start-loading', () => notifyShell?.pageReset());
+
+  win.on('close', (event) => {
+    // While notifications are being polled for, closing the window hides it to the tray.
+    const hide = notifyShell?.shouldHideInsteadOfClose(notifyPoller?.hasAccounts() ?? false);
+    if (hide) event.preventDefault();
     const b = win.getNormalBounds();
     // Synchronous: the app quits as soon as the last window closes, so an async write could be lost.
     try {
@@ -211,6 +229,7 @@ async function createWindow(): Promise<void> {
     } catch {
       // Not remembering the window position is not worth failing to close for.
     }
+    if (hide) win.hide();
   });
   win.on('closed', () => {
     mainWindow = null;
@@ -227,6 +246,7 @@ if (!app.requestSingleInstanceLock()) {
   app.on('second-instance', () => {
     if (mainWindow) {
       if (mainWindow.isMinimized()) mainWindow.restore();
+      mainWindow.show();
       mainWindow.focus();
     }
   });
@@ -277,7 +297,45 @@ if (!app.requestSingleInstanceLock()) {
       );
     });
 
-    await createWindow();
+    // Desktop notifications by polling (b-oss#610). The poller starts before the window so a start
+    // at login can go straight to the tray, and it keeps running with the window hidden.
+    const shell = new NotifyShell(() => mainWindow, electronPresenter);
+    notifyShell = shell;
+    const stateFile = atomicFile(join(app.getPath('userData'), 'notify-state.json'));
+    const poller = new NotifyPoller({
+      readFile: () => stateFile.read(),
+      writeFile: (contents) => stateFile.write(contents),
+      getToken: (accountId) => store.get(appTokenKey(accountId)),
+      fetchTotals: (token) =>
+        fetchUnreadTotals(token, {
+          baseUrl: `${apiOrigin}/4/`,
+          // The Chromium network stack, so system proxy settings apply as they do for the app.
+          fetch: (input, init) =>
+            net.fetch(
+              typeof input === 'string' ? input : input instanceof URL ? input.href : input.url,
+              init,
+            ),
+        }),
+      show: shell.show,
+      isOnline: () => net.isOnline(),
+      log: (message) => console.warn(`[b-mobile-pc] ${message}`),
+      // Test hook (ignored when packaged): poll faster than every five minutes.
+      intervalMs: (testMode && Number(process.env.BMPC_TEST_POLL_INTERVAL_MS)) || POLL_INTERVAL_MS,
+    });
+    notifyPoller = poller;
+    poller.onActiveChange((active) => shell.setActive(active));
+    handle(CHANNELS.notifyConfigure, (settings) =>
+      poller.configure(parseNotifySettings(settings).accounts),
+    );
+    handle(CHANNELS.notifyTappedReady, () => shell.tappedReady());
+    handle(CHANNELS.launchAtLoginGet, () => getLaunchAtLogin());
+    handle(CHANNELS.launchAtLoginSet, (enabled) => {
+      if (typeof enabled !== 'boolean') throw new TypeError('Invalid launch-at-login value');
+      setLaunchAtLogin(enabled);
+    });
+    await poller.start();
+
+    await createWindow(!(startedHidden() && poller.hasAccounts()));
   });
 
   app.on('window-all-closed', () => app.quit());

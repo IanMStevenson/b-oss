@@ -1,8 +1,20 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (C) 2026 Ian Stevenson
 
-import { contextBridge, ipcRenderer } from 'electron';
+import { contextBridge, ipcRenderer, type IpcRendererEvent } from 'electron';
 import { BRIDGE_GLOBAL, CHANNELS, type DesktopBridge } from '../shared/bridge.js';
+import type { NotifyPayload } from '../shared/notify.js';
+
+function subscribe(
+  channel: string,
+  handler: (payload: NotifyPayload) => void,
+  onFirst?: () => void,
+): () => void {
+  const listener = (_event: IpcRendererEvent, payload: NotifyPayload): void => handler(payload);
+  ipcRenderer.on(channel, listener);
+  onFirst?.();
+  return () => ipcRenderer.removeListener(channel, listener);
+}
 
 const bridge: DesktopBridge = {
   version: 1,
@@ -13,6 +25,23 @@ const bridge: DesktopBridge = {
   },
   openAuth: (url, redirectPrefix) =>
     ipcRenderer.invoke(CHANNELS.authOpen, url, redirectPrefix) as Promise<string>,
+  notify: {
+    configure: (settings) =>
+      ipcRenderer.invoke(CHANNELS.notifyConfigure, settings) as Promise<void>,
+    onReceived: (handler) => subscribe(CHANNELS.notifyReceived, handler),
+    // Asking main to flush any click that arrived before a listener existed.
+    onTapped: (handler) =>
+      subscribe(CHANNELS.notifyTapped, handler, () => {
+        void ipcRenderer.invoke(CHANNELS.notifyTappedReady);
+      }),
+    getLaunchAtLogin: () =>
+      ipcRenderer.invoke(CHANNELS.launchAtLoginGet) as Promise<{
+        supported: boolean;
+        enabled: boolean;
+      }>,
+    setLaunchAtLogin: (enabled) =>
+      ipcRenderer.invoke(CHANNELS.launchAtLoginSet, enabled) as Promise<void>,
+  },
 };
 
 contextBridge.exposeInMainWorld(BRIDGE_GLOBAL, bridge);
