@@ -184,6 +184,27 @@ describe('ComposeEntryScreen', () => {
     expect(push).toHaveBeenCalledWith('/compose/location');
   });
 
+  it("turning the map off keeps the photo's position, and turning it on again opens the picker", async () => {
+    useComposeDraftStore.setState({
+      draft: baseDraft({ location: { lat: 55.9, lon: -3.2 }, displayLocation: true }),
+    });
+    renderScreen();
+    const checkbox = screen.getByLabelText('Add to map');
+    checkbox.dispatchEvent(
+      new CustomEvent('ionChange', { bubbles: true, detail: { checked: false } }),
+    );
+    const draft = useComposeDraftStore.getState().draft;
+    expect(draft?.displayLocation).toBe(false);
+    expect(draft?.location).toEqual({ lat: 55.9, lon: -3.2 });
+    // Wait for the re-render so the toggle's handler sees the map as off.
+    await waitFor(() => expect(screen.queryByText('Change')).toBeNull());
+
+    checkbox.dispatchEvent(
+      new CustomEvent('ionChange', { bubbles: true, detail: { checked: true } }),
+    );
+    expect(push).toHaveBeenCalledWith('/compose/location');
+  });
+
   it('shows the date as a compact row; the calendar is closed until tapped, and picking a day closes it', async () => {
     fetchMonthEligibility.mockResolvedValue({
       '2026-01-16': { publishable: false, message: 'Taken', existingEntryId: 'e1' },

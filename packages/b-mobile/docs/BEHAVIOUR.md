@@ -117,7 +117,15 @@ Known Blipfoto API limits: [AppLimitations.md](AppLimitations.md). Paths are rel
   View that entry), "That date is in the future.", "That date is too far in the past." or "You
   can't publish an entry for that date." (`data/journal.ts`).
 - Title max 50, tags max 255, inline BBCode description. Crop only for members
-  (`details.member === 1`), sent as `thumbnail_crop`. "Add to map" opens the location picker.
+  (`details.member === 1`), sent as `thumbnail_crop`. "Add to map" is off by default and opens the location picker.
+  "Choose from device" uses the native `PhotoPick` plugin, which returns the photo's embedded GPS
+  (Android 17+: the system's "Include location info?" prompt; Android 10-16: an
+  `ACCESS_MEDIA_LOCATION` prompt; else none). The position is kept in the draft and sent with the
+  entry (`lat`/`lon`) but shown on the map only once the user turns "Add to map" on (the picker
+  then opens at it). Turning it off keeps the position. The phone's own location is never used.
+  "Take a photo" first asks for approximate location access (a refusal still takes the photo): the
+  system camera embeds where the photo was taken only when the requesting app holds a location
+  permission. That embedded position is read from the capture the same way.
   Back with changes asks "Discard this entry?". Publish enqueues and goes to `/uploads`.
 - Enqueue copies the photo into app storage. The runner does one item at a time with that item's
   own account token. Transport errors retry after 5s, 15s, 45s, 2m, 5m and fail after 6 attempts;

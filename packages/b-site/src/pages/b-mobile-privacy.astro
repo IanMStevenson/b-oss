@@ -64,21 +64,34 @@ import Hero from '../components/Hero.astro';
       request. The developer does not receive a copy.
     </p>
     <p>
-      Entry photos are uploaded unchanged, including the details stored in the image file (EXIF
-      data, such as the camera model and settings). For a photo taken with your phone's camera
-      this can include the location where it was taken, if location tagging is turned on in your
-      camera settings. That location goes to Blipfoto with the photo, whether or not you add a
-      location to the entry.
+      Photos are uploaded as they are, including any details your phone saved in them, such as
+      the camera model and where the photo was taken. That goes to Blipfoto with the photo.
+    </p>
+
+    <h2>Your location</h2>
+    <p>The app uses your location for two things only:</p>
+    <ul>
+      <li>
+        <strong>Maps</strong> — to centre a map, or the Nearby tab, on where you are, when you
+        ask it to.
+      </li>
+      <li>
+        <strong>Photos</strong> — to attach a location to a photo you post, so you can choose to
+        show it on Blipfoto's map. The location comes from the photo itself, or from your phone if
+        you choose to add where you are now. It stays on your phone, in your draft, until you
+        post, and is not shown on the map unless you turn on Add to map.
+      </li>
+    </ul>
+    <p>
+      If you say no when your phone asks for location, everything still works, just without
+      those features.
     </p>
 
     <h2>Permissions the app asks for</h2>
     <ul>
       <li><strong>Camera</strong> — only when you choose to take a photo for an entry.</li>
       <li>
-        <strong>Location</strong> (approximate or precise) — only when you tap my-location on a
-        map, open Nearby, or add your current location to an entry. Your position is used for
-        that request. A location you add to an entry is kept with the draft, on your device,
-        until the entry is posted; otherwise the app does not store it.
+        <strong>Location</strong> — only for the two uses described under Your location above.
       </li>
       <li>
         <strong>Notifications</strong> — optional; to alert you to new comments and activity,
@@ -87,8 +100,8 @@ import Hero from '../components/Hero.astro';
       <li><strong>Internet</strong> — to reach Blipfoto and the services below.</li>
     </ul>
     <p>
-      The app does not ask for access to your photo library; you pick photos with Android's own
-      photo picker, which shares only the ones you choose.
+      The app does not ask for access to your whole photo library; you pick photos with Android's
+      own picker, which shares only the ones you choose.
     </p>
 
     <h2>Maps</h2>
