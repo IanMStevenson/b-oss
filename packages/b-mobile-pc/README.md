@@ -96,6 +96,31 @@ web build is copied into the app as `resources/web`; `productName` is `b-mobile`
 build). The packaged layout can be smoke-tested on Linux with `npx electron-builder --linux dir` and the
 e2e image (test hooks are ignored when packaged, so only the real API is reachable).
 
+### Fast loop on Windows: sync the unpacked build and run it directly
+
+Do not run the exes from a network share. The portable exe unpacks about 360 MB into `%TEMP%` on every
+launch, which is slow anywhere and much slower over Samba. A build's `win-unpacked/` folder is the
+same app already unpacked, and only about 4 MB of it changes between builds (`resources/app.asar` and
+`resources/web`; the rest is the Electron runtime). So sync that folder and run `b-mobile.exe` in it.
+
+On the VM (done): relay `b-mobile-pc-win-relay` mirrors `packages/b-mobile-pc/dist-electron` of the
+worktree that builds (ignoring the installers, `*.blockmap`, `*.yml`, `linux-unpacked/`) into
+`~/live/b-mobile-pc-win`. The relay's root is `dist-electron/` itself, which persists across builds
+(electron-builder recreates `win-unpacked/` inside it); a relay rooted at `win-unpacked/` would halt with
+"root deletion" on every rebuild.
+
+On Windows (once, PowerShell):
+
+```powershell
+mutagen sync create --name=b-mobile-pc-win-live --sync-mode=one-way-replica `
+  ims-dev-o1:live/b-mobile-pc-win "D:\Dev\b-mobile-pc-win"
+# first sync is about 360 MB; then run  D:\Dev\b-mobile-pc-win\win-unpacked\b-mobile.exe
+```
+
+After that, `packages/b-mobile-pc/scripts/build-win-docker.sh` on the VM is all it takes: a few MB arrive
+and the next launch of `b-mobile.exe` runs the new build. (Start-with-login registers whichever exe
+path was running, so use one stable folder.)
+
 ## Testing on Windows (Mutagen dev loop)
 
 Same two-hop pattern as b-ark (`devutils/dev-vm-setup/mutagen-dev-loop-pattern.md`): a VM-only relay
