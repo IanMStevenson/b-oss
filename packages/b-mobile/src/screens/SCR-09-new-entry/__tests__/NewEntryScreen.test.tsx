@@ -204,4 +204,37 @@ describe('NewEntryScreen', () => {
     await waitFor(() => expect(push).toHaveBeenCalledWith('/compose/details'));
     expect(useComposeDraftStore.getState().draft?.date).toBe('2026-02-01');
   });
+
+  it("keeps the photo's embedded position in the draft but leaves the map off", async () => {
+    pickPhoto.mockResolvedValue({
+      uri: '/cache/PICK_1.jpg',
+      webPath: 'https://localhost/_capacitor_file_/cache/PICK_1.jpg',
+      mimeType: 'image/jpeg',
+      width: 4000,
+      height: 3000,
+      createdAt: '2026-10-29T19:09:41+00:00',
+      gps: { lat: 55.99228, lon: -3.4103951 },
+    });
+    renderScreen();
+    await userEvent.click(screen.getByText('Choose from device'));
+    await waitFor(() => expect(push).toHaveBeenCalledWith('/compose/details'));
+    const draft = useComposeDraftStore.getState().draft;
+    expect(draft?.location).toEqual({ lat: 55.99228, lon: -3.4103951 });
+    expect(draft?.displayLocation).toBe(false);
+  });
+
+  it('never invents a position: a photo without GPS starts with no location', async () => {
+    pickPhoto.mockResolvedValue({
+      webPath: 'blob:picked',
+      mimeType: 'image/jpeg',
+      width: 400,
+      height: 400,
+      createdAt: null,
+      gps: null,
+    });
+    renderScreen();
+    await userEvent.click(screen.getByText('Choose from device'));
+    await waitFor(() => expect(push).toHaveBeenCalledWith('/compose/details'));
+    expect(useComposeDraftStore.getState().draft?.location).toBeNull();
+  });
 });

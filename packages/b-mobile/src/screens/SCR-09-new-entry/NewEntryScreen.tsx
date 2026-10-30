@@ -34,7 +34,6 @@ import {
 } from '../../platform/camera.js';
 import type { PickedPhoto } from '../../platform/camera.js';
 import { takePendingSharedPhoto } from '../../platform/shareIntent.js';
-import { SpikeGps } from './SpikeGps.js';
 import { useAppNavigate } from '../../app/routes/useAppNavigate.js';
 import { useActiveAccount } from '../../state/accountsStore.js';
 import { useComposeDraftStore } from '../../state/composeDraftStore.js';
@@ -103,7 +102,9 @@ export function NewEntryScreen({ replaceEntryId }: NewEntryScreenProps = {}) {
       tags: '',
       description: '',
       date: todayFromCreatedAt(photo.createdAt),
-      location: null,
+      // The photo's own embedded position, kept but NOT shown on the map until the user turns
+      // "Add to map" on (b-oss#650). Sent with the entry so the server holds it either way.
+      location: photo.gps ?? null,
       displayLocation: false,
       thumbnailCrop: null,
       dirty: false,
@@ -163,7 +164,6 @@ export function NewEntryScreen({ replaceEntryId }: NewEntryScreenProps = {}) {
         )}
       </IonHeader>
       <IonContent>
-        <SpikeGps />
         <div className="new-entry-tiles">
           <IonButton
             className="new-entry-tile"

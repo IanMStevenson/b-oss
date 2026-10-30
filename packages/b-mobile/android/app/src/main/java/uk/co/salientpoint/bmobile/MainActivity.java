@@ -24,6 +24,7 @@ public class MainActivity extends BridgeActivity {
     registerPlugin(EmbeddedAuthPlugin.class);
     registerPlugin(PushAvailabilityPlugin.class);
     registerPlugin(MediaSavePlugin.class); // saves an entry photo into the gallery (Download)
+    registerPlugin(PhotoPickPlugin.class); // SPIKE b-oss#650
     registerPlugin(ThemePlugin.class); // colour theme: window/WebView background and night mode
     // The chosen theme, before the Activity or its WebView exist (b-oss#549): night mode first, so
     // the Activity is created already light or dark, and then the page colour behind the WebView,

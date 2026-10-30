@@ -257,16 +257,19 @@ export function ComposeEntryScreen() {
 
               <ToggleRow
                 label="Add to map"
-                checked={draft.location != null}
+                checked={draft.displayLocation}
                 onChange={(checked) => {
-                  if (checked && !draft.location) {
+                  if (checked && !draft.displayLocation) {
+                    // The picker opens at the photo's own position when one is known, and
+                    // confirming it turns the map on; backing out leaves it off.
                     navigate.push('/compose/location');
-                  } else if (!checked && draft.location) {
-                    patchDraft({ location: null, displayLocation: false });
+                  } else if (!checked && draft.displayLocation) {
+                    // Hide, but keep the position so turning it back on restores it.
+                    patchDraft({ displayLocation: false });
                   }
                 }}
               >
-                {draft.location && (
+                {draft.displayLocation && draft.location && (
                   <IonButton
                     fill="clear"
                     size="small"
