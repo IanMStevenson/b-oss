@@ -29,6 +29,7 @@ module.exports = [
         patterns: [
           { group: ['electron'], message: 'Only packages/b-ark and packages/b-mobile-pc may import from electron.' },
           { group: ['@capacitor/*'], message: 'Only packages/b-mobile/src/platform/** may import from @capacitor/*.' },
+          { group: ['**/platform/platformKind', '**/platform/platformKind.js'], message: 'Only packages/b-mobile/src/platform/** and src/profile/** may import platformKind — screens and flows use capabilities() / profile() (b-oss#633).' },
           { group: ['react-router', 'react-router-dom'], message: 'Only packages/b-mobile/src/app/routes/** may import react-router — screens use useAppNavigate() instead (app-architecture.md §5).' }
         ]
       }],
@@ -65,6 +66,19 @@ module.exports = [
     },
   },
   {
+    // profile/ is the other place allowed to know the platform (b-oss#633): same rules as the base
+    // block, minus the platformKind restriction.
+    files: ['packages/b-mobile/src/profile/**/*.{ts,tsx}'],
+    rules: {
+      'no-restricted-imports': ['error', {
+        patterns: [
+          { group: ['@capacitor/*'], message: 'Only packages/b-mobile/src/platform/** may import from @capacitor/*.' },
+          { group: ['react-router', 'react-router-dom'], message: 'Only packages/b-mobile/src/app/routes/** may import react-router.' }
+        ]
+      }],
+    },
+  },
+  {
     // react-router is confined to the route table (app-architecture.md §5) so an eventual
     // Ionic 9 / React Router 6 migration touches one directory instead of every screen.
     // AppShell.tsx is the one exception outside routes/: it sets up IonReactRouter itself,
@@ -73,6 +87,7 @@ module.exports = [
     rules: {
       'no-restricted-imports': ['error', {
         patterns: [
+          { group: ['**/platform/platformKind', '**/platform/platformKind.js'], message: 'Only packages/b-mobile/src/platform/** and src/profile/** may import platformKind — screens and flows use capabilities() / profile() (b-oss#633).' },
           { group: ['@capacitor/*'], message: 'Only packages/b-mobile/src/platform/** may import from @capacitor/*.' }
         ]
       }],

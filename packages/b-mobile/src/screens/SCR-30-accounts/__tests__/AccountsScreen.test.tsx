@@ -95,10 +95,11 @@ vi.mock('@ionic/react', async (importOriginal) => {
 const openUrl = vi.hoisted(() => vi.fn<(url: string) => Promise<void>>());
 vi.mock('../../../platform/browser.js', () => ({ openUrl }));
 
-let isNative = false;
+// Hoisted: the prefs store reads the platform when it is first imported, before module-level `let`s exist.
+const platform = vi.hoisted(() => ({ isNative: false }));
 vi.mock('../../../platform/platformKind.js', async (importOriginal) => ({
   ...(await importOriginal<typeof import('../../../platform/platformKind.js')>()),
-  platformKind: () => (isNative ? 'android' : 'web'),
+  platformKind: () => (platform.isNative ? 'android' : 'web'),
 }));
 
 const {
@@ -154,7 +155,7 @@ afterEach(() => {
   cleanup();
   vi.resetAllMocks();
   useAccountsStore.setState({ accounts: [], activeAccountId: null });
-  isNative = false;
+  platform.isNative = false;
 });
 
 function account(overrides: Partial<StoredAccount> = {}): StoredAccount {
@@ -309,7 +310,7 @@ describe('AccountsScreen', () => {
   });
 
   it('Sign in again as the wrong account explains, and retry uses the in-app browser (b-oss#240)', async () => {
-    isNative = true;
+    platform.isNative = true;
     reauthorizeAccount.mockRejectedValueOnce(new AccountMismatchError('alice', 'bob'));
     useAccountsStore.setState({
       accounts: [
