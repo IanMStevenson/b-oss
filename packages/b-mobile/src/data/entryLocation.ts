@@ -81,6 +81,10 @@ export async function revealStoredPosition(
     }
   }
   if (hideError) throw new StillVisibleError(position, hideError);
-  if (readError) throw readError instanceof Error ? readError : new Error(String(readError));
+  if (readError) {
+    throw readError instanceof Error
+      ? readError
+      : new Error('Could not read the entry back after looking up its position.');
+  }
   return position;
 }
