@@ -2,31 +2,18 @@
 // Copyright (C) 2026 Ian Stevenson
 // @vitest-environment jsdom
 
-import { describe, it, expect, vi, afterEach } from 'vitest';
+import { describe, it, expect } from 'vitest';
+import { createPinIcon } from '../mapPin.js';
 
-const { Marker } = vi.hoisted(() => ({
-  Marker: vi.fn(function (this: { options: unknown }, options: unknown) {
-    this.options = options;
-  }),
-}));
-vi.mock('maplibre-gl', () => ({ Marker }));
-
-import { createPin } from '../mapPin.js';
-
-afterEach(() => {
-  document.documentElement.style.removeProperty('--accent');
-  vi.clearAllMocks();
-});
-
-describe('createPin', () => {
-  it('falls back to the brand green when no theme token is defined', () => {
-    createPin();
-    expect(Marker).toHaveBeenCalledWith({ color: '#1f4d3a', draggable: false });
+describe('createPinIcon', () => {
+  it("is an SVG pin in b-oss's brand green, anchored at its tip", () => {
+    const icon = createPinIcon();
+    expect(icon.options.html).toContain('fill="#1f4d3a"');
+    expect(icon.options.iconSize).toEqual([27, 41]);
+    expect(icon.options.iconAnchor).toEqual([13.5, 41]);
   });
 
-  it("takes the theme's accent, so the pin stays visible on a dark map", () => {
-    document.documentElement.style.setProperty('--accent', ' #8fd3af ');
-    createPin({ draggable: true });
-    expect(Marker).toHaveBeenCalledWith({ color: '#8fd3af', draggable: true });
+  it('drops Leaflet’s default white box via its own class', () => {
+    expect(createPinIcon().options.className).toBe('map-pin');
   });
 });

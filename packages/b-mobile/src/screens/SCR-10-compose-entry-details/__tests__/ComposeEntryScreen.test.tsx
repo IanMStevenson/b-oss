@@ -25,7 +25,7 @@ vi.mock('../../../flows/composeFlow.js', () => ({ enqueueDraft }));
 
 // react-easy-crop is rendering-heavy (canvas/pointer gesture handling) and irrelevant to this
 // screen's own logic under test — mocked wholesale, same "mock at the boundary" principle
-// MapScreen's tests apply to maplibre-gl.
+// MapScreen's tests apply to leaflet.
 vi.mock('../../../components/PhotoCropper.js', () => ({
   PhotoCropper: () => <div data-testid="photo-cropper" />,
 }));

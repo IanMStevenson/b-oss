@@ -375,12 +375,6 @@ ion-progress-bar.upload-progress {
   min-height: 0;
 }
 
-/* Doubled class: maplibre-gl.css sets `.maplibregl-map {position: relative}` on this element. */
-.location-map-canvas.location-map-canvas {
-  position: absolute;
-  inset: 0;
-}
-
 .location-footer {
   flex: none;
   display: flex;

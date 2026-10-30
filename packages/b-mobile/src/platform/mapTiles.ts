@@ -1,32 +1,48 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (C) 2026 Ian Stevenson
 
-// The tile provider, kept behind this one function so it can be swapped without touching either
-// map screen (§13). Decision taken in app-architecture.md's Q7: MapTiler's free tier — no billing
-// account required, tolerates a public/extractable key (§18's honesty requirement — anything in
-// the bundle is extractable), and needs nothing beyond a style URL to wire up against MapLibre GL
-// JS. Stadia Maps and a self-hosted Protomaps basemap were the credible alternatives; MapTiler was
-// preferred as the cheapest/simplest to stand up for a free personal project with two map screens.
+// The raster tile provider, kept behind this one function so it can be swapped without touching
+// either map screen (§13). The base map is Leaflet over plain raster tiles (b-oss#651, #655): no
+// WebGL, shaders or web workers, so a tile that didn't load is knowable. Provider: Geoapify's
+// raster tile API (the comparison is in b-oss#652). Anything in the bundle is extractable
+// (§18's honesty requirement), so the key is treated as public; never commit a real value.
 //
-// Returns null when no key is configured (the default — VITE_MAP_TILES_KEY is never committed
+// Returns null when no key is configured (the default — VITE_GEOAPIFY_KEY is never committed
 // with a real value, see .env.example), which is what drives SCR-04's "Maps/location unavailable"
 // state rather than the map silently failing to load tiles.
 
-const STYLE = 'streets-v2';
-/** MapTiler's own dark counterpart of STYLE, used for the Dark and Mid themes (b-oss#549) rather
- * than recolouring or filtering the light one. */
-const DARK_STYLE = 'streets-v2-dark';
+/** Geoapify raster style. `osm-liberty`: its labels are English (Geoapify's raster tiles have no
+ * language parameter, and `osm-bright` shows local names). Compared at phone width, zoom 10 and 14
+ * (b-oss#655): lighter and greyer than `osm-bright` with thinner roads, but the brand-green pin
+ * stands out well against it and place names and road shields stay legible. One 2x tile is about
+ * the same weight (173 kB against 175 kB). It needs the OpenMapTiles credit, like the other
+ * styles except `osm-carto`; included below. */
+const STYLE = 'osm-liberty';
+const MAX_ZOOM = 20;
 
-/** Credit the tile provider and the OpenStreetMap data (ODbL) on every map explicitly, rather than
- * relying on the style happening to carry its own attribution. MapLibre drops a custom entry that
- * the style's attribution already contains, so this doesn't show twice. */
-export const MAP_ATTRIBUTION = [
-  '<a href="https://www.maptiler.com/copyright/" target="_blank">&copy; MapTiler</a>',
-  '<a href="https://www.openstreetmap.org/copyright" target="_blank">&copy; OpenStreetMap contributors</a>',
-];
+/** What the map screens need to build a Leaflet tile layer. `{r}` is Leaflet's retina token
+ * (`@2x` on a high-density screen, empty otherwise), so no `L.Browser` check is needed here. */
+export interface TileLayerConfig {
+  urlTemplate: string;
+  maxZoom: number;
+  /** HTML for Leaflet's attribution control; links are opened through platform/browser.ts. */
+  attribution: string;
+}
 
-export function getMapStyleUrl(dark = false): string | null {
-  const key = import.meta.env.VITE_MAP_TILES_KEY;
+/** The credits Geoapify's Free plan requires: itself, the OpenStreetMap data (ODbL), and
+ * OpenMapTiles for every style except osm-carto. */
+const ATTRIBUTION = [
+  'Powered by <a href="https://www.geoapify.com/">Geoapify</a>',
+  '<a href="https://www.openstreetmap.org/copyright" target="_blank">© OpenStreetMap contributors</a>',
+  '<a href="https://openmaptiles.org/" target="_blank">© OpenMapTiles</a>',
+].join(' | ');
+
+export function getTileLayerConfig(): TileLayerConfig | null {
+  const key = import.meta.env.VITE_GEOAPIFY_KEY;
   if (!key) return null;
-  return `https://api.maptiler.com/maps/${dark ? DARK_STYLE : STYLE}/style.json?key=${encodeURIComponent(key)}`;
+  return {
+    urlTemplate: `https://maps.geoapify.com/v1/tile/${STYLE}/{z}/{x}/{y}{r}.png?apiKey=${encodeURIComponent(key)}`,
+    maxZoom: MAX_ZOOM,
+    attribution: ATTRIBUTION,
+  };
 }
