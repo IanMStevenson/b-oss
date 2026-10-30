@@ -64,4 +64,13 @@ describe('enqueueDraft — partly editable entries', () => {
     expect(item.fields).toMatchObject({ title: 'New title', description: 'New description' });
     expect(item.filePath).toBe('/files/p.jpg');
   });
+
+  it('queues the selected thumbnail with a replacement photo, and drops it without one', async () => {
+    const thumbnailCrop = { x: 0.1, y: 0.2, w: 0.3 };
+    await enqueueDraft({ ...draft, editLevel: 1, thumbnailCrop });
+    await enqueueDraft({ ...draft, editLevel: 1, photo: null, thumbnailCrop });
+    const [withPhoto, withoutPhoto] = useUploadQueueStore.getState().items;
+    expect(withPhoto.fields).toMatchObject({ thumbnail_crop: '0.1,0.2,0.3' });
+    expect(withoutPhoto.fields).not.toHaveProperty('thumbnail_crop', '0.1,0.2,0.3');
+  });
 });

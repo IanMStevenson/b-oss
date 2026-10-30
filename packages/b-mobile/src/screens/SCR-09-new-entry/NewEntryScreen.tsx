@@ -81,6 +81,7 @@ export function NewEntryScreen({ replaceEntryId }: NewEntryScreenProps = {}) {
           createdAt: photo.createdAt,
           sizeBytes: photo.sizeBytes,
         },
+        thumbnailCrop: null,
       });
       navigate.goBack();
       return;
