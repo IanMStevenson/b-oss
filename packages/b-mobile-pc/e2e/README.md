@@ -29,6 +29,8 @@ round, no "unavailable" copy), the first poll announces nothing, one notificatio
 stream switched off and no catch-up when it comes back, a click routes to the right screen, and a dead
 token raises exactly one sign-in-again notification.
 
+The error log (b-oss#639): an unhandled page error lands in `userData/logs/app.log` with its token redacted, and the error screen shows the message with Copy details (through the bridge to the clipboard) and Open log folder. The render failure is simulated by handing the app's real error boundary an error through React's fiber tree.
+
 ## What it cannot cover
 
 - **The OS keystore.** A container has no usable one, so the shell is started with

@@ -53,6 +53,7 @@ export class NotifyShell {
     private readonly getWindow: () => BrowserWindow | null,
     private readonly presenter: Presenter,
     private readonly watchedAccounts: () => number,
+    private readonly openLogFolder: () => void,
   ) {
     app.on('before-quit', () => {
       this.quitting = true;
@@ -137,6 +138,7 @@ export class NotifyShell {
     tray.setContextMenu(
       Menu.buildFromTemplate([
         { label: 'Open b-mobile', click: () => this.reveal() },
+        { label: 'Open log folder', click: () => this.openLogFolder() },
         { type: 'separator' },
         {
           label: 'Exit',

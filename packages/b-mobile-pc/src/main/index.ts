@@ -8,6 +8,7 @@
 import {
   app,
   BrowserWindow,
+  clipboard,
   ipcMain,
   net,
   protocol,
@@ -17,7 +18,7 @@ import {
   shell,
 } from 'electron';
 import { mkdirSync, renameSync, writeFileSync } from 'node:fs';
-import { mkdir, readFile, rename, writeFile } from 'node:fs/promises';
+import { appendFile, mkdir, readFile, rename, rm, stat, writeFile } from 'node:fs/promises';
 import { dirname, join, resolve } from 'node:path';
 import { fetchUnreadTotals } from '@b-oss/b-notify-core';
 import { CHANNELS } from '../shared/bridge.js';
@@ -33,6 +34,7 @@ import {
   sanitiseRequestHeaders,
   sanitiseResponseHeaders,
 } from './app-protocol.js';
+import { ErrorLog, parseErrorEntry, type LogFs } from './error-log.js';
 import { openAuthWindow } from './auth-window.js';
 import { DEFAULT_AUTH_HOSTS, validateAuthRequest, withOrigin } from './auth-request.js';
 import { electronPresenter, NotifyShell, type Presenter, startedHidden } from './notify-shell.js';
@@ -164,6 +166,9 @@ async function handleAppRequest(request: Request): Promise<Response> {
   return new Response(new Uint8Array(body), { headers });
 }
 
+/** `shell` is shadowed by the NotifyShell inside the ready handler, so this lives out here. */
+const openFolder = (path: string): Promise<string> => shell.openPath(path);
+
 // --- window ---------------------------------------------------------------------------------
 
 let mainWindow: BrowserWindow | null = null;
@@ -275,6 +280,26 @@ if (!app.requestSingleInstanceLock()) {
         : electronCrypto,
       atomicFile(join(app.getPath('userData'), 'secure-store.json')),
     );
+    // The error log (b-oss#639): userData/logs/app.log, redacted and size-capped.
+    const logDir = join(app.getPath('userData'), 'logs');
+    const logFs: LogFs = {
+      append: async (file, text) => {
+        await mkdir(dirname(file), { recursive: true });
+        await appendFile(file, text, 'utf8');
+      },
+      size: (file) =>
+        stat(file).then(
+          (st) => st.size,
+          () => 0,
+        ),
+      rename: (from, to) => rename(from, to).catch(() => undefined),
+      remove: (file) => rm(file, { force: true }),
+    };
+    const openLogFolder = async (): Promise<void> => {
+      await mkdir(logDir, { recursive: true });
+      await openFolder(logDir);
+    };
+    const errorLog = new ErrorLog(logFs, (name) => join(logDir, name));
     const handle = (channel: string, fn: (...args: unknown[]) => unknown): void => {
       ipcMain.handle(channel, (event, ...args: unknown[]) => {
         if (!isTrustedSender(event.senderFrame?.url)) throw new Error('Untrusted sender');
@@ -284,6 +309,14 @@ if (!app.requestSingleInstanceLock()) {
     handle(CHANNELS.secureGet, (key) => store.get(key));
     handle(CHANNELS.secureSet, (key, value) => store.set(key, value));
     handle(CHANNELS.secureRemove, (key) => store.remove(key));
+    handle(CHANNELS.diagLog, async (raw) => {
+      const entry = parseErrorEntry(raw);
+      if (entry) await errorLog.write(entry);
+    });
+    handle(CHANNELS.diagOpenLogFolder, () => openLogFolder());
+    handle(CHANNELS.diagCopy, async (text) => {
+      if (typeof text === 'string') await clipboard.writeText(text.slice(0, 100_000));
+    });
     handle(CHANNELS.authOpen, (url, redirectPrefix) => {
       const request = validateAuthRequest(url, redirectPrefix, authHosts, authAllowHttp);
       // Test hook (ignored when packaged): send the sign-in page to a fake authorize server.
@@ -314,6 +347,7 @@ if (!app.requestSingleInstanceLock()) {
       () => mainWindow,
       presenter,
       () => notifyPoller?.watchedCount() ?? 0,
+      () => void openLogFolder(),
     );
     notifyShell = shell;
     const stateFile = atomicFile(join(app.getPath('userData'), 'notify-state.json'));

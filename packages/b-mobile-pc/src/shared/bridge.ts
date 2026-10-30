@@ -19,6 +19,9 @@ export const CHANNELS = {
   notifyReceived: 'notify:received',
   notifyTapped: 'notify:tapped',
   notifyTappedReady: 'notify:tapped-ready',
+  diagLog: 'diag:log',
+  diagOpenLogFolder: 'diag:open-log-folder',
+  diagCopy: 'diag:copy',
 } as const;
 
 export interface DesktopBridge {
@@ -42,5 +45,13 @@ export interface DesktopBridge {
     /** The user clicked a notification; the window has already been brought to the front. A click
      * that happened before anyone listened is delivered to the first listener. */
     onTapped(handler: (payload: NotifyPayload) => void): () => void;
+  };
+  /** The error log and the error screen's actions (b-oss#639). */
+  readonly diagnostics: {
+    /** Appends one redacted entry to `userData/logs/app.log`. Never rejects. */
+    logError(entry: { source: string; message: string; stack?: string }): Promise<void>;
+    openLogFolder(): Promise<void>;
+    /** Puts text on the system clipboard (the page has no clipboard permission of its own). */
+    copyText(text: string): Promise<void>;
   };
 }

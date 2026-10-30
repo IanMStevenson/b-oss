@@ -31,6 +31,12 @@ export interface DesktopBridge {
     onReceived(handler: (payload: DesktopNotifyPayload) => void): () => void;
     onTapped(handler: (payload: DesktopNotifyPayload) => void): () => void;
   };
+  /** The error log and the error screen's actions (b-oss#639); see platform/diagnostics.ts. */
+  readonly diagnostics: {
+    logError(entry: { source: string; message: string; stack?: string }): Promise<void>;
+    openLogFolder(): Promise<void>;
+    copyText(text: string): Promise<void>;
+  };
 }
 
 const BRIDGE_GLOBAL = 'bMobileDesktop';

@@ -326,3 +326,74 @@ describe('desktop notifications by polling', () => {
     await shot('5-reauth');
   });
 });
+
+describe('the error log and copyable details (b-oss#639)', () => {
+  const logFile = (): string =>
+    USER_DATA ? join(USER_DATA, 'logs', 'app.log') : join(OUT, 'no-user-data');
+  const readLog = (): string => (existsSync(logFile()) ? readFileSync(logFile(), 'utf8') : '');
+
+  it('logs an unhandled page error with its token redacted', async () => {
+    expect(USER_DATA, 'run through e2e/run.sh').toBeTruthy();
+    await page.evaluate(() => {
+      setTimeout(() => {
+        throw new Error(
+          'lookup failed: access_token=SECRETVALUE9 Authorization: Bearer abcDEF123456',
+        );
+      }, 0);
+    });
+    await page.waitForTimeout(1500);
+    const log = readLog();
+    expect(log).toContain('lookup failed');
+    expect(log).toContain('"source":"window-error"');
+    expect(log).not.toContain('SECRETVALUE9');
+    expect(log).not.toContain('abcDEF123456');
+  });
+
+  it('shows the message with Copy details and Open log folder when a render fails', async () => {
+    // Reach the app's error boundary through React's fiber tree and hand it an error exactly as React
+    // does for a failed render (getDerivedStateFromError, then componentDidCatch): a genuinely failing
+    // render cannot be forced from outside without changing the app.
+    await page.evaluate(() => {
+      const root = document.getElementById('root') as unknown as Record<string, unknown>;
+      const key = Object.keys(root).find((k) => k.startsWith('__reactContainer'));
+      type Fiber = { stateNode?: unknown; child?: Fiber | null; sibling?: Fiber | null };
+      const find = (f: Fiber | null | undefined): Fiber | null => {
+        for (let n = f; n; n = n.sibling) {
+          const inst = n.stateNode as { componentDidCatch?: unknown } | null;
+          if (inst && typeof inst.componentDidCatch === 'function') return n;
+          const hit = find(n.child);
+          if (hit) return hit;
+        }
+        return null;
+      };
+      const fiber = find(root[key ?? ''] as Fiber);
+      if (!fiber) throw new Error('no error boundary found');
+      const inst = fiber.stateNode as {
+        constructor: { getDerivedStateFromError(e: Error): object };
+        setState(s: object): void;
+        componentDidCatch(e: Error, i: { componentStack: string }): void;
+      };
+      const error = new Error('forced render failure token=SECRETVALUE9');
+      inst.setState(inst.constructor.getDerivedStateFromError(error));
+      inst.componentDidCatch(error, { componentStack: '\n    in ForcedFailure' });
+    });
+    await page.waitForSelector('[role="alert"]', { timeout: 10_000 });
+    const body = await text();
+    expect(body).toContain('Something went wrong');
+    expect(body).toContain('forced render failure');
+    expect(body).not.toContain('SECRETVALUE9');
+    expect(body).toContain('Copy details');
+    expect(body).toContain('Open log folder');
+    await shot('6-error-screen');
+    await page.waitForTimeout(500);
+    const log = readLog();
+    expect(log).toContain('"source":"boundary"');
+    expect(log).toContain('forced render failure');
+    expect(log).not.toContain('SECRETVALUE9');
+    // Copy details goes through the bridge to the real clipboard.
+    await page.getByRole('button', { name: 'Copy details' }).click();
+    await page.waitForFunction(() => document.body.innerText.includes('Copied'), undefined, {
+      timeout: 5000,
+    });
+  });
+});

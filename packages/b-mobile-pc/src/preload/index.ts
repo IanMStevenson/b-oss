@@ -35,6 +35,11 @@ const bridge: DesktopBridge = {
         void ipcRenderer.invoke(CHANNELS.notifyTappedReady);
       }),
   },
+  diagnostics: {
+    logError: (entry) => ipcRenderer.invoke(CHANNELS.diagLog, entry) as Promise<void>,
+    openLogFolder: () => ipcRenderer.invoke(CHANNELS.diagOpenLogFolder) as Promise<void>,
+    copyText: (text) => ipcRenderer.invoke(CHANNELS.diagCopy, text) as Promise<void>,
+  },
 };
 
 contextBridge.exposeInMainWorld(BRIDGE_GLOBAL, bridge);
