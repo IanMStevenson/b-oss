@@ -65,32 +65,38 @@ import Hero from '../components/Hero.astro';
     </p>
     <p>
       Entry photos are uploaded unchanged, including the details stored in the image file (EXIF
-      data, such as the camera model and settings). For a photo taken with your phone's camera
-      this can include the location where it was taken, if location tagging is turned on in your
-      camera settings. That location goes to Blipfoto with the photo, whether or not you add a
-      location to the entry. When you choose a photo from your device, the app also reads that
-      embedded location so it can offer it when you turn on Add to map; it is held in the draft
-      on your device and is not shown on the map unless you turn Add to map on.
+      data, such as the camera model and settings). This can include the location where the photo
+      was taken, if your camera recorded one. That location goes to Blipfoto with the photo,
+      whether or not you add a location to the entry.
+    </p>
+    <p>
+      When you take or choose a photo, the app also reads that embedded location, if there is one,
+      so it can offer it as the entry's location. It is kept in the draft on your device. It is
+      not shown on the map unless you turn on Add to map.
     </p>
 
     <h2>Permissions the app asks for</h2>
     <ul>
       <li><strong>Camera</strong> — only when you choose to take a photo for an entry.</li>
       <li>
-        <strong>Location</strong> (approximate or precise) — when you tap my-location on a map,
-        open Nearby, or add your current location to an entry, your position is used for that
-        request. It is also asked for when you take a photo for an entry: your phone's camera
-        only records where a photo was taken if the app asking for the photo has location
-        access. The app does not read your position for that; it only reads the location the
-        camera wrote into the photo. A location you add to an entry is kept with the draft, on your device,
-        until the entry is posted; otherwise the app does not store it.
+        <strong>Location</strong> (approximate or precise) — used when you tap my-location on a
+        map, open Nearby, or add your current location to an entry, and only for that request. A
+        location you add to an entry is kept with the draft, on your device, until the entry is
+        posted; otherwise the app does not store it.
       </li>
       <li>
-        <strong>Location in your photos</strong> (Android 10 to 16) — when you choose a photo
-        from your device, the app asks to read the location stored in it. On Android 17 and
-        later there is no app permission: Android itself asks, when you pick a photo, whether
-        to include its location. If you decline either, the photo is still used, without its
-        location.
+        <strong>Location when taking a photo</strong> — the same location permission is asked for
+        when you take a photo for an entry. Your phone's camera only records where a photo was
+        taken if the app that asked for the photo has location access. The app does not read your
+        position for this; it only reads the location the camera wrote into the photo. If you
+        refuse, the photo is still taken, without a location.
+      </li>
+      <li>
+        <strong>Location in your photos</strong> — when you choose a photo from your device, the
+        app needs to read the location stored in it. On Android 10 to 16 the app asks for this
+        permission. On Android 17 and later the app has no permission for it: Android asks you
+        when you pick the photo whether to include its location. If you decline, the photo is
+        still used, without its location.
       </li>
       <li>
         <strong>Notifications</strong> — optional; to alert you to new comments and activity,
