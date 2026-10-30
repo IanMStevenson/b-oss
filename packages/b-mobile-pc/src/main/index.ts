@@ -258,7 +258,9 @@ if (!app.requestSingleInstanceLock()) {
   void app.whenReady().then(async () => {
     protocol.handle(APP_SCHEME, handleAppRequest);
     // Nothing in the app needs a browser permission (camera, location, notifications go through
-    // the shell), so deny every request.
+    // the shell), so deny every request. Deliberately kept (b-oss#636): the app does not rely on
+    // browser location either, since capabilities().location is `pick-only` here and places are
+    // chosen on the map.
     session.defaultSession.setPermissionRequestHandler((_wc, _permission, callback) =>
       callback(false),
     );

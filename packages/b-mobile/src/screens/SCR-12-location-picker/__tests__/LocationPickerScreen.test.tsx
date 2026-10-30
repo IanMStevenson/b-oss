@@ -134,6 +134,30 @@ function renderScreen() {
   );
 }
 
+// Capabilities under test: the jsdom default is `web` (location and camera both available); the
+// pick-only / files-only cases flip these (b-oss#636).
+const caps = vi.hoisted(
+  (): { location: 'os' | 'pick-only'; capture: 'camera' | 'files-only' } => ({
+    location: 'os',
+    capture: 'camera',
+  }),
+);
+vi.mock('../../../platform/capabilities.js', async (importOriginal) => {
+  const real = await importOriginal<typeof import('../../../platform/capabilities.js')>();
+  return {
+    ...real,
+    capabilities: () => ({
+      ...real.capabilities(),
+      location: caps.location,
+      media: { capture: caps.capture },
+    }),
+  };
+});
+afterEach(() => {
+  caps.location = 'os';
+  caps.capture = 'camera';
+});
+
 describe('LocationPickerScreen', () => {
   it('shows the unavailable message instead of a blank map when no tile key is configured', () => {
     getMapStyleUrl.mockReturnValue(null);
@@ -232,5 +256,18 @@ describe('LocationPickerScreen', () => {
     expect(screen.getByText(MAP_FAILED_MESSAGE)).toBeDefined();
     act(() => mapInstances[0].trigger('webglcontextrestored'));
     expect(screen.queryByText(MAP_FAILED_MESSAGE)).toBeNull();
+  });
+});
+
+describe('LocationPickerScreen without OS location (desktop, b-oss#636)', () => {
+  it('has no "My location" control but still places a marker from a map tap', async () => {
+    caps.location = 'pick-only';
+    renderScreen();
+    await waitFor(() => expect(mapInstances.length).toBe(1));
+    expect(screen.queryByRole('button', { name: 'My location' })).toBeNull();
+    mapInstances[0].trigger('click', { lngLat: { lat: 10, lng: 20 } });
+    await waitFor(() => expect(markerInstances.length).toBe(1));
+    await userEvent.click(screen.getByText('Done'));
+    expect(useComposeDraftStore.getState().draft?.location).toEqual({ lat: 10, lon: 20 });
   });
 });

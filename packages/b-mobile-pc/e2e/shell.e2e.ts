@@ -153,6 +153,45 @@ describe('sign-in and secrets', () => {
   });
 });
 
+// Capabilities on desktop (b-oss#636): no OS location and no camera, so those controls are absent
+// rather than dead, and the location picker (lazy chunk, map) opens without the error screen.
+describe('desktop capabilities: location and camera', () => {
+  it('New entry offers only choosing a file, and no Android picker copy', async () => {
+    await page.setViewportSize({ width: 1200, height: 800 });
+    await go('/compose', 3000);
+    const body = await text();
+    expect(body).toContain('Choose a photo');
+    expect(body).not.toMatch(/Take a photo|Choose from device|system picker/i);
+    await shot('7-new-entry');
+  });
+
+  it('the location picker opens (no error screen) and has no "My location" control', async () => {
+    await go('/compose/location', 4000);
+    expect(await text()).not.toMatch(/Something went wrong/i);
+    expect(await page.getByLabel('My location').count()).toBe(0);
+    await shot('8-location-picker');
+  });
+
+  it('the map has no "My location" control', async () => {
+    await go('/map', 4000);
+    expect(await text()).not.toMatch(/Something went wrong/i);
+    expect(await page.getByLabel('My location').count()).toBe(0);
+  });
+
+  it('Nearby explains there is no location here and offers the map instead of "Allow location"', async () => {
+    await go('/browse', 4000);
+    await page.evaluate(() => {
+      document
+        .querySelector('ion-segment')
+        ?.dispatchEvent(new CustomEvent('ionChange', { detail: { value: 'nearby' } }));
+    });
+    await page.waitForTimeout(1000);
+    const body = await text();
+    expect(body).toContain('Open the map');
+    expect(body).not.toContain('Allow location');
+  });
+});
+
 // The stub API logs every avatar upload it receives ("avatar upload: N bytes body, filename=...,
 // type=..., content-type header=..."); run.sh writes that log to e2e-out/stub-api.log.
 function stubUploads(): { bytes: number; type: string; contentType: string }[] {
