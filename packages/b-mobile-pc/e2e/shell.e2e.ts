@@ -196,7 +196,10 @@ describe('desktop capabilities: location and camera', () => {
 // Entry, a remembered pin overrides both ways, and the drawer below the breakpoint.
 describe('responsive navigation menu', () => {
   const visible = (): Promise<boolean> =>
-    page.evaluate(() => document.querySelector('ion-split-pane')?.classList.contains('split-pane-visible') ?? false);
+    page.evaluate(
+      () =>
+        document.querySelector('ion-split-pane')?.classList.contains('split-pane-visible') ?? false,
+    );
   const pin = async (label: string): Promise<void> => {
     await page.getByText(label, { exact: true }).first().click();
     await page.waitForTimeout(500);
@@ -492,12 +495,13 @@ describe('the error log and copyable details (b-oss#639)', () => {
     await page.waitForFunction(() => document.body.innerText.includes('Copied'), undefined, {
       timeout: 5000,
     });
+  });
+});
+
 // Browse zoom (b-oss#635): on a wide window with the desktop profile's 156px tile the control must
 // keep stepping, Ctrl+wheel and Ctrl +/-/0 drive the app's own zoom, and Chromium's page zoom
 // (devicePixelRatio) never moves. Chromium's own page-zoom accelerators come from the application
 // menu, which CDP key events bypass, so that half is covered by app-menu.test.ts, not here.
-});
-
 describe('browse zoom', () => {
   const percent = async (): Promise<number> => {
     const label = page.getByText(/^\d+%$/).first();
