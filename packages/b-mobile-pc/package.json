@@ -1,0 +1,23 @@
+{
+  "name": "@b-oss/b-mobile-pc",
+  "version": "1.0.0",
+  "private": true,
+  "description": "b-mobile on desktop: an Electron shell that packages b-mobile's web build",
+  "author": {
+    "name": "Ian Stevenson",
+    "email": "Ian.Stevenson@cyclops-online.co.uk"
+  },
+  "main": "dist/main/index.js",
+  "scripts": {
+    "dev": "electron-vite dev",
+    "build": "electron-vite build",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "devDependencies": {
+    "electron": "45.0.0",
+    "electron-vite": "^6.0.0",
+    "vite": "^8.3.5",
+    "vitest": "^5.0.5"
+  }
+}
