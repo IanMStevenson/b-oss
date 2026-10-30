@@ -213,7 +213,7 @@ export class NotifyPoller {
       totals = await this.deps.fetchTotals(token);
     } catch (err) {
       if (err instanceof TokenInvalidError) {
-        await this.reauthRequired(accountId, account);
+        await this.reauthRequired(accountId);
         return;
       }
       throw err;
@@ -246,9 +246,12 @@ export class NotifyPoller {
   /** Exactly one "sign in again" notification; after it, this account is not polled until the app
    * has handled it (removing it from the watched set) and added it back. If showing fails, the
    * flag stays off and the next poll tries again. */
-  private async reauthRequired(accountId: string, account: AccountState): Promise<void> {
+  private async reauthRequired(accountId: string): Promise<void> {
     await this.deps.show({ payload: { kind: 'reauth-required', accountId }, count: 0 });
-    account.reauthShown = true;
+    // Looked up again: configure() may have replaced the state while the notification was shown.
+    const current = this.state.accounts[accountId];
+    if (!current) return;
+    current.reauthShown = true;
     await this.save();
   }
 
