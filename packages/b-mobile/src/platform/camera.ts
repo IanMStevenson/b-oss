@@ -16,7 +16,8 @@
 
 import { Capacitor } from '@capacitor/core';
 import { Camera, CameraDirection } from '@capacitor/camera';
-import { hasNativePhotoPick, pickNativePhoto } from './photoPick.js';
+import { hasNativePhotoPick, pickNativePhoto, readPhotoGps } from './photoPick.js';
+import { requestGeotagAccess } from './geolocation.js';
 
 export interface PickedPhoto {
   /** Native file URI — absent on web, where webPath is the only usable source. */
@@ -105,8 +106,15 @@ async function ensureCameraPermission(): Promise<void> {
   throw new CameraPermissionDeniedError(requested.camera !== 'denied');
 }
 
-export async function takePhoto(): Promise<PickedPhoto | null> {
+export interface TakePhotoOptions {
+  /** Ask for location access first, so the system camera embeds where the photo was taken, and
+   * return that position in `gps` (entries only; not wanted for a profile photo). */
+  geotag?: boolean;
+}
+
+export async function takePhoto(options: TakePhotoOptions = {}): Promise<PickedPhoto | null> {
   await ensureCameraPermission();
+  if (options.geotag) await requestGeotagAccess();
   try {
     const result = await Camera.takePhoto({
       quality: 90,
@@ -114,7 +122,9 @@ export async function takePhoto(): Promise<PickedPhoto | null> {
       cameraDirection: CameraDirection.Rear,
       includeMetadata: true,
     });
-    return toPickedPhoto(result);
+    const photo = toPickedPhoto(result);
+    if (options.geotag && result.uri) photo.gps = await readPhotoGps(result.uri);
+    return photo;
   } catch (err) {
     if (isUserCancelled(err)) return null;
     throw err;

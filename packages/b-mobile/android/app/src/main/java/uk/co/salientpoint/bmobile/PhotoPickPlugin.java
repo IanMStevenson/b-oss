@@ -84,6 +84,26 @@ public class PhotoPickPlugin extends Plugin {
     startActivityForResult(call, intent, "onPicked");
   }
 
+  /** The GPS embedded in an image file the app already holds (a camera capture). */
+  @PluginMethod
+  public void readGps(PluginCall call) {
+    String path = call.getString("path");
+    JSObject result = new JSObject();
+    if (path != null) {
+      try {
+        ExifInterface exif = new ExifInterface(path);
+        float[] latLong = new float[2];
+        if (exif.getLatLong(latLong) && !(latLong[0] == 0f && latLong[1] == 0f)) {
+          result.put("lat", (double) latLong[0]);
+          result.put("lon", (double) latLong[1]);
+        }
+      } catch (IOException ignored) {
+        // Unreadable file: no position.
+      }
+    }
+    call.resolve(result);
+  }
+
   @ActivityCallback
   private void onPicked(PluginCall call, ActivityResult result) {
     if (call == null) return;

@@ -124,7 +124,7 @@ export function NewEntryScreen({ replaceEntryId }: NewEntryScreenProps = {}) {
     setPhotoMessage(null);
     setBusy('camera');
     try {
-      const photo = await takePhoto();
+      const photo = await takePhoto({ geotag: true });
       if (photo) startDraft(photo);
     } catch (err) {
       if (err instanceof CameraPermissionDeniedError) {

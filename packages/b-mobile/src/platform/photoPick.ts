@@ -25,6 +25,8 @@ export interface NativePickedPhoto {
 interface PhotoPickPlugin {
   /** Rejects with message "cancelled" when the user backs out. */
   pick(): Promise<NativePickedPhoto>;
+  /** The GPS embedded in an image file the app already holds; empty when there is none. */
+  readGps(options: { path: string }): Promise<{ lat?: number; lon?: number }>;
 }
 
 const PhotoPick = registerPlugin<PhotoPickPlugin>('PhotoPick');
@@ -36,4 +38,15 @@ export function hasNativePhotoPick(): boolean {
 
 export function pickNativePhoto(): Promise<NativePickedPhoto> {
   return PhotoPick.pick();
+}
+
+/** The position embedded in a local image file (e.g. a camera capture), or null. */
+export async function readPhotoGps(path: string): Promise<{ lat: number; lon: number } | null> {
+  if (!hasNativePhotoPick()) return null;
+  try {
+    const { lat, lon } = await PhotoPick.readGps({ path });
+    return lat != null && lon != null ? { lat, lon } : null;
+  } catch {
+    return null;
+  }
 }

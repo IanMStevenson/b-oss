@@ -90,7 +90,8 @@ at rest and covered under User IDs in the policy.
 
 - **Ads:** none. **Target audience:** adults/general, not children.
 - **Permissions:** camera (take a photo), approximate/precise location (my-location, Nearby),
-  media location (read the GPS stored in a chosen photo, Android 10-16; b-oss#650), post
+  media location (read the GPS stored in a chosen photo, Android 10-16; b-oss#650); location is also
+  asked for before "Take a photo" so the camera geotags the capture (b-oss#650), post
   notifications. No storage, contacts, SMS, or exact alarms.
 - **App access:** reviewer needs a Blipfoto login (b-oss#363).
 - **User-generated content:** yes: reporting and blocking (b-oss#362). Where the form asks about
