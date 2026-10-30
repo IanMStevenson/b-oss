@@ -96,30 +96,24 @@ web build is copied into the app as `resources/web`; `productName` is `b-mobile`
 build). The packaged layout can be smoke-tested on Linux with `npx electron-builder --linux dir` and the
 e2e image (test hooks are ignored when packaged, so only the real API is reachable).
 
-### Fast loop on Windows: sync the unpacked build and run it directly
+### Fast loop on Windows: run the unpacked build from the synced folder
 
 Do not run the exes from a network share. The portable exe unpacks about 360 MB into `%TEMP%` on every
 launch, which is slow anywhere and much slower over Samba. A build's `win-unpacked/` folder is the
 same app already unpacked, and only about 4 MB of it changes between builds (`resources/app.asar` and
-`resources/web`; the rest is the Electron runtime). So sync that folder and run `b-mobile.exe` in it.
+`resources/web`; the rest is the Electron runtime). The dev-loop relay below already carries it, so run
+`b-mobile.exe` from the synced folder:
 
-On the VM (done): relay `b-mobile-pc-win-relay` mirrors `packages/b-mobile-pc/dist-electron` of the
-worktree that builds (ignoring the installers, `*.blockmap`, `*.yml`, `linux-unpacked/`) into
-`~/live/b-mobile-pc-win`. The relay's root is `dist-electron/` itself, which persists across builds
-(electron-builder recreates `win-unpacked/` inside it); a relay rooted at `win-unpacked/` would halt with
-"root deletion" on every rebuild.
-
-On Windows (once, PowerShell):
-
-```powershell
-mutagen sync create --name=b-mobile-pc-win-live --sync-mode=one-way-replica `
-  ims-dev-o1:live/b-mobile-pc-win "D:\Dev\b-mobile-pc-win"
-# first sync is about 360 MB; then run  D:\Dev\b-mobile-pc-win\win-unpacked\b-mobile.exe
+```
+D:\Dev\debugging\b-mobile-pc-build\packages\b-mobile-pc\dist-electron\win-unpacked\b-mobile.exe
 ```
 
-After that, `packages/b-mobile-pc/scripts/build-win-docker.sh` on the VM is all it takes: a few MB arrive
-and the next launch of `b-mobile.exe` runs the new build. (Start-with-login registers whichever exe
-path was running, so use one stable folder.)
+The one VM relay (`b-mobile-pc-relay`, below) ignores the installers, `*.blockmap`, `*.yml` and
+`linux-unpacked/` under `dist-electron/` but not `win-unpacked/`, so after
+`packages/b-mobile-pc/scripts/build-win-docker.sh` on the VM only a few MB arrive. (`win-unpacked/` is
+recreated by every build; that is fine here because the relay's root is the whole repo, but a relay
+rooted at `win-unpacked/` itself would halt with "root deletion".) Start-with-login registers whichever
+exe path was running, so use that one folder.
 
 ## Testing on Windows (Mutagen dev loop)
 
@@ -130,9 +124,12 @@ On the VM (done; this is the part the agent can do):
 
 ```bash
 # relay: b-mobile-pc-relay  ->  ~/live/b-mobile-pc-repo   (whole repo, so VS Code on Windows has the workspace)
+D=packages/b-mobile-pc/dist-electron
 mutagen sync terminate b-mobile-pc-relay
 mutagen sync create --name=b-mobile-pc-relay --sync-mode=one-way-replica \
-  --ignore-vcs --ignore=node_modules/ --ignore=e2e-out/ \
+  --ignore-vcs --ignore=node_modules/ --ignore=e2e-out/ --ignore=/.git \
+  --ignore="/$D/*.exe" --ignore="/$D/*.blockmap" --ignore="/$D/*.yml" \
+  --ignore="/$D/linux-unpacked/" --ignore="/$D/.icon-ico/" \
   <worktree> ~/live/b-mobile-pc-repo
 # build in the feeding worktree, then the change is on Windows within seconds
 npm run build -w @b-oss/b-mobile && npm run build -w @b-oss/b-mobile-pc
