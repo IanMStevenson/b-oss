@@ -5,6 +5,7 @@
 // stack — no router-level tabs, since SCR-02's seven feeds (Recent, Following, Me, Popular,
 // Milestones, New Blippers, Nearby) are in-screen state, not routes.
 
+import { installKeyboardScroll } from './keyboardScroll.js';
 import { useEffect, useRef } from 'react';
 import {
   IonApp,
@@ -304,6 +305,8 @@ function BrowseBackGuard() {
 
 export function AppShell() {
   const activeAccountId = useAccountsStore((s) => s.activeAccountId);
+
+  useEffect(() => installKeyboardScroll(), []);
 
   useEffect(() => {
     void applyFontScale();

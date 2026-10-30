@@ -326,3 +326,42 @@ describe('desktop notifications by polling', () => {
     await shot('5-reauth');
   });
 });
+
+describe('keyboard scrolling (b-oss#668)', () => {
+  const scrollTop = (): Promise<number> =>
+    page.evaluate(async () => {
+      const contents = [...document.querySelectorAll('ion-content')].filter(
+        (c) => !c.closest('.ion-page-hidden'),
+      ) as unknown as { getScrollElement(): Promise<HTMLElement> }[];
+      const el = await contents[contents.length - 1].getScrollElement();
+      return el.scrollTop;
+    });
+  const press = async (key: string): Promise<number> => {
+    await page.keyboard.press(key);
+    await page.waitForTimeout(300);
+    return scrollTop();
+  };
+
+  it('Up/Down/PageUp/PageDown/Home/End scroll a long entry page with nothing focused', async () => {
+    await go('/entry/5000000003', 4500);
+    await page.evaluate(() => (document.activeElement as HTMLElement | null)?.blur());
+    expect(await scrollTop()).toBe(0);
+    const afterDown = await press('ArrowDown');
+    expect(afterDown).toBeGreaterThan(0);
+    const afterPage = await press('PageDown');
+    expect(afterPage).toBeGreaterThan(afterDown);
+    expect(await press('PageUp')).toBeLessThan(afterPage);
+    expect(await press('End')).toBeGreaterThanOrEqual(afterPage);
+    expect(await press('Home')).toBe(0);
+    await press('ArrowDown');
+    expect(await press('ArrowUp')).toBe(0);
+  });
+
+  it('Left/Right do not scroll the page', async () => {
+    const before = await scrollTop();
+    await page.keyboard.press('ArrowRight');
+    await page.waitForTimeout(500);
+    // Whether it navigates depends on the entry having neighbours; it must never scroll.
+    expect(await scrollTop()).toBe(before);
+  });
+});
