@@ -185,7 +185,6 @@ describe('a stale session (b-oss#678)', () => {
       await go('/map', 6000);
       page.off('load', count);
       // The navigation itself, plus exactly one automatic reload; no loop.
-      await shot('6-stale-chunk');
       expect(loads).toBe(2);
       expect(await text()).toMatch(/something went wrong|reload/i);
       await shot('6-stale-chunk');
