@@ -176,6 +176,7 @@ export function ComposeEntryScreen() {
             {draft.photo && (
               <ThumbnailPhotoFrame
                 photo={draft.photo}
+                crop={draft.thumbnailCrop}
                 canSelect={isMember === true}
                 onCropChange={handleCropComplete}
               />
