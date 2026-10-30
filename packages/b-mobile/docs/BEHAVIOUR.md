@@ -115,7 +115,7 @@ Known Blipfoto API limits: [AppLimitations.md](AppLimitations.md). Paths are rel
   View that entry), "That date is in the future.", "That date is too far in the past." or "You
   can't publish an entry for that date." (`data/journal.ts`).
 - Title max 50, tags max 255, inline BBCode description. Crop only for members
-  (`details.member === 1`), sent as `thumbnail_crop`. "Add to map" is off by default and opens the location picker.
+  (`details.member === 1`), via the "Select thumbnail" button, sent as `thumbnail_crop`. "Add to map" is off by default and opens the location picker.
   "Choose from device" uses the native `PhotoPick` plugin, which returns the photo's embedded GPS
   (Android 17+: the system's "Include location info?" prompt; Android 10-16: an
   `ACCESS_MEDIA_LOCATION` prompt; else none). The position is kept in the draft and sent with the

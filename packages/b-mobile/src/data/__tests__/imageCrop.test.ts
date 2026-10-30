@@ -18,7 +18,7 @@ describe('cropToProportions', () => {
     });
   });
 
-  it('rounds to 4 decimal places rather than carrying float noise', () => {
+  it('floors to 4 decimal places rather than rounding up past the API fit limits', () => {
     expect(cropToProportions({ x: 33.333333, y: 0, width: 33.333333, height: 33.333333 })).toEqual({
       x: 0.3333,
       y: 0,
@@ -26,8 +26,19 @@ describe('cropToProportions', () => {
     });
   });
 
+  it('keeps a full-height crop on a 3:2 landscape photo within y + w*width/height <= 1', () => {
+    const { x, y, w } = cropToProportions({ x: 16.6667, y: 0, width: 66.6667, height: 100 });
+    expect(x + w).toBeLessThanOrEqual(1);
+    expect(y + (w * 3) / 2).toBeLessThanOrEqual(1);
+  });
+
+  it('keeps a full-width crop on a portrait photo within x + w <= 1', () => {
+    const { x, w } = cropToProportions({ x: 0, y: 10, width: 100, height: 66.6667 });
+    expect(x + w).toBeLessThanOrEqual(1);
+  });
+
   it('only ever carries width, per thumbnail_crop being a square (§15)', () => {
-    const result = cropToProportions({ x: 0, y: 0, width: 50, height: 999 });
+    const result = cropToProportions({ x: 0, y: 0, width: 50, height: 50 });
     expect(result).not.toHaveProperty('height');
     expect(result.w).toBe(0.5);
   });

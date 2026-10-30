@@ -202,7 +202,7 @@ export function ComposeEntryScreen() {
                           }
                     }
                   >
-                    {cropping ? 'Done cropping' : 'Crop'}
+                    {cropping ? 'Done' : 'Select thumbnail'}
                   </IonButton>
                 )}
               </div>
