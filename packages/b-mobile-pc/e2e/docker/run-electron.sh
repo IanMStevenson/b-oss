@@ -10,11 +10,11 @@ cd /p/packages/b-mobile-pc
 PROXY_ARGS=()
 if [ -n "${E2E_PROXY:-}" ]; then PROXY_ARGS=(--proxy-server="$E2E_PROXY"); fi
 BMPC_DIST=/p/packages/b-mobile/dist \
-BMPC_API_ORIGIN=http://127.0.0.1:5192 \
-BMPC_AUTH_ORIGIN=http://127.0.0.1:5193 \
+BMPC_API_ORIGIN=http://127.0.0.1:${E2E_STUB_PORT:-5192} \
+BMPC_AUTH_ORIGIN=http://127.0.0.1:${E2E_AUTH_PORT:-5193} \
 BMPC_TEST_PLAINTEXT_STORE=1 \
-BMPC_TEST_NOTIFY_PORT=5194 \
+BMPC_TEST_NOTIFY_PORT=${E2E_NOTIFY_PORT:-5194} \
 BMPC_TEST_POLL_INTERVAL_MS=1000 \
   exec timeout "${E2E_TIMEOUT:-300}" /p/node_modules/electron/dist/electron . \
     --no-sandbox --disable-gpu "${PROXY_ARGS[@]}" \
-    --remote-debugging-port=9222 --user-data-dir=/tmp/ud --enable-logging=stderr
+    --remote-debugging-port=${E2E_CDP_PORT:-9222} --user-data-dir=/tmp/ud --enable-logging=stderr
