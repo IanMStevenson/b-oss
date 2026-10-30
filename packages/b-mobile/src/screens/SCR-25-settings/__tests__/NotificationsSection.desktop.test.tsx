@@ -31,10 +31,12 @@ vi.mock('../../../platform/prefs.js', () => ({
   deletePref: vi.fn().mockResolvedValue(undefined),
 }));
 
-let desktop = true;
+// Hoisted so the mock can read it while modules load: the profile module (b-oss#634) calls
+// platformKind() when the prefs store is created, before a plain top-level `let` would exist.
+const platform = vi.hoisted(() => ({ desktop: true }));
 vi.mock('../../../platform/platformKind.js', async (importOriginal) => ({
   ...(await importOriginal<typeof import('../../../platform/platformKind.js')>()),
-  platformKind: () => (desktop ? 'desktop' : 'web'),
+  platformKind: () => (platform.desktop ? 'desktop' : 'web'),
 }));
 
 const { getStatus, checkNow, sendTest } = vi.hoisted(() => ({
@@ -82,7 +84,7 @@ function setAccount(on: boolean) {
 }
 
 beforeEach(() => {
-  desktop = true;
+  platform.desktop = true;
   fetchNotificationSettings.mockResolvedValue({ feed: { configured: 1, settings: {} } });
   getStatus.mockResolvedValue(status());
   checkNow.mockResolvedValue(
@@ -136,7 +138,7 @@ describe('desktop notification status and test toast', () => {
   });
 
   it('renders none of it off the desktop shell', async () => {
-    desktop = false;
+    platform.desktop = false;
     setAccount(true);
     render(<NotificationsSection />);
     await screen.findByText('b-mobile notifications');
