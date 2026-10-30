@@ -47,7 +47,7 @@ The Chrome side mirrors the Electron split: `b-ark-chrome` is to `b-ark-ui-chrom
 - b-push must NEVER depend on b-mobile, and no package may depend on b-mobile or b-push. (b-mobile-pc packages b-mobile's built `dist/` as a file, not as a package dependency, so it does not break this.) b-push runs on Cloudflare Workers: no Node-only APIs.
 - b-status depends on no other package and no package may depend on it (b-site copies the snapshot types by hand). b-status runs on Cloudflare Workers: no Node-only APIs. It reads only public Blipfoto pages and the API with the monitor's own app id; never user credentials or user data.
 - b-ark-ui components must NEVER call window.api directly — use useBackend() hook only
-- Access tokens: handled in main process only (Electron), never sent to renderer via IPC. On Chrome, tokens are AES-GCM encrypted at rest and handed straight to BackupEngine — never broadcast over chrome.runtime messages
+- Access tokens: in b-ark, handled in main process only (Electron), never sent to renderer via IPC. (b-mobile and b-mobile-pc work differently: the web app holds the token, as it does in Android's WebView, and the shell only stores it at rest in the OS keystore and runs the sign-in window; the token is never logged or put in prefs.) On Chrome, tokens are AES-GCM encrypted at rest and handed straight to BackupEngine — never broadcast over chrome.runtime messages
 - All Blipfoto \_id fields: always use the \_str string variant, store as string
 - Atomic file writes: write to `path + '.tmp'` then rename to final path (Electron). The Chrome
   `BrowserPlatformIO` relies instead on the File System Access API's own write semantics —

@@ -21,11 +21,16 @@ export interface StoreFile {
 }
 
 export class SecureStorageUnavailableError extends Error {
-  constructor() {
-    super('Secure storage is not available on this system, so nothing was read or written.');
+  constructor(reason = 'Secure storage is not available on this system') {
+    super(`${reason}, so nothing was read or written.`);
     this.name = 'SecureStorageUnavailableError';
   }
 }
+
+/** How long to wait for the OS keystore before giving up. A locked or missing keyring can leave
+ * the async safeStorage calls waiting forever (seen with libsecret and no unlocked keyring), which
+ * would hang every screen that reads a token. */
+export const DEFAULT_KEYSTORE_TIMEOUT_MS = 10_000;
 
 interface StoreData {
   v: 1;
@@ -48,6 +53,7 @@ export class SecureStore {
   constructor(
     private readonly crypto: SecretCrypto,
     private readonly file: StoreFile,
+    private readonly timeoutMs = DEFAULT_KEYSTORE_TIMEOUT_MS,
   ) {}
 
   get(key: unknown): Promise<string | null> {
@@ -57,9 +63,11 @@ export class SecureStore {
       const data = await this.load();
       const stored = data.items[key];
       if (stored === undefined) return null;
-      const { result, shouldReEncrypt } = await this.crypto.decrypt(Buffer.from(stored, 'base64'));
+      const { result, shouldReEncrypt } = await this.guard(
+        this.crypto.decrypt(Buffer.from(stored, 'base64')),
+      );
       if (shouldReEncrypt) {
-        data.items[key] = (await this.crypto.encrypt(result)).toString('base64');
+        data.items[key] = (await this.guard(this.crypto.encrypt(result))).toString('base64');
         await this.save(data);
       }
       return result;
@@ -74,7 +82,7 @@ export class SecureStore {
     return this.enqueue(async () => {
       await this.requireAvailable();
       const data = await this.load();
-      data.items[key] = (await this.crypto.encrypt(value)).toString('base64');
+      data.items[key] = (await this.guard(this.crypto.encrypt(value))).toString('base64');
       await this.save(data);
     });
   }
@@ -96,7 +104,32 @@ export class SecureStore {
   }
 
   private async requireAvailable(): Promise<void> {
-    if (!(await this.crypto.isAvailable())) throw new SecureStorageUnavailableError();
+    if (!(await this.guard(this.crypto.isAvailable()))) throw new SecureStorageUnavailableError();
+  }
+
+  /** Fails with SecureStorageUnavailableError if the keystore does not answer in time. */
+  private guard<T>(call: Promise<T>): Promise<T> {
+    return new Promise<T>((resolve, reject) => {
+      const timer = setTimeout(
+        () =>
+          reject(
+            new SecureStorageUnavailableError(
+              'Secure storage did not respond (is the keyring locked?)',
+            ),
+          ),
+        this.timeoutMs,
+      );
+      call.then(
+        (value) => {
+          clearTimeout(timer);
+          resolve(value);
+        },
+        (err: unknown) => {
+          clearTimeout(timer);
+          reject(err instanceof Error ? err : new Error(String(err)));
+        },
+      );
+    });
   }
 
   private async load(): Promise<StoreData> {

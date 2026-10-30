@@ -16,6 +16,7 @@ import {
   session,
   shell,
 } from 'electron';
+import { mkdirSync, renameSync, writeFileSync } from 'node:fs';
 import { mkdir, readFile, rename, writeFile } from 'node:fs/promises';
 import { dirname, join, resolve } from 'node:path';
 import { CHANNELS } from '../shared/bridge.js';
@@ -192,15 +193,24 @@ async function createWindow(): Promise<void> {
     if (url.startsWith('https://')) void shell.openExternal(url);
     return { action: 'deny' };
   });
-  win.webContents.on('will-navigate', (event, url) => {
+  const keepInApp = (event: { preventDefault: () => void }, url: string): void => {
     if (url.startsWith(`${APP_ORIGIN}/`) || url === APP_ORIGIN) return;
     event.preventDefault();
     if (url.startsWith('https://')) void shell.openExternal(url);
-  });
+  };
+  win.webContents.on('will-navigate', keepInApp);
+  win.webContents.on('will-redirect', keepInApp);
 
   win.on('close', () => {
     const b = win.getNormalBounds();
-    void atomicFile(statePath()).write(JSON.stringify({ ...b, maximized: win.isMaximized() }));
+    // Synchronous: the app quits as soon as the last window closes, so an async write could be lost.
+    try {
+      mkdirSync(dirname(statePath()), { recursive: true });
+      writeFileSync(`${statePath()}.tmp`, JSON.stringify({ ...b, maximized: win.isMaximized() }));
+      renameSync(`${statePath()}.tmp`, statePath());
+    } catch {
+      // Not remembering the window position is not worth failing to close for.
+    }
   });
   win.on('closed', () => {
     mainWindow = null;
@@ -248,6 +258,7 @@ if (!app.requestSingleInstanceLock()) {
         BrowserWindow.getFocusedWindow() ?? mainWindow,
         request.url,
         request.redirectPrefix,
+        authAllowHttp,
       );
     });
 

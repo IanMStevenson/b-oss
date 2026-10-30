@@ -2,7 +2,12 @@
 // Copyright (C) 2026 Ian Stevenson
 
 import { describe, it, expect } from 'vitest';
-import { AuthRequestError, reachedRedirect, validateAuthRequest } from '../auth-request.js';
+import {
+  AuthRequestError,
+  isAllowedNavigation,
+  reachedRedirect,
+  validateAuthRequest,
+} from '../auth-request.js';
 
 const good =
   'https://www.blipfoto.com/oauth/authorize?client_id=x&redirect_uri=bmobile%3A%2F%2Foauth%2F';
@@ -65,5 +70,27 @@ describe('reachedRedirect', () => {
     );
     expect(reachedRedirect('BMOBILE://OAUTH/?error=access_denied', 'bmobile://oauth/')).toBe(true);
     expect(reachedRedirect('https://www.blipfoto.com/login', 'bmobile://oauth/')).toBe(false);
+  });
+});
+
+describe('isAllowedNavigation', () => {
+  it('allows https, and http only when asked', () => {
+    expect(isAllowedNavigation('https://www.blipfoto.com/login')).toBe(true);
+    expect(isAllowedNavigation('https://accounts.example/oauth')).toBe(true);
+    expect(isAllowedNavigation('http://127.0.0.1:5193/x')).toBe(false);
+    expect(isAllowedNavigation('http://127.0.0.1:5193/x', true)).toBe(true);
+  });
+
+  it('blocks every other scheme and garbage', () => {
+    for (const target of [
+      'file:///etc/passwd',
+      'app://b-mobile/',
+      'data:text/html,hi',
+      'javascript:alert(1)',
+      'bmobile://other/',
+      'not a url',
+    ]) {
+      expect(isAllowedNavigation(target, true)).toBe(false);
+    }
   });
 });
