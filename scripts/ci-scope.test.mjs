@@ -75,6 +75,8 @@ describe('typecheckSteps', () => {
       ['-p', 'packages/b-view', '--noEmit'],
       ['-p', 'packages/b-view-backup', '--noEmit'],
       ['-p', 'packages/b-ark-chrome', '--noEmit'],
+      ['-p', 'packages/b-mobile-pc', '--noEmit'],
+      ['-p', 'packages/b-mobile-pc/e2e', '--noEmit'],
       ['-p', 'packages/b-mobile', '--noEmit'],
       ['-p', 'packages/b-mobile/tsconfig.node.json', '--noEmit'],
       ['-p', 'packages/b-push', '--noEmit'],
