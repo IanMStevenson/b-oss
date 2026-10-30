@@ -44,5 +44,41 @@ Environment (ignored in a packaged app): `BMPC_DIST` (web build directory), `BMP
 stub API), `BMPC_AUTH_HOSTS`, `BMPC_AUTH_ALLOW_HTTP=1`. On the dev VM the Electron binary has to be
 fetched by hand and the app run in Docker; see the e2e issue (b-oss#614).
 
+## Testing on Windows (Mutagen dev loop)
+
+Same two-hop pattern as b-ark (`devutils/dev-vm-setup/mutagen-dev-loop-pattern.md`): a VM-only relay
+mirrors a worktree into a stable staging folder, and a cross-machine session mirrors that to Windows.
+
+On the VM (done; this is the part the agent can do):
+
+```bash
+# relay: b-mobile-pc-relay  ->  ~/live/b-mobile-pc-repo   (whole repo, so VS Code on Windows has the workspace)
+mutagen sync terminate b-mobile-pc-relay
+mutagen sync create --name=b-mobile-pc-relay --sync-mode=one-way-replica \
+  --ignore-vcs --ignore=node_modules/ --ignore=e2e-out/ \
+  <worktree> ~/live/b-mobile-pc-repo
+# build in the feeding worktree, then the change is on Windows within seconds
+npm run build -w @b-oss/b-mobile && npm run build -w @b-oss/b-mobile-pc
+```
+
+The `--ignore` flags matter for the same reason as b-ark's: Windows keeps its own `node_modules` (with
+the Windows Electron binary), and a one-way replica does not delete paths that were already copied
+before an ignore was added.
+
+On Windows (once; Ian's part; PowerShell):
+
+```powershell
+mutagen sync create --name=b-mobile-pc-live --sync-mode=one-way-replica `
+  ims-dev-o1:live/b-mobile-pc-repo "D:\Dev\debugging\b-mobile-pc-build"
+cd D:\Dev\debugging\b-mobile-pc-build
+npm ci          # installs the Windows Electron binary and node_modules (they are not synced)
+code .          # then run "Electron Main (b-mobile-pc)" from the Run and Debug panel
+```
+
+or without VS Code: `node_modules\.bin\electron.cmd packages\b-mobile-pc`. The shell serves
+`packages/b-mobile/dist`, so both builds above must have run on the VM. The sign-in client id comes
+from the `.env.local` that is copied into the worktree on the VM (see CLAUDE.md, "Local build
+credentials"); it is baked into b-mobile's build.
+
 Not done yet: packaging and signing (b-oss#612), desktop notifications (b-oss#610), the desktop side of
 b-mobile's platform layer (b-oss#608 phase 2).
