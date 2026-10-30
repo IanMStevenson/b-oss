@@ -77,6 +77,7 @@ describe('typecheckSteps', () => {
       ['-p', 'packages/b-ark-chrome', '--noEmit'],
       ['-p', 'packages/b-mobile', '--noEmit'],
       ['-p', 'packages/b-mobile/tsconfig.node.json', '--noEmit'],
+      ['-p', 'packages/b-notify-core', '--noEmit'],
       ['-p', 'packages/b-push', '--noEmit'],
       ['-p', 'packages/b-status', '--noEmit'],
     ]);

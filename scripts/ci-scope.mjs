@@ -58,6 +58,7 @@ const NO_EMIT = [
   ['b-view-backup', ['packages/b-view-backup']],
   ['b-ark-chrome', ['packages/b-ark-chrome']],
   ['b-mobile', ['packages/b-mobile', 'packages/b-mobile/tsconfig.node.json']],
+  ['b-notify-core', ['packages/b-notify-core']],
   ['b-push', ['packages/b-push']],
   ['b-status', ['packages/b-status']],
 ];
