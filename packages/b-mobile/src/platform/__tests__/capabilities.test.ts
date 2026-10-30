@@ -18,28 +18,28 @@ beforeEach(() => {
 });
 
 describe('capabilities', () => {
-  it('android: talks to the API directly, may use either sign-in browser, push is FCM', () => {
+  it('android: talks to the API directly, may use either sign-in browser, notifications by push', () => {
     kind = 'android';
     expect(capabilities()).toEqual({
       api: { access: 'direct' },
       auth: { embeddedAvailable: true, userCanChooseBrowser: true },
-      push: { transport: 'fcm' },
+      notifications: { mechanism: 'push' },
     });
   });
 
-  it('desktop: same-origin API proxy, embedded sign-in is the only way, no remote push', () => {
+  it('desktop: same-origin API proxy, embedded sign-in is the only way, notifications by polling', () => {
     kind = 'desktop';
     expect(capabilities()).toEqual({
       api: { access: 'same-origin-proxy' },
       auth: { embeddedAvailable: true, userCanChooseBrowser: false },
-      push: { transport: 'none' },
+      notifications: { mechanism: 'polling' },
     });
   });
 
   it('ios: APNs push, direct API, embedded sign-in available', () => {
     kind = 'ios';
     const caps = capabilities();
-    expect(caps.push.transport).toBe('apns');
+    expect(caps.notifications.mechanism).toBe('push');
     expect(caps.api.access).toBe('direct');
     expect(caps.auth.embeddedAvailable).toBe(true);
   });
@@ -51,7 +51,7 @@ describe('capabilities', () => {
     expect(capabilities()).toEqual({
       api: { access: 'same-origin-proxy' },
       auth: { embeddedAvailable: false, userCanChooseBrowser: false },
-      push: { transport: 'none' },
+      notifications: { mechanism: 'none' },
     });
   });
 

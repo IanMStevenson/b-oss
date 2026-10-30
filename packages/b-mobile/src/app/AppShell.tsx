@@ -41,6 +41,11 @@ import {
   handleDeviceTokenRotated,
   routeForPushTap,
 } from '../flows/pushFlow.js';
+import {
+  onDesktopNotificationReceived,
+  onDesktopNotificationTapped,
+} from '../platform/desktopNotify.js';
+import { startPollingSync, usesPolling } from '../flows/pollingNotifications.js';
 import { applyFontScale } from '../platform/accessibility.js';
 import { onAppStateChange } from '../platform/appState.js';
 import { onAppUrlOpen, getLaunchUrl } from '../platform/deepLinks.js';
@@ -180,14 +185,19 @@ function NavMenu() {
 function PushListener() {
   const navigate = useLatestNavigate();
   useEffect(() => {
-    const offReceived = onPushReceived((payload) => {
+    // The desktop shell delivers the same payloads from its own poller (b-oss#610); only the
+    // source differs. Its tokens: the dead credential is the account's one app token.
+    const polling = usesPolling();
+    const subscribeReceived = polling ? onDesktopNotificationReceived : onPushReceived;
+    const subscribeTapped = polling ? onDesktopNotificationTapped : onPushTapped;
+    const offReceived = subscribeReceived((payload) => {
       if (payload.kind === 'reauth-required') {
         // FLW-16 step 7: "receiving it (tap or not) feeds FLW-02's... handling immediately" —
         // this is the tap-independent half, for when the push arrives while the app is in the
         // foreground. The tap-independent case while the app *isn't* running is covered by the
         // next launch's backstop check (runLaunchBackstopCheck) instead, since there is no
         // custom background message handler (§11's deliberate choice — see platform/push.ts).
-        handleForcedLogout(payload.accountId, 'service');
+        handleForcedLogout(payload.accountId, polling ? 'app' : 'service');
         return;
       }
       // A push carries no per-stream detail beyond which one moved (§11) — refreshing both
@@ -195,7 +205,7 @@ function PushListener() {
       // since `messages/totals/unread` is one call for both counts already.
       void useNotificationCountsStore.getState().refresh();
     });
-    const offTapped = onPushTapped((payload) => {
+    const offTapped = subscribeTapped((payload) => {
       void routeForPushTap(payload).then((route) => navigate.current(route));
     });
     const offTokenChanged = onPushTokenChanged((token) => {
@@ -342,9 +352,15 @@ export function AppShell() {
     // Returning from system settings is not assumed to have succeeded — re-run the
     // same backstop check on every resume, not only at launch, since the OS permission (or the
     // service's registration health) may have changed while the app was backgrounded.
-    return onAppStateChange((isActive) => {
+    const offAppState = onAppStateChange((isActive) => {
       if (isActive) void runLaunchBackstopCheck();
     });
+    // Desktop: keep the shell's poller watching exactly the accounts with notifications on.
+    const offPollingSync = usesPolling() ? startPollingSync(accountsHydrated) : () => {};
+    return () => {
+      offAppState();
+      offPollingSync();
+    };
   }, []);
 
   // Notification-count badges are per-account (a server figure for whichever account is

@@ -88,10 +88,17 @@ vi.mock('../../../flows/pushFlow.js', () => ({ updatePollingInterval, updatePush
 // Off-native by default (no in-app browser, so the mismatch alert offers no retry); the
 // retry test flips it.
 let isNative = false;
+let desktop = false;
 vi.mock('../../../platform/platformKind.js', async (importOriginal) => ({
   ...(await importOriginal<typeof import('../../../platform/platformKind.js')>()),
-  platformKind: () => (isNative ? 'android' : 'web'),
+  platformKind: () => (desktop ? 'desktop' : isNative ? 'android' : 'web'),
 }));
+
+const { getLaunchAtLogin, setLaunchAtLogin } = vi.hoisted(() => ({
+  getLaunchAtLogin: vi.fn(),
+  setLaunchAtLogin: vi.fn(),
+}));
+vi.mock('../../../platform/desktopNotify.js', () => ({ getLaunchAtLogin, setLaunchAtLogin }));
 
 vi.mock('../../../platform/prefs.js', () => ({
   getPref: vi.fn().mockResolvedValue(null),
@@ -162,6 +169,7 @@ afterEach(() => {
   cleanup();
   vi.resetAllMocks();
   isNative = false;
+  desktop = false;
 });
 
 describe('NotificationsSection — push toggles', () => {
@@ -297,6 +305,49 @@ describe('NotificationsSection — push toggles', () => {
         { beforeServiceRound: expect.any(Function) as unknown },
       ),
     );
+  });
+});
+
+describe('NotificationsSection — desktop (b-oss#610)', () => {
+  beforeEach(() => {
+    desktop = true;
+    getLaunchAtLogin.mockResolvedValue({ supported: true, enabled: false });
+    setLaunchAtLogin.mockResolvedValue(undefined);
+  });
+
+  it('explains the tray and offers launch at login, off by default', async () => {
+    setAccount(registered({ pushComments: true, pushNotifications: true }));
+    render(<NotificationsSection />);
+    await screen.findByText('Blipfoto notification settings');
+    expect(screen.getByText(/keeps running in the system tray/)).toBeDefined();
+    const login = await screen.findByLabelText('Start b-mobile when I sign in to this computer');
+    expect((login as HTMLIonToggleElement).checked).toBe(false);
+    flip('Start b-mobile when I sign in to this computer', true);
+    await waitFor(() => expect(setLaunchAtLogin).toHaveBeenCalledWith(true));
+  });
+
+  it('hides launch at login where the shell cannot offer it', async () => {
+    getLaunchAtLogin.mockResolvedValue({ supported: false, enabled: false });
+    render(<NotificationsSection />);
+    await screen.findByText('Blipfoto notification settings');
+    expect(screen.queryByLabelText('Start b-mobile when I sign in to this computer')).toBeNull();
+  });
+
+  it('turning the last stream off needs no warning: there is no token to lose', async () => {
+    setAccount(account({ hasServiceToken: true, pushComments: false, pushNotifications: true }));
+    render(<NotificationsSection />);
+    await screen.findByText('Blipfoto notification settings');
+    flip('New notifications', false);
+    await waitFor(() => expect(changeAccountMode).toHaveBeenCalled());
+    expect(screen.queryByRole('dialog')).toBeNull();
+  });
+
+  it('is not shown on Android', async () => {
+    desktop = false;
+    isNative = true;
+    render(<NotificationsSection />);
+    await screen.findByText('Blipfoto notification settings');
+    expect(screen.queryByText(/system tray/)).toBeNull();
   });
 });
 

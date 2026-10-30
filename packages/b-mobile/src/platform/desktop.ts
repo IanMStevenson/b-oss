@@ -7,6 +7,15 @@
 // packages/b-mobile-pc/src/shared/bridge.ts: b-mobile must not depend on that package, so keep the
 // two in step (the shell's e2e tests exercise the real round trip). Only platform/** reads it.
 
+/** Same shape as b-mobile's PushPayload (platform/push.ts), so tap routing is shared. */
+export type DesktopNotifyPayload =
+  | { kind: 'activity'; stream: 'comments' | 'notifications'; accountId: string }
+  | { kind: 'reauth-required'; accountId: string };
+
+export interface DesktopNotifySettings {
+  accounts: { accountId: string; streams: { comments: boolean; notifications: boolean } }[];
+}
+
 export interface DesktopBridge {
   readonly version: 1;
   readonly secure: {
@@ -17,6 +26,13 @@ export interface DesktopBridge {
   /** Opens the sign-in page in a clean, throwaway window and resolves with the redirect URL it
    * captured once navigation reaches `redirectPrefix`. Rejects with Error('cancelled') if closed. */
   openAuth(url: string, redirectPrefix: string): Promise<string>;
+  readonly notify: {
+    configure(settings: DesktopNotifySettings): Promise<void>;
+    onReceived(handler: (payload: DesktopNotifyPayload) => void): () => void;
+    onTapped(handler: (payload: DesktopNotifyPayload) => void): () => void;
+    getLaunchAtLogin(): Promise<{ supported: boolean; enabled: boolean }>;
+    setLaunchAtLogin(enabled: boolean): Promise<void>;
+  };
 }
 
 const BRIDGE_GLOBAL = 'bMobileDesktop';
