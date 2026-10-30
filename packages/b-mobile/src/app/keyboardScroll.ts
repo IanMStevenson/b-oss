@@ -31,6 +31,10 @@ const OWN_KEYS_SELECTOR = [
   'ion-segment',
   'ion-select',
   'ion-datetime',
+  'ion-action-sheet',
+  'ion-alert',
+  'ion-popover',
+  'ion-picker',
   '.maplibregl-map',
   '.leaflet-container',
 ].join(',');
