@@ -94,12 +94,6 @@ vi.mock('../../../platform/platformKind.js', async (importOriginal) => ({
   platformKind: () => (desktop ? 'desktop' : isNative ? 'android' : 'web'),
 }));
 
-const { getLaunchAtLogin, setLaunchAtLogin } = vi.hoisted(() => ({
-  getLaunchAtLogin: vi.fn(),
-  setLaunchAtLogin: vi.fn(),
-}));
-vi.mock('../../../platform/desktopNotify.js', () => ({ getLaunchAtLogin, setLaunchAtLogin }));
-
 vi.mock('../../../platform/prefs.js', () => ({
   getPref: vi.fn().mockResolvedValue(null),
   setPref: vi.fn().mockResolvedValue(undefined),
@@ -311,26 +305,15 @@ describe('NotificationsSection — push toggles', () => {
 describe('NotificationsSection — desktop (b-oss#610)', () => {
   beforeEach(() => {
     desktop = true;
-    getLaunchAtLogin.mockResolvedValue({ supported: true, enabled: false });
-    setLaunchAtLogin.mockResolvedValue(undefined);
   });
 
-  it('explains the tray and offers launch at login, off by default', async () => {
+  it('explains the tray, the login start and Exit', async () => {
     setAccount(registered({ pushComments: true, pushNotifications: true }));
     render(<NotificationsSection />);
     await screen.findByText('Blipfoto notification settings');
     expect(screen.getByText(/keeps running in the system tray/)).toBeDefined();
-    const login = await screen.findByLabelText('Start b-mobile when I sign in to this computer');
-    expect((login as HTMLIonToggleElement).checked).toBe(false);
-    flip('Start b-mobile when I sign in to this computer', true);
-    await waitFor(() => expect(setLaunchAtLogin).toHaveBeenCalledWith(true));
-  });
-
-  it('hides launch at login where the shell cannot offer it', async () => {
-    getLaunchAtLogin.mockResolvedValue({ supported: false, enabled: false });
-    render(<NotificationsSection />);
-    await screen.findByText('Blipfoto notification settings');
-    expect(screen.queryByLabelText('Start b-mobile when I sign in to this computer')).toBeNull();
+    expect(screen.getByText(/starts when you sign in/)).toBeDefined();
+    expect(screen.queryByLabelText(/Start b-mobile when I sign in/)).toBeNull();
   });
 
   it('turning the last stream off needs no warning: there is no token to lose', async () => {

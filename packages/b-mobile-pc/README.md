@@ -29,7 +29,7 @@ b-mobile on desktop: an Electron shell that packages b-mobile's web build. Epic
 | `src/main/auth-request.ts`            | Pure: what the sign-in window may be asked to open                                           |
 | `src/main/window-state.ts`            | Pure: restore window size/position safely                                                    |
 | `src/main/notify-poller.ts`           | The poller: one timer, the shared count-diff rule, state file, back-off, dead-token handling |
-| `src/main/notify-shell.ts`            | Electron side of notifications: OS notification, tray, hide-to-tray, launch at login         |
+| `src/main/notify-shell.ts`            | Electron side of notifications: OS notification, tray, hide-to-tray, login item, exit dialog |
 | `src/main/index.ts`, `auth-window.ts` | Electron wiring (not unit-tested; covered by the e2e harness, b-oss#614)                     |
 | `src/preload/index.ts`                | Exposes `window.bMobileDesktop` (`src/shared/bridge.ts` is the contract)                     |
 
@@ -54,10 +54,17 @@ read) every **5 minutes**, with the account's single app token read from the sec
 - A rejected token (Blipfoto codes 50/51) shows one "sign in again" notification and stops polling that
   account until the app has removed and re-added it. Errors back off (every 2nd, 3rd... tick, capped at
   every 7th); nothing polls while the OS reports offline.
-- **Defaults chosen for Ian to confirm:** while any account is being watched the app keeps running in the
-  tray (closing the window hides it; tray **Exit** quits); launch at login is **off** until the user turns
-  it on (a start at login goes straight to the tray); no taskbar badges yet; if the app is fully quit,
-  nothing polls.
+- **Final defaults (Ian's, b-oss#610):** enabling notifications for any account makes the app
+  tray-resident **and** start with the user's login (`setLoginItemSettings({ openAtLogin: true })`,
+  turned off again when the last account's notifications go off; a start by the login item goes
+  straight to the tray, no window). There is no separate launch-at-login setting. The window's close
+  button only **hides** the window while notifications are on (with them off it quits as before). A
+  real exit is only the tray icon's right-click menu (**Open b-mobile**, **Exit**); Exit asks "Exit
+  b-mobile? Notifications will stop until you start b-mobile again." (Exit / Cancel) while notifications
+  are on, and quits at once with them off. Exiting does **not** change the notifications setting: they
+  stop while the app is closed and resume next start. Only the user's own close is intercepted: quits
+  from `app.quit()`, an updater, or the OS ending the session still quit. No taskbar badges yet; if the
+  app is fully quit, nothing polls. The decisions are small pure functions (`src/main/tray-policy.ts`).
 - Not covered by anything runnable on the dev VM: real Windows toasts (they need the installer's
   AppUserModelID, b-oss#612), the tray on Windows, login items, and the real keystore. The tray icon is
   read from `resources/tray-icon.png` when packaged; the installer work has to ship it.

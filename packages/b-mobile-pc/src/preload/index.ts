@@ -34,13 +34,6 @@ const bridge: DesktopBridge = {
       subscribe(CHANNELS.notifyTapped, handler, () => {
         void ipcRenderer.invoke(CHANNELS.notifyTappedReady);
       }),
-    getLaunchAtLogin: () =>
-      ipcRenderer.invoke(CHANNELS.launchAtLoginGet) as Promise<{
-        supported: boolean;
-        enabled: boolean;
-      }>,
-    setLaunchAtLogin: (enabled) =>
-      ipcRenderer.invoke(CHANNELS.launchAtLoginSet, enabled) as Promise<void>,
   },
 };
 
