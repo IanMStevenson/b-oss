@@ -29,7 +29,9 @@ Known Blipfoto API limits: [AppLimitations.md](AppLimitations.md). Paths are rel
   fixed 900-entry total; Me shows a calendar and the profile's entry total; Nearby needs location
   ("Allow location" button if refused or no fix).
 - **Search**: Entries and People tabs, debounced. **Tag entries**: one paged grid. **Map**
-  (MapLibre, lazy): one page per debounced viewport; `?entry=` opens its popup; my-location button.
+  (Leaflet raster tiles, lazy): one page per debounced viewport; `?entry=` opens its popup
+  (only that pin); tapping a popup opens the entry; zoom buttons and a my-location button (a blue
+  dot). Location picker: tap to place a draggable pin.
 - **Entry**: b-view `EntryDetail` plus app slots. Prev/next replaces the route. Star and Favourite
   are one-way (no unstar). Inline comment/reply/edit composers, with unsent text kept in memory per
   target (`data/commentDrafts.ts`). Reply/Edit/Delete per comment follow the API's `actions` flags;
@@ -72,8 +74,8 @@ Known Blipfoto API limits: [AppLimitations.md](AppLimitations.md). Paths are rel
   mirrored to `localStorage` so `index.html` can apply it before first paint. The theme is the
   `data-theme` attribute on `<html>`, which b-visual's opt-in `themes.css` re-points the colour
   tokens for (`src/theme/theme.ts`); Mid counts as dark for the system bars, `color-scheme` and Android's night mode (`ThemePlugin`, which
-  also paints the window/WebView background natively at launch). The map uses MapTiler's dark style
-  and accent pins on Dark and Mid, and re-creates itself when the theme changes.
+  also paints the window/WebView background natively at launch). The map is always the light style and
+  doesn't change with the theme.
 - **Help & about**: static (icon guide, safety & privacy, licences). **Hidden members**: Unhide.
 - **Accounts**: list, tap to switch, Add account (→ `/sign-in`); row menu: switch read-only/
   read-write, Disconnect account, Delete account (explains, then opens blipfoto.com settings —
@@ -196,11 +198,11 @@ Known Blipfoto API limits: [AppLimitations.md](AppLimitations.md). Paths are rel
 - Rate limit: public browsing (Recent, Popular, Milestones, New Blippers, Nearby, tag, entry and
   people search, map) retries once with the anonymous app credential; identity-bound calls don't.
 - Images are cached on disk by URL for 15 minutes (`platform/imageCache.ts`); data is not cached.
-- Map and location picker (`components/createMap.ts`): if the map can't start (no WebGL2) or loses
-  its WebGL context, they say "The map couldn't be displayed on this device." (cleared if
-  MapLibre restores the context).
-  Not detected: a map that starts but draws only its plain yellow/cream background. Seen with an
-  outdated Android System WebView (111, b-oss#535). Updating it from the Play Store fixed it.
+- Map and location picker (`components/leafletMap.ts`): if the map can't be created, or its first
+  four tiles all fail to load and none has, they say "The map couldn't be displayed on this
+  device." (cleared once a tile loads). Tiles come from Geoapify (`osm-bright`) and need
+  `VITE_GEOAPIFY_KEY`; without it they say the map isn't available. Attribution is on the map and
+  its links open in the in-app browser.
 - Deep links (`flows/deepLinkResolver.ts`): `bmobile://entry/<id>`, `bmobile://user/<name>`; and
   blipfoto.com entry, profile and follow-request URLs only when "Open blipfoto.com links in this
   app" is on (default off).

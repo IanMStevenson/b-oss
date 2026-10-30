@@ -55,7 +55,7 @@ jobs:
           OAUTH_REDIRECT_URI: ${{ vars.VITE_OAUTH_REDIRECT_URI }}
           NOTIFY_SERVICE_URL: ${{ vars.VITE_NOTIFY_SERVICE_URL }}
           NOTIFY_REGISTRATION_SECRET: ${{ secrets.VITE_NOTIFY_REGISTRATION_SECRET }}
-          MAP_TILES_KEY: ${{ secrets.VITE_MAP_TILES_KEY }}
+          GEOAPIFY_KEY: ${{ secrets.VITE_GEOAPIFY_KEY }}
           GOOGLE_SERVICES_JSON: ${{ secrets.GOOGLE_SERVICES_JSON }}
         run: |
           for v in BLIPFOTO_CLIENT_ID NOTIFY_SERVICE_URL NOTIFY_REGISTRATION_SECRET GOOGLE_SERVICES_JSON; do
@@ -70,7 +70,7 @@ jobs:
             echo "VITE_OAUTH_REDIRECT_URI=${OAUTH_REDIRECT_URI:-bmobile://oauth/}"
             echo "VITE_NOTIFY_SERVICE_URL=$NOTIFY_SERVICE_URL"
             echo "VITE_NOTIFY_REGISTRATION_SECRET=$NOTIFY_REGISTRATION_SECRET"
-            echo "VITE_MAP_TILES_KEY=$MAP_TILES_KEY"
+            echo "VITE_GEOAPIFY_KEY=$GEOAPIFY_KEY"
           } > .env.local
           printf '%s' "$GOOGLE_SERVICES_JSON" > packages/b-mobile/android/app/google-services.json
 

@@ -24,7 +24,7 @@ Upload to Play is manual: download the signed bundle from the run and drop it in
    `main` (the workflow also checks this).
 3. **Environment variables:** `VITE_BLIPFOTO_CLIENT_ID`, `VITE_OAUTH_REDIRECT_URI`
    (`bmobile://oauth/`), `VITE_NOTIFY_SERVICE_URL`, `UPLOAD_KEY_ALIAS`.
-4. **Environment secrets:** `VITE_NOTIFY_REGISTRATION_SECRET`, `VITE_MAP_TILES_KEY`,
+4. **Environment secrets:** `VITE_NOTIFY_REGISTRATION_SECRET`, `VITE_GEOAPIFY_KEY`,
    `GOOGLE_SERVICES_JSON` (the file's contents; not secret, but gitignored), and the key itself:
    `UPLOAD_KEYSTORE_BASE64`, `UPLOAD_KEYSTORE_PASSWORD`, `UPLOAD_KEY_PASSWORD` (a PKCS12
    keystore has a single password, so set both password secrets to the same value).

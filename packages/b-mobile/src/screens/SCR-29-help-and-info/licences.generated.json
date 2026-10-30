@@ -177,21 +177,21 @@
     },
     {
       "name": "@ionic/core",
-      "version": "9.0.8",
+      "version": "9.0.9",
       "license": "MIT",
       "repository": "https://github.com/ionic-team/ionic-framework",
       "texts": [7]
     },
     {
       "name": "@ionic/react",
-      "version": "9.0.8",
+      "version": "9.0.9",
       "license": "MIT",
       "repository": "https://github.com/ionic-team/ionic-framework",
       "texts": [7]
     },
     {
       "name": "@ionic/react-router",
-      "version": "9.0.8",
+      "version": "9.0.9",
       "license": "MIT",
       "repository": "https://github.com/ionic-team/ionic-framework",
       "texts": [7]
@@ -442,172 +442,179 @@
       "texts": [38]
     },
     {
+      "name": "leaflet",
+      "version": "1.9.4",
+      "license": "BSD-2-Clause",
+      "repository": "https://github.com/Leaflet/Leaflet",
+      "texts": [39]
+    },
+    {
       "name": "lucide-react",
-      "version": "1.59.0",
+      "version": "1.61.0",
       "license": "ISC",
       "repository": "https://github.com/lucide-icons/lucide",
-      "texts": [39]
+      "texts": [40]
     },
     {
       "name": "maplibre-gl",
       "version": "6.15.0",
       "license": "BSD-3-Clause",
       "repository": "https://github.com/maplibre/maplibre-gl-js",
-      "texts": [40]
+      "texts": [41]
     },
     {
       "name": "minimatch",
       "version": "10.2.6",
       "license": "BlueOak-1.0.0",
       "repository": "git@github.com:isaacs/minimatch",
-      "texts": [41]
+      "texts": [42]
     },
     {
       "name": "minimist",
       "version": "1.2.8",
       "license": "MIT",
       "repository": "https://github.com/minimistjs/minimist",
-      "texts": [42]
+      "texts": [43]
     },
     {
       "name": "murmurhash-js",
       "version": "1.0.0",
       "license": "MIT",
       "repository": "https://github.com/mikolalysenko/murmurhash-js",
-      "texts": [43]
+      "texts": [44]
     },
     {
       "name": "normalize-wheel",
       "version": "1.0.1",
       "license": "BSD-3-Clause",
       "repository": null,
-      "texts": [44]
+      "texts": [45]
     },
     {
       "name": "orderedmap",
       "version": "2.1.1",
       "license": "MIT",
       "repository": "https://github.com/marijnh/orderedmap",
-      "texts": [45]
+      "texts": [46]
     },
     {
       "name": "path-browserify",
       "version": "1.0.1",
       "license": "MIT",
       "repository": "https://github.com/browserify/path-browserify",
-      "texts": [46]
+      "texts": [47]
     },
     {
       "name": "pbf",
       "version": "5.1.2",
       "license": "BSD-3-Clause",
       "repository": "ssh://git@github.com/mapbox/pbf",
-      "texts": [47]
+      "texts": [48]
     },
     {
       "name": "picomatch",
       "version": "4.0.7",
       "license": "MIT",
       "repository": "https://github.com/micromatch/picomatch",
-      "texts": [48]
+      "texts": [49]
     },
     {
       "name": "potpack",
       "version": "2.1.0",
       "license": "ISC",
       "repository": "https://github.com/mapbox/potpack",
-      "texts": [49]
+      "texts": [50]
     },
     {
       "name": "prosemirror-commands",
       "version": "1.7.2",
       "license": "MIT",
       "repository": "https://code.haverbeke.berlin/prosemirror/prosemirror-commands",
-      "texts": [50]
+      "texts": [51]
     },
     {
       "name": "prosemirror-history",
       "version": "1.5.1",
       "license": "MIT",
       "repository": "https://code.haverbeke.berlin/prosemirror/prosemirror-history",
-      "texts": [50]
+      "texts": [51]
     },
     {
       "name": "prosemirror-keymap",
       "version": "1.2.3",
       "license": "MIT",
       "repository": "https://github.com/prosemirror/prosemirror-keymap",
-      "texts": [50]
+      "texts": [51]
     },
     {
       "name": "prosemirror-model",
       "version": "1.25.12",
       "license": "MIT",
       "repository": "https://code.haverbeke.berlin/prosemirror/prosemirror-model",
-      "texts": [50]
+      "texts": [51]
     },
     {
       "name": "prosemirror-state",
       "version": "1.4.4",
       "license": "MIT",
       "repository": "https://github.com/prosemirror/prosemirror-state",
-      "texts": [50]
+      "texts": [51]
     },
     {
       "name": "prosemirror-transform",
       "version": "1.12.2",
       "license": "MIT",
       "repository": "https://code.haverbeke.berlin/prosemirror/prosemirror-transform",
-      "texts": [50]
+      "texts": [51]
     },
     {
       "name": "prosemirror-view",
-      "version": "1.42.6",
+      "version": "1.42.8",
       "license": "MIT",
       "repository": "https://code.haverbeke.berlin/prosemirror/prosemirror-view",
-      "texts": [50]
+      "texts": [51]
     },
     {
       "name": "protocol-buffers-schema",
       "version": "3.6.1",
       "license": "MIT",
       "repository": "https://github.com/mafintosh/protocol-buffers-schema",
-      "texts": [51]
+      "texts": [52]
     },
     {
       "name": "quickselect",
       "version": "3.0.0",
       "license": "ISC",
       "repository": "https://github.com/mourner/quickselect",
-      "texts": [52]
+      "texts": [53]
     },
     {
       "name": "react",
       "version": "19.3.1",
       "license": "MIT",
       "repository": "https://github.com/react/react",
-      "texts": [53]
+      "texts": [54]
     },
     {
       "name": "react-dom",
       "version": "19.3.1",
       "license": "MIT",
       "repository": "https://github.com/react/react",
-      "texts": [53]
+      "texts": [54]
     },
     {
       "name": "react-easy-crop",
       "version": "6.2.4",
       "license": "MIT",
       "repository": "https://github.com/ValentinH/react-easy-crop",
-      "texts": [54]
+      "texts": [55]
     },
     {
       "name": "react-property",
       "version": "2.0.2",
       "license": "MIT",
       "repository": "https://github.com/remarkablemark/react-dom-core",
-      "texts": [55]
+      "texts": [56]
     },
     {
       "name": "react-router",
@@ -628,70 +635,70 @@
       "version": "1.2.0",
       "license": "MIT",
       "repository": "https://github.com/arkarlov/react-style-stringify",
-      "texts": [56]
+      "texts": [57]
     },
     {
       "name": "react-zoom-pan-pinch",
       "version": "4.2.0",
       "license": "MIT",
       "repository": "https://github.com/BetterTyped/react-zoom-pan-pinch",
-      "texts": [57]
+      "texts": [58]
     },
     {
       "name": "require-from-string",
       "version": "2.0.2",
       "license": "MIT",
       "repository": "https://github.com/floatdrop/require-from-string",
-      "texts": [58]
+      "texts": [59]
     },
     {
       "name": "resolve-protobuf-schema",
       "version": "2.1.0",
       "license": "MIT",
       "repository": "https://github.com/mafintosh/resolve-protobuf-schema",
-      "texts": [51]
+      "texts": [52]
     },
     {
       "name": "rope-sequence",
       "version": "1.3.4",
       "license": "MIT",
       "repository": "https://github.com/marijnh/rope-sequence",
-      "texts": [59]
+      "texts": [60]
     },
     {
       "name": "scheduler",
       "version": "0.28.0",
       "license": "MIT",
       "repository": "https://github.com/react/react",
-      "texts": [53]
+      "texts": [54]
     },
     {
       "name": "style-to-js",
       "version": "1.1.21",
       "license": "MIT",
       "repository": "https://github.com/remarkablemark/style-to-js",
-      "texts": [60]
+      "texts": [61]
     },
     {
       "name": "style-to-object",
       "version": "1.0.14",
       "license": "MIT",
       "repository": "https://github.com/remarkablemark/style-to-object",
-      "texts": [61]
+      "texts": [62]
     },
     {
       "name": "tinyglobby",
       "version": "0.2.17",
       "license": "MIT",
       "repository": "https://github.com/SuperchupuDev/tinyglobby",
-      "texts": [62]
+      "texts": [63]
     },
     {
       "name": "tinyqueue",
       "version": "3.0.0",
       "license": "ISC",
       "repository": "https://github.com/mourner/tinyqueue",
-      "texts": [63]
+      "texts": [64]
     },
     {
       "name": "ts-morph",
@@ -705,21 +712,21 @@
       "version": "2.8.1",
       "license": "0BSD",
       "repository": "https://github.com/Microsoft/tslib",
-      "texts": [64]
+      "texts": [65]
     },
     {
       "name": "w3c-keyname",
       "version": "2.2.8",
       "license": "MIT",
       "repository": "https://github.com/marijnh/w3c-keyname",
-      "texts": [45]
+      "texts": [46]
     },
     {
       "name": "zustand",
-      "version": "5.0.15",
+      "version": "5.0.16",
       "license": "MIT",
       "repository": "https://github.com/pmndrs/zustand",
-      "texts": [65]
+      "texts": [66]
     }
   ],
   "texts": [
@@ -762,6 +769,7 @@
     "The MIT License (MIT)\n\nCopyright (c) 2015-present Ionic (http://ionic.io/)\n\nPermission is hereby granted, free of charge, to any person obtaining a copy\nof this software and associated documentation files (the \"Software\"), to deal\nin the Software without restriction, including without limitation the rights\nto use, copy, modify, merge, publish, distribute, sublicense, and/or sell\ncopies of the Software, and to permit persons to whom the Software is\nfurnished to do so, subject to the following conditions:\n\nThe above copyright notice and this permission notice shall be included in\nall copies or substantial portions of the Software.\n\nTHE SOFTWARE IS PROVIDED \"AS IS\", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR\nIMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,\nFITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE\nAUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER\nLIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,\nOUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN\nTHE SOFTWARE.",
     "The MIT License (MIT)\n\nCopyright (c) 2014, 2016, 2017, 2019, 2021, 2022 Simon Lydell\n\nPermission is hereby granted, free of charge, to any person obtaining a copy\nof this software and associated documentation files (the \"Software\"), to deal\nin the Software without restriction, including without limitation the rights\nto use, copy, modify, merge, publish, distribute, sublicense, and/or sell\ncopies of the Software, and to permit persons to whom the Software is\nfurnished to do so, subject to the following conditions:\n\nThe above copyright notice and this permission notice shall be included in\nall copies or substantial portions of the Software.\n\nTHE SOFTWARE IS PROVIDED \"AS IS\", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR\nIMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,\nFITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE\nAUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER\nLIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,\nOUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN\nTHE SOFTWARE.",
     "ISC License\n\nCopyright (c) 2026, Vladimir Agafonkin\n\nPermission to use, copy, modify, and/or distribute this software for any purpose\nwith or without fee is hereby granted, provided that the above copyright notice\nand this permission notice appear in all copies.\n\nTHE SOFTWARE IS PROVIDED \"AS IS\" AND THE AUTHOR DISCLAIMS ALL WARRANTIES WITH\nREGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND\nFITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY SPECIAL, DIRECT,\nINDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS\nOF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER\nTORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF\nTHIS SOFTWARE.",
+    "BSD 2-Clause License\n\nCopyright (c) 2010-2023, Volodymyr Agafonkin\nCopyright (c) 2010-2011, CloudMade\nAll rights reserved.\n\nRedistribution and use in source and binary forms, with or without\nmodification, are permitted provided that the following conditions are met:\n\n1. Redistributions of source code must retain the above copyright notice, this\n   list of conditions and the following disclaimer.\n\n2. Redistributions in binary form must reproduce the above copyright notice,\n   this list of conditions and the following disclaimer in the documentation\n   and/or other materials provided with the distribution.\n\nTHIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS \"AS IS\"\nAND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE\nIMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE\nDISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE\nFOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL\nDAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR\nSERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER\nCAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,\nOR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE\nOF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.",
     "ISC License\n\nCopyright (c) 2026 Lucide Icons and Contributors\n\nPermission to use, copy, modify, and/or distribute this software for any\npurpose with or without fee is hereby granted, provided that the above\ncopyright notice and this permission notice appear in all copies.\n\nTHE SOFTWARE IS PROVIDED \"AS IS\" AND THE AUTHOR DISCLAIMS ALL WARRANTIES\nWITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF\nMERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR\nANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES\nWHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN\nACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF\nOR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.\n\n---\n\nThe following Lucide icons are derived from the Feather project:\n\nairplay, alert-circle, alert-octagon, alert-triangle, aperture, arrow-down-circle, arrow-down-left, arrow-down-right, arrow-down, arrow-left-circle, arrow-left, arrow-right-circle, arrow-right, arrow-up-circle, arrow-up-left, arrow-up-right, arrow-up, at-sign, calendar, cast, check, chevron-down, chevron-left, chevron-right, chevron-up, chevrons-down, chevrons-left, chevrons-right, chevrons-up, circle, clipboard, clock, code, columns, command, compass, corner-down-left, corner-down-right, corner-left-down, corner-left-up, corner-right-down, corner-right-up, corner-up-left, corner-up-right, crosshair, database, divide-circle, divide-square, dollar-sign, download, external-link, feather, frown, hash, headphones, help-circle, info, italic, key, layout, life-buoy, link-2, link, loader, lock, log-in, log-out, maximize, meh, minimize, minimize-2, minus-circle, minus-square, minus, monitor, moon, more-horizontal, more-vertical, move, music, navigation-2, navigation, octagon, pause-circle, percent, plus-circle, plus-square, plus, power, radio, rss, search, server, share, shopping-bag, sidebar, smartphone, smile, square, table-2, tablet, target, terminal, trash-2, trash, triangle, tv, type, upload, x-circle, x-octagon, x-square, x, zoom-in, zoom-out\n\nThe MIT License (MIT) (for the icons listed above)\n\nCopyright (c) 2013-present Cole Bemis\n\nPermission is hereby granted, free of charge, to any person obtaining a copy\nof this software and associated documentation files (the \"Software\"), to deal\nin the Software without restriction, including without limitation the rights\nto use, copy, modify, merge, publish, distribute, sublicense, and/or sell\ncopies of the Software, and to permit persons to whom the Software is\nfurnished to do so, subject to the following conditions:\n\nThe above copyright notice and this permission notice shall be included in all\ncopies or substantial portions of the Software.\n\nTHE SOFTWARE IS PROVIDED \"AS IS\", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR\nIMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,\nFITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE\nAUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER\nLIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,\nOUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE\nSOFTWARE.",
     "Copyright (c) 2023, MapLibre contributors\n\nAll rights reserved.\n\nRedistribution and use in source and binary forms, with or without modification,\nare permitted provided that the following conditions are met:\n\n    * Redistributions of source code must retain the above copyright notice,\n      this list of conditions and the following disclaimer.\n    * Redistributions in binary form must reproduce the above copyright notice,\n      this list of conditions and the following disclaimer in the documentation\n      and/or other materials provided with the distribution.\n    * Neither the name of MapLibre GL JS nor the names of its contributors\n      may be used to endorse or promote products derived from this software\n      without specific prior written permission.\n\nTHIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS\n\"AS IS\" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT\nLIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR\nA PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR\nCONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,\nEXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,\nPROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR\nPROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF\nLIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING\nNEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS\nSOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.\n\n\n-------------------------------------------------------------------------------\n\nContains code from mapbox-gl-js v1.13 and earlier\n\nVersion v1.13 of mapbox-gl-js and earlier are licensed under a BSD-3-Clause license\n\nCopyright (c) 2020, Mapbox\nRedistribution and use in source and binary forms, with or without modification,\nare permitted provided that the following conditions are met:\n\n* Redistributions of source code must retain the above copyright notice,\n  this list of conditions and the following disclaimer.\n* Redistributions in binary form must reproduce the above copyright notice,\n  this list of conditions and the following disclaimer in the documentation\n  and/or other materials provided with the distribution.\n* Neither the name of Mapbox GL JS nor the names of its contributors\n  may be used to endorse or promote products derived from this software\n  without specific prior written permission.\n\nTHIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS\n\"AS IS\" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT\nLIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR\nA PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR\nCONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,\nEXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,\nPROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR\nPROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF\nLIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING\nNEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE,\nEVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.\n\n\n-------------------------------------------------------------------------------\n\nContains code from glfx.js\n\nCopyright (C) 2011 by Evan Wallace\n\nPermission is hereby granted, free of charge, to any person obtaining a copy\nof this software and associated documentation files (the \"Software\"), to deal\nin the Software without restriction, including without limitation the rights\nto use, copy, modify, merge, publish, distribute, sublicense, and/or sell\ncopies of the Software, and to permit persons to whom the Software is\nfurnished to do so, subject to the following conditions:\n\nThe above copyright notice and this permission notice shall be included in\nall copies or substantial portions of the Software.\n\nTHE SOFTWARE IS PROVIDED \"AS IS\", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR\nIMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,\nFITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE\nAUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER\nLIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,\nOUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN\nTHE SOFTWARE.\n\n--------------------------------------------------------------------------------\n\nContains a portion of d3-color https://github.com/d3/d3-color\n\nCopyright 2010-2016 Mike Bostock\nAll rights reserved.\n\nRedistribution and use in source and binary forms, with or without modification,\nare permitted provided that the following conditions are met:\n\n* Redistributions of source code must retain the above copyright notice, this\n  list of conditions and the following disclaimer.\n\n* Redistributions in binary form must reproduce the above copyright notice,\n  this list of conditions and the following disclaimer in the documentation\n  and/or other materials provided with the distribution.\n\n* Neither the name of the author nor the names of contributors may be used to\n  endorse or promote products derived from this software without specific prior\n  written permission.\n\nTHIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS \"AS IS\" AND\nANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED\nWARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE\nDISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR\nANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES\n(INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;\nLOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON\nANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT\n(INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS\nSOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.",
     "# Blue Oak Model License\n\nVersion 1.0.0\n\n## Purpose\n\nThis license gives everyone as much permission to work with\nthis software as possible, while protecting contributors\nfrom liability.\n\n## Acceptance\n\nIn order to receive this license, you must agree to its\nrules. The rules of this license are both obligations\nunder that agreement and conditions to your license.\nYou must not do anything with this software that triggers\na rule that you cannot or will not follow.\n\n## Copyright\n\nEach contributor licenses you to do everything with this\nsoftware that would otherwise infringe that contributor's\ncopyright in it.\n\n## Notices\n\nYou must ensure that everyone who gets a copy of\nany part of this software from you, with or without\nchanges, also gets the text of this license or a link to\n<https://blueoakcouncil.org/license/1.0.0>.\n\n## Excuse\n\nIf anyone notifies you in writing that you have not\ncomplied with [Notices](#notices), you can keep your\nlicense by taking all practical steps to comply within 30\ndays after the notice. If you do not do so, your license\nends immediately.\n\n## Patent\n\nEach contributor licenses you to do everything with this\nsoftware that would otherwise infringe any patent claims\nthey can license or become able to license.\n\n## Reliability\n\nNo contributor can revoke this license.\n\n## No Liability\n\n**_As far as the law allows, this software comes as is,\nwithout any warranty or condition, and no contributor\nwill be liable to anyone for any damages related to this\nsoftware or this license, under any kind of legal claim._**",

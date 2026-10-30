@@ -6,29 +6,32 @@
 // exercised through a mocked consumer.
 
 import { describe, it, expect, afterEach, vi } from 'vitest';
-import { getMapStyleUrl } from '../mapTiles.js';
+import { getTileLayerConfig } from '../mapTiles.js';
 
 afterEach(() => {
   vi.unstubAllEnvs();
 });
 
-describe('getMapStyleUrl', () => {
+describe('getTileLayerConfig', () => {
   it('returns null when no key is configured — drives SCR-04\'s "unavailable" state rather than a silently-failing map', () => {
-    vi.stubEnv('VITE_MAP_TILES_KEY', '');
-    expect(getMapStyleUrl()).toBeNull();
+    vi.stubEnv('VITE_GEOAPIFY_KEY', '');
+    expect(getTileLayerConfig()).toBeNull();
   });
 
-  it('builds a MapTiler style URL carrying the configured key', () => {
-    vi.stubEnv('VITE_MAP_TILES_KEY', 'test-key-123');
-    const url = getMapStyleUrl();
-    expect(url).toContain('api.maptiler.com');
-    expect(url).toContain('key=test-key-123');
+  it('builds a Geoapify raster URL template carrying the configured key, with the retina token', () => {
+    vi.stubEnv('VITE_GEOAPIFY_KEY', 'test-key-123');
+    const config = getTileLayerConfig();
+    expect(config?.urlTemplate).toMatch(
+      /^https:\/\/maps\.geoapify\.com\/v1\/tile\/[a-z-]+\/\{z\}\/\{x\}\/\{y\}\{r\}\.png\?apiKey=test-key-123$/,
+    );
+    expect(config?.maxZoom).toBe(20);
   });
 
-  it("uses the light style by default and MapTiler's dark style for Dark and Mid", () => {
-    vi.stubEnv('VITE_MAP_TILES_KEY', 'k');
-    expect(getMapStyleUrl()).toContain('/maps/streets-v2/style.json');
-    expect(getMapStyleUrl(false)).toContain('/maps/streets-v2/style.json');
-    expect(getMapStyleUrl(true)).toContain('/maps/streets-v2-dark/style.json');
+  it("carries the attribution Geoapify's Free plan requires", () => {
+    vi.stubEnv('VITE_GEOAPIFY_KEY', 'k');
+    const attribution = getTileLayerConfig()?.attribution ?? '';
+    expect(attribution).toContain('Powered by <a href="https://www.geoapify.com/">Geoapify</a>');
+    expect(attribution).toContain('https://www.openstreetmap.org/copyright');
+    expect(attribution).toContain('https://openmaptiles.org/');
   });
 });
