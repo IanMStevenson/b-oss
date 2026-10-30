@@ -192,6 +192,64 @@ describe('desktop capabilities: location and camera', () => {
   });
 });
 
+// Responsive navigation (b-oss#638): beside the page on a wide window, collapsed on Browse and
+// Entry, a remembered pin overrides both ways, and the drawer below the breakpoint.
+describe('responsive navigation menu', () => {
+  const visible = (): Promise<boolean> =>
+    page.evaluate(() => document.querySelector('ion-split-pane')?.classList.contains('split-pane-visible') ?? false);
+  const pin = async (label: string): Promise<void> => {
+    await page.getByText(label, { exact: true }).first().click();
+    await page.waitForTimeout(500);
+  };
+
+  it('is open beside the page on Accounts and Settings, collapsed on Browse', async () => {
+    await page.setViewportSize({ width: 1300, height: 800 });
+    await go('/accounts', 2500);
+    expect(await visible()).toBe(true);
+    expect(await text()).toContain('Collapse menu');
+    await shot('9-nav-accounts-open');
+    await go('/settings', 2500);
+    expect(await visible()).toBe(true);
+    await shot('10-nav-settings-open');
+    await go('/browse', 4000);
+    expect(await visible()).toBe(false);
+    await shot('11-nav-browse-collapsed');
+  });
+
+  it('a pin forces it open on Browse, closed on Accounts, and is remembered across a reload', async () => {
+    await go('/browse', 3000);
+    await page.locator('ion-menu-button').first().click(); // the drawer, from the header
+    await page.waitForTimeout(600);
+    await shot('12a-nav-drawer-opened');
+    await pin('Keep menu open');
+    expect(await visible()).toBe(true);
+    await shot('12-nav-browse-pinned-open');
+    await page.reload();
+    await page.waitForLoadState('load');
+    await go('/browse', 3500);
+    expect(await visible()).toBe(true);
+
+    await pin('Collapse menu'); // undo: back to automatic
+    await go('/accounts', 2500);
+    expect(await visible()).toBe(true);
+    await pin('Collapse menu');
+    expect(await visible()).toBe(false);
+    await shot('13-nav-accounts-pinned-closed');
+    await page.locator('ion-menu-button').first().click();
+    await page.waitForTimeout(600);
+    await pin('Keep menu open'); // back to automatic again
+    expect(await visible()).toBe(true);
+  });
+
+  it('is the drawer on a narrow window', async () => {
+    await page.setViewportSize({ width: 800, height: 800 });
+    await go('/accounts', 2500);
+    expect(await visible()).toBe(false);
+    expect(await text()).not.toContain('Collapse menu');
+    await page.setViewportSize({ width: 1300, height: 800 });
+  });
+});
+
 // The stub API logs every avatar upload it receives ("avatar upload: N bytes body, filename=...,
 // type=..., content-type header=..."); run.sh writes that log to e2e-out/stub-api.log.
 function stubUploads(): { bytes: number; type: string; contentType: string }[] {

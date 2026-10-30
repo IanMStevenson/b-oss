@@ -467,3 +467,8 @@ ion-item.nav-item-current::after {
 .entry-popup.maplibregl-popup-anchor-right .maplibregl-popup-tip {
   border-left-color: var(--bg);
 }
+
+/* The pin button at the top of the navigation menu (desktop, wide window; b-oss#638). */
+ion-button.nav-pin {
+  margin: 4px 8px 0;
+}

@@ -39,6 +39,8 @@ on top as overrides.
 | `prefs.photoFit` | `"full-width"` | `"capped"` |
 | `prefs.accountAvatarStyle` | `"picture"` | `"picture"` |
 | `prefs.theme` | `"system"` | `"system"` |
+| `prefs.navPinned` | `"auto"` | `"auto"` |
 | `grid.baseTilePx` | `86` | `156` |
 | `grid.widthDerivedMinZoom` | `true` | `false` |
 | `keyboardWheelZoom` | `false` | `true` |
+| `nav.split` | `"off"` | `"auto"` |

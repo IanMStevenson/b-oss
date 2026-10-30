@@ -32,6 +32,8 @@ describe('profile', () => {
       photoFit: 'full-width',
       accountAvatarStyle: 'picture',
       theme: 'system',
+      // added with the responsive menu (b-oss#638); only read where the profile's nav.split is 'auto'
+      navPinned: 'auto',
     });
   });
 

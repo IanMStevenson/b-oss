@@ -16,11 +16,14 @@ import {
   IonLabel,
   IonBadge,
   IonMenuToggle,
+  IonSplitPane,
+  IonButton,
 } from '@ionic/react';
+import { PanelLeftClose, PanelLeftOpen } from 'lucide-react';
 import { IonReactRouter } from '@ionic/react-router';
 import { useLocation, useNavigate } from 'react-router-dom';
 import type { NavigateFunction } from 'react-router-dom';
-import type { CSSProperties, RefObject } from 'react';
+import type { CSSProperties, ReactNode, RefObject } from 'react';
 import { AccountRowBody } from '../components/AccountRowBody.js';
 import { OverlayProvider, OverlayHost } from './OverlayProvider.js';
 import { renderAppRoutes } from './routes/AppRoutes.js';
@@ -52,6 +55,8 @@ import { onAppUrlOpen, getLaunchUrl } from '../platform/deepLinks.js';
 import { resolveDeepLink, routeDeepLink } from '../flows/deepLinkResolver.js';
 import { isBackSwallowedAt, BROWSE_BACK_PRIORITY } from './hardwareBack.js';
 import { checkForSharedImage, onShareReceived } from '../platform/shareIntent.js';
+import { profile } from '../profile/profile.js';
+import { useNavPane } from './navPane.js';
 
 const MAIN_CONTENT_ID = 'main-content';
 
@@ -138,11 +143,30 @@ function NavMenu() {
   const notificationsCount = useNotificationCountsStore((s) => s.notifications);
   const commentsCount = useNotificationCountsStore((s) => s.comments);
   const { pathname } = useLocation();
+  const pane = useNavPane(pathname);
   // swipeGesture off: a swipe from the left screen edge was opening this menu by accident (and
   // competing with the in-page swipe navigation). The menu opens from the header button only.
   return (
     <IonMenu contentId={MAIN_CONTENT_ID} swipeGesture={false}>
       <IonContent>
+        {pane.enabled && pane.wide && (
+          // Only where a pin means something: a desktop-profile window wide enough to hold the
+          // menu beside the page. Pressing it forces the menu open or collapsed, and is remembered.
+          <IonButton
+            fill="clear"
+            size="small"
+            className="nav-pin"
+            onClick={pane.togglePin}
+            aria-pressed={pane.open}
+          >
+            {pane.open ? (
+              <PanelLeftClose size={16} aria-hidden="true" slot="start" />
+            ) : (
+              <PanelLeftOpen size={16} aria-hidden="true" slot="start" />
+            )}
+            {pane.open ? 'Collapse menu' : 'Keep menu open'}
+          </IonButton>
+        )}
         <NavAccountBlock />
         <IonList lines="none" style={{ padding: 0 }}>
           {activeAccount && <NavDivider />}
@@ -302,6 +326,19 @@ function BrowseBackGuard() {
   return null;
 }
 
+// The menu beside the page on a wide window (b-oss#638). Only mounted where the profile has it
+// (desktop); the handheld tree below is exactly what it was, so nothing changes on Android or web.
+function NavSplitPane({ children }: { children: ReactNode }) {
+  const { pathname } = useLocation();
+  const pane = useNavPane(pathname);
+  return (
+    <IonSplitPane contentId={MAIN_CONTENT_ID} when={pane.open}>
+      <NavMenu />
+      {children}
+    </IonSplitPane>
+  );
+}
+
 export function AppShell() {
   const activeAccountId = useAccountsStore((s) => s.activeAccountId);
 
@@ -374,17 +411,20 @@ export function AppShell() {
     }
   }, [activeAccountId]);
 
+  const splitPane = profile().nav.split === 'auto';
+  const outlet = <IonRouterOutlet id={MAIN_CONTENT_ID}>{renderAppRoutes()}</IonRouterOutlet>;
+
   return (
     <IonApp>
       <OverlayProvider>
         <IonReactRouter>
-          <NavMenu />
+          {!splitPane && <NavMenu />}
           <ReminderTapListener />
           <BrowseBackGuard />
           <PushListener />
           <DeepLinkListener />
           <OverlayHost />
-          <IonRouterOutlet id={MAIN_CONTENT_ID}>{renderAppRoutes()}</IonRouterOutlet>
+          {splitPane ? <NavSplitPane>{outlet}</NavSplitPane> : outlet}
         </IonReactRouter>
       </OverlayProvider>
       <div className="system-nav-strip" aria-hidden="true" />

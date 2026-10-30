@@ -60,6 +60,11 @@ export interface DevicePrefValues {
   accountAvatarStyle: 'picture' | 'icon';
   /** Colour theme (b-oss#549). 'system' follows the OS's dark setting (light or dark, never mid). */
   theme: ThemePreference;
+  /** The navigation menu's remembered pin on a window wide enough to hold it beside the page:
+   * 'auto' follows the screen (open, except on the immersive Browse and Entry screens), `true`
+   * keeps it open everywhere, `false` keeps it collapsed. Only read where the profile's
+   * `nav.split` is 'auto'. */
+  navPinned: 'auto' | boolean;
 }
 
 export interface Profile {
@@ -76,6 +81,11 @@ export interface Profile {
   /** Ctrl+wheel and Ctrl +/-/0 drive the app's own zoom (grid and photo), and the shell's page zoom
    * is disabled so there is exactly one. Off on handheld, where touch pinch is the zoom. */
   keyboardWheelZoom: boolean;
+  nav: {
+    /** `auto`: on a wide window the menu sits beside the page (open by default, collapsed on
+     * Browse and Entry, with a pin; app/navPane.ts). `off`: the menu is always the drawer. */
+    split: 'auto' | 'off';
+  };
 }
 
 /** The values the handheld row has always had (they used to live in devicePrefsStore). Frozen
@@ -94,6 +104,7 @@ export const HANDHELD_PREFS: DevicePrefValues = {
   photoFit: 'full-width',
   accountAvatarStyle: 'picture',
   theme: 'system',
+  navPinned: 'auto',
 };
 
 // ThumbnailGrid's own default base (156px) is the PC reference. On a phone that yields only 2
@@ -107,6 +118,7 @@ export const PROFILES: Record<ProfileKind, Profile> = {
     prefs: HANDHELD_PREFS,
     grid: { baseTilePx: HANDHELD_BASE_TILE_PX, widthDerivedMinZoom: true },
     keyboardWheelZoom: false,
+    nav: { split: 'off' },
   },
   desktop: {
     kind: 'desktop',
@@ -114,6 +126,7 @@ export const PROFILES: Record<ProfileKind, Profile> = {
     prefs: { ...HANDHELD_PREFS, thumbnailMargins: 'normal', photoFit: 'capped' },
     grid: { baseTilePx: DESKTOP_BASE_TILE_PX, widthDerivedMinZoom: false },
     keyboardWheelZoom: true,
+    nav: { split: 'auto' },
   },
 };
 
