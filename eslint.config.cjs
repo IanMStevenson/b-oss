@@ -27,7 +27,7 @@ module.exports = [
       // Enforce architecture boundaries
       'no-restricted-imports': ['error', {
         patterns: [
-          { group: ['electron'], message: 'Only packages/b-ark may import from electron.' },
+          { group: ['electron'], message: 'Only packages/b-ark and packages/b-mobile-pc may import from electron.' },
           { group: ['@capacitor/*'], message: 'Only packages/b-mobile/src/platform/** may import from @capacitor/*.' },
           { group: ['react-router', 'react-router-dom'], message: 'Only packages/b-mobile/src/app/routes/** may import react-router — screens use useAppNavigate() instead (app-architecture.md §5).' }
         ]
@@ -35,10 +35,21 @@ module.exports = [
     },
   },
   {
-    // packages/b-ark is the Electron shell — it may import from electron.
-    files: ['packages/b-ark/**/*.{ts,tsx}'],
+    // packages/b-ark and packages/b-mobile-pc are the Electron shells — they may import from electron.
+    files: ['packages/b-ark/**/*.{ts,tsx}', 'packages/b-mobile-pc/**/*.{ts,tsx}'],
     rules: {
       'no-restricted-imports': 'off',
+    },
+  },
+  {
+    // b-mobile-pc may use electron, but like every package except b-mobile it never imports Capacitor.
+    files: ['packages/b-mobile-pc/**/*.{ts,tsx}'],
+    rules: {
+      'no-restricted-imports': ['error', {
+        patterns: [
+          { group: ['@capacitor/*'], message: 'Only packages/b-mobile/src/platform/** may import from @capacitor/*.' }
+        ]
+      }],
     },
   },
   {
