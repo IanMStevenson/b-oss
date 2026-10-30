@@ -25,6 +25,7 @@ import { buildMultipartBody } from '../data/multipartBody.js';
 import { base64ToBytes, bytesToBase64 } from '../data/binary.js';
 import { randomId } from '../data/id.js';
 import type { PickedPhoto } from './camera.js';
+import { isCapacitorNative } from './platformKind.js';
 
 const UPLOADS_DIR = 'uploads';
 
@@ -60,7 +61,7 @@ export async function copyPhotoToAppStorage(photo: PickedPhoto, itemId: string):
   await ensureUploadsDir();
   const destPath = `${UPLOADS_DIR}/${itemId}.${extensionFor(photo.mimeType)}`;
 
-  if (Capacitor.isNativePlatform() && photo.uri) {
+  if (isCapacitorNative() && photo.uri) {
     try {
       await Filesystem.copy({ from: photo.uri, to: destPath, toDirectory: Directory.Data });
       return destPath;
@@ -90,7 +91,7 @@ export async function readQueuedFileAsSource(
   relativePath: string,
   mimeType: string,
 ): Promise<FileSource> {
-  if (Capacitor.isNativePlatform()) {
+  if (isCapacitorNative()) {
     const { uri } = await Filesystem.getUri({ path: relativePath, directory: Directory.Data });
     return { path: uri, mimeType };
   }
@@ -109,7 +110,7 @@ export async function readQueuedFileAsSource(
  * work, which is the part that's actually required (SCR-14's acceptance criteria never mandate a
  * pixel-perfect thumbnail, only status and a way to open the finished entry). */
 export async function resolveQueuedFileDisplaySrc(relativePath: string): Promise<string | null> {
-  if (!Capacitor.isNativePlatform()) return null;
+  if (!isCapacitorNative()) return null;
   try {
     const { uri } = await Filesystem.getUri({ path: relativePath, directory: Directory.Data });
     return Capacitor.convertFileSrc(uri);
@@ -151,7 +152,7 @@ export async function resolveFilePart(
 /** Returns the native multipart transport when running on-device, undefined on web (falls back
  * to b-api's default FormData/Blob path, which only ever sees blob-sourced files there anyway). */
 export function getMultipartImpl(): MultipartImpl | undefined {
-  if (!Capacitor.isNativePlatform()) return undefined;
+  if (!isCapacitorNative()) return undefined;
 
   return async ({ url, method, headers, fields, file }) => {
     const filePart = file ? await resolveFilePart(file) : undefined;

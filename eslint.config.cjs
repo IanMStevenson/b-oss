@@ -80,4 +80,17 @@ module.exports = [
       }],
     },
   },
+  {
+    // One place knows which platform hosts the app (b-oss#608): platform/platformKind.ts. Everything
+    // else asks it, via isCapacitorNative() or a capability, rather than Capacitor.isNativePlatform().
+    files: ['packages/b-mobile/src/platform/**/*.{ts,tsx}'],
+    ignores: ['packages/b-mobile/src/platform/platformKind.ts'],
+    rules: {
+      'no-restricted-properties': ['error', {
+        object: 'Capacitor',
+        property: 'isNativePlatform',
+        message: 'Ask platform/platformKind.ts (isCapacitorNative() / platformKind()) instead of calling Capacitor.isNativePlatform() directly.'
+      }],
+    },
+  },
 ];

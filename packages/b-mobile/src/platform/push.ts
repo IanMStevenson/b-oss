@@ -16,6 +16,7 @@
 import { Capacitor, registerPlugin } from '@capacitor/core';
 import { PushNotifications } from '@capacitor/push-notifications';
 import type { ActionPerformed, PushNotificationSchema } from '@capacitor/push-notifications';
+import { isCapacitorNative } from './platformKind.js';
 
 export type PushPermissionState = 'granted' | 'denied' | 'prompt' | 'prompt-with-rationale';
 
@@ -53,7 +54,7 @@ const PushAvailability = registerPlugin<PushAvailabilityPlugin>('PushAvailabilit
  * them `PushNotifications.register()` kills the app process natively — uncatchable from JS — so
  * every push entry point must check this first. `false` off native too: nothing to register. */
 export async function isPushAvailable(): Promise<boolean> {
-  if (!Capacitor.isNativePlatform()) return false;
+  if (!isCapacitorNative()) return false;
   try {
     return (await PushAvailability.isAvailable()).available;
   } catch {
@@ -62,13 +63,13 @@ export async function isPushAvailable(): Promise<boolean> {
 }
 
 export async function checkPushPermission(): Promise<PushPermissionState> {
-  if (!Capacitor.isNativePlatform()) return 'denied';
+  if (!isCapacitorNative()) return 'denied';
   const status = await PushNotifications.checkPermissions();
   return status.receive;
 }
 
 export async function requestPushPermission(): Promise<PushPermissionState> {
-  if (!Capacitor.isNativePlatform()) return 'denied';
+  if (!isCapacitorNative()) return 'denied';
   const status = await PushNotifications.requestPermissions();
   return status.receive;
 }
@@ -113,7 +114,7 @@ export async function registerPush(): Promise<string | null> {
  * app is already running, i.e. an FCM token rotation, not the initial `registerPush()` call
  * above (that one resolves and tears its own pair of listeners down). */
 export function onPushTokenChanged(handler: (token: string) => void): () => void {
-  if (!Capacitor.isNativePlatform()) return () => {};
+  if (!isCapacitorNative()) return () => {};
   let handle: { remove: () => void } | undefined;
   void PushNotifications.addListener('registration', (token) => handler(token.value)).then(
     (h) => (handle = h),
@@ -123,7 +124,7 @@ export function onPushTokenChanged(handler: (token: string) => void): () => void
 
 /** Foreground delivery — FLW-16 point 4, "receiving a push refreshes unread counts." */
 export function onPushReceived(handler: (payload: PushPayload) => void): () => void {
-  if (!Capacitor.isNativePlatform()) return () => {};
+  if (!isCapacitorNative()) return () => {};
   let handle: { remove: () => void } | undefined;
   void PushNotifications.addListener(
     'pushNotificationReceived',
@@ -137,7 +138,7 @@ export function onPushReceived(handler: (payload: PushPayload) => void): () => v
 
 /** Tap routing — FLW-16 steps 3/7. */
 export function onPushTapped(handler: (payload: PushPayload) => void): () => void {
-  if (!Capacitor.isNativePlatform()) return () => {};
+  if (!isCapacitorNative()) return () => {};
   let handle: { remove: () => void } | undefined;
   void PushNotifications.addListener(
     'pushNotificationActionPerformed',

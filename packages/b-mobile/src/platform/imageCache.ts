@@ -25,6 +25,7 @@ import { Capacitor } from '@capacitor/core';
 import { Filesystem, Directory } from '@capacitor/filesystem';
 import { FileTransfer } from '@capacitor/file-transfer';
 import { checkImageIntegrity } from './imageIntegrity.js';
+import { isCapacitorNative } from './platformKind.js';
 
 const TTL_MS = 15 * 60 * 1000;
 const CACHE_DIR = 'image-cache';
@@ -127,7 +128,7 @@ async function resolveNative(url: string): Promise<string> {
  * once its cached copy is older than the 15-minute TTL). Never rejects: any failure falls back to
  * the remote URL. Concurrent calls for the same URL share one download. */
 export function resolveImage(url: string): Promise<string> {
-  if (!Capacitor.isNativePlatform()) return Promise.resolve(url);
+  if (!isCapacitorNative()) return Promise.resolve(url);
 
   const pending = inFlight.get(url);
   if (pending) return pending;
@@ -142,7 +143,7 @@ export function resolveImage(url: string): Promise<string> {
 /** Drops the cached copy of `url`, so the next `resolveImage` fetches it afresh — for an image
  * the WebView failed to decode despite passing the integrity check. */
 export async function invalidateImage(url: string): Promise<void> {
-  if (!Capacitor.isNativePlatform()) return;
+  if (!isCapacitorNative()) return;
   const path = `${CACHE_DIR}/${await hashUrl(url)}`;
   await removeQuietly(path);
   await removeQuietly(`${path}.tmp`);

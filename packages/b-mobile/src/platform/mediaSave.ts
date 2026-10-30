@@ -12,6 +12,7 @@ import { Capacitor, registerPlugin } from '@capacitor/core';
 import { Filesystem, Directory } from '@capacitor/filesystem';
 import { FileTransfer } from '@capacitor/file-transfer';
 import { checkImageIntegrity } from './imageIntegrity.js';
+import { isCapacitorNative } from './platformKind.js';
 
 interface MediaSavePlugin {
   saveImage(options: { uri: string; fileName: string }): Promise<{ location: string }>;
@@ -53,7 +54,7 @@ export async function saveRemoteImageToGallery(
   url: string,
   fileName: string,
 ): Promise<string | null> {
-  if (!Capacitor.isNativePlatform()) {
+  if (!isCapacitorNative()) {
     window.open(url, '_blank', 'noopener');
     return null;
   }
