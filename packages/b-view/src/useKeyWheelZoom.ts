@@ -47,6 +47,9 @@ export function useKeyWheelZoom({ enabled, target, onZoom, wheel = true }: Optio
     };
     const onKey = (e: KeyboardEvent) => {
       if (e.defaultPrevented) return;
+      // A page kept mounted behind another (Ionic hides it with this class) must not react: its
+      // grid would zoom while the photo on top is being zoomed.
+      if (el.closest('.ion-page-hidden')) return;
       const command = zoomKeyCommand(e);
       if (!command) return;
       e.preventDefault();

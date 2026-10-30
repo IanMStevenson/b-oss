@@ -125,6 +125,19 @@ describe('ThumbnailGrid keyboardWheelZoom', () => {
     expect(onSizeChange).not.toHaveBeenCalled();
   });
 
+  it('ignores the keys while its page is hidden behind another (Ionic keeps it mounted)', () => {
+    const { onSizeChange, container } = setup(true);
+    const page = document.createElement('div');
+    page.className = 'ion-page-hidden';
+    document.body.appendChild(page);
+    page.appendChild(container);
+    const plus = key('+');
+    window.dispatchEvent(plus);
+    expect(plus.defaultPrevented).toBe(false);
+    expect(onSizeChange).not.toHaveBeenCalled();
+    page.remove();
+  });
+
   it('stops listening after unmount', () => {
     const { onSizeChange } = setup(true);
     cleanup();
