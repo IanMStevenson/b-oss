@@ -169,6 +169,14 @@ Known Blipfoto API limits: [AppLimitations.md](AppLimitations.md). Paths are rel
   switch to that account, open `/comments` or `/notifications`; unknown or needs-reauth account →
   `/accounts`; `reauth-required` → `/accounts?reauth=<id>`. Unread counts are memory only,
   refreshed on launch, account switch and push, and zeroed on opening an inbox.
+- Desktop shell (`capabilities().notifications.mechanism === 'polling'`, b-oss#610): the same two
+  per-account switches, but a setting only: no permission prompt, no read round, no b-push, no
+  second token. The shell polls every 5 minutes with the account's app token and shows an OS
+  notification on every rise, focused or not (`flows/pollingNotifications.ts` keeps the shell's
+  watched set in step with the accounts store; `hasServiceToken` means "notifications on" there).
+  Same payloads and tap routing; a dead token shows one "sign in again" notification and
+  `reauth-required` forces out the **app** token. Settings also explains the tray and offers launch
+  at login (off by default). No launch backstop check on desktop.
 - Inboxes: the API marks items read when fetched (comments: all of them), so "new" rows come from
   the first response only; pull-to-refresh fetches newer items only. Notification tap → entry,
   profile, follow requests, or external link. Comment rows: Reply (opens the entry with the reply

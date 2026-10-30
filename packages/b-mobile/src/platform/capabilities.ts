@@ -24,9 +24,12 @@ export interface PlatformCapabilities {
      * When false and embedded is available, embedded is the only mechanism (desktop). */
     userCanChooseBrowser: boolean;
   };
-  push: {
-    /** Remote push transport. `none` on desktop: notifications there are done by polling. */
-    transport: 'fcm' | 'apns' | 'none';
+  notifications: {
+    /** How the user gets told about new comments and notifications. `push`: a remote push service
+     * (b-push) over FCM/APNs, needing a separate read-only token. `polling`: the desktop shell polls
+     * for unread counts with the account's own app token (no second token, no service). `none`:
+     * not offered (a plain browser). */
+    mechanism: 'push' | 'polling' | 'none';
   };
 }
 
@@ -34,23 +37,23 @@ const TABLE: Record<PlatformKind, PlatformCapabilities> = {
   android: {
     api: { access: 'direct' },
     auth: { embeddedAvailable: true, userCanChooseBrowser: true },
-    push: { transport: 'fcm' },
+    notifications: { mechanism: 'push' },
   },
   ios: {
     api: { access: 'direct' },
     auth: { embeddedAvailable: true, userCanChooseBrowser: true },
-    push: { transport: 'apns' },
+    notifications: { mechanism: 'push' },
   },
   desktop: {
     api: { access: 'same-origin-proxy' },
     auth: { embeddedAvailable: true, userCanChooseBrowser: false },
-    push: { transport: 'none' },
+    notifications: { mechanism: 'polling' },
   },
   web: {
     // Overridden below: a dev server proxies the API, a production browser build cannot.
     api: { access: 'direct' },
     auth: { embeddedAvailable: false, userCanChooseBrowser: false },
-    push: { transport: 'none' },
+    notifications: { mechanism: 'none' },
   },
 };
 

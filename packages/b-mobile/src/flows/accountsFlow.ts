@@ -41,6 +41,11 @@ import {
   registerAccountForPush,
   deregisterAccountFromPush,
 } from './pushFlow.js';
+import {
+  disablePollingNotifications,
+  enablePollingNotifications,
+  usesPolling,
+} from './pollingNotifications.js';
 
 export { OAuthCancelledError, AccountMismatchError };
 
@@ -222,6 +227,13 @@ async function registerNotificationsAfterSignIn(
   embedded: { useEmbedded: boolean | undefined },
   hooks: SignInHooks,
 ): Promise<void> {
+  if (usesPolling()) {
+    // Desktop (b-oss#610): no second round, no registration; it is only a setting.
+    if (choice.notifications) {
+      enablePollingNotifications(account.id, choice.pushStreams ?? ALL_PUSH_STREAMS);
+    }
+    return;
+  }
   if (choice.notifications && (await ensurePushPermission())) {
     if (account.appTokenScope === 'read') {
       // Read-only + notifications: the same token serves both — no second round.
@@ -366,6 +378,13 @@ export async function changeAccountMode(
   if (!refreshed) return;
   const finalAppScope = refreshed.appTokenScope;
   const streams = target.pushStreams ?? pushStreamsOf(refreshed);
+
+  if (usesPolling()) {
+    // Desktop (b-oss#610): notifications are a setting on the account's one app token.
+    if (target.notifications) enablePollingNotifications(accountId, streams);
+    else disablePollingNotifications(accountId);
+    return;
+  }
 
   if (target.notifications && !refreshed.hasServiceToken && (await ensurePushPermission())) {
     if (finalAppScope === 'read') {
@@ -531,7 +550,8 @@ export async function reauthorizeAccount(
  * Read-write: one cheap call; a rejection marks it dead (as b-push's report would), anything else
  * (offline) leaves it for the service to judge later. */
 async function settleServiceTokenAfterAppDeath(account: StoredAccount): Promise<void> {
-  if (!account.hasServiceToken) return;
+  // Desktop has no service token; its notifications setting survives a dead app token as it is.
+  if (usesPolling() || !account.hasServiceToken) return;
   if (account.lastAppTokenScope === 'read') {
     handleForcedLogout(account.id, 'service');
     return;

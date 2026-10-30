@@ -95,9 +95,10 @@ vi.mock('../../../platform/browser.js', () => ({ openUrl: (url: string) => openU
 // file exercises the same "toggle hidden" shape it always has — only the tests that explicitly
 // flip this to true are testing the native-only toggle.
 let isNative = false;
+let desktop = false;
 vi.mock('../../../platform/platformKind.js', async (importOriginal) => ({
   ...(await importOriginal<typeof import('../../../platform/platformKind.js')>()),
-  platformKind: () => (isNative ? 'android' : 'web'),
+  platformKind: () => (desktop ? 'desktop' : isNative ? 'android' : 'web'),
 }));
 
 // Defaults true: a Firebase-configured build, so the notifications toggle is usable.
@@ -116,6 +117,7 @@ afterEach(() => {
   vi.resetAllMocks();
   useDevicePrefsStore.setState({ hydrated: false, seenFirstRunExplainer: false });
   isNative = false;
+  desktop = false;
   pushAvailable = true;
   accountsStore.useAccountsStore.setState({ accounts: [], activeAccountId: null });
 });
@@ -283,6 +285,29 @@ describe('SignInScreen', () => {
     renderScreen();
     const item = screen.getByLabelText('Use browser to sign in').closest('ion-item')!;
     expect(item.textContent).toContain('already signed in to Blipfoto');
+  });
+
+  it('on desktop, notifications are a plain setting: usable toggle, no "not available" copy, no browser choice (b-oss#610)', async () => {
+    desktop = true;
+    pushAvailable = false; // irrelevant on desktop: there is no push service to be unavailable
+    signInDeliberate.mockResolvedValue('acct1');
+    renderScreen();
+
+    expect(screen.queryByText('Notifications aren’t available in this build.')).toBeNull();
+    expect(
+      (screen.getByLabelText('Get notifications') as unknown as { disabled: boolean }).disabled,
+    ).toBeFalsy();
+    expect(screen.queryByLabelText('Use browser to sign in')).toBeNull();
+    screen
+      .getByLabelText('Get notifications')
+      .dispatchEvent(new CustomEvent('ionChange', { bubbles: true, detail: { checked: true } }));
+    await userEvent.click(screen.getByText('Continue'));
+    await waitFor(() =>
+      expect(signInDeliberate).toHaveBeenCalledWith(
+        expect.objectContaining({ notifications: true, useEmbedded: true }),
+        expect.anything(),
+      ),
+    );
   });
 
   it('on native without Firebase credentials, disables notifications and never requests them', async () => {

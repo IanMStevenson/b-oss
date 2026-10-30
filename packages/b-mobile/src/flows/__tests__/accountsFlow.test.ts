@@ -919,8 +919,28 @@ describe('token-change browser default (b-oss#240)', () => {
   it('desktop: always the in-app window, even with exactly one account (there is no system-browser round trip)', async () => {
     kindOverride = 'desktop';
     useAccountsStore.setState({ accounts: [rw('alice')], activeAccountId: 'alice' });
-    await changeAccountMode('alice', { scope: 'read,write', notifications: true });
+    // Changing to read-only is the one round a desktop account can still need.
+    await changeAccountMode('alice', { scope: 'read', notifications: false });
     expect(runOAuthRound).toHaveBeenCalledWith('read', { useEmbedded: true });
+  });
+
+  it('desktop: turning notifications on is only a setting, with no second round (b-oss#610)', async () => {
+    kindOverride = 'desktop';
+    useAccountsStore.setState({ accounts: [rw('alice')], activeAccountId: 'alice' });
+    await changeAccountMode('alice', {
+      scope: 'read,write',
+      notifications: true,
+      pushStreams: { comments: true, notifications: false },
+    });
+    expect(runOAuthRound).not.toHaveBeenCalled();
+    expect(tokenStore.has('alice:service')).toBe(false);
+    expect(useAccountsStore.getState().accounts[0]).toMatchObject({
+      hasServiceToken: true,
+      pushComments: true,
+      pushNotifications: false,
+    });
+    await changeAccountMode('alice', { scope: 'read,write', notifications: false });
+    expect(useAccountsStore.getState().accounts[0].hasServiceToken).toBe(false);
   });
 
   it('a single account that signed in through the in-app browser stays there (b-oss#375)', async () => {

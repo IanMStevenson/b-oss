@@ -109,7 +109,7 @@ export function SignInScreen({ returnTo }: { returnTo?: string } = {}) {
   }, [hydrated, seenFirstRunExplainer]);
 
   useEffect(() => {
-    if (capabilities().push.transport === 'none') return;
+    if (capabilities().notifications.mechanism !== 'push') return;
     void isPushAvailable().then(setPushAvailable);
   }, []);
 
