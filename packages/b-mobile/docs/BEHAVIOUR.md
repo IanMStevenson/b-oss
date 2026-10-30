@@ -46,6 +46,12 @@ Known Blipfoto API limits: [AppLimitations.md](AppLimitations.md). Paths are rel
   which shows the new title, description, tags and location with "Saving your changes…" until the
   edit goes through, then reloads. If it fails, the entry as saved, "Your changes to this entry
   weren't saved" with the error, and View uploads (b-oss#412).
+  In Edit, turning "Add to map" on for an entry whose position the app doesn't hold (the entry's
+  `location` is hidden while the map is off, though Blipfoto keeps the co-ordinates) looks it up
+  immediately, not queued (`data/entryLocation.ts`): map on without a position, read the entry
+  back, map off again, then the picker opens at that position; confirming and saving switches the
+  map on for good. With no stored position the picker opens empty; if the entry can't be hidden
+  again the screen says it is showing on the map, and Save switches it off.
 - **Biography editor** (`/compose/description`, despite the path): from Settings → Profile.
 - **Uploads**: Waiting / Uploading… / Uploaded / Failed (+ error); indeterminate bar while
   uploading; tap an uploaded item to open it. A failed item has Retry (back to Waiting, fresh
