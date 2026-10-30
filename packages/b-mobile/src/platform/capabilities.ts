@@ -57,6 +57,12 @@ const TABLE: Record<PlatformKind, PlatformCapabilities> = {
   },
 };
 
+/** The capability row for a platform, exactly as tabled (no dev-server override). Used by the
+ * generated platform matrix (docs/PLATFORM-MATRIX.md); callers want `capabilities()`. */
+export function capabilitiesTable(kind: PlatformKind): PlatformCapabilities {
+  return TABLE[kind];
+}
+
 export function capabilities(): PlatformCapabilities {
   const kind = platformKind();
   const base = TABLE[kind];
