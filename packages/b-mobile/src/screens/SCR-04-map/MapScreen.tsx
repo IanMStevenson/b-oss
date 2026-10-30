@@ -83,6 +83,8 @@ interface MapView {
   zoom: number;
 }
 
+const ENTRIES_FAILED_MESSAGE = 'Could not load entries for this area.';
+
 type EntriesStatus = 'loading' | 'loaded' | 'empty' | 'error';
 
 export function MapScreen({ focusedEntryId }: MapScreenProps) {
@@ -322,8 +324,10 @@ export function MapScreen({ focusedEntryId }: MapScreenProps) {
         if (id !== requestIdRef.current) return;
         // Non-blocking per SCR-04: the map (and its already-shown markers, if any) stay usable;
         // the next pan/zoom tries again on its own, no explicit retry action.
+        // Never the API's own text above the map (b-oss#669): a fixed message, the detail logged.
+        console.warn('[map] entries request failed', errorMessageOf(err, 'unknown error'));
         setEntriesStatus('error');
-        setEntriesError(errorMessageOf(err, 'Could not load entries.'));
+        setEntriesError(ENTRIES_FAILED_MESSAGE);
       },
     );
   }, [debouncedBounds, renderMarkers]);
@@ -400,7 +404,16 @@ export function MapScreen({ focusedEntryId }: MapScreenProps) {
                 style={{ position: 'absolute', top: 0, left: 0, right: 0, background: 'var(--bg)' }}
               >
                 <IonText color="danger">
-                  <p>{entriesError}</p>
+                  <p>
+                    {entriesError}{' '}
+                    <button
+                      type="button"
+                      className="map-retry"
+                      onClick={() => setBounds((b) => (b ? { ...b } : b))}
+                    >
+                      Try again
+                    </button>
+                  </p>
                 </IonText>
               </div>
             )}

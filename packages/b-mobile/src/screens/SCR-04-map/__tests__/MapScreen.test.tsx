@@ -11,7 +11,7 @@
 // to a WebView-rendered library instead of a Capacitor plugin.
 
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { render, screen, cleanup, waitFor, act } from '@testing-library/react';
+import { render, screen, cleanup, waitFor, act, fireEvent } from '@testing-library/react';
 import { MAP_FAILED_MESSAGE } from '../../../components/createMap.js';
 import { createTrackedRouter } from '../../../app/routes/test-router.js';
 import { MapScreen } from '../MapScreen.js';
@@ -360,7 +360,13 @@ describe('MapScreen', () => {
     await waitFor(() => expect(mapInstances.length).toBe(1));
     mapInstances[0].trigger('load');
 
-    expect(await screen.findByText('Network down')).toBeDefined();
+    // A fixed message with a retry, never the API's own text (b-oss#669).
+    expect(await screen.findByText(/Could not load entries for this area/)).toBeDefined();
+    expect(screen.queryByText('Network down')).toBeNull();
+
+    vi.mocked(fetchEntriesInBounds).mockClear();
+    fireEvent.click(screen.getByRole('button', { name: 'Try again' }));
+    await waitFor(() => expect(fetchEntriesInBounds).toHaveBeenCalledTimes(1));
   });
 
   it('does not create a marker for a hidden member’s entry', async () => {
