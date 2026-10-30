@@ -45,6 +45,7 @@ import { RecordingPresenter, serveRecordingPresenter } from './notify-test-prese
 import { SecureStore, type SecretCrypto } from './secure-store.js';
 import { MIN_HEIGHT, MIN_WIDTH, parseWindowState } from './window-state.js';
 import { lockPageZoom } from './page-zoom-lock.js';
+import { applyRenderVariants } from './render-variants.js';
 
 // Test hooks (e2e runs against a stub API and a fake sign-in page). Ignored in a packaged app.
 const testMode = !app.isPackaged;
@@ -52,6 +53,7 @@ const testMode = !app.isPackaged;
 // Windows shows toast notifications only for an app whose AppUserModelID matches its Start Menu
 // shortcut, so set it before any window or notification exists (b-oss#674).
 if (process.platform === 'win32') app.setAppUserModelId(APP_USER_MODEL_ID);
+const renderVariants = applyRenderVariants(app);
 const apiOrigin = (testMode && process.env.BMPC_API_ORIGIN) || DEFAULT_API_ORIGIN;
 const authHosts = (testMode && process.env.BMPC_AUTH_HOSTS?.split(',')) || [...DEFAULT_AUTH_HOSTS];
 const authAllowHttp = testMode && process.env.BMPC_AUTH_ALLOW_HTTP === '1';
@@ -206,7 +208,7 @@ async function createWindow(showWindow: boolean): Promise<void> {
     },
   });
   mainWindow = win;
-  lockPageZoom(win.webContents);
+  lockPageZoom(win.webContents, renderVariants.has('no-zoom-lock'));
   if (saved.maximized) win.maximize();
 
   // Links leave the app: https opens in the system browser, anything else is dropped.
