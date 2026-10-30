@@ -144,15 +144,30 @@ describe('sign-in and secrets', () => {
       expect(readFileSync(file, 'utf8')).toContain('token:cyclopstest:app');
     }
     await page.reload();
-    await page.waitForTimeout(3500);
-    await go('/accounts');
+    await page.waitForLoadState('load');
+    await go('/accounts', 0);
+    await page.waitForFunction(() => document.body.innerText.includes('cyclopstest'), undefined, {
+      timeout: 15_000,
+    });
     expect(await text()).toContain('cyclopstest');
   });
 });
 
+// The stub API logs every avatar upload it receives ("avatar upload: N bytes body, filename=...,
+// type=..., content-type header=..."); run.sh writes that log to e2e-out/stub-api.log.
+function stubUploads(): { bytes: number; type: string; contentType: string }[] {
+  const log = readFileSync(join(OUT, 'stub-api.log'), 'utf8');
+  return [
+    ...log.matchAll(
+      /avatar upload: (\d+) bytes body, filename=[^,]*, type=([^,]*), content-type header=(\S+)/g,
+    ),
+  ].map((m) => ({ bytes: Number(m[1]), type: m[2] ?? '', contentType: m[3] ?? '' }));
+}
+
 describe('uploads through the proxy', () => {
   for (const megabytes of [0.5, 2.5, 8]) {
     it(`sends a ${megabytes} MB multipart body intact`, async () => {
+      const before = stubUploads().length;
       const status = await page.evaluate(async (mb) => {
         const size = Math.round(mb * 1024 * 1024);
         const bytes = new Uint8Array(size);
@@ -170,6 +185,16 @@ describe('uploads through the proxy', () => {
         return res.status;
       }, megabytes);
       expect(status).toBe(200);
+
+      // What reached the API: the whole file plus only multipart framing, as a JPEG part, under a
+      // multipart content type (so the boundary header survived the proxy).
+      const received = stubUploads().slice(before);
+      expect(received).toHaveLength(1);
+      const fileBytes = Math.round(megabytes * 1024 * 1024);
+      expect(received[0]?.bytes).toBeGreaterThanOrEqual(fileBytes);
+      expect(received[0]?.bytes).toBeLessThan(fileBytes + 2000);
+      expect(received[0]?.type).toBe('image/jpeg');
+      expect(received[0]?.contentType).toBe('multipart/form-data');
     });
   }
 });

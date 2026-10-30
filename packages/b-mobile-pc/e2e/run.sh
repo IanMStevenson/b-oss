@@ -51,7 +51,9 @@ PIDS+=($!)
 node "$HERE/fake-authorize.mjs" 5193 >"$OUT/fake-authorize.log" 2>&1 &
 PIDS+=($!)
 
-# 5. The shell, in the container.
+# 5. The shell, in the container. Run as the container's root: Docker is rootless here, so that maps to
+#    the calling user and the files it leaves in $WORK can be removed by the trap above. (Another uid
+#    would map to a sub-uid the host user cannot delete.)
 docker run -d --rm --name bmpc-e2e-shell --network host \
   -e E2E_PROXY="${https_proxy:-}" \
   -v "$ROOT:/p" -v "$WORK:/tmp/ud" "$IMAGE" bash /p/packages/b-mobile-pc/e2e/docker/run-electron.sh >/dev/null
