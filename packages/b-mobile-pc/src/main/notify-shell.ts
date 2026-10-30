@@ -13,6 +13,7 @@ import type { NotifyPayload } from '../shared/notify.js';
 import { notificationText } from './notify-text.js';
 import type { ToShow } from './notify-poller.js';
 import { TapQueue } from './tap-queue.js';
+import { trayIconPath } from './tray-icon.js';
 import { loginItemWanted, requestExit, shouldHideOnClose } from './tray-policy.js';
 
 /** Argument added to the login item so a start at login goes straight to the tray. */
@@ -110,12 +111,22 @@ export class NotifyShell {
     setLoginItem(loginItemWanted(this.watchedAccounts()));
   }
 
+  /** b-mobile's own tray icon; if it cannot be loaded, the app icon, so the tray is never blank. */
   private trayIcon(): Electron.NativeImage {
-    const path = app.isPackaged
-      ? join(process.resourcesPath, 'tray-icon.png')
-      : join(__dirname, '../../../../assets/icons/tray-icon.png');
+    const path = trayIconPath({
+      packaged: app.isPackaged,
+      resourcesPath: process.resourcesPath,
+      mainDir: __dirname,
+    });
     const image = nativeImage.createFromPath(path);
-    return image.isEmpty() ? nativeImage.createEmpty() : image;
+    if (!image.isEmpty()) return image;
+    const fallback = nativeImage.createFromPath(
+      app.isPackaged ? process.execPath : join(__dirname, '../../build/icon.png'),
+    );
+    console.error(
+      `[tray] icon not loaded from ${path}; ${fallback.isEmpty() ? 'no fallback either' : 'using the app icon'}`,
+    );
+    return fallback;
   }
 
   private createTray(): void {
