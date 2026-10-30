@@ -47,6 +47,23 @@ export function maxZoomForMinEdge(width: number, height: number, minEdge: number
   return Math.max(1, Math.min(width, height) / (minEdge * THUMBNAIL_EDGE_MARGIN));
 }
 
+/** The crop the API uses when none is sent: a centred square covering 88% of the shorter edge.
+ * `ratio` is the displayed image's width / height. */
+export function defaultThumbnailCrop(ratio: number): ThumbnailCrop {
+  const w = ratio >= 1 ? 0.88 / ratio : 0.88;
+  return { x: round4((1 - w) / 2), y: round4((1 - w * ratio) / 2), w: round4(w) };
+}
+
+/** A crop as the percentage rect (0-100 of the displayed image) react-easy-crop starts from. */
+export function thumbnailCropToArea(crop: ThumbnailCrop, ratio: number): CropAreaPercent {
+  return {
+    x: crop.x * 100,
+    y: crop.y * 100,
+    width: crop.w * 100,
+    height: crop.w * ratio * 100,
+  };
+}
+
 export function cropToProportions(area: CropAreaPercent): ThumbnailCrop {
   // The API rejects (and silently replaces with its default crop) any thumbnail_crop where
   // x + w > 1 or y + w*width/height > 1, so values are floored, never rounded up, and w is capped
@@ -68,6 +85,10 @@ export function thumbnailCropToField(crop: ThumbnailCrop): string {
 }
 
 const EPSILON = 1e-9;
+
+function round4(n: number): number {
+  return Math.round(n * 10000) / 10000;
+}
 
 function floor4(n: number): number {
   return Math.max(0, Math.floor(n * 10000 + EPSILON) / 10000);

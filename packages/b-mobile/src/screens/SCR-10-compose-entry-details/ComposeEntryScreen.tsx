@@ -34,8 +34,8 @@ import { enqueueDraft } from '../../flows/composeFlow.js';
 import { describeError, mapApiError } from '../../data/errors.js';
 import { DateField } from '../../components/DateField.js';
 import { DescriptionField, TextField, ToggleRow } from '../../components/ComposeForm.js';
-import { PhotoCropper } from '../../components/PhotoCropper.js';
-import { canSelectThumbnail, cropToProportions, THUMBNAIL_MIN_EDGE } from '../../data/imageCrop.js';
+import { ThumbnailPhotoFrame } from '../../components/ThumbnailPhotoFrame.js';
+import { cropToProportions } from '../../data/imageCrop.js';
 import type { Area } from 'react-easy-crop';
 
 const TITLE_LIMIT = 50;
@@ -48,7 +48,6 @@ export function ComposeEntryScreen() {
   const clearDraft = useComposeDraftStore((s) => s.clearDraft);
 
   const [isMember, setIsMember] = useState<boolean | null>(null);
-  const [cropping, setCropping] = useState(false);
   const [eligibility, setEligibility] = useState<DayEligibility | null>(null);
   const [eligibilityLoading, setEligibilityLoading] = useState(false);
   const [unusablePhoto, setUnusablePhoto] = useState<string | null>(null);
@@ -175,38 +174,12 @@ export function ComposeEntryScreen() {
             )}
 
             {draft.photo && (
-              <div className="compose-photo-frame">
-                {cropping ? (
-                  <PhotoCropper
-                    imageSrc={draft.photo.webPath}
-                    onCropAreaChange={handleCropComplete}
-                    minCropEdge={THUMBNAIL_MIN_EDGE}
-                  />
-                ) : (
-                  <img src={draft.photo.webPath} alt="Selected" />
-                )}
-                {isMember && canSelectThumbnail(draft.photo.width, draft.photo.height) && (
-                  // Legible over any photo: opaque white pill while idle, solid green once
-                  // cropping is active (a thin green outline vanished into the image).
-                  <IonButton
-                    size="small"
-                    className="compose-crop-button"
-                    fill={cropping ? 'solid' : 'outline'}
-                    onClick={() => setCropping((c) => !c)}
-                    style={
-                      cropping
-                        ? undefined
-                        : {
-                            '--background': 'rgba(255, 255, 255, 0.92)',
-                            '--background-activated': '#ffffff',
-                            '--border-color': 'transparent',
-                          }
-                    }
-                  >
-                    {cropping ? 'Done' : 'Select thumbnail'}
-                  </IonButton>
-                )}
-              </div>
+              <ThumbnailPhotoFrame
+                photo={draft.photo}
+                crop={draft.thumbnailCrop}
+                canSelect={isMember === true}
+                onCropChange={handleCropComplete}
+              />
             )}
 
             <div className="compose-form">

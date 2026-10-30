@@ -438,6 +438,7 @@ export class BlipfotoClient {
       lat: rest.lat,
       lon: rest.lon,
       display_location: rest.display_location,
+      thumbnail_crop: rest.thumbnail_crop,
       exif_Make: rest.exif_Make,
       exif_Model: rest.exif_Model,
       exif_ExposureTime: rest.exif_ExposureTime,
