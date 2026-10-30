@@ -35,6 +35,7 @@ import {
   sanitiseResponseHeaders,
 } from './app-protocol.js';
 import { ErrorLog, parseErrorEntry, type LogFs } from './error-log.js';
+import { APP_USER_MODEL_ID } from './app-id.js';
 import { openAuthWindow } from './auth-window.js';
 import { DEFAULT_AUTH_HOSTS, validateAuthRequest, withOrigin } from './auth-request.js';
 import { electronPresenter, NotifyShell, type Presenter, startedHidden } from './notify-shell.js';
@@ -45,6 +46,10 @@ import { MIN_HEIGHT, MIN_WIDTH, parseWindowState } from './window-state.js';
 
 // Test hooks (e2e runs against a stub API and a fake sign-in page). Ignored in a packaged app.
 const testMode = !app.isPackaged;
+
+// Windows shows toast notifications only for an app whose AppUserModelID matches its Start Menu
+// shortcut, so set it before any window or notification exists (b-oss#674).
+if (process.platform === 'win32') app.setAppUserModelId(APP_USER_MODEL_ID);
 const apiOrigin = (testMode && process.env.BMPC_API_ORIGIN) || DEFAULT_API_ORIGIN;
 const authHosts = (testMode && process.env.BMPC_AUTH_HOSTS?.split(',')) || [...DEFAULT_AUTH_HOSTS];
 const authAllowHttp = testMode && process.env.BMPC_AUTH_ALLOW_HTTP === '1';
