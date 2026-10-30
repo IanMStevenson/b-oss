@@ -198,3 +198,131 @@ describe('uploads through the proxy', () => {
     });
   }
 });
+
+// Desktop notifications by polling (b-oss#610). The shell polls the stub API every second here
+// (BMPC_TEST_POLL_INTERVAL_MS) and records what it would have shown instead of showing it
+// (BMPC_TEST_NOTIFY_PORT); the stub's counts are raised and lowered over its /__unread control URL.
+// The tests run in order and build on the account the sign-in tests left signed in.
+const STUB = 'http://127.0.0.1:5192';
+const NOTIFY = 'http://127.0.0.1:5194';
+
+interface Shown {
+  title: string;
+  body: string;
+  count: number;
+  payload: { kind: string; stream?: string; accountId: string };
+}
+const shown = async (): Promise<Shown[]> =>
+  (await fetch(`${NOTIFY}/shown`)).json() as Promise<Shown[]>;
+const setUnread = async (comments: number, notifications: number): Promise<void> => {
+  await fetch(`${STUB}/__unread?comments=${comments}&notifications=${notifications}`);
+};
+const settle = (ms = 3500): Promise<void> => new Promise((resolve) => setTimeout(resolve, ms));
+const flipToggle = (label: string, checked: boolean): Promise<unknown> =>
+  page.evaluate(
+    (args) =>
+      document
+        .querySelector(`ion-toggle[aria-label="${args.label}"]`)
+        ?.dispatchEvent(
+          new CustomEvent('ionChange', { bubbles: true, detail: { checked: args.checked } }),
+        ),
+    { label, checked },
+  );
+
+describe('desktop notifications by polling', () => {
+  it('is a plain setting: no second sign-in, nothing "unavailable", and the tray is explained', async () => {
+    await setUnread(2, 3);
+    await go('/settings/notifications', 4000);
+    const body = await text();
+    expect(body).not.toMatch(/aren.t available in this build/i);
+    expect(body).toContain('system tray');
+    // Turning notifications on opens no sign-in window and asks for nothing.
+    await flipToggle('New comments', true);
+    await flipToggle('New notifications', true);
+    await settle(1500);
+    expect(page.url()).toContain('/settings/notifications');
+    await shot('4-notifications-on');
+  });
+
+  it('records the starting counts without announcing them', async () => {
+    await settle();
+    expect(await shown()).toEqual([]);
+  });
+
+  it('shows one OS notification per rise, with the window open', async () => {
+    await setUnread(5, 3); // +3 comments
+    await settle();
+    expect(await shown()).toEqual([
+      expect.objectContaining({
+        body: 'cyclopstest: 3 new comments',
+        count: 3,
+        payload: { kind: 'activity', stream: 'comments', accountId: 'cyclopstest' },
+      }),
+    ]);
+    await settle(); // several more polls with unchanged counts: still just the one
+    expect(await shown()).toHaveLength(1);
+
+    await setUnread(5, 4); // +1 notification
+    await settle();
+    const list = await shown();
+    expect(list).toHaveLength(2);
+    expect(list[1]).toMatchObject({
+      body: 'cyclopstest: 1 new notification',
+      payload: { stream: 'notifications' },
+    });
+  });
+
+  it('says nothing for a stream switched off, and no catch-up when it is switched back on', async () => {
+    await flipToggle('New notifications', false);
+    await settle(1500);
+    const before = (await shown()).length;
+    await setUnread(5, 9); // notifications rise while off
+    await settle();
+    expect(await shown()).toHaveLength(before);
+    await flipToggle('New notifications', true);
+    await settle();
+    expect(await shown()).toHaveLength(before); // already counted while it was off
+    await setUnread(6, 9); // the comments stream is still on
+    await settle();
+    const list = await shown();
+    expect(list).toHaveLength(before + 1);
+    expect(list.at(-1)?.payload).toMatchObject({ stream: 'comments' });
+  });
+
+  it('a click routes to the right screen', async () => {
+    await go('/browse', 2500);
+    const list = await shown();
+    const index = list.findIndex((n) => n.payload.stream === 'notifications');
+    expect((await fetch(`${NOTIFY}/click/${index}`, { method: 'POST' })).status).toBe(200);
+    await page.waitForFunction(() => location.pathname === '/notifications', undefined, {
+      timeout: 10_000,
+    });
+    const last = list.length - 1;
+    await fetch(`${NOTIFY}/click/${last}`, { method: 'POST' });
+
+    await page.waitForFunction(() => location.pathname === '/comments', undefined, {
+      timeout: 10_000,
+    });
+  });
+
+  it('a dead token raises exactly one sign-in-again notification, and a click opens Accounts', async () => {
+    const before = (await shown()).length;
+    await fetch(`${STUB}/__token-dead?on=1`);
+    await settle(5000);
+    const after = await shown();
+    const reauth = after.slice(before).filter((n) => n.payload.kind === 'reauth-required');
+    expect(reauth).toHaveLength(1);
+    expect(reauth[0]?.body).toMatch(/Sign in again/);
+    await settle(); // polling that account has stopped: still just the one
+    expect((await shown()).filter((n) => n.payload.kind === 'reauth-required')).toHaveLength(1);
+    await fetch(`${STUB}/__token-dead?on=0`);
+
+    const index = after.findIndex((n) => n.payload.kind === 'reauth-required');
+    await fetch(`${NOTIFY}/click/${index}`, { method: 'POST' });
+    await page.waitForFunction(() => location.pathname === '/accounts', undefined, {
+      timeout: 10_000,
+    });
+    expect(page.url()).toContain('reauth=cyclopstest');
+    await shot('5-reauth');
+  });
+});
