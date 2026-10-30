@@ -8,7 +8,7 @@
 
 import { chromium, type Browser, type Page } from 'playwright-core';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { existsSync, mkdirSync, readFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readdirSync, readFileSync, renameSync } from 'node:fs';
 import { join } from 'node:path';
 
 const CDP = process.env.BMPC_CDP ?? 'http://127.0.0.1:9222';
@@ -163,6 +163,40 @@ function stubUploads(): { bytes: number; type: string; contentType: string }[] {
     ),
   ].map((m) => ({ bytes: Number(m[1]), type: m[2] ?? '', contentType: m[3] ?? '' }));
 }
+
+describe('a stale session (b-oss#678)', () => {
+  const assets = join(__dirname, '..', '..', 'b-mobile', 'dist', 'assets');
+  const chunk = (): string => {
+    const name = readdirSync(assets).find((f) => /^MapScreen-.*\.js$/.test(f));
+    if (!name) throw new Error('No MapScreen chunk in the build');
+    return join(assets, name);
+  };
+
+  it('reloads once when a lazy chunk has vanished, then shows the error screen; a restored build works', async () => {
+    const file = chunk();
+    renameSync(file, `${file}.hidden`);
+    try {
+      let loads = 0;
+      const count = (): void => {
+        loads += 1;
+      };
+      page.on('load', count);
+      await page.evaluate(() => sessionStorage.removeItem('bmpc-stale-chunk-reload'));
+      await go('/map', 6000);
+      page.off('load', count);
+      // The navigation itself, plus exactly one automatic reload; no loop.
+      await shot('6-stale-chunk');
+      expect(loads).toBe(2);
+      expect(await text()).toMatch(/something went wrong|reload/i);
+      await shot('6-stale-chunk');
+    } finally {
+      renameSync(`${file}.hidden`, file);
+    }
+    await page.evaluate(() => sessionStorage.removeItem('bmpc-stale-chunk-reload'));
+    await go('/map', 4000);
+    expect(await text()).not.toMatch(/something went wrong/i);
+  });
+});
 
 describe('uploads through the proxy', () => {
   for (const megabytes of [0.5, 2.5, 8]) {

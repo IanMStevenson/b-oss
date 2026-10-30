@@ -7,6 +7,7 @@
 // logged or shown: they could carry tokens or account data.
 
 import { Component, type ReactNode } from 'react';
+import { recoverFromStaleChunk } from '../platform/staleSession.js';
 import { t } from '../strings/index.js';
 
 interface AppErrorBoundaryProps {
@@ -22,6 +23,11 @@ export class AppErrorBoundary extends Component<AppErrorBoundaryProps, AppErrorB
 
   static getDerivedStateFromError(): AppErrorBoundaryState {
     return { hasError: true };
+  }
+
+  componentDidCatch(error: unknown): void {
+    // A lazy screen whose chunk vanished (desktop, files replaced under a running app): reload once.
+    recoverFromStaleChunk(error);
   }
 
   render() {

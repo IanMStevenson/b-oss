@@ -98,6 +98,11 @@ e2e image (test hooks are ignored when packaged, so only the real API is reachab
 
 ## Testing on Windows (Mutagen dev loop)
 
+**Exit the app from the tray before testing a new synced build.** Closing the window only hides it, so
+the old instance keeps running while its files are replaced underneath it, and its lazily loaded screens
+then fail to load. The app reloads itself once when that happens (`platform/staleSession.ts`, b-oss#678),
+but a clean start is what you want when testing.
+
 Same two-hop pattern as b-ark (`devutils/dev-vm-setup/mutagen-dev-loop-pattern.md`): a VM-only relay
 mirrors a worktree into a stable staging folder, and a cross-machine session mirrors that to Windows.
 
