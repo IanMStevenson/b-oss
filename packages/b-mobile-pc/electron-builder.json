@@ -1,0 +1,22 @@
+{
+  "appId": "co.salientpoint.b-mobile-pc",
+  "productName": "b-mobile",
+  "copyright": "Copyright © 2026 Ian Stevenson",
+  "directories": { "output": "dist-electron", "buildResources": "build" },
+  "files": ["dist/**/*", "package.json"],
+  "extraResources": [{ "from": "../b-mobile/dist/", "to": "web/" }],
+  "win": {
+    "target": [
+      { "target": "nsis", "arch": ["x64"] },
+      { "target": "portable", "arch": ["x64"] }
+    ],
+    "icon": "build/icon.png"
+  },
+  "nsis": {
+    "oneClick": true,
+    "perMachine": false,
+    "runAfterFinish": true,
+    "artifactName": "b-mobile-Setup-${version}.${ext}"
+  },
+  "portable": { "artifactName": "b-mobile-${version}-portable.${ext}" }
+}

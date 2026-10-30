@@ -44,6 +44,21 @@ Environment (ignored in a packaged app): `BMPC_DIST` (web build directory), `BMP
 stub API), `BMPC_AUTH_HOSTS`, `BMPC_AUTH_ALLOW_HTTP=1`. On the dev VM the Electron binary has to be
 fetched by hand and the app run in Docker; see the e2e issue (b-oss#614).
 
+## Windows exe
+
+```bash
+packages/b-mobile-pc/scripts/build-win-docker.sh
+```
+
+Builds b-mobile and the shell, then packages them with electron-builder in the same Wine image b-ark
+uses (no Wine on the host). Output in `packages/b-mobile-pc/dist-electron/`: `b-mobile-<version>-portable.exe`
+(single file, just run it) and `b-mobile-Setup-<version>.exe` (one-click, per-user installer). Both are
+**unsigned**, so SmartScreen warns ("More info", "Run anyway"); signing and auto-update are b-oss#612. The
+web build is copied into the app as `resources/web`; `productName` is `b-mobile`, so user data lives in
+`%APPDATA%\b-mobile`. A repo-root `.env.local` with `VITE_BLIPFOTO_CLIENT_ID` is needed (baked into the web
+build). The packaged layout can be smoke-tested on Linux with `npx electron-builder --linux dir` and the
+e2e image (test hooks are ignored when packaged, so only the real API is reachable).
+
 ## Testing on Windows (Mutagen dev loop)
 
 Same two-hop pattern as b-ark (`devutils/dev-vm-setup/mutagen-dev-loop-pattern.md`): a VM-only relay
