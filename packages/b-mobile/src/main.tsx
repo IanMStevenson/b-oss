@@ -26,9 +26,11 @@ import './styles/globals.css';
 import { AppShell } from './app/AppShell.js';
 import { AppErrorBoundary } from './components/AppErrorBoundary.js';
 import { installGlobalErrorLogging } from './platform/diagnostics.js';
+import { installStaleSessionRecovery } from './platform/staleSession.js';
 import { initTheme } from './theme/theme.js';
 import { initPointerDensity } from './theme/pointerDensity.js';
 
+installStaleSessionRecovery();
 setupIonicReact();
 initTheme(); // also sets the system-bar styles
 installGlobalErrorLogging(); // desktop shell only; a no-op elsewhere

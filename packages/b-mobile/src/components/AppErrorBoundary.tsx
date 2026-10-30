@@ -19,6 +19,7 @@ import {
   toErrorInfo,
   type ErrorInfo,
 } from '../platform/diagnostics.js';
+import { recoverFromStaleChunk } from '../platform/staleSession.js';
 import { t } from '../strings/index.js';
 
 interface AppErrorBoundaryProps {
@@ -42,10 +43,13 @@ export class AppErrorBoundary extends Component<AppErrorBoundaryProps, AppErrorB
   }
 
   componentDidCatch(error: unknown, errorInfo: ReactErrorInfo): void {
-    if (!hasErrorDiagnostics()) return;
-    const info = toErrorInfo('boundary', error, errorInfo.componentStack ?? undefined);
-    logError(info);
-    this.setState({ info });
+    if (hasErrorDiagnostics()) {
+      const info = toErrorInfo('boundary', error, errorInfo.componentStack ?? undefined);
+      logError(info);
+      this.setState({ info });
+    }
+    // A lazy screen whose chunk vanished (desktop, files replaced under a running app): reload once.
+    recoverFromStaleChunk(error);
   }
 
   private copy = (): void => {
