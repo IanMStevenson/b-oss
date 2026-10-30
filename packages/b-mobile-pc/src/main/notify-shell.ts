@@ -12,6 +12,7 @@ import { CHANNELS } from '../shared/bridge.js';
 import type { NotifyPayload } from '../shared/notify.js';
 import { notificationText } from './notify-text.js';
 import type { ToShow } from './notify-poller.js';
+import { safeSend } from './safe-ipc.js';
 import { TapQueue } from './tap-queue.js';
 import { loginItemWanted, requestExit, shouldHideOnClose } from './tray-policy.js';
 
@@ -68,17 +69,17 @@ export class NotifyShell {
    * Always shown, whether or not the window has focus. */
   show = async (item: ToShow): Promise<void> => {
     await this.presenter.show(item, () => this.clicked(item.payload));
-    this.getWindow()?.webContents.send(CHANNELS.notifyReceived, item.payload);
+    safeSend(this.getWindow(), CHANNELS.notifyReceived, item.payload);
   };
 
   private clicked(payload: NotifyPayload): void {
     this.reveal();
-    this.taps.tap(payload, (p) => this.getWindow()?.webContents.send(CHANNELS.notifyTapped, p));
+    this.taps.tap(payload, (p) => void safeSend(this.getWindow(), CHANNELS.notifyTapped, p));
   }
 
   /** The page asked for any click that arrived before it was listening. */
   tappedReady(): void {
-    this.taps.ready((p) => this.getWindow()?.webContents.send(CHANNELS.notifyTapped, p));
+    this.taps.ready((p) => void safeSend(this.getWindow(), CHANNELS.notifyTapped, p));
   }
 
   /** Call when the page is (re)loading: it has no listener until it asks again. */
