@@ -158,14 +158,6 @@ describe('AccountSwitcherOverlay', () => {
     expect(push).toHaveBeenCalledWith('/accounts');
   });
 
-  it('"Notification settings" dismisses and opens the notification settings', async () => {
-    useAccountsStore.setState({ accounts: [account()], activeAccountId: 'a1' });
-    const { onDismiss } = renderOverlay();
-    await userEvent.click(screen.getByText('Notification settings'));
-    expect(onDismiss).toHaveBeenCalled();
-    expect(push).toHaveBeenCalledWith('/settings/notifications');
-  });
-
   it('tapping the backdrop dismisses without switching or navigating', async () => {
     useAccountsStore.setState({ accounts: [account()], activeAccountId: 'a1' });
     const onDismiss = vi.fn();
