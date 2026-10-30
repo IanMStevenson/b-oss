@@ -6,9 +6,20 @@
 // desktop shell every export is a no-op, the same stance as platform/push.ts off native.
 
 import { desktopBridge } from './desktop.js';
-import type { DesktopNotifyPayload, DesktopNotifySettings } from './desktop.js';
+import type {
+  DesktopNotifyPayload,
+  DesktopNotifySettings,
+  DesktopNotifyStatus,
+  DesktopTestNotifyResult,
+} from './desktop.js';
 
-export type { DesktopNotifyPayload, DesktopNotifySettings };
+export type {
+  DesktopAccountStatus,
+  DesktopNotifyPayload,
+  DesktopNotifySettings,
+  DesktopNotifyStatus,
+  DesktopTestNotifyResult,
+} from './desktop.js';
 
 /** Tells the shell which accounts to watch (the full set, every time). */
 export async function configureDesktopNotifications(
@@ -29,4 +40,19 @@ export function onDesktopNotificationTapped(
   handler: (payload: DesktopNotifyPayload) => void,
 ): () => void {
   return desktopBridge()?.notify.onTapped(handler) ?? (() => {});
+}
+
+/** Per-account polling status for the settings screen; null off the desktop shell. */
+export async function getDesktopNotifyStatus(): Promise<DesktopNotifyStatus | null> {
+  return (await desktopBridge()?.notify.status()) ?? null;
+}
+
+/** Asks the shell to check every watched account now; null off the desktop shell. */
+export async function checkDesktopNotificationsNow(): Promise<DesktopNotifyStatus | null> {
+  return (await desktopBridge()?.notify.checkNow()) ?? null;
+}
+
+/** Shows a toast at once, without the API ("Send a test notification"). */
+export async function sendDesktopTestNotification(): Promise<DesktopTestNotifyResult | null> {
+  return (await desktopBridge()?.notify.sendTest()) ?? null;
 }

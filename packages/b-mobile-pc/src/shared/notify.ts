@@ -21,6 +21,43 @@ export interface NotifySettings {
   accounts: NotifyAccountConfig[];
 }
 
+/** How the last check of an account went. `text` is a short plain-language line for the settings
+ * screen; it never holds a token or any response content. */
+export interface CheckResult {
+  kind:
+    | 'baseline' // first check: starting counts recorded, nothing announced
+    | 'ok' // counts read; `newItems` says how many new since the last check
+    | 'offline' // the machine reports no network, or the request could not connect
+    | 'sign-in-needed' // Blipfoto rejected the token
+    | 'rate-limited'
+    | 'no-token' // nothing in the secure store for the account
+    | 'error';
+  text: string;
+  /** Items newer than the last check, whether or not a stream was on for them. */
+  newItems?: number;
+}
+
+/** What the settings screen shows for one watched account (b-oss#673, #677). Times are epoch ms. */
+export interface AccountStatus {
+  accountId: string;
+  lastCheckedAt: number | null;
+  /** When the next check is due (null while one is running, or after "sign in again"). */
+  nextCheckAt: number | null;
+  checking: boolean;
+  result: CheckResult | null;
+}
+
+export interface NotifyStatus {
+  accounts: AccountStatus[];
+}
+
+/** The outcome of "Send a test notification". `ok` means the OS accepted the toast, which is not
+ * proof that it was visible (Focus Assist / Do Not Disturb can still hide it). */
+export interface TestNotifyResult {
+  ok: boolean;
+  detail: string;
+}
+
 const MAX_ACCOUNTS = 32;
 const MAX_ID_LENGTH = 128;
 
