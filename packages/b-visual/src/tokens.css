@@ -83,3 +83,38 @@
   --leading-normal: 1.45;
   --leading-relaxed: 1.55;
 }
+
+/*
+ * Density: the size of controls. The values on :root are the touch sizes (what the app has always
+ * used); `:root[data-pointer='fine']` makes them compact for a mouse. The attribute follows the
+ * input device (matchMedia '(pointer: fine)', set live by b-mobile), not the platform, so a tablet
+ * with a mouse is compact and a phone or touch tablet is unchanged. Each token needs a compact
+ * counterpart below (tokens.test.ts checks).
+ */
+:root {
+  --control-height: 40px; /* buttons, pill segments' container */
+  --control-padding-x: 20px;
+  --control-padding-x-small: 16px;
+  --control-font-size: 0.9375rem;
+  --control-font-size-small: 0.875rem;
+  --segment-button-height: 34px;
+  --field-height: 48px; /* text inputs */
+  --field-padding: 12px;
+  --row-height: 56px; /* toggle rows, the date field */
+  --list-row-height: 64px; /* queue rows */
+  --tile-height: 128px; /* the big New entry tiles */
+}
+
+:root[data-pointer='fine'] {
+  --control-height: 32px;
+  --control-padding-x: 16px;
+  --control-padding-x-small: 12px;
+  --control-font-size: 0.875rem;
+  --control-font-size-small: 0.8125rem;
+  --segment-button-height: 28px;
+  --field-height: 36px;
+  --field-padding: 8px;
+  --row-height: 44px;
+  --list-row-height: 52px;
+  --tile-height: 88px;
+}

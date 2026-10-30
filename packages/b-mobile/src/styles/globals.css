@@ -112,7 +112,7 @@ ion-segment.settings-pill-segment {
   padding: 3px;
   margin: 0 16px 4px;
   width: calc(100% - 32px);
-  min-height: 40px;
+  min-height: var(--control-height);
 }
 
 ion-segment.settings-pill-segment ion-segment-button {
@@ -120,7 +120,7 @@ ion-segment.settings-pill-segment ion-segment-button {
   --color-checked: var(--on-accent);
   --indicator-color: var(--accent);
   --border-radius: 999px;
-  min-height: 34px;
+  min-height: var(--segment-button-height);
 }
 
 /* The md indicator is a 2px underline by default; stretch it into a filled pill behind the label. */
