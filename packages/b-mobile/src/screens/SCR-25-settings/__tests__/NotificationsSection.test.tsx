@@ -88,7 +88,10 @@ vi.mock('../../../flows/pushFlow.js', () => ({ updatePollingInterval, updatePush
 // Off-native by default (no in-app browser, so the mismatch alert offers no retry); the
 // retry test flips it.
 let isNative = false;
-vi.mock('../../../platform/appState.js', () => ({ isNativePlatform: () => isNative }));
+vi.mock('../../../platform/platformKind.js', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../../../platform/platformKind.js')>()),
+  platformKind: () => (isNative ? 'android' : 'web'),
+}));
 
 vi.mock('../../../platform/prefs.js', () => ({
   getPref: vi.fn().mockResolvedValue(null),

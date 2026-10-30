@@ -49,7 +49,7 @@ import { AccountMismatchAlert, canRetryInApp } from '../../components/AccountMis
 import { useServiceRoundExplainer } from '../../components/ServiceRoundExplainer.js';
 import { openUrl } from '../../platform/browser.js';
 import { isPushAvailable } from '../../platform/push.js';
-import { isNativePlatform } from '../../platform/appState.js';
+import { capabilities } from '../../platform/capabilities.js';
 import { useAppNavigate } from '../../app/routes/useAppNavigate.js';
 import { useOverlay } from '../../app/OverlayProvider.js';
 import { useDevicePrefsStore } from '../../state/devicePrefsStore.js';
@@ -65,6 +65,7 @@ type Status = 'idle' | 'authenticating' | 'error';
 
 export function SignInScreen({ returnTo }: { returnTo?: string } = {}) {
   const navigate = useAppNavigate();
+  const { auth } = capabilities();
   // With an account already signed in this screen was reached by drilling in (Accounts → Add
   // account), so it gets Back like every other drilled-into screen. The signed-out landing page has
   // nothing to go back to and keeps the menu button (b-oss#195), unless a gated action sent the
@@ -108,7 +109,7 @@ export function SignInScreen({ returnTo }: { returnTo?: string } = {}) {
   }, [hydrated, seenFirstRunExplainer]);
 
   useEffect(() => {
-    if (!isNativePlatform()) return;
+    if (capabilities().push.transport === 'none') return;
     void isPushAvailable().then(setPushAvailable);
   }, []);
 
@@ -133,7 +134,7 @@ export function SignInScreen({ returnTo }: { returnTo?: string } = {}) {
         {
           scope,
           notifications: notifications && pushAvailable,
-          useEmbedded: isNativePlatform() && !useBrowser,
+          useEmbedded: auth.embeddedAvailable && !(auth.userCanChooseBrowser && useBrowser),
         },
         { beforeServiceRound: explainer.ask },
       );
@@ -228,7 +229,7 @@ export function SignInScreen({ returnTo }: { returnTo?: string } = {}) {
           />
         </IonItem>
 
-        {isNativePlatform() && (
+        {auth.userCanChooseBrowser && (
           // The explanation lives inside the same item as the toggle it describes, indented under
           // the title, so it reads as that setting's description rather than a stray paragraph.
           <IonItem>
