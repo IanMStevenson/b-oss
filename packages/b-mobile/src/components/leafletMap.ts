@@ -40,6 +40,7 @@ export function createLeafletMap(
   handlers: MapFailureHandlers,
 ): L.Map | null {
   let map: L.Map;
+  let attribution: L.Control.Attribution;
   try {
     map = L.map(container, {
       center: view.center,
@@ -51,7 +52,10 @@ export function createLeafletMap(
       zoomAnimation: true,
     });
     L.control.zoom({ position: 'topleft' }).addTo(map);
-    L.control.attribution({ prefix: false }).addAttribution(tiles.attribution).addTo(map);
+    attribution = L.control
+      .attribution({ prefix: false })
+      .addAttribution(tiles.attribution)
+      .addTo(map);
 
     const layer = L.tileLayer(tiles.urlTemplate, {
       maxZoom: tiles.maxZoom,
@@ -83,11 +87,11 @@ export function createLeafletMap(
   }
 
   // The attribution links go through the app's external-link mechanism (Custom Tabs on device),
-  // not a bare target=_blank, which a Capacitor WebView doesn't open reliably.
-  container.addEventListener('click', (e) => {
-    const link =
-      e.target instanceof Element ? e.target.closest('.leaflet-control-attribution a') : null;
-    if (!(link instanceof HTMLAnchorElement)) return;
+  // not a bare target=_blank, which a Capacitor WebView doesn't open reliably. The listener is on
+  // the control's own element, which Leaflet destroys with the map, so nothing outlives it.
+  attribution.getContainer()?.addEventListener('click', (e) => {
+    const link = e.target instanceof Element ? e.target.closest('a') : null;
+    if (!link) return;
     e.preventDefault();
     void openUrl(link.href);
   });

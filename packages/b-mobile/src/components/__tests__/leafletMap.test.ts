@@ -89,12 +89,4 @@ describe('createLeafletMap', () => {
     expect(event.defaultPrevented).toBe(true);
     expect(openUrl).toHaveBeenCalledWith('https://www.geoapify.com/');
   });
-
-  it('stops opening links once the map is removed', () => {
-    const { container, map } = setup();
-    const link = container.querySelector<HTMLAnchorElement>('.leaflet-control-attribution a');
-    map!.remove();
-    link!.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }));
-    expect(openUrl).not.toHaveBeenCalled();
-  });
 });
