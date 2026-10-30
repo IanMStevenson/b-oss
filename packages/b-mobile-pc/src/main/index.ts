@@ -39,10 +39,12 @@ import {
   electronPresenter,
   getLaunchAtLogin,
   NotifyShell,
+  type Presenter,
   setLaunchAtLogin,
   startedHidden,
 } from './notify-shell.js';
 import { NotifyPoller, POLL_INTERVAL_MS } from './notify-poller.js';
+import { RecordingPresenter, serveRecordingPresenter } from './notify-test-presenter.js';
 import { SecureStore, type SecretCrypto } from './secure-store.js';
 import { MIN_HEIGHT, MIN_WIDTH, parseWindowState } from './window-state.js';
 
@@ -214,7 +216,10 @@ async function createWindow(showWindow: boolean): Promise<void> {
   win.webContents.on('will-navigate', keepInApp);
   win.webContents.on('will-redirect', keepInApp);
 
-  win.webContents.on('did-start-loading', () => notifyShell?.pageReset());
+  // A full page load (not an in-app route change) throws the web app's listeners away.
+  win.webContents.on('did-start-navigation', (event) => {
+    if (event.isMainFrame && !event.isSameDocument) notifyShell?.pageReset();
+  });
 
   win.on('close', (event) => {
     // While notifications are being polled for, closing the window hides it to the tray.
@@ -299,7 +304,16 @@ if (!app.requestSingleInstanceLock()) {
 
     // Desktop notifications by polling (b-oss#610). The poller starts before the window so a start
     // at login can go straight to the tray, and it keeps running with the window hidden.
-    const shell = new NotifyShell(() => mainWindow, electronPresenter);
+    // Test hook (ignored when packaged): record notifications instead of showing them, and serve
+    // them on a local port for the e2e tests.
+    const testNotifyPort = testMode ? Number(process.env.BMPC_TEST_NOTIFY_PORT) : 0;
+    let presenter: Presenter = electronPresenter;
+    if (testNotifyPort > 0) {
+      const recording = new RecordingPresenter();
+      serveRecordingPresenter(recording, testNotifyPort);
+      presenter = recording;
+    }
+    const shell = new NotifyShell(() => mainWindow, presenter);
     notifyShell = shell;
     const stateFile = atomicFile(join(app.getPath('userData'), 'notify-state.json'));
     const poller = new NotifyPoller({

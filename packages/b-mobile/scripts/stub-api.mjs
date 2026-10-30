@@ -271,7 +271,9 @@ function handle(path, q) {
       return { notifications: Array.from({ length: 8 }, (_, i) => notification(i)) };
     case 'messages/notifications/unread':
     case 'messages/totals/unread':
-      return { comments: 2, notifications: 3 };
+      // Dead-token mode (the e2e for desktop notifications): Blipfoto's "token invalid" reply.
+      if (unread.tokenDead) throw new StubError(51, 'The access token is invalid.');
+      return { comments: unread.comments, notifications: unread.notifications };
     case 'users/followers':
     case 'users/following':
     case 'users/search':
@@ -347,6 +349,17 @@ function svg(seed, kind) {
 
 let avatarFail = 'none';
 
+// Controllable unread counts (/__unread?comments=5&notifications=1, /__token-dead?on=1), so a test
+// can raise them and watch what the desktop shell's poller does.
+const unread = { comments: 2, notifications: 3, tokenDead: false };
+
+class StubError extends Error {
+  constructor(code, message) {
+    super(message);
+    this.code = code;
+  }
+}
+
 createServer((req, res) => {
   const url = new URL(req.url, HOST);
   const send = (status, type, body) => {
@@ -359,6 +372,17 @@ createServer((req, res) => {
     });
     res.end(body);
   };
+  if (url.pathname === '/__unread') {
+    for (const key of ['comments', 'notifications']) {
+      const value = url.searchParams.get(key);
+      if (value !== null) unread[key] = Number(value);
+    }
+    return send(200, 'application/json', JSON.stringify(unread));
+  }
+  if (url.pathname === '/__token-dead') {
+    unread.tokenDead = url.searchParams.get('on') === '1';
+    return send(200, 'application/json', JSON.stringify(unread));
+  }
   if (url.pathname === '/__avatar-fail') {
     avatarFail = url.searchParams.get('mode') ?? 'none';
     return send(200, 'text/plain', `avatar failure mode: ${avatarFail}`);
@@ -382,11 +406,7 @@ createServer((req, res) => {
         return send(413, 'text/html', '<h1>413 Request Entity Too Large</h1>');
       if (part && avatarFail === '500') return send(500, 'text/plain', '');
       if (part && avatarFail === '500-body')
-        return send(
-          500,
-          'text/html',
-          '<html><body>Internal Server Error</body></html>',
-        );
+        return send(500, 'text/html', '<html><body>Internal Server Error</body></html>');
       if (part && avatarFail === 'blipfoto-240')
         return send(
           200,
@@ -406,9 +426,16 @@ createServer((req, res) => {
   // The proxy rewrites /api/blipfoto/4/x.json -> /4/x.json.
   const m = url.pathname.match(/^\/4\/(.+?)(?:\.json)?$/);
   if (!m) return send(404, 'text/plain', 'not found');
-  send(
-    200,
-    'application/json',
-    JSON.stringify({ version: 4, error: null, data: handle(m[1], url.searchParams) }),
-  );
+  let data;
+  try {
+    data = handle(m[1], url.searchParams);
+  } catch (err) {
+    if (!(err instanceof StubError)) throw err;
+    return send(
+      200,
+      'application/json',
+      JSON.stringify({ version: 4, error: { code: err.code, message: err.message }, data: null }),
+    );
+  }
+  send(200, 'application/json', JSON.stringify({ version: 4, error: null, data }));
 }).listen(port, '127.0.0.1', () => console.log(`stub API on ${HOST}`));

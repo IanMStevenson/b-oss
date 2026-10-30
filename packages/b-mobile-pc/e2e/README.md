@@ -21,13 +21,22 @@ permissions), browsing through the API proxy, signing in through the real UI (em
 authorize server, redirect capture), the token landing in the secure store and surviving a reload, and
 multipart uploads of 0.5, 2.5 and 8 MB.
 
+Desktop notifications by polling (b-oss#610): the shell polls the stub API every second instead of every
+five minutes (`BMPC_TEST_POLL_INTERVAL_MS`) and records the notifications it would have shown instead of
+showing them (`BMPC_TEST_NOTIFY_PORT`: `GET /shown`, `POST /click/<n>`); the stub's counts and a dead-token
+mode are driven over `/__unread` and `/__token-dead`. Covered: enabling is a plain setting (no sign-in
+round, no "unavailable" copy), the first poll announces nothing, one notification per rise, none for a
+stream switched off and no catch-up when it comes back, a click routes to the right screen, and a dead
+token raises exactly one sign-in-again notification.
+
 ## What it cannot cover
 
 - **The OS keystore.** A container has no usable one, so the shell is started with
   `BMPC_TEST_PLAINTEXT_STORE=1`, a test hook that is ignored in a packaged app. Whether tokens are really
   encrypted at rest (DPAPI, Keychain, libsecret) and the refusal when they cannot be needs a real
   Windows, macOS or Linux desktop session.
-- Windows- or macOS-specific behaviour (installer, protocol registration, tray, updates).
+- Windows- or macOS-specific behaviour (installer, protocol registration, tray, updates), real OS
+  notifications (the harness swaps in a recorder), hide-to-tray on close, and launch at login.
 - The real Blipfoto API and a real account.
 
 ## Notes from building it
@@ -35,6 +44,6 @@ multipart uploads of 0.5, 2.5 and 8 MB.
 - Electron's postinstall download cannot use a proxy; `run.sh` fetches the zip with `curl`, which can.
 - `scrot`/screen captures of Xvfb return stale frames. Use `page.screenshot()` over CDP (these tests do).
 - The test hooks live in `src/main/index.ts` behind `!app.isPackaged`: `BMPC_DIST`, `BMPC_API_ORIGIN`,
-  `BMPC_AUTH_HOSTS`, `BMPC_AUTH_ALLOW_HTTP`, `BMPC_AUTH_ORIGIN`, `BMPC_TEST_PLAINTEXT_STORE`.
+  `BMPC_AUTH_HOSTS`, `BMPC_AUTH_ALLOW_HTTP`, `BMPC_AUTH_ORIGIN`, `BMPC_TEST_PLAINTEXT_STORE`, `BMPC_TEST_POLL_INTERVAL_MS`, `BMPC_TEST_NOTIFY_PORT`.
 - On the dev VM the image CDN is blocked by the egress allowlist, so photos in the feed do not load;
   nothing here depends on them.
