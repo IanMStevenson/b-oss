@@ -28,13 +28,14 @@ import {
   APP_SCHEME,
   DEFAULT_API_ORIGIN,
   buildCsp,
-  isTrustedSender,
   mimeFor,
   planAppRequest,
   sanitiseRequestHeaders,
   sanitiseResponseHeaders,
 } from './app-protocol.js';
 import { ErrorLog, parseErrorEntry, type LogFs } from './error-log.js';
+import { isTrustedEvent } from './safe-ipc.js';
+import { describeRejection } from './unhandled.js';
 import { openAuthWindow } from './auth-window.js';
 import { DEFAULT_AUTH_HOSTS, validateAuthRequest, withOrigin } from './auth-request.js';
 import { electronPresenter, NotifyShell, type Presenter, startedHidden } from './notify-shell.js';
@@ -247,6 +248,12 @@ async function createWindow(showWindow: boolean): Promise<void> {
   await win.loadURL(`${APP_ORIGIN}/`);
 }
 
+// A rejection nobody handled must leave a line in the log, not just Node's warning. (The error log
+// of b-oss#639 takes over from console.error once it is in.)
+process.on('unhandledRejection', (reason) => {
+  console.error(`[b-mobile-pc] unhandled rejection: ${describeRejection(reason)}`);
+});
+
 // --- start-up -------------------------------------------------------------------------------
 
 if (!app.requestSingleInstanceLock()) {
@@ -306,7 +313,7 @@ if (!app.requestSingleInstanceLock()) {
     const errorLog = new ErrorLog(logFs, (name) => join(logDir, name));
     const handle = (channel: string, fn: (...args: unknown[]) => unknown): void => {
       ipcMain.handle(channel, (event, ...args: unknown[]) => {
-        if (!isTrustedSender(event.senderFrame?.url)) throw new Error('Untrusted sender');
+        if (!isTrustedEvent(event)) throw new Error('Untrusted sender');
         return fn(...args);
       });
     };
