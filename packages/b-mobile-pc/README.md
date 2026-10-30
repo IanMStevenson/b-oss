@@ -83,6 +83,12 @@ fetched by hand and the app run in Docker; see the e2e issue (b-oss#614).
 
 ## Windows exe
 
+**Notifications (toasts) are expected to work from the _installed_ build.** Windows only reliably shows
+toasts for an app whose AppUserModelID matches its Start Menu shortcut: the shell sets the id
+(`src/main/app-id.ts`, kept equal to `appId` in `electron-builder.json` by a test) and the installer
+creates the shortcut. Running the unpacked folder or the portable exe directly has no such shortcut, so
+toasts may not appear there (b-oss#674).
+
 ```bash
 packages/b-mobile-pc/scripts/build-win-docker.sh
 ```
