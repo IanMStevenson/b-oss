@@ -112,7 +112,7 @@
   background: var(--bg-alt);
 }
 
-.compose-photo-frame img {
+.compose-photo-frame > img {
   display: block;
   width: 100%;
   max-height: 240px;

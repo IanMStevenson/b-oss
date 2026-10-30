@@ -166,13 +166,13 @@ describe('ComposeEntryScreen', () => {
       latestEntry: null,
     });
     renderScreen();
-    expect(await screen.findByText('Crop')).toBeDefined();
+    expect(await screen.findByText('Select thumbnail')).toBeDefined();
   });
 
   it('does not offer the crop button to non-members', async () => {
     renderScreen();
     await waitFor(() => expect(fetchUserProfile).toHaveBeenCalled());
-    expect(screen.queryByText('Crop')).toBeNull();
+    expect(screen.queryByText('Select thumbnail')).toBeNull();
   });
 
   it('navigating to add a location without one first pushes to the location picker', () => {

@@ -29,20 +29,48 @@ export interface ThumbnailCrop {
   w: number;
 }
 
+/** The API rejects a thumbnail_crop narrower than this many source pixels (w * width >= 300). */
+export const THUMBNAIL_MIN_EDGE = 300;
+/** Headroom over the minimum so flooring to 4 decimals can't land a crop just under it. */
+const THUMBNAIL_EDGE_MARGIN = 1.01;
+
+/** Whether a photo's shorter edge can hold a square thumbnail of the minimum size. Unknown
+ * dimensions are given the benefit of the doubt; the cropper measures the real image. */
+export function canSelectThumbnail(width: number | null, height: number | null): boolean {
+  if (width === null || height === null) return true;
+  return Math.min(width, height) >= Math.ceil(THUMBNAIL_MIN_EDGE * THUMBNAIL_EDGE_MARGIN);
+}
+
+/** The highest react-easy-crop zoom that keeps the (square) crop at least the minimum edge: at
+ * zoom z the crop's side is the image's shorter edge / z. Never below 1. */
+export function maxZoomForMinEdge(width: number, height: number, minEdge: number): number {
+  return Math.max(1, Math.min(width, height) / (minEdge * THUMBNAIL_EDGE_MARGIN));
+}
+
 export function cropToProportions(area: CropAreaPercent): ThumbnailCrop {
-  return {
-    x: round4(area.x / 100),
-    y: round4(area.y / 100),
-    w: round4(area.width / 100),
-  };
+  // The API rejects (and silently replaces with its default crop) any thumbnail_crop where
+  // x + w > 1 or y + w*width/height > 1, so values are floored, never rounded up, and w is capped
+  // by both limits. w*width/height is the crop's height as a fraction, i.e. area.height / 100.
+  const x = floor4(area.x / 100);
+  const y = floor4(area.y / 100);
+  const horizontalCap = 1 - x;
+  const verticalCap = area.height > 0 ? ((1 - y) * area.width) / area.height : horizontalCap;
+  let w = floor4(Math.min(area.width / 100, horizontalCap, verticalCap));
+  // A crop that exactly fills the image sits on the limit, where float error on the server's side
+  // of the comparison could still tip it over; step one unit inside.
+  const heightFraction = area.width > 0 ? (w * area.height) / area.width : 0;
+  if (x + w > 1 - EPSILON || y + heightFraction > 1 - EPSILON) w = Math.max(0, w - 0.0001);
+  return { x, y, w };
 }
 
 export function thumbnailCropToField(crop: ThumbnailCrop): string {
   return `${crop.x},${crop.y},${crop.w}`;
 }
 
-function round4(n: number): number {
-  return Math.round(n * 10000) / 10000;
+const EPSILON = 1e-9;
+
+function floor4(n: number): number {
+  return Math.max(0, Math.floor(n * 10000 + EPSILON) / 10000);
 }
 
 /** react-easy-crop's onCropComplete second argument — the same rect in source-image pixels,

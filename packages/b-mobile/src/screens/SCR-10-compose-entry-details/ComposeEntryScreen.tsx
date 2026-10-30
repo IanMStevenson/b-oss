@@ -35,7 +35,7 @@ import { describeError, mapApiError } from '../../data/errors.js';
 import { DateField } from '../../components/DateField.js';
 import { DescriptionField, TextField, ToggleRow } from '../../components/ComposeForm.js';
 import { PhotoCropper } from '../../components/PhotoCropper.js';
-import { cropToProportions } from '../../data/imageCrop.js';
+import { canSelectThumbnail, cropToProportions, THUMBNAIL_MIN_EDGE } from '../../data/imageCrop.js';
 import type { Area } from 'react-easy-crop';
 
 const TITLE_LIMIT = 50;
@@ -180,11 +180,12 @@ export function ComposeEntryScreen() {
                   <PhotoCropper
                     imageSrc={draft.photo.webPath}
                     onCropAreaChange={handleCropComplete}
+                    minCropEdge={THUMBNAIL_MIN_EDGE}
                   />
                 ) : (
                   <img src={draft.photo.webPath} alt="Selected" />
                 )}
-                {isMember && (
+                {isMember && canSelectThumbnail(draft.photo.width, draft.photo.height) && (
                   // Legible over any photo: opaque white pill while idle, solid green once
                   // cropping is active (a thin green outline vanished into the image).
                   <IonButton
@@ -202,7 +203,7 @@ export function ComposeEntryScreen() {
                           }
                     }
                   >
-                    {cropping ? 'Done cropping' : 'Crop'}
+                    {cropping ? 'Done' : 'Select thumbnail'}
                   </IonButton>
                 )}
               </div>
