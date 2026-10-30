@@ -22,7 +22,7 @@ describe('getTileLayerConfig', () => {
     vi.stubEnv('VITE_GEOAPIFY_KEY', 'test-key-123');
     const config = getTileLayerConfig();
     expect(config?.urlTemplate).toMatch(
-      /^https:\/\/maps\.geoapify\.com\/v1\/tile\/[a-z-]+\/\{z\}\/\{x\}\/\{y\}\{r\}\.png\?apiKey=test-key-123$/,
+      /^https:\/\/maps\.geoapify\.com\/v1\/tile\/osm-liberty\/\{z\}\/\{x\}\/\{y\}\{r\}\.png\?apiKey=test-key-123$/,
     );
     expect(config?.maxZoom).toBe(20);
   });

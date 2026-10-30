@@ -383,9 +383,11 @@ can't draw can't fail silently, and no billing account. It replaced MapLibre GL 
 nothing on some devices; `components/createMap.ts` (MapLibre) is kept, unused, for a possible later
 "richer mode" (#653), and the `maplibre-gl` dependency stays for that.
 
-- **Tiles:** `platform/mapTiles.ts#getTileLayerConfig()`, Geoapify raster tiles (`osm-bright`,
-  `@2x` on high-density screens via Leaflet's `{r}`, max zoom 20) with `VITE_GEOAPIFY_KEY`; no key →
-  `null` → the "map unavailable" state. The map is always the light style (no dark map). Geoapify's
+- **Tiles:** `platform/mapTiles.ts#getTileLayerConfig()`, Geoapify raster tiles (`osm-liberty`, `@2x` on high-density
+  screens via Leaflet's `{r}`, max zoom 20) with `VITE_GEOAPIFY_KEY`; no key →
+  `null` → the "map unavailable" state. The map is always the light style (no dark map). Liberty is
+  used because it labels places in English; Geoapify's raster tiles have no language parameter and
+  `osm-bright` shows local names. Geoapify's
   Free plan requires its attribution (Geoapify, OpenStreetMap contributors, OpenMapTiles), which is
   the map's attribution control, and the same credits are in Help & about → Licences.
 - **Links:** the attribution links are opened through `platform/browser.ts` (`openUrl`), not as

@@ -200,7 +200,7 @@ Known Blipfoto API limits: [AppLimitations.md](AppLimitations.md). Paths are rel
 - Images are cached on disk by URL for 15 minutes (`platform/imageCache.ts`); data is not cached.
 - Map and location picker (`components/leafletMap.ts`): if the map can't be created, or its first
   four tiles all fail to load and none has, they say "The map couldn't be displayed on this
-  device." (cleared once a tile loads). Tiles come from Geoapify (`osm-bright`) and need
+  device." (cleared once a tile loads). Tiles come from Geoapify (`osm-liberty`) and need
   `VITE_GEOAPIFY_KEY`; without it they say the map isn't available. Attribution is on the map and
   its links open in the in-app browser.
 - Deep links (`flows/deepLinkResolver.ts`): `bmobile://entry/<id>`, `bmobile://user/<name>`; and

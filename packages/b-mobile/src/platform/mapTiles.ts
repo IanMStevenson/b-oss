@@ -11,12 +11,13 @@
 // with a real value, see .env.example), which is what drives SCR-04's "Maps/location unavailable"
 // state rather than the map silently failing to load tiles.
 
-/** Geoapify raster style. `osm-bright` over `osm-carto` (compared at phone width, zoom 10 and 14,
- * b-oss#655): bright has larger place names and road shields, fewer competing road casings and
- * colours, so pins stand out and labels stay readable at 393px; carto is denser with small labels.
- * Bright's tiles are also lighter (one 2x tile was 175 kB against 474 kB). The cost is the extra
- * OpenMapTiles credit, which is included below (carto doesn't need it). */
-const STYLE = 'osm-bright';
+/** Geoapify raster style. `osm-liberty`: its labels are English (Geoapify's raster tiles have no
+ * language parameter, and `osm-bright` shows local names). Compared at phone width, zoom 10 and 14
+ * (b-oss#655): lighter and greyer than `osm-bright` with thinner roads, but the brand-green pin
+ * stands out well against it and place names and road shields stay legible. One 2x tile is about
+ * the same weight (173 kB against 175 kB). It needs the OpenMapTiles credit, like the other
+ * styles except `osm-carto`; included below. */
+const STYLE = 'osm-liberty';
 const MAX_ZOOM = 20;
 
 /** What the map screens need to build a Leaflet tile layer. `{r}` is Leaflet's retina token
