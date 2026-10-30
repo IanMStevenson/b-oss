@@ -304,6 +304,8 @@ describe('uploads through the proxy', () => {
 // (BMPC_TEST_POLL_INTERVAL_MS) and records what it would have shown instead of showing it
 // (BMPC_TEST_NOTIFY_PORT); the stub's counts are raised and lowered over its /__unread control URL.
 // The tests run in order and build on the account the sign-in tests left signed in.
+// The container this run started (e2e/run.sh gives each run its own, b-oss#683).
+const CONTAINER = process.env.BMPC_E2E_CONTAINER ?? 'bmpc-e2e-shell';
 const STUB = process.env.BMPC_STUB ?? 'http://127.0.0.1:5192';
 const NOTIFY = process.env.BMPC_NOTIFY ?? 'http://127.0.0.1:5194';
 
@@ -644,7 +646,7 @@ describe('the page going away mid-IPC (disposed render frame)', () => {
     await page.waitForTimeout(2000);
     expect(await page.evaluate(() => window.bMobileDesktop?.version)).toBe(1);
 
-    const logs = execFileSync('docker', ['logs', 'bmpc-e2e-shell'], {
+    const logs = execFileSync('docker', ['logs', CONTAINER], {
       encoding: 'utf8',
       stdio: ['ignore', 'pipe', 'pipe'],
     });
@@ -659,7 +661,7 @@ describe('the page going away mid-IPC (disposed render frame)', () => {
       await settle(1000);
     }
     await setUnread(0, 0);
-    const logs = execFileSync('docker', ['logs', 'bmpc-e2e-shell'], {
+    const logs = execFileSync('docker', ['logs', CONTAINER], {
       encoding: 'utf8',
       stdio: ['ignore', 'pipe', 'pipe'],
     });
