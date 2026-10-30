@@ -29,6 +29,24 @@ export interface ThumbnailCrop {
   w: number;
 }
 
+/** The API rejects a thumbnail_crop narrower than this many source pixels (w * width >= 300). */
+export const THUMBNAIL_MIN_EDGE = 300;
+/** Headroom over the minimum so flooring to 4 decimals can't land a crop just under it. */
+const THUMBNAIL_EDGE_MARGIN = 1.01;
+
+/** Whether a photo's shorter edge can hold a square thumbnail of the minimum size. Unknown
+ * dimensions are given the benefit of the doubt; the cropper measures the real image. */
+export function canSelectThumbnail(width: number | null, height: number | null): boolean {
+  if (width === null || height === null) return true;
+  return Math.min(width, height) >= Math.ceil(THUMBNAIL_MIN_EDGE * THUMBNAIL_EDGE_MARGIN);
+}
+
+/** The highest react-easy-crop zoom that keeps the (square) crop at least the minimum edge: at
+ * zoom z the crop's side is the image's shorter edge / z. Never below 1. */
+export function maxZoomForMinEdge(width: number, height: number, minEdge: number): number {
+  return Math.max(1, Math.min(width, height) / (minEdge * THUMBNAIL_EDGE_MARGIN));
+}
+
 export function cropToProportions(area: CropAreaPercent): ThumbnailCrop {
   // The API rejects (and silently replaces with its default crop) any thumbnail_crop where
   // x + w > 1 or y + w*width/height > 1, so values are floored, never rounded up, and w is capped

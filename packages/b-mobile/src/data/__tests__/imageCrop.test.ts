@@ -3,7 +3,9 @@
 
 import { describe, it, expect, vi } from 'vitest';
 import {
+  canSelectThumbnail,
   cropToProportions,
+  maxZoomForMinEdge,
   encodeUnderLimit,
   fitWithin,
   thumbnailCropToField,
@@ -84,5 +86,22 @@ describe('encodeUnderLimit', () => {
   it('gives back the last attempt when nothing fits, leaving the server to say why', async () => {
     const out = await encodeUnderLimit(() => Promise.resolve(blobOf(9999)), 1000, 1024);
     expect(out.size).toBe(9999);
+  });
+});
+
+describe('thumbnail minimum size', () => {
+  it('caps zoom so the crop side stays above the minimum', () => {
+    const zoom = maxZoomForMinEdge(4000, 3000, 300);
+    expect(3000 / zoom).toBeGreaterThanOrEqual(300);
+  });
+
+  it('never goes below 1, even for a photo that is too small', () => {
+    expect(maxZoomForMinEdge(400, 250, 300)).toBe(1);
+  });
+
+  it('offers selection only when the shorter edge can hold the minimum', () => {
+    expect(canSelectThumbnail(4000, 3000)).toBe(true);
+    expect(canSelectThumbnail(2000, 250)).toBe(false);
+    expect(canSelectThumbnail(null, null)).toBe(true);
   });
 });
