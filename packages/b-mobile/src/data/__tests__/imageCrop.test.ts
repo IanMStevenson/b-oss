@@ -5,6 +5,8 @@ import { describe, it, expect, vi } from 'vitest';
 import {
   canSelectThumbnail,
   cropToProportions,
+  defaultThumbnailCrop,
+  thumbnailCropToArea,
   maxZoomForMinEdge,
   encodeUnderLimit,
   fitWithin,
@@ -103,5 +105,30 @@ describe('thumbnail minimum size', () => {
     expect(canSelectThumbnail(4000, 3000)).toBe(true);
     expect(canSelectThumbnail(2000, 250)).toBe(false);
     expect(canSelectThumbnail(null, null)).toBe(true);
+  });
+});
+
+describe('defaultThumbnailCrop', () => {
+  it('is a centred square covering 88% of the shorter edge, landscape', () => {
+    const c = defaultThumbnailCrop(4 / 3);
+    expect(c.w).toBeCloseTo(0.66, 4);
+    expect(c.x).toBeCloseTo(0.17, 4);
+    expect(c.y).toBeCloseTo(0.06, 4);
+  });
+
+  it('is a centred square covering 88% of the shorter edge, portrait', () => {
+    const c = defaultThumbnailCrop(3 / 4);
+    expect(c.w).toBe(0.88);
+    expect(c.x).toBeCloseTo(0.06, 4);
+    expect(c.y).toBeCloseTo(0.17, 4);
+  });
+
+  it('converts a crop to the percentage rect the cropper starts from', () => {
+    expect(thumbnailCropToArea({ x: 0.1, y: 0.2, w: 0.5 }, 2)).toEqual({
+      x: 10,
+      y: 20,
+      width: 50,
+      height: 100,
+    });
   });
 });

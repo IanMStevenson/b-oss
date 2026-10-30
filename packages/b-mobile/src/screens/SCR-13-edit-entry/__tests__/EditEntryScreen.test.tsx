@@ -140,7 +140,7 @@ describe('EditEntryScreen', () => {
         },
       });
     });
-    expect(await screen.findByAltText('Selected')).toBeDefined();
+    expect(await screen.findByAltText('Thumbnail')).toBeDefined();
     // Details form is still there.
     expect(screen.getByDisplayValue('Sunrise')).toBeDefined();
   });

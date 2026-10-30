@@ -199,6 +199,7 @@ export function EditEntryScreen({ entryId }: EditEntryScreenProps) {
     (draft.photo ? (
       <ThumbnailPhotoFrame
         photo={draft.photo}
+        crop={draft.thumbnailCrop}
         canSelect={isMember}
         onCropChange={handleCropComplete}
       />
