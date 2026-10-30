@@ -58,7 +58,7 @@ jobs:
           GEOAPIFY_KEY: ${{ secrets.VITE_GEOAPIFY_KEY }}
           GOOGLE_SERVICES_JSON: ${{ secrets.GOOGLE_SERVICES_JSON }}
         run: |
-          for v in BLIPFOTO_CLIENT_ID NOTIFY_SERVICE_URL NOTIFY_REGISTRATION_SECRET GOOGLE_SERVICES_JSON; do
+          for v in BLIPFOTO_CLIENT_ID NOTIFY_SERVICE_URL NOTIFY_REGISTRATION_SECRET GEOAPIFY_KEY GOOGLE_SERVICES_JSON; do
             if [ -z "${!v}" ]; then echo "::error::Environment value for $v is not set"; exit 1; fi
           done
           case "$NOTIFY_SERVICE_URL" in

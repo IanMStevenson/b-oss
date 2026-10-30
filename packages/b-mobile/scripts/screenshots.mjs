@@ -70,17 +70,13 @@ await ctx.addInitScript((stubPort) => {
   );
 }, stubPort);
 
-// maptiler is unreachable from here; a style with only a background keeps the map layout (pins,
-// controls, popups) reviewable.
-await ctx.route('https://api.maptiler.com/**', (route) =>
+// The tile host is unreachable from here; plain-colour tiles keep the map layout (pins, controls,
+// popups) reviewable.
+await ctx.route('https://maps.geoapify.com/**', (route) =>
   route.fulfill({
-    contentType: 'application/json',
+    contentType: 'image/svg+xml',
     headers: { 'access-control-allow-origin': '*' },
-    body: JSON.stringify({
-      version: 8,
-      sources: {},
-      layers: [{ id: 'bg', type: 'background', paint: { 'background-color': '#dfe8df' } }],
-    }),
+    body: '<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256"><rect width="256" height="256" fill="#dfe8df"/></svg>',
   }),
 );
 
