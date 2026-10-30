@@ -57,6 +57,9 @@ const NO_EMIT = [
   ['b-view', ['packages/b-view']],
   ['b-view-backup', ['packages/b-view-backup']],
   ['b-ark-chrome', ['packages/b-ark-chrome']],
+  // The desktop shell (src/) and its e2e project (e2e/) are separate tsconfigs. A package missing
+  // from this list is silently not typechecked in CI: b-mobile-pc was not, until this entry.
+  ['b-mobile-pc', ['packages/b-mobile-pc', 'packages/b-mobile-pc/e2e']],
   ['b-mobile', ['packages/b-mobile', 'packages/b-mobile/tsconfig.node.json']],
   ['b-push', ['packages/b-push']],
   ['b-status', ['packages/b-status']],
