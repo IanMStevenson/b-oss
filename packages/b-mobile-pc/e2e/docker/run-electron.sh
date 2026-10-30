@@ -1,0 +1,18 @@
+#!/usr/bin/env bash
+# Runs inside the container (repo mounted at /p, a scratch user-data dir at /tmp/ud): starts a virtual
+# display and the shell with a DevTools port the host-side tests connect to.
+set -u
+export DISPLAY=:99
+Xvfb :99 -screen 0 520x960x24 >/dev/null 2>&1 &
+sleep 2
+cd /p/packages/b-mobile-pc
+# --proxy-server: only when the host needs one (the dev VM's egress goes through squid).
+PROXY_ARGS=()
+if [ -n "${E2E_PROXY:-}" ]; then PROXY_ARGS=(--proxy-server="$E2E_PROXY"); fi
+BMPC_DIST=/p/packages/b-mobile/dist \
+BMPC_API_ORIGIN=http://127.0.0.1:5192 \
+BMPC_AUTH_ORIGIN=http://127.0.0.1:5193 \
+BMPC_TEST_PLAINTEXT_STORE=1 \
+  exec timeout "${E2E_TIMEOUT:-300}" /p/node_modules/electron/dist/electron . \
+    --no-sandbox --disable-gpu "${PROXY_ARGS[@]}" \
+    --remote-debugging-port=9222 --user-data-dir=/tmp/ud --enable-logging=stderr

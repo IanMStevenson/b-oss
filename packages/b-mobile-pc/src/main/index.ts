@@ -32,7 +32,7 @@ import {
   sanitiseResponseHeaders,
 } from './app-protocol.js';
 import { openAuthWindow } from './auth-window.js';
-import { DEFAULT_AUTH_HOSTS, validateAuthRequest } from './auth-request.js';
+import { DEFAULT_AUTH_HOSTS, validateAuthRequest, withOrigin } from './auth-request.js';
 import { SecureStore, type SecretCrypto } from './secure-store.js';
 import { MIN_HEIGHT, MIN_WIDTH, parseWindowState } from './window-state.js';
 
@@ -239,8 +239,18 @@ if (!app.requestSingleInstanceLock()) {
       callback(false),
     );
 
+    // Test hook (ignored when packaged): a plaintext store, for e2e runs where the machine has no
+    // usable OS keystore (a container). It exists only behind testMode and the explicit env var.
+    const plaintextTestCrypto: SecretCrypto = {
+      isAvailable: () => Promise.resolve(true),
+      encrypt: (plaintext) => Promise.resolve(Buffer.from(plaintext)),
+      decrypt: (ciphertext) =>
+        Promise.resolve({ result: ciphertext.toString(), shouldReEncrypt: false }),
+    };
     const store = new SecureStore(
-      electronCrypto,
+      testMode && process.env.BMPC_TEST_PLAINTEXT_STORE === '1'
+        ? plaintextTestCrypto
+        : electronCrypto,
       atomicFile(join(app.getPath('userData'), 'secure-store.json')),
     );
     const handle = (channel: string, fn: (...args: unknown[]) => unknown): void => {
@@ -254,9 +264,14 @@ if (!app.requestSingleInstanceLock()) {
     handle(CHANNELS.secureRemove, (key) => store.remove(key));
     handle(CHANNELS.authOpen, (url, redirectPrefix) => {
       const request = validateAuthRequest(url, redirectPrefix, authHosts, authAllowHttp);
+      // Test hook (ignored when packaged): send the sign-in page to a fake authorize server.
+      const pageUrl =
+        testMode && process.env.BMPC_AUTH_ORIGIN
+          ? withOrigin(request.url, process.env.BMPC_AUTH_ORIGIN)
+          : request.url;
       return openAuthWindow(
         BrowserWindow.getFocusedWindow() ?? mainWindow,
-        request.url,
+        pageUrl,
         request.redirectPrefix,
         authAllowHttp,
       );
