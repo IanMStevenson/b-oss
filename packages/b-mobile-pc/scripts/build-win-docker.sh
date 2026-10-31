@@ -16,8 +16,9 @@
 #   b-mobile-Setup-<version>.exe       one-click installer (per user, no admin needed)
 #   b-mobile-<version>-portable.exe    single file, no install: just run it
 # Unsigned: Windows SmartScreen will warn ("More info" > "Run anyway"). Signing and auto-update are
-# b-oss#612. Needs a repo-root .env.local with VITE_BLIPFOTO_CLIENT_ID (see .env.example): it is baked
-# into the web build, and without it sign-in does nothing.
+# b-oss#612. Needs a repo-root .env.local with the keys .env.example lists (VITE_BLIPFOTO_CLIENT_ID, VITE_GEOAPIFY_KEY, ...):
+# they are baked into the web build; the build stops and names any that are missing (BMPC_ALLOW_MISSING_ENV=1
+# overrides).
 
 set -euo pipefail
 cd "$(dirname "$0")/../../.."
@@ -27,9 +28,9 @@ asar="${BMPC_ASAR:-0}"
 dist_script=dist:win:dev
 [[ "$asar" == "1" ]] && dist_script=dist:win
 
-if [[ ! -f .env.local ]]; then
-  echo "warning: no .env.local at the repo root: the web build will have no Blipfoto client id" >&2
-fi
+# Every key .env.example lists must be in .env.local (names only are printed; BMPC_ALLOW_MISSING_ENV=1
+# builds anyway). A worktree's copy goes stale when .env.example gains a key (b-oss#699).
+node packages/b-mobile-pc/scripts/env-check.mjs
 
 mkdir -p "$HOME/.cache/electron" "$HOME/.cache/electron-builder"
 proxy_args=()

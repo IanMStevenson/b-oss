@@ -63,6 +63,8 @@ fi
 # 3. The builds the shell serves and runs.
 #    The map needs a tile key to exist at all (no key = "maps unavailable"); a fake one is enough because the
 #    tests answer the tile requests themselves (this VM blocks the tile host).
+# Warn (never stop) about keys .env.local lacks (b-oss#699); the tile key is supplied below.
+VITE_GEOAPIFY_KEY=e2e-tile-key node "$PKG/scripts/env-check.mjs" --warn-only || true
 (cd "$ROOT" && VITE_GEOAPIFY_KEY=e2e-tile-key npm run build -w @b-oss/b-mobile && npm run build -w @b-oss/b-mobile-pc)
 
 # 4. The stand-in servers on the host (the container uses host networking).
@@ -75,7 +77,7 @@ PIDS+=($!)
 #    the calling user and the files it leaves in $WORK can be removed by the trap above. (Another uid
 #    would map to a sub-uid the host user cannot delete.)
 docker run -d --rm --name "$CONTAINER" --network host \
-  -e E2E_CDP_PORT -e E2E_STUB_PORT -e E2E_AUTH_PORT -e E2E_NOTIFY_PORT \
+  -e E2E_CDP_PORT -e E2E_STUB_PORT -e E2E_AUTH_PORT -e E2E_NOTIFY_PORT -e E2E_DISPLAY="$E2E_CDP_PORT" \
   -e E2E_PROXY="${https_proxy:-}" \
   -v "$ROOT:/p" -v "$WORK:/tmp/ud" "$IMAGE" bash /p/packages/b-mobile-pc/e2e/docker/run-electron.sh >/dev/null
 for _ in $(seq 1 60); do
@@ -93,7 +95,7 @@ start_variant() {
   mkdir -p "$WORK/$name"
   chmod 777 "$WORK/$name"
   docker run -d --rm --name "$CONTAINER-$name" --network host \
-    -e E2E_CDP_PORT="$port" -e E2E_STUB_PORT -e E2E_AUTH_PORT -e E2E_NOTIFY_PORT=0 \
+    -e E2E_CDP_PORT="$port" -e E2E_DISPLAY="$port" -e E2E_STUB_PORT -e E2E_AUTH_PORT -e E2E_NOTIFY_PORT=0 \
     -e E2E_PROXY="${https_proxy:-}" "$@" \
     -v "$ROOT:/p" -v "$WORK/$name:/tmp/ud" "$IMAGE" bash /p/packages/b-mobile-pc/e2e/docker/run-electron.sh >/dev/null
   for _ in $(seq 1 60); do

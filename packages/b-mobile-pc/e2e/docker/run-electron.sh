@@ -2,8 +2,12 @@
 # Runs inside the container (repo mounted at /p, a scratch user-data dir at /tmp/ud): starts a virtual
 # display and the shell with a DevTools port the host-side tests connect to.
 set -u
-export DISPLAY=:99
-Xvfb :99 -screen 0 520x960x24 >/dev/null 2>&1 &
+# A display number of its own: the containers use host networking, and X's abstract socket (@/tmp/.X11-unix/X<n>)
+# lives in the network namespace, so two containers on :99 share one display and a finishing run kills the
+# others' (every shell dies at once with "X connection error"). run.sh passes a number unique to the container.
+DISP="${E2E_DISPLAY:-99}"
+export DISPLAY=":$DISP"
+Xvfb ":$DISP" -screen 0 520x960x24 >/dev/null 2>&1 &
 sleep 2
 cd /p/packages/b-mobile-pc
 # --proxy-server: only when the host needs one (the dev VM's egress goes through squid).
