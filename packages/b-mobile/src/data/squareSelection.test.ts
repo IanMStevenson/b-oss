@@ -75,10 +75,12 @@ describe('selectionToArea', () => {
 });
 
 describe('stageWidthCss', () => {
-  it('caps the width so the stage height stays within the viewport minus the chrome', () => {
-    expect(stageWidthCss(1.5)).toBe(`min(100%, calc((100vh - ${SELECTOR_CHROME_PX}px) * 1.5))`);
+  it('scales the width to 66% of what fits the container and the viewport height', () => {
+    expect(stageWidthCss(1.5)).toBe(
+      `min(66%, calc((100vh - ${SELECTOR_CHROME_PX}px) * 1.5 * 0.66))`,
+    );
   });
   it('accepts a custom reserve', () => {
-    expect(stageWidthCss(1, 100)).toBe('min(100%, calc((100vh - 100px) * 1))');
+    expect(stageWidthCss(1, 100)).toBe('min(66%, calc((100vh - 100px) * 1 * 0.66))');
   });
 });

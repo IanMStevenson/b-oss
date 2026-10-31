@@ -82,9 +82,13 @@ export function selectionToArea(sel: ThumbnailCrop, ratio: number): CropAreaPerc
 /** Vertical room kept for the app header, the frame's margins and the Done button, in px. */
 export const SELECTOR_CHROME_PX = 260;
 
-/** CSS width for the selector stage so the whole photo fits the viewport height as well as the
- * container width: the width is capped at (viewport height - chrome) * ratio, and the stage's
- * aspect-ratio then fixes its height at no more than viewport height - chrome. */
+/** The picker is shown at this fraction of the largest size that fits: a smaller photo is easier
+ * to work with, and Blipfoto's own thumbnail editor is no bigger. */
+export const SELECTOR_SCALE = 0.66;
+
+/** CSS width for the selector stage: SELECTOR_SCALE of the largest width that fits both the
+ * container and the viewport height. The width is capped at (viewport height - chrome) * ratio, and
+ * the stage's aspect-ratio then fixes its height at no more than that. */
 export function stageWidthCss(ratio: number, chromePx: number = SELECTOR_CHROME_PX): string {
-  return `min(100%, calc((100vh - ${chromePx}px) * ${ratio}))`;
+  return `min(${SELECTOR_SCALE * 100}%, calc((100vh - ${chromePx}px) * ${ratio} * ${SELECTOR_SCALE}))`;
 }
