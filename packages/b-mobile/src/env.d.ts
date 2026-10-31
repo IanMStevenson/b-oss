@@ -8,7 +8,7 @@ interface ImportMetaEnv {
   readonly VITE_OAUTH_REDIRECT_URI?: string;
   readonly VITE_NOTIFY_SERVICE_URL?: string;
   readonly VITE_NOTIFY_REGISTRATION_SECRET?: string;
-  readonly VITE_MAP_TILES_KEY?: string;
+  readonly VITE_GEOAPIFY_KEY?: string;
   /** Dev-only: see app-architecture.md §18/§19. Never set in a production build. */
   readonly VITE_DEV_TOKEN?: string;
   /** '1' enables the one-shot b-oss#196 feed probe (diagnostics/feedProbe.ts). Never set in a release. */

@@ -36,9 +36,9 @@ import { AccountGuardRoute } from './AccountGuardRoute.js';
 import { AccountsRoute } from './AccountsRoute.js';
 import { parseReturnTo, RETURN_PARAM } from './signInReturn.js';
 
-// MapLibre GL JS is by far the app's largest dependency (~19MB unpacked, app-architecture.md
-// §20) and only SCR-04/SCR-12 need it — lazy-loaded so it ships as its own chunk, fetched only
-// when a map destination is actually opened, rather than inflating every screen's first paint.
+// Leaflet (and its stylesheet) is only needed by SCR-04/SCR-12 — lazy-loaded so it ships as its
+// own chunk, fetched only when a map destination is actually opened, rather than inflating every
+// screen's first paint.
 const MapScreen = lazy(() =>
   import('../../screens/SCR-04-map/MapScreen.js').then((m) => ({ default: m.MapScreen })),
 );

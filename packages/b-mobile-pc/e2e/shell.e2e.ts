@@ -16,6 +16,12 @@ const CDP = process.env.BMPC_CDP ?? 'http://127.0.0.1:9222';
 const OUT = process.env.BMPC_E2E_OUT ?? join(__dirname, '..', 'e2e-out');
 const USER_DATA = process.env.BMPC_E2E_USER_DATA;
 
+// A 1x1 transparent PNG, standing in for every map tile.
+const TILE_PNG = Buffer.from(
+  'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==',
+  'base64',
+);
+
 let browser: Browser;
 let page: Page;
 
@@ -41,6 +47,11 @@ beforeAll(async () => {
   const context = browser.contexts()[0];
   if (!context) throw new Error('The shell has no browser context');
   page = context.pages()[0] ?? (await context.waitForEvent('page'));
+  // The map's raster tiles come from a third-party host that the dev VM blocks and that tests must not
+  // depend on: answer every tile request with a one-pixel PNG.
+  await context.route(/^https:\/\/maps\.geoapify\.com\//, (route) =>
+    route.fulfill({ status: 200, contentType: 'image/png', body: TILE_PNG }),
+  );
   await page.waitForLoadState('load');
   await page.waitForTimeout(3000);
 });
@@ -215,7 +226,7 @@ describe('desktop capabilities: location and camera', () => {
     });
     await page.waitForTimeout(1500);
     const photo = await page.evaluate(() => {
-      const img = document.querySelector<HTMLImageElement>('img[alt="Selected"]');
+      const img = document.querySelector<HTMLImageElement>('img[alt="Thumbnail"]');
       return img ? { src: img.src.slice(0, 5), w: img.naturalWidth } : null;
     });
     expect(photo?.src).toBe('blob:');
@@ -239,7 +250,7 @@ describe('desktop capabilities: location and camera', () => {
     const control = page.getByLabel('Show current location');
     expect(await control.count()).toBe(1);
     await shot('8-location-picker');
-    // The container has no WebGL, so a map-failed banner overlays the button: click it directly.
+    // Click it directly (dispatchEvent), so nothing drawn over the map can intercept the click.
     await control.dispatchEvent('click');
     // A container has no OS location provider, so the attempt fails; the outcome is what matters:
     // either way no error screen, and a failure leaves the message and no control.
@@ -262,6 +273,51 @@ describe('desktop capabilities: location and camera', () => {
     expect(await text()).not.toMatch(/Something went wrong/i);
     const hidden = /Windows location is off/.test(await text());
     expect(await page.getByLabel('My location').count()).toBe(hidden ? 0 : 1);
+  });
+
+  // b-oss#669 on the Leaflet map: a window wide enough to show more than one copy of the world at the
+  // default zoom makes Leaflet report longitudes beyond +/-180, which the API (and the stub, like it)
+  // rejects with form.min_lon_invalid. The requests must carry in-range values and the screen must
+  // not show the "could not load entries" message.
+  it('the map on a wide window asks the API for in-range longitudes only (b-oss#669)', async () => {
+    const searches: string[] = [];
+    const onRequest = (req: { url(): string }): void => {
+      if (req.url().includes('entries/search')) searches.push(req.url());
+    };
+    page.on('request', onRequest);
+    try {
+      await page.setViewportSize({ width: 2400, height: 900 });
+      await page.evaluate(() => sessionStorage.clear());
+      await go('/map', 5000);
+      // The map is drawn (tiles answered by the test) and Leaflet really is showing several worlds.
+      expect(await text()).not.toContain('couldn’t be displayed');
+      const widthDegrees = await page.evaluate(() => {
+        const c = document.querySelector<HTMLElement>('.leaflet-container');
+        return c ? (c.clientWidth / 1024) * 360 : 0;
+      });
+      expect(widthDegrees).toBeGreaterThan(360);
+      await page.waitForFunction(
+        () => document.querySelector('.leaflet-tile-loaded') !== null,
+        undefined,
+        {
+          timeout: 15000,
+        },
+      );
+      await page.waitForTimeout(2000);
+      expect(searches.length).toBeGreaterThan(0);
+      for (const url of searches) {
+        const q = new URL(url).searchParams;
+        for (const key of ['min_lon', 'max_lon']) {
+          const v = q.get(key);
+          if (v !== null) expect(Math.abs(Number(v))).toBeLessThanOrEqual(180);
+        }
+      }
+      expect(await text()).not.toMatch(/Could not load entries/);
+      await shot('8c-map-wide-window');
+    } finally {
+      page.off('request', onRequest);
+      await page.setViewportSize({ width: 1200, height: 800 });
+    }
   });
 
   it('Nearby explains there is no location here and offers the map instead of "Allow location"', async () => {

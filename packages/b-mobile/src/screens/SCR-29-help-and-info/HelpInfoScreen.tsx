@@ -186,7 +186,8 @@ function SafetyPrivacy() {
 }
 
 const OSM_COPYRIGHT_URL = 'https://www.openstreetmap.org/copyright';
-const MAPTILER_COPYRIGHT_URL = 'https://www.maptiler.com/copyright/';
+const GEOAPIFY_URL = 'https://www.geoapify.com/';
+const OPENMAPTILES_URL = 'https://openmaptiles.org/';
 const GPL_URL = 'https://www.gnu.org/licenses/gpl-3.0.html';
 
 /** licences.generated.json's shape (scripts/licences.mjs). `texts` holds each distinct licence
@@ -326,9 +327,10 @@ function Licences() {
         <strong>Maps</strong>
       </p>
       <p>
-        Map tiles &copy; <InlineLink url={MAPTILER_COPYRIGHT_URL}>MapTiler</InlineLink>. Map data
-        &copy; <InlineLink url={OSM_COPYRIGHT_URL}>OpenStreetMap contributors</InlineLink>,
-        available under the Open Database License (ODbL).
+        Maps powered by <InlineLink url={GEOAPIFY_URL}>Geoapify</InlineLink>. Map style &copy;{' '}
+        <InlineLink url={OPENMAPTILES_URL}>OpenMapTiles</InlineLink>. Map data &copy;{' '}
+        <InlineLink url={OSM_COPYRIGHT_URL}>OpenStreetMap contributors</InlineLink>, available under
+        the Open Database License (ODbL).
       </p>
 
       <p>

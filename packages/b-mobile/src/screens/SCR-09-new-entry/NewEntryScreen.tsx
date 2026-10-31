@@ -99,6 +99,7 @@ export function NewEntryScreen({ replaceEntryId }: NewEntryScreenProps = {}) {
           createdAt: photo.createdAt,
           sizeBytes: photo.sizeBytes,
         },
+        thumbnailCrop: null,
       });
       navigate.goBack();
       return;
@@ -120,7 +121,9 @@ export function NewEntryScreen({ replaceEntryId }: NewEntryScreenProps = {}) {
       tags: '',
       description: '',
       date: todayFromCreatedAt(photo.createdAt),
-      location: null,
+      // The photo's own embedded position, kept but NOT shown on the map until the user turns
+      // "Add to map" on (b-oss#650). Sent with the entry so the server holds it either way.
+      location: photo.gps ?? null,
       displayLocation: false,
       thumbnailCrop: null,
       dirty: false,
@@ -140,7 +143,7 @@ export function NewEntryScreen({ replaceEntryId }: NewEntryScreenProps = {}) {
     setPhotoMessage(null);
     setBusy('camera');
     try {
-      const photo = await takePhoto();
+      const photo = await takePhoto({ geotag: true });
       if (photo) startDraft(photo);
     } catch (err) {
       if (err instanceof CameraPermissionDeniedError) {

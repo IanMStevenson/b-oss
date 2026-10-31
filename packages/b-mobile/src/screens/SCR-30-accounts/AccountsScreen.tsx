@@ -445,6 +445,10 @@ export function AccountsScreen({ reauthRequest }: { reauthRequest?: ReauthReques
             ...(menuAccount && menuAccount.appTokenScope !== null
               ? [
                   {
+                    text: 'Notification settings',
+                    handler: () => openNotificationSettings(menuAccount),
+                  },
+                  {
                     text:
                       menuAccount.appTokenScope === 'read,write'
                         ? t('SCR-30.detail.switch_to_read_only')

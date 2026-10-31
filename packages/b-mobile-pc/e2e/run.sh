@@ -60,7 +60,9 @@ if [ ! -x "$ELECTRON_DIR/dist/electron" ]; then
 fi
 
 # 3. The builds the shell serves and runs.
-(cd "$ROOT" && npm run build -w @b-oss/b-mobile && npm run build -w @b-oss/b-mobile-pc)
+#    The map needs a tile key to exist at all (no key = "maps unavailable"); a fake one is enough because the
+#    tests answer the tile requests themselves (this VM blocks the tile host).
+(cd "$ROOT" && VITE_GEOAPIFY_KEY=e2e-tile-key npm run build -w @b-oss/b-mobile && npm run build -w @b-oss/b-mobile-pc)
 
 # 4. The stand-in servers on the host (the container uses host networking).
 node "$ROOT/packages/b-mobile/scripts/stub-api.mjs" "$E2E_STUB_PORT" >"$OUT/stub-api.log" 2>&1 &

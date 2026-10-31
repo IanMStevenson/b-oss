@@ -13,15 +13,26 @@
 import { useState } from 'react';
 import Cropper from 'react-easy-crop';
 import type { Area } from 'react-easy-crop';
+import { maxZoomForMinEdge } from '../data/imageCrop.js';
 
 interface PhotoCropperProps {
   imageSrc: string;
   onCropAreaChange: (percent: Area, pixels: Area) => void;
+  /** Smallest crop side, in source pixels. Enforced by capping the zoom once the image has loaded. */
+  minCropEdge?: number;
+  /** Where the crop box starts, as a percentage rect of the displayed image. */
+  initialArea?: Area;
 }
 
-export function PhotoCropper({ imageSrc, onCropAreaChange }: PhotoCropperProps) {
+export function PhotoCropper({
+  imageSrc,
+  onCropAreaChange,
+  minCropEdge,
+  initialArea,
+}: PhotoCropperProps) {
   const [crop, setCrop] = useState({ x: 0, y: 0 });
   const [zoom, setZoom] = useState(1);
+  const [maxZoom, setMaxZoom] = useState<number | undefined>(undefined);
 
   return (
     <div style={{ position: 'relative', width: '100%', height: 320, background: '#000' }}>
@@ -30,6 +41,13 @@ export function PhotoCropper({ imageSrc, onCropAreaChange }: PhotoCropperProps) 
         crop={crop}
         zoom={zoom}
         aspect={1}
+        maxZoom={maxZoom}
+        initialCroppedAreaPercentages={initialArea}
+        onMediaLoaded={(media) => {
+          if (minCropEdge) {
+            setMaxZoom(maxZoomForMinEdge(media.naturalWidth, media.naturalHeight, minCropEdge));
+          }
+        }}
         cropShape="rect"
         showGrid
         onCropChange={setCrop}

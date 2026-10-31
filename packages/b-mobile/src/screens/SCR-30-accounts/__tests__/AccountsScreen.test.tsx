@@ -278,6 +278,28 @@ describe('AccountsScreen', () => {
     expect(push).toHaveBeenCalledWith('/settings/notifications');
   });
 
+  it('the three-dot menu’s Notification settings switches to that account and opens its settings', async () => {
+    useAccountsStore.setState({
+      accounts: [account(), account({ id: 'a2', username: 'bob' })],
+      activeAccountId: 'a1',
+    });
+    renderScreen();
+    await userEvent.click(screen.getByRole('button', { name: 'Account options for bob' }));
+    await userEvent.click(screen.getByRole('menuitem', { name: 'Notification settings' }));
+    expect(switchAccount).toHaveBeenCalledWith('a2');
+    expect(push).toHaveBeenCalledWith('/settings/notifications');
+  });
+
+  it('the three-dot menu has no Notification settings for an account with no app token', async () => {
+    useAccountsStore.setState({
+      accounts: [account({ appTokenScope: null })],
+      activeAccountId: 'a1',
+    });
+    renderScreen();
+    await userEvent.click(screen.getByRole('button', { name: 'Account options for alice' }));
+    expect(screen.queryByRole('menuitem', { name: 'Notification settings' })).toBeNull();
+  });
+
   it('tapping the active account’s status opens settings without switching', async () => {
     useAccountsStore.setState({ accounts: [account()], activeAccountId: 'a1' });
     renderScreen();

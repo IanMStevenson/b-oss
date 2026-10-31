@@ -34,6 +34,11 @@ import { useComposeDraftStore } from '../../state/composeDraftStore.js';
 import { useActiveAccount } from '../../state/accountsStore.js';
 import { fetchEntry, deleteEntry } from '../../data/entries.js';
 import { enqueueDraft } from '../../flows/composeFlow.js';
+import { revealStoredPosition, StillVisibleError } from '../../data/entryLocation.js';
+import { ThumbnailPhotoFrame } from '../../components/ThumbnailPhotoFrame.js';
+import { cropToProportions } from '../../data/imageCrop.js';
+import { fetchUserProfile } from '../../data/users.js';
+import type { Area } from 'react-easy-crop';
 import { describeError, mapApiError } from '../../data/errors.js';
 
 interface EditEntryScreenProps {
@@ -48,6 +53,7 @@ export function EditEntryScreen({ entryId }: EditEntryScreenProps) {
   const patchDraft = useComposeDraftStore((s) => s.patchDraft);
   const clearDraft = useComposeDraftStore((s) => s.clearDraft);
 
+  const [isMember, setIsMember] = useState(false);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
   // The entry's current photo (its thumbnail, like the site's edit page), shown until a replacement is picked. Only known when this screen
@@ -59,6 +65,9 @@ export function EditEntryScreen({ entryId }: EditEntryScreenProps) {
   const [confirmDeleteEntry, setConfirmDeleteEntry] = useState(false);
   const [deletingEntry, setDeletingEntry] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
+  // "Add to map" for an entry whose position the app doesn't hold: looking it up (b-oss#650).
+  const [lookingUpPosition, setLookingUpPosition] = useState(false);
+  const [mapMessage, setMapMessage] = useState<string | null>(null);
 
   // Blipfoto only lets part of an older entry be changed (actions.edit): it ignores the rest
   // without an error, so the form offers only what will actually be saved.
@@ -72,6 +81,13 @@ export function EditEntryScreen({ entryId }: EditEntryScreenProps) {
   // change unmounts it) — re-trigger a pointless refetch-and-reseed race straight after saving.
   // A ref survives that state change without re-running the effect, since it isn't a dependency.
   const hasSeededRef = useRef(isCurrentDraft);
+
+  useEffect(() => {
+    fetchUserProfile().then(
+      (profile) => setIsMember(profile.details?.member === 1),
+      () => setIsMember(false),
+    );
+  }, []);
 
   useEffect(() => {
     if (hasSeededRef.current) {
@@ -140,6 +156,31 @@ export function EditEntryScreen({ entryId }: EditEntryScreenProps) {
     }
   }
 
+  // Turning the map on with no known position: ask Blipfoto for the one it holds (the entry's own
+  // `location` is hidden while the map is off), then open the picker there. With none held the
+  // picker simply opens empty.
+  async function handleAddToMap(): Promise<void> {
+    if (!draft || lookingUpPosition) return;
+    setMapMessage(null);
+    setLookingUpPosition(true);
+    try {
+      const position = await revealStoredPosition(draft.accountId, entryId);
+      if (position) patchDraft({ location: position });
+      navigate.push('/compose/location');
+    } catch (err) {
+      if (err instanceof StillVisibleError) {
+        if (err.position) patchDraft({ location: err.position });
+        setMapMessage(
+          "Couldn't hide this entry again after looking up its position, so it is showing on the map. Saving this edit will switch it off, or try again.",
+        );
+      } else {
+        setMapMessage(describeError(mapApiError(err), "Couldn't look up this entry's position."));
+      }
+    } finally {
+      setLookingUpPosition(false);
+    }
+  }
+
   async function handleConfirmedDeleteEntry(): Promise<void> {
     setConfirmDeleteEntry(false);
     setDeletingEntry(true);
@@ -177,16 +218,25 @@ export function EditEntryScreen({ entryId }: EditEntryScreenProps) {
     );
   }
 
+  function handleCropComplete(percent: Area): void {
+    patchDraft({ thumbnailCrop: cropToProportions(percent) });
+  }
+
   const photoSrc = draft.photo?.webPath ?? currentImage;
-  const photoFrame = photoSrc && (
-    <div className="compose-photo-thumb">
-      {draft.photo ? (
-        <img src={photoSrc} alt="New photo" />
-      ) : (
+  const photoFrame =
+    photoSrc &&
+    (draft.photo ? (
+      <ThumbnailPhotoFrame
+        photo={draft.photo}
+        crop={draft.thumbnailCrop}
+        canSelect={isMember}
+        onCropChange={handleCropComplete}
+      />
+    ) : (
+      <div className="compose-photo-thumb">
         <CachedImage src={photoSrc} alt="Current photo" />
-      )}
-    </div>
-  );
+      </div>
+    ));
 
   return (
     <IonPage>
@@ -252,16 +302,22 @@ export function EditEntryScreen({ entryId }: EditEntryScreenProps) {
 
               <ToggleRow
                 label="Add to map"
-                checked={draft.location != null}
+                caption={lookingUpPosition ? "Looking up this entry's position…" : mapMessage}
+                checked={draft.displayLocation}
                 onChange={(checked) => {
-                  if (checked && !draft.location) {
-                    navigate.push('/compose/location');
-                  } else if (!checked && draft.location) {
-                    patchDraft({ location: null, displayLocation: false });
+                  if (checked && !draft.displayLocation) {
+                    // The picker opens at the entry's position when one is known, and confirming
+                    // it turns the map on; backing out leaves it off. With none known, ask
+                    // Blipfoto for the one it holds first.
+                    if (draft.location) navigate.push('/compose/location');
+                    else void handleAddToMap();
+                  } else if (!checked && draft.displayLocation) {
+                    // Hide, but keep the position so turning it back on restores it.
+                    patchDraft({ displayLocation: false });
                   }
                 }}
               >
-                {draft.location && (
+                {draft.displayLocation && draft.location && (
                   <IonButton
                     fill="clear"
                     size="small"

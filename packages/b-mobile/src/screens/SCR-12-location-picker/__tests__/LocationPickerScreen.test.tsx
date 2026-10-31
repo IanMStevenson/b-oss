@@ -2,13 +2,14 @@
 // Copyright (C) 2026 Ian Stevenson
 // @vitest-environment jsdom
 
-// Same "mock maplibre-gl wholesale" approach as SCR-04's MapScreen tests — jsdom has no WebGL/
-// canvas, and this screen's own logic (marker placement, Clear/Done, my-location) is what's under
-// test, not MapLibre's rendering.
+// Leaflet runs in jsdom, so the real library is used (see SCR-04's MapScreen tests); this screen's
+// own logic (marker placement, Clear/Done, my-location) is what's under test. `createLeafletMap`
+// is wrapped only to hand the tests the maps it creates, and to simulate one that can't be created.
 
 import { describe, it, expect, afterEach, beforeEach, vi } from 'vitest';
 import { render, screen, cleanup, waitFor, act } from '@testing-library/react';
-import { MAP_FAILED_MESSAGE } from '../../../components/createMap.js';
+import * as L from 'leaflet';
+import { MAP_FAILED_MESSAGE } from '../../../components/leafletMap.js';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
 import { OverlayProvider } from '../../../app/OverlayProvider.js';
@@ -16,75 +17,52 @@ import { LocationPickerScreen } from '../LocationPickerScreen.js';
 import { useComposeDraftStore } from '../../../state/composeDraftStore.js';
 import type { ComposeDraft } from '../../../state/composeDraftStore.js';
 
-const { MockMap, MockMarker, mapInstances, markerInstances } = vi.hoisted(() => {
-  const mapInstances: InstanceType<typeof MockMapImpl>[] = [];
-  const markerInstances: InstanceType<typeof MockMarkerImpl>[] = [];
+const { mapInstances, failure } = vi.hoisted(() => ({
+  mapInstances: [] as L.Map[],
+  failure: { createFails: false },
+}));
 
-  class MockMarkerImpl {
-    lngLat: [number, number];
-    handlers: Record<string, Array<() => void>> = {};
-    removed = false;
-    constructor(public options?: { draggable?: boolean; color?: string }) {
-      this.lngLat = [0, 0];
-      markerInstances.push(this);
-    }
-    setLngLat(ll: [number, number]) {
-      this.lngLat = ll;
-      return this;
-    }
-    addTo() {
-      return this;
-    }
-    on(event: string, handler: () => void) {
-      (this.handlers[event] ??= []).push(handler);
-      return this;
-    }
-    getLngLat() {
-      return { lat: this.lngLat[1], lng: this.lngLat[0] };
-    }
-    remove() {
-      this.removed = true;
-    }
-  }
-
-  class MockMapImpl {
-    handlers: Record<string, Array<(e: unknown) => void>> = {};
-    jumpToCalls: Array<{ center: [number, number]; zoom: number }> = [];
-    /** Set by a test to make the next construction throw, as MapLibre does without WebGL2. */
-    static constructError: Error | null = null;
-    constructor(
-      public options: {
-        center: [number, number];
-        zoom: number;
-        attributionControl?: { customAttribution?: string[] };
-      },
-    ) {
-      if (MockMapImpl.constructError) throw MockMapImpl.constructError;
-      mapInstances.push(this);
-    }
-    on(event: string, handler: (e: unknown) => void) {
-      (this.handlers[event] ??= []).push(handler);
-      return this;
-    }
-    jumpTo(opts: { center: [number, number]; zoom: number }) {
-      this.jumpToCalls.push(opts);
-    }
-    remove() {}
-    trigger(event: string, payload?: unknown): void {
-      (this.handlers[event] ?? []).forEach((h) => h(payload));
-    }
-  }
-
-  return { MockMap: MockMapImpl, MockMarker: MockMarkerImpl, mapInstances, markerInstances };
+vi.mock('../../../components/leafletMap.js', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../../../components/leafletMap.js')>();
+  return {
+    ...actual,
+    createLeafletMap: (...args: Parameters<typeof actual.createLeafletMap>) => {
+      if (failure.createFails) {
+        args[3].onFailed();
+        return null;
+      }
+      const map = actual.createLeafletMap(...args);
+      if (map) mapInstances.push(map);
+      return map;
+    },
+  };
 });
 
-vi.mock('maplibre-gl', () => ({ Map: MockMap, Marker: MockMarker }));
+const TILES = {
+  urlTemplate: 'https://tiles.example/{z}/{x}/{y}{r}.png',
+  maxZoom: 20,
+  attribution: 'mock credit',
+};
 
-const { getMapStyleUrl } = vi.hoisted(() => ({ getMapStyleUrl: vi.fn() }));
-vi.mock('../../../platform/mapTiles.js', () => ({
-  getMapStyleUrl,
-  MAP_ATTRIBUTION: ['mock credit'],
-}));
+const { getTileLayerConfig } = vi.hoisted(() => ({ getTileLayerConfig: vi.fn() }));
+vi.mock('../../../platform/mapTiles.js', () => ({ getTileLayerConfig }));
+
+/** The pins on a map. */
+function pins(map: L.Map): L.Marker[] {
+  const found: L.Marker[] = [];
+  map.eachLayer((l) => {
+    if (l instanceof L.Marker) found.push(l);
+  });
+  return found;
+}
+
+function tileLayerOf(map: L.Map): L.TileLayer {
+  let found: L.TileLayer | undefined;
+  map.eachLayer((l) => {
+    if (l instanceof L.TileLayer) found = l;
+  });
+  return found!;
+}
 
 const { getCurrentPosition } = vi.hoisted(() => ({ getCurrentPosition: vi.fn() }));
 vi.mock('../../../platform/geolocation.js', async (importOriginal) => ({
@@ -115,15 +93,15 @@ function draft(overrides: Partial<ComposeDraft> = {}): ComposeDraft {
 }
 
 beforeEach(() => {
-  MockMap.constructError = null;
+  failure.createFails = false;
   mapInstances.length = 0;
-  markerInstances.length = 0;
-  getMapStyleUrl.mockReturnValue('https://example.com/style.json');
+  getTileLayerConfig.mockReturnValue(TILES);
   useComposeDraftStore.setState({ draft: draft() });
 });
 
 afterEach(() => {
   cleanup();
+  document.body.innerHTML = '';
   vi.resetAllMocks();
 });
 
@@ -162,7 +140,7 @@ afterEach(() => {
 
 describe('LocationPickerScreen', () => {
   it('shows the unavailable message instead of a blank map when no tile key is configured', () => {
-    getMapStyleUrl.mockReturnValue(null);
+    getTileLayerConfig.mockReturnValue(null);
     renderScreen();
     expect(screen.getByText(/aren.t available/)).toBeDefined();
     expect(mapInstances.length).toBe(0);
@@ -172,40 +150,42 @@ describe('LocationPickerScreen', () => {
     useComposeDraftStore.setState({ draft: draft({ location: { lat: 51.5, lon: -0.1 } }) });
     renderScreen();
     await waitFor(() => expect(mapInstances.length).toBe(1));
-    expect(mapInstances[0].options.center).toEqual([-0.1, 51.5]);
-    mapInstances[0].trigger('load');
-    await waitFor(() => expect(markerInstances.length).toBe(1));
+    expect(mapInstances[0].getCenter().lat).toBeCloseTo(51.5);
+    expect(mapInstances[0].getCenter().lng).toBeCloseTo(-0.1);
+    expect(pins(mapInstances[0]).length).toBe(1);
   });
 
-  it('credits the map tiles and OpenStreetMap explicitly', async () => {
+  it('shows the provider attribution on the map', async () => {
     renderScreen();
     await waitFor(() => expect(mapInstances.length).toBe(1));
-    expect(mapInstances[0].options.attributionControl).toEqual({
-      customAttribution: ['mock credit'],
-    });
+    expect(document.querySelector('.leaflet-control-attribution')?.textContent).toContain(
+      'mock credit',
+    );
   });
 
   it('a map tap places a single marker', async () => {
     renderScreen();
     await waitFor(() => expect(mapInstances.length).toBe(1));
-    mapInstances[0].trigger('click', { lngLat: { lat: 10, lng: 20 } });
-    await waitFor(() => expect(markerInstances.length).toBe(1));
-    expect(markerInstances[0].lngLat).toEqual([20, 10]);
+    mapInstances[0].fire('click', { latlng: L.latLng(10, 20) });
+    await waitFor(() => expect(pins(mapInstances[0]).length).toBe(1));
+    expect(pins(mapInstances[0])[0].getLatLng()).toMatchObject({ lat: 10, lng: 20 });
 
     // A second tap moves the same marker rather than adding another.
-    mapInstances[0].trigger('click', { lngLat: { lat: 30, lng: 40 } });
-    expect(markerInstances.length).toBe(1);
-    expect(markerInstances[0].lngLat).toEqual([40, 30]);
+    mapInstances[0].fire('click', { latlng: L.latLng(30, 40) });
+    await waitFor(() =>
+      expect(pins(mapInstances[0])[0].getLatLng()).toMatchObject({ lat: 30, lng: 40 }),
+    );
+    expect(pins(mapInstances[0]).length).toBe(1);
   });
 
   it('Clear removes the marker; Done then returns a "no location" result', async () => {
     renderScreen();
     await waitFor(() => expect(mapInstances.length).toBe(1));
-    mapInstances[0].trigger('click', { lngLat: { lat: 10, lng: 20 } });
-    await waitFor(() => expect(markerInstances.length).toBe(1));
+    mapInstances[0].fire('click', { latlng: L.latLng(10, 20) });
+    await waitFor(() => expect(pins(mapInstances[0]).length).toBe(1));
 
     await userEvent.click(screen.getByText('Clear'));
-    expect(markerInstances[0].removed).toBe(true);
+    expect(pins(mapInstances[0]).length).toBe(0);
 
     await userEvent.click(screen.getByText('Done'));
     expect(useComposeDraftStore.getState().draft?.location).toBeNull();
@@ -215,12 +195,28 @@ describe('LocationPickerScreen', () => {
   it('Done with a placed marker returns its coordinates', async () => {
     renderScreen();
     await waitFor(() => expect(mapInstances.length).toBe(1));
-    mapInstances[0].trigger('click', { lngLat: { lat: 10, lng: 20 } });
-    await waitFor(() => expect(markerInstances.length).toBe(1));
+    mapInstances[0].fire('click', { latlng: L.latLng(10, 20) });
+    await waitFor(() => expect(pins(mapInstances[0]).length).toBe(1));
 
     await userEvent.click(screen.getByText('Done'));
     expect(useComposeDraftStore.getState().draft?.location).toEqual({ lat: 10, lon: 20 });
     expect(useComposeDraftStore.getState().draft?.displayLocation).toBe(true);
+  });
+
+  it('dragging the marker moves the selection to where it was dropped', async () => {
+    renderScreen();
+    await waitFor(() => expect(mapInstances.length).toBe(1));
+    mapInstances[0].fire('click', { latlng: L.latLng(10, 20) });
+    await waitFor(() => expect(pins(mapInstances[0]).length).toBe(1));
+
+    const pin = pins(mapInstances[0])[0];
+    pin.setLatLng(L.latLng(11, 22));
+    act(() => {
+      pin.fire('dragend');
+    });
+
+    await userEvent.click(screen.getByText('Done'));
+    expect(useComposeDraftStore.getState().draft?.location).toEqual({ lat: 11, lon: 22 });
   });
 
   it('My location recentres the map and places the marker there', async () => {
@@ -229,34 +225,40 @@ describe('LocationPickerScreen', () => {
     await waitFor(() => expect(mapInstances.length).toBe(1));
 
     await userEvent.click(screen.getByRole('button', { name: 'My location' }));
-    await waitFor(() =>
-      expect(mapInstances[0].jumpToCalls).toContainEqual({ center: [6, 5], zoom: 12 }),
-    );
-    expect(markerInstances).toHaveLength(1);
+    await waitFor(() => expect(mapInstances[0].getZoom()).toBe(13));
+    expect(mapInstances[0].getCenter().lat).toBeCloseTo(5);
+    expect(mapInstances[0].getCenter().lng).toBeCloseTo(6);
+    expect(pins(mapInstances[0])).toHaveLength(1);
   });
 
   it('uses the shared green pin (same as the Map screen), draggable', async () => {
     renderScreen();
-    mapInstances[0].trigger('click', { lngLat: { lat: 1, lng: 2 } });
-    await waitFor(() => expect(markerInstances.length).toBe(1));
-    expect(markerInstances[0].options).toEqual({ color: '#1f4d3a', draggable: true });
+    await waitFor(() => expect(mapInstances.length).toBe(1));
+    mapInstances[0].fire('click', { latlng: L.latLng(1, 2) });
+    await waitFor(() => expect(pins(mapInstances[0]).length).toBe(1));
+    const pin = pins(mapInstances[0])[0];
+    expect((pin.options.icon as L.DivIcon).options.html).toContain('fill="#1f4d3a"');
+    expect(pin.options.draggable).toBe(true);
   });
 
-  it('says the map can\u2019t be displayed, instead of a blank area, when it can\u2019t be created (b-oss#537)', () => {
-    MockMap.constructError = Object.assign(new Error('WebGL2 is required'), {
-      name: 'GPUInitializationError',
-    });
+  it('says the map can\u2019t be displayed, instead of a blank area, when it can\u2019t be created', () => {
+    failure.createFails = true;
     renderScreen();
     expect(screen.getByText(MAP_FAILED_MESSAGE)).toBeDefined();
     expect(mapInstances.length).toBe(0);
   });
 
-  it('says so when the WebGL context is lost, and clears it once restored (b-oss#537)', async () => {
+  it('says so when tiles keep failing and none has loaded, and clears it once one loads', async () => {
     renderScreen();
     await waitFor(() => expect(mapInstances.length).toBe(1));
-    act(() => mapInstances[0].trigger('webglcontextlost'));
+    const layer = tileLayerOf(mapInstances[0]);
+    act(() => {
+      for (let i = 0; i < 4; i++) layer.fire('tileerror');
+    });
     expect(screen.getByText(MAP_FAILED_MESSAGE)).toBeDefined();
-    act(() => mapInstances[0].trigger('webglcontextrestored'));
+    act(() => {
+      layer.fire('tileload');
+    });
     expect(screen.queryByText(MAP_FAILED_MESSAGE)).toBeNull();
   });
 });
@@ -267,8 +269,8 @@ describe('LocationPickerScreen without OS location (desktop, b-oss#636)', () => 
     renderScreen();
     await waitFor(() => expect(mapInstances.length).toBe(1));
     expect(screen.queryByRole('button', { name: 'My location' })).toBeNull();
-    mapInstances[0].trigger('click', { lngLat: { lat: 10, lng: 20 } });
-    await waitFor(() => expect(markerInstances.length).toBe(1));
+    mapInstances[0].fire('click', { latlng: L.latLng(10, 20) });
+    await waitFor(() => expect(pins(mapInstances[0]).length).toBe(1));
     await userEvent.click(screen.getByText('Done'));
     expect(useComposeDraftStore.getState().draft?.location).toEqual({ lat: 10, lon: 20 });
   });

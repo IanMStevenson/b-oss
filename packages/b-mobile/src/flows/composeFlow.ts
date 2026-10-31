@@ -41,6 +41,8 @@ export async function enqueueDraft(draft: ComposeDraft): Promise<string> {
     description: tagsAndLocationOnly ? undefined : draft.description || undefined,
     lat: draft.location ? draft.location.lat : undefined,
     lon: draft.location ? draft.location.lon : undefined,
+    // The position is sent whether or not it is shown, so the server holds it for a later "Add
+    // to map"; display_location carries the map on/off choice (a PUT without it leaves it as is).
     display_location: draft.location ? (draft.displayLocation ? 1 : 0) : undefined,
   };
 
@@ -55,7 +57,12 @@ export async function enqueueDraft(draft: ComposeDraft): Promise<string> {
           gmt_offset: gmtOffsetMinutes(),
         }
       : // SCR-13 has no date field — the draft's `date` is carried only for display, never sent.
-        commonFields;
+        // A thumbnail selection only means something alongside a replacement photo.
+        {
+          ...commonFields,
+          thumbnail_crop:
+            photo && draft.thumbnailCrop ? thumbnailCropToField(draft.thumbnailCrop) : undefined,
+        };
 
   const item: UploadQueueItem = {
     id,

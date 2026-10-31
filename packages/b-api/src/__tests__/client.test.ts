@@ -609,6 +609,24 @@ describe('updateEntry (User auth only)', () => {
     });
   });
 
+  it('sends thumbnail_crop alongside a replacement image', async () => {
+    server.use(
+      http.put(`${BASE}entry.json`, async ({ request }) => {
+        const form = await request.formData();
+        expect(form.get('thumbnail_crop')).toBe('0.1,0.2,0.3');
+        return HttpResponse.json(envelope({ entry: mockEntryStub }), {
+          headers: rateLimitHeaders(),
+        });
+      }),
+    );
+    const blob = new Blob(['fake-image'], { type: 'image/jpeg' });
+    await makeUserClient().updateEntry({
+      entryId: '9876543210',
+      image: { blob },
+      thumbnail_crop: '0.1,0.2,0.3',
+    });
+  });
+
   it('PUTs without image blob when image not provided', async () => {
     server.use(
       http.put(`${BASE}entry.json`, async ({ request }) => {

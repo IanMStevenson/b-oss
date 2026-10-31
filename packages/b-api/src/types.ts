@@ -364,6 +364,8 @@ export interface UpdateEntryParams {
   lat?: number;
   lon?: number;
   display_location?: 0 | 1;
+  /** With a replacement `image`: crop as `x,y,w` floats (0.0-1.0) of the image dimensions. */
+  thumbnail_crop?: string;
   exif_Make?: string;
   exif_Model?: string;
   exif_ExposureTime?: string;
