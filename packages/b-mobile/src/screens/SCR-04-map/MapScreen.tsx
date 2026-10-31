@@ -38,7 +38,7 @@ import { getTileLayerConfig } from '../../platform/mapTiles.js';
 import { createLeafletMap, MAP_FAILED_MESSAGE } from '../../components/leafletMap.js';
 import { getCurrentPosition, LocationUnavailableError } from '../../platform/geolocation.js';
 import { resolveImage } from '../../platform/imageCache.js';
-import { fetchEntriesInBounds, requestRanges } from '../../data/map.js';
+import { fetchEntriesInBounds, requestRanges, type FetchStats } from '../../data/map.js';
 import {
   formatFetchLine,
   formatLoadLine,
@@ -347,7 +347,8 @@ export function MapScreen({ focusedEntryId }: MapScreenProps) {
     const id = ++requestIdRef.current;
     requestCountRef.current += 1;
     setEntriesStatus('loading');
-    fetchEntriesInBounds(debouncedBounds).then(
+    const stats: FetchStats = { received: 0, unplottable: [] };
+    fetchEntriesInBounds(debouncedBounds, stats).then(
       (entries) => {
         if (id !== requestIdRef.current) return;
         renderMarkers(entries);
@@ -359,7 +360,9 @@ export function MapScreen({ focusedEntryId }: MapScreenProps) {
                 {
                   requestId: id,
                   ranges: requestRanges(debouncedBounds),
+                  received: stats.received,
                   entries: entries.length,
+                  undrawable: stats.unplottable,
                   markers: markersRef.current.size,
                   requestCount: requestCountRef.current,
                 },

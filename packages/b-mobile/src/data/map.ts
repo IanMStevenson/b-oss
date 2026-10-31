@@ -106,7 +106,17 @@ const MAX_MARKERS = 100;
 // Public browsing, same as entries.ts's Recent/Popular/Nearby/Tag/Search — falls back to the
 // anonymous token if the active account's own is rate-limited (client.ts's
 // withRateLimitFallback doc comment has the full reasoning).
-export async function fetchEntriesInBounds(bounds: MapBounds): Promise<MapEntry[]> {
+export interface FetchStats {
+  /** Entries the API returned across all requests, before any were left out (b-oss#697 diagnostics). */
+  received: number;
+  /** `id@lat,lon` of the entries left out because their coordinates cannot be drawn. */
+  unplottable: string[];
+}
+
+export async function fetchEntriesInBounds(
+  bounds: MapBounds,
+  stats?: FetchStats,
+): Promise<MapEntry[]> {
   const ranges = requestRanges(bounds);
   return withRateLimitFallback(async (client) => {
     const markers: MapEntry[] = [];
@@ -121,6 +131,7 @@ export async function fetchEntriesInBounds(bounds: MapBounds): Promise<MapEntry[
         max_lon: range.maxLon,
         pageSize: MAX_MARKERS,
       });
+      if (stats) stats.received += res.entries.length;
       for (const entry of res.entries) {
         if (!entry.location || seen.has(entry.entry_id_str)) continue;
         if (!isPlottable(entry.location.lat, entry.location.lon)) {
@@ -138,6 +149,7 @@ export async function fetchEntriesInBounds(bounds: MapBounds): Promise<MapEntry[
         });
       }
     }
+    if (stats) stats.unplottable.push(...unplottable);
     if (unplottable.length > 0) {
       console.warn(
         `[map] ${unplottable.length} of the entries returned have coordinates that cannot be drawn: ${unplottable.slice(0, 5).join(' ')}`,

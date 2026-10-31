@@ -60,7 +60,9 @@ describe('map diagnostic lines', () => {
           { minLat: -78, maxLat: 84, minLon: -180, maxLon: 0 },
           { minLat: -78, maxLat: 84, minLon: 0, maxLon: 180 },
         ],
+        received: 100,
         entries: 100,
+        undrawable: [],
         markers: 100,
         requestCount: 3,
       },
@@ -69,7 +71,25 @@ describe('map diagnostic lines', () => {
     expect(line).toContain(
       'fetch #3 requests=2 sent=[lat -78..84 lon -180..0]+[lat -78..84 lon 0..180]',
     );
-    expect(line).toContain('entries=100 markers=100 totalRequests=3 container=1139x1001');
+    expect(line).toContain(
+      'received=100 entries=100 undrawable=0 markers=100 totalRequests=3 container=1139x1001',
+    );
+  });
+
+  it('reports undrawable entries with their ids and coordinates', () => {
+    const line = formatFetchLine(
+      {
+        requestId: 1,
+        ranges: [{ minLat: 0, maxLat: 1, minLon: 0, maxLon: 1 }],
+        received: 100,
+        entries: 98,
+        undrawable: ['7@90,0', '8@90,0'],
+        markers: 98,
+        requestCount: 1,
+      },
+      snap(),
+    );
+    expect(line).toContain('received=100 entries=98 undrawable=2[7@90,0 8@90,0] markers=98');
   });
 
   it('writes to the log with source "map", and stops at the cap', () => {

@@ -54,7 +54,12 @@ export interface FetchInfo {
   requestId: number;
   /** The ranges actually sent, one request each. */
   ranges: MapBounds[];
+  /** Entries the API returned, before any were left out. */
+  received: number;
+  /** Entries kept after leaving out undrawable coordinates and duplicates. */
   entries: number;
+  /** `id@lat,lon` of those left out for coordinates that cannot be drawn (first few logged). */
+  undrawable: string[];
   markers: number;
   /** Requests made so far from this screen, including this one. */
   requestCount: number;
@@ -63,7 +68,8 @@ export interface FetchInfo {
 export function formatFetchLine(info: FetchInfo, s: MapSnapshot): string {
   return (
     `fetch #${info.requestId} requests=${info.ranges.length} sent=${info.ranges.map(box).join('+')} ` +
-    `entries=${info.entries} markers=${info.markers} totalRequests=${info.requestCount} ${formatSnapshot(s)}`
+    `received=${info.received} entries=${info.entries} undrawable=${info.undrawable.length}` +
+    `${info.undrawable.length > 0 ? `[${info.undrawable.slice(0, 5).join(' ')}]` : ''} markers=${info.markers} totalRequests=${info.requestCount} ${formatSnapshot(s)}`
   );
 }
 
