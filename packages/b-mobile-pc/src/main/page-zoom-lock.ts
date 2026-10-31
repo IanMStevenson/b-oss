@@ -10,10 +10,9 @@ import { appMenuTemplate } from './app-menu.js';
  * - no zoom accelerators in the application menu (the only source of keyboard page zoom in Electron);
  * - visual (pinch / Ctrl+wheel) zoom limited to 1x;
  * - the zoom factor pinned back to 1 if anything still changes it.
- * `skip` leaves the last two off (the `no-zoom-lock` render variant, b-oss#676). */
-export function lockPageZoom(contents: WebContents, skip = false): void {
+ */
+export function lockPageZoom(contents: WebContents): void {
   Menu.setApplicationMenu(Menu.buildFromTemplate(appMenuTemplate(process.platform)));
-  if (skip) return;
   void contents.setVisualZoomLevelLimits(1, 1);
   contents.on('zoom-changed', () => contents.setZoomFactor(1));
   contents.on('did-finish-load', () => contents.setZoomFactor(1));

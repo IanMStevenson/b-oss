@@ -7,7 +7,10 @@
  * have to work offline. Roboto is SIL OFL 1.1 (see ./fonts-LICENSE).
  *
  * Only the weights the design uses: Light 300 (descriptions, author name), Regular 400 (titles,
- * body), Medium 500 (emphasis, stat numbers). `latin-ext` covers Central/Eastern European
+ * body), Medium 500 (emphasis, stat numbers), SemiBold 600 and Bold 700 (selected rows, header
+ * title, badges). Every weight used anywhere must have a real face here: otherwise the browser
+ * synthesises faux bold, which renders smeared on low-density (100%) Windows displays (b-oss#676).
+ * A test in b-mobile fails if a used font-weight has no face. `latin-ext` covers Central/Eastern European
  * accents; each subset carries a unicode-range, so a browser downloads one only when text
  * actually needs it. Anything else (Cyrillic, Greek, CJK…) falls back through --font-sans.
  */
@@ -17,3 +20,7 @@
 @import '@fontsource/roboto/latin-ext-400.css';
 @import '@fontsource/roboto/latin-500.css';
 @import '@fontsource/roboto/latin-ext-500.css';
+@import '@fontsource/roboto/latin-600.css';
+@import '@fontsource/roboto/latin-ext-600.css';
+@import '@fontsource/roboto/latin-700.css';
+@import '@fontsource/roboto/latin-ext-700.css';
