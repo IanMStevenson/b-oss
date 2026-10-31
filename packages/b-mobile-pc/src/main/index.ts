@@ -47,6 +47,7 @@ import {
   type Presenter,
   startedHidden,
 } from './notify-shell.js';
+import { createQuitSequence } from './quit-sequence.js';
 import { NotifyPoller, POLL_INTERVAL_MS } from './notify-poller.js';
 import { RecordingPresenter, serveRecordingPresenter } from './notify-test-presenter.js';
 import { SecureStore, type SecretCrypto } from './secure-store.js';
@@ -423,6 +424,17 @@ if (!app.requestSingleInstanceLock()) {
       intervalMs: (testMode && Number(process.env.BMPC_TEST_POLL_INTERVAL_MS)) || POLL_INTERVAL_MS,
     });
     notifyPoller = poller;
+    // Quit (b-oss#710): dispose what the app started, then force the process to end if Electron
+    // has not within a grace period (on Windows the tray vanished but the process lingered).
+    app.on(
+      'before-quit',
+      createQuitSequence({
+        disposers: [() => poller.stop(), () => shell.dispose()],
+        forceExit: () => app.exit(0),
+        log: notifyLog,
+        setTimer: (fn, ms) => setTimeout(fn, ms),
+      }),
+    );
     poller.onActiveChange((active) => shell.setActive(active));
     handle(CHANNELS.notifyConfigure, (settings) =>
       poller.configure(parseNotifySettings(settings).accounts),
