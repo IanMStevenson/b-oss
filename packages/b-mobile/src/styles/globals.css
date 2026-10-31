@@ -290,11 +290,50 @@ ion-segment.settings-pill-segment ion-segment-button::part(native) {
   box-shadow: 0 1px 4px rgba(0, 0, 0, 0.25);
 }
 
-/* MapLibre popups on entry pins: rounded card, ink title, muted username. */
-.maplibregl-popup-content.entry-popup {
+/* Leaflet's panes and controls carry z-indexes of 400-1000; isolating the map keeps them inside
+   it, so the locate button and message card (siblings of the map) stay above. */
+.leaflet-container {
+  isolation: isolate;
+  font: inherit;
+}
+
+/* The pin is an inline-SVG divIcon (components/mapPin.ts); drop Leaflet's default white box. */
+.map-pin {
+  background: none;
+  border: none;
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.4));
+}
+
+/* "My location": a plain blue dot, not an entry-style pin. */
+.map-my-location-icon {
+  background: none;
+  border: none;
+}
+
+.map-my-location {
+  width: 14px;
+  height: 14px;
+  margin: 2px;
+  border-radius: 50%;
+  background: #4285f4;
+  border: 2px solid #fff;
+  box-shadow: 0 0 4px rgba(0, 0, 0, 0.45);
+}
+
+/* Popups on entry pins: rounded card on the page surface, ink title, muted username. */
+.entry-popup .leaflet-popup-content-wrapper {
   padding: 8px;
   border-radius: 12px;
+  background: var(--bg);
   box-shadow: 0 1px 6px rgba(0, 0, 0, 0.3);
+}
+
+.entry-popup .leaflet-popup-content {
+  margin: 0;
+}
+
+.entry-popup .leaflet-popup-tip {
+  background: var(--bg);
 }
 
 .entry-popup-button {
@@ -307,7 +346,7 @@ ion-segment.settings-pill-segment ion-segment-button::part(native) {
   color: var(--ink);
 }
 
-/* MapLibre focuses the popup's first control on open; the card itself is the affordance. */
+/* The card itself is the affordance; no focus ring on it. */
 .entry-popup-button:focus {
   outline: none;
 }
@@ -433,39 +472,6 @@ ion-item.nav-item-current::before {
 
 ion-item.nav-item-current::after {
   bottom: 0;
-}
-
-/* Map chrome on the Dark and Mid themes (b-oss#549). The pin's colour comes from --accent in
-   components/mapPin.ts; its centre dot (MapLibre draws it white) follows --on-accent, which is
-   white in Light, so nothing changes there. */
-.maplibregl-marker svg circle {
-  fill: var(--on-accent);
-}
-
-/* The popup card is MapLibre's own white (the entry-popup class is on the popup's outer box, not the
-   card, hence the descendant selector); take the page surface so its --ink text stays legible. */
-.entry-popup .maplibregl-popup-content {
-  background: var(--bg);
-}
-
-.entry-popup.maplibregl-popup-anchor-top .maplibregl-popup-tip,
-.entry-popup.maplibregl-popup-anchor-top-left .maplibregl-popup-tip,
-.entry-popup.maplibregl-popup-anchor-top-right .maplibregl-popup-tip {
-  border-bottom-color: var(--bg);
-}
-
-.entry-popup.maplibregl-popup-anchor-bottom .maplibregl-popup-tip,
-.entry-popup.maplibregl-popup-anchor-bottom-left .maplibregl-popup-tip,
-.entry-popup.maplibregl-popup-anchor-bottom-right .maplibregl-popup-tip {
-  border-top-color: var(--bg);
-}
-
-.entry-popup.maplibregl-popup-anchor-left .maplibregl-popup-tip {
-  border-right-color: var(--bg);
-}
-
-.entry-popup.maplibregl-popup-anchor-right .maplibregl-popup-tip {
-  border-left-color: var(--bg);
 }
 
 /* The pin button at the top of the navigation menu (desktop, wide window; b-oss#638). */

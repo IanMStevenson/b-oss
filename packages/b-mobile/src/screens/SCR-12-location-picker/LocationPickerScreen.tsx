@@ -1,26 +1,25 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (C) 2026 Ian Stevenson
 
-// SCR-12 — Location Picker. Reuses SCR-04's MapLibre GL JS + platform/mapTiles.ts machinery
-// (Phase 6), adapted for a single draggable marker instead of a browsable region with live entry
+// SCR-12 — Location Picker. Reuses SCR-04's Leaflet raster map + platform/mapTiles.ts machinery
+// (Phase 6, b-oss#655), adapted for a single draggable marker instead of a browsable region with live entry
 // markers — no bounds-fetching, no debounce, no entries/search call at all (SCR-12's own API
 // touchpoints: none). Reads/writes composeDraftStore.location directly (§6, "Draft state"), same
 // as SCR-11 — shared by SCR-10 and SCR-13, no route param needed to know what it's editing.
 //
 // This route is lazy-loaded in AppRoutes.tsx (not here), same reasoning and same pattern as
-// SCR-04: MapLibre is by far the app's largest dependency and most routes never need it.
+// SCR-04: the map library is among the app's larger dependencies and most routes never need it.
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { IonPage, IonHeader, IonButton, IonContent, IonText } from '@ionic/react';
 import { LocateFixed } from 'lucide-react';
-import type { Map as MapLibreMap, Marker } from 'maplibre-gl';
-import 'maplibre-gl/dist/maplibre-gl.css';
+import { marker as leafletMarker } from 'leaflet';
+import type { Map as LeafletMap, Marker } from 'leaflet';
 import { AppHeader } from '../../components/AppHeader.js';
-import { createPin } from '../../components/mapPin.js';
-import { createMap, MAP_FAILED_MESSAGE } from '../../components/createMap.js';
+import { createPinIcon } from '../../components/mapPin.js';
+import { createLeafletMap, MAP_FAILED_MESSAGE } from '../../components/leafletMap.js';
 import '../../components/ComposeForm.css';
-import { getMapStyleUrl, MAP_ATTRIBUTION } from '../../platform/mapTiles.js';
-import { isDarkTheme, useResolvedTheme } from '../../theme/theme.js';
+import { getTileLayerConfig } from '../../platform/mapTiles.js';
 import {
   getCurrentPosition,
   LocationUnavailableError,
@@ -30,18 +29,19 @@ import { locationControlAvailable } from '../../platform/capabilities.js';
 import { useAppNavigate } from '../../app/routes/useAppNavigate.js';
 import { useComposeDraftStore } from '../../state/composeDraftStore.js';
 
-const DEFAULT_CENTER: [number, number] = [0, 20];
-const DEFAULT_ZOOM = 1.5;
-const SELECTED_ZOOM = 12;
+const DEFAULT_CENTER: [number, number] = [20, 0]; // [lat, lon]
+// Leaflet zooms are one step above MapLibre's for the same view (256px tiles, not 512px).
+const DEFAULT_ZOOM = 2;
+const SELECTED_ZOOM = 13;
 
 export function LocationPickerScreen() {
   const navigate = useAppNavigate();
   const draft = useComposeDraftStore((s) => s.draft);
   const patchDraft = useComposeDraftStore((s) => s.patchDraft);
-  const styleUrl = getMapStyleUrl(isDarkTheme(useResolvedTheme()));
+  const tiles = useMemo(() => getTileLayerConfig(), []);
 
   const containerRef = useRef<HTMLDivElement | null>(null);
-  const mapRef = useRef<MapLibreMap | null>(null);
+  const mapRef = useRef<LeafletMap | null>(null);
   const markerRef = useRef<Marker | null>(null);
   const [locationMessage, setLocationMessage] = useState<string | null>(null);
   const [mapFailed, setMapFailed] = useState(false);
@@ -55,33 +55,33 @@ export function LocationPickerScreen() {
     const map = mapRef.current;
     if (!map) return;
     if (markerRef.current) {
-      markerRef.current.setLngLat([lon, lat]);
+      markerRef.current.setLatLng([lat, lon]);
     } else {
-      markerRef.current = createPin({ draggable: true }).setLngLat([lon, lat]).addTo(map);
-      markerRef.current.on('dragend', () => {
-        const pos = markerRef.current!.getLngLat();
+      const pin = leafletMarker([lat, lon], {
+        icon: createPinIcon(),
+        draggable: true,
+        alt: 'Selected location',
+      }).addTo(map);
+      pin.on('dragend', () => {
+        const pos = pin.getLatLng();
         setSelected({ lat: pos.lat, lon: pos.lng });
       });
+      markerRef.current = pin;
     }
   }
 
   useEffect(() => {
-    if (!styleUrl || !containerRef.current) return;
-    const url = styleUrl;
+    if (!tiles || !containerRef.current) return;
     let cancelled = false;
     const initialCenter: [number, number] = draft?.location
-      ? [draft.location.lon, draft.location.lat]
+      ? [draft.location.lat, draft.location.lon]
       : DEFAULT_CENTER;
     const initialZoom = draft?.location ? SELECTED_ZOOM : DEFAULT_ZOOM;
 
-    const map = createMap(
-      {
-        container: containerRef.current,
-        style: url,
-        center: initialCenter,
-        zoom: initialZoom,
-        attributionControl: { customAttribution: MAP_ATTRIBUTION },
-      },
+    const map = createLeafletMap(
+      containerRef.current,
+      { center: initialCenter, zoom: initialZoom },
+      tiles,
       {
         onFailed: () => {
           if (!cancelled) setMapFailed(true);
@@ -94,22 +94,24 @@ export function LocationPickerScreen() {
     if (!map) return;
     mapRef.current = map;
 
-    map.on('load', () => {
-      if (cancelled) return;
-      if (draft?.location) placeMarker(draft.location.lat, draft.location.lon);
-    });
+    if (draft?.location) placeMarker(draft.location.lat, draft.location.lon);
     map.on('click', (e) => {
-      placeMarker(e.lngLat.lat, e.lngLat.lng);
+      placeMarker(e.latlng.lat, e.latlng.lng);
     });
+
+    // Leaflet caches the container size from construction; follow it if layout settles later.
+    const ro = new ResizeObserver(() => map.invalidateSize());
+    ro.observe(containerRef.current);
 
     return () => {
       cancelled = true;
+      ro.disconnect();
       map.remove();
       if (mapRef.current === map) mapRef.current = null;
       markerRef.current = null;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [styleUrl]);
+  }, [tiles]);
 
   async function handleMyLocation(): Promise<void> {
     setLocationMessage(null);
@@ -120,7 +122,7 @@ export function LocationPickerScreen() {
         return;
       }
       placeMarker(coords.lat, coords.lon);
-      mapRef.current?.jumpTo({ center: [coords.lon, coords.lat], zoom: SELECTED_ZOOM });
+      mapRef.current?.setView([coords.lat, coords.lon], SELECTED_ZOOM, { animate: false });
     } catch (err) {
       setLocationMessage(
         err instanceof LocationUnavailableError ? err.message : 'Location access was refused.',
@@ -145,7 +147,7 @@ export function LocationPickerScreen() {
         <AppHeader title="Pick location" variant="back" accountIndicator />
       </IonHeader>
       <IonContent>
-        {!styleUrl ? (
+        {!tiles ? (
           <div className="ion-padding">
             <IonText>
               <p>Maps and location aren&rsquo;t available right now.</p>
@@ -154,7 +156,9 @@ export function LocationPickerScreen() {
         ) : (
           <div className="location-picker">
             <div className="location-map">
-              <div ref={containerRef} className="location-map-canvas" />
+              {/* Inline, not a class: Ionic can mount the page before it is in the document, when
+                  a stylesheet's `position` doesn't read back and Leaflet would force `relative`. */}
+              <div ref={containerRef} style={{ position: 'absolute', inset: 0 }} />
               {locationControlAvailable() && (
                 <button
                   type="button"
@@ -189,7 +193,7 @@ export function LocationPickerScreen() {
                 </div>
               )}
             </div>
-            {/* Below the map, not over it: MapLibre's attribution chip sits at the map's bottom
+            {/* Below the map, not over it: the map's attribution sits at the map's bottom
                 edge and used to be covered by an absolutely-positioned footer. */}
             <div className="location-footer">
               <IonButton fill="outline" style={{ flex: 1 }} onClick={handleClear}>

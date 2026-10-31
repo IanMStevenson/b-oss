@@ -71,3 +71,19 @@ origins may read the data is the `ALLOWED_ORIGINS` set in `src/cors.ts`.
 - **Budget (Workers Free, shared with b-push):** 100,000 Worker requests a day account-wide, 10 ms CPU
   per invocation, 50 subrequests; D1 5M rows read and 100k written a day. A page view costs no D1
   read in the normal case. Watch the Worker's Metrics for CPU time and errors now and then.
+
+## Correlation probe (from another machine)
+
+`scripts/correlate.mjs` runs the monitor's own checks from wherever you run it, on the same 15-minute
+cadence, and logs every attempt (first and retry) as NDJSON, so slow or failed checks can be compared
+with the status page's incidents. Build first, then leave it running:
+
+```bash
+npm run build -w @b-oss/b-status
+NODE_USE_ENV_PROXY=1 MONITOR_CLIENT_ID=<client id> node packages/b-status/scripts/correlate.mjs
+node packages/b-status/scripts/correlate.mjs --report   # slow/failed local attempts next to the page's incidents
+```
+
+The log defaults to `~/dev/tmp/b-status-correlate/probe.ndjson`. `NODE_USE_ENV_PROXY=1` is for the
+egress-controlled dev boxes. The photo check is off unless `--photo` is given (the CDN host is not on
+their allowlist). `--once` does a single run, to test.

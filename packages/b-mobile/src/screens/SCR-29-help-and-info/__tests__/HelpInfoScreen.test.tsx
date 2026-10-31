@@ -155,7 +155,7 @@ describe('HelpInfoScreen sections', () => {
     expect(openUrl).toHaveBeenLastCalledWith('https://b-oss.dev/');
   });
 
-  it('credits MapTiler and OpenStreetMap (ODbL) for the maps', async () => {
+  it('credits Geoapify, OpenMapTiles and OpenStreetMap (ODbL) for the maps', async () => {
     render(
       <MemoryRouter>
         <HelpInfoScreen section="licences" />
@@ -164,8 +164,10 @@ describe('HelpInfoScreen sections', () => {
     expect(screen.getByText(/Open Database License \(ODbL\)/)).toBeDefined();
     await userEvent.click(screen.getByText('OpenStreetMap contributors'));
     expect(openUrl).toHaveBeenLastCalledWith('https://www.openstreetmap.org/copyright');
-    await userEvent.click(screen.getByText('MapTiler'));
-    expect(openUrl).toHaveBeenLastCalledWith('https://www.maptiler.com/copyright/');
+    await userEvent.click(screen.getByText('Geoapify'));
+    expect(openUrl).toHaveBeenLastCalledWith('https://www.geoapify.com/');
+    await userEvent.click(screen.getByText('OpenMapTiles'));
+    expect(openUrl).toHaveBeenLastCalledWith('https://openmaptiles.org/');
   });
 
   it('lists every generated library with its licence, and shows the text when one is opened', async () => {

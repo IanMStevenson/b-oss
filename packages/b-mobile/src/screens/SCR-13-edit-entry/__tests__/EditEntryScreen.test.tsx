@@ -9,6 +9,7 @@ import { MemoryRouter } from 'react-router-dom';
 import { OverlayProvider } from '../../../app/OverlayProvider.js';
 import { BlipfotoError } from '@b-oss/b-api';
 import { EditEntryScreen } from '../EditEntryScreen.js';
+import { StillVisibleError } from '../../../data/entryLocation.js';
 import { useAccountsStore } from '../../../state/accountsStore.js';
 import { useComposeDraftStore } from '../../../state/composeDraftStore.js';
 
@@ -17,6 +18,17 @@ const { fetchEntry, deleteEntry } = vi.hoisted(() => ({
   deleteEntry: vi.fn(),
 }));
 vi.mock('../../../data/entries.js', () => ({ fetchEntry, deleteEntry }));
+
+const { revealStoredPosition } = vi.hoisted(() => ({ revealStoredPosition: vi.fn() }));
+vi.mock('../../../data/entryLocation.js', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../../../data/entryLocation.js')>()),
+  revealStoredPosition,
+}));
+
+const { fetchUserProfile } = vi.hoisted(() => ({
+  fetchUserProfile: vi.fn(),
+}));
+vi.mock('../../../data/users.js', () => ({ fetchUserProfile }));
 
 const { enqueueDraft } = vi.hoisted(() => ({ enqueueDraft: vi.fn() }));
 vi.mock('../../../flows/composeFlow.js', () => ({ enqueueDraft }));
@@ -29,6 +41,7 @@ vi.mock('../../../app/routes/useAppNavigate.js', () => ({
 }));
 
 beforeEach(() => {
+  fetchUserProfile.mockResolvedValue({ details: { member: 1 } });
   useAccountsStore.setState({
     accounts: [
       {
@@ -134,7 +147,7 @@ describe('EditEntryScreen', () => {
         },
       });
     });
-    expect(await screen.findByAltText('New photo')).toBeDefined();
+    expect(await screen.findByAltText('Thumbnail')).toBeDefined();
     // Details form is still there.
     expect(screen.getByDisplayValue('Sunrise')).toBeDefined();
   });
@@ -198,5 +211,79 @@ describe('EditEntryScreen', () => {
     renderScreen();
     expect(await screen.findByDisplayValue('Already editing')).toBeDefined();
     expect(fetchEntry).not.toHaveBeenCalled();
+  });
+
+  describe('Add to map for an entry whose position the app does not hold', () => {
+    function toggleMapOn(): void {
+      screen
+        .getByLabelText('Add to map')
+        .dispatchEvent(new CustomEvent('ionChange', { bubbles: true, detail: { checked: true } }));
+    }
+
+    it('looks up the position Blipfoto holds, keeps it in the draft and opens the picker', async () => {
+      revealStoredPosition.mockResolvedValue({ lat: 55.9, lon: -3.2 });
+      renderScreen();
+      await screen.findByDisplayValue('Sunrise');
+
+      toggleMapOn();
+
+      await waitFor(() => expect(push).toHaveBeenCalledWith('/compose/location'));
+      expect(revealStoredPosition).toHaveBeenCalledWith('a1', 'e1');
+      const draft = useComposeDraftStore.getState().draft;
+      expect(draft?.location).toEqual({ lat: 55.9, lon: -3.2 });
+      // The map stays off until the user confirms in the picker.
+      expect(draft?.displayLocation).toBe(false);
+    });
+
+    it('opens an empty picker when Blipfoto holds no position', async () => {
+      revealStoredPosition.mockResolvedValue(null);
+      renderScreen();
+      await screen.findByDisplayValue('Sunrise');
+
+      toggleMapOn();
+
+      await waitFor(() => expect(push).toHaveBeenCalledWith('/compose/location'));
+      expect(useComposeDraftStore.getState().draft?.location).toBeNull();
+    });
+
+    it('says so and does not open the picker when the lookup fails', async () => {
+      revealStoredPosition.mockRejectedValue(new BlipfotoError(500, 'Server error'));
+      renderScreen();
+      await screen.findByDisplayValue('Sunrise');
+
+      toggleMapOn();
+
+      expect(await screen.findByText(/Server error|position/)).toBeDefined();
+      expect(push).not.toHaveBeenCalledWith('/compose/location');
+      expect(useComposeDraftStore.getState().draft?.displayLocation).toBe(false);
+    });
+
+    it('warns that the entry is still on the map when it could not be hidden again, but keeps the position', async () => {
+      revealStoredPosition.mockRejectedValue(new StillVisibleError({ lat: 1, lon: 2 }));
+      renderScreen();
+      await screen.findByDisplayValue('Sunrise');
+
+      toggleMapOn();
+
+      expect(await screen.findByText(/showing on the map/)).toBeDefined();
+      expect(useComposeDraftStore.getState().draft?.location).toEqual({ lat: 1, lon: 2 });
+      expect(push).not.toHaveBeenCalledWith('/compose/location');
+    });
+
+    it('does not look anything up when the position is already known', async () => {
+      fetchEntry.mockResolvedValue({
+        ...(await fetchEntry.getMockImplementation()?.()),
+      });
+      renderScreen();
+      await screen.findByDisplayValue('Sunrise');
+      act(() => {
+        useComposeDraftStore.getState().patchDraft({ location: { lat: 5, lon: 6 } });
+      });
+
+      toggleMapOn();
+
+      await waitFor(() => expect(push).toHaveBeenCalledWith('/compose/location'));
+      expect(revealStoredPosition).not.toHaveBeenCalled();
+    });
   });
 });

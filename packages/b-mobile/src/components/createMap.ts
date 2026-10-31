@@ -1,6 +1,10 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (C) 2026 Ian Stevenson
 
+// PARKED (b-oss#653): no screen uses this now. SCR-04 and SCR-12 use the Leaflet raster map
+// (components/leafletMap.ts, b-oss#655); this MapLibre version is kept for a possible later
+// "richer mode". Its pin and popup styles were removed with the switch and would need restoring.
+//
 // Creates the MapLibre map for SCR-04 (Map) and SCR-12 (location picker), and reports the
 // failures that are certain (b-oss#537):
 //
@@ -18,7 +22,7 @@
 import { Map as MapLibreMap } from 'maplibre-gl';
 import type { MapOptions, ErrorEvent as MapLibreErrorEvent } from 'maplibre-gl';
 
-export const MAP_FAILED_MESSAGE = 'The map couldn’t be displayed on this device.';
+export { MAP_FAILED_MESSAGE } from './leafletMap.js';
 
 export interface MapFailureHandlers {
   /** The map can't draw: it failed to start, or lost its WebGL context. */
