@@ -8,17 +8,17 @@ safety), `../docs/RELEASING-android.md` (building and uploading).
 
 ## App details
 
-| Field               | Value                                                                                |
-| ------------------- | ------------------------------------------------------------------------------------ |
-| App name            | b-mobile for Blipfoto                                                                |
-| Package name        | `uk.co.salientpoint.bmobile` (set by the first bundle; permanent)                    |
-| Default language    | English (United Kingdom)                                                             |
-| App or game / price | App, free                                                                            |
-| Category            | Photography (not Social: Social brings in Child Safety Standards declarations)       |
-| Contact email       | b-oss@salientpoint.co.uk (public)                                                    |
-| Website             | https://b-oss.dev/b-mobile.html |
-| Privacy policy      | https://b-oss.dev/b-mobile-privacy.html                          |
-| Data deletion URL   | https://b-oss.dev/b-mobile-data-deletion.html                    |
+| Field               | Value                                                                          |
+| ------------------- | ------------------------------------------------------------------------------ |
+| App name            | b-mobile for Blipfoto                                                          |
+| Package name        | `uk.co.salientpoint.bmobile` (set by the first bundle; permanent)              |
+| Default language    | English (United Kingdom)                                                       |
+| App or game / price | App, free                                                                      |
+| Category            | Photography (not Social: Social brings in Child Safety Standards declarations) |
+| Contact email       | b-oss@salientpoint.co.uk (public)                                              |
+| Website             | https://b-oss.dev/b-mobile.html                                                |
+| Privacy policy      | https://b-oss.dev/b-mobile-privacy.html                                        |
+| Data deletion URL   | https://b-oss.dev/b-mobile-data-deletion.html                                  |
 
 ## App access (restricted: needs a sign-in)
 
