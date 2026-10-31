@@ -76,6 +76,7 @@ PIDS+=($!)
 docker run -d --rm --name "$CONTAINER" --network host \
   -e E2E_CDP_PORT -e E2E_STUB_PORT -e E2E_AUTH_PORT -e E2E_NOTIFY_PORT \
   -e E2E_PROXY="${https_proxy:-}" \
+  -e BMPC_TEST_PAGE -e BMPC_CSS_EXPERIMENT \
   -v "$ROOT:/p" -v "$WORK:/tmp/ud" "$IMAGE" bash /p/packages/b-mobile-pc/e2e/docker/run-electron.sh >/dev/null
 for _ in $(seq 1 60); do
   curl -fs http://127.0.0.1:$E2E_CDP_PORT/json/version >/dev/null 2>&1 && break

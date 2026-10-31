@@ -53,6 +53,14 @@ import { SecureStore, type SecretCrypto } from './secure-store.js';
 import { MIN_HEIGHT, MIN_WIDTH, parseWindowState } from './window-state.js';
 import { lockPageZoom } from './page-zoom-lock.js';
 import { applyRenderVariants } from './render-variants.js';
+import {
+  PLAIN_PAGE_CSP,
+  REPORT_SCRIPT,
+  cssFor,
+  parseCssExperiments,
+  parseTestPage,
+  plainTestPage,
+} from './blur-bisect.js';
 
 // Test hooks (e2e runs against a stub API and a fake sign-in page). Ignored in a packaged app.
 const testMode = !app.isPackaged;
@@ -61,6 +69,10 @@ const testMode = !app.isPackaged;
 // shortcut, so set it before any window or notification exists (b-oss#674).
 if (process.platform === 'win32') app.setAppUserModelId(APP_USER_MODEL_ID);
 const renderVariants = applyRenderVariants(app);
+// b-oss#676 bisect switches: inert when unset, and (unlike the render variants) honoured when packaged.
+const testPage = parseTestPage(process.env.BMPC_TEST_PAGE);
+const cssExperiments = parseCssExperiments(process.env.BMPC_CSS_EXPERIMENT);
+let bisectLog: (message: string) => void = (m) => console.warn(`[b-mobile-pc] ${m}`);
 const apiOrigin = (testMode && process.env.BMPC_API_ORIGIN) || DEFAULT_API_ORIGIN;
 const authHosts = (testMode && process.env.BMPC_AUTH_HOSTS?.split(',')) || [...DEFAULT_AUTH_HOSTS];
 const authAllowHttp = testMode && process.env.BMPC_AUTH_ALLOW_HTTP === '1';
@@ -164,6 +176,16 @@ async function handleAppRequest(request: Request): Promise<Response> {
   if (plan.kind === 'reject') return new Response('Forbidden', { status: plan.status });
   if (plan.kind === 'api') return proxyApi(request, plan.target);
 
+  if (testPage === 'plain') {
+    return new Response(plainTestPage(), {
+      headers: {
+        'content-type': 'text/html; charset=utf-8',
+        'content-security-policy': PLAIN_PAGE_CSP,
+        'cache-control': 'no-cache',
+      },
+    });
+  }
+
   let file = plan.file;
   let body = await readStatic(file);
   if (body === null && plan.spaFallback) {
@@ -259,6 +281,25 @@ async function createWindow(showWindow: boolean): Promise<void> {
     mainWindow = null;
   });
 
+  if (cssExperiments.experiments.length && !testPage) {
+    // Inserted again on every full load. Logs what each element's compositing looks like first, so
+    // the log shows the page as it is *before* the experiment's CSS (the `report` experiment).
+    win.webContents.on('did-finish-load', () => {
+      void (async () => {
+        try {
+          const css = cssFor(cssExperiments.experiments);
+          if (css) await win.webContents.insertCSS(css);
+          // Ionic mounts after load; give it a moment, then report the settled page.
+          await new Promise((r) => setTimeout(r, 1500));
+          const report = (await win.webContents.executeJavaScript(REPORT_SCRIPT)) as string;
+          bisectLog(`css experiment report: ${report}`);
+        } catch (err) {
+          bisectLog(`css experiment failed: ${err instanceof Error ? err.message : String(err)}`);
+        }
+      })();
+    });
+  }
+
   await win.loadURL(`${APP_ORIGIN}/`);
 }
 
@@ -344,6 +385,17 @@ if (!app.requestSingleInstanceLock()) {
       console.warn(`[b-mobile-pc] ${message}`);
       void errorLog.write({ source: 'notify', message });
     };
+    bisectLog = (message) => {
+      console.warn(`[b-mobile-pc] ${message}`);
+      void errorLog.write({ source: 'render-bisect', message });
+    };
+    if (testPage || cssExperiments.experiments.length || cssExperiments.unknown.length) {
+      bisectLog(
+        `blur bisect active: BMPC_TEST_PAGE=${testPage ?? '-'} BMPC_CSS_EXPERIMENT=${
+          cssExperiments.experiments.join(',') || '-'
+        }${cssExperiments.unknown.length ? ` (unknown, ignored: ${cssExperiments.unknown.join(',')})` : ''}`,
+      );
+    }
     notifyLog(
       `start: version=${app.getVersion()} electron=${process.versions.electron} platform=${process.platform} ` +
         `packaged=${app.isPackaged} appUserModelId=${process.platform === 'win32' ? APP_USER_MODEL_ID : 'n/a'} ` +

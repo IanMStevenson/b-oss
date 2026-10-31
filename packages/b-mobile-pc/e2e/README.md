@@ -40,6 +40,13 @@ token raises exactly one sign-in-again notification.
 
 The error log (b-oss#639): an unhandled page error lands in `userData/logs/app.log` with its token redacted, and the error screen shows the message with Copy details (through the bridge to the clipboard) and Open log folder. The render failure is simulated by handing the app's real error boundary an error through React's fiber tree.
 
+## The blur bisect switches (b-oss#676)
+
+`e2e/blur-bisect.e2e.ts` is skipped unless `BMPC_TEST_PAGE` or `BMPC_CSS_EXPERIMENT` is set for the run (`run.sh`
+passes both to the shell), and the main suite must not be run with them, so run only this file:
+`BMPC_CSS_EXPERIMENT=all npm run e2e -w @b-oss/b-mobile-pc -- blur-bisect` (or `BMPC_TEST_PAGE=plain`). It
+writes `blur-report.json` (layer-promoted and fractionally placed elements) and screenshots to `e2e-out/`.
+
 ## What it cannot cover
 
 - **The OS keystore.** A container has no usable one, so the shell is started with

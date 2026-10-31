@@ -154,6 +154,83 @@ recreated by every build; that is fine here because the relay's root is the whol
 rooted at `win-unpacked/` itself would halt with "root deletion".) Start-with-login registers whichever
 exe path was running, so use that one folder.
 
+### Blurry text on a 100%-scale monitor: the bisect (b-oss#676)
+
+Soft text on the 100% monitors (sharp at 250%, and b-ark is sharp on the same screen) could not be
+reproduced on Linux, so there are two switches that narrow it down on Windows. Both are environment
+variables, do nothing when unset, and work in the **packaged exe and the unpacked folder** alike (they only
+change what is painted; the render variants of the same issue, `BMPC_RENDER_VARIANT`, are the ones that are
+ignored when packaged).
+
+- `BMPC_TEST_PAGE=plain`: the window loads a tiny static page instead of the app, through the same `app://`
+  protocol and the same window. It shows text at 12/14/16/20 px in system sans-serif, Segoe UI, a
+  Roboto-like fallback stack and monospace (black on white), plus four lines white on a solid green band.
+  Question it answers: is plain text in this shell sharp? **Sharp** means the shell and window are fine and
+  the app's markup/CSS is the cause; **soft** means it is the window, protocol or Electron/Chromium setup.
+- `BMPC_CSS_EXPERIMENT=name[,name...]`: injects CSS into the real app after each page load (`insertCSS`).
+  Names: `report` (no CSS; only logs), `no-layers` (will-change/backface/contain/filter/backdrop-filter off,
+  no transform on the header parts), `system-font` (Segoe UI everywhere), `no-smoothing` (font-smoothing and
+  text-rendering back to auto), `no-overflow-scroll` (no layer hints or containment on `ion-content`'s
+  scroll container), `no-ionic-transitions` (no transitions or animations), `no-title-centering` (title
+  left-aligned, no centred fractional offset), `no-header-shadow` (Ionic's header/footer shadow
+  pseudo-elements off), `all` (all of those). It reaches light-DOM elements and the `::part()`s Ionic
+  exposes; styles inside Ionic's shadow roots that are not exposed are out of reach, so a "no change"
+  result is not proof for those.
+
+Every run writes to `app.log` (`%APPDATA%\b-mobile\logs` or wherever the error screen's Open log folder goes; `source` is `render-bisect`): a line
+`blur bisect active: ...` and, for CSS experiments, `css experiment report: {...}` listing for the header,
+toolbars, buttons, menu, content and router outlet which have a compositing reason (transform, will-change,
+filter, `contain`, fixed/sticky position, scroller), which sit at fractional pixel positions, their
+background colour and font. Send that log line with the results.
+
+A Linux run of the report on the unmodified app (DPR 1, 480x900, signed out, Browse) found: `ion-buttons` in
+the toolbar carry `transform: matrix(1,0,0,1,0,0)` and sit at fractional offsets (`left=410.69`, `top=14.50`,
+`width=65.31`); `ion-router-outlet` has the same identity transform; header, toolbar, menu and content have
+`contain` (size/layout/style/strict) and transparent backgrounds. That is a lead to test, not a finding:
+Linux cannot show whether any of it softens text on Windows.
+
+**One script for Ian** (PowerShell; edit `$exe`). It runs each option in turn, waits for you to quit the
+app, and asks what you saw. Before it starts, **exit b-mobile from the tray** (the app is single-instance, so
+a copy still running in the tray would take the launch over and ignore the variables).
+
+```powershell
+$exe = 'D:\Dev\debugging\b-mobile-pc-build\packages\b-mobile-pc\dist-electron\win-unpacked\b-mobile.exe'
+$runs = @(
+  @{ Page = 'plain'; Css = '' },
+  @{ Page = ''; Css = 'report' },
+  @{ Page = ''; Css = 'no-layers' },
+  @{ Page = ''; Css = 'system-font' },
+  @{ Page = ''; Css = 'no-smoothing' },
+  @{ Page = ''; Css = 'no-overflow-scroll' },
+  @{ Page = ''; Css = 'no-ionic-transitions' },
+  @{ Page = ''; Css = 'no-title-centering' },
+  @{ Page = ''; Css = 'no-header-shadow' },
+  @{ Page = ''; Css = 'all' }
+)
+$results = @()
+foreach ($r in $runs) {
+  $label = if ($r.Page) { "BMPC_TEST_PAGE=$($r.Page)" } else { "BMPC_CSS_EXPERIMENT=$($r.Css)" }
+  Write-Host "`n=== $label ===" -ForegroundColor Cyan
+  if ($r.Page) { Write-Host 'Look at the text samples at all sizes and the white-on-green lines.' }
+  else { Write-Host 'Look at the green banner headings and the Keep menu open text (open the menu).' }
+  Write-Host 'Then QUIT the app (right-click the tray icon > Exit, or File > Exit) to go on.'
+  $env:BMPC_TEST_PAGE = $r.Page
+  $env:BMPC_CSS_EXPERIMENT = $r.Css
+  Start-Process -FilePath $exe -Wait
+  $answer = Read-Host 'Was the text sharp? (s = sharp, b = blurry, ? = unsure)'
+  $results += "$label -> $answer"
+}
+Remove-Item Env:BMPC_TEST_PAGE, Env:BMPC_CSS_EXPERIMENT -ErrorAction SilentlyContinue
+Write-Host "`nResults:"; $results
+```
+
+If the app lingers after Exit (b-oss#710), end `b-mobile.exe` in Task Manager before answering, or the next
+run will not start. `Start-Process -Wait` waits for the process it started and for any children, so the loop
+only moves on when the app has really gone. Reading the result: if `plain` is blurry, the cause is in the
+window/shell, not the app. If `plain` is sharp and one experiment turns the app sharp, that experiment's
+CSS names the cause (then `all` should be sharp too). If nothing helps while `plain` is sharp, the cause is
+inside Ionic's shadow DOM or the markup, and the `report` line is where to look next.
+
 ## Testing on Windows (Mutagen dev loop)
 
 **Exit the app from the tray before testing a new synced build.** Closing the window only hides it, so
