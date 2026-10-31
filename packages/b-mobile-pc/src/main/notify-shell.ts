@@ -26,6 +26,8 @@ export interface Presenter {
   show(item: ToShow, onClick: () => void): Promise<void>;
   /** The "Send a test notification" toast: no payload, no API. Reports what the OS did. */
   showTest(onClick: () => void): Promise<TestNotifyResult>;
+  /** Close any toast still held, so nothing outlives the quit. */
+  dispose?(): void;
 }
 
 export const TEST_TITLE = 'b-mobile test notification';
@@ -103,6 +105,10 @@ export function createElectronPresenter(log: (message: string) => void): Present
       if (!result.ok) throw new Error(result.detail);
     },
     showTest: (onClick) => present(TEST_TITLE, TEST_BODY, 'test', onClick),
+    dispose() {
+      for (const n of live) n.close();
+      live.clear();
+    },
   };
 }
 
@@ -121,6 +127,16 @@ export class NotifyShell {
     app.on('before-quit', () => {
       this.quitting = true;
     });
+  }
+
+  /** Quit: remove the tray, close toasts still held. Safe to call twice. */
+  dispose(): void {
+    this.quitting = true;
+    if (this.tray) {
+      this.tray.destroy();
+      this.tray = null;
+    }
+    this.presenter.dispose?.();
   }
 
   /** The OS is ending the session (logoff, shutdown, restart): let windows close for real. */
