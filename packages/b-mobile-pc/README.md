@@ -147,8 +147,11 @@ uses (no Wine on the host). Output in `packages/b-mobile-pc/dist-electron/`: `b-
 (single file, just run it) and `b-mobile-Setup-<version>.exe` (one-click, per-user installer). Both are
 **unsigned**, so SmartScreen warns ("More info", "Run anyway"); signing and auto-update are b-oss#612. The
 web build is copied into the app as `resources/web`; `productName` is `b-mobile`, so user data lives in
-`%APPDATA%\b-mobile`. A repo-root `.env.local` with `VITE_BLIPFOTO_CLIENT_ID` is needed (baked into the web
-build). The packaged layout can be smoke-tested on Linux with `npx electron-builder --linux dir` and the
+`%APPDATA%\b-mobile`. A repo-root `.env.local` with the keys `.env.example` lists is needed (baked into the web build: the
+sign-in client id, the map tile key). `scripts/env-check.mjs` runs first: it names every key `.env.local` lacks
+(never a value), and stops the build unless the key is marked `# optional` in `.env.example` or
+`BMPC_ALLOW_MISSING_ENV=1` is set. A worktree's copy of `.env.local` goes stale when `.env.example` changes on
+main: re-copy it (CLAUDE.md, "Local build credentials"). The packaged layout can be smoke-tested on Linux with `npx electron-builder --linux dir` and the
 e2e image (test hooks are ignored when packaged, so only the real API is reachable).
 
 ### Fast loop on Windows: run the unpacked build from the synced folder

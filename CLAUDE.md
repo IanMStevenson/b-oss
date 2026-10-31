@@ -202,6 +202,16 @@ non-Apache licence needs a matching entry/file in `scripts/native-licences.mjs`.
 list and where to register each app). `.env.local` is gitignored, so it only
 exists wherever someone manually put it.
 
+**Keep `.env.local` in step with `.env.example`.** `.env.local` is gitignored, so a copy made into a worktree
+goes stale when `.env.example` gains a key on main (found 2026-10-31: no `VITE_GEOAPIFY_KEY`, so the map said
+"unavailable"). To see what a worktree lacks:
+`diff <(grep -oE '^[A-Z_]+=' .env.example | sort -u) <(grep -oE '^[A-Z_]+=' .env.local | sort -u)`. The
+b-mobile-pc Windows build script (`packages/b-mobile-pc/scripts/build-win-docker.sh`) runs
+`packages/b-mobile-pc/scripts/env-check.mjs`, which does that comparison for you: it names (never prints values
+of) every key `.env.local` lacks, notes the ones marked `# optional` in `.env.example`, and stops the build for
+the rest unless `BMPC_ALLOW_MISSING_ENV=1`. The e2e `run.sh` runs it warn-only. Mark a new key `# optional`
+in `.env.example` if a build can do without it.
+
 **Worktree gotcha:** `git worktree add` only populates tracked files from the
 checked-out branch — gitignored files like `.env.local` are not copied into a
 new worktree automatically, because each worktree is a separate directory on

@@ -63,6 +63,8 @@ fi
 # 3. The builds the shell serves and runs.
 #    The map needs a tile key to exist at all (no key = "maps unavailable"); a fake one is enough because the
 #    tests answer the tile requests themselves (this VM blocks the tile host).
+# Warn (never stop) about keys .env.local lacks (b-oss#699); the tile key is supplied below.
+VITE_GEOAPIFY_KEY=e2e-tile-key node "$PKG/scripts/env-check.mjs" --warn-only || true
 (cd "$ROOT" && VITE_GEOAPIFY_KEY=e2e-tile-key npm run build -w @b-oss/b-mobile && npm run build -w @b-oss/b-mobile-pc)
 
 # 4. The stand-in servers on the host (the container uses host networking).
