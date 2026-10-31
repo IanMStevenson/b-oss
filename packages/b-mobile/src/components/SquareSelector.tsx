@@ -14,6 +14,7 @@ import {
   moveSelection,
   resizeSelection,
   selectionToArea,
+  stageWidthCss,
   widthLimits,
 } from '../data/squareSelection.js';
 import type { Corner } from '../data/squareSelection.js';
@@ -101,7 +102,11 @@ export function SquareSelector({
   };
 
   return (
-    <div className="square-selector" style={{ aspectRatio: String(ratio) }} ref={stage}>
+    <div
+      className="square-selector"
+      style={{ aspectRatio: String(ratio), width: stageWidthCss(ratio) }}
+      ref={stage}
+    >
       <img src={imageSrc} alt="" draggable={false} />
       <div
         className="square-selector-box"

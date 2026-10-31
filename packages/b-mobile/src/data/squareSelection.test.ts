@@ -7,6 +7,8 @@ import {
   moveSelection,
   resizeSelection,
   selectionToArea,
+  SELECTOR_CHROME_PX,
+  stageWidthCss,
   widthLimits,
 } from './squareSelection.js';
 
@@ -69,5 +71,14 @@ describe('selectionToArea', () => {
       width: 25,
       height: 50,
     });
+  });
+});
+
+describe('stageWidthCss', () => {
+  it('caps the width so the stage height stays within the viewport minus the chrome', () => {
+    expect(stageWidthCss(1.5)).toBe(`min(100%, calc((100vh - ${SELECTOR_CHROME_PX}px) * 1.5))`);
+  });
+  it('accepts a custom reserve', () => {
+    expect(stageWidthCss(1, 100)).toBe('min(100%, calc((100vh - 100px) * 1))');
   });
 });

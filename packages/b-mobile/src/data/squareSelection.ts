@@ -78,3 +78,13 @@ export function resizeSelection(
 export function selectionToArea(sel: ThumbnailCrop, ratio: number): CropAreaPercent {
   return { x: sel.x * 100, y: sel.y * 100, width: sel.w * 100, height: sel.w * ratio * 100 };
 }
+
+/** Vertical room kept for the app header, the frame's margins and the Done button, in px. */
+export const SELECTOR_CHROME_PX = 260;
+
+/** CSS width for the selector stage so the whole photo fits the viewport height as well as the
+ * container width: the width is capped at (viewport height - chrome) * ratio, and the stage's
+ * aspect-ratio then fixes its height at no more than viewport height - chrome. */
+export function stageWidthCss(ratio: number, chromePx: number = SELECTOR_CHROME_PX): string {
+  return `min(100%, calc((100vh - ${chromePx}px) * ${ratio}))`;
+}
