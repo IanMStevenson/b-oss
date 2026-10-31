@@ -177,21 +177,21 @@
     },
     {
       "name": "@ionic/core",
-      "version": "9.0.9",
+      "version": "9.0.8",
       "license": "MIT",
       "repository": "https://github.com/ionic-team/ionic-framework",
       "texts": [7]
     },
     {
       "name": "@ionic/react",
-      "version": "9.0.9",
+      "version": "9.0.8",
       "license": "MIT",
       "repository": "https://github.com/ionic-team/ionic-framework",
       "texts": [7]
     },
     {
       "name": "@ionic/react-router",
-      "version": "9.0.9",
+      "version": "9.0.8",
       "license": "MIT",
       "repository": "https://github.com/ionic-team/ionic-framework",
       "texts": [7]
@@ -443,7 +443,7 @@
     },
     {
       "name": "lucide-react",
-      "version": "1.61.0",
+      "version": "1.59.0",
       "license": "ISC",
       "repository": "https://github.com/lucide-icons/lucide",
       "texts": [39]
@@ -562,7 +562,7 @@
     },
     {
       "name": "prosemirror-view",
-      "version": "1.42.8",
+      "version": "1.42.6",
       "license": "MIT",
       "repository": "https://code.haverbeke.berlin/prosemirror/prosemirror-view",
       "texts": [50]
@@ -716,7 +716,7 @@
     },
     {
       "name": "zustand",
-      "version": "5.0.16",
+      "version": "5.0.15",
       "license": "MIT",
       "repository": "https://github.com/pmndrs/zustand",
       "texts": [65]
