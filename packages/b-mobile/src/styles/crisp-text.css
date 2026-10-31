@@ -1,0 +1,35 @@
+/* Sharp text on a 100% display (b-oss#676). Windows draws text with ClearType (sub-pixel) at 100%
+   scale, but Chromium only keeps sub-pixel text for text whose own compositing layer has an opaque
+   background; otherwise it falls back to grayscale anti-aliasing, which looks soft at 1x. Ionic
+   promotes several pieces to their own layers with `transform: translateZ(0)` / `will-change`, so
+   the green header bars, the tab strip and the navigation menu lost it while page content kept it.
+   Each rule below only undoes one of those hints. Nothing moves; at higher display scales and
+   with grayscale text the result is identical.
+   Gate: a fine pointer only (the same gate as wide.css and the density tokens), so a phone or a
+   touch tablet never matches and the handheld rendering is untouched. */
+
+/* Header bars: the button groups (which carry the wordmark and the screen name) and the toolbar
+   background each sat on their own layer. */
+:root[data-pointer='fine'] ion-buttons {
+  transform: none;
+}
+
+:root[data-pointer='fine'] ion-toolbar::part(background) {
+  transform: none;
+}
+
+/* The tab strip (Browse): the selected tab's button and the sliding indicator. */
+:root[data-pointer='fine'] ion-segment-button::part(native) {
+  transform: none;
+}
+
+:root[data-pointer='fine'] ion-segment-button::part(indicator) {
+  will-change: auto;
+}
+
+/* The navigation menu: Ionic forces its scroller onto a composited scrolling layer, which has no
+   opaque background of its own. Without the hint Chromium composites it only when it can keep
+   sub-pixel text. It still scrolls. */
+:root[data-pointer='fine'] ion-menu ion-content::part(scroll) {
+  will-change: auto;
+}
