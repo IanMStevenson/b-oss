@@ -79,3 +79,50 @@ describe('a shell older than its web files (b-oss#696)', () => {
     );
   });
 });
+
+describe('a shell with no web build (b-oss#695)', () => {
+  it('explains itself on the page and in the log, and keeps a plain 404 for a missing asset', async () => {
+    mkdirSync(OUT, { recursive: true });
+    const page = await connect(process.env.BMPC_CDP_NODIST);
+    const body = await page.evaluate(() => document.body.innerText);
+    expect(body).toContain('b-mobile could not find its web files');
+    expect(body).toContain('/tmp/ud/empty-web');
+    expect(body).toMatch(/Folder exists\s+yes/);
+    expect(body).toMatch(/index\.html exists\s+no/);
+    expect(body).toContain('ENOENT');
+    expect(body).toContain('wait for the sync to finish');
+    expect(body).toContain('Open log folder');
+    expect(body).not.toBe('Not found');
+    await page.screenshot({ path: join(OUT, 'missing-web-page.png') });
+
+    // The button's POST is answered with a redirect back to the root, which shows the page again.
+    const posted = page.waitForResponse((r) => r.request().method() === 'POST');
+    await page.getByRole('button', { name: 'Open log folder' }).click();
+    expect((await posted).status()).toBe(303);
+    await page.waitForLoadState('load');
+    expect(page.url()).toBe('app://b-mobile/');
+    expect(await page.evaluate(() => document.body.innerText)).toContain('could not find');
+
+    // An app route gets the same page; a missing script is still a bare 404.
+    const route = await page.goto('app://b-mobile/profile/john.smith');
+    expect(route?.status()).toBe(404);
+    expect(route?.headers()['content-type']).toContain('text/html');
+    expect(await page.evaluate(() => document.body.innerText)).toContain(
+      'b-mobile could not find its web files',
+    );
+    const asset = await page.goto('app://b-mobile/assets/nope.js');
+    expect(asset?.status()).toBe(404);
+    expect(await page.evaluate(() => document.body.innerText)).toBe('Not found');
+
+    await page.waitForTimeout(500);
+    const log = readLog(process.env.BMPC_UD_NODIST);
+    expect(log).toContain('"source":"shell"');
+    expect(log).toContain('web build not found');
+    expect(log).toContain('/tmp/ud/empty-web');
+    expect(log).toContain('reason=ENOENT');
+    // Rate cap: the document was asked for twice, the missing asset once; one line each.
+    expect(
+      (log.match(/web file not found: url=app:\/\/b-mobile\/assets\/nope\.js/g) ?? []).length,
+    ).toBe(1);
+  });
+});

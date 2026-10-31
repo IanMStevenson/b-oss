@@ -99,6 +99,15 @@ describe('the shell and its security posture', () => {
     expect(body).not.toContain('root:');
   });
 
+  it('serves the app for a route whose last segment has a dot, like a user name (b-oss#695)', async () => {
+    const res = await page.evaluate(async () => {
+      const r = await fetch('/profile/john.smith');
+      return { status: r.status, type: r.headers.get('content-type') };
+    });
+    expect(res.status).toBe(200);
+    expect(res.type).toContain('text/html');
+  });
+
   it('refuses sign-in windows for other hosts and for non-custom-scheme redirects', async () => {
     const attempt = (url: string, prefix: string): Promise<string> =>
       page.evaluate(

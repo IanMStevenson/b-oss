@@ -20,6 +20,20 @@ b-mobile on desktop: an Electron shell that packages b-mobile's web build. Epic
   navigation and `window.open` lock-down, permission requests denied, single-instance lock, IPC only
   from the app's own origin.
 
+## When the web build is missing (b-oss#695)
+
+If the shell cannot read `index.html` (or an app route's document), the window shows a styled page instead of
+a bare "Not found": "b-mobile could not find its web files", the folder it looked in, whether that folder and
+`index.html` exist, why the read failed, the program version, a hint about waiting for a sync, and an **Open
+log folder** button (a plain form POST, so the page needs no script and its CSP allows none). The shell also
+writes one `app.log` line (`"source":"shell"`, `web build not found: url=... looked-in=... reason=ENOENT`).
+A missing script, style or image stays a plain 404, logged once per file; lines are capped per run.
+
+What counts as an asset is a list of known static extensions (`planAppRequest`/`looksLikeAsset`), so a route
+whose last segment has a dot, such as `/profile/john.smith`, falls back to the app. A user name that itself
+ends in a listed extension (`x.png`) would 404 on a direct load of its URL; in-app navigation never asks the
+shell for it. Code: `src/main/missing-web.ts` (pure, unit-tested).
+
 ## Layout
 
 | Path                                  | Purpose                                                                                      |
@@ -30,6 +44,7 @@ b-mobile on desktop: an Electron shell that packages b-mobile's web build. Epic
 | `src/main/window-state.ts`            | Pure: restore window size/position safely                                                    |
 | `src/main/notify-poller.ts`           | The poller: one timer, the shared count-diff rule, state file, back-off, dead-token handling |
 | `src/main/notify-shell.ts`            | Electron side of notifications: OS notification, tray, hide-to-tray, login item, exit dialog |
+| `src/main/missing-web.ts`             | Pure: the missing-web-build page, the log rate gate, read-failure classification             |
 | `src/main/login-item-policy.ts`       | Pure: no start-at-login item from a dev folder (b-oss#696)                                   |
 | `src/main/index.ts`, `auth-window.ts` | Electron wiring (not unit-tested; covered by the e2e harness, b-oss#614)                     |
 | `src/preload/index.ts`                | Exposes `window.bMobileDesktop` (`src/shared/bridge.ts` is the contract)                     |
