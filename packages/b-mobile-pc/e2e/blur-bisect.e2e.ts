@@ -68,6 +68,14 @@ describe.skipIf(!active)('blur bisect switches (b-oss#676)', () => {
           titleAlign: t ? getComputedStyle(t).textAlign : null,
         };
       });
+      const tf = await page.evaluate(() => ({
+        body: getComputedStyle(document.body).transform,
+        buttons: getComputedStyle(document.querySelector('ion-buttons') as Element).transform,
+        outlet: getComputedStyle(document.querySelector('ion-router-outlet') as Element).transform,
+      }));
+      if (experiments.includes('no-body-transform')) expect(tf.body).toBe('none');
+      if (experiments.includes('no-buttons-transform')) expect(tf.buttons).toBe('none');
+      if (experiments.includes('no-outlet-transform')) expect(tf.outlet).toBe('none');
       if (experiments.includes('system-font')) expect(probe.font).toContain('Segoe UI');
       if (experiments.includes('no-ionic-transitions')) expect(probe.trans).toBe('0s');
       if (experiments.includes('no-title-centering') && probe.titleAlign)

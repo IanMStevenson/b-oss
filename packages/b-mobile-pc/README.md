@@ -168,7 +168,7 @@ ignored when packaged).
   Question it answers: is plain text in this shell sharp? **Sharp** means the shell and window are fine and
   the app's markup/CSS is the cause; **soft** means it is the window, protocol or Electron/Chromium setup.
 - `BMPC_CSS_EXPERIMENT=name[,name...]`: injects CSS into the real app after each page load (`insertCSS`).
-  Names: `report` (no CSS; only logs), `no-layers` (will-change/backface/contain/filter/backdrop-filter off,
+  Names: `report` (no CSS; only logs), `no-body-transform`, `no-buttons-transform`, `no-outlet-transform` (one each of the three transformed element classes found by the survey below), `no-layers` (will-change/backface/contain/filter/backdrop-filter off,
   no transform on the header parts), `system-font` (Segoe UI everywhere), `no-smoothing` (font-smoothing and
   text-rendering back to auto), `no-overflow-scroll` (no layer hints or containment on `ion-content`'s
   scroll container), `no-ionic-transitions` (no transitions or animations), `no-title-centering` (title
@@ -183,11 +183,28 @@ toolbars, buttons, menu, content and router outlet which have a compositing reas
 filter, `contain`, fixed/sticky position, scroller), which sit at fractional pixel positions, their
 background colour and font. Send that log line with the results.
 
-A Linux run of the report on the unmodified app (DPR 1, 480x900, signed out, Browse) found: `ion-buttons` in
-the toolbar carry `transform: matrix(1,0,0,1,0,0)` and sit at fractional offsets (`left=410.69`, `top=14.50`,
-`width=65.31`); `ion-router-outlet` has the same identity transform; header, toolbar, menu and content have
-`contain` (size/layout/style/strict) and transparent backgrounds. That is a lead to test, not a finding:
-Linux cannot show whether any of it softens text on Windows.
+**Which elements are different (survey, Linux, real app via CDP; `e2e/blur-survey.e2e.ts`).** Ian reports
+that only some text is soft (header, tabs, "Keep menu open" and menu), so the survey walks every text node
+(including inside shadow roots) and lists the ancestors that promote a layer. On Linux, signed out,
+480x900, pixel ratio 1, normal page and menu open:
+
+- `body` has `position: fixed; transform: translateZ(0)` (Ionic's core.css), so **every** text node is under a
+  composited layer. That cannot be what separates soft from sharp text, though it is why LCD text could be
+  off everywhere on Windows.
+- `ion-router-outlet` (the page) has its own `transform` (identity matrix): all page content is under it.
+- `ion-buttons` (both slots) have their own `transform` (identity matrix): the header title ("b-mobile",
+  "Browse") and menu button text sit under it and under the outlet and body, so they are the **only** text
+  with an extra transformed ancestor. That matches the soft green banner.
+- The menu items ("Browse", "Search", ...) sit only under `body` (menu open adds `backdrop-no-scroll`); no
+  transform of their own. So the menu being soft is not explained by an extra layer on Linux.
+- Fractional text origins are common (header title, tab/segment labels, zoom label: x or y not a whole
+  pixel); the top-level layout elements are whole-pixel except the two `ion-buttons` (`left=410.69`,
+  `top=14.50`, `width=65.31`).
+- Chromium's own layer tree (`LayerTree` domain) returned nothing under Electron, so which of these actually
+  get their own GPU layer is inferred from CSS reasons, not observed. Windows may differ.
+
+The experiments `no-body-transform`, `no-buttons-transform` and `no-outlet-transform` each remove one of
+these three transforms, so the loop below tells which class matters.
 
 **One script for Ian** (PowerShell; edit `$exe`). It runs each option in turn, waits for you to quit the
 app, and asks what you saw. Before it starts, **exit b-mobile from the tray** (the app is single-instance, so
@@ -198,6 +215,9 @@ $exe = 'D:\Dev\debugging\b-mobile-pc-build\packages\b-mobile-pc\dist-electron\wi
 $runs = @(
   @{ Page = 'plain'; Css = '' },
   @{ Page = ''; Css = 'report' },
+  @{ Page = ''; Css = 'no-body-transform' },
+  @{ Page = ''; Css = 'no-buttons-transform' },
+  @{ Page = ''; Css = 'no-outlet-transform' },
   @{ Page = ''; Css = 'no-layers' },
   @{ Page = ''; Css = 'system-font' },
   @{ Page = ''; Css = 'no-smoothing' },

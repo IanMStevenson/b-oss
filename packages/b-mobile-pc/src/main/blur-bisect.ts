@@ -9,6 +9,9 @@
 
 export const CSS_EXPERIMENTS = [
   'report', // no CSS: log which elements are layer-promoted or fractionally placed
+  'no-body-transform', // body{transform:translateZ(0)} from Ionic's core.css: every text node sits under it
+  'no-buttons-transform', // ion-buttons' own transform: the header title text and menu button sit under it
+  'no-outlet-transform', // ion-router-outlet's own transform: all page content sits under it
   'no-layers', // drop will-change, backface, contain, filter, backdrop-filter; no transform on header parts
   'system-font', // Segoe UI everywhere
   'no-smoothing', // font-smoothing and text-rendering back to auto
@@ -21,6 +24,12 @@ export const CSS_EXPERIMENTS = [
 export type CssExperiment = (typeof CSS_EXPERIMENTS)[number];
 
 const CSS: Record<Exclude<CssExperiment, 'report' | 'all'>, string> = {
+  'no-body-transform': `
+body { transform: none !important; }`,
+  'no-buttons-transform': `
+ion-buttons { transform: none !important; }`,
+  'no-outlet-transform': `
+ion-router-outlet { transform: none !important; }`,
   'no-layers': `
 *, *::before, *::after {
   will-change: auto !important;
@@ -33,7 +42,7 @@ const CSS: Record<Exclude<CssExperiment, 'report' | 'all'>, string> = {
   perspective: none !important;
   mix-blend-mode: normal !important;
 }
-ion-header, ion-footer, ion-toolbar, ion-title, ion-buttons, ion-button, ion-menu-button,
+body, ion-router-outlet, ion-header, ion-footer, ion-toolbar, ion-title, ion-buttons, ion-button, ion-menu-button,
 ion-tab-bar, ion-tab-button, ion-label, ion-item, ion-list {
   transform: none !important;
 }`,
