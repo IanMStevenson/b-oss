@@ -169,6 +169,34 @@ describe('ComposeEntryScreen', () => {
     expect(await screen.findByText('Select thumbnail')).toBeDefined();
   });
 
+  it("says membership couldn't be checked when the profile fetch fails, and retry recovers", async () => {
+    fetchUserProfile.mockRejectedValueOnce(new Error('502'));
+    fetchUserProfile.mockResolvedValue({
+      user: {},
+      details: { member: 1 },
+      visible: true,
+      friendship: null,
+      latestEntry: null,
+    });
+    renderScreen();
+    expect(await screen.findByText(/Couldn.t check membership/)).toBeDefined();
+    await userEvent.click(screen.getByText('Retry'));
+    expect(await screen.findByText('Select thumbnail')).toBeDefined();
+    expect(screen.queryByText(/Couldn.t check membership/)).toBeNull();
+  });
+
+  it('shows the real cause when queueing fails with a non-API error', async () => {
+    renderScreen();
+    await waitFor(() =>
+      expect(screen.getByText('Publish').closest('ion-button')!.hasAttribute('disabled')).toBe(
+        false,
+      ),
+    );
+    enqueueDraft.mockRejectedValue(new Error('disk full'));
+    await userEvent.click(screen.getByText('Publish'));
+    expect(await screen.findByText('Could not queue this entry. (disk full)')).toBeDefined();
+  });
+
   it('does not offer the crop button to non-members', async () => {
     renderScreen();
     await waitFor(() => expect(fetchUserProfile).toHaveBeenCalled());

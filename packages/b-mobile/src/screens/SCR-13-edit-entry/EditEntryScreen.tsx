@@ -37,9 +37,10 @@ import { enqueueDraft } from '../../flows/composeFlow.js';
 import { revealStoredPosition, StillVisibleError } from '../../data/entryLocation.js';
 import { ThumbnailPhotoFrame } from '../../components/ThumbnailPhotoFrame.js';
 import { cropToProportions } from '../../data/imageCrop.js';
-import { fetchUserProfile } from '../../data/users.js';
+import { useMembership } from '../../data/useMembership.js';
+import { MembershipCheckFailed } from '../../components/MembershipCheckFailed.js';
 import type { Area } from 'react-easy-crop';
-import { describeError, mapApiError } from '../../data/errors.js';
+import { describeError, mapApiError, describeQueueError } from '../../data/errors.js';
 
 interface EditEntryScreenProps {
   entryId: string;
@@ -53,7 +54,7 @@ export function EditEntryScreen({ entryId }: EditEntryScreenProps) {
   const patchDraft = useComposeDraftStore((s) => s.patchDraft);
   const clearDraft = useComposeDraftStore((s) => s.clearDraft);
 
-  const [isMember, setIsMember] = useState(false);
+  const { isMember, failed: membershipFailed, retry: retryMembership } = useMembership();
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
   // The entry's current photo (its thumbnail, like the site's edit page), shown until a replacement is picked. Only known when this screen
@@ -81,13 +82,6 @@ export function EditEntryScreen({ entryId }: EditEntryScreenProps) {
   // change unmounts it) — re-trigger a pointless refetch-and-reseed race straight after saving.
   // A ref survives that state change without re-running the effect, since it isn't a dependency.
   const hasSeededRef = useRef(isCurrentDraft);
-
-  useEffect(() => {
-    fetchUserProfile().then(
-      (profile) => setIsMember(profile.details?.member === 1),
-      () => setIsMember(false),
-    );
-  }, []);
 
   useEffect(() => {
     if (hasSeededRef.current) {
@@ -150,8 +144,7 @@ export function EditEntryScreen({ entryId }: EditEntryScreenProps) {
       clearDraft();
       navigate.replace(`/entry/${entryId}`);
     } catch (err) {
-      const outcome = mapApiError(err);
-      setSubmitError(describeError(outcome, 'Could not queue this change.'));
+      setSubmitError(describeQueueError(err, 'Could not queue this change.'));
       setSubmitting(false);
     }
   }
@@ -229,7 +222,7 @@ export function EditEntryScreen({ entryId }: EditEntryScreenProps) {
       <ThumbnailPhotoFrame
         photo={draft.photo}
         crop={draft.thumbnailCrop}
-        canSelect={isMember}
+        canSelect={isMember === true}
         onCropChange={handleCropComplete}
       />
     ) : (
@@ -244,6 +237,7 @@ export function EditEntryScreen({ entryId }: EditEntryScreenProps) {
         <AppHeader title="Edit entry" variant="back" onBack={handleBack} accountIndicator />
       </IonHeader>
       <IonContent>
+        {membershipFailed && draft.photo && <MembershipCheckFailed onRetry={retryMembership} />}
         {photoFrame}
         <div className="compose-form">
           {submitError && (

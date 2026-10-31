@@ -29,9 +29,10 @@ import { useComposeDraftStore } from '../../state/composeDraftStore.js';
 import { fetchDayEligibility } from '../../data/journal.js';
 import type { DayEligibility } from '../../data/journal.js';
 import { validatePickedPhoto } from '../../data/photoValidation.js';
-import { fetchUserProfile } from '../../data/users.js';
+import { useMembership } from '../../data/useMembership.js';
+import { MembershipCheckFailed } from '../../components/MembershipCheckFailed.js';
 import { enqueueDraft } from '../../flows/composeFlow.js';
-import { describeError, mapApiError } from '../../data/errors.js';
+import { describeQueueError } from '../../data/errors.js';
 import { DateField } from '../../components/DateField.js';
 import { DescriptionField, TextField, ToggleRow } from '../../components/ComposeForm.js';
 import { ThumbnailPhotoFrame } from '../../components/ThumbnailPhotoFrame.js';
@@ -47,7 +48,7 @@ export function ComposeEntryScreen() {
   const patchDraft = useComposeDraftStore((s) => s.patchDraft);
   const clearDraft = useComposeDraftStore((s) => s.clearDraft);
 
-  const [isMember, setIsMember] = useState<boolean | null>(null);
+  const { isMember, failed: membershipFailed, retry: retryMembership } = useMembership();
   const [eligibility, setEligibility] = useState<DayEligibility | null>(null);
   const [eligibilityLoading, setEligibilityLoading] = useState(false);
   const [unusablePhoto, setUnusablePhoto] = useState<string | null>(null);
@@ -65,13 +66,6 @@ export function ComposeEntryScreen() {
       if (!result.ok) setUnusablePhoto(result.message);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  useEffect(() => {
-    fetchUserProfile().then(
-      (profile) => setIsMember(profile.details?.member === 1),
-      () => setIsMember(false),
-    );
   }, []);
 
   useEffect(() => {
@@ -125,8 +119,7 @@ export function ComposeEntryScreen() {
       clearDraft();
       navigate.replace('/uploads');
     } catch (err) {
-      const outcome = mapApiError(err);
-      setSubmitError(describeError(outcome, 'Could not queue this entry.'));
+      setSubmitError(describeQueueError(err, 'Could not queue this entry.'));
       setSubmitting(false);
     }
   }
@@ -172,6 +165,8 @@ export function ComposeEntryScreen() {
                 </IonText>
               </div>
             )}
+
+            {membershipFailed && <MembershipCheckFailed onRetry={retryMembership} />}
 
             {draft.photo && (
               <ThumbnailPhotoFrame
