@@ -84,9 +84,9 @@ wait_listening() {
   return 1
 }
 
-node "$ROOT/packages/b-mobile/scripts/stub-api.mjs" "$E2E_STUB_PORT" >"$OUT/stub-api.log" 2>&1 &
+node "$ROOT/packages/b-mobile/scripts/stub-api.mjs" "$E2E_STUB_PORT" >"$OUT/stub-api.log" 2>&1 9>&- &
 PIDS+=($!)
-node "$HERE/fake-authorize.mjs" "$E2E_AUTH_PORT" >"$OUT/fake-authorize.log" 2>&1 &
+node "$HERE/fake-authorize.mjs" "$E2E_AUTH_PORT" >"$OUT/fake-authorize.log" 2>&1 9>&- &
 PIDS+=($!)
 wait_listening "$E2E_STUB_PORT"
 wait_listening "$E2E_AUTH_PORT"
