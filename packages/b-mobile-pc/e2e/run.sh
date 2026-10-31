@@ -17,6 +17,9 @@ PIDS=()
 # (b-oss#683). Override any of them from the environment to pin one.
 ID="${E2E_ID:-$$}"
 CONTAINER="bmpc-e2e-shell-$ID"
+# The virtual display number must differ per run too (see docker/run-electron.sh).
+E2E_DISPLAY="${E2E_DISPLAY:-$((100 + ID % 800))}"
+export E2E_DISPLAY
 # Four free ports, found by binding port 0 on all four at once (so they are distinct).
 if [ -z "${E2E_CDP_PORT:-}${E2E_STUB_PORT:-}${E2E_AUTH_PORT:-}${E2E_NOTIFY_PORT:-}" ]; then
   read -r E2E_CDP_PORT E2E_STUB_PORT E2E_AUTH_PORT E2E_NOTIFY_PORT < <(node -e "
@@ -74,7 +77,7 @@ PIDS+=($!)
 #    the calling user and the files it leaves in $WORK can be removed by the trap above. (Another uid
 #    would map to a sub-uid the host user cannot delete.)
 docker run -d --rm --name "$CONTAINER" --network host \
-  -e E2E_CDP_PORT -e E2E_STUB_PORT -e E2E_AUTH_PORT -e E2E_NOTIFY_PORT \
+  -e E2E_CDP_PORT -e E2E_STUB_PORT -e E2E_AUTH_PORT -e E2E_NOTIFY_PORT -e E2E_LCD -e E2E_SCREEN -e E2E_DISPLAY \
   -e E2E_PROXY="${https_proxy:-}" \
   -v "$ROOT:/p" -v "$WORK:/tmp/ud" "$IMAGE" bash /p/packages/b-mobile-pc/e2e/docker/run-electron.sh >/dev/null
 for _ in $(seq 1 60); do

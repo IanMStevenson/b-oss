@@ -2,8 +2,28 @@
 # Runs inside the container (repo mounted at /p, a scratch user-data dir at /tmp/ud): starts a virtual
 # display and the shell with a DevTools port the host-side tests connect to.
 set -u
-export DISPLAY=:99
-Xvfb :99 -screen 0 520x960x24 >/dev/null 2>&1 &
+# A display number per run: with host networking, X's abstract socket is shared between containers, so
+# two runs both using :99 kill each other's window ("X connection error") when one exits.
+export DISPLAY=:${E2E_DISPLAY:-99}
+# Sub-pixel (LCD) text like Windows ClearType at 100%: without this the container renders grayscale text
+# and cannot show the header/menu blur of b-oss#676. Opt out with E2E_LCD=0.
+if [ "${E2E_LCD:-1}" = 1 ]; then
+  mkdir -p /etc/fonts/conf.d
+  cat >/etc/fonts/conf.d/99-e2e-lcd.conf <<'XML'
+<?xml version="1.0"?>
+<!DOCTYPE fontconfig SYSTEM "fonts.dtd">
+<fontconfig>
+  <match target="font">
+    <edit name="rgba" mode="assign"><const>rgb</const></edit>
+    <edit name="antialias" mode="assign"><bool>true</bool></edit>
+    <edit name="hinting" mode="assign"><bool>true</bool></edit>
+    <edit name="hintstyle" mode="assign"><const>hintslight</const></edit>
+    <edit name="lcdfilter" mode="assign"><const>lcddefault</const></edit>
+  </match>
+</fontconfig>
+XML
+fi
+Xvfb "$DISPLAY" -screen 0 ${E2E_SCREEN:-520x960x24} >/dev/null 2>&1 &
 sleep 2
 cd /p/packages/b-mobile-pc
 # --proxy-server: only when the host needs one (the dev VM's egress goes through squid).

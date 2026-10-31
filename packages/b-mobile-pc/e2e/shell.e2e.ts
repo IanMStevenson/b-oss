@@ -11,6 +11,7 @@ import { chromium, type Browser, type Page } from 'playwright-core';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { execFileSync } from 'node:child_process';
 import { join } from 'node:path';
+import { measureLcdInPage, type LcdReading } from './lcd-measure.js';
 
 const CDP = process.env.BMPC_CDP ?? 'http://127.0.0.1:9222';
 const OUT = process.env.BMPC_E2E_OUT ?? join(__dirname, '..', 'e2e-out');
@@ -392,6 +393,80 @@ describe('responsive navigation menu', () => {
     expect(await visible()).toBe(false);
     expect(await text()).not.toContain('Collapse menu');
     await page.setViewportSize({ width: 1300, height: 800 });
+  });
+});
+
+// Sharp text on a 100% display (b-oss#676). Windows draws sub-pixel (ClearType) text at 100%, and
+// Chromium drops it to grayscale for text on a layer without an opaque background; Ionic's header,
+// tab strip and menu were on such layers. The container renders with sub-pixel text on (fontconfig
+// rgba=rgb, see docker/run-electron.sh), so the fringes can be measured (e2e/lcd-measure.ts).
+// Real ClearType cannot be tested here; this proves the layer/CSS cause under Linux LCD text.
+describe('sub-pixel text in the header, tabs and menu (b-oss#676)', () => {
+  const LCD_MIN = 0.3; // measured 0.5-0.95 for sub-pixel text, 0 for grayscale
+  const reading = async (
+    target: string | { x: number; y: number; width: number; height: number },
+  ) => {
+    const clip =
+      typeof target === 'string' ? await page.locator(target).first().boundingBox() : target;
+    if (!clip) throw new Error('nothing to measure');
+    const png = await page.screenshot({ clip });
+    const r: LcdReading = await page.evaluate(measureLcdInPage, png.toString('base64'));
+    return r;
+  };
+  const expectLcd = async (name: string, target: Parameters<typeof reading>[0]): Promise<void> => {
+    const r = await reading(target);
+    console.log(`lcd ${name}: edge=${r.edge} fringed=${r.fringed} ratio=${r.ratio.toFixed(3)}`);
+    expect(r.edge, `${name}: no text edges found`).toBeGreaterThan(50);
+    expect(r.ratio, `${name} is grayscale`).toBeGreaterThan(LCD_MIN);
+  };
+
+  it('the measurement tells sub-pixel text from grayscale (controls)', async () => {
+    await page.setViewportSize({ width: 1300, height: 800 });
+    await go('/browse', 3500);
+    await page.evaluate(() => {
+      const style =
+        'position:fixed;left:700px;z-index:99999;font:16px Roboto,sans-serif;padding:4px;';
+      const lcd = document.createElement('div');
+      lcd.id = 'lcd-control';
+      lcd.style.cssText = `${style}top:700px;background:#fff;color:#000`;
+      lcd.textContent = 'Control text sample 0123';
+      const gray = document.createElement('div');
+      gray.id = 'gray-control';
+      // Own layer, transparent background: Chromium must use grayscale text.
+      gray.style.cssText = `${style}top:740px;color:#000;will-change:transform`;
+      gray.textContent = 'Control text sample 0123';
+      document.body.append(lcd, gray);
+    });
+    await page.waitForTimeout(500);
+    const on = await reading('#lcd-control');
+    const off = await reading('#gray-control');
+    await page.evaluate(() =>
+      document.querySelectorAll('#lcd-control,#gray-control').forEach((e) => e.remove()),
+    );
+    console.log(`lcd controls: on ${on.ratio.toFixed(3)}, off ${off.ratio.toFixed(3)}`);
+    expect(on.ratio).toBeGreaterThan(0.5);
+    expect(off.ratio).toBeLessThan(0.05);
+  });
+
+  it('the header screen name and the tab labels use sub-pixel text', async () => {
+    await go('/browse', 3500);
+    await expectLcd('header screen name', 'ion-header ion-buttons[slot="end"]');
+    await expectLcd('tab label', 'ion-segment-button:nth-of-type(2)');
+  });
+
+  it('the drawer menu text uses sub-pixel text', async () => {
+    await page.locator('ion-menu-button').first().click();
+    await page.waitForTimeout(1200);
+    await expectLcd('drawer item', 'ion-menu ion-item >> nth=1');
+  });
+
+  it('the pinned menu and its pin button use sub-pixel text', async () => {
+    await page.getByText('Keep menu open', { exact: true }).first().click();
+    await page.waitForTimeout(2000);
+    await expectLcd('pin button', 'ion-menu .nav-pin');
+    await expectLcd('pinned menu item', 'ion-menu ion-item >> nth=1');
+    await page.getByText('Collapse menu', { exact: true }).first().click(); // back to automatic
+    await page.waitForTimeout(500);
   });
 });
 
