@@ -54,6 +54,19 @@ export function defaultThumbnailCrop(ratio: number): ThumbnailCrop {
   return { x: round4((1 - w) / 2), y: round4((1 - w * ratio) / 2), w: round4(w) };
 }
 
+/** The crop to send with a new or replacement photo: the default square, made explicit so the
+ * upload does not depend on the server's own default. Null when the dimensions are unknown or the
+ * square would fall under the API's minimum edge (the server's default applies then). */
+export function initialThumbnailCrop(
+  width: number | null,
+  height: number | null,
+): ThumbnailCrop | null {
+  if (!width || !height) return null;
+  const crop = defaultThumbnailCrop(width / height);
+  if (crop.w * width < THUMBNAIL_MIN_EDGE * THUMBNAIL_EDGE_MARGIN) return null;
+  return crop;
+}
+
 /** A crop as the percentage rect (0-100 of the displayed image) react-easy-crop starts from. */
 export function thumbnailCropToArea(crop: ThumbnailCrop, ratio: number): CropAreaPercent {
   return {
