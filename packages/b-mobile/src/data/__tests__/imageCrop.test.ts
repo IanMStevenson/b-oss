@@ -6,6 +6,7 @@ import {
   canSelectThumbnail,
   cropToProportions,
   defaultThumbnailCrop,
+  initialThumbnailCrop,
   thumbnailCropToArea,
   maxZoomForMinEdge,
   encodeUnderLimit,
@@ -130,5 +131,15 @@ describe('defaultThumbnailCrop', () => {
       width: 50,
       height: 100,
     });
+  });
+});
+
+describe('initialThumbnailCrop', () => {
+  it('is the centred 88% square for a landscape photo', () => {
+    expect(initialThumbnailCrop(4000, 3000)).toEqual(defaultThumbnailCrop(4 / 3));
+  });
+  it('is null when the size is unknown or the square would be under the minimum', () => {
+    expect(initialThumbnailCrop(null, null)).toBeNull();
+    expect(initialThumbnailCrop(400, 300)).toBeNull();
   });
 });
