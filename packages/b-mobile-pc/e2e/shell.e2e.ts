@@ -93,17 +93,25 @@ describe('the shell and its security posture', () => {
     );
   });
 
-  it('denies browser permission prompts', async () => {
+  it('denies browser permission prompts other than location', async () => {
+    const result = await page.evaluate(() => Notification.requestPermission());
+    expect(result).toBe('denied');
+  });
+
+  it('does not deny location for the app origin (the OS provider may still fail)', async () => {
+    // b-oss#672. Whether a position comes back depends on the machine's location provider, which a
+    // container does not have; the permission itself must not be the reason for a failure (code 1).
     const result = await page.evaluate(
       () =>
         new Promise<string>((resolve) =>
           navigator.geolocation.getCurrentPosition(
-            () => resolve('granted'),
-            (e) => resolve(`denied:${e.code}`),
+            () => resolve('position'),
+            (e) => resolve(`error:${e.code}`),
+            { timeout: 8000 },
           ),
         ),
     );
-    expect(result).toBe('denied:1');
+    expect(result).not.toBe('error:1');
   });
 });
 
@@ -166,17 +174,35 @@ describe('desktop capabilities: location and camera', () => {
     await shot('7-new-entry');
   });
 
-  it('the location picker opens (no error screen) and has no "My location" control', async () => {
+  it('the location picker offers "Show current location"; a failed attempt gives a message and hides it (b-oss#672)', async () => {
     await go('/compose/location', 4000);
     expect(await text()).not.toMatch(/Something went wrong/i);
-    expect(await page.getByLabel('My location').count()).toBe(0);
+    const control = page.getByLabel('Show current location');
+    expect(await control.count()).toBe(1);
     await shot('8-location-picker');
+    // The container has no WebGL, so a map-failed banner overlays the button: click it directly.
+    await control.dispatchEvent('click');
+    // A container has no OS location provider, so the attempt fails; the outcome is what matters:
+    // either way no error screen, and a failure leaves the message and no control.
+    await page.waitForFunction(
+      () =>
+        /Windows location is off/.test(document.body.innerText) ||
+        document.querySelector('[aria-label="Show current location"]') !== null,
+      undefined,
+      { timeout: 25000 },
+    );
+    expect(await text()).not.toMatch(/Something went wrong/i);
+    if (/Windows location is off/.test(await text())) {
+      expect(await control.count()).toBe(0);
+    }
+    await shot('8b-location-picker-after-tap');
   });
 
-  it('the map has no "My location" control', async () => {
+  it('the map offers "My location" until a first attempt fails', async () => {
     await go('/map', 4000);
     expect(await text()).not.toMatch(/Something went wrong/i);
-    expect(await page.getByLabel('My location').count()).toBe(0);
+    const hidden = /Windows location is off/.test(await text());
+    expect(await page.getByLabel('My location').count()).toBe(hidden ? 0 : 1);
   });
 
   it('Nearby explains there is no location here and offers the map instead of "Allow location"', async () => {

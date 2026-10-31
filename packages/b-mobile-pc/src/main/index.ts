@@ -35,6 +35,7 @@ import {
   sanitiseResponseHeaders,
 } from './app-protocol.js';
 import { ErrorLog, parseErrorEntry, type LogFs } from './error-log.js';
+import { isPermissionGranted } from './permissions.js';
 import { isTrustedEvent } from './safe-ipc.js';
 import { describeRejection } from './unhandled.js';
 import { APP_USER_MODEL_ID } from './app-id.js';
@@ -282,12 +283,11 @@ if (!app.requestSingleInstanceLock()) {
 
   void app.whenReady().then(async () => {
     protocol.handle(APP_SCHEME, handleAppRequest);
-    // Nothing in the app needs a browser permission (camera, location, notifications go through
-    // the shell), so deny every request. Deliberately kept (b-oss#636): the app does not rely on
-    // browser location either, since capabilities().location is `pick-only` here and places are
-    // chosen on the map.
-    session.defaultSession.setPermissionRequestHandler((_wc, _permission, callback) =>
-      callback(false),
+    // Deny every browser permission request except the ones in permissions.ts (geolocation, for
+    // the app's own origin only: "Show current location", b-oss#672). Notifications and the rest
+    // go through the shell. Location is requested only when the user taps the control.
+    session.defaultSession.setPermissionRequestHandler((_wc, permission, callback, details) =>
+      callback(isPermissionGranted(permission, details.requestingUrl)),
     );
 
     // Test hook (ignored when packaged): a plaintext store, for e2e runs where the machine has no
