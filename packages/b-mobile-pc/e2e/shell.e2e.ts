@@ -353,6 +353,39 @@ describe('responsive navigation menu', () => {
     expect(await visible()).toBe(true);
     expect(await text()).toContain('Collapse menu');
     await shot('9-nav-accounts-open');
+    // b-oss#698: the label sits to the left of its icon, both pushed to the right of the row, with
+    // a gap between them, and nothing that would put the control on its own compositing layer.
+    const pinLayout = await page.evaluate(() => {
+      const host = document.querySelector<HTMLElement>('ion-button.nav-pin');
+      const native = host?.shadowRoot?.querySelector<HTMLElement>('button');
+      const icon = host?.querySelector<SVGElement>('svg');
+      if (!host || !native || !icon) return null;
+      const range = document.createRange();
+      const label = host.querySelector('.nav-pin-label');
+      if (!label) return null;
+      range.selectNodeContents(label);
+      const t = range.getBoundingClientRect();
+      const i = icon.getBoundingClientRect();
+      const h = host.getBoundingClientRect();
+      const cs = getComputedStyle(native);
+      return {
+        textRight: t.right,
+        iconLeft: i.left,
+        iconRight: i.right,
+        hostRight: h.right,
+        hostWidth: h.width,
+        transform: cs.transform,
+        willChange: cs.willChange,
+        filter: cs.filter,
+      };
+    });
+    expect(pinLayout).not.toBeNull();
+    expect(pinLayout!.iconLeft - pinLayout!.textRight).toBeGreaterThanOrEqual(10);
+    expect(pinLayout!.hostRight - pinLayout!.iconRight).toBeGreaterThanOrEqual(12);
+    expect(pinLayout!.hostRight - pinLayout!.iconRight).toBeLessThan(30);
+    expect(pinLayout!.transform).toBe('none');
+    expect(pinLayout!.willChange).toBe('auto');
+    expect(pinLayout!.filter).toBe('none');
     await go('/settings', 2500);
     expect(await visible()).toBe(true);
     await shot('10-nav-settings-open');

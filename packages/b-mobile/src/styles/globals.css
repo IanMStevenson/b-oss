@@ -475,6 +475,23 @@ ion-item.nav-item-current::after {
 }
 
 /* The pin button at the top of the navigation menu (desktop, wide window; b-oss#638). */
+/* Full width, label right-justified with the icon to its right and room around both (b-oss#698).
+   Plain layout only: no transform, will-change, filter or opacity, which would put the control on its
+   own layer and blur it under display scaling (b-oss#676). */
 ion-button.nav-pin {
-  margin: 4px 8px 0;
+  display: block;
+  width: calc(100% - 16px);
+  margin: 8px 8px 0;
+}
+ion-button.nav-pin::part(native) {
+  padding-inline: 20px 16px;
+}
+/* The label and icon sit in Ionic's inner flex span (centred, and not styleable from here): an auto
+   margin on the label takes all the free space, which right-justifies both, and the icon's margin
+   spaces the two. */
+ion-button.nav-pin > .nav-pin-label {
+  margin-inline-start: auto;
+}
+ion-button.nav-pin > svg[slot='end'] {
+  margin-inline-start: 14px;
 }
