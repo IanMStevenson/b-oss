@@ -94,6 +94,11 @@ function isPlottable(lat: number, lon: number): boolean {
   );
 }
 
+/** The ranges one viewport is sent as: normalised, then cut into strips. */
+export function requestRanges(bounds: MapBounds): MapBounds[] {
+  return splitWideRanges(normaliseBounds(bounds));
+}
+
 // One page's worth of markers per query, generous enough for a typical viewport without
 // pagination — consistent with §13's "no clustering for v1" stance.
 const MAX_MARKERS = 100;
@@ -102,7 +107,7 @@ const MAX_MARKERS = 100;
 // anonymous token if the active account's own is rate-limited (client.ts's
 // withRateLimitFallback doc comment has the full reasoning).
 export async function fetchEntriesInBounds(bounds: MapBounds): Promise<MapEntry[]> {
-  const ranges = splitWideRanges(normaliseBounds(bounds));
+  const ranges = requestRanges(bounds);
   return withRateLimitFallback(async (client) => {
     const markers: MapEntry[] = [];
     const seen = new Set<string>();

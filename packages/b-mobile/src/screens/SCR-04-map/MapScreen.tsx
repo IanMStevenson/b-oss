@@ -38,7 +38,16 @@ import { getTileLayerConfig } from '../../platform/mapTiles.js';
 import { createLeafletMap, MAP_FAILED_MESSAGE } from '../../components/leafletMap.js';
 import { getCurrentPosition, LocationUnavailableError } from '../../platform/geolocation.js';
 import { resolveImage } from '../../platform/imageCache.js';
-import { fetchEntriesInBounds } from '../../data/map.js';
+import { fetchEntriesInBounds, requestRanges } from '../../data/map.js';
+import {
+  formatFetchLine,
+  formatLoadLine,
+  formatSizeLine,
+  logMapLine,
+  resetMapLog,
+  type MapSnapshot,
+} from '../../diagnostics/mapLog.js';
+import { hasErrorDiagnostics } from '../../platform/diagnostics.js';
 import type { MapBounds, MapEntry } from '../../data/map.js';
 import { fetchEntry } from '../../data/entries.js';
 import { useDebouncedValue } from '../../data/useDebounce.js';
@@ -84,6 +93,31 @@ export function MapScreen({ focusedEntryId }: MapScreenProps) {
   const myLocationMarkerRef = useRef<Marker | null>(null);
   const requestIdRef = useRef(0);
   const focusedPopupOpenedRef = useRef(false);
+  // Desktop diagnostics only (b-oss#697): how often the map was told its container's size changed,
+  // and how many entry requests this screen has made.
+  const invalidatedRef = useRef(0);
+  const requestCountRef = useRef(0);
+  const snapshot = useCallback((): MapSnapshot | null => {
+    const map = mapRef.current;
+    const el = containerRef.current;
+    if (!map || !el) return null;
+    const size = map.getSize();
+    const c = map.getCenter();
+    const b = map.getBounds();
+    return {
+      container: { w: el.clientWidth, h: el.clientHeight },
+      map: { w: size.x, h: size.y },
+      zoom: map.getZoom(),
+      center: { lat: c.lat, lng: c.lng },
+      bounds: {
+        minLat: b.getSouth(),
+        maxLat: b.getNorth(),
+        minLon: b.getWest(),
+        maxLon: b.getEast(),
+      },
+      invalidated: invalidatedRef.current,
+    };
+  }, []);
 
   // Always-current refs for values read from inside imperative Leaflet event handlers/DOM
   // callbacks, which close over whatever was current when they were registered — same technique
@@ -227,6 +261,18 @@ export function MapScreen({ focusedEntryId }: MapScreenProps) {
         return;
       }
       mapRef.current = map;
+      if (hasErrorDiagnostics()) {
+        resetMapLog();
+        invalidatedRef.current = 0;
+        requestCountRef.current = 0;
+        const snap = snapshot();
+        if (snap) logMapLine(formatLoadLine(snap));
+        const onSize = (): void => {
+          const after = snapshot();
+          if (after) logMapLine(formatSizeLine('leaflet-resize', after));
+        };
+        map.on('resize', onSize);
+      }
 
       // Focused mode (reached from a specific entry): show only that one pin, not a general
       // area browse — confirmed live, the bounds query below plotting every nearby entry
@@ -267,7 +313,7 @@ export function MapScreen({ focusedEntryId }: MapScreenProps) {
       map?.remove();
       if (mapRef.current === map) mapRef.current = null;
     };
-  }, [tiles, focusedEntryId, renderMarkers]);
+  }, [tiles, focusedEntryId, renderMarkers, snapshot]);
 
   // Leaflet reads the container's size once, at construction, and caches it — if IonContent/
   // IonPage's own layout hasn't settled yet at that exact moment (a real, observed race with the
@@ -280,11 +326,18 @@ export function MapScreen({ focusedEntryId }: MapScreenProps) {
     const el = containerRef.current;
     if (!el) return;
     const ro = new ResizeObserver(() => {
-      mapRef.current?.invalidateSize();
+      const map = mapRef.current;
+      if (!map) return;
+      invalidatedRef.current += 1;
+      map.invalidateSize();
+      if (hasErrorDiagnostics()) {
+        const snap = snapshot();
+        if (snap) logMapLine(formatSizeLine('observer', snap));
+      }
     });
     ro.observe(el);
     return () => ro.disconnect();
-  }, []);
+  }, [snapshot]);
 
   // Fetch entries for the debounced bounds and render their markers. Request-id-superseded like
   // every other resource hook (§7) — a pan mid-fetch discards the now-stale response instead of
@@ -292,11 +345,29 @@ export function MapScreen({ focusedEntryId }: MapScreenProps) {
   useEffect(() => {
     if (!debouncedBounds) return;
     const id = ++requestIdRef.current;
+    requestCountRef.current += 1;
     setEntriesStatus('loading');
     fetchEntriesInBounds(debouncedBounds).then(
       (entries) => {
         if (id !== requestIdRef.current) return;
         renderMarkers(entries);
+        if (hasErrorDiagnostics()) {
+          const snap = snapshot();
+          if (snap) {
+            logMapLine(
+              formatFetchLine(
+                {
+                  requestId: id,
+                  ranges: requestRanges(debouncedBounds),
+                  entries: entries.length,
+                  markers: markersRef.current.size,
+                  requestCount: requestCountRef.current,
+                },
+                snap,
+              ),
+            );
+          }
+        }
         const visibleCount = entries.filter(
           (e) => !hiddenMembersRef.current.includes(e.username),
         ).length;
@@ -313,7 +384,7 @@ export function MapScreen({ focusedEntryId }: MapScreenProps) {
         setEntriesError(ENTRIES_FAILED_MESSAGE);
       },
     );
-  }, [debouncedBounds, renderMarkers]);
+  }, [debouncedBounds, renderMarkers, snapshot]);
 
   async function handleMyLocation(): Promise<void> {
     setLocationMessage(null);
