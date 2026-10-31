@@ -70,6 +70,7 @@ function FirstRunExplainer({ onDismiss }: { onDismiss: () => void }) {
   return (
     <div
       role="dialog"
+      className="first-run-explainer"
       aria-label={t('SCR-01.explainer.first_run.title')}
       style={{
         position: 'fixed',

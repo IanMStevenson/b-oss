@@ -74,7 +74,7 @@ function SectionScreen({ section }: { section: HelpInfoSection }) {
       <IonHeader>
         <AppHeader title={SECTION_TITLES[section]} variant="back" backHref="/help" />
       </IonHeader>
-      <IonContent className="ion-padding">
+      <IonContent className="ion-padding form-column">
         {section === 'icon-guide' && <IconGuide />}
         {section === 'safety-privacy' && <SafetyPrivacy />}
         {section === 'licences' && <Licences />}
@@ -373,7 +373,7 @@ function HelpInfoHub() {
       <IonHeader>
         <AppHeader title="Help & about" accountIndicator={false} />
       </IonHeader>
-      <IonContent>
+      <IonContent className="form-column">
         <IonList>
           <SectionHeader>Help</SectionHeader>
           <NavRow label="Help" kind="external" onClick={() => void openUrl(HELP_URL)} />

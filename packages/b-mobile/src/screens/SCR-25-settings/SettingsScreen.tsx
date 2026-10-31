@@ -81,7 +81,7 @@ function SectionScreen({ section }: { section: SettingsSection }) {
           accountIndicator={section !== 'browsing'}
         />
       </IonHeader>
-      <IonContent>
+      <IonContent className="form-column">
         {section === 'general' && <GeneralSection />}
         {section === 'journal' && <JournalSection />}
         {section === 'profile' && <ProfileSection />}
@@ -112,7 +112,7 @@ function SettingsHub() {
       <IonHeader>
         <AppHeader title="Settings" />
       </IonHeader>
-      <IonContent>
+      <IonContent className="form-column">
         {/* Blipfoto account settings: server-backed (user/settings), follows whichever account
             is active — switching accounts shows that account's own values. Notifications lives
             here rather than in App settings below because a user thinks of it as "what am I

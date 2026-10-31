@@ -172,6 +172,23 @@ describe('desktop capabilities: location and camera', () => {
     expect(body).toContain('Take a photo');
     expect(body).toContain('Choose from device');
     expect(body).not.toMatch(/system picker/i);
+    // The buttons keep a natural width and the group is centred in the content area, not stretched
+    // across a wide window (b-oss#671). With the camera there are two; a lone picker is the same rule.
+    const box = await page.evaluate(() => {
+      const tiles = [...document.querySelectorAll('ion-button.new-entry-tile')].map((t) =>
+        t.getBoundingClientRect(),
+      );
+      const content = document.querySelector('.new-entry-tiles')?.getBoundingClientRect();
+      if (tiles.length === 0 || !content) return null;
+      const left = Math.min(...tiles.map((t) => t.left));
+      const right = Math.max(...tiles.map((t) => t.right));
+      return {
+        maxWidth: Math.max(...tiles.map((t) => t.width)),
+        offset: (left + right) / 2 - (content.left + content.width / 2),
+      };
+    });
+    expect(box?.maxWidth).toBeLessThan(330);
+    expect(Math.abs(box?.offset ?? 999)).toBeLessThan(4);
     await shot('7-new-entry');
   });
 
