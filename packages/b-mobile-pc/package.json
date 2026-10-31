@@ -14,7 +14,8 @@
     "typecheck": "tsc --noEmit && tsc --noEmit -p e2e",
     "test": "vitest run",
     "e2e": "bash e2e/run.sh",
-    "dist:win": "electron-vite build && electron-builder --win"
+    "dist:win": "electron-vite build && electron-builder --win",
+    "dist:win:dev": "electron-vite build && electron-builder --win -c.asar=false"
   },
   "devDependencies": {
     "@b-oss/b-notify-core": "*",

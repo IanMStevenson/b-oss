@@ -11,6 +11,7 @@
 // on that package); keep the two in step, their tests share the same cases.
 
 import { desktopBridge } from './desktop.js';
+import { knownShellBuild } from './shellBuild.js';
 
 const REDACTED = '[redacted]';
 
@@ -77,8 +78,14 @@ export function logError(info: ErrorInfo): void {
 /** The text "Copy details" puts on the clipboard: message, stack, app version, platform, time. */
 export function buildErrorDetails(info: ErrorInfo, now: Date = new Date()): string {
   const version = typeof __APP_VERSION__ === 'string' ? __APP_VERSION__ : 'unknown';
+  const shell = knownShellBuild();
   const lines = [
     `b-mobile ${version}`,
+    ...(shell
+      ? [
+          `Shell: ${shell.shell}${shell.kind === 'mismatch' ? ' (does not match the web build)' : ''}`,
+        ]
+      : []),
     `Platform: ${typeof navigator === 'undefined' ? 'unknown' : navigator.platform || 'unknown'} (desktop shell)`,
     `Time: ${now.toISOString()}`,
     `Where: ${info.source}`,

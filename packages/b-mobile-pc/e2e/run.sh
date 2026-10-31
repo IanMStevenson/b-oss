@@ -17,21 +17,22 @@ PIDS=()
 # (b-oss#683). Override any of them from the environment to pin one.
 ID="${E2E_ID:-$$}"
 CONTAINER="bmpc-e2e-shell-$ID"
-# Four free ports, found by binding port 0 on all four at once (so they are distinct).
-if [ -z "${E2E_CDP_PORT:-}${E2E_STUB_PORT:-}${E2E_AUTH_PORT:-}${E2E_NOTIFY_PORT:-}" ]; then
-  read -r E2E_CDP_PORT E2E_STUB_PORT E2E_AUTH_PORT E2E_NOTIFY_PORT < <(node -e "
+# Six free ports, found by binding port 0 on all six at once (so they are distinct). The last two are
+# the DevTools ports of the variant shells below.
+if [ -z "${E2E_CDP_PORT:-}${E2E_STUB_PORT:-}${E2E_AUTH_PORT:-}${E2E_NOTIFY_PORT:-}${E2E_V1_PORT:-}${E2E_V2_PORT:-}" ]; then
+  read -r E2E_CDP_PORT E2E_STUB_PORT E2E_AUTH_PORT E2E_NOTIFY_PORT E2E_V1_PORT E2E_V2_PORT < <(node -e "
     const net = require('node:net');
-    const servers = [0, 1, 2, 3].map(() => net.createServer());
+    const servers = [0, 1, 2, 3, 4, 5].map(() => net.createServer());
     Promise.all(servers.map((s) => new Promise((r) => s.listen(0, '127.0.0.1', () => r(s.address().port)))))
       .then((ports) => { console.log(ports.join(' ')); servers.forEach((s) => s.close()); });
   ")
 fi
-export E2E_CDP_PORT E2E_STUB_PORT E2E_AUTH_PORT E2E_NOTIFY_PORT
+export E2E_CDP_PORT E2E_STUB_PORT E2E_AUTH_PORT E2E_NOTIFY_PORT E2E_V1_PORT E2E_V2_PORT
 echo "e2e run $ID: container $CONTAINER, ports cdp=$E2E_CDP_PORT stub=$E2E_STUB_PORT auth=$E2E_AUTH_PORT notify=$E2E_NOTIFY_PORT"
 
 cleanup() {
   # Only this run's container and servers; never another run's.
-  docker rm -f "$CONTAINER" >/dev/null 2>&1 || true
+  docker rm -f "$CONTAINER" "$CONTAINER-mismatch" >/dev/null 2>&1 || true
   for pid in "${PIDS[@]:-}"; do kill "$pid" 2>/dev/null || true; done
   rm -rf "$WORK"
 }
@@ -83,8 +84,31 @@ for _ in $(seq 1 60); do
 done
 curl -fs http://127.0.0.1:$E2E_CDP_PORT/json/version >/dev/null || { docker logs "$CONTAINER" | tail -20; exit 1; }
 
+# 5b. Variant shells: the same app started a different way, for the tests that need a shell that is
+#     deliberately wrong in one respect. Each has its own container, user-data directory and DevTools
+#     port, and shares the stub servers. `start_variant <name> <cdp port> [docker -e ...]`.
+start_variant() {
+  local name="$1" port="$2"
+  shift 2
+  mkdir -p "$WORK/$name"
+  chmod 777 "$WORK/$name"
+  docker run -d --rm --name "$CONTAINER-$name" --network host \
+    -e E2E_CDP_PORT="$port" -e E2E_STUB_PORT -e E2E_AUTH_PORT -e E2E_NOTIFY_PORT=0 \
+    -e E2E_PROXY="${https_proxy:-}" "$@" \
+    -v "$ROOT:/p" -v "$WORK/$name:/tmp/ud" "$IMAGE" bash /p/packages/b-mobile-pc/e2e/docker/run-electron.sh >/dev/null
+  for _ in $(seq 1 60); do
+    curl -fs http://127.0.0.1:$port/json/version >/dev/null 2>&1 && return 0
+    sleep 1
+  done
+  docker logs "$CONTAINER-$name" | tail -20
+  return 1
+}
+# A shell that reports an older build than the web files it serves (b-oss#696).
+start_variant mismatch "$E2E_V1_PORT" -e BMPC_SHELL_VERSION=e2e-older-shell
+
 # 6. The tests.
 cd "$PKG"
 BMPC_CDP="http://127.0.0.1:$E2E_CDP_PORT" BMPC_STUB="http://127.0.0.1:$E2E_STUB_PORT" \
 BMPC_NOTIFY="http://127.0.0.1:$E2E_NOTIFY_PORT" BMPC_E2E_CONTAINER="$CONTAINER" \
+BMPC_CDP_MISMATCH="http://127.0.0.1:$E2E_V1_PORT" BMPC_UD_MISMATCH="$WORK/mismatch" \
 BMPC_E2E_OUT="$OUT" BMPC_E2E_USER_DATA="$WORK" npx vitest run --config e2e/vitest.config.ts "$@"

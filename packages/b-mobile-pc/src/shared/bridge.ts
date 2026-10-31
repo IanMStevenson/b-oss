@@ -25,6 +25,7 @@ export const CHANNELS = {
   notifyStatus: 'notify:status',
   notifyCheckNow: 'notify:check-now',
   notifyTest: 'notify:test',
+  shellInfo: 'shell:info',
 } as const;
 
 export interface DesktopBridge {
@@ -54,6 +55,12 @@ export interface DesktopBridge {
     /** The user clicked a notification; the window has already been brought to the front. A click
      * that happened before anyone listened is delivered to the first listener. */
     onTapped(handler: (payload: NotifyPayload) => void): () => void;
+  };
+  /** The shell's own identity (b-oss#696). The web app compares `build` with its `__APP_VERSION__`
+   * at start-up: they differ when files were replaced under a running shell. An older shell has no
+   * `shell` member at all, which the web app also treats as a mismatch. */
+  readonly shell: {
+    info(): Promise<{ build: string }>;
   };
   /** The error log and the error screen's actions (b-oss#639). */
   readonly diagnostics: {

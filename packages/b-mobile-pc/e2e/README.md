@@ -23,6 +23,11 @@ checkout). Pin the id or ports with `E2E_ID`, `E2E_CDP_PORT`, `E2E_STUB_PORT`, `
 `E2E_NOTIFY_PORT` if you need to. A test that needs the container (for example `docker logs`) must use
 `process.env.BMPC_E2E_CONTAINER`, never a literal name; likewise ports from the env vars above.
 
+**Variant shells.** `run.sh` can start extra shells (`start_variant <name> <port> -e ...`), each in its own
+container with its own user-data directory and DevTools port, for tests that need a shell that is wrong in
+one way; their tests live in `variants.e2e.ts` and read `BMPC_CDP_<NAME>` / `BMPC_UD_<NAME>`. Today: `mismatch`
+(`BMPC_SHELL_VERSION=e2e-older-shell`, b-oss#696).
+
 ## What it covers
 
 The shell's security posture (CSP, no Node in the page, path traversal, sign-in request validation, denied

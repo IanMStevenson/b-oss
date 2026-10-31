@@ -30,6 +30,7 @@ b-mobile on desktop: an Electron shell that packages b-mobile's web build. Epic
 | `src/main/window-state.ts`            | Pure: restore window size/position safely                                                    |
 | `src/main/notify-poller.ts`           | The poller: one timer, the shared count-diff rule, state file, back-off, dead-token handling |
 | `src/main/notify-shell.ts`            | Electron side of notifications: OS notification, tray, hide-to-tray, login item, exit dialog |
+| `src/main/login-item-policy.ts`       | Pure: no start-at-login item from a dev folder (b-oss#696)                                   |
 | `src/main/index.ts`, `auth-window.ts` | Electron wiring (not unit-tested; covered by the e2e harness, b-oss#614)                     |
 | `src/preload/index.ts`                | Exposes `window.bMobileDesktop` (`src/shared/bridge.ts` is the contract)                     |
 
@@ -78,7 +79,7 @@ npx electron packages/b-mobile-pc       # needs the Electron binary
 ```
 
 Environment (ignored in a packaged app): `BMPC_DIST` (web build directory), `BMPC_API_ORIGIN` (e.g. a
-stub API), `BMPC_AUTH_HOSTS`, `BMPC_AUTH_ALLOW_HTTP=1`. On the dev VM the Electron binary has to be
+stub API), `BMPC_AUTH_HOSTS`, `BMPC_AUTH_ALLOW_HTTP=1`, `BMPC_SHELL_VERSION` (the build id the shell reports). On the dev VM the Electron binary has to be
 fetched by hand and the app run in Docker; see the e2e issue (b-oss#614).
 
 ## Windows exe
@@ -151,8 +152,47 @@ The one VM relay (`b-mobile-pc-relay`, below) ignores the installers, `*.blockma
 `linux-unpacked/` under `dist-electron/` but not `win-unpacked/`, so after
 `packages/b-mobile-pc/scripts/build-win-docker.sh` on the VM only a few MB arrive. (`win-unpacked/` is
 recreated by every build; that is fine here because the relay's root is the whole repo, but a relay
-rooted at `win-unpacked/` itself would halt with "root deletion".) Start-with-login registers whichever
-exe path was running, so use that one folder.
+rooted at `win-unpacked/` itself would halt with "root deletion".) Start-with-login is **not** registered
+from a dev folder (see "Dev-loop hazards" below), so test notifications with the Setup-installed copy.
+
+## Dev-loop hazards (b-oss#696)
+
+On 2026-10-31 a day of confusing results came from `resources\app.asar` staying at the previous day's
+build while `resources\web` was new: an older instance (tray-resident, and registered to start at login
+from the synced folder) held `app.asar` open, so Windows refused the replacement and Mutagen could not
+apply it (`mutagen sync list` showed "Transition problems" and "Staging files on beta"). Every later
+launch only focused the old process. The new web files then called main-process features the old main did
+not have. What now guards against it:
+
+- **Mismatch notice.** The shell reports its own build id through the bridge (`shell.info()`), stamped
+  from the same `version.generated.json` as the web build's `__APP_VERSION__` (so a shell and a web build
+  made together are equal, e.g. `1.0.2.0.22`). At start-up the web app compares them. If they differ, or
+  the shell is too old to report one, a dismissible banner says so ("Quit b-mobile completely (tray icon,
+  Exit) and start it again"), an `app.log` line with `"source":"shell-build"` names both, and Help & about
+  and "Copy details" show both. Desktop only; nothing changes on Android or the web.
+- **No asar in dev builds.** `build-win-docker.sh` (and `npm run dist:win:dev`) pass `asar: false`, so the
+  main and preload code is loose files under `resources\app\` that a running instance does not hold open.
+  `--asar` (or `BMPC_ASAR=1`) gives the packed form; `npm run dist:win` always does. What this changes for
+  packaging: installers made without the asar contain many small files, and they differ from a release
+  build in layout only (`app.isPackaged` and every path the shell uses are unchanged, because they are
+  relative to `resources\`). For the updater (b-oss#612) a release build should be packed, and the
+  differential-update blockmap is per file either way; settle that when #612 picks the release recipe. The
+  Electron runtime files (`b-mobile.exe`, the dlls, `resources.pak`) only change on an Electron upgrade.
+- **No login item from a dev folder.** Enabling notifications registers the running exe to start at
+  login. From a folder with `node_modules` or `.git` within a few levels above it, or with `node_modules`
+  or `dist-electron` in its path, the shell logs `login item: left alone (...)` and registers nothing.
+  Turning notifications off still clears an item (`src/main/login-item-policy.ts`).
+
+Routine for a new build to land on Windows:
+
+1. Quit b-mobile completely: tray icon > **Exit**, and end any `b-mobile.exe` left in Task Manager.
+2. `mutagen sync list`: no "Transition problems"; `mutagen sync flush` if the build has not arrived.
+3. Launch. If the mismatch banner appears, an old process is still running: go back to step 1.
+4. Do not turn notifications on in the synced folder; test notifications with the Setup-installed copy.
+
+Real Windows behaviour (file locking, the tray, the login item) cannot be tested on the Linux dev VM; the
+e2e covers the mismatch banner and log line with a shell started with `BMPC_SHELL_VERSION` (a hook that
+is ignored in a packaged app), and the login-item rule is unit-tested as a pure function.
 
 ## Testing on Windows (Mutagen dev loop)
 

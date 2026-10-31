@@ -132,6 +132,15 @@ and the repoint command for "make that worktree available via Mutagen."
   `packages\b-mobile-pc\dist-electron\win-unpacked\b-mobile.exe` from the synced folder: fast launch,
   no unpacking, a few MB per rebuild. See `packages/b-mobile-pc/README.md`.
 
+## b-mobile-pc dev loop (Windows): quit before a build lands
+
+Running `packages/b-mobile-pc/dist-electron/win-unpacked/b-mobile.exe` from the synced folder: quit the
+app completely first (tray icon > Exit; end any `b-mobile.exe` in Task Manager), check `mutagen sync list`
+for transition problems, `mutagen sync flush`, then launch. Do not turn notifications on in the synced
+folder (it would register that folder at login; the shell now refuses), test them with the Setup-installed
+copy. A banner "running older program files than its web files" means an old process is still running.
+Details: `packages/b-mobile-pc/README.md`, "Dev-loop hazards" (b-oss#696).
+
 ## Commands
 
 ```bash

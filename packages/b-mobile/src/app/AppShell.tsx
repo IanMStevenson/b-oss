@@ -56,6 +56,7 @@ import { onAppUrlOpen, getLaunchUrl } from '../platform/deepLinks.js';
 import { resolveDeepLink, routeDeepLink } from '../flows/deepLinkResolver.js';
 import { isBackSwallowedAt, BROWSE_BACK_PRIORITY } from './hardwareBack.js';
 import { checkForSharedImage, onShareReceived } from '../platform/shareIntent.js';
+import { ShellBuildNotice } from '../components/ShellBuildNotice.js';
 import { profile } from '../profile/profile.js';
 import { useNavPane } from './navPane.js';
 
@@ -430,6 +431,7 @@ export function AppShell() {
           {splitPane ? <NavSplitPane>{outlet}</NavSplitPane> : outlet}
         </IonReactRouter>
       </OverlayProvider>
+      <ShellBuildNotice />
       <div className="system-nav-strip" aria-hidden="true" />
     </IonApp>
   );
