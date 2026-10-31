@@ -8,7 +8,13 @@ set -u
 DISP="${E2E_DISPLAY:-99}"
 export DISPLAY=":$DISP"
 Xvfb ":$DISP" -screen 0 520x960x24 >/dev/null 2>&1 &
-sleep 2
+# Wait for the display to exist instead of sleeping a fixed time (b-oss#704): under load 2 s was not always
+# enough and Electron then exited. Xvfb creates its socket when it is ready to accept clients.
+for _ in $(seq 1 100); do
+  [ -S "/tmp/.X11-unix/X$DISP" ] && break
+  sleep 0.2
+done
+[ -S "/tmp/.X11-unix/X$DISP" ] || { echo "Xvfb :$DISP did not start within 20 s" >&2; exit 70; }
 cd /p/packages/b-mobile-pc
 # --proxy-server: only when the host needs one (the dev VM's egress goes through squid).
 PROXY_ARGS=()
