@@ -320,6 +320,91 @@ describe('desktop capabilities: location and camera', () => {
     }
   });
 
+  // b-oss#697: opening Map from the persistent menu must show pins without any zoom. The stub API ignores
+  // bounds, so the pin count only proves the screen's pipeline works from the menu; it cannot detect the
+  // reported bug. The strip assertion pins the change made for it (no request wider than 180 degrees). Counted as
+  // Leaflet marker icons (Leaflet is DOM-based). Both a desktop-sized and a very wide window, from a
+  // page that is not the map, so the menu navigates in-app (no reload) and the map mounts into a
+  // layout that is still settling.
+  for (const width of [1300, 2400]) {
+    it(`opening the map from the menu shows pins straight away at ${width}px (b-oss#697)`, async () => {
+      try {
+        await page.setViewportSize({ width, height: 900 });
+        await page.evaluate(() => sessionStorage.clear());
+        // Settings has the menu open beside the page by default.
+        await go('/settings', 3000);
+        const seen: string[] = [];
+        page.on('request', (r) => {
+          if (r.url().includes('entries/search')) seen.push(r.url());
+        });
+        await page.getByText('Map', { exact: true }).first().click();
+        await page.waitForFunction(() => location.pathname === '/map', undefined, {
+          timeout: 10000,
+        });
+        await page.waitForTimeout(3500);
+        const pins = await page.locator('.leaflet-marker-icon').count();
+        await shot(`8d-map-from-menu-${width}`);
+        expect(pins).toBeGreaterThan(0);
+        // No single request spans more than 180 degrees of longitude (the strips together cover the view).
+        expect(seen.length).toBeGreaterThan(0);
+        for (const url of seen) {
+          const q = new URL(url).searchParams;
+          expect(Number(q.get('max_lon')) - Number(q.get('min_lon'))).toBeLessThanOrEqual(180);
+        }
+      } finally {
+        await page.setViewportSize({ width: 1200, height: 800 });
+      }
+    });
+  }
+
+  // b-oss#697: the map must agree with its container after opening from the menu in a large window
+  // (the split pane settling): the map's origin is the container's centre, and each pin sits where the
+  // tile grid says its coordinates are (Web Mercator), so pins cannot drift from the tiles.
+  it('the map and its pins agree with the container and the tiles from the menu at 1582x1049 (b-oss#697)', async () => {
+    try {
+      await page.setViewportSize({ width: 1582, height: 1049 });
+      await page.evaluate(() => sessionStorage.clear());
+      await go('/settings', 3000);
+      await page.getByText('Map', { exact: true }).first().click();
+      await page.waitForTimeout(4000);
+      const g = await page.evaluate(() => {
+        const c = document.querySelector('.leaflet-container')!.getBoundingClientRect();
+        const origin = document.querySelector('.leaflet-map-pane')!.getBoundingClientRect();
+        const tiles = [...document.querySelectorAll('.leaflet-tile-loaded')].map((t) =>
+          t.getBoundingClientRect(),
+        );
+        const markers = [...document.querySelectorAll('.leaflet-marker-icon')].map((m) => {
+          const r = m.getBoundingClientRect();
+          return { x: r.x + r.width / 2, y: r.bottom };
+        });
+        return {
+          centreX: c.x + c.width / 2,
+          centreY: c.y + c.height / 2,
+          originX: origin.x,
+          originY: origin.y,
+          top: Math.min(...tiles.map((t) => t.top)),
+          bottom: Math.max(...tiles.map((t) => t.bottom)),
+          markers,
+        };
+      });
+      // The view's centre (default lat 20) is the container's centre; the pane origin is its pixel centre.
+      expect(Math.abs(g.originX - g.centreX)).toBeLessThanOrEqual(3);
+      expect(Math.abs(g.originY - g.centreY)).toBeLessThanOrEqual(3);
+      const world = g.bottom - g.top; // the tile rows cover the world height at this zoom
+      expect(g.markers.length).toBeGreaterThan(0);
+      const mercatorY = (lat: number): number =>
+        g.top +
+        world * (0.5 - Math.log(Math.tan(Math.PI / 4 + (lat * Math.PI) / 360)) / (2 * Math.PI));
+      // The stub's located entries lie between lat 51.45 and 51.75.
+      for (const m of g.markers) {
+        expect(m.y).toBeGreaterThanOrEqual(mercatorY(51.75) - 3);
+        expect(m.y).toBeLessThanOrEqual(mercatorY(51.45) + 3);
+      }
+    } finally {
+      await page.setViewportSize({ width: 1200, height: 800 });
+    }
+  });
+
   it('Nearby explains there is no location here and offers the map instead of "Allow location"', async () => {
     await go('/browse', 4000);
     await page.evaluate(() => {
