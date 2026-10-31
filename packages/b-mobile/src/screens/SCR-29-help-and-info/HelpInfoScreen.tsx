@@ -28,6 +28,11 @@
 
 import { useEffect, useState } from 'react';
 import type { ReactNode } from 'react';
+import {
+  checkShellBuild,
+  knownShellBuild,
+  type ShellBuildCheck,
+} from '../../platform/shellBuild.js';
 import { IonPage, IonHeader, IonContent, IonList, IonItem, IonNote, IonButton } from '@ionic/react';
 import { NavRow, SectionHeader } from '../../components/SettingsForm.js';
 import { AppHeader } from '../../components/AppHeader.js';
@@ -369,6 +374,11 @@ function HelpInfoHub() {
   const navigate = useAppNavigate();
   // __APP_VERSION__: b-mobile's own package.json version (src/appVersion.ts, set in vite.config.ts).
   const version = typeof __APP_VERSION__ === 'string' ? __APP_VERSION__ : '1.0.0';
+  // Desktop only (b-oss#696): the shell's own build, shown beside the web build. Null elsewhere.
+  const [shellBuild, setShellBuild] = useState<ShellBuildCheck | null>(knownShellBuild());
+  useEffect(() => {
+    void checkShellBuild().then(setShellBuild);
+  }, []);
 
   return (
     <IonPage>
@@ -410,6 +420,15 @@ function HelpInfoHub() {
             <span>App version</span>
             <IonNote slot="end">{version}</IonNote>
           </IonItem>
+          {shellBuild && (
+            <IonItem lines="full">
+              <span>Desktop program version</span>
+              <IonNote slot="end">
+                {shellBuild.shell}
+                {shellBuild.kind === 'mismatch' ? ' (differs)' : ''}
+              </IonNote>
+            </IonItem>
+          )}
           <NavRow
             label="b-mobile privacy policy"
             kind="external"

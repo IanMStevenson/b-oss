@@ -84,6 +84,22 @@ describe('AppShell navigation menu, desktop profile', () => {
     expect(useDevicePrefsStore.getState().navPinned).toBe('auto');
   });
 
+  it('the pin row reads label then icon, icon in the end slot, same name and pressed state (b-oss#698)', async () => {
+    platform.kind = 'desktop';
+    stubWidth(true);
+    window.history.pushState({}, '', '/accounts');
+    render(<AppShell />);
+    await screen.findByText('Add account');
+    const button = document.querySelector('ion-button.nav-pin') as HTMLElement;
+    expect(button.textContent).toBe('Collapse menu');
+    const kids = [...button.childNodes];
+    expect((kids[0] as Element).className).toBe('nav-pin-label');
+    const icon = kids[1] as Element;
+    expect(icon.tagName.toLowerCase()).toBe('svg');
+    expect(icon.getAttribute('slot')).toBe('end');
+    expect(icon.getAttribute('aria-hidden')).toBe('true');
+  });
+
   it('a pinned-open menu stays open on Browse', async () => {
     platform.kind = 'desktop';
     stubWidth(true);

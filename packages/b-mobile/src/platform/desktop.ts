@@ -59,6 +59,11 @@ export interface DesktopBridge {
     onReceived(handler: (payload: DesktopNotifyPayload) => void): () => void;
     onTapped(handler: (payload: DesktopNotifyPayload) => void): () => void;
   };
+  /** The shell's own build (b-oss#696). Absent on a shell older than this member, which the app
+   * reads as a mismatch. */
+  readonly shell?: {
+    info(): Promise<{ build: string }>;
+  };
   /** The error log and the error screen's actions (b-oss#639); see platform/diagnostics.ts. */
   readonly diagnostics: {
     logError(entry: { source: string; message: string; stack?: string }): Promise<void>;

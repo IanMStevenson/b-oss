@@ -70,6 +70,20 @@ describe('the shell and its security posture', () => {
     ).toBe('undefined,undefined,undefined');
   });
 
+  it('reports the same build as the web files, and shows no mismatch notice (b-oss#696)', async () => {
+    const shellBuild = await page.evaluate(
+      async () => (await window.bMobileDesktop?.shell.info())?.build,
+    );
+    expect(shellBuild).toMatch(/^\d+\.\d+\.\d+/);
+    expect(await page.locator('[role="alert"]').count()).toBe(0);
+    await go('/help', 3000);
+    const body = await text();
+    expect(body).toContain('App version');
+    expect(body).toContain('Desktop program version');
+    expect(body).not.toContain('(differs)');
+    expect(body).toContain(shellBuild as string);
+  });
+
   it('sends a CSP that allows the inline theme script by hash only', async () => {
     const csp = await page.evaluate(async () =>
       (await fetch('/')).headers.get('content-security-policy'),
@@ -84,6 +98,15 @@ describe('the shell and its security posture', () => {
     expect(status).toBe(404);
     const body = await page.evaluate(async () => (await fetch('/%2e%2e/%2e%2e/etc/passwd')).text());
     expect(body).not.toContain('root:');
+  });
+
+  it('serves the app for a route whose last segment has a dot, like a user name (b-oss#695)', async () => {
+    const res = await page.evaluate(async () => {
+      const r = await fetch('/profile/john.smith');
+      return { status: r.status, type: r.headers.get('content-type') };
+    });
+    expect(res.status).toBe(200);
+    expect(res.type).toContain('text/html');
   });
 
   it('refuses sign-in windows for other hosts and for non-custom-scheme redirects', async () => {
@@ -321,6 +344,97 @@ describe('desktop capabilities: location and camera', () => {
     }
   });
 
+  // b-oss#697: opening Map from the persistent menu must show pins without any zoom. The stub API ignores
+  // bounds, so the pin count only proves the screen's pipeline works from the menu; it cannot detect the
+  // reported bug. The strip assertion pins the change made for it (no request wider than 180 degrees). Counted as
+  // Leaflet marker icons (Leaflet is DOM-based). Both a desktop-sized and a very wide window, from a
+  // page that is not the map, so the menu navigates in-app (no reload) and the map mounts into a
+  // layout that is still settling.
+  for (const width of [1300, 2400]) {
+    it(`opening the map from the menu shows pins straight away at ${width}px (b-oss#697)`, async () => {
+      try {
+        await page.setViewportSize({ width, height: 900 });
+        await page.evaluate(() => sessionStorage.clear());
+        // Settings has the menu open beside the page by default.
+        await go('/settings', 3000);
+        const seen: string[] = [];
+        page.on('request', (r) => {
+          if (r.url().includes('entries/search')) seen.push(r.url());
+        });
+        await page.getByText('Map', { exact: true }).first().click();
+        await page.waitForFunction(() => location.pathname === '/map', undefined, {
+          timeout: 10000,
+        });
+        await page.waitForTimeout(3500);
+        const pins = await page.locator('.leaflet-marker-icon').count();
+        await shot(`8d-map-from-menu-${width}`);
+        expect(pins).toBeGreaterThan(0);
+        // No single request spans more than 180 degrees of longitude (the strips together cover the view).
+        expect(seen.length).toBeGreaterThan(0);
+        for (const url of seen) {
+          const q = new URL(url).searchParams;
+          expect(Number(q.get('max_lon')) - Number(q.get('min_lon'))).toBeLessThanOrEqual(180);
+        }
+      } finally {
+        await page.setViewportSize({ width: 1200, height: 800 });
+      }
+    });
+  }
+
+  // b-oss#697: the map must agree with its container after opening from the menu in a large window
+  // (the split pane settling): the map's origin is the container's centre, and each pin sits where the
+  // tile grid says its coordinates are (Web Mercator), so pins cannot drift from the tiles.
+  it('the map and its pins agree with the container and the tiles from the menu at 1582x1049 (b-oss#697)', async () => {
+    try {
+      await page.setViewportSize({ width: 1582, height: 1049 });
+      await page.evaluate(() => sessionStorage.clear());
+      await go('/settings', 3000);
+      await page.getByText('Map', { exact: true }).first().click();
+      await page.waitForTimeout(4000);
+      const g = await page.evaluate(() => {
+        const c = document.querySelector('.leaflet-container')!.getBoundingClientRect();
+        const origin = document.querySelector('.leaflet-map-pane')!.getBoundingClientRect();
+        const tiles = [...document.querySelectorAll('.leaflet-tile-loaded')].map((t) =>
+          t.getBoundingClientRect(),
+        );
+        const markers = [...document.querySelectorAll('.leaflet-marker-icon')].map((m) => {
+          const r = m.getBoundingClientRect();
+          return { x: r.x + r.width / 2, y: r.bottom };
+        });
+        return {
+          centreX: c.x + c.width / 2,
+          centreY: c.y + c.height / 2,
+          originX: origin.x,
+          originY: origin.y,
+          top: Math.min(...tiles.map((t) => t.top)),
+          bottom: Math.max(...tiles.map((t) => t.bottom)),
+          markers,
+        };
+      });
+      // The view's centre (default lat 20) is the container's centre; the pane origin is its pixel centre.
+      expect(Math.abs(g.originX - g.centreX)).toBeLessThanOrEqual(3);
+      expect(Math.abs(g.originY - g.centreY)).toBeLessThanOrEqual(3);
+      const world = g.bottom - g.top; // the tile rows cover the world height at this zoom
+      expect(g.markers.length).toBeGreaterThan(0);
+      const mercatorY = (lat: number): number =>
+        g.top +
+        world * (0.5 - Math.log(Math.tan(Math.PI / 4 + (lat * Math.PI) / 360)) / (2 * Math.PI));
+      // The stub's located entries lie between lat 51.45 and 51.75.
+      for (const m of g.markers) {
+        expect(m.y).toBeGreaterThanOrEqual(mercatorY(51.75) - 3);
+        expect(m.y).toBeLessThanOrEqual(mercatorY(51.45) + 3);
+      }
+      // The desktop log has the map's own account of the same state (b-oss#697 diagnostics).
+      const log = readFileSync(join(USER_DATA ?? '', 'logs', 'app.log'), 'utf8')
+        .split('\n')
+        .filter((l) => l.includes('"source":"map"'));
+      expect(log.some((l) => /load container=\d+x\d+ mapSize=\d+x\d+ size=/.test(l))).toBe(true);
+      expect(log.some((l) => /fetch #\d+ requests=\d+ sent=\[lat/.test(l))).toBe(true);
+    } finally {
+      await page.setViewportSize({ width: 1200, height: 800 });
+    }
+  });
+
   it('Nearby explains there is no location here and offers the map instead of "Allow location"', async () => {
     await go('/browse', 4000);
     await page.evaluate(() => {
@@ -354,6 +468,39 @@ describe('responsive navigation menu', () => {
     expect(await visible()).toBe(true);
     expect(await text()).toContain('Collapse menu');
     await shot('9-nav-accounts-open');
+    // b-oss#698: the label sits to the left of its icon, both pushed to the right of the row, with
+    // a gap between them, and nothing that would put the control on its own compositing layer.
+    const pinLayout = await page.evaluate(() => {
+      const host = document.querySelector<HTMLElement>('ion-button.nav-pin');
+      const native = host?.shadowRoot?.querySelector<HTMLElement>('button');
+      const icon = host?.querySelector<SVGElement>('svg');
+      if (!host || !native || !icon) return null;
+      const range = document.createRange();
+      const label = host.querySelector('.nav-pin-label');
+      if (!label) return null;
+      range.selectNodeContents(label);
+      const t = range.getBoundingClientRect();
+      const i = icon.getBoundingClientRect();
+      const h = host.getBoundingClientRect();
+      const cs = getComputedStyle(native);
+      return {
+        textRight: t.right,
+        iconLeft: i.left,
+        iconRight: i.right,
+        hostRight: h.right,
+        hostWidth: h.width,
+        transform: cs.transform,
+        willChange: cs.willChange,
+        filter: cs.filter,
+      };
+    });
+    expect(pinLayout).not.toBeNull();
+    expect(pinLayout!.iconLeft - pinLayout!.textRight).toBeGreaterThanOrEqual(10);
+    expect(pinLayout!.hostRight - pinLayout!.iconRight).toBeGreaterThanOrEqual(12);
+    expect(pinLayout!.hostRight - pinLayout!.iconRight).toBeLessThan(30);
+    expect(pinLayout!.transform).toBe('none');
+    expect(pinLayout!.willChange).toBe('auto');
+    expect(pinLayout!.filter).toBe('none');
     await go('/settings', 2500);
     expect(await visible()).toBe(true);
     await shot('10-nav-settings-open');

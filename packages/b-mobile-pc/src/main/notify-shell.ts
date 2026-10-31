@@ -6,6 +6,8 @@
 // pure modules; this file only connects them to Electron, so it is covered by the e2e harness, not
 // unit tests. The tray is copied in small from b-ark's rather than shared: two consumers.
 
+import { existsSync } from 'node:fs';
+import { join } from 'node:path';
 import { app, dialog, Menu, nativeImage, Notification, Tray, type BrowserWindow } from 'electron';
 import { CHANNELS } from '../shared/bridge.js';
 import type { NotifyPayload, TestNotifyResult } from '../shared/notify.js';
@@ -14,6 +16,7 @@ import type { ToShow } from './notify-poller.js';
 import { safeSend } from './safe-ipc.js';
 import { TapQueue } from './tap-queue.js';
 import { appIconPath, trayIconPath } from './tray-icon.js';
+import { decideLoginItem, isDevFolder } from './login-item-policy.js';
 import { loginItemWanted, requestExit, shouldHideOnClose } from './tray-policy.js';
 
 /** Argument added to the login item so a start at login goes straight to the tray. */
@@ -26,6 +29,8 @@ export interface Presenter {
   show(item: ToShow, onClick: () => void): Promise<void>;
   /** The "Send a test notification" toast: no payload, no API. Reports what the OS did. */
   showTest(onClick: () => void): Promise<TestNotifyResult>;
+  /** Close any toast still held, so nothing outlives the quit. */
+  dispose?(): void;
 }
 
 export const TEST_TITLE = 'b-mobile test notification';
@@ -103,6 +108,10 @@ export function createElectronPresenter(log: (message: string) => void): Present
       if (!result.ok) throw new Error(result.detail);
     },
     showTest: (onClick) => present(TEST_TITLE, TEST_BODY, 'test', onClick),
+    dispose() {
+      for (const n of live) n.close();
+      live.clear();
+    },
   };
 }
 
@@ -121,6 +130,16 @@ export class NotifyShell {
     app.on('before-quit', () => {
       this.quitting = true;
     });
+  }
+
+  /** Quit: remove the tray, close toasts still held. Safe to call twice. */
+  dispose(): void {
+    this.quitting = true;
+    if (this.tray) {
+      this.tray.destroy();
+      this.tray = null;
+    }
+    this.presenter.dispose?.();
   }
 
   /** The OS is ending the session (logoff, shutdown, restart): let windows close for real. */
@@ -238,14 +257,21 @@ export class NotifyShell {
 }
 
 /** The login item follows the notifications setting (on while any account is watched). Unpackaged,
- * it would launch bare Electron, so it is left alone. */
+ * it would launch bare Electron, so it is left alone; so is a packaged exe in a dev folder
+ * (login-item-policy.ts, b-oss#696). */
 function setLoginItem(wanted: boolean, log: (message: string) => void): void {
-  if (!app.isPackaged) {
-    log(`login item: left alone (not a packaged app); wanted=${wanted}`);
+  const decision = decideLoginItem({
+    wanted,
+    packaged: app.isPackaged,
+    devFolder:
+      app.isPackaged && isDevFolder(process.execPath, (dir, name) => existsSync(join(dir, name))),
+  });
+  if (decision.action === 'leave-alone') {
+    log(`login item: left alone (${decision.reason}); wanted=${wanted}`);
     return;
   }
   try {
-    app.setLoginItemSettings({ openAtLogin: wanted, args: [HIDDEN_ARG] });
+    app.setLoginItemSettings({ openAtLogin: decision.openAtLogin, args: [HIDDEN_ARG] });
     const now = app.getLoginItemSettings({ args: [HIDDEN_ARG] });
     log(
       `login item: wanted=${wanted} openAtLogin=${now.openAtLogin} executableWillLaunchAtLogin=${now.executableWillLaunchAtLogin}`,
