@@ -53,6 +53,7 @@ import { useAppNavigate } from '../../app/routes/useAppNavigate.js';
 import type { EntryIndex } from '@b-oss/b-view';
 import type { BlipUser } from '@b-oss/b-api';
 import { LoadFailed } from '../../components/LoadFailed.js';
+import { PointerRefresh } from '../../components/PointerRefresh.js';
 
 type Tab = 'entries' | 'people';
 
@@ -211,6 +212,7 @@ function PeopleTab({
       <IonRefresher slot="fixed" onIonRefresh={handleRefresh}>
         <IonRefresherContent />
       </IonRefresher>
+      <PointerRefresh onRefresh={resource.refresh} />
       {resource.items.map((user) => (
         <UserRow key={user.username} user={user} onTap={() => onSelectUser(user.username)} />
       ))}

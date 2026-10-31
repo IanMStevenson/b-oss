@@ -48,6 +48,7 @@ import { openUrl } from '../../platform/browser.js';
 import { InboxRow, RowThumb } from '../../components/InboxRow.js';
 import { useReport } from '../../flows/useReport.js';
 import type { BlipComment } from '@b-oss/b-api';
+import { PointerRefresh } from '../../components/PointerRefresh.js';
 
 type Status = 'loading' | 'loaded' | 'empty' | 'error';
 
@@ -95,18 +96,21 @@ export function CommentsInboxScreen() {
     load();
   }, [load]);
 
-  function handleRefresh(event: CustomEvent<RefresherEventDetail>): void {
-    fetchRecentComments(latestIdRef.current ?? undefined).then(
+  function refreshInbox(): Promise<void> {
+    return fetchRecentComments(latestIdRef.current ?? undefined).then(
       (fresh) => {
         if (fresh.length > 0) {
           latestIdRef.current = fresh[0].comment_id_str;
           setItems((prev) => [...fresh, ...prev]);
           setStatus('loaded');
         }
-        event.detail.complete();
       },
-      () => event.detail.complete(),
+      () => undefined,
     );
+  }
+
+  function handleRefresh(event: CustomEvent<RefresherEventDetail>): void {
+    void refreshInbox().then(() => event.detail.complete());
   }
 
   function handleHide(username: string): void {
@@ -179,6 +183,7 @@ export function CommentsInboxScreen() {
             <IonRefresher slot="fixed" onIonRefresh={handleRefresh}>
               <IonRefresherContent />
             </IonRefresher>
+            <PointerRefresh onRefresh={() => void refreshInbox()} />
             {visibleItems.map((comment) => (
               <InboxRow
                 key={comment.comment_id_str}
