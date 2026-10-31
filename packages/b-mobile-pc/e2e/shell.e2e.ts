@@ -320,7 +320,9 @@ describe('desktop capabilities: location and camera', () => {
     }
   });
 
-  // b-oss#697: opening Map from the persistent menu must show pins without any zoom. Counted as
+  // b-oss#697: opening Map from the persistent menu must show pins without any zoom. The stub API ignores
+  // bounds, so the pin count only proves the screen's pipeline works from the menu; it cannot detect the
+  // reported bug. The strip assertion pins the change made for it (no request wider than 180 degrees). Counted as
   // Leaflet marker icons (Leaflet is DOM-based). Both a desktop-sized and a very wide window, from a
   // page that is not the map, so the menu navigates in-app (no reload) and the map mounts into a
   // layout that is still settling.

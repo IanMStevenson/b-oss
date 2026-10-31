@@ -61,9 +61,10 @@ export function normaliseBounds(b: MapBounds): MapBounds[] {
 }
 
 /** The widest longitude span sent in one request (b-oss#697). A phone-sized viewport at the default
- * zoom spans about 140 degrees and is sent as it always was; a wide window spans 300 or more, and a
- * request that large returned no pins when the map was first opened although the same area, zoomed in,
- * did. Wider ranges are cut into strips of at most this span and the results merged. */
+ * zoom spans about 140 degrees and is sent as it always was; a wide window spans 300 or more. Hypothesis,
+ * not confirmed against the live API: a request that large returns no pins when the map is first opened,
+ * although the same area zoomed in does. Wider ranges are cut into strips of at most this span and the
+ * results merged; if a build shows pins still missing, the cause is elsewhere and this can go. */
 export const MAX_REQUEST_LON_SPAN = 180;
 
 /** Cuts any range wider than MAX_REQUEST_LON_SPAN into equal strips; narrower ranges are untouched. */
