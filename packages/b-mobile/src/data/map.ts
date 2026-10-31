@@ -60,6 +60,27 @@ export function normaliseBounds(b: MapBounds): MapBounds[] {
   ];
 }
 
+/** The widest longitude span sent in one request (b-oss#697). A phone-sized viewport at the default
+ * zoom spans about 140 degrees and is sent as it always was; a wide window spans 300 or more, and a
+ * request that large returned no pins when the map was first opened although the same area, zoomed in,
+ * did. Wider ranges are cut into strips of at most this span and the results merged. */
+export const MAX_REQUEST_LON_SPAN = 180;
+
+/** Cuts any range wider than MAX_REQUEST_LON_SPAN into equal strips; narrower ranges are untouched. */
+export function splitWideRanges(ranges: MapBounds[]): MapBounds[] {
+  return ranges.flatMap((r) => {
+    const span = r.maxLon - r.minLon;
+    if (span <= MAX_REQUEST_LON_SPAN) return [r];
+    const parts = Math.ceil(span / MAX_REQUEST_LON_SPAN);
+    const step = span / parts;
+    return Array.from({ length: parts }, (_, i) => ({
+      ...r,
+      minLon: i === 0 ? r.minLon : r.minLon + step * i,
+      maxLon: i === parts - 1 ? r.maxLon : r.minLon + step * (i + 1),
+    }));
+  });
+}
+
 // One page's worth of markers per query, generous enough for a typical viewport without
 // pagination — consistent with §13's "no clustering for v1" stance.
 const MAX_MARKERS = 100;
@@ -68,7 +89,7 @@ const MAX_MARKERS = 100;
 // anonymous token if the active account's own is rate-limited (client.ts's
 // withRateLimitFallback doc comment has the full reasoning).
 export async function fetchEntriesInBounds(bounds: MapBounds): Promise<MapEntry[]> {
-  const ranges = normaliseBounds(bounds);
+  const ranges = splitWideRanges(normaliseBounds(bounds));
   return withRateLimitFallback(async (client) => {
     const markers: MapEntry[] = [];
     const seen = new Set<string>();

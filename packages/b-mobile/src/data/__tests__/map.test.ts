@@ -5,7 +5,12 @@
 // viewport zoomed out reports them. Pins the normaliser, including the numbers from the failure.
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { fetchEntriesInBounds, normaliseBounds } from '../map.js';
+import {
+  fetchEntriesInBounds,
+  normaliseBounds,
+  splitWideRanges,
+  MAX_REQUEST_LON_SPAN,
+} from '../map.js';
 
 const client = { searchEntries: vi.fn() };
 
@@ -49,6 +54,26 @@ describe('normaliseBounds', () => {
   });
 });
 
+describe('splitWideRanges (b-oss#697)', () => {
+  it('leaves a handheld-sized range exactly as it was, up to the cap', () => {
+    const phone = b(-60, 80); // 140 degrees: a phone at the default zoom
+    expect(splitWideRanges([phone])).toEqual([phone]);
+    const atCap = b(-90, 90);
+    expect(MAX_REQUEST_LON_SPAN).toBe(180);
+    expect(splitWideRanges([atCap])).toEqual([atCap]);
+  });
+
+  it('cuts the whole world into two strips that meet and cover it', () => {
+    expect(splitWideRanges([b(-180, 180)])).toEqual([b(-180, 0), b(0, 180)]);
+  });
+
+  it('cuts a 329-degree range (a 1300px window) into two strips with the same edges', () => {
+    const [a, c] = splitWideRanges([b(-164.5, 164.5, -78, 84)]);
+    expect(a).toEqual(b(-164.5, 0, -78, 84));
+    expect(c).toEqual(b(0, 164.5, -78, 84));
+  });
+});
+
 describe('fetchEntriesInBounds', () => {
   beforeEach(() => client.searchEntries.mockReset());
 
@@ -62,7 +87,8 @@ describe('fetchEntriesInBounds', () => {
       expect(arg.min_lon).toBeGreaterThanOrEqual(-180);
       expect(arg.max_lon).toBeLessThanOrEqual(180);
     }
-    expect(client.searchEntries).toHaveBeenCalledTimes(3);
+    // The world is two strips (b-oss#697) and the antimeridian view two ranges.
+    expect(client.searchEntries).toHaveBeenCalledTimes(4);
   });
 
   it('merges the two halves of an antimeridian view without duplicates', async () => {

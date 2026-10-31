@@ -320,6 +320,41 @@ describe('desktop capabilities: location and camera', () => {
     }
   });
 
+  // b-oss#697: opening Map from the persistent menu must show pins without any zoom. Counted as
+  // Leaflet marker icons (Leaflet is DOM-based). Both a desktop-sized and a very wide window, from a
+  // page that is not the map, so the menu navigates in-app (no reload) and the map mounts into a
+  // layout that is still settling.
+  for (const width of [1300, 2400]) {
+    it(`opening the map from the menu shows pins straight away at ${width}px (b-oss#697)`, async () => {
+      try {
+        await page.setViewportSize({ width, height: 900 });
+        await page.evaluate(() => sessionStorage.clear());
+        // Settings has the menu open beside the page by default.
+        await go('/settings', 3000);
+        const seen: string[] = [];
+        page.on('request', (r) => {
+          if (r.url().includes('entries/search')) seen.push(r.url());
+        });
+        await page.getByText('Map', { exact: true }).first().click();
+        await page.waitForFunction(() => location.pathname === '/map', undefined, {
+          timeout: 10000,
+        });
+        await page.waitForTimeout(3500);
+        const pins = await page.locator('.leaflet-marker-icon').count();
+        await shot(`8d-map-from-menu-${width}`);
+        expect(pins).toBeGreaterThan(0);
+        // No single request spans more than 180 degrees of longitude (the strips together cover the view).
+        expect(seen.length).toBeGreaterThan(0);
+        for (const url of seen) {
+          const q = new URL(url).searchParams;
+          expect(Number(q.get('max_lon')) - Number(q.get('min_lon'))).toBeLessThanOrEqual(180);
+        }
+      } finally {
+        await page.setViewportSize({ width: 1200, height: 800 });
+      }
+    });
+  }
+
   it('Nearby explains there is no location here and offers the map instead of "Allow location"', async () => {
     await go('/browse', 4000);
     await page.evaluate(() => {
