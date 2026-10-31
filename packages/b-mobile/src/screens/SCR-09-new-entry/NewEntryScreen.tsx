@@ -39,6 +39,7 @@ import { useActiveAccount } from '../../state/accountsStore.js';
 import { useComposeDraftStore } from '../../state/composeDraftStore.js';
 import { todayDate } from '../../data/dates.js';
 import { validatePickedPhoto } from '../../data/photoValidation.js';
+import { initialThumbnailCrop } from '../../data/imageCrop.js';
 
 function todayFromCreatedAt(createdAt: string | null): string {
   if (createdAt) {
@@ -81,7 +82,7 @@ export function NewEntryScreen({ replaceEntryId }: NewEntryScreenProps = {}) {
           createdAt: photo.createdAt,
           sizeBytes: photo.sizeBytes,
         },
-        thumbnailCrop: null,
+        thumbnailCrop: initialThumbnailCrop(photo.width, photo.height),
       });
       navigate.goBack();
       return;
@@ -107,7 +108,7 @@ export function NewEntryScreen({ replaceEntryId }: NewEntryScreenProps = {}) {
       // "Add to map" on (b-oss#650). Sent with the entry so the server holds it either way.
       location: photo.gps ?? null,
       displayLocation: false,
-      thumbnailCrop: null,
+      thumbnailCrop: initialThumbnailCrop(photo.width, photo.height),
       dirty: false,
     });
     navigate.push('/compose/details');
