@@ -162,16 +162,58 @@ describe('sign-in and secrets', () => {
   });
 });
 
-// Capabilities on desktop (b-oss#636): no OS location and no camera, so those controls are absent
-// rather than dead, and the location picker (lazy chunk, map) opens without the error screen.
+// Capabilities on desktop (b-oss#636, b-oss#670): no OS location (controls absent rather than dead) and a
+// webcam instead of a camera app, and the location picker (lazy chunk, map) opens without the error screen.
 describe('desktop capabilities: location and camera', () => {
-  it('New entry offers only choosing a file, and no Android picker copy', async () => {
+  it('New entry offers the webcam and choosing a file, and no Android picker copy (b-oss#670)', async () => {
     await page.setViewportSize({ width: 1200, height: 800 });
     await go('/compose', 3000);
     const body = await text();
-    expect(body).toContain('Choose a photo');
-    expect(body).not.toMatch(/Take a photo|Choose from device|system picker/i);
+    expect(body).toContain('Take a photo');
+    expect(body).toContain('Choose from device');
+    expect(body).not.toMatch(/system picker/i);
     await shot('7-new-entry');
+  });
+
+  it('takes a photo with the (fake) webcam end to end into the compose form (b-oss#670)', async () => {
+    await go('/compose', 3000);
+    await clickIonButton(/take a photo/);
+    await page.waitForSelector('video[data-testid="webcam-video"]:not([hidden])', {
+      timeout: 15000,
+    });
+    await page.waitForFunction(
+      () =>
+        (document.querySelector('video[data-testid="webcam-video"]') as HTMLVideoElement)
+          .videoWidth > 0,
+      undefined,
+      { timeout: 15000 },
+    );
+    await shot('7b-webcam-live');
+    await clickIonButton(/^take photo$/);
+    await page.waitForSelector('img[alt="The photo you just took"]', { timeout: 10000 });
+    await shot('7c-webcam-review');
+    await clickIonButton(/use photo/);
+    await page.waitForFunction(() => location.pathname.includes('/compose/details'), undefined, {
+      timeout: 10000,
+    });
+    await page.waitForTimeout(1500);
+    const photo = await page.evaluate(() => {
+      const img = document.querySelector<HTMLImageElement>('img[alt="Selected"]');
+      return img ? { src: img.src.slice(0, 5), w: img.naturalWidth } : null;
+    });
+    expect(photo?.src).toBe('blob:');
+    expect(photo?.w).toBeGreaterThan(0);
+    await shot('7d-webcam-compose');
+  });
+
+  it('grants the camera only: the microphone is refused (b-oss#670)', async () => {
+    const result = await page.evaluate(() =>
+      navigator.mediaDevices.getUserMedia({ audio: true }).then(
+        () => 'granted',
+        (e: DOMException) => `denied:${e.name}`,
+      ),
+    );
+    expect(result).toBe('denied:NotAllowedError');
   });
 
   it('the location picker offers "Show current location"; a failed attempt gives a message and hides it (b-oss#672)', async () => {

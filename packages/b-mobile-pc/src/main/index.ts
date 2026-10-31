@@ -24,6 +24,7 @@ import { basename, dirname, join, resolve } from 'node:path';
 import { fetchUnreadTotals } from '@b-oss/b-notify-core';
 import { CHANNELS } from '../shared/bridge.js';
 import { appTokenKey, parseNotifySettings } from '../shared/notify.js';
+import { allowPermission } from './permissions.js';
 import {
   APP_ORIGIN,
   APP_SCHEME,
@@ -35,7 +36,6 @@ import {
   sanitiseResponseHeaders,
 } from './app-protocol.js';
 import { ErrorLog, parseErrorEntry, type LogFs } from './error-log.js';
-import { isPermissionGranted } from './permissions.js';
 import { isTrustedEvent } from './safe-ipc.js';
 import { describeRejection } from './unhandled.js';
 import { APP_USER_MODEL_ID } from './app-id.js';
@@ -283,11 +283,18 @@ if (!app.requestSingleInstanceLock()) {
 
   void app.whenReady().then(async () => {
     protocol.handle(APP_SCHEME, handleAppRequest);
-    // Deny every browser permission request except the ones in permissions.ts (geolocation, for
-    // the app's own origin only: "Show current location", b-oss#672). Notifications and the rest
-    // go through the shell. Location is requested only when the user taps the control.
+    // Deny every browser permission request except the ones in permissions.ts, and those only for the
+    // app's own origin: geolocation ("Show current location", b-oss#672, requested only when the user
+    // taps the control) and video-only media (the webcam capture view, b-oss#670). Notifications and
+    // the rest go through the shell.
     session.defaultSession.setPermissionRequestHandler((_wc, permission, callback, details) =>
-      callback(isPermissionGranted(permission, details.requestingUrl)),
+      callback(
+        allowPermission({
+          permission,
+          requestingUrl: details.requestingUrl,
+          mediaTypes: 'mediaTypes' in details ? details.mediaTypes : undefined,
+        }),
+      ),
     );
 
     // Test hook (ignored when packaged): a plaintext store, for e2e runs where the machine has no

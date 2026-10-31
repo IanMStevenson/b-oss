@@ -25,7 +25,7 @@ describe('capabilities', () => {
       auth: { embeddedAvailable: true, userCanChooseBrowser: true },
       notifications: { mechanism: 'push' },
       location: 'os',
-      media: { capture: 'camera' },
+      media: { capture: 'camera', source: 'system' },
     });
   });
 
@@ -36,7 +36,7 @@ describe('capabilities', () => {
       auth: { embeddedAvailable: true, userCanChooseBrowser: false },
       notifications: { mechanism: 'polling' },
       location: 'pick-only',
-      media: { capture: 'files-only' },
+      media: { capture: 'camera', source: 'webcam' },
     });
   });
 
@@ -59,7 +59,7 @@ describe('capabilities', () => {
       auth: { embeddedAvailable: false, userCanChooseBrowser: false },
       notifications: { mechanism: 'none' },
       location: 'os',
-      media: { capture: 'camera' },
+      media: { capture: 'camera', source: 'system' },
     });
   });
 

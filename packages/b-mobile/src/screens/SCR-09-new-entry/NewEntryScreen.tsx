@@ -33,6 +33,8 @@ import {
   CameraPermissionDeniedError,
 } from '../../platform/camera.js';
 import type { PickedPhoto } from '../../platform/camera.js';
+import { hasWebcam } from '../../platform/webcam.js';
+import { WebcamCapture } from '../../components/WebcamCapture.js';
 import { capabilities } from '../../platform/capabilities.js';
 import { takePendingSharedPhoto } from '../../platform/shareIntent.js';
 import { useAppNavigate } from '../../app/routes/useAppNavigate.js';
@@ -64,6 +66,21 @@ export function NewEntryScreen({ replaceEntryId }: NewEntryScreenProps = {}) {
   const [busy, setBusy] = useState<'camera' | 'picker' | null>(null);
   const [cameraMessage, setCameraMessage] = useState<string | null>(null);
   const [photoMessage, setPhotoMessage] = useState<string | null>(null);
+  // Desktop: the camera is the machine's webcam, offered only once one is found (b-oss#670).
+  const useWebcam = capabilities().media.source === 'webcam';
+  const [webcamFound, setWebcamFound] = useState(false);
+  const [webcamOpen, setWebcamOpen] = useState(false);
+
+  useEffect(() => {
+    if (!useWebcam) return;
+    let cancelled = false;
+    void hasWebcam().then((found) => {
+      if (!cancelled) setWebcamFound(found);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [useWebcam]);
 
   function startDraft(photo: PickedPhoto): void {
     if (replaceEntryId) {
@@ -153,8 +170,9 @@ export function NewEntryScreen({ replaceEntryId }: NewEntryScreenProps = {}) {
     }
   }
 
-  // Desktop has no camera route: the choose-a-photo tile is the only one, and says what it does.
-  const canCapture = capabilities().media.capture === 'camera';
+  // With no camera route (a desktop without a webcam) the choose-a-photo tile is the only one, and
+  // says what it does.
+  const canCapture = capabilities().media.capture === 'camera' && (!useWebcam || webcamFound);
 
   return (
     <IonPage>
@@ -172,7 +190,7 @@ export function NewEntryScreen({ replaceEntryId }: NewEntryScreenProps = {}) {
               className="new-entry-tile"
               expand="block"
               disabled={busy !== null}
-              onClick={() => void handleTakePhoto()}
+              onClick={() => (useWebcam ? setWebcamOpen(true) : void handleTakePhoto())}
             >
               {busy === 'camera' ? (
                 <IonSpinner name="dots" />
@@ -213,7 +231,7 @@ export function NewEntryScreen({ replaceEntryId }: NewEntryScreenProps = {}) {
               <p>{cameraMessage}</p>
             </IonText>
           )}
-          {canCapture && !isNativeCamera() && (
+          {canCapture && !useWebcam && !isNativeCamera() && (
             <IonText color="medium">
               <p>
                 Running in a desktop browser — the system picker will use your browser&rsquo;s own
@@ -222,6 +240,16 @@ export function NewEntryScreen({ replaceEntryId }: NewEntryScreenProps = {}) {
             </IonText>
           )}
         </div>
+        {useWebcam && (
+          <WebcamCapture
+            open={webcamOpen}
+            onCancel={() => setWebcamOpen(false)}
+            onUse={(photo) => {
+              setWebcamOpen(false);
+              startDraft(photo);
+            }}
+          />
+        )}
       </IonContent>
     </IonPage>
   );
