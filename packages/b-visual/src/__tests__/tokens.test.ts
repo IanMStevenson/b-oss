@@ -45,8 +45,8 @@ describe('fonts', () => {
     expect(css).toMatch(/@import\s+'\.\/fonts\.css'/);
   });
 
-  it('bundles exactly Roboto Light/Regular/Medium (latin + latin-ext), nothing external', () => {
-    for (const weight of [300, 400, 500]) {
+  it('bundles exactly Roboto Light/Regular/Medium/SemiBold/Bold (latin + latin-ext), nothing external', () => {
+    for (const weight of [300, 400, 500, 600, 700]) {
       expect(fontsCss).toContain(`@fontsource/roboto/latin-${weight}.css`);
       expect(fontsCss).toContain(`@fontsource/roboto/latin-ext-${weight}.css`);
     }
