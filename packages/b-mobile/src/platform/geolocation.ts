@@ -16,7 +16,9 @@
 // still being able to tell the two apart if a future caller needs to.
 
 import { Geolocation } from '@capacitor/geolocation';
-import { capabilities } from './capabilities.js';
+import { locationControlAvailable, recordDesktopLocationOutcome } from './capabilities.js';
+import { logError } from './diagnostics.js';
+import { platformKind } from './platformKind.js';
 
 export interface Coordinates {
   lat: number;
@@ -41,10 +43,63 @@ async function ensurePermission(): Promise<void> {
   }
 }
 
+/** Shown when the desktop's first location attempt fails (b-oss#672). */
+export const DESKTOP_LOCATION_UNAVAILABLE_MESSAGE =
+  'Windows location is off, or not available to this app. You can still pick a place on the map.';
+
+export class LocationUnavailableError extends Error {
+  constructor(message: string = DESKTOP_LOCATION_UNAVAILABLE_MESSAGE) {
+    super(message);
+    this.name = 'LocationUnavailableError';
+  }
+}
+
+/** One line per attempt for the desktop log: the outcome code and message, and a coarse position
+ * (one decimal place, about 10 km) only on success. Never exact coordinates. */
+function logLocationAttempt(text: string): void {
+  logError({ source: 'geolocation', message: text });
+}
+
+/** The picker's control label: "Show current location" on desktop, "My location" as before elsewhere. */
+export function locationControlLabel(): string {
+  return platformKind() === 'desktop' ? 'Show current location' : 'My location';
+}
+
+let desktopSucceeded = false;
+
+/** Desktop: the browser location API directly (the shell grants it for the app origin). The
+ * Capacitor permission calls are skipped because the web fallback cannot prompt. Each attempt is
+ * logged. A failure on the first attempt hides the location controls for the session. */
+async function desktopPosition(): Promise<Coordinates | null> {
+  try {
+    const position = await Geolocation.getCurrentPosition({
+      enableHighAccuracy: false,
+      timeout: 15000,
+    });
+    const coords = { lat: position.coords.latitude, lon: position.coords.longitude };
+    desktopSucceeded = true;
+    recordDesktopLocationOutcome('ok');
+    logLocationAttempt(
+      `location attempt: ok (coarse ${coords.lat.toFixed(1)},${coords.lon.toFixed(1)}, ` +
+        `accuracy ${Math.round(position.coords.accuracy)} m)`,
+    );
+    return coords;
+  } catch (err) {
+    const e = err as { code?: unknown; message?: unknown };
+    const code = typeof e.code === 'number' ? e.code : 'none';
+    const message = typeof e.message === 'string' ? e.message : String(err);
+    logLocationAttempt(`location attempt: failed code=${code} message=${message}`);
+    if (desktopSucceeded && code === 3) return null; // worked before; this one just timed out
+    recordDesktopLocationOutcome('failed');
+    throw new LocationUnavailableError();
+  }
+}
+
 export async function getCurrentPosition(): Promise<Coordinates | null> {
-  // Desktop has no usable OS location (capabilities().location): refuse up front, the same way a
-  // refused permission does, rather than let the plugin's web fallback fail in its own way.
-  if (capabilities().location !== 'os') throw new Error('Location is not available here.');
+  // Where there is no usable OS location and the desktop attempt has already failed, refuse up
+  // front, the same way a refused permission does.
+  if (!locationControlAvailable()) throw new Error('Location is not available here.');
+  if (platformKind() === 'desktop') return desktopPosition();
   await ensurePermission();
   try {
     const position = await Geolocation.getCurrentPosition({ enableHighAccuracy: false });

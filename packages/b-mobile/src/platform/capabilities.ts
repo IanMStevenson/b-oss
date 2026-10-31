@@ -82,9 +82,28 @@ export function capabilitiesTable(kind: PlatformKind): PlatformCapabilities {
   return TABLE[kind];
 }
 
+// Desktop location is decided at run time (b-oss#672): whether the OS reports a position is only
+// known by asking, and only when the user taps a location control. 'untried' until then.
+export type DesktopLocationOutcome = 'untried' | 'ok' | 'failed';
+let desktopLocation: DesktopLocationOutcome = 'untried';
+
+/** Records the result of a desktop location attempt (a success is remembered for this session). */
+export function recordDesktopLocationOutcome(outcome: DesktopLocationOutcome): void {
+  desktopLocation = outcome;
+}
+
+/** Whether a "my location" control may be shown: where the OS reports location, or, on desktop,
+ * until a first attempt has failed (the control is how the attempt is made). Elsewhere it is
+ * exactly `capabilities().location === 'os'`. */
+export function locationControlAvailable(): boolean {
+  if (capabilities().location === 'os') return true;
+  return platformKind() === 'desktop' && desktopLocation !== 'failed';
+}
+
 export function capabilities(): PlatformCapabilities {
   const kind = platformKind();
   const base = TABLE[kind];
+  if (kind === 'desktop' && desktopLocation === 'ok') return { ...base, location: 'os' };
   if (kind === 'web' && import.meta.env.DEV) {
     return { ...base, api: { access: 'same-origin-proxy' } };
   }

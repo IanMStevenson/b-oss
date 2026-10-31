@@ -21,8 +21,12 @@ import { createMap, MAP_FAILED_MESSAGE } from '../../components/createMap.js';
 import '../../components/ComposeForm.css';
 import { getMapStyleUrl, MAP_ATTRIBUTION } from '../../platform/mapTiles.js';
 import { isDarkTheme, useResolvedTheme } from '../../theme/theme.js';
-import { getCurrentPosition } from '../../platform/geolocation.js';
-import { capabilities } from '../../platform/capabilities.js';
+import {
+  getCurrentPosition,
+  LocationUnavailableError,
+  locationControlLabel,
+} from '../../platform/geolocation.js';
+import { locationControlAvailable } from '../../platform/capabilities.js';
 import { useAppNavigate } from '../../app/routes/useAppNavigate.js';
 import { useComposeDraftStore } from '../../state/composeDraftStore.js';
 
@@ -117,8 +121,10 @@ export function LocationPickerScreen() {
       }
       placeMarker(coords.lat, coords.lon);
       mapRef.current?.jumpTo({ center: [coords.lon, coords.lat], zoom: SELECTED_ZOOM });
-    } catch {
-      setLocationMessage('Location access was refused.');
+    } catch (err) {
+      setLocationMessage(
+        err instanceof LocationUnavailableError ? err.message : 'Location access was refused.',
+      );
     }
   }
 
@@ -149,12 +155,12 @@ export function LocationPickerScreen() {
           <div className="location-picker">
             <div className="location-map">
               <div ref={containerRef} className="location-map-canvas" />
-              {capabilities().location === 'os' && (
+              {locationControlAvailable() && (
                 <button
                   type="button"
                   className="map-locate"
                   onClick={() => void handleMyLocation()}
-                  aria-label="My location"
+                  aria-label={locationControlLabel()}
                 >
                   <LocateFixed size={22} aria-hidden="true" />
                 </button>
