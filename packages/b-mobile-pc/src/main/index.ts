@@ -36,7 +36,7 @@ import {
 } from './app-protocol.js';
 import { ErrorLog, parseErrorEntry, type LogFs } from './error-log.js';
 import { isTrustedEvent } from './safe-ipc.js';
-import { describeRejection } from './unhandled.js';
+import { createRejectionReporter, describeRejection } from './unhandled.js';
 import { APP_USER_MODEL_ID } from './app-id.js';
 import { openAuthWindow } from './auth-window.js';
 import { DEFAULT_AUTH_HOSTS, validateAuthRequest, withOrigin } from './auth-request.js';
@@ -261,10 +261,15 @@ async function createWindow(showWindow: boolean): Promise<void> {
   await win.loadURL(`${APP_ORIGIN}/`);
 }
 
-// A rejection nobody handled must leave a line in the log, not just Node's warning. (The error log
-// of b-oss#639 takes over from console.error once it is in.)
+// A rejection nobody handled must leave a line in the error log (b-oss#687), not just Node's warning:
+// the console is invisible on a user's PC. The log is only built once the app is ready, so a rejection
+// before that waits in a small buffer (capped) and is flushed when the reporter is installed.
+let reportRejection: ((reason: unknown) => void) | null = null;
+const earlyRejections: unknown[] = [];
 process.on('unhandledRejection', (reason) => {
   console.error(`[b-mobile-pc] unhandled rejection: ${describeRejection(reason)}`);
+  if (reportRejection) reportRejection(reason);
+  else if (earlyRejections.length < 10) earlyRejections.push(reason);
 });
 
 // --- start-up -------------------------------------------------------------------------------
@@ -324,6 +329,8 @@ if (!app.requestSingleInstanceLock()) {
       await openFolder(logDir);
     };
     const errorLog = new ErrorLog(logFs, (name) => join(logDir, name));
+    reportRejection = createRejectionReporter((entry) => void errorLog.write(entry));
+    for (const reason of earlyRejections.splice(0)) reportRejection(reason);
     // Everything the notification pipeline does goes to the app log too (b-oss#677): redacted by
     // the log itself, and never given a token by its callers. Also on the console for dev runs.
     const notifyLog = (message: string): void => {
