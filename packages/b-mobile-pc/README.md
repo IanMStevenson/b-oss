@@ -81,6 +81,19 @@ Environment (ignored in a packaged app): `BMPC_DIST` (web build directory), `BMP
 stub API), `BMPC_AUTH_HOSTS`, `BMPC_AUTH_ALLOW_HTTP=1`. On the dev VM the Electron binary has to be
 fetched by hand and the app run in Docker; see the e2e issue (b-oss#614).
 
+## Trying rendering variants (soft text)
+
+If text looks soft on some Windows display (b-oss#676), set `BMPC_RENDER_VARIANT` before starting
+`b-mobile.exe` (the packaged and unpacked builds honour it): `lcd-text`, `no-lcd-text`, `no-gpu`,
+`no-gpu-compositing`, `no-direct-composition`, `no-zoom-lock`, comma-separated. In PowerShell:
+
+```powershell
+$env:BMPC_RENDER_VARIANT = "lcd-text"; .\b-mobile.exe
+```
+
+The shell logs `render variants: ...` at start. `BMPC_CHROMIUM_FLAGS` (arbitrary Chromium switches) only
+works when running unpackaged.
+
 ## Windows exe
 
 **Notifications (toasts) are expected to work from the _installed_ build.** Windows only reliably shows

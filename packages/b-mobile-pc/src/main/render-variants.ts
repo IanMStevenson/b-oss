@@ -4,7 +4,10 @@
 import type { App } from 'electron';
 
 /** Rendering variants to try by hand when text looks soft on a scaled Windows display (b-oss#676).
- * Off unless the shell runs unpackaged (`npm run dev`, `electron .`); a packaged app ignores them.
+ * `BMPC_RENDER_VARIANT` works in the packaged app too: these are harmless rendering switches, and
+ * trying them on the installed or unpacked build is the point (set it in the shell, or a shortcut's
+ * environment, then start `b-mobile.exe`). `BMPC_CHROMIUM_FLAGS` (arbitrary Chromium switches) stays
+ * development-only: a packaged app ignores it.
  *   BMPC_RENDER_VARIANT=no-gpu,no-zoom-lock   comma-separated, any of VARIANTS below
  *   BMPC_CHROMIUM_FLAGS="--disable-lcd-text"  extra Chromium switches, space-separated */
 export const VARIANTS = [
@@ -24,14 +27,14 @@ const SWITCHES: Partial<Record<RenderVariant, string>> = {
   'no-lcd-text': 'disable-lcd-text',
 };
 
-/** The variants asked for, or none when packaged. Unknown names are returned in `unknown`. */
-export function parseRenderVariants(
-  raw: string | undefined,
-  packaged: boolean,
-): { variants: Set<RenderVariant>; unknown: string[] } {
+/** The variants asked for. Unknown names are returned in `unknown`. */
+export function parseRenderVariants(raw: string | undefined): {
+  variants: Set<RenderVariant>;
+  unknown: string[];
+} {
   const variants = new Set<RenderVariant>();
   const unknown: string[] = [];
-  if (packaged || !raw) return { variants, unknown };
+  if (!raw) return { variants, unknown };
   for (const name of raw
     .split(',')
     .map((s) => s.trim())
@@ -62,7 +65,7 @@ export function applyRenderVariants(
   app: App,
   env: NodeJS.ProcessEnv = process.env,
 ): Set<RenderVariant> {
-  const { variants, unknown } = parseRenderVariants(env.BMPC_RENDER_VARIANT, app.isPackaged);
+  const { variants, unknown } = parseRenderVariants(env.BMPC_RENDER_VARIANT);
   const flags = parseChromiumFlags(env.BMPC_CHROMIUM_FLAGS, app.isPackaged);
   if (unknown.length) {
     console.warn(
