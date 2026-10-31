@@ -2,7 +2,7 @@
 // Copyright (C) 2026 Ian Stevenson
 
 // Survey for b-oss#676: which text-bearing elements sit under a layer-promoting ancestor or at fractional
-// positions, in the real app, via CDP (. Runs only when the shell was
+// positions, in the real app, via CDP. Runs only when the shell was
 // started with BMPC_CSS_EXPERIMENT=report:
 //   BMPC_CSS_EXPERIMENT=report npm run e2e -w @b-oss/b-mobile-pc -- blur-survey
 // Writes blur-survey-<view>.json and .png to e2e-out/.
