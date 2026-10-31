@@ -132,6 +132,15 @@ and the repoint command for "make that worktree available via Mutagen."
   `packages\b-mobile-pc\dist-electron\win-unpacked\b-mobile.exe` from the synced folder: fast launch,
   no unpacking, a few MB per rebuild. See `packages/b-mobile-pc/README.md`.
 
+## b-mobile-pc dev loop (Windows): quit before a build lands
+
+Running `packages/b-mobile-pc/dist-electron/win-unpacked/b-mobile.exe` from the synced folder: quit the
+app completely first (tray icon > Exit; end any `b-mobile.exe` in Task Manager), check `mutagen sync list`
+for transition problems, `mutagen sync flush`, then launch. Do not turn notifications on in the synced
+folder (it would register that folder at login; the shell now refuses), test them with the Setup-installed
+copy. A banner "running older program files than its web files" means an old process is still running.
+Details: `packages/b-mobile-pc/README.md`, "Dev-loop hazards" (b-oss#696).
+
 ## Commands
 
 ```bash
@@ -192,6 +201,16 @@ non-Apache licence needs a matching entry/file in `scripts/native-licences.mjs`.
 `electron.vite.config.ts` set `envDir` there — see `.env.example` for the full
 list and where to register each app). `.env.local` is gitignored, so it only
 exists wherever someone manually put it.
+
+**Keep `.env.local` in step with `.env.example`.** `.env.local` is gitignored, so a copy made into a worktree
+goes stale when `.env.example` gains a key on main (found 2026-10-31: no `VITE_GEOAPIFY_KEY`, so the map said
+"unavailable"). To see what a worktree lacks:
+`diff <(grep -oE '^[A-Z0-9_]+=' .env.example | sort -u) <(grep -oE '^[A-Z0-9_]+=' .env.local | sort -u)`. The
+b-mobile-pc Windows build script (`packages/b-mobile-pc/scripts/build-win-docker.sh`) runs
+`packages/b-mobile-pc/scripts/env-check.mjs`, which does that comparison for you: it names (never prints values
+of) every key `.env.local` lacks, notes the ones marked `# optional` in `.env.example`, and stops the build for
+the rest unless `BMPC_ALLOW_MISSING_ENV=1`. The e2e `run.sh` runs it warn-only. Mark a new key `# optional`
+in `.env.example` if a build can do without it.
 
 **Worktree gotcha:** `git worktree add` only populates tracked files from the
 checked-out branch — gitignored files like `.env.local` are not copied into a

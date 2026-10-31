@@ -38,6 +38,9 @@ const bridge: DesktopBridge = {
         void ipcRenderer.invoke(CHANNELS.notifyTappedReady);
       }),
   },
+  shell: {
+    info: () => ipcRenderer.invoke(CHANNELS.shellInfo) as Promise<{ build: string }>,
+  },
   diagnostics: {
     logError: (entry) => ipcRenderer.invoke(CHANNELS.diagLog, entry) as Promise<void>,
     openLogFolder: () => ipcRenderer.invoke(CHANNELS.diagOpenLogFolder) as Promise<void>,

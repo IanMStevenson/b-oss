@@ -8,6 +8,7 @@ import {
   buildCsp,
   inlineScriptHashes,
   isTrustedSender,
+  looksLikeAsset,
   mimeFor,
   planAppRequest,
   sanitiseRequestHeaders,
@@ -37,6 +38,30 @@ describe('planAppRequest: static files', () => {
       file: resolve(dist, 'assets/index-abc123.js'),
       spaFallback: false,
     });
+  });
+
+  it('treats a dot in a route as part of a name, not an extension (b-oss#695)', () => {
+    for (const path of ['/profile/john.smith', '/u/jane.doe.2', '/profile/a.b/entries', '/v1.2']) {
+      const plan = planAppRequest(`app://b-mobile${path}`, dist);
+      expect(plan, path).toMatchObject({ kind: 'static', spaFallback: true });
+    }
+  });
+
+  it('keeps every known static extension an asset, in any case', () => {
+    for (const name of [
+      'a.js',
+      'a.css',
+      'x/y.PNG',
+      'f.woff2',
+      'a.js.map',
+      'm.webmanifest',
+      'i.svg',
+    ]) {
+      expect(looksLikeAsset(name), name).toBe(true);
+    }
+    for (const name of ['john.smith', 'accounts', '.hidden', 'a.', 'dir/']) {
+      expect(looksLikeAsset(name), name).toBe(false);
+    }
   });
 
   it('refuses paths that climb out of the web build', () => {

@@ -60,6 +60,45 @@ export function normaliseBounds(b: MapBounds): MapBounds[] {
   ];
 }
 
+/** The widest longitude span sent in one request (b-oss#697). A phone-sized viewport at the default
+ * zoom spans about 140 degrees and is sent as it always was; a wide window spans 300 or more. Hypothesis,
+ * not confirmed against the live API: a request that large returns no pins when the map is first opened,
+ * although the same area zoomed in does. Wider ranges are cut into strips of at most this span and the
+ * results merged; if a build shows pins still missing, the cause is elsewhere and this can go. */
+export const MAX_REQUEST_LON_SPAN = 180;
+
+/** Cuts any range wider than MAX_REQUEST_LON_SPAN into equal strips; narrower ranges are untouched. */
+export function splitWideRanges(ranges: MapBounds[]): MapBounds[] {
+  return ranges.flatMap((r) => {
+    const span = r.maxLon - r.minLon;
+    if (span <= MAX_REQUEST_LON_SPAN) return [r];
+    const parts = Math.ceil(span / MAX_REQUEST_LON_SPAN);
+    const step = span / parts;
+    return Array.from({ length: parts }, (_, i) => ({
+      ...r,
+      minLon: i === 0 ? r.minLon : r.minLon + step * i,
+      maxLon: i === parts - 1 ? r.maxLon : r.minLon + step * (i + 1),
+    }));
+  });
+}
+
+/** Web Mercator's latitude limit: a pin beyond it is drawn on the map's top or bottom edge, not at
+ * its real position (b-oss#697), and a non-finite value cannot be drawn at all. */
+const MAX_MERCATOR_LAT = 85.0511;
+function isPlottable(lat: number, lon: number): boolean {
+  return (
+    Number.isFinite(lat) &&
+    Number.isFinite(lon) &&
+    Math.abs(lat) <= MAX_MERCATOR_LAT &&
+    Math.abs(lon) <= 180
+  );
+}
+
+/** The ranges one viewport is sent as: normalised, then cut into strips. */
+export function requestRanges(bounds: MapBounds): MapBounds[] {
+  return splitWideRanges(normaliseBounds(bounds));
+}
+
 // One page's worth of markers per query, generous enough for a typical viewport without
 // pagination — consistent with §13's "no clustering for v1" stance.
 const MAX_MARKERS = 100;
@@ -67,11 +106,22 @@ const MAX_MARKERS = 100;
 // Public browsing, same as entries.ts's Recent/Popular/Nearby/Tag/Search — falls back to the
 // anonymous token if the active account's own is rate-limited (client.ts's
 // withRateLimitFallback doc comment has the full reasoning).
-export async function fetchEntriesInBounds(bounds: MapBounds): Promise<MapEntry[]> {
-  const ranges = normaliseBounds(bounds);
+export interface FetchStats {
+  /** Entries the API returned across all requests, before any were left out (b-oss#697 diagnostics). */
+  received: number;
+  /** `id@lat,lon` of the entries left out because their coordinates cannot be drawn. */
+  unplottable: string[];
+}
+
+export async function fetchEntriesInBounds(
+  bounds: MapBounds,
+  stats?: FetchStats,
+): Promise<MapEntry[]> {
+  const ranges = requestRanges(bounds);
   return withRateLimitFallback(async (client) => {
     const markers: MapEntry[] = [];
     const seen = new Set<string>();
+    const unplottable: string[] = [];
     for (const range of ranges) {
       const res = await client.searchEntries({
         location_type: 'bounding_box',
@@ -81,8 +131,13 @@ export async function fetchEntriesInBounds(bounds: MapBounds): Promise<MapEntry[
         max_lon: range.maxLon,
         pageSize: MAX_MARKERS,
       });
+      if (stats) stats.received += res.entries.length;
       for (const entry of res.entries) {
         if (!entry.location || seen.has(entry.entry_id_str)) continue;
+        if (!isPlottable(entry.location.lat, entry.location.lon)) {
+          unplottable.push(`${entry.entry_id_str}@${entry.location.lat},${entry.location.lon}`);
+          continue;
+        }
         seen.add(entry.entry_id_str);
         markers.push({
           entry_id: entry.entry_id_str,
@@ -93,6 +148,12 @@ export async function fetchEntriesInBounds(bounds: MapBounds): Promise<MapEntry[
           thumbnailUrl: entry.thumbnail_url,
         });
       }
+    }
+    if (stats) stats.unplottable.push(...unplottable);
+    if (unplottable.length > 0) {
+      console.warn(
+        `[map] ${unplottable.length} of the entries returned have coordinates that cannot be drawn: ${unplottable.slice(0, 5).join(' ')}`,
+      );
     }
     return markers;
   });

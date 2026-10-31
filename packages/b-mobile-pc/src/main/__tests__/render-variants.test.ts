@@ -5,19 +5,19 @@ import { describe, expect, it } from 'vitest';
 import { parseChromiumFlags, parseRenderVariants } from '../render-variants.js';
 
 describe('render variants (b-oss#676)', () => {
-  it('is inert in a packaged app', () => {
-    expect(parseRenderVariants('no-gpu', true).variants.size).toBe(0);
+  it('honours the variant switch in a packaged app, but not arbitrary Chromium flags', () => {
+    expect([...parseRenderVariants('lcd-text').variants]).toEqual(['lcd-text']);
     expect(parseChromiumFlags('--disable-lcd-text', true)).toEqual([]);
   });
 
   it('parses known variants and reports unknown ones', () => {
-    const r = parseRenderVariants('no-gpu, no-zoom-lock,bogus,', false);
+    const r = parseRenderVariants('no-gpu, no-zoom-lock,bogus,');
     expect([...r.variants]).toEqual(['no-gpu', 'no-zoom-lock']);
     expect(r.unknown).toEqual(['bogus']);
   });
 
   it('does nothing when unset', () => {
-    expect(parseRenderVariants(undefined, false).variants.size).toBe(0);
+    expect(parseRenderVariants(undefined).variants.size).toBe(0);
     expect(parseChromiumFlags(undefined, false)).toEqual([]);
   });
 
