@@ -282,8 +282,8 @@ async function createWindow(showWindow: boolean): Promise<void> {
   });
 
   if (cssExperiments.experiments.length && !testPage) {
-    // Inserted again on every full load. Logs what each element's compositing looks like first, so
-    // the log shows the page as it is *before* the experiment's CSS (the `report` experiment).
+    // Inserted again on every full load. Inserts the CSS, then logs the settled page (so with CSS experiments the report is post-CSS;
+    // `report` alone gives the unmodified page).
     win.webContents.on('did-finish-load', () => {
       void (async () => {
         try {
