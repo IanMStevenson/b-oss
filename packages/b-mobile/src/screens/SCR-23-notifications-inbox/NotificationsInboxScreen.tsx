@@ -55,6 +55,7 @@ import { useNotificationCountsStore } from '../../state/notificationCountsStore.
 import { openUrl } from '../../platform/browser.js';
 import { InboxRow, RowThumb } from '../../components/InboxRow.js';
 import type { BlipNotification } from '@b-oss/b-api';
+import { PointerRefresh } from '../../components/PointerRefresh.js';
 
 type Status = 'loading' | 'loaded' | 'empty' | 'error';
 
@@ -109,18 +110,21 @@ export function NotificationsInboxScreen() {
     load();
   }, [load]);
 
-  function handleRefresh(event: CustomEvent<RefresherEventDetail>): void {
-    fetchRecentNotifications(latestIdRef.current ?? undefined).then(
+  function refreshInbox(): Promise<void> {
+    return fetchRecentNotifications(latestIdRef.current ?? undefined).then(
       (fresh) => {
         if (fresh.length > 0) {
           latestIdRef.current = fresh[0].notification_id_str;
           setItems((prev) => [...fresh, ...prev]);
           setStatus('loaded');
         }
-        event.detail.complete();
       },
-      () => event.detail.complete(),
+      () => undefined,
     );
+  }
+
+  function handleRefresh(event: CustomEvent<RefresherEventDetail>): void {
+    void refreshInbox().then(() => event.detail.complete());
   }
 
   function handleTap(notification: BlipNotification): void {
@@ -165,6 +169,7 @@ export function NotificationsInboxScreen() {
             <IonRefresher slot="fixed" onIonRefresh={handleRefresh}>
               <IonRefresherContent />
             </IonRefresher>
+            <PointerRefresh onRefresh={() => void refreshInbox()} />
             {visibleItems.map((notification) => (
               <InboxRow
                 key={notification.notification_id_str}

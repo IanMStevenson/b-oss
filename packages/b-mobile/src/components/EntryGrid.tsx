@@ -24,6 +24,7 @@
 
 import { useCallback, useMemo, useState } from 'react';
 import { IonRefresher, IonRefresherContent } from '@ionic/react';
+import { PointerRefresh } from './PointerRefresh.js';
 import type { RefresherEventDetail } from '@ionic/core';
 import { ThumbnailGrid } from '@b-oss/b-view';
 import type { EntryIndex, ThumbnailOverlayContent } from '@b-oss/b-view';
@@ -152,9 +153,13 @@ export function EntryGrid({
   // Pull-down reloads from page 1, so the remembered grid page goes too — otherwise the rebuilt
   // grid would restore the old page over the fresh data. (The feed's own resume entry is simply
   // overwritten when the reload lands.)
-  function handleRefresh(event: CustomEvent<RefresherEventDetail>): void {
+  function refreshFromTop(): void {
     if (topKey) resumeClear(topKey);
     onRefresh();
+  }
+
+  function handleRefresh(event: CustomEvent<RefresherEventDetail>): void {
+    refreshFromTop();
     event.detail.complete();
   }
 
@@ -163,6 +168,7 @@ export function EntryGrid({
       <IonRefresher slot="fixed" onIonRefresh={handleRefresh}>
         <IonRefresherContent />
       </IonRefresher>
+      <PointerRefresh onRefresh={refreshFromTop} />
       {/* ThumbnailGrid's own .container is `flex: 1` (ThumbnailGrid.module.css) — that only
           stretches to fill available height when its parent is itself a flex container (which
           is what b-view-backup's own shell already gives it). A plain block div here left

@@ -103,6 +103,7 @@ import { describeError, mapApiError } from '../../data/errors.js';
 import type { BlipComment as ApiComment } from '@b-oss/b-api';
 import { useDevicePrefsStore } from '../../state/devicePrefsStore.js';
 import { downloadOwnEntryImage } from '../../flows/downloadFlow.js';
+import { PointerRefresh } from '../../components/PointerRefresh.js';
 
 interface EntryDetailScreenProps {
   entryId: string;
@@ -531,6 +532,7 @@ export function EntryDetailScreen({ entryId, initialReplyToCommentId }: EntryDet
         >
           <IonRefresherContent />
         </IonRefresher>
+        <PointerRefresh onRefresh={refresh} />
         {entryState.status === 'loading' && (
           <div style={{ display: 'flex', justifyContent: 'center', padding: 32 }}>
             <IonSpinner />

@@ -111,6 +111,8 @@ export function AppHeader({
         >
           {title}
         </span>
+        {/* PointerRefresh portals its button here on mouse/trackpad devices (b-oss#719). */}
+        <span className="app-header-refresh-slot" style={{ display: 'contents' }} />
         {end}
         {accountIndicator && <AccountIndicator />}
       </IonButtons>
