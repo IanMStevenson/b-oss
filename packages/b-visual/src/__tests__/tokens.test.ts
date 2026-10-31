@@ -70,8 +70,15 @@ describe('density tokens', () => {
     return found;
   }
   const all = block(':root');
-  const touch = new Map([...all].filter(([k]) => /^--(control|segment|field|row|list-row|tile)-/.test(k)));
-  const fine = block(":root[data-pointer='fine']");
+  const touch = new Map(
+    [...all].filter(([k]) => /^--(control|segment|field|row|list-row|tile)-/.test(k)),
+  );
+  // The density tokens only: the maximum-width tokens (below) also have a fine-pointer block.
+  const fine = new Map(
+    [...block(":root[data-pointer='fine']")].filter(([k]) =>
+      /^--(control|segment|field|row|list-row|tile)-/.test(k),
+    ),
+  );
 
   // The touch values are what the app shipped with before density existed; touch devices must not
   // move (b-oss#637).
@@ -98,5 +105,19 @@ describe('density tokens', () => {
       expect(unit).toBe(/[a-z]+$/.exec(touch.get(name) ?? '')?.[0]);
       expect(parseFloat(compact)).toBeLessThanOrEqual(parseFloat(touch.get(name) ?? '0'));
     }
+  });
+});
+
+describe('maximum width tokens (b-oss#671)', () => {
+  it('are unbounded by default, so touch devices and narrow windows keep full-width layouts', () => {
+    expect(cssValue('--action-max-width')).toBe('none');
+    expect(cssValue('--content-max-width')).toBe('none');
+  });
+
+  it('are capped only for a mouse on a wide window', () => {
+    const gated =
+      /@media \(min-width: 900px\)\s*\{\s*:root\[data-pointer='fine'\]\s*\{([^}]*)\}/.exec(css);
+    expect(gated?.[1]).toMatch(/--action-max-width:\s*320px;/);
+    expect(gated?.[1]).toMatch(/--content-max-width:\s*720px;/);
   });
 });

@@ -25,7 +25,7 @@ describe('capabilities', () => {
       auth: { embeddedAvailable: true, userCanChooseBrowser: true },
       notifications: { mechanism: 'push' },
       location: 'os',
-      media: { capture: 'camera' },
+      media: { capture: 'camera', source: 'system' },
     });
   });
 
@@ -36,7 +36,7 @@ describe('capabilities', () => {
       auth: { embeddedAvailable: true, userCanChooseBrowser: false },
       notifications: { mechanism: 'polling' },
       location: 'pick-only',
-      media: { capture: 'files-only' },
+      media: { capture: 'camera', source: 'webcam' },
     });
   });
 
@@ -59,7 +59,7 @@ describe('capabilities', () => {
       auth: { embeddedAvailable: false, userCanChooseBrowser: false },
       notifications: { mechanism: 'none' },
       location: 'os',
-      media: { capture: 'camera' },
+      media: { capture: 'camera', source: 'system' },
     });
   });
 
@@ -69,5 +69,32 @@ describe('capabilities', () => {
       const { auth } = capabilities();
       expect(auth.userCanChooseBrowser && !auth.embeddedAvailable).toBe(false);
     }
+  });
+});
+
+describe('desktop location at run time (b-oss#672)', () => {
+  it('shows the control until a first attempt fails, and is `os` only after a success', async () => {
+    const m = await import('../capabilities.js');
+    kind = 'desktop';
+    m.recordDesktopLocationOutcome('untried');
+    expect(m.capabilities().location).toBe('pick-only');
+    expect(m.locationControlAvailable()).toBe(true);
+    m.recordDesktopLocationOutcome('failed');
+    expect(m.locationControlAvailable()).toBe(false);
+    m.recordDesktopLocationOutcome('ok');
+    expect(m.capabilities().location).toBe('os');
+    expect(m.locationControlAvailable()).toBe(true);
+    m.recordDesktopLocationOutcome('untried');
+  });
+
+  it('android, ios and web are unaffected by the outcome', async () => {
+    const m = await import('../capabilities.js');
+    m.recordDesktopLocationOutcome('failed');
+    for (const k of ['android', 'web', 'ios'] as const) {
+      kind = k;
+      expect(m.capabilities().location).toBe('os');
+      expect(m.locationControlAvailable()).toBe(true);
+    }
+    m.recordDesktopLocationOutcome('untried');
   });
 });

@@ -118,3 +118,22 @@
   --list-row-height: 52px;
   --tile-height: 88px;
 }
+
+/*
+ * Maximum widths on a wide window with a mouse (b-oss#671). Primary action buttons stop at
+ * --action-max-width and are centred (a row of natural-width buttons where there are several);
+ * forms and text-heavy screens stop at --content-max-width, centred. `none` everywhere else, so a
+ * narrow window, and any touch device, keeps the full-width layout. Keyed on window width and the
+ * pointer (like the density tokens above), never on the platform; styles/wide.css uses them.
+ */
+:root {
+  --action-max-width: none;
+  --content-max-width: none;
+}
+
+@media (min-width: 900px) {
+  :root[data-pointer='fine'] {
+    --action-max-width: 320px;
+    --content-max-width: 720px;
+  }
+}

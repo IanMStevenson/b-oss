@@ -37,10 +37,15 @@ export interface PlatformCapabilities {
    * Electron's own location needs a provider key). */
   location: 'os' | 'pick-only';
   media: {
-    /** Whether a photo can be taken with a camera. `camera`: yes (the system camera, or a
-     * browser's file input that offers it). `files-only`: choosing an existing file is the only
-     * route (the desktop shell, whose "camera" would just be a file picker). */
+    /** Whether a photo can be taken with a camera. `camera`: yes (the system camera, a
+     * browser's file input that offers it, or the desktop shell's webcam: see `source`).
+     * `files-only`: choosing an existing file is the only route (no platform uses it today). */
     capture: 'camera' | 'files-only';
+    /** Who provides the camera when `capture` is `camera`. `system`: the OS camera app or the
+     * browser's own file input (Capacitor's camera plugin). `webcam`: the app's own capture view
+     * over getUserMedia (the desktop shell, which has no camera app); it is only offered once a
+     * webcam is actually found, so `capture` says the platform can, not that this machine has one. */
+    source: 'system' | 'webcam';
   };
 }
 
@@ -50,21 +55,21 @@ const TABLE: Record<PlatformKind, PlatformCapabilities> = {
     auth: { embeddedAvailable: true, userCanChooseBrowser: true },
     notifications: { mechanism: 'push' },
     location: 'os',
-    media: { capture: 'camera' },
+    media: { capture: 'camera', source: 'system' },
   },
   ios: {
     api: { access: 'direct' },
     auth: { embeddedAvailable: true, userCanChooseBrowser: true },
     notifications: { mechanism: 'push' },
     location: 'os',
-    media: { capture: 'camera' },
+    media: { capture: 'camera', source: 'system' },
   },
   desktop: {
     api: { access: 'same-origin-proxy' },
     auth: { embeddedAvailable: true, userCanChooseBrowser: false },
     notifications: { mechanism: 'polling' },
     location: 'pick-only',
-    media: { capture: 'files-only' },
+    media: { capture: 'camera', source: 'webcam' },
   },
   web: {
     // Overridden below: a dev server proxies the API, a production browser build cannot.
@@ -72,7 +77,7 @@ const TABLE: Record<PlatformKind, PlatformCapabilities> = {
     auth: { embeddedAvailable: false, userCanChooseBrowser: false },
     notifications: { mechanism: 'none' },
     location: 'os',
-    media: { capture: 'camera' },
+    media: { capture: 'camera', source: 'system' },
   },
 };
 
@@ -82,9 +87,28 @@ export function capabilitiesTable(kind: PlatformKind): PlatformCapabilities {
   return TABLE[kind];
 }
 
+// Desktop location is decided at run time (b-oss#672): whether the OS reports a position is only
+// known by asking, and only when the user taps a location control. 'untried' until then.
+export type DesktopLocationOutcome = 'untried' | 'ok' | 'failed';
+let desktopLocation: DesktopLocationOutcome = 'untried';
+
+/** Records the result of a desktop location attempt (a success is remembered for this session). */
+export function recordDesktopLocationOutcome(outcome: DesktopLocationOutcome): void {
+  desktopLocation = outcome;
+}
+
+/** Whether a "my location" control may be shown: where the OS reports location, or, on desktop,
+ * until a first attempt has failed (the control is how the attempt is made). Elsewhere it is
+ * exactly `capabilities().location === 'os'`. */
+export function locationControlAvailable(): boolean {
+  if (capabilities().location === 'os') return true;
+  return platformKind() === 'desktop' && desktopLocation !== 'failed';
+}
+
 export function capabilities(): PlatformCapabilities {
   const kind = platformKind();
   const base = TABLE[kind];
+  if (kind === 'desktop' && desktopLocation === 'ok') return { ...base, location: 'os' };
   if (kind === 'web' && import.meta.env.DEV) {
     return { ...base, api: { access: 'same-origin-proxy' } };
   }

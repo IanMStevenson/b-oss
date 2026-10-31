@@ -93,17 +93,25 @@ describe('the shell and its security posture', () => {
     );
   });
 
-  it('denies browser permission prompts', async () => {
+  it('denies browser permission prompts other than location', async () => {
+    const result = await page.evaluate(() => Notification.requestPermission());
+    expect(result).toBe('denied');
+  });
+
+  it('does not deny location for the app origin (the OS provider may still fail)', async () => {
+    // b-oss#672. Whether a position comes back depends on the machine's location provider, which a
+    // container does not have; the permission itself must not be the reason for a failure (code 1).
     const result = await page.evaluate(
       () =>
         new Promise<string>((resolve) =>
           navigator.geolocation.getCurrentPosition(
-            () => resolve('granted'),
-            (e) => resolve(`denied:${e.code}`),
+            () => resolve('position'),
+            (e) => resolve(`error:${e.code}`),
+            { timeout: 8000 },
           ),
         ),
     );
-    expect(result).toBe('denied:1');
+    expect(result).not.toBe('error:1');
   });
 });
 
@@ -154,29 +162,106 @@ describe('sign-in and secrets', () => {
   });
 });
 
-// Capabilities on desktop (b-oss#636): no OS location and no camera, so those controls are absent
-// rather than dead, and the location picker (lazy chunk, map) opens without the error screen.
+// Capabilities on desktop (b-oss#636, b-oss#670): no OS location (controls absent rather than dead) and a
+// webcam instead of a camera app, and the location picker (lazy chunk, map) opens without the error screen.
 describe('desktop capabilities: location and camera', () => {
-  it('New entry offers only choosing a file, and no Android picker copy', async () => {
+  it('New entry offers the webcam and choosing a file, and no Android picker copy (b-oss#670)', async () => {
     await page.setViewportSize({ width: 1200, height: 800 });
     await go('/compose', 3000);
     const body = await text();
-    expect(body).toContain('Choose a photo');
-    expect(body).not.toMatch(/Take a photo|Choose from device|system picker/i);
+    expect(body).toContain('Take a photo');
+    expect(body).toContain('Choose from device');
+    expect(body).not.toMatch(/system picker/i);
+    // The buttons keep a natural width and the group is centred in the content area, not stretched
+    // across a wide window (b-oss#671). With the camera there are two; a lone picker is the same rule.
+    const box = await page.evaluate(() => {
+      const tiles = [...document.querySelectorAll('ion-button.new-entry-tile')].map((t) =>
+        t.getBoundingClientRect(),
+      );
+      const content = document.querySelector('.new-entry-tiles')?.getBoundingClientRect();
+      if (tiles.length === 0 || !content) return null;
+      const left = Math.min(...tiles.map((t) => t.left));
+      const right = Math.max(...tiles.map((t) => t.right));
+      return {
+        maxWidth: Math.max(...tiles.map((t) => t.width)),
+        offset: (left + right) / 2 - (content.left + content.width / 2),
+      };
+    });
+    expect(box?.maxWidth).toBeLessThan(330);
+    expect(Math.abs(box?.offset ?? 999)).toBeLessThan(4);
     await shot('7-new-entry');
   });
 
-  it('the location picker opens (no error screen) and has no "My location" control', async () => {
-    await go('/compose/location', 4000);
-    expect(await text()).not.toMatch(/Something went wrong/i);
-    expect(await page.getByLabel('My location').count()).toBe(0);
-    await shot('8-location-picker');
+  it('takes a photo with the (fake) webcam end to end into the compose form (b-oss#670)', async () => {
+    await go('/compose', 3000);
+    await clickIonButton(/take a photo/);
+    await page.waitForSelector('video[data-testid="webcam-video"]:not([hidden])', {
+      timeout: 15000,
+    });
+    await page.waitForFunction(
+      () =>
+        (document.querySelector('video[data-testid="webcam-video"]') as HTMLVideoElement)
+          .videoWidth > 0,
+      undefined,
+      { timeout: 15000 },
+    );
+    await shot('7b-webcam-live');
+    await clickIonButton(/^take photo$/);
+    await page.waitForSelector('img[alt="The photo you just took"]', { timeout: 10000 });
+    await shot('7c-webcam-review');
+    await clickIonButton(/use photo/);
+    await page.waitForFunction(() => location.pathname.includes('/compose/details'), undefined, {
+      timeout: 10000,
+    });
+    await page.waitForTimeout(1500);
+    const photo = await page.evaluate(() => {
+      const img = document.querySelector<HTMLImageElement>('img[alt="Selected"]');
+      return img ? { src: img.src.slice(0, 5), w: img.naturalWidth } : null;
+    });
+    expect(photo?.src).toBe('blob:');
+    expect(photo?.w).toBeGreaterThan(0);
+    await shot('7d-webcam-compose');
   });
 
-  it('the map has no "My location" control', async () => {
+  it('grants the camera only: the microphone is refused (b-oss#670)', async () => {
+    const result = await page.evaluate(() =>
+      navigator.mediaDevices.getUserMedia({ audio: true }).then(
+        () => 'granted',
+        (e: DOMException) => `denied:${e.name}`,
+      ),
+    );
+    expect(result).toBe('denied:NotAllowedError');
+  });
+
+  it('the location picker offers "Show current location"; a failed attempt gives a message and hides it (b-oss#672)', async () => {
+    await go('/compose/location', 4000);
+    expect(await text()).not.toMatch(/Something went wrong/i);
+    const control = page.getByLabel('Show current location');
+    expect(await control.count()).toBe(1);
+    await shot('8-location-picker');
+    // The container has no WebGL, so a map-failed banner overlays the button: click it directly.
+    await control.dispatchEvent('click');
+    // A container has no OS location provider, so the attempt fails; the outcome is what matters:
+    // either way no error screen, and a failure leaves the message and no control.
+    await page.waitForFunction(
+      () =>
+        /Windows location is off/.test(document.body.innerText) ||
+        document.querySelector('[aria-label="Show current location"]') !== null,
+      undefined,
+      { timeout: 25000 },
+    );
+    expect(await text()).not.toMatch(/Something went wrong/i);
+    if (/Windows location is off/.test(await text())) {
+      expect(await control.count()).toBe(0);
+    }
+    await shot('8b-location-picker-after-tap');
+  });
+
+  it('the map offers "My location" until a first attempt fails', async () => {
     await go('/map', 4000);
     expect(await text()).not.toMatch(/Something went wrong/i);
-    expect(await page.getByLabel('My location').count()).toBe(0);
+    const hidden = /Windows location is off/.test(await text());
+    expect(await page.getByLabel('My location').count()).toBe(hidden ? 0 : 1);
   });
 
   it('Nearby explains there is no location here and offers the map instead of "Allow location"', async () => {

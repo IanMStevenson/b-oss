@@ -193,7 +193,7 @@ export function SignInScreen({ returnTo }: { returnTo?: string } = {}) {
           accountIndicator={false}
         />
       </IonHeader>
-      <IonContent className="ion-padding">
+      <IonContent className="ion-padding form-column">
         <p>How do you want to sign in?</p>
         <IonRadioGroup
           value={scope}

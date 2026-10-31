@@ -53,7 +53,7 @@ import { AppHeader } from '../../components/AppHeader.js';
 import { getMapStyleUrl, MAP_ATTRIBUTION } from '../../platform/mapTiles.js';
 import { isDarkTheme, useResolvedTheme } from '../../theme/theme.js';
 import { createMap, MAP_FAILED_MESSAGE } from '../../components/createMap.js';
-import { getCurrentPosition } from '../../platform/geolocation.js';
+import { getCurrentPosition, LocationUnavailableError } from '../../platform/geolocation.js';
 import { resolveImage } from '../../platform/imageCache.js';
 import { fetchEntriesInBounds } from '../../data/map.js';
 import type { MapBounds, MapEntry } from '../../data/map.js';
@@ -63,7 +63,7 @@ import { resumeGet, resumeSet } from '../../data/resumeCache.js';
 import { useHiddenMembers } from '../../state/hiddenMembersStore.js';
 import { useAppNavigate } from '../../app/routes/useAppNavigate.js';
 import { errorMessageOf } from '../../data/errors.js';
-import { capabilities } from '../../platform/capabilities.js';
+import { locationControlAvailable } from '../../platform/capabilities.js';
 
 interface MapScreenProps {
   /** From the `?entry=<id>` query param (app-architecture.md §5's route table) — AppRoutes.tsx
@@ -358,8 +358,10 @@ export function MapScreen({ focusedEntryId }: MapScreenProps) {
           .setLngLat([coords.lon, coords.lat])
           .addTo(map);
       }
-    } catch {
-      setLocationMessage('Location access was refused.');
+    } catch (err) {
+      setLocationMessage(
+        err instanceof LocationUnavailableError ? err.message : 'Location access was refused.',
+      );
     }
   }
 
@@ -376,7 +378,7 @@ export function MapScreen({ focusedEntryId }: MapScreenProps) {
         ) : (
           <div style={{ position: 'relative', height: '100%' }}>
             <div ref={containerRef} style={{ position: 'absolute', inset: 0 }} />
-            {capabilities().location === 'os' && (
+            {locationControlAvailable() && (
               <button
                 type="button"
                 className="map-locate"
