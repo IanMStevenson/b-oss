@@ -6,6 +6,8 @@
 // pure modules; this file only connects them to Electron, so it is covered by the e2e harness, not
 // unit tests. The tray is copied in small from b-ark's rather than shared: two consumers.
 
+import { existsSync } from 'node:fs';
+import { join } from 'node:path';
 import { app, dialog, Menu, nativeImage, Notification, Tray, type BrowserWindow } from 'electron';
 import { CHANNELS } from '../shared/bridge.js';
 import type { NotifyPayload, TestNotifyResult } from '../shared/notify.js';
@@ -14,6 +16,7 @@ import type { ToShow } from './notify-poller.js';
 import { safeSend } from './safe-ipc.js';
 import { TapQueue } from './tap-queue.js';
 import { appIconPath, trayIconPath } from './tray-icon.js';
+import { decideLoginItem, isDevFolder } from './login-item-policy.js';
 import { loginItemWanted, requestExit, shouldHideOnClose } from './tray-policy.js';
 
 /** Argument added to the login item so a start at login goes straight to the tray. */
@@ -254,14 +257,21 @@ export class NotifyShell {
 }
 
 /** The login item follows the notifications setting (on while any account is watched). Unpackaged,
- * it would launch bare Electron, so it is left alone. */
+ * it would launch bare Electron, so it is left alone; so is a packaged exe in a dev folder
+ * (login-item-policy.ts, b-oss#696). */
 function setLoginItem(wanted: boolean, log: (message: string) => void): void {
-  if (!app.isPackaged) {
-    log(`login item: left alone (not a packaged app); wanted=${wanted}`);
+  const decision = decideLoginItem({
+    wanted,
+    packaged: app.isPackaged,
+    devFolder:
+      app.isPackaged && isDevFolder(process.execPath, (dir, name) => existsSync(join(dir, name))),
+  });
+  if (decision.action === 'leave-alone') {
+    log(`login item: left alone (${decision.reason}); wanted=${wanted}`);
     return;
   }
   try {
-    app.setLoginItemSettings({ openAtLogin: wanted, args: [HIDDEN_ARG] });
+    app.setLoginItemSettings({ openAtLogin: decision.openAtLogin, args: [HIDDEN_ARG] });
     const now = app.getLoginItemSettings({ args: [HIDDEN_ARG] });
     log(
       `login item: wanted=${wanted} openAtLogin=${now.openAtLogin} executableWillLaunchAtLogin=${now.executableWillLaunchAtLogin}`,

@@ -69,6 +69,20 @@ describe('the shell and its security posture', () => {
     ).toBe('undefined,undefined,undefined');
   });
 
+  it('reports the same build as the web files, and shows no mismatch notice (b-oss#696)', async () => {
+    const shellBuild = await page.evaluate(
+      async () => (await window.bMobileDesktop?.shell.info())?.build,
+    );
+    expect(shellBuild).toMatch(/^\d+\.\d+\.\d+/);
+    expect(await page.locator('[role="alert"]').count()).toBe(0);
+    await go('/help', 3000);
+    const body = await text();
+    expect(body).toContain('App version');
+    expect(body).toContain('Desktop program version');
+    expect(body).not.toContain('(differs)');
+    expect(body).toContain(shellBuild as string);
+  });
+
   it('sends a CSP that allows the inline theme script by hash only', async () => {
     const csp = await page.evaluate(async () =>
       (await fetch('/')).headers.get('content-security-policy'),

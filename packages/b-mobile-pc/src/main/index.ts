@@ -23,6 +23,7 @@ import { appendFile, mkdir, readFile, rename, rm, stat, writeFile } from 'node:f
 import { basename, dirname, join, resolve } from 'node:path';
 import { fetchUnreadTotals } from '@b-oss/b-notify-core';
 import { CHANNELS } from '../shared/bridge.js';
+import { resolveShellBuild } from '../shared/shell-build.js';
 import { appTokenKey, parseNotifySettings } from '../shared/notify.js';
 import { allowPermission } from './permissions.js';
 import {
@@ -65,6 +66,14 @@ const renderVariants = applyRenderVariants(app);
 const apiOrigin = (testMode && process.env.BMPC_API_ORIGIN) || DEFAULT_API_ORIGIN;
 const authHosts = (testMode && process.env.BMPC_AUTH_HOSTS?.split(',')) || [...DEFAULT_AUTH_HOSTS];
 const authAllowHttp = testMode && process.env.BMPC_AUTH_ALLOW_HTTP === '1';
+
+// The shell's build identifier (b-oss#696): stamped in by electron.vite.config.ts from the same
+// version.generated.json the web build uses. BMPC_SHELL_VERSION is an e2e hook (ignored when packaged).
+const shellBuild = resolveShellBuild({
+  stamped: typeof __SHELL_BUILD__ === 'string' ? __SHELL_BUILD__ : undefined,
+  override: process.env.BMPC_SHELL_VERSION,
+  allowOverride: testMode,
+});
 
 const distDir = app.isPackaged
   ? join(process.resourcesPath, 'web')
@@ -346,7 +355,7 @@ if (!app.requestSingleInstanceLock()) {
       void errorLog.write({ source: 'notify', message });
     };
     notifyLog(
-      `start: version=${app.getVersion()} electron=${process.versions.electron} platform=${process.platform} ` +
+      `start: version=${app.getVersion()} build=${shellBuild} electron=${process.versions.electron} platform=${process.platform} ` +
         `packaged=${app.isPackaged} appUserModelId=${process.platform === 'win32' ? APP_USER_MODEL_ID : 'n/a'} ` +
         `startedHidden=${startedHidden()} Notification.isSupported()=${Notification.isSupported()} ` +
         `net.isOnline()=${net.isOnline()} exe=${basename(process.execPath)}`,
@@ -360,6 +369,7 @@ if (!app.requestSingleInstanceLock()) {
     handle(CHANNELS.secureGet, (key) => store.get(key));
     handle(CHANNELS.secureSet, (key, value) => store.set(key, value));
     handle(CHANNELS.secureRemove, (key) => store.remove(key));
+    handle(CHANNELS.shellInfo, () => ({ build: shellBuild }));
     handle(CHANNELS.diagLog, async (raw) => {
       const entry = parseErrorEntry(raw);
       if (entry) await errorLog.write(entry);

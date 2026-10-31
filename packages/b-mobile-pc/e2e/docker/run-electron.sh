@@ -9,7 +9,7 @@ cd /p/packages/b-mobile-pc
 # --proxy-server: only when the host needs one (the dev VM's egress goes through squid).
 PROXY_ARGS=()
 if [ -n "${E2E_PROXY:-}" ]; then PROXY_ARGS=(--proxy-server="$E2E_PROXY"); fi
-BMPC_DIST=/p/packages/b-mobile/dist \
+BMPC_DIST=${E2E_DIST:-/p/packages/b-mobile/dist} \
 BMPC_API_ORIGIN=http://127.0.0.1:${E2E_STUB_PORT:-5192} \
 BMPC_AUTH_ORIGIN=http://127.0.0.1:${E2E_AUTH_PORT:-5193} \
 BMPC_TEST_PLAINTEXT_STORE=1 \
