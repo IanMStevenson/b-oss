@@ -3,7 +3,13 @@
 
 import { describe, expect, it, vi } from 'vitest';
 import { isTrustedEvent, safeSend, type SendableWindow } from '../safe-ipc.js';
-import { describeRejection } from '../unhandled.js';
+import {
+  REJECTION_SOURCE,
+  createRejectionReporter,
+  describeRejection,
+  rejectionEntry,
+} from '../unhandled.js';
+import { formatLine, type ErrorEntry } from '../error-log.js';
 
 const DISPOSED = 'Render frame was disposed before WebFrameMain could be accessed';
 
@@ -83,5 +89,66 @@ describe('describeRejection', () => {
     expect(out).not.toContain('SECRETVALUE9');
     expect(out).not.toContain('abcDEF123456');
     expect(describeRejection('x '.repeat(5_000)).length).toBeLessThan(2_100);
+  });
+});
+
+describe('rejectionEntry (b-oss#687)', () => {
+  it('names the rejection and trims the stack', () => {
+    const err = new TypeError('boom');
+    err.stack = `TypeError: boom\n${Array.from({ length: 40 }, (_, i) => `    at frame${i}`).join('\n')}`;
+    const entry = rejectionEntry(err);
+    expect(entry.source).toBe(REJECTION_SOURCE);
+    expect(entry.message).toBe('TypeError: boom');
+    expect(entry.stack?.split('\n')).toHaveLength(12);
+  });
+
+  it('copes with non-errors', () => {
+    expect(rejectionEntry('plain').message).toBe('non-error rejection: plain');
+    expect(rejectionEntry(undefined).stack).toBeUndefined();
+  });
+
+  it('is redacted by the log line it ends up in', () => {
+    const line = formatLine(
+      rejectionEntry(new Error('failed: access_token=SECRETVALUE9 Bearer abcDEF123456xyz')),
+      new Date('2026-10-31T10:00:00Z'),
+    );
+    expect(line).not.toContain('SECRETVALUE9');
+    expect(line).toContain('"source":"main-unhandled-rejection"');
+    expect(line).not.toContain('\n');
+  });
+});
+
+describe('createRejectionReporter (b-oss#687)', () => {
+  it('writes up to the cap per window, then one summary line when the next window opens', () => {
+    const written: ErrorEntry[] = [];
+    let t = 0;
+    const report = createRejectionReporter(
+      (e) => written.push(e),
+      () => t,
+      3,
+      1000,
+    );
+    for (let i = 0; i < 100; i++) report(new Error(`loop ${i}`));
+    expect(written).toHaveLength(3);
+    t = 1500;
+    report(new Error('later'));
+    expect(written).toHaveLength(5);
+    expect(written[3]?.message).toMatch(/^97 further unhandled rejection\(s\) were not logged/);
+    expect(written[4]?.message).toBe('Error: later');
+  });
+
+  it('a quiet period writes no summary', () => {
+    const written: ErrorEntry[] = [];
+    let t = 0;
+    const report = createRejectionReporter(
+      (e) => written.push(e),
+      () => t,
+      3,
+      1000,
+    );
+    report(new Error('a'));
+    t = 5000;
+    report(new Error('b'));
+    expect(written.map((e) => e.message)).toEqual(['Error: a', 'Error: b']);
   });
 });
