@@ -8,8 +8,10 @@
 import {
   app,
   BrowserWindow,
+  clipboard,
   ipcMain,
   net,
+  Notification,
   protocol,
   safeStorage,
   screen,
@@ -17,8 +19,8 @@ import {
   shell,
 } from 'electron';
 import { mkdirSync, renameSync, writeFileSync } from 'node:fs';
-import { mkdir, readFile, rename, writeFile } from 'node:fs/promises';
-import { dirname, join, resolve } from 'node:path';
+import { appendFile, mkdir, readFile, rename, rm, stat, writeFile } from 'node:fs/promises';
+import { basename, dirname, join, resolve } from 'node:path';
 import { fetchUnreadTotals } from '@b-oss/b-notify-core';
 import { CHANNELS } from '../shared/bridge.js';
 import { appTokenKey, parseNotifySettings } from '../shared/notify.js';
@@ -27,22 +29,37 @@ import {
   APP_SCHEME,
   DEFAULT_API_ORIGIN,
   buildCsp,
-  isTrustedSender,
   mimeFor,
   planAppRequest,
   sanitiseRequestHeaders,
   sanitiseResponseHeaders,
 } from './app-protocol.js';
+import { ErrorLog, parseErrorEntry, type LogFs } from './error-log.js';
+import { isTrustedEvent } from './safe-ipc.js';
+import { describeRejection } from './unhandled.js';
+import { APP_USER_MODEL_ID } from './app-id.js';
 import { openAuthWindow } from './auth-window.js';
 import { DEFAULT_AUTH_HOSTS, validateAuthRequest, withOrigin } from './auth-request.js';
-import { electronPresenter, NotifyShell, type Presenter, startedHidden } from './notify-shell.js';
+import {
+  createElectronPresenter,
+  NotifyShell,
+  type Presenter,
+  startedHidden,
+} from './notify-shell.js';
 import { NotifyPoller, POLL_INTERVAL_MS } from './notify-poller.js';
 import { RecordingPresenter, serveRecordingPresenter } from './notify-test-presenter.js';
 import { SecureStore, type SecretCrypto } from './secure-store.js';
 import { MIN_HEIGHT, MIN_WIDTH, parseWindowState } from './window-state.js';
+import { lockPageZoom } from './page-zoom-lock.js';
+import { applyRenderVariants } from './render-variants.js';
 
 // Test hooks (e2e runs against a stub API and a fake sign-in page). Ignored in a packaged app.
 const testMode = !app.isPackaged;
+
+// Windows shows toast notifications only for an app whose AppUserModelID matches its Start Menu
+// shortcut, so set it before any window or notification exists (b-oss#674).
+if (process.platform === 'win32') app.setAppUserModelId(APP_USER_MODEL_ID);
+const renderVariants = applyRenderVariants(app);
 const apiOrigin = (testMode && process.env.BMPC_API_ORIGIN) || DEFAULT_API_ORIGIN;
 const authHosts = (testMode && process.env.BMPC_AUTH_HOSTS?.split(',')) || [...DEFAULT_AUTH_HOSTS];
 const authAllowHttp = testMode && process.env.BMPC_AUTH_ALLOW_HTTP === '1';
@@ -164,6 +181,9 @@ async function handleAppRequest(request: Request): Promise<Response> {
   return new Response(new Uint8Array(body), { headers });
 }
 
+/** `shell` is shadowed by the NotifyShell inside the ready handler, so this lives out here. */
+const openFolder = (path: string): Promise<string> => shell.openPath(path);
+
 // --- window ---------------------------------------------------------------------------------
 
 let mainWindow: BrowserWindow | null = null;
@@ -194,6 +214,7 @@ async function createWindow(showWindow: boolean): Promise<void> {
     },
   });
   mainWindow = win;
+  lockPageZoom(win.webContents, renderVariants.has('no-zoom-lock'));
   if (saved.maximized) win.maximize();
 
   // Links leave the app: https opens in the system browser, anything else is dropped.
@@ -240,6 +261,12 @@ async function createWindow(showWindow: boolean): Promise<void> {
   await win.loadURL(`${APP_ORIGIN}/`);
 }
 
+// A rejection nobody handled must leave a line in the log, not just Node's warning. (The error log
+// of b-oss#639 takes over from console.error once it is in.)
+process.on('unhandledRejection', (reason) => {
+  console.error(`[b-mobile-pc] unhandled rejection: ${describeRejection(reason)}`);
+});
+
 // --- start-up -------------------------------------------------------------------------------
 
 if (!app.requestSingleInstanceLock()) {
@@ -256,7 +283,9 @@ if (!app.requestSingleInstanceLock()) {
   void app.whenReady().then(async () => {
     protocol.handle(APP_SCHEME, handleAppRequest);
     // Nothing in the app needs a browser permission (camera, location, notifications go through
-    // the shell), so deny every request.
+    // the shell), so deny every request. Deliberately kept (b-oss#636): the app does not rely on
+    // browser location either, since capabilities().location is `pick-only` here and places are
+    // chosen on the map.
     session.defaultSession.setPermissionRequestHandler((_wc, _permission, callback) =>
       callback(false),
     );
@@ -275,15 +304,55 @@ if (!app.requestSingleInstanceLock()) {
         : electronCrypto,
       atomicFile(join(app.getPath('userData'), 'secure-store.json')),
     );
+    // The error log (b-oss#639): userData/logs/app.log, redacted and size-capped.
+    const logDir = join(app.getPath('userData'), 'logs');
+    const logFs: LogFs = {
+      append: async (file, text) => {
+        await mkdir(dirname(file), { recursive: true });
+        await appendFile(file, text, 'utf8');
+      },
+      size: (file) =>
+        stat(file).then(
+          (st) => st.size,
+          () => 0,
+        ),
+      rename: (from, to) => rename(from, to).catch(() => undefined),
+      remove: (file) => rm(file, { force: true }),
+    };
+    const openLogFolder = async (): Promise<void> => {
+      await mkdir(logDir, { recursive: true });
+      await openFolder(logDir);
+    };
+    const errorLog = new ErrorLog(logFs, (name) => join(logDir, name));
+    // Everything the notification pipeline does goes to the app log too (b-oss#677): redacted by
+    // the log itself, and never given a token by its callers. Also on the console for dev runs.
+    const notifyLog = (message: string): void => {
+      console.warn(`[b-mobile-pc] ${message}`);
+      void errorLog.write({ source: 'notify', message });
+    };
+    notifyLog(
+      `start: version=${app.getVersion()} electron=${process.versions.electron} platform=${process.platform} ` +
+        `packaged=${app.isPackaged} appUserModelId=${process.platform === 'win32' ? APP_USER_MODEL_ID : 'n/a'} ` +
+        `startedHidden=${startedHidden()} Notification.isSupported()=${Notification.isSupported()} ` +
+        `net.isOnline()=${net.isOnline()} exe=${basename(process.execPath)}`,
+    );
     const handle = (channel: string, fn: (...args: unknown[]) => unknown): void => {
       ipcMain.handle(channel, (event, ...args: unknown[]) => {
-        if (!isTrustedSender(event.senderFrame?.url)) throw new Error('Untrusted sender');
+        if (!isTrustedEvent(event)) throw new Error('Untrusted sender');
         return fn(...args);
       });
     };
     handle(CHANNELS.secureGet, (key) => store.get(key));
     handle(CHANNELS.secureSet, (key, value) => store.set(key, value));
     handle(CHANNELS.secureRemove, (key) => store.remove(key));
+    handle(CHANNELS.diagLog, async (raw) => {
+      const entry = parseErrorEntry(raw);
+      if (entry) await errorLog.write(entry);
+    });
+    handle(CHANNELS.diagOpenLogFolder, () => openLogFolder());
+    handle(CHANNELS.diagCopy, async (text) => {
+      if (typeof text === 'string') await clipboard.writeText(text.slice(0, 100_000));
+    });
     handle(CHANNELS.authOpen, (url, redirectPrefix) => {
       const request = validateAuthRequest(url, redirectPrefix, authHosts, authAllowHttp);
       // Test hook (ignored when packaged): send the sign-in page to a fake authorize server.
@@ -304,7 +373,7 @@ if (!app.requestSingleInstanceLock()) {
     // Test hook (ignored when packaged): record notifications instead of showing them, and serve
     // them on a local port for the e2e tests.
     const testNotifyPort = testMode ? Number(process.env.BMPC_TEST_NOTIFY_PORT) : 0;
-    let presenter: Presenter = electronPresenter;
+    let presenter: Presenter = createElectronPresenter(notifyLog);
     if (testNotifyPort > 0) {
       const recording = new RecordingPresenter();
       serveRecordingPresenter(recording, testNotifyPort);
@@ -314,6 +383,8 @@ if (!app.requestSingleInstanceLock()) {
       () => mainWindow,
       presenter,
       () => notifyPoller?.watchedCount() ?? 0,
+      () => void openLogFolder(),
+      notifyLog,
     );
     notifyShell = shell;
     const stateFile = atomicFile(join(app.getPath('userData'), 'notify-state.json'));
@@ -333,7 +404,7 @@ if (!app.requestSingleInstanceLock()) {
         }),
       show: shell.show,
       isOnline: () => net.isOnline(),
-      log: (message) => console.warn(`[b-mobile-pc] ${message}`),
+      log: notifyLog,
       // Test hook (ignored when packaged): poll faster than every five minutes.
       intervalMs: (testMode && Number(process.env.BMPC_TEST_POLL_INTERVAL_MS)) || POLL_INTERVAL_MS,
     });
@@ -342,6 +413,9 @@ if (!app.requestSingleInstanceLock()) {
     handle(CHANNELS.notifyConfigure, (settings) =>
       poller.configure(parseNotifySettings(settings).accounts),
     );
+    handle(CHANNELS.notifyStatus, () => poller.getStatus());
+    handle(CHANNELS.notifyCheckNow, () => poller.checkNow());
+    handle(CHANNELS.notifyTest, () => shell.showTest());
     handle(CHANNELS.notifyTappedReady, () => shell.tappedReady());
     await poller.start();
 

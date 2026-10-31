@@ -33,6 +33,7 @@ import {
   CameraPermissionDeniedError,
 } from '../../platform/camera.js';
 import type { PickedPhoto } from '../../platform/camera.js';
+import { capabilities } from '../../platform/capabilities.js';
 import { takePendingSharedPhoto } from '../../platform/shareIntent.js';
 import { useAppNavigate } from '../../app/routes/useAppNavigate.js';
 import { useActiveAccount } from '../../state/accountsStore.js';
@@ -152,6 +153,9 @@ export function NewEntryScreen({ replaceEntryId }: NewEntryScreenProps = {}) {
     }
   }
 
+  // Desktop has no camera route: the choose-a-photo tile is the only one, and says what it does.
+  const canCapture = capabilities().media.capture === 'camera';
+
   return (
     <IonPage>
       <IonHeader>
@@ -163,25 +167,27 @@ export function NewEntryScreen({ replaceEntryId }: NewEntryScreenProps = {}) {
       </IonHeader>
       <IonContent>
         <div className="new-entry-tiles">
+          {canCapture && (
+            <IonButton
+              className="new-entry-tile"
+              expand="block"
+              disabled={busy !== null}
+              onClick={() => void handleTakePhoto()}
+            >
+              {busy === 'camera' ? (
+                <IonSpinner name="dots" />
+              ) : (
+                <span className="new-entry-tile-inner">
+                  <Camera size={32} aria-hidden="true" />
+                  Take a photo
+                </span>
+              )}
+            </IonButton>
+          )}
           <IonButton
             className="new-entry-tile"
             expand="block"
-            disabled={busy !== null}
-            onClick={() => void handleTakePhoto()}
-          >
-            {busy === 'camera' ? (
-              <IonSpinner name="dots" />
-            ) : (
-              <span className="new-entry-tile-inner">
-                <Camera size={32} aria-hidden="true" />
-                Take a photo
-              </span>
-            )}
-          </IonButton>
-          <IonButton
-            className="new-entry-tile"
-            expand="block"
-            fill="outline"
+            fill={canCapture ? 'outline' : 'solid'}
             disabled={busy !== null}
             onClick={() => void handlePickPhoto()}
           >
@@ -190,7 +196,7 @@ export function NewEntryScreen({ replaceEntryId }: NewEntryScreenProps = {}) {
             ) : (
               <span className="new-entry-tile-inner">
                 <ImageIcon size={32} aria-hidden="true" />
-                Choose from device
+                {canCapture ? 'Choose from device' : 'Choose a photo'}
               </span>
             )}
           </IonButton>
@@ -207,7 +213,7 @@ export function NewEntryScreen({ replaceEntryId }: NewEntryScreenProps = {}) {
               <p>{cameraMessage}</p>
             </IonText>
           )}
-          {!isNativeCamera() && (
+          {canCapture && !isNativeCamera() && (
             <IonText color="medium">
               <p>
                 Running in a desktop browser — the system picker will use your browser&rsquo;s own

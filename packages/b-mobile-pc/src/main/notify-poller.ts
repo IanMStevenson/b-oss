@@ -20,11 +20,20 @@ import {
   type SeenTotals,
   type UnreadTotals,
 } from '@b-oss/b-notify-core';
-import type { NotifyAccountConfig, NotifyPayload } from '../shared/notify.js';
+import type {
+  AccountStatus,
+  CheckResult,
+  NotifyAccountConfig,
+  NotifyPayload,
+  NotifyStatus,
+} from '../shared/notify.js';
+import { describeFailure } from './notify-failure.js';
 
 export const POLL_INTERVAL_MS = 5 * 60_000;
 /** A failing account is retried every 2, 4, ... ticks up to this many, then stays there. */
 export const MAX_BACKOFF_TICKS = 6;
+/** "Check now" will not hit the same account more often than this (the API budget is shared). */
+export const MIN_CHECK_GAP_MS = 10_000;
 
 /** A notification to show: the payload that comes back on a click, plus how many items. */
 export interface ToShow {
@@ -43,6 +52,7 @@ export interface PollerDeps {
    * next poll tries again). */
   show(item: ToShow): Promise<void>;
   isOnline(): boolean;
+  /** Writes one line to the app log (b-oss#677). Never given a token or response content. */
   log(message: string): void;
   intervalMs?: number;
 }
@@ -99,6 +109,11 @@ export function parseState(raw: string | null): StateFile {
   return { v: 1, accounts };
 }
 
+const STREAM_NAMES = ['comments', 'notifications'] as const;
+
+const describeStreams = (a: AccountState): string =>
+  STREAM_NAMES.filter((n) => a.streams[n]).join(',') || 'none';
+
 export class NotifyPoller {
   private state: StateFile = { v: 1, accounts: {} };
   private timer: ReturnType<typeof setTimeout> | null = null;
@@ -107,6 +122,12 @@ export class NotifyPoller {
   /** Ticks left to skip per account after failures; in memory only. */
   private skip = new Map<string, number>();
   private failures = new Map<string, number>();
+  private rateLimited = new Set<string>();
+  /** What the settings screen shows; in memory only (a restart starts with "not checked yet"). */
+  private results = new Map<string, CheckResult>();
+  private lastAttemptAt = new Map<string, number>();
+  private checking = new Set<string>();
+  private nextTickAt: number | null = null;
   private writeQueue: Promise<void> = Promise.resolve();
   private readonly intervalMs: number;
   private activeListener: ((active: boolean) => void) | null = null;
@@ -120,6 +141,9 @@ export class NotifyPoller {
   async start(): Promise<void> {
     this.state = parseState(await this.deps.readFile().catch(() => null));
     this.running = true;
+    this.deps.log(
+      `poller started: interval=${Math.round(this.intervalMs / 1000)}s accounts=${this.describeAccounts()}`,
+    );
     this.emitActive();
     this.schedule(0);
   }
@@ -128,6 +152,15 @@ export class NotifyPoller {
     this.running = false;
     if (this.timer) clearTimeout(this.timer);
     this.timer = null;
+    this.nextTickAt = null;
+    this.deps.log('poller stopped');
+  }
+
+  private describeAccounts(): string {
+    const ids = Object.keys(this.state.accounts);
+    return ids.length === 0
+      ? '[]'
+      : `[${ids.map((id) => `${id}(${describeStreams(this.state.accounts[id])})`).join(' ')}]`;
   }
 
   watchedCount(): number {
@@ -143,6 +176,40 @@ export class NotifyPoller {
     this.activeListener = listener;
   }
 
+  /** Per-account status for the settings screen (b-oss#673). */
+  getStatus(): NotifyStatus {
+    const accounts: AccountStatus[] = Object.entries(this.state.accounts).map(([id, a]) => ({
+      accountId: id,
+      lastCheckedAt: a.lastPolledAt,
+      nextCheckAt:
+        this.nextTickAt === null || a.reauthShown || !this.running
+          ? null
+          : this.nextTickAt + (this.skip.get(id) ?? 0) * this.intervalMs,
+      checking: this.checking.has(id),
+      result: a.reauthShown
+        ? {
+            kind: 'sign-in-needed',
+            text: 'Sign-in needed: Blipfoto rejected the saved sign-in',
+          }
+        : (this.results.get(id) ?? null),
+    }));
+    return { accounts };
+  }
+
+  /** "Check now": polls every watched account straight away. Backoff after failures is skipped,
+   * but not for an account Blipfoto has rate limited, nor for one checked in the last few seconds.
+   * Unlike the timer it also tries when the system says it is offline, so a wrong "offline" shows
+   * up as a success in the log. The regular timer restarts from now. */
+  async checkNow(): Promise<NotifyStatus> {
+    if (this.running) {
+      this.deps.log('check now requested');
+      this.polling = this.polling.then(() => this.tick(true)).catch(() => undefined);
+      await this.polling;
+      if (this.timer !== null) this.schedule(this.intervalMs);
+    }
+    return this.getStatus();
+  }
+
   /** Replaces the watched set. New accounts are polled at once (recording their starting counts);
    * changed streams keep their counts; removed accounts are forgotten, including a pending
    * "sign in again", so a fresh sign-in starts clean. */
@@ -156,8 +223,11 @@ export class NotifyPoller {
         : { streams: { ...streams }, seen: null, lastPolledAt: null, reauthShown: false };
     }
     this.state = { v: 1, accounts: next };
-    for (const id of [...this.skip.keys()]) if (!(id in next)) this.skip.delete(id);
-    for (const id of [...this.failures.keys()]) if (!(id in next)) this.failures.delete(id);
+    for (const map of [this.skip, this.failures, this.results, this.lastAttemptAt]) {
+      for (const id of [...map.keys()]) if (!(id in next)) map.delete(id);
+    }
+    for (const id of [...this.rateLimited]) if (!(id in next)) this.rateLimited.delete(id);
+    this.deps.log(`configured: accounts=${this.describeAccounts()}`);
     await this.save();
     if (before !== this.hasAccounts()) this.emitActive();
     if (this.running && Object.values(next).some((a) => a.seen === null)) this.schedule(0);
@@ -170,10 +240,12 @@ export class NotifyPoller {
   private schedule(delayMs: number): void {
     if (!this.running) return;
     if (this.timer) clearTimeout(this.timer);
+    this.nextTickAt = Date.now() + delayMs;
     this.timer = setTimeout(() => {
       this.timer = null;
+      this.nextTickAt = null;
       // Serialised: a tick requested by configure() never overlaps one already running.
-      this.polling = this.polling.then(() => this.tick()).catch(() => undefined);
+      this.polling = this.polling.then(() => this.tick(false)).catch(() => undefined);
       // A tick requested meanwhile (configure) keeps its earlier timer.
       void this.polling.then(() => {
         if (this.timer === null) this.schedule(this.intervalMs);
@@ -181,47 +253,110 @@ export class NotifyPoller {
     }, delayMs);
   }
 
-  private async tick(): Promise<void> {
-    if (!this.deps.isOnline()) return;
-    for (const accountId of Object.keys(this.state.accounts)) {
-      if (!this.running) return;
-      const skip = this.skip.get(accountId) ?? 0;
-      if (skip > 0) {
-        this.skip.set(accountId, skip - 1);
-        continue;
+  private record(accountId: string, result: CheckResult): void {
+    this.results.set(accountId, result);
+  }
+
+  private async tick(forced: boolean): Promise<void> {
+    const ids = Object.keys(this.state.accounts);
+    if (ids.length === 0) return;
+    if (!this.deps.isOnline()) {
+      if (!forced) {
+        this.deps.log(
+          `poll skipped: the system reports no network connection (${ids.length} account(s))`,
+        );
+        for (const id of ids) {
+          this.record(id, { kind: 'offline', text: 'Waiting for a network connection' });
+        }
+        return;
       }
+      this.deps.log('check now: the system reports no network connection; trying anyway');
+    }
+    for (const accountId of ids) {
+      if (!this.running) return;
+      if (forced) {
+        if (this.rateLimited.has(accountId)) {
+          this.deps.log(`check now skipped for ${accountId}: rate limited, waiting for its retry`);
+          continue;
+        }
+        const last = this.lastAttemptAt.get(accountId) ?? 0;
+        // Never longer than half the interval, so a fast test interval still lets it through.
+        if (Date.now() - last < Math.min(MIN_CHECK_GAP_MS, this.intervalMs / 2)) {
+          this.deps.log(`check now skipped for ${accountId}: checked a moment ago`);
+          continue;
+        }
+        this.skip.delete(accountId);
+      } else {
+        const skip = this.skip.get(accountId) ?? 0;
+        if (skip > 0) {
+          this.skip.set(accountId, skip - 1);
+          this.deps.log(
+            `poll skipped for ${accountId}: backing off after errors (${skip} tick(s) left)`,
+          );
+          continue;
+        }
+      }
+      this.checking.add(accountId);
+      this.lastAttemptAt.set(accountId, Date.now());
       try {
         await this.pollOne(accountId);
         this.failures.delete(accountId);
+        this.rateLimited.delete(accountId);
       } catch (err) {
+        const failure = describeFailure(err);
         const n = (this.failures.get(accountId) ?? 0) + 1;
         this.failures.set(accountId, n);
         this.skip.set(accountId, Math.min(2 ** n - 1, MAX_BACKOFF_TICKS));
+        if (failure.result.kind === 'rate-limited') this.rateLimited.add(accountId);
+        else this.rateLimited.delete(accountId);
+        const current = this.state.accounts[accountId];
+        if (current) current.lastPolledAt = Date.now();
+        this.record(accountId, failure.result);
         // Never the token, never the response body.
         this.deps.log(
-          `notify poll failed for ${accountId}: ${err instanceof Error ? err.name : 'error'}`,
+          `poll failed account=${accountId} failures=${n} next-retry-ticks=${this.skip.get(accountId) ?? 0}: ${failure.logText}`,
         );
+      } finally {
+        this.checking.delete(accountId);
       }
     }
   }
 
   private async pollOne(accountId: string): Promise<void> {
     const account = this.state.accounts[accountId];
-    if (!account || account.reauthShown) return;
+    if (!account) return;
+    if (account.reauthShown) {
+      this.deps.log(`poll skipped for ${accountId}: waiting for the user to sign in again`);
+      return;
+    }
+    const t0 = Date.now();
     const token = await this.deps.getToken(accountId);
+    const keystoreMs = Date.now() - t0;
     // Signed out in the meantime: the app will drop the account at its next configure.
-    if (token === null) return;
+    if (token === null) {
+      this.record(accountId, { kind: 'no-token', text: 'No saved sign-in for this account' });
+      this.deps.log(
+        `poll skipped for ${accountId}: no saved sign-in in the secure store (read ${keystoreMs} ms)`,
+      );
+      return;
+    }
 
     let totals: UnreadTotals;
+    const t1 = Date.now();
     try {
       totals = await this.deps.fetchTotals(token);
     } catch (err) {
       if (err instanceof TokenInvalidError) {
+        this.deps.log(
+          `poll account=${accountId}: Blipfoto rejected the sign-in; showing sign-in-again`,
+        );
         await this.reauthRequired(accountId);
+        this.record(accountId, describeFailure(err).result);
         return;
       }
       throw err;
     }
+    const timing = `secure-store=${keystoreMs}ms request=${Date.now() - t1}ms`;
 
     // The account may have been removed or edited while the request was in flight.
     const current = this.state.accounts[accountId];
@@ -230,19 +365,58 @@ export class NotifyPoller {
 
     if (current.seen === null) {
       current.seen = { comments: totals.comments, notifications: totals.notifications };
+      this.record(accountId, {
+        kind: 'baseline',
+        text: 'Starting counts recorded; you will be told about anything new from now on',
+        newItems: 0,
+      });
+      this.deps.log(
+        `poll baseline account=${accountId} comments=${totals.comments} notifications=${totals.notifications} (recorded, nothing announced) ${timing}`,
+      );
       await this.save();
       return;
     }
 
     const lastSeen = current.seen;
-    const decision = decideNotifications({ totals, lastSeen, streams: current.streams });
-    const result = await settle(decision, lastSeen, (n: Notify) =>
-      this.deps.show({
-        payload: { kind: 'activity', stream: n.stream, accountId },
-        count: n.count,
-      }),
+    this.deps.log(
+      `poll ok account=${accountId} comments=${totals.comments} (was ${lastSeen.comments}) notifications=${totals.notifications} (was ${lastSeen.notifications}) ${timing}`,
     );
+    const decision = decideNotifications({ totals, lastSeen, streams: current.streams });
+    let newItems = 0;
+    for (const stream of STREAM_NAMES) {
+      const delta = totals[stream] - lastSeen[stream];
+      if (delta > 0) newItems += delta;
+      if (delta > 0 && !current.streams[stream]) {
+        this.deps.log(
+          `decision account=${accountId} stream=${stream} new=${delta}: suppressed, stream is switched off`,
+        );
+      } else if (delta < 0) {
+        this.deps.log(
+          `decision account=${accountId} stream=${stream}: count fell by ${-delta}, nothing to show`,
+        );
+      }
+    }
+    const result = await settle(decision, lastSeen, async (n: Notify) => {
+      this.deps.log(`decision account=${accountId} stream=${n.stream} new=${n.count}: showing`);
+      try {
+        await this.deps.show({
+          payload: { kind: 'activity', stream: n.stream, accountId },
+          count: n.count,
+        });
+      } catch (err) {
+        this.deps.log(
+          `decision account=${accountId} stream=${n.stream}: not shown (${err instanceof Error ? err.message : 'error'}); will retry next poll`,
+        );
+        throw err;
+      }
+    });
     current.seen = result.nextSeen;
+    const delivered = result.delivered.length;
+    this.record(accountId, {
+      kind: 'ok',
+      text: newItems === 0 ? 'Nothing new' : `${newItems} new, ${delivered} notification(s) shown`,
+      newItems,
+    });
     await this.save();
     if (result.error) throw result.error;
   }

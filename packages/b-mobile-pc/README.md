@@ -83,6 +83,45 @@ fetched by hand and the app run in Docker; see the e2e issue (b-oss#614).
 
 ## Windows exe
 
+**Notifications (toasts) are expected to work from the _installed_ build.** Windows only reliably shows
+toasts for an app whose AppUserModelID matches its Start Menu shortcut: the shell sets the id
+(`src/main/app-id.ts`, kept equal to `appId` in `electron-builder.json` by a test) and the installer
+creates the shortcut. Running the unpacked folder or the portable exe directly has no such shortcut, so
+toasts may not appear there (b-oss#674).
+
+### Checking notifications on Windows (b-oss#677)
+
+How the installer ties the two together (read from electron-builder's NSIS template, not guessed): the
+NSIS target creates the Start Menu shortcut `b-mobile` (the `productName`) and tags it with
+`WinShell::SetLnkAUMI "<shortcut>" "${APP_ID}"`, where `APP_ID` is `appId` from `electron-builder.json`
+(`co.salientpoint.b-mobile-pc`); the same call tags the desktop shortcut. The shell calls
+`app.setAppUserModelId` with the same string on Windows, before any window exists. So installed and
+running ids match. The portable exe and `win-unpacked` never create the shortcut.
+
+To verify on a PC with the installer build:
+
+1. Install with `b-mobile-Setup-<version>.exe` (not the portable exe). Find `b-mobile` in the Start Menu.
+2. Settings > Notifications > **Send a test notification**. A toast should appear, and the app log
+   gets `toast test: ... show event` and `test notification: ok`. This works without the API or any
+   account setting, so it separates "Windows does not show our toasts" from "polling found nothing".
+   If it says `failed`, the log has Electron's reason. If it says ok but nothing was seen, look at
+   Windows Settings > System > Notifications (is **b-mobile** listed and on?) and Focus Assist / Do
+   Not Disturb.
+3. Turn a stream on, then read the status line under it ("Checked ... ago · next check in about ...
+   minutes · ..."). **Check now** polls at once. The first check only records the starting counts;
+   a toast needs something new after it (a comment or star from another account).
+4. Optional: in PowerShell, `Get-StartApps | Where-Object Name -eq b-mobile` should list the shortcut
+   with AppID `co.salientpoint.b-mobile-pc`. (Written from how Windows lists shortcut AppIDs, not run
+   on a PC yet; the app log's start line also prints the id the shell set.)
+
+The app log is `%APPDATA%\b-mobile\logs\app.log` (tray menu: **Open log folder**), one JSON object per
+line, redacted. Notification lines have `"source":"notify"`: start-up facts (version, packaged,
+AppUserModelID, `Notification.isSupported()`, `net.isOnline()`), the poller starting and stopping, every
+poll (account, counts before and after, how long the secure-store read and the request took), every
+show / suppress decision, why a poll did not happen (offline, no saved sign-in, backing off), each of
+Electron's toast events (`show`, `failed`, `click`, `close`), the tray and login-item state. Never
+tokens.
+
 ```bash
 packages/b-mobile-pc/scripts/build-win-docker.sh
 ```
@@ -96,7 +135,31 @@ web build is copied into the app as `resources/web`; `productName` is `b-mobile`
 build). The packaged layout can be smoke-tested on Linux with `npx electron-builder --linux dir` and the
 e2e image (test hooks are ignored when packaged, so only the real API is reachable).
 
+### Fast loop on Windows: run the unpacked build from the synced folder
+
+Do not run the exes from a network share. The portable exe unpacks about 360 MB into `%TEMP%` on every
+launch, which is slow anywhere and much slower over Samba. A build's `win-unpacked/` folder is the
+same app already unpacked, and only about 4 MB of it changes between builds (`resources/app.asar` and
+`resources/web`; the rest is the Electron runtime). The dev-loop relay below already carries it, so run
+`b-mobile.exe` from the synced folder:
+
+```
+D:\Dev\debugging\b-mobile-pc-build\packages\b-mobile-pc\dist-electron\win-unpacked\b-mobile.exe
+```
+
+The one VM relay (`b-mobile-pc-relay`, below) ignores the installers, `*.blockmap`, `*.yml` and
+`linux-unpacked/` under `dist-electron/` but not `win-unpacked/`, so after
+`packages/b-mobile-pc/scripts/build-win-docker.sh` on the VM only a few MB arrive. (`win-unpacked/` is
+recreated by every build; that is fine here because the relay's root is the whole repo, but a relay
+rooted at `win-unpacked/` itself would halt with "root deletion".) Start-with-login registers whichever
+exe path was running, so use that one folder.
+
 ## Testing on Windows (Mutagen dev loop)
+
+**Exit the app from the tray before testing a new synced build.** Closing the window only hides it, so
+the old instance keeps running while its files are replaced underneath it, and its lazily loaded screens
+then fail to load. The app reloads itself once when that happens (`platform/staleSession.ts`, b-oss#678),
+but a clean start is what you want when testing.
 
 Same two-hop pattern as b-ark (`devutils/dev-vm-setup/mutagen-dev-loop-pattern.md`): a VM-only relay
 mirrors a worktree into a stable staging folder, and a cross-machine session mirrors that to Windows.
@@ -105,9 +168,12 @@ On the VM (done; this is the part the agent can do):
 
 ```bash
 # relay: b-mobile-pc-relay  ->  ~/live/b-mobile-pc-repo   (whole repo, so VS Code on Windows has the workspace)
+D=packages/b-mobile-pc/dist-electron
 mutagen sync terminate b-mobile-pc-relay
 mutagen sync create --name=b-mobile-pc-relay --sync-mode=one-way-replica \
-  --ignore-vcs --ignore=node_modules/ --ignore=e2e-out/ \
+  --ignore-vcs --ignore=node_modules/ --ignore=e2e-out/ --ignore=/.git \
+  --ignore="/$D/*.exe" --ignore="/$D/*.blockmap" --ignore="/$D/*.yml" \
+  --ignore="/$D/linux-unpacked/" --ignore="/$D/.icon-ico/" \
   <worktree> ~/live/b-mobile-pc-repo
 # build in the feeding worktree, then the change is on Windows within seconds
 npm run build -w @b-oss/b-mobile && npm run build -w @b-oss/b-mobile-pc

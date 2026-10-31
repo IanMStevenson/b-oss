@@ -5,6 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { TokenInvalidError, type UnreadTotals } from '@b-oss/b-notify-core';
 import {
   MAX_BACKOFF_TICKS,
+  MIN_CHECK_GAP_MS,
   NotifyPoller,
   parseState,
   POLL_INTERVAL_MS,
@@ -288,5 +289,120 @@ describe('parseState', () => {
     expect(Object.keys(state.accounts)).toEqual(['ok', 'badSeen']);
     expect(state.accounts.ok.reauthShown).toBe(true);
     expect(state.accounts.badSeen.seen).toBeNull();
+  });
+});
+
+describe('NotifyPoller observability (b-oss#677, #673)', () => {
+  const lines = (log: ReturnType<typeof vi.fn<(m: string) => void>>): string[] =>
+    log.mock.calls.map(([m]) => m);
+
+  it('logs start, configure, baseline, each poll and every show / suppress decision', async () => {
+    const log = vi.fn<(m: string) => void>();
+    const h = harness({ log });
+    await h.poller.start();
+    await h.poller.configure([
+      { accountId: 'ann', streams: { comments: true, notifications: false } },
+    ]);
+    await tickOnce();
+    h.totals.ann = { comments: 2, notifications: 3 };
+    await tickOnce(POLL_INTERVAL_MS);
+    const out = lines(log).join('\n');
+    expect(out).toContain('poller started: interval=300s');
+    expect(out).toContain('configured: accounts=[ann(comments)]');
+    expect(out).toContain('poll baseline account=ann comments=0 notifications=0');
+    expect(out).toContain('poll ok account=ann comments=2 (was 0) notifications=3 (was 0)');
+    expect(out).toContain('stream=comments new=2: showing');
+    expect(out).toContain('stream=notifications new=3: suppressed, stream is switched off');
+    expect(out).not.toContain('ann-token');
+    expect(out).not.toMatch(/token/i);
+  });
+
+  it('logs why a poll did not happen: offline, no saved sign-in, backing off', async () => {
+    const log = vi.fn<(m: string) => void>();
+    let online = false;
+    const h = harness({ log, isOnline: () => online });
+    await h.poller.start();
+    await h.poller.configure([{ accountId: 'ann', streams: BOTH }]);
+    await tickOnce();
+    expect(lines(log).join('\n')).toContain(
+      'poll skipped: the system reports no network connection',
+    );
+    expect(h.poller.getStatus().accounts[0].result?.kind).toBe('offline');
+    online = true;
+    h.tokens.ann = null;
+    await tickOnce(POLL_INTERVAL_MS);
+    expect(lines(log).join('\n')).toContain('no saved sign-in in the secure store');
+    expect(h.poller.getStatus().accounts[0].result?.kind).toBe('no-token');
+  });
+
+  it('reports last checked, next check and the last result per account', async () => {
+    vi.setSystemTime(1_000_000);
+    const h = harness();
+    await h.poller.start();
+    expect(h.poller.getStatus().accounts).toEqual([]);
+    await h.poller.configure([{ accountId: 'ann', streams: BOTH }]);
+    const before = h.poller.getStatus().accounts[0];
+    expect(before.lastCheckedAt).toBeNull();
+    expect(before.result).toBeNull();
+    await tickOnce();
+    const after = h.poller.getStatus().accounts[0];
+    expect(after.lastCheckedAt).toBe(1_000_000);
+    expect(after.nextCheckAt).toBe(1_000_000 + POLL_INTERVAL_MS);
+    expect(after.result?.kind).toBe('baseline');
+    h.totals.ann = { comments: 1, notifications: 0 };
+    await tickOnce(POLL_INTERVAL_MS);
+    expect(h.poller.getStatus().accounts[0].result).toMatchObject({ kind: 'ok', newItems: 1 });
+  });
+
+  it('classifies failures for the status line without leaking the secret', async () => {
+    const log = vi.fn<(m: string) => void>();
+    const h = harness({ log });
+    await h.poller.start();
+    await h.poller.configure([{ accountId: 'ann', streams: BOTH }]);
+    await tickOnce();
+    const limited = Object.assign(new Error('slow down ann-token'), {
+      name: 'BlipfotoError',
+      code: 11,
+    });
+    h.fetchTotals.mockRejectedValueOnce(limited);
+    await tickOnce(POLL_INTERVAL_MS);
+    expect(h.poller.getStatus().accounts[0].result?.kind).toBe('rate-limited');
+    h.fetchTotals.mockRejectedValue(new Error('x ann-token'));
+    await h.poller.checkNow(); // rate limited: not forced
+    expect(h.poller.getStatus().accounts[0].result?.kind).toBe('rate-limited');
+    expect(lines(log).join('\n')).not.toContain('ann-token');
+  });
+
+  it('Check now polls at once, skips backoff, restarts the timer, and respects the minimum gap', async () => {
+    vi.setSystemTime(5_000_000);
+    const h = harness();
+    await h.poller.start();
+    await h.poller.configure([{ accountId: 'ann', streams: BOTH }]);
+    await tickOnce(); // baseline
+    h.fetchTotals.mockRejectedValueOnce(new Error('boom'));
+    await tickOnce(POLL_INTERVAL_MS); // fails: backs off
+    expect(h.poller.getStatus().accounts[0].result?.kind).toBe('error');
+    const calls = h.fetchTotals.mock.calls.length;
+    await h.poller.checkNow(); // within 10 s of the last attempt: held back
+    expect(h.fetchTotals.mock.calls.length).toBe(calls);
+    await vi.advanceTimersByTimeAsync(MIN_CHECK_GAP_MS);
+    h.totals.ann = { comments: 2, notifications: 0 };
+    const status = await h.poller.checkNow();
+    expect(h.fetchTotals.mock.calls.length).toBe(calls + 1);
+    expect(h.shown).toHaveLength(1);
+    expect(status.accounts[0].result?.kind).toBe('ok');
+    expect(status.accounts[0].nextCheckAt).toBe(Date.now() + POLL_INTERVAL_MS);
+  });
+
+  it('Check now also tries when the system says it is offline', async () => {
+    const log = vi.fn<(m: string) => void>();
+    const h = harness({ log, isOnline: () => false });
+    await h.poller.start();
+    await h.poller.configure([{ accountId: 'ann', streams: BOTH }]);
+    await tickOnce();
+    expect(h.fetchTotals).not.toHaveBeenCalled();
+    await h.poller.checkNow();
+    expect(h.fetchTotals).toHaveBeenCalledTimes(1);
+    expect(lines(log).join('\n')).toContain('trying anyway');
   });
 });

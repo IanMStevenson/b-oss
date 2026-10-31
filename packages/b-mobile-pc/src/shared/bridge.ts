@@ -6,7 +6,7 @@
 // copy of the types, because b-mobile must not depend on this package. Keep the two in step; the
 // e2e tests exercise the real round trip.
 
-import type { NotifyPayload, NotifySettings } from './notify.js';
+import type { NotifyPayload, NotifySettings, NotifyStatus, TestNotifyResult } from './notify.js';
 
 export const BRIDGE_GLOBAL = 'bMobileDesktop';
 
@@ -19,6 +19,12 @@ export const CHANNELS = {
   notifyReceived: 'notify:received',
   notifyTapped: 'notify:tapped',
   notifyTappedReady: 'notify:tapped-ready',
+  diagLog: 'diag:log',
+  diagOpenLogFolder: 'diag:open-log-folder',
+  diagCopy: 'diag:copy',
+  notifyStatus: 'notify:status',
+  notifyCheckNow: 'notify:check-now',
+  notifyTest: 'notify:test',
 } as const;
 
 export interface DesktopBridge {
@@ -37,10 +43,24 @@ export interface DesktopBridge {
    * start-up; accounts with every stream off are simply left out. */
   readonly notify: {
     configure(settings: NotifySettings): Promise<void>;
+    /** Per-account status of the polling (b-oss#673). Read-only. */
+    status(): Promise<NotifyStatus>;
+    /** Checks every watched account now (rate-limit aware) and returns the new status. */
+    checkNow(): Promise<NotifyStatus>;
+    /** Shows a toast immediately, without the API, and reports what the OS said. */
+    sendTest(): Promise<TestNotifyResult>;
     /** A notification was shown (the window may be focused or hidden): refresh unread counts. */
     onReceived(handler: (payload: NotifyPayload) => void): () => void;
     /** The user clicked a notification; the window has already been brought to the front. A click
      * that happened before anyone listened is delivered to the first listener. */
     onTapped(handler: (payload: NotifyPayload) => void): () => void;
+  };
+  /** The error log and the error screen's actions (b-oss#639). */
+  readonly diagnostics: {
+    /** Appends one redacted entry to `userData/logs/app.log`. Never rejects. */
+    logError(entry: { source: string; message: string; stack?: string }): Promise<void>;
+    openLogFolder(): Promise<void>;
+    /** Puts text on the system clipboard (the page has no clipboard permission of its own). */
+    copyText(text: string): Promise<void>;
   };
 }

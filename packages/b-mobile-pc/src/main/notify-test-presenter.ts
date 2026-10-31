@@ -8,13 +8,15 @@
 
 import { createServer, type Server } from 'node:http';
 import type { ToShow } from './notify-poller.js';
-import type { Presenter } from './notify-shell.js';
+import { TEST_BODY, TEST_TITLE, type Presenter } from './notify-shell.js';
+import type { TestNotifyResult } from '../shared/notify.js';
 import { notificationText } from './notify-text.js';
 
 export interface RecordedNotification {
   title: string;
   body: string;
-  payload: ToShow['payload'];
+  /** null for the "Send a test notification" toast. */
+  payload: ToShow['payload'] | null;
   count: number;
 }
 
@@ -26,6 +28,12 @@ export class RecordingPresenter implements Presenter {
     this.shown.push({ ...notificationText(item.payload, item.count), ...item });
     this.clicks.push(onClick);
     return Promise.resolve();
+  }
+
+  showTest(onClick: () => void): Promise<TestNotifyResult> {
+    this.shown.push({ title: TEST_TITLE, body: TEST_BODY, payload: null, count: 0 });
+    this.clicks.push(onClick);
+    return Promise.resolve({ ok: true, detail: 'Recorded by the test presenter.' });
   }
 
   /** What a user's click on the nth notification does. False if there is no such notification. */

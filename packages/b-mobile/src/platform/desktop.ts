@@ -16,6 +16,31 @@ export interface DesktopNotifySettings {
   accounts: { accountId: string; streams: { comments: boolean; notifications: boolean } }[];
 }
 
+/** Copy of the shell's CheckResult / AccountStatus / NotifyStatus / TestNotifyResult
+ * (b-mobile-pc src/shared/notify.ts). */
+export interface DesktopCheckResult {
+  kind: 'baseline' | 'ok' | 'offline' | 'sign-in-needed' | 'rate-limited' | 'no-token' | 'error';
+  text: string;
+  newItems?: number;
+}
+
+export interface DesktopAccountStatus {
+  accountId: string;
+  lastCheckedAt: number | null;
+  nextCheckAt: number | null;
+  checking: boolean;
+  result: DesktopCheckResult | null;
+}
+
+export interface DesktopNotifyStatus {
+  accounts: DesktopAccountStatus[];
+}
+
+export interface DesktopTestNotifyResult {
+  ok: boolean;
+  detail: string;
+}
+
 export interface DesktopBridge {
   readonly version: 1;
   readonly secure: {
@@ -28,8 +53,17 @@ export interface DesktopBridge {
   openAuth(url: string, redirectPrefix: string): Promise<string>;
   readonly notify: {
     configure(settings: DesktopNotifySettings): Promise<void>;
+    status(): Promise<DesktopNotifyStatus>;
+    checkNow(): Promise<DesktopNotifyStatus>;
+    sendTest(): Promise<DesktopTestNotifyResult>;
     onReceived(handler: (payload: DesktopNotifyPayload) => void): () => void;
     onTapped(handler: (payload: DesktopNotifyPayload) => void): () => void;
+  };
+  /** The error log and the error screen's actions (b-oss#639); see platform/diagnostics.ts. */
+  readonly diagnostics: {
+    logError(entry: { source: string; message: string; stack?: string }): Promise<void>;
+    openLogFolder(): Promise<void>;
+    copyText(text: string): Promise<void>;
   };
 }
 

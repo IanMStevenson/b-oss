@@ -195,6 +195,13 @@ function handle(path, q) {
     case 'entries/journal':
       return feed();
     case 'entries/search':
+      // Like the real API, refuse a bounding box with a longitude outside [-180, 180] (b-oss#669).
+      for (const key of ['min_lon', 'max_lon']) {
+        const v = q.get(key);
+        if (v !== null && !(Math.abs(Number(v)) <= 180)) {
+          throw new StubError(0, `form.${key}_invalid`);
+        }
+      }
       // A query containing "zzz" matches nothing (reaches the no-results state).
       if ((q.get('query') ?? '').includes('zzz')) return { page: page(0, size, 0), entries: [] };
       return feed();

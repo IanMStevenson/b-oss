@@ -127,6 +127,10 @@ and the repoint command for "make that worktree available via Mutagen."
   on the VM in the feeding worktree. Steps and the VS Code launch config:
   `packages/b-mobile-pc/README.md`. The relay's source is whichever worktree was last pointed at it
   (repoint with the terminate/create pair above).
+  The same relay also carries the packaged app's `dist-electron/win-unpacked/` (installers, `*.blockmap`,
+  `*.yml` and `linux-unpacked/` are ignored), so on Windows run
+  `packages\b-mobile-pc\dist-electron\win-unpacked\b-mobile.exe` from the synced folder: fast launch,
+  no unpacking, a few MB per rebuild. See `packages/b-mobile-pc/README.md`.
 
 ## Commands
 

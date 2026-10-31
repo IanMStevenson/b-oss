@@ -87,11 +87,11 @@ vi.mock('../../../flows/pushFlow.js', () => ({ updatePollingInterval, updatePush
 
 // Off-native by default (no in-app browser, so the mismatch alert offers no retry); the
 // retry test flips it.
-let isNative = false;
-let desktop = false;
+// Hoisted: the prefs store reads the platform when it is first imported, before module-level `let`s exist.
+const platform = vi.hoisted(() => ({ isNative: false, desktop: false }));
 vi.mock('../../../platform/platformKind.js', async (importOriginal) => ({
   ...(await importOriginal<typeof import('../../../platform/platformKind.js')>()),
-  platformKind: () => (desktop ? 'desktop' : isNative ? 'android' : 'web'),
+  platformKind: () => (platform.desktop ? 'desktop' : platform.isNative ? 'android' : 'web'),
 }));
 
 vi.mock('../../../platform/prefs.js', () => ({
@@ -162,8 +162,8 @@ beforeEach(() => {
 afterEach(() => {
   cleanup();
   vi.resetAllMocks();
-  isNative = false;
-  desktop = false;
+  platform.isNative = false;
+  platform.desktop = false;
 });
 
 describe('NotificationsSection — push toggles', () => {
@@ -304,7 +304,7 @@ describe('NotificationsSection — push toggles', () => {
 
 describe('NotificationsSection — desktop (b-oss#610)', () => {
   beforeEach(() => {
-    desktop = true;
+    platform.desktop = true;
   });
 
   it('explains the tray, the login start and Exit', async () => {
@@ -326,8 +326,8 @@ describe('NotificationsSection — desktop (b-oss#610)', () => {
   });
 
   it('is not shown on Android', async () => {
-    desktop = false;
-    isNative = true;
+    platform.desktop = false;
+    platform.isNative = true;
     render(<NotificationsSection />);
     await screen.findByText('Blipfoto notification settings');
     expect(screen.queryByText(/system tray/)).toBeNull();
@@ -573,7 +573,7 @@ describe('NotificationsSection — second sign-in and wrong account (b-oss#240)'
   });
 
   it('on native, retry runs the same enable in the clean in-app browser', async () => {
-    isNative = true;
+    platform.isNative = true;
     changeAccountMode.mockRejectedValueOnce(new AccountMismatchError('alice', 'bob'));
     render(<NotificationsSection />);
     await screen.findByText('Blipfoto notification settings');

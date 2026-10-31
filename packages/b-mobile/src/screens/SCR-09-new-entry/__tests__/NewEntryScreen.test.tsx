@@ -74,6 +74,30 @@ function renderScreen(replaceEntryId?: string) {
   );
 }
 
+// Capabilities under test: the jsdom default is `web` (location and camera both available); the
+// pick-only / files-only cases flip these (b-oss#636).
+const caps = vi.hoisted(
+  (): { location: 'os' | 'pick-only'; capture: 'camera' | 'files-only' } => ({
+    location: 'os',
+    capture: 'camera',
+  }),
+);
+vi.mock('../../../platform/capabilities.js', async (importOriginal) => {
+  const real = await importOriginal<typeof import('../../../platform/capabilities.js')>();
+  return {
+    ...real,
+    capabilities: () => ({
+      ...real.capabilities(),
+      location: caps.location,
+      media: { capture: caps.capture },
+    }),
+  };
+});
+afterEach(() => {
+  caps.location = 'os';
+  caps.capture = 'camera';
+});
+
 describe('NewEntryScreen', () => {
   it('replace mode: a pick patches the open edit draft and goes back, without starting a new entry', async () => {
     useComposeDraftStore.setState({
@@ -203,5 +227,25 @@ describe('NewEntryScreen', () => {
     await userEvent.click(screen.getByText('Choose from device'));
     await waitFor(() => expect(push).toHaveBeenCalledWith('/compose/details'));
     expect(useComposeDraftStore.getState().draft?.date).toBe('2026-02-01');
+  });
+});
+
+describe('NewEntryScreen without a camera route (desktop, b-oss#636)', () => {
+  it('offers only a choose-a-photo action, labelled for what it does, and no browser/picker copy', async () => {
+    caps.capture = 'files-only';
+    pickPhoto.mockResolvedValue(null);
+    renderScreen();
+    expect(screen.queryByText('Take a photo')).toBeNull();
+    expect(screen.queryByText('Choose from device')).toBeNull();
+    expect(screen.queryByText(/system picker/i)).toBeNull();
+    await userEvent.click(screen.getByText('Choose a photo'));
+    expect(pickPhoto).toHaveBeenCalled();
+    expect(takePhoto).not.toHaveBeenCalled();
+  });
+
+  it('with a camera it is unchanged: both tiles, the original label', () => {
+    renderScreen();
+    expect(screen.getByText('Take a photo')).toBeDefined();
+    expect(screen.getByText('Choose from device')).toBeDefined();
   });
 });

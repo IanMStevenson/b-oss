@@ -14,6 +14,15 @@ fetches the Linux Electron binary if `node_modules/electron/dist` is missing, bu
 shell, starts the stub servers, starts the shell in the container, runs `shell.e2e.ts`, and cleans up.
 Screenshots and logs go to `e2e-out/` (git-ignored) or `$BMPC_E2E_OUT`.
 
+**Running several at once** (several workers, or a worker and the coordinator): each run picks its own
+container name (`bmpc-e2e-shell-<pid>`) and four free ports (DevTools, stub API, fake sign-in, test
+notifications), passes them to the container and to the tests (`BMPC_CDP`, `BMPC_STUB`, `BMPC_NOTIFY`,
+`BMPC_E2E_CONTAINER`), and its cleanup removes only its own container and servers. Nothing to configure.
+Give runs from the _same_ checkout different `BMPC_E2E_OUT` directories (the default `e2e-out/` is per
+checkout). Pin the id or ports with `E2E_ID`, `E2E_CDP_PORT`, `E2E_STUB_PORT`, `E2E_AUTH_PORT`,
+`E2E_NOTIFY_PORT` if you need to. A test that needs the container (for example `docker logs`) must use
+`process.env.BMPC_E2E_CONTAINER`, never a literal name; likewise ports from the env vars above.
+
 ## What it covers
 
 The shell's security posture (CSP, no Node in the page, path traversal, sign-in request validation, denied
@@ -28,6 +37,8 @@ mode are driven over `/__unread` and `/__token-dead`. Covered: enabling is a pla
 round, no "unavailable" copy), the first poll announces nothing, one notification per rise, none for a
 stream switched off and no catch-up when it comes back, a click routes to the right screen, and a dead
 token raises exactly one sign-in-again notification.
+
+The error log (b-oss#639): an unhandled page error lands in `userData/logs/app.log` with its token redacted, and the error screen shows the message with Copy details (through the bridge to the clipboard) and Open log folder. The render failure is simulated by handing the app's real error boundary an error through React's fiber tree.
 
 ## What it cannot cover
 

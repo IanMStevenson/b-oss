@@ -112,7 +112,7 @@ ion-segment.settings-pill-segment {
   padding: 3px;
   margin: 0 16px 4px;
   width: calc(100% - 32px);
-  min-height: 40px;
+  min-height: var(--control-height);
 }
 
 ion-segment.settings-pill-segment ion-segment-button {
@@ -120,7 +120,7 @@ ion-segment.settings-pill-segment ion-segment-button {
   --color-checked: var(--on-accent);
   --indicator-color: var(--accent);
   --border-radius: 999px;
-  min-height: 34px;
+  min-height: var(--segment-button-height);
 }
 
 /* The md indicator is a 2px underline by default; stretch it into a filled pill behind the label. */
@@ -466,4 +466,9 @@ ion-item.nav-item-current::after {
 
 .entry-popup.maplibregl-popup-anchor-right .maplibregl-popup-tip {
   border-left-color: var(--bg);
+}
+
+/* The pin button at the top of the navigation menu (desktop, wide window; b-oss#638). */
+ion-button.nav-pin {
+  margin: 4px 8px 0;
 }

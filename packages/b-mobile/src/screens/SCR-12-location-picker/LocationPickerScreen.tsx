@@ -22,6 +22,7 @@ import '../../components/ComposeForm.css';
 import { getMapStyleUrl, MAP_ATTRIBUTION } from '../../platform/mapTiles.js';
 import { isDarkTheme, useResolvedTheme } from '../../theme/theme.js';
 import { getCurrentPosition } from '../../platform/geolocation.js';
+import { capabilities } from '../../platform/capabilities.js';
 import { useAppNavigate } from '../../app/routes/useAppNavigate.js';
 import { useComposeDraftStore } from '../../state/composeDraftStore.js';
 
@@ -148,14 +149,16 @@ export function LocationPickerScreen() {
           <div className="location-picker">
             <div className="location-map">
               <div ref={containerRef} className="location-map-canvas" />
-              <button
-                type="button"
-                className="map-locate"
-                onClick={() => void handleMyLocation()}
-                aria-label="My location"
-              >
-                <LocateFixed size={22} aria-hidden="true" />
-              </button>
+              {capabilities().location === 'os' && (
+                <button
+                  type="button"
+                  className="map-locate"
+                  onClick={() => void handleMyLocation()}
+                  aria-label="My location"
+                >
+                  <LocateFixed size={22} aria-hidden="true" />
+                </button>
+              )}
               {mapFailed && (
                 <div
                   className="ion-padding"

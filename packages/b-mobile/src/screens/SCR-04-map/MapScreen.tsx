@@ -63,6 +63,7 @@ import { resumeGet, resumeSet } from '../../data/resumeCache.js';
 import { useHiddenMembers } from '../../state/hiddenMembersStore.js';
 import { useAppNavigate } from '../../app/routes/useAppNavigate.js';
 import { errorMessageOf } from '../../data/errors.js';
+import { capabilities } from '../../platform/capabilities.js';
 
 interface MapScreenProps {
   /** From the `?entry=<id>` query param (app-architecture.md §5's route table) — AppRoutes.tsx
@@ -82,6 +83,8 @@ interface MapView {
   center: [number, number];
   zoom: number;
 }
+
+const ENTRIES_FAILED_MESSAGE = 'Could not load entries for this area.';
 
 type EntriesStatus = 'loading' | 'loaded' | 'empty' | 'error';
 
@@ -321,9 +324,11 @@ export function MapScreen({ focusedEntryId }: MapScreenProps) {
       (err: unknown) => {
         if (id !== requestIdRef.current) return;
         // Non-blocking per SCR-04: the map (and its already-shown markers, if any) stay usable;
-        // the next pan/zoom tries again on its own, no explicit retry action.
+        // the next pan/zoom tries again on its own, and "Try again" re-requests the same area.
+        // Never the API's own text above the map (b-oss#669): a fixed message, the detail logged.
+        console.warn('[map] entries request failed', errorMessageOf(err, 'unknown error'));
         setEntriesStatus('error');
-        setEntriesError(errorMessageOf(err, 'Could not load entries.'));
+        setEntriesError(ENTRIES_FAILED_MESSAGE);
       },
     );
   }, [debouncedBounds, renderMarkers]);
@@ -371,14 +376,16 @@ export function MapScreen({ focusedEntryId }: MapScreenProps) {
         ) : (
           <div style={{ position: 'relative', height: '100%' }}>
             <div ref={containerRef} style={{ position: 'absolute', inset: 0 }} />
-            <button
-              type="button"
-              className="map-locate"
-              onClick={() => void handleMyLocation()}
-              aria-label="My location"
-            >
-              <LocateFixed size={22} aria-hidden="true" />
-            </button>
+            {capabilities().location === 'os' && (
+              <button
+                type="button"
+                className="map-locate"
+                onClick={() => void handleMyLocation()}
+                aria-label="My location"
+              >
+                <LocateFixed size={22} aria-hidden="true" />
+              </button>
+            )}
             {(mapFailed || mapError) && (
               <div
                 className="ion-padding"
@@ -400,7 +407,16 @@ export function MapScreen({ focusedEntryId }: MapScreenProps) {
                 style={{ position: 'absolute', top: 0, left: 0, right: 0, background: 'var(--bg)' }}
               >
                 <IonText color="danger">
-                  <p>{entriesError}</p>
+                  <p>
+                    {entriesError}{' '}
+                    <button
+                      type="button"
+                      className="map-retry"
+                      onClick={() => setBounds((b) => (b ? { ...b } : b))}
+                    >
+                      Try again
+                    </button>
+                  </p>
                 </IonText>
               </div>
             )}

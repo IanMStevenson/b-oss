@@ -1,14 +1,15 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (C) 2026 Ian Stevenson
 
-// End-to-end tests for the real shell. e2e/run.sh starts Electron in Docker (CDP on :9222) with
+// End-to-end tests for the real shell. e2e/run.sh starts Electron in Docker (CDP port from BMPC_CDP, default :9222) with
 // b-mobile's stub API behind the proxy and a fake sign-in server; these tests drive its window with
 // Playwright over CDP. The tests share one window and run in order: the later ones build on the
 // signed-in state the sign-in test leaves.
 
+import { existsSync, mkdirSync, readFileSync, readdirSync, renameSync } from 'node:fs';
 import { chromium, type Browser, type Page } from 'playwright-core';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { existsSync, mkdirSync, readFileSync } from 'node:fs';
+import { execFileSync } from 'node:child_process';
 import { join } from 'node:path';
 
 const CDP = process.env.BMPC_CDP ?? 'http://127.0.0.1:9222';
@@ -153,6 +154,106 @@ describe('sign-in and secrets', () => {
   });
 });
 
+// Capabilities on desktop (b-oss#636): no OS location and no camera, so those controls are absent
+// rather than dead, and the location picker (lazy chunk, map) opens without the error screen.
+describe('desktop capabilities: location and camera', () => {
+  it('New entry offers only choosing a file, and no Android picker copy', async () => {
+    await page.setViewportSize({ width: 1200, height: 800 });
+    await go('/compose', 3000);
+    const body = await text();
+    expect(body).toContain('Choose a photo');
+    expect(body).not.toMatch(/Take a photo|Choose from device|system picker/i);
+    await shot('7-new-entry');
+  });
+
+  it('the location picker opens (no error screen) and has no "My location" control', async () => {
+    await go('/compose/location', 4000);
+    expect(await text()).not.toMatch(/Something went wrong/i);
+    expect(await page.getByLabel('My location').count()).toBe(0);
+    await shot('8-location-picker');
+  });
+
+  it('the map has no "My location" control', async () => {
+    await go('/map', 4000);
+    expect(await text()).not.toMatch(/Something went wrong/i);
+    expect(await page.getByLabel('My location').count()).toBe(0);
+  });
+
+  it('Nearby explains there is no location here and offers the map instead of "Allow location"', async () => {
+    await go('/browse', 4000);
+    await page.evaluate(() => {
+      document
+        .querySelector('ion-segment')
+        ?.dispatchEvent(new CustomEvent('ionChange', { detail: { value: 'nearby' } }));
+    });
+    await page.waitForTimeout(1000);
+    const body = await text();
+    expect(body).toContain('Open the map');
+    expect(body).not.toContain('Allow location');
+  });
+});
+
+// Responsive navigation (b-oss#638): beside the page on a wide window, collapsed on Browse and
+// Entry, a remembered pin overrides both ways, and the drawer below the breakpoint.
+describe('responsive navigation menu', () => {
+  const visible = (): Promise<boolean> =>
+    page.evaluate(
+      () =>
+        document.querySelector('ion-split-pane')?.classList.contains('split-pane-visible') ?? false,
+    );
+  const pin = async (label: string): Promise<void> => {
+    await page.getByText(label, { exact: true }).first().click();
+    await page.waitForTimeout(500);
+  };
+
+  it('is open beside the page on Accounts and Settings, collapsed on Browse', async () => {
+    await page.setViewportSize({ width: 1300, height: 800 });
+    await go('/accounts', 2500);
+    expect(await visible()).toBe(true);
+    expect(await text()).toContain('Collapse menu');
+    await shot('9-nav-accounts-open');
+    await go('/settings', 2500);
+    expect(await visible()).toBe(true);
+    await shot('10-nav-settings-open');
+    await go('/browse', 4000);
+    expect(await visible()).toBe(false);
+    await shot('11-nav-browse-collapsed');
+  });
+
+  it('a pin forces it open on Browse, closed on Accounts, and is remembered across a reload', async () => {
+    await go('/browse', 3000);
+    await page.locator('ion-menu-button').first().click(); // the drawer, from the header
+    await page.waitForTimeout(600);
+    await shot('12a-nav-drawer-opened');
+    await pin('Keep menu open');
+    expect(await visible()).toBe(true);
+    await shot('12-nav-browse-pinned-open');
+    await page.reload();
+    await page.waitForLoadState('load');
+    await go('/browse', 3500);
+    expect(await visible()).toBe(true);
+
+    await pin('Collapse menu'); // undo: back to automatic
+    await go('/accounts', 2500);
+    expect(await visible()).toBe(true);
+    await pin('Collapse menu');
+    expect(await visible()).toBe(false);
+    await shot('13-nav-accounts-pinned-closed');
+    await page.locator('ion-menu-button').first().click();
+    await page.waitForTimeout(600);
+    await pin('Keep menu open'); // back to automatic again
+    expect(await visible()).toBe(true);
+  });
+
+  it('is the drawer on a narrow window', async () => {
+    await page.setViewportSize({ width: 800, height: 800 });
+    await go('/accounts', 2500);
+    expect(await visible()).toBe(false);
+    expect(await text()).not.toContain('Collapse menu');
+    await page.setViewportSize({ width: 1300, height: 800 });
+  });
+});
+
 // The stub API logs every avatar upload it receives ("avatar upload: N bytes body, filename=...,
 // type=..., content-type header=..."); run.sh writes that log to e2e-out/stub-api.log.
 function stubUploads(): { bytes: number; type: string; contentType: string }[] {
@@ -203,14 +304,16 @@ describe('uploads through the proxy', () => {
 // (BMPC_TEST_POLL_INTERVAL_MS) and records what it would have shown instead of showing it
 // (BMPC_TEST_NOTIFY_PORT); the stub's counts are raised and lowered over its /__unread control URL.
 // The tests run in order and build on the account the sign-in tests left signed in.
-const STUB = 'http://127.0.0.1:5192';
-const NOTIFY = 'http://127.0.0.1:5194';
+// The container this run started (e2e/run.sh gives each run its own, b-oss#683).
+const CONTAINER = process.env.BMPC_E2E_CONTAINER ?? 'bmpc-e2e-shell';
+const STUB = process.env.BMPC_STUB ?? 'http://127.0.0.1:5192';
+const NOTIFY = process.env.BMPC_NOTIFY ?? 'http://127.0.0.1:5194';
 
 interface Shown {
   title: string;
   body: string;
   count: number;
-  payload: { kind: string; stream?: string; accountId: string };
+  payload: { kind: string; stream?: string; accountId: string } | null;
 }
 const shown = async (): Promise<Shown[]> =>
   (await fetch(`${NOTIFY}/shown`)).json() as Promise<Shown[]>;
@@ -289,15 +392,66 @@ describe('desktop notifications by polling', () => {
     expect(list.at(-1)?.payload).toMatchObject({ stream: 'comments' });
   });
 
+  it('shows when it last checked and when it will next, and Check now polls at once (b-oss#673)', async () => {
+    await go('/settings/notifications', 4000);
+    const line = (): Promise<string> =>
+      page.evaluate(
+        () => document.querySelector('[data-testid="notify-status"]')?.textContent ?? '',
+      );
+    expect(await line()).toMatch(/^Checked (just now|a minute ago|\d+ minutes? ago) · next check /);
+    expect(await line()).toContain('Nothing new');
+    await shot('7-notification-status');
+    const before = (await shown()).length;
+    await setUnread(7, 9); // +1 comment
+    await page.getByRole('button', { name: 'Check now' }).click();
+    await page.waitForTimeout(1500);
+    expect(await shown()).toHaveLength(before + 1);
+    expect(await line()).toMatch(/1 new, 1 notification\(s\) shown|Nothing new/);
+  });
+
+  it('Send a test notification shows a toast with no API involved, and logs the result (b-oss#677)', async () => {
+    const before = (await shown()).length;
+    await page.getByRole('button', { name: 'Send a test notification' }).click();
+    await page.waitForSelector('[data-testid="notify-test-result"]', { timeout: 10_000 });
+    const list = await shown();
+    expect(list).toHaveLength(before + 1);
+    expect(list.at(-1)).toMatchObject({ title: 'b-mobile test notification', payload: null });
+    await shot('8-test-notification');
+  });
+
+  it('writes the pipeline to app.log: start-up facts, polls, decisions, the test toast; no secrets', () => {
+    expect(USER_DATA, 'run through e2e/run.sh').toBeTruthy();
+    const log = readFileSync(join(USER_DATA ?? '', 'logs', 'app.log'), 'utf8');
+    for (const expected of [
+      '"source":"notify"',
+      'start: version=',
+      'Notification.isSupported()=',
+      'poller started',
+      'configured: accounts=[cyclopstest(comments,notifications)]',
+      'poll baseline account=cyclopstest',
+      'poll ok account=cyclopstest',
+      'stream=comments new=3: showing',
+      'stream=notifications new=',
+      'suppressed, stream is switched off',
+      'notifications on: 1 account(s) watched',
+      'login item: left alone',
+      'check now requested',
+      'test notification: ok',
+    ]) {
+      expect(log, expected).toContain(expected);
+    }
+    expect(log).not.toMatch(/Bearer|access_token/i);
+  });
+
   it('a click routes to the right screen', async () => {
     await go('/browse', 2500);
     const list = await shown();
-    const index = list.findIndex((n) => n.payload.stream === 'notifications');
+    const index = list.findIndex((n) => n.payload?.stream === 'notifications');
     expect((await fetch(`${NOTIFY}/click/${index}`, { method: 'POST' })).status).toBe(200);
     await page.waitForFunction(() => location.pathname === '/notifications', undefined, {
       timeout: 10_000,
     });
-    const last = list.length - 1;
+    const last = list.map((n) => n.payload?.stream).lastIndexOf('comments');
     await fetch(`${NOTIFY}/click/${last}`, { method: 'POST' });
 
     await page.waitForFunction(() => location.pathname === '/comments', undefined, {
@@ -310,19 +464,281 @@ describe('desktop notifications by polling', () => {
     await fetch(`${STUB}/__token-dead?on=1`);
     await settle(5000);
     const after = await shown();
-    const reauth = after.slice(before).filter((n) => n.payload.kind === 'reauth-required');
+    const reauth = after.slice(before).filter((n) => n.payload?.kind === 'reauth-required');
     expect(reauth).toHaveLength(1);
     expect(reauth[0]?.body).toMatch(/Sign in again/);
     await settle(); // polling that account has stopped: still just the one
-    expect((await shown()).filter((n) => n.payload.kind === 'reauth-required')).toHaveLength(1);
+    expect((await shown()).filter((n) => n.payload?.kind === 'reauth-required')).toHaveLength(1);
     await fetch(`${STUB}/__token-dead?on=0`);
 
-    const index = after.findIndex((n) => n.payload.kind === 'reauth-required');
+    const index = after.findIndex((n) => n.payload?.kind === 'reauth-required');
     await fetch(`${NOTIFY}/click/${index}`, { method: 'POST' });
     await page.waitForFunction(() => location.pathname === '/accounts', undefined, {
       timeout: 10_000,
     });
     expect(page.url()).toContain('reauth=cyclopstest');
     await shot('5-reauth');
+  });
+});
+
+describe('the error log and copyable details (b-oss#639)', () => {
+  const logFile = (): string =>
+    USER_DATA ? join(USER_DATA, 'logs', 'app.log') : join(OUT, 'no-user-data');
+  const readLog = (): string => (existsSync(logFile()) ? readFileSync(logFile(), 'utf8') : '');
+
+  it('logs an unhandled page error with its token redacted', async () => {
+    expect(USER_DATA, 'run through e2e/run.sh').toBeTruthy();
+    await page.evaluate(() => {
+      setTimeout(() => {
+        throw new Error(
+          'lookup failed: access_token=SECRETVALUE9 Authorization: Bearer abcDEF123456',
+        );
+      }, 0);
+    });
+    await page.waitForTimeout(1500);
+    const log = readLog();
+    expect(log).toContain('lookup failed');
+    expect(log).toContain('"source":"window-error"');
+    expect(log).not.toContain('SECRETVALUE9');
+    expect(log).not.toContain('abcDEF123456');
+  });
+
+  it('shows the message with Copy details and Open log folder when a render fails', async () => {
+    // Reach the app's error boundary through React's fiber tree and hand it an error exactly as React
+    // does for a failed render (getDerivedStateFromError, then componentDidCatch): a genuinely failing
+    // render cannot be forced from outside without changing the app.
+    await page.evaluate(() => {
+      const root = document.getElementById('root') as unknown as Record<string, unknown>;
+      const key = Object.keys(root).find((k) => k.startsWith('__reactContainer'));
+      type Fiber = { stateNode?: unknown; child?: Fiber | null; sibling?: Fiber | null };
+      const find = (f: Fiber | null | undefined): Fiber | null => {
+        for (let n = f; n; n = n.sibling) {
+          const inst = n.stateNode as { componentDidCatch?: unknown } | null;
+          if (inst && typeof inst.componentDidCatch === 'function') return n;
+          const hit = find(n.child);
+          if (hit) return hit;
+        }
+        return null;
+      };
+      const fiber = find(root[key ?? ''] as Fiber);
+      if (!fiber) throw new Error('no error boundary found');
+      const inst = fiber.stateNode as {
+        constructor: { getDerivedStateFromError(e: Error): object };
+        setState(s: object): void;
+        componentDidCatch(e: Error, i: { componentStack: string }): void;
+      };
+      const error = new Error('forced render failure token=SECRETVALUE9');
+      inst.setState(inst.constructor.getDerivedStateFromError(error));
+      inst.componentDidCatch(error, { componentStack: '\n    in ForcedFailure' });
+    });
+    await page.waitForSelector('[role="alert"]', { timeout: 10_000 });
+    const body = await text();
+    expect(body).toContain('Something went wrong');
+    expect(body).toContain('forced render failure');
+    expect(body).not.toContain('SECRETVALUE9');
+    expect(body).toContain('Copy details');
+    expect(body).toContain('Open log folder');
+    await shot('6-error-screen');
+    await page.waitForTimeout(500);
+    const log = readLog();
+    expect(log).toContain('"source":"boundary"');
+    expect(log).toContain('forced render failure');
+    expect(log).not.toContain('SECRETVALUE9');
+    // Copy details goes through the bridge to the real clipboard.
+    await page.getByRole('button', { name: 'Copy details' }).click();
+    await page.waitForFunction(() => document.body.innerText.includes('Copied'), undefined, {
+      timeout: 5000,
+    });
+  });
+});
+
+// Browse zoom (b-oss#635): on a wide window with the desktop profile's 156px tile the control must
+// keep stepping, Ctrl+wheel and Ctrl +/-/0 drive the app's own zoom, and Chromium's page zoom
+// (devicePixelRatio) never moves. Chromium's own page-zoom accelerators come from the application
+// menu, which CDP key events bypass, so that half is covered by app-menu.test.ts, not here.
+describe('browse zoom', () => {
+  const percent = async (): Promise<number> => {
+    const label = page.getByText(/^\d+%$/).first();
+    return Number.parseInt((await label.innerText()).replace('%', ''), 10);
+  };
+  const click = (name: string): Promise<void> => page.getByLabel(name).first().click();
+  let dpr = 1;
+
+  it('steps through values on a wide window and never sticks between two values', async () => {
+    await page.setViewportSize({ width: 2600, height: 900 });
+    await go('/browse', 5000);
+    dpr = await page.evaluate(() => window.devicePixelRatio);
+    for (let i = 0; i < 25; i++) await click('Zoom in');
+    expect(await percent()).toBe(200);
+    const seen = new Set<number>();
+    for (let i = 0; i < 6; i++) {
+      const before = await percent();
+      await click('Zoom out');
+      const after = await percent();
+      expect(after).toBeLessThan(before);
+      seen.add(after);
+    }
+    expect(seen.size).toBe(6);
+    await click('Zoom in');
+    await shot('6-browse-wide-zoom');
+  });
+
+  it('Ctrl+wheel changes the app zoom', async () => {
+    await click('Reset zoom');
+    await page.mouse.move(1300, 500);
+    await page.keyboard.down('Control');
+    await page.mouse.wheel(0, -100);
+    await page.keyboard.up('Control');
+    await page.waitForTimeout(300);
+    expect(await percent()).toBe(110);
+    await page.keyboard.down('Control');
+    await page.mouse.wheel(0, 100);
+    await page.keyboard.up('Control');
+    await page.waitForTimeout(300);
+    expect(await percent()).toBe(100);
+  });
+
+  it('Ctrl +, -, 0 and the numpad keys change the app zoom', async () => {
+    await page.keyboard.press('Control+Equal');
+    expect(await percent()).toBe(110);
+    await page.keyboard.press('Control+NumpadAdd');
+    expect(await percent()).toBe(120);
+    await page.keyboard.press('Control+Minus');
+    expect(await percent()).toBe(110);
+    await page.keyboard.press('Control+NumpadSubtract');
+    expect(await percent()).toBe(100);
+    await page.keyboard.press('Control+Equal');
+    await page.keyboard.press('Control+0');
+    expect(await percent()).toBe(100);
+  });
+
+  it('leaves the page zoom alone', async () => {
+    expect(await page.evaluate(() => window.devicePixelRatio)).toBe(dpr);
+    expect(await page.evaluate(() => window.visualViewport?.scale ?? 1)).toBe(1);
+  });
+});
+
+describe('keyboard scrolling (b-oss#668)', () => {
+  const scrollTop = (): Promise<number> =>
+    page.evaluate(async () => {
+      const contents = [...document.querySelectorAll('ion-content')].filter(
+        (c) => !c.closest('.ion-page-hidden'),
+      ) as unknown as { getScrollElement(): Promise<HTMLElement> }[];
+      const el = await contents[contents.length - 1].getScrollElement();
+      return el.scrollTop;
+    });
+  const press = async (key: string): Promise<number> => {
+    await page.keyboard.press(key);
+    await page.waitForTimeout(300);
+    return scrollTop();
+  };
+
+  it('Up/Down/PageUp/PageDown/Home/End scroll a long entry page with nothing focused', async () => {
+    await go('/entry/5000000003', 4500);
+    await page.evaluate(() => (document.activeElement as HTMLElement | null)?.blur());
+    expect(await scrollTop()).toBe(0);
+    const afterDown = await press('ArrowDown');
+    expect(afterDown).toBeGreaterThan(0);
+    const afterPage = await press('PageDown');
+    expect(afterPage).toBeGreaterThan(afterDown);
+    expect(await press('PageUp')).toBeLessThan(afterPage);
+    expect(await press('End')).toBeGreaterThanOrEqual(afterPage);
+    expect(await press('Home')).toBe(0);
+    await press('ArrowDown');
+    expect(await press('ArrowUp')).toBe(0);
+  });
+
+  it('Left/Right do not scroll the page', async () => {
+    const before = await scrollTop();
+    await page.keyboard.press('ArrowRight');
+    await page.waitForTimeout(500);
+    // Whether it navigates depends on the entry having neighbours; it must never scroll.
+    expect(await scrollTop()).toBe(before);
+  });
+});
+
+describe('a stale session (b-oss#678)', () => {
+  const assets = join(__dirname, '..', '..', 'b-mobile', 'dist', 'assets');
+  const chunk = (): string => {
+    const name = readdirSync(assets).find((f) => /^MapScreen-.*\.js$/.test(f));
+    if (!name) throw new Error('No MapScreen chunk in the build');
+    return join(assets, name);
+  };
+
+  it('reloads once when a lazy chunk has vanished, then shows the error screen; a restored build works', async () => {
+    const file = chunk();
+    renameSync(file, `${file}.hidden`);
+    try {
+      let loads = 0;
+      const count = (): void => {
+        loads += 1;
+      };
+      page.on('load', count);
+      await page.evaluate(() => sessionStorage.removeItem('bmpc-stale-chunk-reload'));
+      await go('/map', 6000);
+      page.off('load', count);
+      // The navigation itself, plus exactly one automatic reload; no loop.
+      expect(loads).toBe(2);
+      expect(await text()).toMatch(/something went wrong|reload/i);
+      await shot('6-stale-chunk');
+    } finally {
+      renameSync(`${file}.hidden`, file);
+    }
+    await page.evaluate(() => sessionStorage.removeItem('bmpc-stale-chunk-reload'));
+    await go('/map', 4000);
+    expect(await text()).not.toMatch(/something went wrong/i);
+  });
+});
+
+// Destructive tests (they crash or reload the renderer) must stay LAST in this file: every test after them
+// would run against a page that is gone.
+describe('the page going away mid-IPC (disposed render frame)', () => {
+  it('reloads under a storm of IPC calls without an unhandled rejection in the main process', async () => {
+    const callers = page.evaluate(async () => {
+      const bridge = window.bMobileDesktop;
+      const calls: Promise<unknown>[] = [];
+      for (let i = 0; i < 200; i++) {
+        calls.push(Promise.resolve(bridge?.secure.get('k')).catch(() => undefined));
+        calls.push(
+          Promise.resolve(bridge?.notify.configure({ accounts: [] })).catch(() => undefined),
+        );
+      }
+      location.reload();
+      await Promise.allSettled(calls);
+    });
+    await callers.catch(() => undefined); // the page is torn down under it: expected
+    // Notifications fire (counts keep rising) and clicks arrive while the page is being reloaded, so the
+    // shell sends to the renderer exactly as its frame is replaced.
+    for (let i = 0; i < 14; i++) {
+      await setUnread(20 + i, 20 + i);
+      await page.waitForTimeout(700);
+      await fetch(`${NOTIFY}/click/0`, { method: 'POST' }).catch(() => undefined);
+      await page.evaluate(() => location.reload()).catch(() => undefined);
+    }
+    await setUnread(0, 0);
+    await page.waitForLoadState('load');
+    await page.waitForTimeout(2000);
+    expect(await page.evaluate(() => window.bMobileDesktop?.version)).toBe(1);
+
+    const logs = execFileSync('docker', ['logs', CONTAINER], {
+      encoding: 'utf8',
+      stdio: ['ignore', 'pipe', 'pipe'],
+    });
+    expect(logs).not.toMatch(/UnhandledPromiseRejection|unhandled rejection|disposed before/i);
+  });
+
+  it('survives the renderer crashing while notifications and clicks arrive', async () => {
+    await page.goto('chrome://crash').catch(() => undefined);
+    for (let i = 0; i < 6; i++) {
+      await setUnread(60 + i, 60 + i);
+      await fetch(`${NOTIFY}/click/0`, { method: 'POST' }).catch(() => undefined);
+      await settle(1000);
+    }
+    await setUnread(0, 0);
+    const logs = execFileSync('docker', ['logs', CONTAINER], {
+      encoding: 'utf8',
+      stdio: ['ignore', 'pipe', 'pipe'],
+    });
+    expect(logs).not.toMatch(/UnhandledPromiseRejection|unhandled rejection|disposed before/i);
   });
 });

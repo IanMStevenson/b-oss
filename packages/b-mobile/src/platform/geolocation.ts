@@ -16,6 +16,7 @@
 // still being able to tell the two apart if a future caller needs to.
 
 import { Geolocation } from '@capacitor/geolocation';
+import { capabilities } from './capabilities.js';
 
 export interface Coordinates {
   lat: number;
@@ -41,6 +42,9 @@ async function ensurePermission(): Promise<void> {
 }
 
 export async function getCurrentPosition(): Promise<Coordinates | null> {
+  // Desktop has no usable OS location (capabilities().location): refuse up front, the same way a
+  // refused permission does, rather than let the plugin's web fallback fail in its own way.
+  if (capabilities().location !== 'os') throw new Error('Location is not available here.');
   await ensurePermission();
   try {
     const position = await Geolocation.getCurrentPosition({ enableHighAccuracy: false });
