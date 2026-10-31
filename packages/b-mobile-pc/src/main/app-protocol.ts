@@ -57,9 +57,24 @@ export function planAppRequest(
   const relative = posix.normalize(pathname === '/' ? '/index.html' : pathname).replace(/^\/+/, '');
   const file = resolve(root, relative);
   if (file !== root && !file.startsWith(root + sep)) return { kind: 'reject', status: 403 };
-  // A path with a file extension is an asset: if it is missing that is a 404, not the SPA shell.
-  const looksLikeAsset = /\.[A-Za-z0-9]+$/.test(relative);
-  return { kind: 'static', file, spaFallback: !looksLikeAsset };
+  return { kind: 'static', file, spaFallback: !looksLikeAsset(relative) };
+}
+
+/** Extensions of the files a web build contains. Only these are assets: a missing one is a 404, not the
+ * SPA shell. Any other dot in the last segment (a profile route such as /profile/john.smith) is part of
+ * a name and falls back to the app. A user name that ends in one of these extensions would 404 on a
+ * direct load of its URL; in-app navigation never asks the shell for it. */
+const ASSET_EXTENSIONS = new Set([
+  'html', 'htm', 'js', 'mjs', 'cjs', 'css', 'map', 'json', 'webmanifest', 'txt', 'xml', 'wasm',
+  'png', 'jpg', 'jpeg', 'gif', 'webp', 'avif', 'svg', 'ico',
+  'woff', 'woff2', 'ttf', 'otf', 'eot',
+  'mp3', 'mp4', 'webm', 'ogg', 'wav', 'pdf',
+]); // prettier-ignore
+
+export function looksLikeAsset(relativePath: string): boolean {
+  const last = relativePath.split('/').pop() ?? '';
+  const dot = last.lastIndexOf('.');
+  return dot > 0 && ASSET_EXTENSIONS.has(last.slice(dot + 1).toLowerCase());
 }
 
 const MIME: Record<string, string> = {

@@ -36,6 +36,12 @@ import {
   sanitiseRequestHeaders,
   sanitiseResponseHeaders,
 } from './app-protocol.js';
+import {
+  MISSING_PAGE_CSP,
+  MissingLogGate,
+  buildMissingWebPage,
+  isOpenLogFolderRequest,
+} from './missing-web.js';
 import { ErrorLog, parseErrorEntry, type LogFs } from './error-log.js';
 import { isTrustedEvent } from './safe-ipc.js';
 import { createRejectionReporter, describeRejection } from './unhandled.js';
@@ -155,32 +161,103 @@ async function proxyApi(request: Request, target: string): Promise<Response> {
   }
 }
 
-async function readStatic(file: string): Promise<Buffer | null> {
+type ReadResult = { body: Buffer } | { missing: string };
+
+async function readStatic(file: string): Promise<ReadResult> {
   try {
-    return await readFile(file);
+    return { body: await readFile(file) };
   } catch (err) {
-    if (
-      (err as NodeJS.ErrnoException).code === 'ENOENT' ||
-      (err as NodeJS.ErrnoException).code === 'EISDIR'
-    ) {
-      return null;
-    }
+    const code = (err as NodeJS.ErrnoException).code;
+    if (code === 'ENOENT' || code === 'EISDIR') return { missing: code };
     throw err;
   }
 }
 
+const exists = (path: string): Promise<boolean> =>
+  stat(path).then(
+    () => true,
+    () => false,
+  );
+
+// Lines about the web build go to the app log with source "shell" (b-oss#695). The gate keeps one
+// missing asset, asked for again and again, from flooding it. Set once the log exists.
+let shellLog: ((message: string) => void) | null = null;
+let openLogFolderFromPage: (() => Promise<void>) | null = null;
+const missingGate = new MissingLogGate();
+const logMissing = (key: string, repeatable: boolean, message: string): void => {
+  if (shellLog && missingGate.shouldLog(key, Date.now(), repeatable)) shellLog(message);
+};
+
+async function missingWebResponse(
+  request: Request,
+  file: string,
+  reason: string,
+): Promise<Response> {
+  const [distDirExists, indexExists] = await Promise.all([
+    exists(distDir),
+    exists(join(distDir, 'index.html')),
+  ]);
+  logMissing(
+    `doc:${request.url}:${reason}`,
+    true,
+    `web build not found: url=${request.url} looked-in=${file} dist=${distDir} ` +
+      `distExists=${distDirExists} indexExists=${indexExists} reason=${reason}`,
+  );
+  const html = buildMissingWebPage({
+    distDir,
+    distDirExists,
+    indexExists,
+    version: shellBuild,
+    requestedUrl: request.url,
+    reason,
+  });
+  return new Response(html, {
+    status: 404,
+    headers: {
+      'content-type': 'text/html; charset=utf-8',
+      'content-security-policy': MISSING_PAGE_CSP,
+      'x-content-type-options': 'nosniff',
+      'cache-control': 'no-store',
+    },
+  });
+}
+
 async function handleAppRequest(request: Request): Promise<Response> {
+  if (isOpenLogFolderRequest(request.url, request.method)) {
+    await openLogFolderFromPage?.();
+    // Back to the app root: it re-checks for the web files, so the button doubles as a retry.
+    return Response.redirect(`${APP_ORIGIN}/`, 303);
+  }
   const plan = planAppRequest(request.url, distDir, apiOrigin);
-  if (plan.kind === 'reject') return new Response('Forbidden', { status: plan.status });
+  if (plan.kind === 'reject') {
+    logMissing(
+      `reject:${request.url}`,
+      false,
+      `request refused: status=${plan.status} url=${request.url}`,
+    );
+    return new Response('Forbidden', { status: plan.status });
+  }
   if (plan.kind === 'api') return proxyApi(request, plan.target);
 
   let file = plan.file;
-  let body = await readStatic(file);
-  if (body === null && plan.spaFallback) {
+  let read = await readStatic(file);
+  if ('missing' in read && plan.spaFallback) {
     file = join(distDir, 'index.html');
-    body = await readStatic(file);
+    read = await readStatic(file);
   }
-  if (body === null) return new Response('Not found', { status: 404 });
+  if ('missing' in read) {
+    // The document (an app route, or index.html itself) gets an explanation; a missing script, style or
+    // image stays a plain 404, logged once per file.
+    if (plan.spaFallback || basename(plan.file).toLowerCase() === 'index.html') {
+      return missingWebResponse(request, file, read.missing);
+    }
+    logMissing(
+      `asset:${plan.file}`,
+      false,
+      `web file not found: url=${request.url} looked-in=${plan.file} reason=${read.missing}`,
+    );
+    return new Response('Not found', { status: 404 });
+  }
 
   const headers = new Headers({
     'content-type': mimeFor(file),
@@ -189,7 +266,7 @@ async function handleAppRequest(request: Request): Promise<Response> {
   });
   if (file.toLowerCase().endsWith('.html'))
     headers.set('content-security-policy', await cspForDocuments());
-  return new Response(new Uint8Array(body), { headers });
+  return new Response(new Uint8Array(read.body), { headers });
 }
 
 /** `shell` is shadowed by the NotifyShell inside the ready handler, so this lives out here. */
@@ -346,6 +423,8 @@ if (!app.requestSingleInstanceLock()) {
       await openFolder(logDir);
     };
     const errorLog = new ErrorLog(logFs, (name) => join(logDir, name));
+    shellLog = (message) => void errorLog.write({ source: 'shell', message });
+    openLogFolderFromPage = openLogFolder;
     reportRejection = createRejectionReporter((entry) => void errorLog.write(entry));
     for (const reason of earlyRejections.splice(0)) reportRejection(reason);
     // Everything the notification pipeline does goes to the app log too (b-oss#677): redacted by

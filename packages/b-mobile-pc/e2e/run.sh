@@ -32,7 +32,7 @@ echo "e2e run $ID: container $CONTAINER, ports cdp=$E2E_CDP_PORT stub=$E2E_STUB_
 
 cleanup() {
   # Only this run's container and servers; never another run's.
-  docker rm -f "$CONTAINER" "$CONTAINER-mismatch" >/dev/null 2>&1 || true
+  docker rm -f "$CONTAINER" "$CONTAINER-mismatch" "$CONTAINER-nodist" >/dev/null 2>&1 || true
   for pid in "${PIDS[@]:-}"; do kill "$pid" 2>/dev/null || true; done
   rm -rf "$WORK"
 }
@@ -105,10 +105,14 @@ start_variant() {
 }
 # A shell that reports an older build than the web files it serves (b-oss#696).
 start_variant mismatch "$E2E_V1_PORT" -e BMPC_SHELL_VERSION=e2e-older-shell
+# A shell whose web build directory exists but is empty (b-oss#695).
+mkdir -p "$WORK/nodist/empty-web"
+start_variant nodist "$E2E_V2_PORT" -e E2E_DIST=/tmp/ud/empty-web
 
 # 6. The tests.
 cd "$PKG"
 BMPC_CDP="http://127.0.0.1:$E2E_CDP_PORT" BMPC_STUB="http://127.0.0.1:$E2E_STUB_PORT" \
 BMPC_NOTIFY="http://127.0.0.1:$E2E_NOTIFY_PORT" BMPC_E2E_CONTAINER="$CONTAINER" \
 BMPC_CDP_MISMATCH="http://127.0.0.1:$E2E_V1_PORT" BMPC_UD_MISMATCH="$WORK/mismatch" \
+BMPC_CDP_NODIST="http://127.0.0.1:$E2E_V2_PORT" BMPC_UD_NODIST="$WORK/nodist" \
 BMPC_E2E_OUT="$OUT" BMPC_E2E_USER_DATA="$WORK" npx vitest run --config e2e/vitest.config.ts "$@"

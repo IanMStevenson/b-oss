@@ -26,7 +26,7 @@ checkout). Pin the id or ports with `E2E_ID`, `E2E_CDP_PORT`, `E2E_STUB_PORT`, `
 **Variant shells.** `run.sh` can start extra shells (`start_variant <name> <port> -e ...`), each in its own
 container with its own user-data directory and DevTools port, for tests that need a shell that is wrong in
 one way; their tests live in `variants.e2e.ts` and read `BMPC_CDP_<NAME>` / `BMPC_UD_<NAME>`. Today: `mismatch`
-(`BMPC_SHELL_VERSION=e2e-older-shell`, b-oss#696).
+(`BMPC_SHELL_VERSION=e2e-older-shell`, b-oss#696) and `nodist` (`BMPC_DIST` at an empty directory, b-oss#695).
 
 ## What it covers
 
