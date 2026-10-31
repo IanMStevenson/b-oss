@@ -8,17 +8,17 @@ safety), `../docs/RELEASING-android.md` (building and uploading).
 
 ## App details
 
-| Field               | Value                                                                                |
-| ------------------- | ------------------------------------------------------------------------------------ |
-| App name            | b-mobile for Blipfoto                                                                |
-| Package name        | `uk.co.salientpoint.bmobile` (set by the first bundle; permanent)                    |
-| Default language    | English (United Kingdom)                                                             |
-| App or game / price | App, free                                                                            |
-| Category            | Photography (not Social: Social brings in Child Safety Standards declarations)       |
-| Contact email       | b-oss@salientpoint.co.uk (public)                                                    |
-| Website             | https://b-oss.dev/b-mobile.html |
-| Privacy policy      | https://b-oss.dev/b-mobile-privacy.html                          |
-| Data deletion URL   | https://b-oss.dev/b-mobile-data-deletion.html                    |
+| Field               | Value                                                                          |
+| ------------------- | ------------------------------------------------------------------------------ |
+| App name            | b-mobile for Blipfoto                                                          |
+| Package name        | `uk.co.salientpoint.bmobile` (set by the first bundle; permanent)              |
+| Default language    | English (United Kingdom)                                                       |
+| App or game / price | App, free                                                                      |
+| Category            | Photography (not Social: Social brings in Child Safety Standards declarations) |
+| Contact email       | b-oss@salientpoint.co.uk (public)                                              |
+| Website             | https://b-oss.dev/b-mobile.html                                                |
+| Privacy policy      | https://b-oss.dev/b-mobile-privacy.html                                        |
+| Data deletion URL   | https://b-oss.dev/b-mobile-data-deletion.html                                  |
 
 ## App access (restricted: needs a sign-in)
 
@@ -45,7 +45,7 @@ valid and work from any location).
 >    or two ahead; it may arrive a few minutes late.
 >
 > Permissions are asked for only when used: camera (take a photo), location (my location,
-> Nearby), notifications.
+> Nearby), media location (read the GPS stored in a photo you pick), notifications.
 
 ## Ads
 
@@ -85,7 +85,7 @@ the file). The deletion URL is above.
 - Health: none. Financial features: none. Government app: no. News app: no.
 - Advertising ID: the app does not use it (it declares no `AD_ID` permission).
 - Permissions: camera, approximate and precise location (foreground, at point of use),
-  notifications. No storage or photo-library permissions (the system photo picker is used), no
+  media location (`ACCESS_MEDIA_LOCATION`, added in 1.1.0 to read a picked photo's GPS), notifications. No storage or photo-library permissions (the system photo picker is used), no
   exact alarms. From 27 January 2027 Play asks for a location declaration; decide then whether
   entry tagging needs precise location or approximate location is enough.
 - Target API 36, as required for new apps.
