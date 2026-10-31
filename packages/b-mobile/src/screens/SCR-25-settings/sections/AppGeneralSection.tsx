@@ -31,7 +31,7 @@ import { setReminderEnabled } from '../../../flows/reminderFlow.js';
 const REMINDER_MINUTES = [0, 15, 30, 45];
 
 const REFUSED_MESSAGE =
-  'Notifications are off for b-mobile, so the reminder can’t be shown. You can allow them in your phone’s Settings.';
+  'Notifications are off for b-mobile, so the reminder can’t be shown. You can allow them in your device’s Settings.';
 const FAILED_MESSAGE = 'Could not change the reminder. Please try again.';
 
 function RemindersGroup() {
@@ -127,7 +127,7 @@ function AppearanceGroup() {
         onChange={setTheme}
       />
       <CaptionRow>
-        System follows your phone&rsquo;s dark theme setting (Light or Dark). Mid is a softer dark
+        System follows your device&rsquo;s dark theme setting (Light or Dark). Mid is a softer dark
         grey you can choose here.
       </CaptionRow>
     </>

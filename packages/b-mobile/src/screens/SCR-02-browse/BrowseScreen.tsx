@@ -115,7 +115,7 @@ function NearbyByLocation() {
               icon={<MapPin size={40} strokeWidth={1.5} />}
               title="Nearby needs your location."
               hint={
-                asked ? 'If nothing happens, allow location in your phone settings.' : undefined
+                asked ? 'If nothing happens, allow location in your device settings.' : undefined
               }
             />
             <div style={{ display: 'flex', justifyContent: 'center' }}>

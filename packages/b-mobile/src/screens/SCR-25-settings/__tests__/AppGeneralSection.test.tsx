@@ -148,7 +148,7 @@ describe('AppGeneralSection — reminders', () => {
     render(<AppGeneralSection />);
     flip(toggleOf('Daily reminder'), true);
     expect(await screen.findByText(/Notifications are off for b-mobile/)).toBeDefined();
-    expect(screen.getByText(/allow them in your phone’s Settings/)).toBeDefined();
+    expect(screen.getByText(/allow them in your device’s Settings/)).toBeDefined();
     expect(useDevicePrefsStore.getState().reminders['a1']).toEqual({
       enabled: false,
       hour: 20,
