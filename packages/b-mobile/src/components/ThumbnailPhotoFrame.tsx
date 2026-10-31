@@ -10,6 +10,7 @@ import { useState } from 'react';
 import { IonButton } from '@ionic/react';
 import type { Area } from 'react-easy-crop';
 import { PhotoCropper } from './PhotoCropper.js';
+import { SquareSelector } from './SquareSelector.js';
 import {
   canSelectThumbnail,
   defaultThumbnailCrop,
@@ -20,6 +21,12 @@ import type { ComposePhoto, ThumbnailCropDraft } from '../state/composeDraftStor
 import './ComposeForm.css';
 
 const PREVIEW_SIZE = 200;
+
+/** True when the primary pointer is precise (mouse/trackpad): the whole-photo selector is used
+ * instead of the pan/zoom cropper (b-oss#718). Read when the cropper opens. */
+function isPointerFine(): boolean {
+  return typeof window.matchMedia === 'function' && window.matchMedia('(pointer: fine)').matches;
+}
 
 interface ThumbnailPhotoFrameProps {
   photo: ComposePhoto;
@@ -40,6 +47,7 @@ export function ThumbnailPhotoFrame({
   // Displayed width / height, measured from the loaded image: the picker's own dimensions ignore
   // the EXIF rotation the WebView applies, so they can't be used for the crop geometry.
   const [ratio, setRatio] = useState<number | null>(null);
+  const [naturalWidth, setNaturalWidth] = useState<number | null>(null);
 
   const shown = ratio ? (crop ?? defaultThumbnailCrop(ratio)) : null;
   const canOffer = canSelect && canSelectThumbnail(photo.width, photo.height);
@@ -48,12 +56,23 @@ export function ThumbnailPhotoFrame({
     <div className="compose-thumb-frame">
       {cropping ? (
         <div className="compose-photo-frame">
-          <PhotoCropper
-            imageSrc={photo.webPath}
-            onCropAreaChange={onCropChange}
-            minCropEdge={THUMBNAIL_MIN_EDGE}
-            initialArea={shown && ratio ? thumbnailCropToArea(shown, ratio) : undefined}
-          />
+          {isPointerFine() && shown && ratio && naturalWidth ? (
+            <SquareSelector
+              imageSrc={photo.webPath}
+              initial={shown}
+              ratio={ratio}
+              naturalWidth={naturalWidth}
+              minCropEdge={THUMBNAIL_MIN_EDGE}
+              onCropAreaChange={onCropChange}
+            />
+          ) : (
+            <PhotoCropper
+              imageSrc={photo.webPath}
+              onCropAreaChange={onCropChange}
+              minCropEdge={THUMBNAIL_MIN_EDGE}
+              initialArea={shown && ratio ? thumbnailCropToArea(shown, ratio) : undefined}
+            />
+          )}
         </div>
       ) : (
         <div
@@ -63,9 +82,10 @@ export function ThumbnailPhotoFrame({
           <img
             src={photo.webPath}
             alt="Thumbnail"
-            onLoad={(e) =>
-              setRatio(e.currentTarget.naturalWidth / (e.currentTarget.naturalHeight || 1))
-            }
+            onLoad={(e) => {
+              setRatio(e.currentTarget.naturalWidth / (e.currentTarget.naturalHeight || 1));
+              setNaturalWidth(e.currentTarget.naturalWidth);
+            }}
             style={
               shown && ratio
                 ? {
