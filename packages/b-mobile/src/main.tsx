@@ -22,6 +22,7 @@ import '@ionic/react/css/display.css';
 
 import './styles/theme.css';
 import './styles/globals.css';
+import './styles/wide.css';
 
 import { AppShell } from './app/AppShell.js';
 import { AppErrorBoundary } from './components/AppErrorBoundary.js';

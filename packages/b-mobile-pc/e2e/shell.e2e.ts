@@ -163,6 +163,19 @@ describe('desktop capabilities: location and camera', () => {
     const body = await text();
     expect(body).toContain('Choose a photo');
     expect(body).not.toMatch(/Take a photo|Choose from device|system picker/i);
+    // A lone picker button is small and centred in the content area, not stretched (b-oss#671).
+    const box = await page.evaluate(() => {
+      const tile = document.querySelector('ion-button.new-entry-tile')?.getBoundingClientRect();
+      const content = document.querySelector('.new-entry-tiles')?.getBoundingClientRect();
+      return tile && content
+        ? {
+            width: tile.width,
+            offset: tile.left + tile.width / 2 - (content.left + content.width / 2),
+          }
+        : null;
+    });
+    expect(box?.width).toBeLessThan(330);
+    expect(Math.abs(box?.offset ?? 999)).toBeLessThan(4);
     await shot('7-new-entry');
   });
 

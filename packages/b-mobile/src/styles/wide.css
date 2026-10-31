@@ -1,0 +1,51 @@
+/* A wide window with a mouse (b-oss#671): action buttons and forms stop stretching across it.
+   Every rule here sits inside the same gate as the --action-max-width / --content-max-width tokens
+   (b-visual/tokens.css: window at least 900px wide AND `data-pointer='fine'`), so a narrow window and
+   every touch device are untouched. The gate is repeated here because the tokens alone cannot set
+   `margin-inline`. */
+
+@media (min-width: 900px) {
+  /* A full-width action button becomes a centred, capped one. Several in a column stay stacked. */
+  :root[data-pointer='fine'] ion-button[expand='block']:not(.in-buttons) {
+    /* width as well as max-width: in a flex column, auto margins would otherwise shrink the
+       button to its text. */
+    width: 100%;
+    max-width: var(--action-max-width);
+    margin-inline: auto;
+  }
+
+  /* Forms and text-heavy screens: a centred column. */
+  :root[data-pointer='fine'] .compose-form,
+  :root[data-pointer='fine'] .settings-actions,
+  :root[data-pointer='fine'] .description-editor,
+  :root[data-pointer='fine'] ion-content.form-column > * {
+    max-width: var(--content-max-width);
+    margin-inline: auto;
+  }
+
+  /* ion-radio-group lays out as `display: contents`, which ignores a max-width. */
+  :root[data-pointer='fine'] ion-content.form-column > ion-radio-group {
+    display: block;
+  }
+
+  /* The first-run sheet is fixed to the viewport edges; cap and centre it. */
+  :root[data-pointer='fine'] .first-run-explainer {
+    max-width: var(--content-max-width);
+    margin-inline: auto;
+  }
+
+  /* New entry: natural-width tiles, side by side, centred (a lone one is simply centred). */
+  :root[data-pointer='fine'] .new-entry-tiles {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+
+  :root[data-pointer='fine'] ion-button.new-entry-tile:not(.in-buttons) {
+    flex: 0 0 auto;
+    width: auto;
+    min-width: 200px;
+    max-width: none;
+    margin-inline: 0;
+  }
+}
