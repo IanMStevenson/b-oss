@@ -1,0 +1,55 @@
+.square-selector {
+  position: relative;
+  width: 100%;
+  margin: 0 auto;
+  background: #000;
+  overflow: hidden;
+  user-select: none;
+  touch-action: none;
+}
+
+.square-selector img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+
+/* The huge shadow dims everything outside the selection. */
+.square-selector-box {
+  position: absolute;
+  box-sizing: border-box;
+  border: 2px solid #fff;
+  box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.55);
+  cursor: move;
+  outline-offset: 2px;
+}
+
+.square-selector-handle {
+  position: absolute;
+  width: 12px;
+  height: 12px;
+  background: #fff;
+  border: 1px solid #000;
+  box-sizing: border-box;
+}
+.square-selector-handle-nw {
+  left: -7px;
+  top: -7px;
+  cursor: nwse-resize;
+}
+.square-selector-handle-se {
+  right: -7px;
+  bottom: -7px;
+  cursor: nwse-resize;
+}
+.square-selector-handle-ne {
+  right: -7px;
+  top: -7px;
+  cursor: nesw-resize;
+}
+.square-selector-handle-sw {
+  left: -7px;
+  bottom: -7px;
+  cursor: nesw-resize;
+}
