@@ -9,7 +9,9 @@ const logError = vi.fn();
 let desktop = true;
 vi.mock('../../platform/diagnostics.js', () => ({
   hasErrorDiagnostics: () => desktop,
-  logError: (info: unknown) => logError(info),
+  logError: (info: unknown): void => {
+    logError(info);
+  },
 }));
 
 import {
