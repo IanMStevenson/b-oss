@@ -43,7 +43,9 @@ export function PointerRefresh({ onRefresh }: PointerRefreshProps) {
       setSlot(null);
       return;
     }
-    setSlot(anchor.current?.closest('ion-page')?.querySelector('.app-header-refresh-slot') ?? null);
+    setSlot(
+      anchor.current?.closest('.ion-page')?.querySelector('.app-header-refresh-slot') ?? null,
+    );
   }, [fine]);
 
   return (

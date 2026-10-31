@@ -4,10 +4,12 @@
 
 // b-oss#719: a header refresh button on mouse/trackpad devices; touch keeps pull-to-refresh only.
 
-import { createElement } from 'react';
 import { describe, it, expect, afterEach, vi } from 'vitest';
 import { render, screen, cleanup } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { MemoryRouter } from 'react-router-dom';
+import { IonPage, IonHeader, IonContent } from '@ionic/react';
+import { AppHeader } from '../AppHeader.js';
 import { PointerRefresh } from '../PointerRefresh.js';
 
 function setPointer(fine: boolean): void {
@@ -19,15 +21,20 @@ function setPointer(fine: boolean): void {
   })) as unknown as typeof window.matchMedia;
 }
 
+// A real IonPage (which renders <div class="ion-page">, not an <ion-page> tag) and the real
+// AppHeader, so the test fails if PointerRefresh looks for the wrong container or slot.
 function renderInPage(onRefresh: () => void) {
-  // jsdom has no <ion-page> in the JSX typings; the component only needs the tag name.
   return render(
-    createElement(
-      'ion-page',
-      null,
-      <div className="app-header-refresh-slot" />,
-      <PointerRefresh onRefresh={onRefresh} />,
-    ),
+    <MemoryRouter>
+      <IonPage>
+        <IonHeader>
+          <AppHeader title="Test" variant="back" />
+        </IonHeader>
+        <IonContent>
+          <PointerRefresh onRefresh={onRefresh} />
+        </IonContent>
+      </IonPage>
+    </MemoryRouter>,
   );
 }
 
