@@ -105,4 +105,22 @@ describe('fetchEntriesInBounds', () => {
     const out = await fetchEntriesInBounds(b(170, 190));
     expect(out.map((m) => m.entry_id)).toEqual(['a', 'b', 'c']);
   });
+
+  it('leaves out coordinates that cannot be drawn and logs them (b-oss#697)', async () => {
+    const e = (id: string, lat: number, lon: number) => ({
+      entry_id_str: id,
+      title: 't',
+      username: 'u',
+      location: { lat, lon },
+      thumbnail_url: '',
+    });
+    client.searchEntries.mockResolvedValue({
+      entries: [e('1', 51.5, -2.6), e('2', 90, 0), e('3', Number.NaN, 4), e('4', -85, 179)],
+    });
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    const markers = await fetchEntriesInBounds(b(-10, 10));
+    expect(markers.map((m) => m.entry_id)).toEqual(['1', '4']);
+    expect(warn).toHaveBeenCalledWith(expect.stringContaining('2 of the entries'));
+    warn.mockRestore();
+  });
 });

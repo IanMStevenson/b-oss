@@ -357,6 +357,54 @@ describe('desktop capabilities: location and camera', () => {
     });
   }
 
+  // b-oss#697: the map must agree with its container after opening from the menu in a large window
+  // (the split pane settling): the map's origin is the container's centre, and each pin sits where the
+  // tile grid says its coordinates are (Web Mercator), so pins cannot drift from the tiles.
+  it('the map and its pins agree with the container and the tiles from the menu at 1582x1049 (b-oss#697)', async () => {
+    try {
+      await page.setViewportSize({ width: 1582, height: 1049 });
+      await page.evaluate(() => sessionStorage.clear());
+      await go('/settings', 3000);
+      await page.getByText('Map', { exact: true }).first().click();
+      await page.waitForTimeout(4000);
+      const g = await page.evaluate(() => {
+        const c = document.querySelector('.leaflet-container')!.getBoundingClientRect();
+        const origin = document.querySelector('.leaflet-map-pane')!.getBoundingClientRect();
+        const tiles = [...document.querySelectorAll('.leaflet-tile-loaded')].map((t) =>
+          t.getBoundingClientRect(),
+        );
+        const markers = [...document.querySelectorAll('.leaflet-marker-icon')].map((m) => {
+          const r = m.getBoundingClientRect();
+          return { x: r.x + r.width / 2, y: r.bottom };
+        });
+        return {
+          centreX: c.x + c.width / 2,
+          centreY: c.y + c.height / 2,
+          originX: origin.x,
+          originY: origin.y,
+          top: Math.min(...tiles.map((t) => t.top)),
+          bottom: Math.max(...tiles.map((t) => t.bottom)),
+          markers,
+        };
+      });
+      // The view's centre (default lat 20) is the container's centre; the pane origin is its pixel centre.
+      expect(Math.abs(g.originX - g.centreX)).toBeLessThanOrEqual(3);
+      expect(Math.abs(g.originY - g.centreY)).toBeLessThanOrEqual(3);
+      const world = g.bottom - g.top; // the tile rows cover the world height at this zoom
+      expect(g.markers.length).toBeGreaterThan(0);
+      const mercatorY = (lat: number): number =>
+        g.top +
+        world * (0.5 - Math.log(Math.tan(Math.PI / 4 + (lat * Math.PI) / 360)) / (2 * Math.PI));
+      // The stub's located entries lie between lat 51.45 and 51.75.
+      for (const m of g.markers) {
+        expect(m.y).toBeGreaterThanOrEqual(mercatorY(51.75) - 3);
+        expect(m.y).toBeLessThanOrEqual(mercatorY(51.45) + 3);
+      }
+    } finally {
+      await page.setViewportSize({ width: 1200, height: 800 });
+    }
+  });
+
   it('Nearby explains there is no location here and offers the map instead of "Allow location"', async () => {
     await go('/browse', 4000);
     await page.evaluate(() => {

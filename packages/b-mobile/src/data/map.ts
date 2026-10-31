@@ -82,6 +82,18 @@ export function splitWideRanges(ranges: MapBounds[]): MapBounds[] {
   });
 }
 
+/** Web Mercator's latitude limit: a pin beyond it is drawn on the map's top or bottom edge, not at
+ * its real position (b-oss#697), and a non-finite value cannot be drawn at all. */
+const MAX_MERCATOR_LAT = 85.0511;
+function isPlottable(lat: number, lon: number): boolean {
+  return (
+    Number.isFinite(lat) &&
+    Number.isFinite(lon) &&
+    Math.abs(lat) <= MAX_MERCATOR_LAT &&
+    Math.abs(lon) <= 180
+  );
+}
+
 // One page's worth of markers per query, generous enough for a typical viewport without
 // pagination — consistent with §13's "no clustering for v1" stance.
 const MAX_MARKERS = 100;
@@ -94,6 +106,7 @@ export async function fetchEntriesInBounds(bounds: MapBounds): Promise<MapEntry[
   return withRateLimitFallback(async (client) => {
     const markers: MapEntry[] = [];
     const seen = new Set<string>();
+    const unplottable: string[] = [];
     for (const range of ranges) {
       const res = await client.searchEntries({
         location_type: 'bounding_box',
@@ -105,6 +118,10 @@ export async function fetchEntriesInBounds(bounds: MapBounds): Promise<MapEntry[
       });
       for (const entry of res.entries) {
         if (!entry.location || seen.has(entry.entry_id_str)) continue;
+        if (!isPlottable(entry.location.lat, entry.location.lon)) {
+          unplottable.push(`${entry.entry_id_str}@${entry.location.lat},${entry.location.lon}`);
+          continue;
+        }
         seen.add(entry.entry_id_str);
         markers.push({
           entry_id: entry.entry_id_str,
@@ -115,6 +132,11 @@ export async function fetchEntriesInBounds(bounds: MapBounds): Promise<MapEntry[
           thumbnailUrl: entry.thumbnail_url,
         });
       }
+    }
+    if (unplottable.length > 0) {
+      console.warn(
+        `[map] ${unplottable.length} of the entries returned have coordinates that cannot be drawn: ${unplottable.slice(0, 5).join(' ')}`,
+      );
     }
     return markers;
   });
