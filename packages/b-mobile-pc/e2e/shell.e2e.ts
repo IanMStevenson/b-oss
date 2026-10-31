@@ -400,6 +400,12 @@ describe('desktop capabilities: location and camera', () => {
         expect(m.y).toBeGreaterThanOrEqual(mercatorY(51.75) - 3);
         expect(m.y).toBeLessThanOrEqual(mercatorY(51.45) + 3);
       }
+      // The desktop log has the map's own account of the same state (b-oss#697 diagnostics).
+      const log = readFileSync(join(USER_DATA ?? '', 'logs', 'app.log'), 'utf8')
+        .split('\n')
+        .filter((l) => l.includes('"source":"map"'));
+      expect(log.some((l) => /load container=\d+x\d+ mapSize=\d+x\d+ size=/.test(l))).toBe(true);
+      expect(log.some((l) => /fetch #\d+ requests=\d+ sent=\[lat/.test(l))).toBe(true);
     } finally {
       await page.setViewportSize({ width: 1200, height: 800 });
     }

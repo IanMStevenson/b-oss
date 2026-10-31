@@ -118,8 +118,11 @@ describe('fetchEntriesInBounds', () => {
       entries: [e('1', 51.5, -2.6), e('2', 90, 0), e('3', Number.NaN, 4), e('4', -85, 179)],
     });
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
-    const markers = await fetchEntriesInBounds(b(-10, 10));
+    const stats = { received: 0, unplottable: [] as string[] };
+    const markers = await fetchEntriesInBounds(b(-10, 10), stats);
     expect(markers.map((m) => m.entry_id)).toEqual(['1', '4']);
+    expect(stats.received).toBe(4);
+    expect(stats.unplottable).toEqual(['2@90,0', '3@NaN,4']);
     expect(warn).toHaveBeenCalledWith(expect.stringContaining('2 of the entries'));
     warn.mockRestore();
   });
