@@ -17,7 +17,8 @@ the production browser build (a dev server proxies the API like the desktop shel
 | `auth.userCanChooseBrowser` | `true` | `true` | `false` | `false` |
 | `notifications.mechanism` | `"push"` | `"push"` | `"polling"` | `"none"` |
 | `location` | `"os"` | `"os"` | `"pick-only"` | `"os"` |
-| `media.capture` | `"camera"` | `"camera"` | `"files-only"` | `"camera"` |
+| `media.capture` | `"camera"` | `"camera"` | `"camera"` | `"camera"` |
+| `media.source` | `"system"` | `"system"` | `"webcam"` | `"system"` |
 
 ## Profile defaults
 

@@ -24,6 +24,7 @@ import { basename, dirname, join, resolve } from 'node:path';
 import { fetchUnreadTotals } from '@b-oss/b-notify-core';
 import { CHANNELS } from '../shared/bridge.js';
 import { appTokenKey, parseNotifySettings } from '../shared/notify.js';
+import { allowPermission } from './permissions.js';
 import {
   APP_ORIGIN,
   APP_SCHEME,
@@ -282,12 +283,17 @@ if (!app.requestSingleInstanceLock()) {
 
   void app.whenReady().then(async () => {
     protocol.handle(APP_SCHEME, handleAppRequest);
-    // Nothing in the app needs a browser permission (camera, location, notifications go through
-    // the shell), so deny every request. Deliberately kept (b-oss#636): the app does not rely on
-    // browser location either, since capabilities().location is `pick-only` here and places are
-    // chosen on the map.
-    session.defaultSession.setPermissionRequestHandler((_wc, _permission, callback) =>
-      callback(false),
+    // Only the camera (video, the app's own origin) is granted, for the webcam capture view
+    // (b-oss#670); everything else is denied. Location stays denied (b-oss#636): the app does not
+    // rely on browser location, since capabilities().location is `pick-only` here.
+    session.defaultSession.setPermissionRequestHandler((_wc, permission, callback, details) =>
+      callback(
+        allowPermission({
+          permission,
+          requestingUrl: details.requestingUrl,
+          mediaTypes: 'mediaTypes' in details ? details.mediaTypes : undefined,
+        }),
+      ),
     );
 
     // Test hook (ignored when packaged): a plaintext store, for e2e runs where the machine has no

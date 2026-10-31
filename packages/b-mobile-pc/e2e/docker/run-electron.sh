@@ -16,5 +16,6 @@ BMPC_TEST_PLAINTEXT_STORE=1 \
 BMPC_TEST_NOTIFY_PORT=${E2E_NOTIFY_PORT:-5194} \
 BMPC_TEST_POLL_INTERVAL_MS=1000 \
   exec timeout "${E2E_TIMEOUT:-300}" /p/node_modules/electron/dist/electron . \
-    --no-sandbox --disable-gpu "${PROXY_ARGS[@]}" \
+    --no-sandbox --disable-gpu \
+    --use-fake-device-for-media-stream "${PROXY_ARGS[@]}" \
     --remote-debugging-port=${E2E_CDP_PORT:-9222} --user-data-dir=/tmp/ud --enable-logging=stderr

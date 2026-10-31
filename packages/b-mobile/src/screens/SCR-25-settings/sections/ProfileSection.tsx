@@ -268,14 +268,15 @@ export function ProfileSection() {
             </IonItem>
             {canWrite && (
               <>
-                {capabilities().media.capture === 'camera' && (
-                  <ActionRow
-                    label="Take photo"
-                    busy={avatarBusy === 'camera'}
-                    disabled={avatarBusy !== null}
-                    onClick={() => void pickAvatarPhoto('camera')}
-                  />
-                )}
+                {capabilities().media.capture === 'camera' &&
+                  capabilities().media.source === 'system' && (
+                    <ActionRow
+                      label="Take photo"
+                      busy={avatarBusy === 'camera'}
+                      disabled={avatarBusy !== null}
+                      onClick={() => void pickAvatarPhoto('camera')}
+                    />
+                  )}
                 <ActionRow
                   label="Choose from device"
                   busy={avatarBusy === 'gallery'}
