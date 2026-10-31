@@ -184,6 +184,10 @@ describe('Content-Security-Policy', () => {
     expect(csp).toContain("frame-ancestors 'none'");
   });
 
+  it('lets the page fetch its own blob: URLs, which queueing a picked photo does (b-oss#717)', () => {
+    expect(buildCsp(html)).toMatch(/connect-src [^;]*\bblob:/);
+  });
+
   it('has just "self" for scripts when the page has no inline script', () => {
     expect(buildCsp('<html></html>')).toContain("script-src 'self';");
   });
