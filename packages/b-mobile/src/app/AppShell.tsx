@@ -160,12 +160,12 @@ function NavMenu() {
             onClick={pane.togglePin}
             aria-pressed={pane.open}
           >
+            <span className="nav-pin-label">{pane.open ? 'Collapse menu' : 'Keep menu open'}</span>
             {pane.open ? (
-              <PanelLeftClose size={16} aria-hidden="true" slot="start" />
+              <PanelLeftClose size={16} aria-hidden="true" slot="end" />
             ) : (
-              <PanelLeftOpen size={16} aria-hidden="true" slot="start" />
+              <PanelLeftOpen size={16} aria-hidden="true" slot="end" />
             )}
-            {pane.open ? 'Collapse menu' : 'Keep menu open'}
           </IonButton>
         )}
         <NavAccountBlock />
