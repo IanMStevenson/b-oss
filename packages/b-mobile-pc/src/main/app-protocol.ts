@@ -135,8 +135,8 @@ export function buildCsp(indexHtml: string): string {
     "style-src 'self' 'unsafe-inline'",
     "img-src 'self' https: data: blob:",
     "font-src 'self' data:",
-    // Broad on purpose for now: the app loads map tiles and photos from third-party https hosts.
-    "connect-src 'self' https:",
+    // Broad on purpose for now: the app loads map tiles and photos from third-party https hosts. blob: is the picked photo's own URL, fetched when an entry is queued.
+    "connect-src 'self' https: blob:",
     "media-src 'self' https: blob:",
     "worker-src 'self' blob:",
     "object-src 'none'",
