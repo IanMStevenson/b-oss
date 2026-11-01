@@ -34,23 +34,20 @@ import { useResource } from '../../data/useResource.js';
 import { fetchUserSettings } from '../../data/settings.js';
 import { useAppNavigate } from '../../app/routes/useAppNavigate.js';
 import { useActiveAccount } from '../../state/accountsStore.js';
-import { GeneralSection } from './sections/GeneralSection.js';
-import { JournalSection } from './sections/JournalSection.js';
+import { DetailsSection } from './sections/DetailsSection.js';
 import { ProfileSection } from './sections/ProfileSection.js';
 import { NotificationsSection } from './sections/NotificationsSection.js';
-import { AppGeneralSection } from './sections/AppGeneralSection.js';
-import { BrowsingSection } from './sections/BrowsingSection.js';
+import { RemindersSection } from './sections/RemindersSection.js';
+import { AppearanceSection } from './sections/AppearanceSection.js';
 
-export type SettingsSection =
-  'general' | 'journal' | 'profile' | 'notifications' | 'app' | 'browsing';
+export type SettingsSection = 'details' | 'profile' | 'notifications' | 'appearance' | 'reminders';
 
 const SECTION_TITLES: Record<SettingsSection, string> = {
-  general: 'General',
-  journal: 'Journal',
+  details: 'Details & journal',
   profile: 'Profile',
-  notifications: 'Notifications',
-  app: 'General',
-  browsing: 'Browsing',
+  notifications: 'Notification settings',
+  appearance: 'Appearance',
+  reminders: 'Reminders',
 };
 
 interface SettingsScreenProps {
@@ -76,18 +73,17 @@ function SectionScreen({ section }: { section: SettingsSection }) {
           title={SECTION_TITLES[section]}
           variant="back"
           backHref="/settings"
-          // Per-account sections (and App > General, which holds per-account Reminders) show the
-          // indicator; Browsing is device-wide, so it doesn't.
-          accountIndicator={section !== 'browsing'}
+          // Per-account sections (and Reminders, which are per account) show the indicator;
+          // Appearance is device-wide, so it doesn't.
+          accountIndicator={section !== 'appearance'}
         />
       </IonHeader>
       <IonContent>
-        {section === 'general' && <GeneralSection />}
-        {section === 'journal' && <JournalSection />}
+        {section === 'details' && <DetailsSection />}
         {section === 'profile' && <ProfileSection />}
         {section === 'notifications' && <NotificationsSection />}
-        {section === 'app' && <AppGeneralSection />}
-        {section === 'browsing' && <BrowsingSection />}
+        {section === 'appearance' && <AppearanceSection />}
+        {section === 'reminders' && <RemindersSection />}
       </IonContent>
     </IonPage>
   );
@@ -113,9 +109,29 @@ function SettingsHub() {
         <AppHeader title="Settings" />
       </IonHeader>
       <IonContent>
+        {/* App settings: device-local, never round-trip to Blipfoto's server — how b-mobile
+            itself behaves on this phone, not the account. Accounts and Hidden members have no
+            menu entry any more (b-oss#733); this is where they live. */}
+        <IonList>
+          <SectionHeader>App settings</SectionHeader>
+          <IonItem button detail onClick={() => navigate.push('/settings/appearance')}>
+            <span>Appearance</span>
+          </IonItem>
+          <IonItem button detail onClick={() => navigate.push('/settings/reminders')}>
+            <span>Reminders</span>
+          </IonItem>
+          <IonItem button detail onClick={() => navigate.push('/accounts')}>
+            <span>Accounts</span>
+            {activeAccount && <IonNote slot="end">{activeAccount.username}</IonNote>}
+          </IonItem>
+          <IonItem button detail onClick={() => navigate.push('/hidden')}>
+            <span>Hidden members</span>
+          </IonItem>
+        </IonList>
+
         {/* Blipfoto account settings: server-backed (user/settings), follows whichever account
-            is active — switching accounts shows that account's own values. Notifications lives
-            here rather than in App settings below because a user thinks of it as "what am I
+            is active — switching accounts shows that account's own values. Notification settings
+            lives here rather than in App settings because a user thinks of it as "what am I
             notified about from my Blipfoto account", even though its Advanced polling interval
             happens to be stored locally (data/settings.ts's own header comment). */}
         <IonList>
@@ -125,17 +141,9 @@ function SettingsHub() {
             button
             detail
             disabled={!signedIn}
-            onClick={() => navigate.push('/settings/general')}
+            onClick={() => navigate.push('/settings/details')}
           >
-            <span>General</span>
-          </IonItem>
-          <IonItem
-            button
-            detail
-            disabled={!signedIn}
-            onClick={() => navigate.push('/settings/journal')}
-          >
-            <span>Journal</span>
+            <span>Details &amp; journal</span>
           </IonItem>
           <IonItem
             button
@@ -151,7 +159,7 @@ function SettingsHub() {
             disabled={!signedIn}
             onClick={() => navigate.push('/settings/notifications')}
           >
-            <span>Notifications</span>
+            <span>Notification settings</span>
           </IonItem>
           {privacyProtected && (
             <IonItem button detail onClick={() => navigate.push('/me/refused')}>
@@ -159,28 +167,6 @@ function SettingsHub() {
               <IonNote slot="end">People who can&rsquo;t see your journal</IonNote>
             </IonItem>
           )}
-        </IonList>
-
-        {/* App settings: device-local, never round-trip to Blipfoto's server — how b-mobile
-            itself behaves on this phone, not the account. Accounts also has its own top-level
-            nav-menu entry (it must stay reachable pre-sign-in, before Settings itself is
-            reachable at all) — the row here is just a discoverable shortcut alongside its
-            siblings, not the only path to it. */}
-        <IonList>
-          <SectionHeader>App settings</SectionHeader>
-          <IonItem button detail onClick={() => navigate.push('/accounts')}>
-            <span>Accounts</span>
-            {activeAccount && <IonNote slot="end">{activeAccount.username}</IonNote>}
-          </IonItem>
-          <IonItem button detail onClick={() => navigate.push('/settings/app')}>
-            <span>General</span>
-          </IonItem>
-          <IonItem button detail onClick={() => navigate.push('/hidden')}>
-            <span>Hidden members</span>
-          </IonItem>
-          <IonItem button detail onClick={() => navigate.push('/settings/browsing')}>
-            <span>Browsing</span>
-          </IonItem>
         </IonList>
 
         {signedIn && state.status === 'loading' && (

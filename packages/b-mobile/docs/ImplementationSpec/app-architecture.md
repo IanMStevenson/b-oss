@@ -324,7 +324,7 @@ Gradle google-services plugin is skipped and push is unavailable.
   the service token; a registration reporting `read-token-invalid` runs
   `handleForcedLogout(id, 'service')`.
 - Blipfoto's own `push_*` notification settings are not available to our app type; the app never
-  reads or writes them. Settings → Notifications edits the `feed_*` settings and b-push's streams.
+  reads or writes them. Settings → Notification settings edits the `feed_*` settings and b-push's streams.
 
 **Pushes are contentless.** Every endpoint returning notification/comment content marks it read,
 so b-push polls counts only. `PushPayload` is

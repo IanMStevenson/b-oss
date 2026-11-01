@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (C) 2026 Ian Stevenson
 
-// SCR-25's General section: country/locale picker options. These are the one deliberate
+// SCR-25's Details & journal section: country/locale picker options. These are the one deliberate
 // exception to "no data is cached for display" (BEHAVIOUR.md): static reference data for form
 // pickers, not user content — so, unlike every other data/*.ts fetcher in this app, these two
 // are cached in memory for the life of the app rather than refetched on every visit. Verified

@@ -76,12 +76,18 @@ Known Blipfoto API limits: [AppLimitations.md](AppLimitations.md). Paths are rel
 - **Followers/Following**: people list; Remove follower on your own followers. **Pending
   requests**: Approve/Refuse, then offers to hide. **Refused followers**: Allow, immediate.
 - **Awards**: whole catalogue from the API; earned = `added_stamp !== null`; `secret` → "Secret".
-- **Settings**: hub reachable signed out. Blipfoto account settings: General, Journal, Profile,
-  Notifications (all disabled signed out), Refused followers (protected journal only). App
-  settings: Accounts, General (theme, daily reminder, confirm-account toggle, account picture style, open
-  blipfoto.com links in app), Hidden members (always enabled), Browsing (zoom bar, pagination, margins, photo size).
-  Server-backed sections use Save/Cancel; device settings apply at once.
-- **Theme** (App settings → General): System (default), Light, Dark, Mid. System
+- **Settings**: hub reachable signed out. App settings (always enabled): Appearance (theme, account
+  picture style with two or more accounts, thumbnail grid zoom bar / pagination / margins, entry
+  photo size, and a captioned Links section with the open-blipfoto.com-links-in-app toggle),
+  Reminders (daily reminder, per read-write account), Accounts (also holds the confirm-account
+  toggle, with two or more accounts), Hidden members. Blipfoto account settings: Details & journal
+  (real name, country, language, find-me-by-name, journal title, protected, comments: one form, one
+  Save, one `saveUserSettings` call, one discard prompt), Profile, Notification settings (all
+  disabled signed out), Refused followers (protected journal only; stays in Settings). Server-backed
+  sections use Save/Cancel; device settings apply at once. Pages are `/settings/{appearance,
+  reminders,details,profile,notifications}`; the old `/settings/{general,journal,app,browsing}`
+  redirect to `details` / `appearance`.
+- **Theme** (App settings → Appearance): System (default), Light, Dark, Mid. System
   follows Android's dark-theme setting and picks Light or Dark, never Mid. Stored in device prefs and
   mirrored to `localStorage` so `index.html` can apply it before first paint. The theme is the
   `data-theme` attribute on `<html>`, which b-visual's opt-in `themes.css` re-points the colour
@@ -178,7 +184,7 @@ Known Blipfoto API limits: [AppLimitations.md](AppLimitations.md). Paths are rel
 
 ## Notifications (`flows/pushFlow.ts`, `flows/reminderFlow.ts`)
 
-- b-push, per account, two streams (New comments, New notifications) in Settings → Notifications;
+- b-push, per account, two streams (New comments, New notifications) in Settings → Notification settings;
   no master switch. Turning the first on: permission check (before any OAuth), read round if
   read-write, registration. Changing one while the other is on is a PATCH; turning the last off
   deregisters (confirm first for read-write). Blipfoto's six `feed_*` settings save separately; its

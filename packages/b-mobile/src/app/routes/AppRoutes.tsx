@@ -164,8 +164,20 @@ function UserAwardsRoute() {
   return <AwardsScreen username={useParam('username')} />;
 }
 
+// Settings pages renamed or merged in b-oss#734; the old paths redirect so saved links, resume
+// state and any in-flight navigation still land somewhere sensible.
+const LEGACY_SETTINGS_SECTIONS: Record<string, string> = {
+  general: 'details',
+  journal: 'details',
+  app: 'appearance',
+  browsing: 'appearance',
+};
+
 function SettingsSectionRoute() {
-  return <SettingsScreen section={useParam('section')} />;
+  const section = useParam('section');
+  const redirect = section ? LEGACY_SETTINGS_SECTIONS[section] : undefined;
+  if (redirect) return <Navigate to={`/settings/${redirect}`} replace />;
+  return <SettingsScreen section={section} />;
 }
 
 function HelpSectionRoute() {

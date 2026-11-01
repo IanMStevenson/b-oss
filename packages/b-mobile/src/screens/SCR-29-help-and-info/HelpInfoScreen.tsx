@@ -6,7 +6,7 @@
 // every action on it (including the privacy policy) must work with no account signed in. Nothing here reads or writes an account, so unlike
 // SCR-25 there's no server fetch anywhere on this screen at all.
 //
-// The link-handling toggle now lives in Settings → General, and Delete my account on the Accounts
+// The link-handling toggle now lives in Settings → Appearance, and Delete my account on the Accounts
 // page (b-oss#305, #306); neither is here any more.
 //
 // Same "one component, sub-sections via an optional route param" shape as SCR-25's SettingsScreen
