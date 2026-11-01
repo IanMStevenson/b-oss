@@ -165,7 +165,7 @@ export function NewEntryScreen({ replaceEntryId }: NewEntryScreenProps = {}) {
     setPhotoMessage(null);
     setBusy('picker');
     try {
-      const photo = await pickPhoto();
+      const photo = await pickPhoto(activeAccount?.id);
       if (photo) startDraft(photo);
     } catch (err) {
       setPhotoMessage(err instanceof Error ? err.message : 'Could not use that photo.');

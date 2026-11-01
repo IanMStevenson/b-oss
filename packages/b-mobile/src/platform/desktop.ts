@@ -41,6 +41,14 @@ export interface DesktopTestNotifyResult {
   detail: string;
 }
 
+/** A photo chosen in the shell's file dialog (b-oss#739). */
+export interface DesktopPickedPhoto {
+  name: string;
+  mimeType: string;
+  modifiedMs: number;
+  bytes: Uint8Array;
+}
+
 export interface DesktopBridge {
   readonly version: 1;
   readonly secure: {
@@ -64,6 +72,9 @@ export interface DesktopBridge {
   readonly shell?: {
     info(): Promise<{ build: string }>;
   };
+  /** The shell's file dialog, opened in the folder last used for this account (b-oss#739). Absent
+   * on a shell older than this member. Resolves null when cancelled. */
+  pickPhoto?(accountId: string): Promise<DesktopPickedPhoto | null>;
   /** The error log and the error screen's actions (b-oss#639); see platform/diagnostics.ts. */
   readonly diagnostics: {
     logError(entry: { source: string; message: string; stack?: string }): Promise<void>;
