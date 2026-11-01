@@ -9,6 +9,7 @@ import {
   app,
   BrowserWindow,
   clipboard,
+  dialog,
   ipcMain,
   net,
   Notification,
@@ -58,6 +59,7 @@ import { createQuitSequence } from './quit-sequence.js';
 import { NotifyPoller, POLL_INTERVAL_MS } from './notify-poller.js';
 import { RecordingPresenter, serveRecordingPresenter } from './notify-test-presenter.js';
 import { SecureStore, type SecretCrypto } from './secure-store.js';
+import { pickPhotoForAccount } from './photo-folder.js';
 import { MIN_HEIGHT, MIN_WIDTH, parseWindowState } from './window-state.js';
 import { lockPageZoom } from './page-zoom-lock.js';
 
@@ -109,6 +111,16 @@ const electronCrypto: SecretCrypto = {
     return { result, shouldReEncrypt };
   },
 };
+
+const MAX_PICK_BYTES = 100 * 1024 * 1024;
+
+function mimeForPath(path: string): string {
+  const ext = path.slice(path.lastIndexOf('.') + 1).toLowerCase();
+  if (ext === 'png') return 'image/png';
+  if (ext === 'gif') return 'image/gif';
+  if (ext === 'webp') return 'image/webp';
+  return 'image/jpeg';
+}
 
 function atomicFile(path: string) {
   return {
@@ -446,6 +458,45 @@ if (!app.requestSingleInstanceLock()) {
     handle(CHANNELS.secureGet, (key) => store.get(key));
     handle(CHANNELS.secureSet, (key, value) => store.set(key, value));
     handle(CHANNELS.secureRemove, (key) => store.remove(key));
+    const photoFolderFile = atomicFile(join(app.getPath('userData'), 'photo-folders.json'));
+    handle(CHANNELS.pickPhoto, async (accountId) => {
+      if (typeof accountId !== 'string' || accountId === '' || accountId.length > 200) {
+        throw new Error('Bad account');
+      }
+      const path = await pickPhotoForAccount(accountId, {
+        readFile: () => photoFolderFile.read(),
+        writeFile: (contents) => photoFolderFile.write(contents),
+        folderExists: (p) =>
+          stat(p).then(
+            (s) => s.isDirectory(),
+            () => false,
+          ),
+        openDialog: async (defaultPath) => {
+          const owner = BrowserWindow.getFocusedWindow() ?? mainWindow;
+          const options: Electron.OpenDialogOptions = {
+            properties: ['openFile'],
+            defaultPath,
+            filters: [
+              { name: 'Photos', extensions: ['jpg', 'jpeg', 'png', 'gif', 'webp'] },
+              { name: 'All files', extensions: ['*'] },
+            ],
+          };
+          const result = owner
+            ? await dialog.showOpenDialog(owner, options)
+            : await dialog.showOpenDialog(options);
+          return result.canceled || result.filePaths[0] === undefined ? null : result.filePaths[0];
+        },
+      });
+      if (path === null) return null;
+      const info = await stat(path);
+      if (info.size > MAX_PICK_BYTES) throw new Error('That file is too large to open.');
+      return {
+        name: basename(path),
+        mimeType: mimeForPath(path),
+        modifiedMs: info.mtimeMs,
+        bytes: new Uint8Array(await readFile(path)),
+      };
+    });
     handle(CHANNELS.shellInfo, () => ({ build: shellBuild }));
     handle(CHANNELS.diagLog, async (raw) => {
       const entry = parseErrorEntry(raw);

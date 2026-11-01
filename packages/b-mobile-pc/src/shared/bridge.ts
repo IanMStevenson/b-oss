@@ -26,7 +26,17 @@ export const CHANNELS = {
   notifyCheckNow: 'notify:check-now',
   notifyTest: 'notify:test',
   shellInfo: 'shell:info',
+  pickPhoto: 'photo:pick',
 } as const;
+
+/** A photo chosen in the desktop file dialog (b-oss#739). */
+export interface PickedPhotoFile {
+  name: string;
+  mimeType: string;
+  /** Last-modified time, ms since the epoch. */
+  modifiedMs: number;
+  bytes: Uint8Array;
+}
 
 export interface DesktopBridge {
   readonly version: 1;
@@ -62,6 +72,9 @@ export interface DesktopBridge {
   readonly shell: {
     info(): Promise<{ build: string }>;
   };
+  /** Opens the system file dialog for a photo, starting in the folder last used for this account,
+   * and remembers the folder of the file chosen (b-oss#739). Resolves null when cancelled. */
+  pickPhoto(accountId: string): Promise<PickedPhotoFile | null>;
   /** The error log and the error screen's actions (b-oss#639). */
   readonly diagnostics: {
     /** Appends one redacted entry to `userData/logs/app.log`. Never rejects. */
