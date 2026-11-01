@@ -13,7 +13,7 @@
 // date and is what actually gates Publish — both endpoints are listed in SCR-10's own API
 // touchpoints for exactly this division of labour.
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
   IonPage,
   IonHeader,
@@ -58,7 +58,7 @@ export function ComposeEntryScreen() {
 
   useEffect(() => {
     if (!draft || draft.mode !== 'publish') {
-      navigate.replace('/compose');
+      navigate.goBackOr('/compose');
       return;
     }
     if (draft.photo) {
@@ -96,7 +96,21 @@ export function ComposeEntryScreen() {
     };
   }, [draft?.date]);
 
+  // Set when the discard confirmation was raised by the header's home tap rather than Back.
+  const pendingHome = useRef<(() => void) | null>(null);
+
+  function handleHome(goHome: () => void): void {
+    if (draft?.dirty) {
+      pendingHome.current = goHome;
+      setConfirmDiscard(true);
+      return;
+    }
+    clearDraft();
+    goHome();
+  }
+
   function handleBack(): void {
+    pendingHome.current = null;
     if (draft?.dirty) {
       setConfirmDiscard(true);
       return;
@@ -139,7 +153,13 @@ export function ComposeEntryScreen() {
   return (
     <IonPage>
       <IonHeader>
-        <AppHeader title="New entry" variant="back" onBack={handleBack} accountIndicator />
+        <AppHeader
+          title="New entry"
+          variant="back"
+          onBack={handleBack}
+          onHome={handleHome}
+          accountIndicator
+        />
       </IonHeader>
       <IonContent>
         {unusablePhoto ? (
@@ -150,7 +170,7 @@ export function ComposeEntryScreen() {
             <IonButton
               onClick={() => {
                 clearDraft();
-                navigate.replace('/compose');
+                navigate.goBackOr('/compose');
               }}
             >
               Choose another photo
@@ -270,7 +290,8 @@ export function ComposeEntryScreen() {
             role: 'destructive',
             handler: () => {
               clearDraft();
-              navigate.goBack();
+              if (pendingHome.current) pendingHome.current();
+              else navigate.goBack();
             },
           },
         ]}

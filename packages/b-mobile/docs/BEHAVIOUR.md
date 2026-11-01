@@ -18,6 +18,12 @@ Known Blipfoto API limits: [AppLimitations.md](AppLimitations.md). Paths are rel
 - The route table is keyed by the active account id: switching account rebuilds the current screen.
 - Android Back on `/browse` does nothing (no exit); an open menu or overlay closes first
   (`app/hardwareBack.ts`).
+- Header "b-mobile" text is a button: it goes home (Browse) and clears the page stack; on Browse it
+  scrolls to the top. Compose, Edit, the description editor and the location picker ask to discard
+  first when there are unsaved changes. The header shows ☰ for a screen reached from the menu and ←
+  for one reached by tapping something inside another screen (every in-app push marks itself);
+  screens never in the menu always show ←. Closing the full-screen photo and saving an edit pop
+  history rather than stacking a second Entry.
 - Header account indicator: only with 2+ stored accounts. Tap opens the switcher overlay
   (`app/AccountSwitcherOverlay.tsx`): tap to switch instantly; a needs-sign-in account (red) goes to
   `/accounts?reauth=<id>`; Manage accounts row.

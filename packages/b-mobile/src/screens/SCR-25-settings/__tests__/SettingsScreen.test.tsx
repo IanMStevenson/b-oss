@@ -200,9 +200,9 @@ describe('SettingsScreen section routing', () => {
     renderHub();
     await waitFor(() => expect(fetchUserSettings).toHaveBeenCalled());
     await userEvent.click(screen.getByText('Accounts'));
-    expect(push).toHaveBeenCalledWith('/accounts', { drilledIn: true });
+    expect(push).toHaveBeenCalledWith('/accounts');
     await userEvent.click(screen.getByText('Hidden members'));
-    expect(push).toHaveBeenCalledWith('/hidden', { drilledIn: true });
+    expect(push).toHaveBeenCalledWith('/hidden');
   });
 
   it('falls back to the hub for an unrecognised section', async () => {

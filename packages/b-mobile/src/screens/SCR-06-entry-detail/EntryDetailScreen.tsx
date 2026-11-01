@@ -580,8 +580,10 @@ export function EntryDetailScreen({ entryId, initialReplyToCommentId }: EntryDet
               resolveAsset={resolveImage}
               invalidateAsset={invalidateImage}
               onLinkClick={(href) => void openUrl(href)}
-              onFullscreen={() => navigate.push(`/entry/${entryId}/photo`)}
-              onPhotoDoubleTap={() => navigate.push(`/entry/${entryId}/photo`)}
+              onFullscreen={() => navigate.push(`/entry/${entryId}/photo`, { photoFrom: entryId })}
+              onPhotoDoubleTap={() =>
+                navigate.push(`/entry/${entryId}/photo`, { photoFrom: entryId })
+              }
               onTagClick={(tag) => navigate.push(`/tag/${encodeURIComponent(tag)}`)}
               onLocationClick={() => navigate.push(`/map?entry=${entryId}`)}
               reactions={

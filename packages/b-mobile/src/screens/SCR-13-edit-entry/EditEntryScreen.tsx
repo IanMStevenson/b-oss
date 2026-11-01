@@ -126,7 +126,21 @@ export function EditEntryScreen({ entryId }: EditEntryScreenProps) {
     // doesn't add a re-run trigger beyond entryId/activeAccount.
   }, [entryId, activeAccount, setDraft]);
 
+  // Set when the discard confirmation was raised by the header's home tap rather than Back.
+  const pendingHome = useRef<(() => void) | null>(null);
+
+  function handleHome(goHome: () => void): void {
+    if (draft?.dirty) {
+      pendingHome.current = goHome;
+      setConfirmDiscard(true);
+      return;
+    }
+    clearDraft();
+    goHome();
+  }
+
   function handleBack(): void {
+    pendingHome.current = null;
     if (draft?.dirty) {
       setConfirmDiscard(true);
       return;
@@ -142,7 +156,7 @@ export function EditEntryScreen({ entryId }: EditEntryScreenProps) {
     try {
       await enqueueDraft(draft);
       clearDraft();
-      navigate.replace(`/entry/${entryId}`);
+      navigate.goBackOr(`/entry/${entryId}`);
     } catch (err) {
       setSubmitError(describeQueueError(err, 'Could not queue this change.'));
       setSubmitting(false);
@@ -234,7 +248,13 @@ export function EditEntryScreen({ entryId }: EditEntryScreenProps) {
   return (
     <IonPage>
       <IonHeader>
-        <AppHeader title="Edit entry" variant="back" onBack={handleBack} accountIndicator />
+        <AppHeader
+          title="Edit entry"
+          variant="back"
+          onBack={handleBack}
+          onHome={handleHome}
+          accountIndicator
+        />
       </IonHeader>
       <IonContent>
         {membershipFailed && draft.photo && <MembershipCheckFailed onRetry={retryMembership} />}
@@ -368,7 +388,8 @@ export function EditEntryScreen({ entryId }: EditEntryScreenProps) {
             role: 'destructive',
             handler: () => {
               clearDraft();
-              navigate.goBack();
+              if (pendingHome.current) pendingHome.current();
+              else navigate.goBack();
             },
           },
         ]}

@@ -4,7 +4,8 @@
 
 import { describe, it, expect, afterEach, vi } from 'vitest';
 import { render, screen, cleanup, waitFor } from '@testing-library/react';
-import { MemoryRouter } from 'react-router-dom';
+import userEvent from '@testing-library/user-event';
+import { MemoryRouter, Routes, Route, useLocation, useNavigate } from 'react-router-dom';
 import { PhotoScreen } from '../PhotoScreen.js';
 import type { BlipEntry } from '@b-oss/b-view';
 
@@ -134,5 +135,55 @@ describe('PhotoScreen', () => {
     expect(screen.getByText(/1st Jan 2026/)).toBeDefined();
     expect(screen.getByLabelText<HTMLButtonElement>('Previous image').disabled).toBe(false);
     expect(screen.getByLabelText<HTMLButtonElement>('Next image').disabled).toBe(true);
+  });
+
+  describe('Close returns to the entry without stacking a second copy', () => {
+    function Probe() {
+      const location = useLocation();
+      const navigate = useNavigate();
+      return (
+        <div>
+          <span data-testid="at">{location.pathname}</span>
+          <button onClick={() => navigate(-1)}>history-back</button>
+        </div>
+      );
+    }
+
+    async function renderFrom(state: unknown, entries: string[]) {
+      const { fetchEntry } = await import('../../../data/entries.js');
+      vi.mocked(fetchEntry).mockResolvedValue({
+        entry: baseEntry,
+        prevEntryId: null,
+        nextEntryId: null,
+        ...reactionFields,
+      });
+      render(
+        <MemoryRouter
+          initialEntries={[...entries, { pathname: '/entry/1/photo', state }]}
+          initialIndex={entries.length}
+        >
+          <Probe />
+          <Routes>
+            <Route path="/entry/:id/photo" element={<PhotoScreen entryId="1" />} />
+            <Route path="*" element={null} />
+          </Routes>
+        </MemoryRouter>,
+      );
+      await screen.findByRole('dialog');
+    }
+
+    it('pops back to the entry that opened it, so Back from there leaves the entry', async () => {
+      await renderFrom({ photoFrom: '1' }, ['/browse', '/entry/1']);
+      await userEvent.click(screen.getByLabelText('Close'));
+      expect(screen.getByTestId('at').textContent).toBe('/entry/1');
+      await userEvent.click(screen.getByText('history-back'));
+      expect(screen.getByTestId('at').textContent).toBe('/browse');
+    });
+
+    it('with no record of where it was opened from (deep link), replaces with the entry', async () => {
+      await renderFrom(null, []);
+      await userEvent.click(screen.getByLabelText('Close'));
+      expect(screen.getByTestId('at').textContent).toBe('/entry/1');
+    });
   });
 });

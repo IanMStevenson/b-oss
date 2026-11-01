@@ -5,7 +5,7 @@
 import { describe, it, expect, afterEach, beforeEach, vi } from 'vitest';
 import { render, screen, cleanup, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { MemoryRouter } from 'react-router-dom';
+import { createTrackedRouter } from '../../../app/routes/test-router.js';
 import { OverlayProvider } from '../../../app/OverlayProvider.js';
 import { DescriptionEditorScreen } from '../DescriptionEditorScreen.js';
 
@@ -31,13 +31,15 @@ afterEach(() => {
 });
 
 function renderScreen() {
-  return render(
-    <MemoryRouter>
+  const { tracked, wrap } = createTrackedRouter();
+  render(
+    wrap(
       <OverlayProvider>
         <DescriptionEditorScreen />
-      </OverlayProvider>
-    </MemoryRouter>,
+      </OverlayProvider>,
+    ),
   );
+  return tracked;
 }
 
 describe('DescriptionEditorScreen (biography)', () => {
@@ -73,5 +75,22 @@ describe('DescriptionEditorScreen (biography)', () => {
     await userEvent.click(document.querySelector('ion-back-button') as HTMLElement);
     expect(await screen.findByText('Discard changes?')).toBeDefined();
     expect(goBack).not.toHaveBeenCalled();
+  });
+
+  it('home tap with no changes goes straight to Browse', async () => {
+    const tracked = renderScreen();
+    await screen.findByPlaceholderText('Tell people about yourself…');
+    await userEvent.click(screen.getByRole('button', { name: /b-mobile/ }));
+    expect(tracked.location.pathname).toBe('/browse');
+  });
+
+  it('home tap with changes asks to discard first, then goes to Browse', async () => {
+    const tracked = renderScreen();
+    await userEvent.type(await screen.findByPlaceholderText('Tell people about yourself…'), '!');
+    await userEvent.click(screen.getByRole('button', { name: /b-mobile/ }));
+    expect(await screen.findByText('Discard changes?')).toBeDefined();
+    expect(tracked.location.pathname).toBe('/');
+    await userEvent.click(screen.getByRole('button', { name: 'Discard' }));
+    await waitFor(() => expect(tracked.location.pathname).toBe('/browse'));
   });
 });
