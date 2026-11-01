@@ -111,7 +111,7 @@ Known Blipfoto API limits: [AppLimitations.md](AppLimitations.md). Paths are rel
   Their comments and reply subtrees are removed. Comments inbox: exact filter. Notifications inbox:
   best-effort, from profile links in `content_html`. Map: no marker. People lists: "(Hidden)".
 
-## Compose and upload (`flows/composeFlow.ts`, `flows/uploadQueueRunner.ts`)
+## Compose and upload (`flows/composeFlow.ts`)
 
 - Photo check (`data/photoValidation.ts`): JPEG or PNG, one edge ≥ 600 px, 1 KB–20 MB. Avatars:
   one edge ≥ 300 px, picked file ≤ 40 MB (cropped and re-encoded before upload).
@@ -245,7 +245,7 @@ Source comments cite these ids; the AppSpec that defined them has been removed.
 
 | FLW | Flow — main code                                                            | FLW | Flow — main code                                                     |
 | --- | --------------------------------------------------------------------------- | --- | -------------------------------------------------------------------- |
-| 01  | Gated sign-in — `useSignInPrompt`, `WriteGuardRoute`                        | 12  | Compose/publish — `composeFlow.ts`, `uploadQueueRunner.ts`           |
+| 01  | Gated sign-in — `useSignInPrompt`, `WriteGuardRoute`                        | 12  | Compose/publish — `composeFlow.ts`                                   |
 | 02  | Remove account / forced logout — `handleForcedLogout`, `reauthorizeAccount` | 13  | Edit/delete entry — `SCR-13-edit-entry`, `entries.ts` `deleteEntry`  |
 | 04  | Search — `SCR-03-search`                                                    | 14  | Browse map — `SCR-04-map`, `data/map.ts`                             |
 | 05  | View entry — `SCR-06-entry-detail`                                          | 15  | Inboxes — `SCR-23`, `SCR-24`, `data/notifications.ts`                |

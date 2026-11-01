@@ -160,15 +160,3 @@ export function describeUploadError(err: unknown, fallback: string): string {
   if (err instanceof Error && err.message) return `${fallback} (${err.message})`;
   return fallback;
 }
-
-/** For a failure that is not an API/transport error (e.g. queueing a draft to local storage):
- * `mapApiError` can only say "Something went wrong", so show the fallback plus the real cause
- * (b-oss#720, the b-oss#318 pattern). API and transport errors keep their own text. */
-export function describeQueueError(err: unknown, fallback: string): string {
-  const outcome = mapApiError(err);
-  const isApi =
-    err instanceof HttpError || err instanceof NetworkError || err instanceof BlipfotoError;
-  if (isApi) return describeError(outcome, fallback);
-  const cause = causeMessage(err);
-  return cause ? `${fallback} (${cause})` : fallback;
-}
