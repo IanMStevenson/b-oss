@@ -76,14 +76,46 @@ describe('AppShell', () => {
       });
     }
 
-    it('shows the active account at the top and links it to Accounts', async () => {
+    const labels = () =>
+      Array.from(document.querySelectorAll('ion-menu ion-item')).map((i) =>
+        (i.textContent ?? '').replace(/\s+/g, ' ').trim(),
+      );
+
+    it('lists the items in site order, with the account row opening your profile', async () => {
       signIn();
       window.history.pushState({}, '', '/help');
       render(<AppShell />);
       const block = await screen.findByLabelText(/^Account: alice/);
-      expect(block.getAttribute('href') ?? block.getAttribute('router-link')).toBe('/accounts');
+      expect(block.getAttribute('href') ?? block.getAttribute('router-link')).toBe('/me');
       expect(block.textContent).toContain('alice');
-      expect(block.textContent).toContain('Read-write');
+      const l = labels();
+      const order = [
+        'alice',
+        'Comments',
+        'Notifications',
+        'New entry',
+        'Browse',
+        'Map',
+        'Search',
+        'Settings',
+        'Help',
+      ];
+      const at = order.map((o) => l.findIndex((x) => x.startsWith(o)));
+      expect(at.every((i) => i >= 0)).toBe(true);
+      expect([...at].sort((x, y) => x - y)).toEqual(at);
+    });
+
+    it('has no Accounts, Hidden members or Sign in rows while signed in; version footer opens Help', async () => {
+      signIn();
+      window.history.pushState({}, '', '/browse');
+      render(<AppShell />);
+      await screen.findByLabelText(/^Account: alice/);
+      const menu = document.querySelector('ion-menu')!;
+      expect(menu.textContent).not.toContain('Hidden members');
+      expect(menu.textContent).not.toContain('Sign in');
+      expect(labels().some((x) => x === 'Accounts')).toBe(false);
+      const ver = screen.getByText(/^b-mobile \d/).closest('ion-item')!;
+      expect(ver.getAttribute('href') ?? ver.getAttribute('router-link')).toBe('/help');
     });
 
     it('marks only the current destination and groups the rest with separators', async () => {
@@ -99,14 +131,16 @@ describe('AppShell', () => {
       ).toBeGreaterThanOrEqual(3);
     });
 
-    it('signed out: no account block, a Sign in item instead', async () => {
+    it('signed out: no account row, Sign in in its place, no inbox rows', async () => {
       window.history.pushState({}, '', '/help');
       render(<AppShell />);
-      await screen.findAllByText('Help & about');
+      await screen.findAllByText('Browse');
       expect(screen.queryByLabelText(/^Account:/)).toBeNull();
       expect(screen.getByText('Sign in')).toBeDefined();
+      const menu = document.querySelector('ion-menu')!.textContent ?? '';
+      expect(menu).not.toContain('Comments');
       // Settings stays reachable signed out (the link-handling toggle lives there)
-      expect(document.querySelector('ion-menu')!.textContent).toContain('Settings');
+      expect(menu).toContain('Settings');
     });
   });
 });

@@ -18,6 +18,18 @@ import {
   IonMenuToggle,
 } from '@ionic/react';
 import { IonReactRouter } from '@ionic/react-router';
+import {
+  Bell,
+  CircleHelp,
+  CirclePlus,
+  LayoutGrid,
+  LogIn,
+  MapPin,
+  MessageSquare,
+  Search,
+  Settings,
+} from 'lucide-react';
+import type { ReactNode } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import type { NavigateFunction } from 'react-router-dom';
 import type { CSSProperties, RefObject } from 'react';
@@ -63,28 +75,36 @@ function useLatestNavigate(): RefObject<NavigateFunction> {
 
 // Primary nav (BEHAVIOUR.md, Navigation shell). Every target route exists in AppRoutes.
 //
-// Laid out like the header switcher (UX review X10, batch G): an account block on top (the same
-// AccountRowBody as the switcher/Accounts screen; tap opens Accounts), the current destination
-// highlighted in the same pale green, and three groups split by hairlines — go places, your
-// stuff, then the housekeeping set (Settings, Help, Accounts, Hidden members).
+// Grouped like the Blipfoto site, with lucide icons: Comments, Notifications, New entry · Browse,
+// Map, Search · the signed-in account's row (opens your own profile; "Sign in" when signed out) ·
+// Settings | Help · the app version. Accounts and Hidden members are reached from Settings, and
+// the header avatar opens the account switcher.
 const NAV_CURRENT_STYLE = {
   '--background': 'var(--selected-row-bg)',
   '--color': 'var(--selected-row-text)',
   fontWeight: 600,
 } as CSSProperties;
 
+const NAV_ICON_PROPS = { size: 20, strokeWidth: 1.75, 'aria-hidden': true } as const;
+
+function isCurrent(currentPath: string, to: string): boolean {
+  return currentPath === to || currentPath.startsWith(`${to}/`);
+}
+
 function NavItem({
   to,
   label,
+  icon,
   badge = 0,
   currentPath,
 }: {
   to: string;
   label: string;
+  icon: ReactNode;
   badge?: number;
   currentPath: string;
 }) {
-  const current = currentPath === to || currentPath.startsWith(`${to}/`);
+  const current = isCurrent(currentPath, to);
   return (
     <IonMenuToggle autoHide={false}>
       <IonItem
@@ -93,6 +113,9 @@ function NavItem({
         className={current ? 'nav-item-current' : undefined}
         style={current ? NAV_CURRENT_STYLE : undefined}
       >
+        <span slot="start" style={{ display: 'flex' }}>
+          {icon}
+        </span>
         <IonLabel>{label}</IonLabel>
         {badge > 0 && <IonBadge slot="end">{badge}</IonBadge>}
       </IonItem>
@@ -104,24 +127,72 @@ function NavDivider() {
   return <div role="separator" style={{ borderTop: '1px solid var(--line)' }} />;
 }
 
-function NavAccountBlock() {
+// The signed-in account's row: the same AccountRowBody as the switcher, opening your own profile.
+function NavAccountBlock({ currentPath }: { currentPath: string }) {
   const activeAccount = useActiveAccount();
-  const accountCount = useAccountsStore((s) => s.accounts.length);
   if (!activeAccount) return null;
+  const current = isCurrent(currentPath, '/me');
   return (
     <IonMenuToggle autoHide={false}>
       <IonItem
-        routerLink="/accounts"
+        routerLink="/me"
         detail={false}
         lines="none"
-        aria-label={`Account: ${activeAccount.username}. ${
-          accountCount > 1 ? 'Switch or manage accounts' : 'Manage accounts'
-        }`}
-        style={{ '--padding-top': '8px', '--padding-bottom': '8px' }}
+        aria-label={`Account: ${activeAccount.username}. Open your profile`}
+        aria-current={current ? 'page' : undefined}
+        className={current ? 'nav-item-current' : undefined}
+        style={{
+          '--padding-top': '8px',
+          '--padding-bottom': '8px',
+          ...(current ? NAV_CURRENT_STYLE : {}),
+        }}
       >
         <div style={{ display: 'flex', alignItems: 'center', gap: 12, width: '100%' }}>
           <AccountRowBody account={activeAccount} active={false} avatarSize={40} />
         </div>
+      </IonItem>
+    </IonMenuToggle>
+  );
+}
+
+// Settings | Help as one small row of two equal halves.
+function NavPairRow({ currentPath }: { currentPath: string }) {
+  const cell = (to: string, label: string, icon: ReactNode) => {
+    const current = isCurrent(currentPath, to);
+    return (
+      <IonMenuToggle autoHide={false} style={{ flex: 1 }}>
+        <IonItem
+          routerLink={to}
+          detail={false}
+          aria-current={current ? 'page' : undefined}
+          className={current ? 'nav-item-current' : undefined}
+          style={current ? NAV_CURRENT_STYLE : undefined}
+        >
+          <span slot="start" style={{ display: 'flex' }}>
+            {icon}
+          </span>
+          <IonLabel>{label}</IonLabel>
+        </IonItem>
+      </IonMenuToggle>
+    );
+  };
+  return (
+    <div style={{ display: 'flex' }}>
+      {cell('/settings', 'Settings', <Settings {...NAV_ICON_PROPS} />)}
+      {cell('/help', 'Help', <CircleHelp {...NAV_ICON_PROPS} />)}
+    </div>
+  );
+}
+
+// __APP_VERSION__: b-mobile's own package.json version (src/appVersion.ts, set in vite.config.ts).
+function NavVersion() {
+  const version = typeof __APP_VERSION__ === 'string' ? __APP_VERSION__ : '1.0.0';
+  return (
+    <IonMenuToggle autoHide={false}>
+      <IonItem routerLink="/help" detail={false} lines="none">
+        <IonLabel style={{ fontSize: 'var(--text-sm, 12px)', color: 'var(--ion-color-medium)' }}>
+          b-mobile {version}
+        </IonLabel>
       </IonItem>
     </IonMenuToggle>
   );
@@ -138,38 +209,73 @@ function NavMenu() {
   return (
     <IonMenu contentId={MAIN_CONTENT_ID} swipeGesture={false}>
       <IonContent>
-        <NavAccountBlock />
-        <IonList lines="none" style={{ padding: 0 }}>
-          {activeAccount && <NavDivider />}
-          {canWrite && <NavItem to="/compose" label="New entry" currentPath={pathname} />}
-          <NavItem to="/browse" label="Browse" currentPath={pathname} />
-          <NavItem to="/search" label="Search" currentPath={pathname} />
-          <NavItem to="/map" label="Map" currentPath={pathname} />
-          {activeAccount && (
-            <>
-              <NavDivider />
-              <NavItem to="/me" label="My profile" currentPath={pathname} />
+        {/* Flex column filling the drawer so the version footer sits at the bottom of the screen
+            (IonContent's own bottom padding keeps it clear of the gesture bar). */}
+        <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100%' }}>
+          <IonList lines="none" style={{ padding: 0 }}>
+            {activeAccount ? (
+              <NavAccountBlock currentPath={pathname} />
+            ) : (
               <NavItem
-                to="/notifications"
-                label="Notifications"
-                badge={notificationsCount}
+                to="/sign-in"
+                label="Sign in"
+                icon={<LogIn {...NAV_ICON_PROPS} />}
                 currentPath={pathname}
               />
+            )}
+            <NavDivider />
+            {activeAccount && (
+              <>
+                <NavItem
+                  to="/comments"
+                  label="Comments"
+                  icon={<MessageSquare {...NAV_ICON_PROPS} />}
+                  badge={commentsCount}
+                  currentPath={pathname}
+                />
+                <NavItem
+                  to="/notifications"
+                  label="Notifications"
+                  icon={<Bell {...NAV_ICON_PROPS} />}
+                  badge={notificationsCount}
+                  currentPath={pathname}
+                />
+              </>
+            )}
+            {canWrite && (
               <NavItem
-                to="/comments"
-                label="Comments"
-                badge={commentsCount}
+                to="/compose"
+                label="New entry"
+                icon={<CirclePlus {...NAV_ICON_PROPS} />}
                 currentPath={pathname}
               />
-            </>
-          )}
-          <NavDivider />
-          <NavItem to="/settings" label="Settings" currentPath={pathname} />
-          <NavItem to="/help" label="Help & about" currentPath={pathname} />
-          <NavItem to="/accounts" label="Accounts" currentPath={pathname} />
-          <NavItem to="/hidden" label="Hidden members" currentPath={pathname} />
-          {!activeAccount && <NavItem to="/sign-in" label="Sign in" currentPath={pathname} />}
-        </IonList>
+            )}
+            {(activeAccount || canWrite) && <NavDivider />}
+            <NavItem
+              to="/browse"
+              label="Browse"
+              icon={<LayoutGrid {...NAV_ICON_PROPS} />}
+              currentPath={pathname}
+            />
+            <NavItem
+              to="/map"
+              label="Map"
+              icon={<MapPin {...NAV_ICON_PROPS} />}
+              currentPath={pathname}
+            />
+            <NavItem
+              to="/search"
+              label="Search"
+              icon={<Search {...NAV_ICON_PROPS} />}
+              currentPath={pathname}
+            />
+            <NavDivider />
+            <NavPairRow currentPath={pathname} />
+          </IonList>
+          <div style={{ marginTop: 'auto' }}>
+            <NavVersion />
+          </div>
+        </div>
       </IonContent>
     </IonMenu>
   );

@@ -28,7 +28,7 @@
 
 import { useEffect, useState } from 'react';
 import type { ReactNode } from 'react';
-import { IonPage, IonHeader, IonContent, IonList, IonItem, IonNote, IonButton } from '@ionic/react';
+import { IonPage, IonHeader, IonContent, IonList, IonButton } from '@ionic/react';
 import { NavRow, SectionHeader } from '../../components/SettingsForm.js';
 import { AppHeader } from '../../components/AppHeader.js';
 import { CachedImage } from '../../components/CachedImage.js';
@@ -367,9 +367,6 @@ function Licences() {
 
 function HelpInfoHub() {
   const navigate = useAppNavigate();
-  // __APP_VERSION__: b-mobile's own package.json version (src/appVersion.ts, set in vite.config.ts).
-  const version = typeof __APP_VERSION__ === 'string' ? __APP_VERSION__ : '1.0.0';
-
   return (
     <IonPage>
       <IonHeader>
@@ -406,10 +403,6 @@ function HelpInfoHub() {
           />
 
           <SectionHeader>About</SectionHeader>
-          <IonItem lines="full">
-            <span>App version</span>
-            <IonNote slot="end">{version}</IonNote>
-          </IonItem>
           <NavRow
             label="b-mobile privacy policy"
             kind="external"
