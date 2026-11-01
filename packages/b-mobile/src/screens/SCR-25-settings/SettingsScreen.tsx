@@ -168,14 +168,14 @@ function SettingsHub() {
             siblings, not the only path to it. */}
         <IonList>
           <SectionHeader>App settings</SectionHeader>
-          <IonItem button detail onClick={() => navigate.push('/accounts', { drilledIn: true })}>
+          <IonItem button detail onClick={() => navigate.push('/accounts')}>
             <span>Accounts</span>
             {activeAccount && <IonNote slot="end">{activeAccount.username}</IonNote>}
           </IonItem>
           <IonItem button detail onClick={() => navigate.push('/settings/app')}>
             <span>General</span>
           </IonItem>
-          <IonItem button detail onClick={() => navigate.push('/hidden', { drilledIn: true })}>
+          <IonItem button detail onClick={() => navigate.push('/hidden')}>
             <span>Hidden members</span>
           </IonItem>
           <IonItem button detail onClick={() => navigate.push('/settings/browsing')}>

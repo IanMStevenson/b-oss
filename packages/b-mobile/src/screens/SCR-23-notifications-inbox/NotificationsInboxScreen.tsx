@@ -141,7 +141,7 @@ export function NotificationsInboxScreen() {
   return (
     <IonPage>
       <IonHeader>
-        <AppHeader title="Notifications" variant="menu" />
+        <AppHeader title="Notifications" />
       </IonHeader>
       <IonContent>
         {status === 'loading' && (

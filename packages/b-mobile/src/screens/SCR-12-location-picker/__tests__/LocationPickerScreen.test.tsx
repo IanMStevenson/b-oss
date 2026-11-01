@@ -11,7 +11,7 @@ import { render, screen, cleanup, waitFor, act } from '@testing-library/react';
 import * as L from 'leaflet';
 import { MAP_FAILED_MESSAGE } from '../../../components/leafletMap.js';
 import userEvent from '@testing-library/user-event';
-import { MemoryRouter } from 'react-router-dom';
+import { createTrackedRouter } from '../../../app/routes/test-router.js';
 import { OverlayProvider } from '../../../app/OverlayProvider.js';
 import { LocationPickerScreen } from '../LocationPickerScreen.js';
 import { useComposeDraftStore } from '../../../state/composeDraftStore.js';
@@ -103,13 +103,15 @@ afterEach(() => {
 });
 
 function renderScreen() {
-  return render(
-    <MemoryRouter>
+  const { tracked, wrap } = createTrackedRouter();
+  render(
+    wrap(
       <OverlayProvider>
         <LocationPickerScreen />
-      </OverlayProvider>
-    </MemoryRouter>,
+      </OverlayProvider>,
+    ),
   );
+  return tracked;
 }
 
 describe('LocationPickerScreen', () => {
@@ -234,5 +236,25 @@ describe('LocationPickerScreen', () => {
       layer.fire('tileload');
     });
     expect(screen.queryByText(MAP_FAILED_MESSAGE)).toBeNull();
+  });
+
+  it('home tap with an unchanged pin goes straight to Browse', async () => {
+    const tracked = renderScreen();
+    await waitFor(() => expect(mapInstances.length).toBe(1));
+    await userEvent.click(screen.getByRole('button', { name: /b-mobile/ }));
+    expect(tracked.location.pathname).toBe('/browse');
+  });
+
+  it('home tap after moving the pin asks to discard first, then goes to Browse', async () => {
+    const tracked = renderScreen();
+    await waitFor(() => expect(mapInstances.length).toBe(1));
+    mapInstances[0].fire('click', { latlng: L.latLng(10, 20) });
+    await waitFor(() => expect(pins(mapInstances[0]).length).toBe(1));
+    await userEvent.click(screen.getByRole('button', { name: /b-mobile/ }));
+    expect(await screen.findByText('Discard changes?')).toBeDefined();
+    expect(tracked.location.pathname).toBe('/');
+    await userEvent.click(screen.getByRole('button', { name: 'Discard' }));
+    await waitFor(() => expect(tracked.location.pathname).toBe('/browse'));
+    expect(useComposeDraftStore.getState().draft).toBeNull();
   });
 });

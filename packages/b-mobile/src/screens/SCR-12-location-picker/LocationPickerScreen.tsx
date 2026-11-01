@@ -11,7 +11,7 @@
 // SCR-04: the map library is among the app's larger dependencies and most routes never need it.
 
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { IonPage, IonHeader, IonButton, IonContent, IonText } from '@ionic/react';
+import { IonPage, IonHeader, IonButton, IonContent, IonText, IonAlert } from '@ionic/react';
 import { LocateFixed } from 'lucide-react';
 import { marker as leafletMarker } from 'leaflet';
 import type { Map as LeafletMap, Marker } from 'leaflet';
@@ -33,6 +33,7 @@ export function LocationPickerScreen() {
   const navigate = useAppNavigate();
   const draft = useComposeDraftStore((s) => s.draft);
   const patchDraft = useComposeDraftStore((s) => s.patchDraft);
+  const clearDraft = useComposeDraftStore((s) => s.clearDraft);
   const tiles = useMemo(() => getTileLayerConfig(), []);
 
   const containerRef = useRef<HTMLDivElement | null>(null);
@@ -129,6 +130,16 @@ export function LocationPickerScreen() {
     markerRef.current = null;
   }
 
+  // The picker has no Back confirmation (Back just drops the tap); only the header's home tap
+  // asks, because it abandons the whole compose/edit flow along with an unconfirmed pin.
+  const [confirmHome, setConfirmHome] = useState<(() => void) | null>(null);
+  const changed = selected?.lat !== draft?.location?.lat || selected?.lon !== draft?.location?.lon;
+
+  function handleHome(goHome: () => void): void {
+    if (changed) setConfirmHome(() => goHome);
+    else goHome();
+  }
+
   function handleDone(): void {
     patchDraft({ location: selected, displayLocation: selected != null });
     navigate.goBack();
@@ -137,7 +148,7 @@ export function LocationPickerScreen() {
   return (
     <IonPage>
       <IonHeader>
-        <AppHeader title="Pick location" variant="back" accountIndicator />
+        <AppHeader title="Pick location" variant="back" onHome={handleHome} accountIndicator />
       </IonHeader>
       <IonContent>
         {!tiles ? (
@@ -197,6 +208,23 @@ export function LocationPickerScreen() {
           </div>
         )}
       </IonContent>
+
+      <IonAlert
+        isOpen={confirmHome !== null}
+        header="Discard changes?"
+        onDidDismiss={() => setConfirmHome(null)}
+        buttons={[
+          { text: 'Keep editing', role: 'cancel' },
+          {
+            text: 'Discard',
+            role: 'destructive',
+            handler: () => {
+              clearDraft();
+              confirmHome?.();
+            },
+          },
+        ]}
+      />
     </IonPage>
   );
 }

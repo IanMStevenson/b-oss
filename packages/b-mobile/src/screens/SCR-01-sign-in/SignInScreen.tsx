@@ -186,7 +186,7 @@ export function SignInScreen({ returnTo }: { returnTo?: string } = {}) {
       <IonHeader>
         <AppHeader
           title="Sign in"
-          variant={drilledIn ? 'back' : 'menu'}
+          variant={drilledIn ? 'back' : undefined}
           backHref="/accounts"
           onBack={returnTo !== undefined ? () => navigate.replace(returnTo) : undefined}
           accountIndicator={false}

@@ -141,10 +141,8 @@ vi.mock('../../../flows/accountsFlow.js', () => ({
 }));
 
 const push = vi.fn();
-let mockDrilledIn = false;
 vi.mock('../../../app/routes/useAppNavigate.js', () => ({
   useAppNavigate: () => ({ push, replace: vi.fn(), goBack: vi.fn() }),
-  useIsDrilledIn: () => mockDrilledIn,
 }));
 
 afterEach(() => {
@@ -169,9 +167,10 @@ function account(overrides: Partial<StoredAccount> = {}): StoredAccount {
 
 /** `reauthFor` stands in for AppRoutes' `/accounts?reauth=<id>` (header switcher, push tap). */
 function renderScreen(reauthFor?: string, drilledIn = false) {
-  mockDrilledIn = drilledIn;
   return render(
-    <MemoryRouter>
+    <MemoryRouter
+      initialEntries={[{ pathname: '/accounts', state: drilledIn ? { drilledIn } : null }]}
+    >
       <AccountsScreen
         reauthRequest={reauthFor ? { accountId: reauthFor, key: 'nav-1' } : undefined}
       />

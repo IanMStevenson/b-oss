@@ -5,7 +5,7 @@
 import { describe, it, expect, afterEach, beforeEach, vi } from 'vitest';
 import { render, screen, cleanup, waitFor, act } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { MemoryRouter } from 'react-router-dom';
+import { createTrackedRouter } from '../../../app/routes/test-router.js';
 import { OverlayProvider } from '../../../app/OverlayProvider.js';
 import { BlipfotoError } from '@b-oss/b-api';
 import { EditEntryScreen } from '../EditEntryScreen.js';
@@ -35,9 +35,10 @@ vi.mock('../../../flows/composeFlow.js', () => ({ enqueueDraft }));
 
 const replace = vi.fn();
 const goBack = vi.fn();
+const goBackOr = vi.fn();
 const push = vi.fn();
 vi.mock('../../../app/routes/useAppNavigate.js', () => ({
-  useAppNavigate: () => ({ push, replace, goBack }),
+  useAppNavigate: () => ({ push, replace, goBack, goBackOr }),
 }));
 
 beforeEach(() => {
@@ -92,13 +93,15 @@ afterEach(() => {
 });
 
 function renderScreen() {
-  return render(
-    <MemoryRouter>
+  const { tracked, wrap } = createTrackedRouter();
+  render(
+    wrap(
       <OverlayProvider>
         <EditEntryScreen entryId="e1" />
-      </OverlayProvider>
-    </MemoryRouter>,
+      </OverlayProvider>,
+    ),
   );
+  return tracked;
 }
 
 describe('EditEntryScreen', () => {
@@ -121,7 +124,7 @@ describe('EditEntryScreen', () => {
     await screen.findByDisplayValue('Sunrise');
 
     await userEvent.click(screen.getByText('Save'));
-    await waitFor(() => expect(replace).toHaveBeenCalledWith('/entry/e1'));
+    await waitFor(() => expect(goBackOr).toHaveBeenCalledWith('/entry/e1'));
     expect(useComposeDraftStore.getState().draft).toBeNull();
   });
 
@@ -285,5 +288,32 @@ describe('EditEntryScreen', () => {
       await waitFor(() => expect(push).toHaveBeenCalledWith('/compose/location'));
       expect(revealStoredPosition).not.toHaveBeenCalled();
     });
+  });
+
+  it('home tap with unsaved changes asks to discard first, then goes to Browse', async () => {
+    useComposeDraftStore.setState({
+      draft: {
+        mode: 'edit',
+        accountId: 'a1',
+        entryId: 'e1',
+        photo: null,
+        title: 'Already editing',
+        tags: '',
+        description: '',
+        date: '2026-01-01',
+        location: null,
+        displayLocation: false,
+        thumbnailCrop: null,
+        dirty: true,
+      },
+    });
+    const tracked = renderScreen();
+    await screen.findByDisplayValue('Already editing');
+    await userEvent.click(screen.getByRole('button', { name: /b-mobile/ }));
+    expect(await screen.findByText('Discard changes?')).toBeDefined();
+    expect(tracked.location.pathname).toBe('/');
+    await userEvent.click(screen.getByRole('button', { name: 'Discard' }));
+    await waitFor(() => expect(tracked.location.pathname).toBe('/browse'));
+    expect(useComposeDraftStore.getState().draft).toBeNull();
   });
 });

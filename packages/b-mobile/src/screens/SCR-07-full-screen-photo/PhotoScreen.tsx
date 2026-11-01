@@ -19,7 +19,7 @@ import type { CSSProperties } from 'react';
 import { IonPage, IonContent, IonSpinner, IonText, IonButton } from '@ionic/react';
 import { Lightbox, formatLongDate } from '@b-oss/b-view';
 import { useLiveEntry } from '../../data/useLiveEntry.js';
-import { useAppNavigate } from '../../app/routes/useAppNavigate.js';
+import { useAppNavigate, usePhotoOpenedFrom } from '../../app/routes/useAppNavigate.js';
 
 interface PhotoScreenProps {
   entryId: string;
@@ -37,12 +37,18 @@ export function PhotoScreen({ entryId }: PhotoScreenProps) {
     setImageError(false);
   }, [imagePath]);
 
+  // The entry screen that pushed this one marks itself in the router state, so Close can pop back
+  // to it instead of stacking a second copy. After swiping to another entry's photo the id no
+  // longer matches, and Close replaces with that entry instead.
+  const openedFrom = usePhotoOpenedFrom();
+
   function close(): void {
-    navigate.replace(`/entry/${entryId}`);
+    if (openedFrom === entryId) navigate.goBack();
+    else navigate.replace(`/entry/${entryId}`);
   }
 
   function goTo(id: string): void {
-    navigate.replace(`/entry/${id}/photo`);
+    navigate.replace(`/entry/${id}/photo`, { photoFrom: openedFrom });
   }
 
   const entry = entryState.status === 'loaded' ? entryState.data : null;

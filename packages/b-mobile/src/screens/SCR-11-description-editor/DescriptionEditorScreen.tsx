@@ -67,7 +67,20 @@ function BiographyEditor() {
 
   const hasChanges = content !== initial;
 
+  // Set when the discard confirmation was raised by the header's home tap rather than Back.
+  const pendingHome = useRef<(() => void) | null>(null);
+
+  function handleHome(goHome: () => void): void {
+    if (hasChanges) {
+      pendingHome.current = goHome;
+      setConfirmDiscard(true);
+      return;
+    }
+    goHome();
+  }
+
   function handleBack(): void {
+    pendingHome.current = null;
     if (hasChanges) {
       setConfirmDiscard(true);
       return;
@@ -92,7 +105,13 @@ function BiographyEditor() {
   return (
     <IonPage>
       <IonHeader>
-        <AppHeader title="Biography" variant="back" onBack={handleBack} accountIndicator />
+        <AppHeader
+          title="Biography"
+          variant="back"
+          onBack={handleBack}
+          onHome={handleHome}
+          accountIndicator
+        />
       </IonHeader>
       <IonContent>
         <div className="description-editor">
@@ -136,7 +155,11 @@ function BiographyEditor() {
         onDidDismiss={() => setConfirmDiscard(false)}
         buttons={[
           { text: 'Keep editing', role: 'cancel' },
-          { text: 'Discard', role: 'destructive', handler: () => navigate.goBack() },
+          {
+            text: 'Discard',
+            role: 'destructive',
+            handler: () => (pendingHome.current ? pendingHome.current() : navigate.goBack()),
+          },
         ]}
       />
     </IonPage>

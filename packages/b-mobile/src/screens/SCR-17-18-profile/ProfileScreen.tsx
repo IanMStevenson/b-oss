@@ -265,7 +265,7 @@ export function ProfileScreen({ username }: ProfileScreenProps) {
       <IonHeader>
         <AppHeader
           title={isOwn ? 'My profile' : 'Profile'}
-          variant={isOwn ? 'menu' : 'back'}
+          variant={isOwn ? undefined : 'back'}
           backHref="/browse"
           // Shows the account indicator on own AND other profiles (following acts as the
           // active account), so it is always on rather than the menu-variant default.

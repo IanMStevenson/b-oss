@@ -5,7 +5,7 @@
 import { describe, it, expect, afterEach, beforeEach, vi } from 'vitest';
 import { render, screen, cleanup, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { MemoryRouter } from 'react-router-dom';
+import { createTrackedRouter } from '../../../app/routes/test-router.js';
 import { OverlayProvider } from '../../../app/OverlayProvider.js';
 import { ComposeEntryScreen } from '../ComposeEntryScreen.js';
 import { useComposeDraftStore } from '../../../state/composeDraftStore.js';
@@ -32,8 +32,9 @@ vi.mock('../../../components/PhotoCropper.js', () => ({
 
 const push = vi.fn();
 const replace = vi.fn();
+const goBackOr = vi.fn();
 vi.mock('../../../app/routes/useAppNavigate.js', () => ({
-  useAppNavigate: () => ({ push, replace, goBack: vi.fn() }),
+  useAppNavigate: () => ({ push, replace, goBack: vi.fn(), goBackOr }),
 }));
 
 function baseDraft(overrides: Partial<ComposeDraft> = {}): ComposeDraft {
@@ -83,20 +84,22 @@ afterEach(() => {
 });
 
 function renderScreen() {
-  return render(
-    <MemoryRouter>
+  const { tracked, wrap } = createTrackedRouter();
+  render(
+    wrap(
       <OverlayProvider>
         <ComposeEntryScreen />
-      </OverlayProvider>
-    </MemoryRouter>,
+      </OverlayProvider>,
+    ),
   );
+  return tracked;
 }
 
 describe('ComposeEntryScreen', () => {
   it('redirects to SCR-09 when there is no active publish draft', async () => {
     useComposeDraftStore.setState({ draft: null });
     renderScreen();
-    await waitFor(() => expect(replace).toHaveBeenCalledWith('/compose'));
+    await waitFor(() => expect(goBackOr).toHaveBeenCalledWith('/compose'));
   });
 
   it('enables Publish once the date is confirmed eligible, and enqueues on tap', async () => {
@@ -258,5 +261,24 @@ describe('ComposeEntryScreen', () => {
     expect(useComposeDraftStore.getState().draft?.date).toBe('2026-01-20');
     expect(row.getAttribute('aria-expanded')).toBe('false');
     expect(row.getAttribute('aria-label')).toMatch(/20/);
+  });
+
+  it('home tap with a clean draft clears it and goes to Browse', async () => {
+    const tracked = renderScreen();
+    await userEvent.click(screen.getByRole('button', { name: /b-mobile/ }));
+    expect(tracked.location.pathname).toBe('/browse');
+    expect(useComposeDraftStore.getState().draft).toBeNull();
+  });
+
+  it('home tap with unsaved changes asks to discard first, then goes to Browse', async () => {
+    useComposeDraftStore.setState({ draft: baseDraft({ dirty: true }) });
+    const tracked = renderScreen();
+    await userEvent.click(screen.getByRole('button', { name: /b-mobile/ }));
+    expect(await screen.findByText('Discard this entry?')).toBeDefined();
+    expect(tracked.location.pathname).toBe('/');
+    expect(useComposeDraftStore.getState().draft).not.toBeNull();
+    await userEvent.click(screen.getByRole('button', { name: 'Discard' }));
+    await waitFor(() => expect(tracked.location.pathname).toBe('/browse'));
+    expect(useComposeDraftStore.getState().draft).toBeNull();
   });
 });

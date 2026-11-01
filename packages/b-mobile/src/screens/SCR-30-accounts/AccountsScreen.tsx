@@ -66,7 +66,7 @@ import {
 } from '../../flows/accountsFlow.js';
 import { AccountMismatchError } from '../../flows/accountMismatch.js';
 import { AccountMismatchAlert, canRetryInApp } from '../../components/AccountMismatchAlert.js';
-import { useAppNavigate, useIsDrilledIn } from '../../app/routes/useAppNavigate.js';
+import { useAppNavigate } from '../../app/routes/useAppNavigate.js';
 import { openUrl } from '../../platform/browser.js';
 import { t } from '../../strings/index.js';
 import { errorMessageOf } from '../../data/errors.js';
@@ -151,7 +151,6 @@ export interface ReauthRequest {
 
 export function AccountsScreen({ reauthRequest }: { reauthRequest?: ReauthRequest } = {}) {
   const navigate = useAppNavigate();
-  const drilledIn = useIsDrilledIn();
   const accounts = useAccountsStore((s) => s.accounts);
   const activeAccountId = useAccountsStore((s) => s.activeAccountId);
   const [menuId, setMenuId] = useState<string | null>(null);
@@ -298,12 +297,7 @@ export function AccountsScreen({ reauthRequest }: { reauthRequest?: ReauthReques
   return (
     <IonPage>
       <IonHeader>
-        <AppHeader
-          title="Accounts"
-          variant={drilledIn ? 'back' : 'menu'}
-          backHref="/settings"
-          accountIndicator={false}
-        />
+        <AppHeader title="Accounts" backHref="/settings" accountIndicator={false} />
       </IonHeader>
       <IonContent>
         <IonList>
