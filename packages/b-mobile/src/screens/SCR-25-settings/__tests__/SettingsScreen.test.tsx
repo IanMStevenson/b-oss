@@ -86,31 +86,38 @@ function renderHub() {
 }
 
 describe('SettingsScreen hub', () => {
-  it('lists every section row, Hidden members, and Accounts', async () => {
+  it('lists every row of the restructured hub', async () => {
     renderHub();
     await waitFor(() => expect(fetchUserSettings).toHaveBeenCalled());
     for (const label of [
+      'Appearance',
+      'Reminders',
       'Accounts',
-      'Journal',
-      'Profile',
-      'Notifications',
-      'Browsing',
       'Hidden members',
+      'Details & journal',
+      'Profile',
+      'Notification settings',
     ]) {
       expect(screen.getByText(label)).toBeDefined();
     }
-    // two 'General' rows: the Blipfoto account's own, and App settings'
-    expect(screen.getAllByText('General')).toHaveLength(2);
-    expect(screen.queryByText('Misc')).toBeNull();
-    expect(screen.queryByText('Reminders')).toBeNull();
+    for (const gone of ['General', 'Journal', 'Browsing', 'Notifications', 'Misc']) {
+      expect(screen.queryByText(gone)).toBeNull();
+    }
   });
 
-  it('puts App settings General straight after Accounts', async () => {
+  it('orders the rows as App settings then Blipfoto account settings', async () => {
     renderHub();
     await waitFor(() => expect(fetchUserSettings).toHaveBeenCalled());
     const rows = Array.from(document.querySelectorAll('ion-item')).map((i) => i.textContent);
-    const accounts = rows.findIndex((t) => t?.startsWith('Accounts'));
-    expect(rows[accounts + 1]).toBe('General');
+    expect(rows.map((r) => r?.replace(/alice$/, ''))).toEqual([
+      'Appearance',
+      'Reminders',
+      'Accounts',
+      'Hidden members',
+      'Details & journal',
+      'Profile',
+      'Notification settings',
+    ]);
   });
 
   it('groups rows under Blipfoto account settings and App Settings headers', async () => {
@@ -120,11 +127,20 @@ describe('SettingsScreen hub', () => {
     expect(screen.getByText('App settings')).toBeDefined();
   });
 
-  it('tapping Browsing navigates to /settings/browsing', async () => {
+  it('each row navigates to its own page', async () => {
     renderHub();
     await waitFor(() => expect(fetchUserSettings).toHaveBeenCalled());
-    await userEvent.click(screen.getByText('Browsing'));
-    expect(push).toHaveBeenCalledWith('/settings/browsing');
+    const cases: Array<[string, string]> = [
+      ['Appearance', '/settings/appearance'],
+      ['Reminders', '/settings/reminders'],
+      ['Details & journal', '/settings/details'],
+      ['Profile', '/settings/profile'],
+      ['Notification settings', '/settings/notifications'],
+    ];
+    for (const [label, path] of cases) {
+      await userEvent.click(screen.getByText(label));
+      expect(push).toHaveBeenCalledWith(path);
+    }
   });
 
   it('hides Refused followers for an unprotected journal', async () => {
@@ -139,54 +155,58 @@ describe('SettingsScreen hub', () => {
     expect(await screen.findByText('Refused followers')).toBeDefined();
   });
 
-  it('tapping each General row navigates to its own page', async () => {
-    renderHub();
-    await waitFor(() => expect(fetchUserSettings).toHaveBeenCalled());
-    const [accountGeneral, appGeneral] = screen.getAllByText('General');
-    await userEvent.click(accountGeneral);
-    expect(push).toHaveBeenCalledWith('/settings/general');
-    await userEvent.click(appGeneral);
-    expect(push).toHaveBeenCalledWith('/settings/app');
-  });
-
   it('loading: shows a spinner while the privacy fetch is in flight, without blocking the hub rows', () => {
     fetchUserSettings.mockReturnValue(new Promise(() => {}));
     renderHub();
     expect(document.querySelector('ion-spinner')).not.toBeNull();
-    expect(screen.getAllByText('General').length).toBeGreaterThan(0);
+    expect(screen.getByText('Appearance')).toBeDefined();
   });
 
   it('still shows the hub rows when the privacy fetch fails', async () => {
     fetchUserSettings.mockRejectedValue(new Error('down'));
     renderHub();
     expect(await screen.findByText(/Could not load your privacy setting/)).toBeDefined();
-    expect(screen.getAllByText('General').length).toBeGreaterThan(0);
+    expect(screen.getByText('Appearance')).toBeDefined();
   });
 });
 
 describe('SettingsScreen section routing', () => {
-  it('renders the General section when given section="general"', async () => {
+  it('renders the Details & journal section when given section="details"', async () => {
     render(
       <MemoryRouter>
         <OverlayProvider>
           <OverlayHost />
-          <SettingsScreen section="general" />
+          <SettingsScreen section="details" />
         </OverlayProvider>
       </MemoryRouter>,
     );
-    expect(await screen.findByText('General')).toBeDefined();
+    expect(await screen.findByText('Details & journal')).toBeDefined();
+    expect(await screen.findByText('Your journal')).toBeDefined();
   });
 
-  it('renders the Browsing section when given section="browsing"', () => {
+  it('renders Appearance (with the former Browsing controls) for section="appearance"', () => {
     render(
       <MemoryRouter>
         <OverlayProvider>
           <OverlayHost />
-          <SettingsScreen section="browsing" />
+          <SettingsScreen section="appearance" />
         </OverlayProvider>
       </MemoryRouter>,
     );
     expect(screen.getByText('Show zoom/navigation bar')).toBeDefined();
+    expect(screen.getByText('Links')).toBeDefined();
+  });
+
+  it('renders Reminders for section="reminders"', () => {
+    render(
+      <MemoryRouter>
+        <OverlayProvider>
+          <OverlayHost />
+          <SettingsScreen section="reminders" />
+        </OverlayProvider>
+      </MemoryRouter>,
+    );
+    expect(screen.getByLabelText('Daily reminder')).toBeDefined();
   });
 
   it('the hub is a nav-menu destination: menu button, no back arrow (b-oss#278)', async () => {
@@ -232,26 +252,19 @@ describe('SettingsScreen section routing', () => {
 
     it('greys out the Blipfoto account rows', () => {
       renderHub();
-      const item = (label: string) => screen.getAllByText(label)[0].closest('ion-item')!;
-      for (const label of ['Journal', 'Profile', 'Notifications']) {
+      const item = (label: string) => screen.getByText(label).closest('ion-item')!;
+      for (const label of ['Details & journal', 'Profile', 'Notification settings']) {
         expect(isDisabled(item(label))).toBe(true);
       }
-      expect(isDisabled(screen.getAllByText('General')[0].closest('ion-item'))).toBe(true);
     });
 
-    it('keeps Accounts, App General, Hidden members and Browsing enabled and navigable', async () => {
+    it('keeps the App settings rows enabled and navigable', async () => {
       renderHub();
-      const [, appGeneral] = screen.getAllByText('General');
-      for (const el of [
-        screen.getByText('Accounts'),
-        appGeneral,
-        screen.getByText('Hidden members'),
-        screen.getByText('Browsing'),
-      ]) {
-        expect(isDisabled(el.closest('ion-item'))).toBe(false);
+      for (const label of ['Appearance', 'Reminders', 'Accounts', 'Hidden members']) {
+        expect(isDisabled(screen.getByText(label).closest('ion-item'))).toBe(false);
       }
-      await userEvent.click(appGeneral);
-      expect(push).toHaveBeenCalledWith('/settings/app');
+      await userEvent.click(screen.getByText('Appearance'));
+      expect(push).toHaveBeenCalledWith('/settings/appearance');
     });
   });
 });

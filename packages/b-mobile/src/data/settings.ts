@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (C) 2026 Ian Stevenson
 
-// SCR-25 (FLW-17) server-backed sections: General/Journal/Profile (`user/settings`) and
+// SCR-25 (FLW-17) server-backed sections: Details & journal/Profile (`user/settings`) and
 // Notifications' feed toggles (`user/settings/notifications`). One thin fetcher/mutator per
 // endpoint, same one-function-per-call shape as data/users.ts — each SCR-25 section calls only the
 // fields it owns, leaving the rest of `UpdateUserSettingsParams` undefined so a save from one

@@ -13,7 +13,7 @@
 // wired to a real native effect in Phase 10 via platform/blipfotoLinks.ts), and
 // `notificationPollingIntervalMinutes` (SCR-25 Notifications' Advanced control — stored locally
 // since there's no deployed b-push registration to PATCH yet; Phase 9 wires the live call).
-// `showZoomBar`/`showPagination`/`thumbnailMargins` (SCR-25's new Browsing section) are
+// `showZoomBar`/`showPagination`/`thumbnailMargins` (SCR-25's Appearance section) are
 // EntryGrid/ThumbnailGrid display prefs — device-wide, not account-scoped.
 
 import { create } from 'zustand';
@@ -49,7 +49,7 @@ interface PersistedShape {
   /** SCR-01's first-run explainer (Phase 12.1, OverlayProvider) — shown once above the mode
    * choice on the first deliberate visit, never again after dismissal. */
   seenFirstRunExplainer: boolean;
-  /** SCR-25 Browsing section. All three below are EntryGrid/ThumbnailGrid display prefs, not
+  /** SCR-25 Appearance section. All three below are EntryGrid/ThumbnailGrid display prefs, not
    * account-scoped — device-wide like Misc's fields. */
   showZoomBar: boolean;
   showPagination: boolean;

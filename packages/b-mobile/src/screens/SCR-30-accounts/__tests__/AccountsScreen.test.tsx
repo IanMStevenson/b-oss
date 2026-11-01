@@ -14,6 +14,7 @@ import { AccountsScreen } from '../AccountsScreen.js';
 import { AccountsRoute } from '../../../app/routes/AccountsRoute.js';
 import { useAccountsStore } from '../../../state/accountsStore.js';
 import type { StoredAccount } from '../../../state/accountsStore.js';
+import { useDevicePrefsStore } from '../../../state/devicePrefsStore.js';
 import { AccountMismatchError } from '../../../flows/accountMismatch.js';
 
 // IonAlert stubbed at the @ionic/react boundary (b-oss#193 — Ionic's animated overlays drop clicks
@@ -208,6 +209,29 @@ describe('AccountsScreen', () => {
     expect(screen.getByText('bob')).toBeDefined();
     expect(screen.getByLabelText('Active account')).toBeDefined();
     expect(screen.getByText('Read-only')).toBeDefined();
+  });
+
+  describe('confirm-account toggle (b-oss#734)', () => {
+    const label = 'Confirm account before star, favourite or comment';
+
+    it('is hidden with fewer than two accounts', () => {
+      renderScreen();
+      expect(screen.queryByLabelText(label)).toBeNull();
+    });
+
+    it('is shown with two or more accounts, and persists when flipped', () => {
+      useDevicePrefsStore.setState({ confirmAccountBeforeReaction: false });
+      useAccountsStore.setState({
+        accounts: [account(), account({ id: 'a2', username: 'bob' })],
+        activeAccountId: 'a1',
+      });
+      renderScreen();
+      const toggle = screen.getByLabelText(label);
+      toggle.dispatchEvent(
+        new CustomEvent('ionChange', { bubbles: true, detail: { checked: true } }),
+      );
+      expect(useDevicePrefsStore.getState().confirmAccountBeforeReaction).toBe(true);
+    });
   });
 
   it('"+ Add account" navigates to sign-in', async () => {

@@ -1,31 +1,22 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (C) 2026 Ian Stevenson
 
-// SCR-25 App Settings → General: the device-local settings that used to be separate Reminders and
-// Misc pages, plus the link-handling toggle that used to live on Help. (Not to be confused with
-// the Blipfoto account's own "General" page, GeneralSection.tsx — the shared name is deliberate.)
+// SCR-25 App settings → Reminders: the per-account daily "publish today" reminder, split out of the
+// old App → General page (b-oss#734).
 //
-// Everything persists immediately, no Save/Cancel. Reminders are per read-write account (switching
-// the active account shows its own on/off + time; a read-only account can't publish, so it gets no
-// Reminders section); they go through flows/reminderFlow.ts's setReminderEnabled(), which also
-// (re)schedules the OS notification. The Misc settings are per device and only matter with two or
-// more accounts stored, so that section is hidden below that. Signed out, the page is still
-// reachable (the links toggle must work logged out): Reminders shows greyed out.
+// Persists immediately, no Save/Cancel. Reminders are per read-write account (switching the active
+// account shows its own on/off + time; a read-only account can't publish, so it gets no controls);
+// they go through flows/reminderFlow.ts's setReminderEnabled(), which also (re)schedules the OS
+// notification. Signed out, the page is still reachable and shows the control greyed out.
 //
 // Turning the reminder on asks for the notification permission (Android 13+). A refusal, or a
 // scheduling error, leaves it stored as off and says why under the toggle (b-oss#389).
 
 import { useState } from 'react';
 import { IonList } from '@ionic/react';
-import {
-  CaptionRow,
-  SectionHeader,
-  SegmentRow,
-  TimeRow,
-  ToggleRow,
-} from '../../../components/SettingsForm.js';
+import { CaptionRow, SectionHeader, TimeRow, ToggleRow } from '../../../components/SettingsForm.js';
 import { useDevicePrefsStore } from '../../../state/devicePrefsStore.js';
-import { useAccountsStore, useActiveAccount } from '../../../state/accountsStore.js';
+import { useActiveAccount } from '../../../state/accountsStore.js';
 import { setReminderEnabled } from '../../../flows/reminderFlow.js';
 
 const REMINDER_MINUTES = [0, 15, 30, 45];
@@ -109,79 +100,10 @@ function RemindersGroup() {
   );
 }
 
-function AppearanceGroup() {
-  const theme = useDevicePrefsStore((s) => s.theme);
-  const setTheme = useDevicePrefsStore((s) => s.setTheme);
-  return (
-    <>
-      <SectionHeader>Appearance</SectionHeader>
-      <SegmentRow
-        label="Theme"
-        value={theme}
-        options={[
-          { value: 'system', label: 'System' },
-          { value: 'light', label: 'Light' },
-          { value: 'dark', label: 'Dark' },
-          { value: 'mid', label: 'Mid' },
-        ]}
-        onChange={setTheme}
-      />
-      <CaptionRow>
-        System follows your phone&rsquo;s dark theme setting (Light or Dark). Mid is a softer dark
-        grey you can choose here.
-      </CaptionRow>
-    </>
-  );
-}
-
-function MultiAccountGroup() {
-  const confirmAccountBeforeReaction = useDevicePrefsStore((s) => s.confirmAccountBeforeReaction);
-  const setConfirmAccountBeforeReaction = useDevicePrefsStore(
-    (s) => s.setConfirmAccountBeforeReaction,
-  );
-  const accountAvatarStyle = useDevicePrefsStore((s) => s.accountAvatarStyle);
-  const setAccountAvatarStyle = useDevicePrefsStore((s) => s.setAccountAvatarStyle);
-  const accountCount = useAccountsStore((s) => s.accounts.length);
-  if (accountCount < 2) return null;
-
-  return (
-    <>
-      <SectionHeader>Multiple accounts</SectionHeader>
-      <ToggleRow
-        label="Confirm account before star, favourite or comment"
-        caption="Ask which account to act as before each of these actions, instead of silently using whichever is active."
-        checked={confirmAccountBeforeReaction}
-        onChange={setConfirmAccountBeforeReaction}
-      />
-      <SegmentRow
-        label="Account picture"
-        value={accountAvatarStyle}
-        options={[
-          { value: 'picture', label: 'Profile picture' },
-          { value: 'icon', label: 'Icon' },
-        ]}
-        onChange={setAccountAvatarStyle}
-      />
-      <CaptionRow>How each account is shown in the switcher and header.</CaptionRow>
-    </>
-  );
-}
-
-export function AppGeneralSection() {
-  const openLinksInApp = useDevicePrefsStore((s) => s.openBlipfotoLinksInApp);
-  const setOpenLinksInApp = useDevicePrefsStore((s) => s.setOpenBlipfotoLinksInApp);
-
+export function RemindersSection() {
   return (
     <IonList>
-      <AppearanceGroup />
       <RemindersGroup />
-      <MultiAccountGroup />
-      <SectionHeader>Links</SectionHeader>
-      <ToggleRow
-        label="Open blipfoto.com links in this app"
-        checked={openLinksInApp}
-        onChange={setOpenLinksInApp}
-      />
     </IonList>
   );
 }
