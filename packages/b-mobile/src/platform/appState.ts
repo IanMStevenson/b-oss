@@ -5,9 +5,7 @@
 // device facts. `onAppStateChange` is what AppShell.tsx uses to re-run pushFlow.ts's
 // `runLaunchBackstopCheck()` on resume, not only at launch: returning from system settings is not
 // assumed to have succeeded, so the permission is re-checked when the app resumes and acted on
-// as it now stands (BEHAVIOUR.md, Notifications). Resetting stale upload-queue items (§9) stays a
-// launch-only concern (flows/uploadQueueRunner.ts's own recovery sweep, called once from
-// AppShell.tsx) — nothing here duplicates it.
+// as it now stands (BEHAVIOUR.md, Notifications).
 // TODO(Phase 2+): implement against @capacitor/network, @capacitor/device.
 
 import { Capacitor } from '@capacitor/core';

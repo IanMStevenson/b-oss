@@ -70,7 +70,6 @@ import { deleteEntry } from '../../data/entries.js';
 import { fetchAuthorAvatar } from '../../data/users.js';
 import { useCommentComposers } from './useCommentComposers.js';
 import { useRevealReplyComposer } from './useRevealReplyComposer.js';
-import { usePendingEdit, PendingEditNotice } from './usePendingEdit.js';
 import { useScrollResume } from '../../data/useScrollResume.js';
 import { EntryAuthorBlock, type FollowControl } from '../../components/EntryAuthorBlock.js';
 import { UserBadges } from '../../components/UserBadges.js';
@@ -227,14 +226,6 @@ export function EntryDetailScreen({ entryId, initialReplyToCommentId }: EntryDet
     composers.target?.kind === 'reply' ? composers.target.viewId : null,
   );
 
-  // A just-saved edit still in the upload queue is shown over the fetched entry (b-oss#412).
-  const pendingEdit = usePendingEdit(
-    entryId,
-    entryState.status === 'loaded' ? entryState.data : null,
-    refresh,
-  );
-  const applyPendingEdit = pendingEdit.apply;
-
   // EntryDetail renders stars_total/favorites_total straight from entryState.data itself — it
   // has no separate hook for an optimistic count the way the reactions slot does for the starred/
   // favorited booleans, so the optimistic bump/rollback in `reaction` has to be projected into the
@@ -245,13 +236,13 @@ export function EntryDetailScreen({ entryId, initialReplyToCommentId }: EntryDet
     return {
       ...entryState,
       data: {
-        ...applyPendingEdit(entryState.data),
+        ...entryState.data,
         stars_total: reaction?.starsTotal ?? entryState.data.stars_total,
         favorites_total: reaction?.favoritesTotal ?? entryState.data.favorites_total,
         comments: filterHiddenComments(entryState.data.comments, hiddenMembers),
       },
     };
-  }, [entryState, hiddenMembers, reaction, applyPendingEdit]);
+  }, [entryState, hiddenMembers, reaction]);
 
   // `entryState` itself is a fresh wrapper object on every call to useLiveEntry (every render),
   // even when nothing about the underlying resource changed — depending on it directly would
@@ -555,10 +546,6 @@ export function EntryDetailScreen({ entryId, initialReplyToCommentId }: EntryDet
 
         {entryState.status === 'loaded' && !authorHidden && (
           <>
-            <PendingEditNotice
-              pendingEdit={pendingEdit}
-              onViewUploads={() => navigate.push('/uploads')}
-            />
             <EntryDetail
               photoFit={photoFit}
               entryState={displayEntryState}

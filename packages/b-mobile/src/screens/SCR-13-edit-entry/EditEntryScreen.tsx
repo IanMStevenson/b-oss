@@ -12,7 +12,7 @@
 // Loads the entry once (there's no cheaper source — SCR-06 deliberately doesn't hand its own
 // loaded entry down, same deep-link-resilience reasoning as SCR-07/SCR-15/SCR-16) and
 // seeds composeDraftStore in 'edit' mode; reuses SCR-10's shared draft/SCR-11/SCR-12 machinery
-// rather than a parallel form. Save enqueues the same durable background upload as compose (§9).
+// rather than a parallel form. Save sends the change and waits for the answer, as compose does (§9).
 // Delete is immediate (no draft involved) — same confirm-then-delete-then-navigate-to-Browse
 // behaviour this screen inherited from EntryDetailScreen's old overflow menu.
 
@@ -33,14 +33,15 @@ import { useAppNavigate } from '../../app/routes/useAppNavigate.js';
 import { useComposeDraftStore } from '../../state/composeDraftStore.js';
 import { useActiveAccount } from '../../state/accountsStore.js';
 import { fetchEntry, deleteEntry } from '../../data/entries.js';
-import { enqueueDraft } from '../../flows/composeFlow.js';
+import { UploadingNotice } from '../../components/UploadingNotice.js';
+import { submitDraft, describeSubmitError } from '../../flows/composeFlow.js';
 import { revealStoredPosition, StillVisibleError } from '../../data/entryLocation.js';
 import { ThumbnailPhotoFrame } from '../../components/ThumbnailPhotoFrame.js';
 import { cropToProportions } from '../../data/imageCrop.js';
 import { useMembership } from '../../data/useMembership.js';
 import { MembershipCheckFailed } from '../../components/MembershipCheckFailed.js';
 import type { Area } from 'react-easy-crop';
-import { describeError, mapApiError, describeQueueError } from '../../data/errors.js';
+import { describeError, mapApiError } from '../../data/errors.js';
 
 interface EditEntryScreenProps {
   entryId: string;
@@ -154,11 +155,11 @@ export function EditEntryScreen({ entryId }: EditEntryScreenProps) {
     setSubmitting(true);
     setSubmitError(null);
     try {
-      await enqueueDraft(draft);
+      await submitDraft(draft);
       clearDraft();
       navigate.goBackOr(`/entry/${entryId}`);
     } catch (err) {
-      setSubmitError(describeQueueError(err, 'Could not queue this change.'));
+      setSubmitError(describeSubmitError(err, draft.accountId, "Couldn't save your changes."));
       setSubmitting(false);
     }
   }
@@ -344,12 +345,13 @@ export function EditEntryScreen({ entryId }: EditEntryScreenProps) {
             </>
           )}
 
+          {submitting && <UploadingNotice what="save" />}
           <IonButton
             expand="block"
             disabled={submitting || editLevel === 0}
             onClick={() => void handleSave()}
           >
-            {submitting ? <IonSpinner name="dots" /> : 'Save'}
+            {submitting ? <IonSpinner name="dots" /> : submitError ? 'Retry' : 'Save'}
           </IonButton>
 
           <div className="compose-danger-zone">

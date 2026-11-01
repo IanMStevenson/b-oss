@@ -159,7 +159,6 @@ use `getState()`/`setState()`.
 | ------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------- |
 | `accountsStore`           | accounts (id, username, avatar, `appTokenScope`, `hasServiceToken`, b-push registration id/status, push stream flags, `lastAppTokenScope`), `activeAccountId` | `prefs`, never tokens |
 | `hiddenMembersStore`      | installation-wide hidden usernames, device-local                                                                                                              | `prefs`               |
-| `uploadQueueStore`        | the upload queue (§9)                                                                                                                                         | `prefs` + files       |
 | `devicePrefsStore`        | reactions confirm, per-account reminders, `uploadFullSize`, `openBlipfotoLinksInApp`, polling interval, explainer seen, grid/display prefs                    | `prefs`               |
 | `composeDraftStore`       | the publish/edit draft (`mode`), surviving `SCR-11`/`SCR-12` and rotation                                                                                     | memory                |
 | `notificationCountsStore` | inbox badge counts for the active account                                                                                                                     | memory                |
@@ -265,24 +264,27 @@ arguments, including `Authorization` headers and secrets, to logcat (b-oss#241).
 **Revocation:** `DELETE oauth/token` must be authenticated with the token being revoked
 (`getClientForToken`); mode changes revoke each surplus token.
 
-## 9. The durable upload queue
+## 9. Publish and save in place
 
-`state/uploadQueueStore.ts` + `flows/uploadQueueRunner.ts` (a plain module).
+`flows/composeFlow.ts` (`submitDraft`). There is no upload queue (removed in b-oss#730): the
+upload runs while the compose or edit screen is open.
 
-- **Enqueue copies the photo** to `Directory.Data/uploads/`; picker URIs are temporary grants.
-- **Item** (`UploadQueueItem`): account, `kind: 'publish' | 'edit'`, optional `entryId`, copied
-  `filePath` (none for a details-only edit), `fields`, `status`, `attempts`, `nextAttemptAt`,
-  `error`. Status is `waiting | uploading | uploaded | failed` (`SCR-14`'s four states).
-- **Serial**, one item at a time, via `getClientForAccount()` and `publishEntry()`/`updateEntry()`.
-- **Retry** only `transport`: backoff 5 s, 15 s, 45 s, 2 min, then 5 min; `failed` after 6
-  attempts. `forced-logout` runs `handleForcedLogout` and fails the item; anything else fails at once.
-- **Account removal** cancels its items. **Success** deletes the copied file and reschedules that
-  account's reminder to skip today (§12).
-- **Wakes** on launch, on enqueue, and on a timer for the next retry; no connectivity listener.
-
-**Limitation:** nothing uploads while the process is dead. On launch, `uploading` items reset to
-`waiting`. No foreground service, no ongoing upload notification (there is no `uploads` channel),
-no byte-level progress.
+- **Call**: `submitDraft(draft)` gets the draft account's client (`getClientForAccount()`) and
+  calls `publishEntry()` or `updateEntry()` (`mode`), awaiting the answer. It returns the entry id.
+- **Photo**: `platform/upload.ts` `photoToFileSource()` reads the picked photo where the picker put
+  it: a path reference natively (never loaded into JS memory), an in-memory Blob on web. There is no
+  copy into app storage; the grant is good for the few seconds the screen is open.
+- **Progress**: the screen shows `UploadingNotice` ("…Please don't leave the app until the upload
+  completes") and disables its button. The app has no foreground service or upload notification, so
+  an upload does not survive the process being killed.
+- **Success**: reschedules that account's reminder to skip today (§12). Publish then shows the
+  completion view (SCR-10); edit returns to the entry.
+- **Failure**: the screen keeps the draft and shows the error with `describeSubmitError()`, which
+  adds the real cause (b-oss#318) and runs `handleForcedLogout` for a rejected token. The button
+  becomes Retry. A retry of a publish the server already accepted fails cleanly, since one entry
+  per date is allowed. No automatic retry or backoff.
+- **Legacy queue**: `discardLegacyUploadQueue()` runs at launch and deletes the old `uploads/`
+  directory and the saved queue pref without sending them.
 
 ## 10. The image cache
 
@@ -527,7 +529,7 @@ identity or left blank.
 ## 19. Testing
 
 Vitest + Testing Library under jsdom, run from the repo root. Pure logic (error mapping, write gate,
-queue, BBCode preset, deep links, notification suppression/routing, crop maths) carries most of the
+BBCode preset, deep links, notification suppression/routing, crop maths) carries most of the
 tests; screens render with `src/platform/` mocked and `b-api` stubbed, using
 `app/routes/test-router.tsx`. On-device checks are manual; there is no device or emulator on the dev
 VM, and paths the owner has decided not to test are listed in [`../DECIDED_NOT_TO_TEST.md`](../DECIDED_NOT_TO_TEST.md).
