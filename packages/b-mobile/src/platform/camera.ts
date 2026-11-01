@@ -20,6 +20,7 @@ import { isCapacitorNative } from './platformKind.js';
 import { hasNativePhotoPick, pickNativePhoto, readPhotoGps } from './photoPick.js';
 import { requestGeotagAccess } from './geolocation.js';
 import { desktopBridge } from './desktop.js';
+import { readExifGps } from './exifGps.js';
 
 export interface PickedPhoto {
   /** Native file URI — absent on web, where webPath is the only usable source. */
@@ -179,6 +180,8 @@ async function pickViaDesktopShell(accountId: string): Promise<PickedPhoto | nul
     height: size?.height ?? null,
     createdAt: new Date(file.modifiedMs).toISOString(),
     sizeBytes: blob.size,
+    // The shell hands over the bytes, so the embedded position (b-oss#740) is read straight from them.
+    gps: readExifGps(file.bytes),
   };
 }
 
@@ -195,10 +198,23 @@ export async function pickPhoto(accountId?: string): Promise<PickedPhoto | null>
     const result = await Camera.chooseFromGallery({ includeMetadata: true });
     const first = result.results[0];
     if (!first) return null;
-    return toPickedPhoto(first);
+    const photo = toPickedPhoto(first);
+    // The web fallback is a plain file input and returns no position, so read it from the file
+    // itself (b-oss#740). A failure here just means no position.
+    photo.gps = await readWebPhotoGps(photo.webPath);
+    return photo;
   } catch (err) {
     if (isUserCancelled(err)) return null;
     throw err;
+  }
+}
+
+async function readWebPhotoGps(webPath: string): Promise<{ lat: number; lon: number } | null> {
+  try {
+    const bytes = new Uint8Array(await (await fetch(webPath)).arrayBuffer());
+    return readExifGps(bytes);
+  } catch {
+    return null;
   }
 }
 
