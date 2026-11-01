@@ -10,9 +10,12 @@ Known Blipfoto API limits: [AppLimitations.md](AppLimitations.md). Paths are rel
 - One `IonMenu` (header button only; edge-swipe off) and one router outlet; in-screen tabs are
   component state, not routes. `/` redirects to `/browse`; launch lands on Browse unless a deep
   link, share or push tap routes elsewhere.
-- Menu: account block (→ Accounts) · New entry (read-write only) · Browse · Search · Map · My
-  profile, Notifications, Comments (signed in; inboxes show unread badges) · Settings · Help &
-  about · Accounts · Hidden members · Sign in (signed out).
+- Menu (lucide icons): your account row at the top (avatar + username; opens your own profile) or
+  Sign in when signed out · Comments, Notifications (signed in; unread badges), New entry
+  (read-write only) · Browse, Map, Search · Settings | Help. A muted "b-mobile {version}" footer is
+  pinned to the bottom of the drawer (above the safe-area inset) and opens Help. Accounts and
+  Hidden members are reached from Settings; the header avatar (2+ accounts) opens the switcher.
+  The version is shown only in the menu footer.
 - No view stack: leaving a screen unmounts it and Back rebuilds it. `data/resumeCache.ts` (memory,
   10-minute TTL) restores Browse's tab and grid page; `useScrollResume` restores entry scroll.
 - The route table is keyed by the active account id: switching account rebuilds the current screen.
