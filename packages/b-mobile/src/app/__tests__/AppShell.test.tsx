@@ -90,13 +90,13 @@ describe('AppShell', () => {
       expect(block.textContent).toContain('alice');
       const l = labels();
       const order = [
+        'alice',
         'Comments',
         'Notifications',
         'New entry',
         'Browse',
         'Map',
         'Search',
-        'alice',
         'Settings',
         'Help',
       ];

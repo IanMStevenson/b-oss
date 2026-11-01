@@ -209,67 +209,73 @@ function NavMenu() {
   return (
     <IonMenu contentId={MAIN_CONTENT_ID} swipeGesture={false}>
       <IonContent>
-        <IonList lines="none" style={{ padding: 0 }}>
-          {activeAccount && (
-            <>
+        {/* Flex column filling the drawer so the version footer sits at the bottom of the screen
+            (IonContent's own bottom padding keeps it clear of the gesture bar). */}
+        <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100%' }}>
+          <IonList lines="none" style={{ padding: 0 }}>
+            {activeAccount ? (
+              <NavAccountBlock currentPath={pathname} />
+            ) : (
               <NavItem
-                to="/comments"
-                label="Comments"
-                icon={<MessageSquare {...NAV_ICON_PROPS} />}
-                badge={commentsCount}
+                to="/sign-in"
+                label="Sign in"
+                icon={<LogIn {...NAV_ICON_PROPS} />}
                 currentPath={pathname}
               />
+            )}
+            <NavDivider />
+            {activeAccount && (
+              <>
+                <NavItem
+                  to="/comments"
+                  label="Comments"
+                  icon={<MessageSquare {...NAV_ICON_PROPS} />}
+                  badge={commentsCount}
+                  currentPath={pathname}
+                />
+                <NavItem
+                  to="/notifications"
+                  label="Notifications"
+                  icon={<Bell {...NAV_ICON_PROPS} />}
+                  badge={notificationsCount}
+                  currentPath={pathname}
+                />
+              </>
+            )}
+            {canWrite && (
               <NavItem
-                to="/notifications"
-                label="Notifications"
-                icon={<Bell {...NAV_ICON_PROPS} />}
-                badge={notificationsCount}
+                to="/compose"
+                label="New entry"
+                icon={<CirclePlus {...NAV_ICON_PROPS} />}
                 currentPath={pathname}
               />
-            </>
-          )}
-          {canWrite && (
+            )}
+            {(activeAccount || canWrite) && <NavDivider />}
             <NavItem
-              to="/compose"
-              label="New entry"
-              icon={<CirclePlus {...NAV_ICON_PROPS} />}
+              to="/browse"
+              label="Browse"
+              icon={<LayoutGrid {...NAV_ICON_PROPS} />}
               currentPath={pathname}
             />
-          )}
-          {(activeAccount || canWrite) && <NavDivider />}
-          <NavItem
-            to="/browse"
-            label="Browse"
-            icon={<LayoutGrid {...NAV_ICON_PROPS} />}
-            currentPath={pathname}
-          />
-          <NavItem
-            to="/map"
-            label="Map"
-            icon={<MapPin {...NAV_ICON_PROPS} />}
-            currentPath={pathname}
-          />
-          <NavItem
-            to="/search"
-            label="Search"
-            icon={<Search {...NAV_ICON_PROPS} />}
-            currentPath={pathname}
-          />
-          <NavDivider />
-          {activeAccount ? (
-            <NavAccountBlock currentPath={pathname} />
-          ) : (
             <NavItem
-              to="/sign-in"
-              label="Sign in"
-              icon={<LogIn {...NAV_ICON_PROPS} />}
+              to="/map"
+              label="Map"
+              icon={<MapPin {...NAV_ICON_PROPS} />}
               currentPath={pathname}
             />
-          )}
-          <NavDivider />
-          <NavPairRow currentPath={pathname} />
-          <NavVersion />
-        </IonList>
+            <NavItem
+              to="/search"
+              label="Search"
+              icon={<Search {...NAV_ICON_PROPS} />}
+              currentPath={pathname}
+            />
+            <NavDivider />
+            <NavPairRow currentPath={pathname} />
+          </IonList>
+          <div style={{ marginTop: 'auto' }}>
+            <NavVersion />
+          </div>
+        </div>
       </IonContent>
     </IonMenu>
   );
