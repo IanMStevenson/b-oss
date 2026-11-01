@@ -21,7 +21,7 @@ interface AppHeaderProps {
   title: string;
   /** Leave unset for a screen that is also a menu destination: the header then shows ☰ when the
    * screen was reached from the menu and ← when it was reached by tapping something inside
-   * another screen (every in-app push marks itself; see useIsDrilledIn). Pass 'back' only for a
+   * another screen (every in-app push marks itself; see useHeaderNav). Pass 'back' only for a
    * screen that is never in the menu, so a deep link with no history still shows ←. */
   variant?: 'menu' | 'back';
   /** Only used for variant="back" — where IonBackButton lands if there's no history to pop to
