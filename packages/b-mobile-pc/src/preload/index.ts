@@ -2,7 +2,12 @@
 // Copyright (C) 2026 Ian Stevenson
 
 import { contextBridge, ipcRenderer, type IpcRendererEvent } from 'electron';
-import { BRIDGE_GLOBAL, CHANNELS, type DesktopBridge } from '../shared/bridge.js';
+import {
+  BRIDGE_GLOBAL,
+  CHANNELS,
+  type DesktopBridge,
+  type PickedPhotoFile,
+} from '../shared/bridge.js';
 import type { NotifyPayload, NotifyStatus, TestNotifyResult } from '../shared/notify.js';
 
 function subscribe(
@@ -41,6 +46,8 @@ const bridge: DesktopBridge = {
   shell: {
     info: () => ipcRenderer.invoke(CHANNELS.shellInfo) as Promise<{ build: string }>,
   },
+  pickPhoto: (accountId) =>
+    ipcRenderer.invoke(CHANNELS.pickPhoto, accountId) as Promise<PickedPhotoFile | null>,
   diagnostics: {
     logError: (entry) => ipcRenderer.invoke(CHANNELS.diagLog, entry) as Promise<void>,
     openLogFolder: () => ipcRenderer.invoke(CHANNELS.diagOpenLogFolder) as Promise<void>,

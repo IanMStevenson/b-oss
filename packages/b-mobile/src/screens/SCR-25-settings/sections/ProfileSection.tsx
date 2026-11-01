@@ -127,7 +127,7 @@ export function ProfileSection() {
     setAvatarError(null);
     setAvatarBusy(source);
     try {
-      const photo = source === 'camera' ? await takePhoto() : await pickPhoto();
+      const photo = source === 'camera' ? await takePhoto() : await pickPhoto(activeAccount?.id);
       if (!photo) {
         setAvatarBusy(null);
         return;
