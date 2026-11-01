@@ -20,8 +20,12 @@ vi.mock('../../../data/journal.js', () => ({ fetchDayEligibility, fetchMonthElig
 const { fetchUserProfile } = vi.hoisted(() => ({ fetchUserProfile: vi.fn() }));
 vi.mock('../../../data/users.js', () => ({ fetchUserProfile }));
 
-const { enqueueDraft } = vi.hoisted(() => ({ enqueueDraft: vi.fn() }));
-vi.mock('../../../flows/composeFlow.js', () => ({ enqueueDraft }));
+const { submitDraft } = vi.hoisted(() => ({ submitDraft: vi.fn() }));
+vi.mock('../../../flows/composeFlow.js', () => ({
+  submitDraft,
+  describeSubmitError: (err: unknown, _id: string, fallback: string) =>
+    `${fallback} (${(err as Error).message})`,
+}));
 
 // react-easy-crop is rendering-heavy (canvas/pointer gesture handling) and irrelevant to this
 // screen's own logic under test — mocked wholesale, same "mock at the boundary" principle
@@ -99,7 +103,7 @@ describe('ComposeEntryScreen', () => {
     await waitFor(() => expect(replace).toHaveBeenCalledWith('/compose'));
   });
 
-  it('enables Publish once the date is confirmed eligible, and enqueues on tap', async () => {
+  it('enables Publish once the date is confirmed eligible, and publishes on tap', async () => {
     renderScreen();
     await waitFor(() =>
       expect(screen.getByText('Publish').closest('ion-button')!.hasAttribute('disabled')).toBe(
@@ -107,11 +111,26 @@ describe('ComposeEntryScreen', () => {
       ),
     );
 
-    enqueueDraft.mockResolvedValue('q1');
+    submitDraft.mockResolvedValue('new1');
     await userEvent.click(screen.getByText('Publish'));
-    await waitFor(() => expect(enqueueDraft).toHaveBeenCalled());
+    await waitFor(() => expect(submitDraft).toHaveBeenCalled());
+    expect(await screen.findByText('Your entry has been published')).toBeDefined();
     expect(useComposeDraftStore.getState().draft).toBeNull();
-    expect(replace).toHaveBeenCalledWith('/uploads');
+    await userEvent.click(screen.getByText('View entry'));
+    expect(replace).toHaveBeenCalledWith('/entry/new1');
+  });
+
+  it("'Add another' on the completion screen goes back to the photo picker", async () => {
+    renderScreen();
+    await waitFor(() =>
+      expect(screen.getByText('Publish').closest('ion-button')!.hasAttribute('disabled')).toBe(
+        false,
+      ),
+    );
+    submitDraft.mockResolvedValue('new1');
+    await userEvent.click(screen.getByText('Publish'));
+    await userEvent.click(await screen.findByText('Add another'));
+    expect(replace).toHaveBeenCalledWith('/compose');
   });
 
   it('has the description editor inline, with the formatting toolbar, and keeps what is typed in the draft', async () => {
@@ -185,16 +204,18 @@ describe('ComposeEntryScreen', () => {
     expect(screen.queryByText(/Couldn.t check membership/)).toBeNull();
   });
 
-  it('shows the real cause when queueing fails with a non-API error', async () => {
+  it('keeps the draft and offers Retry when publishing fails', async () => {
     renderScreen();
     await waitFor(() =>
       expect(screen.getByText('Publish').closest('ion-button')!.hasAttribute('disabled')).toBe(
         false,
       ),
     );
-    enqueueDraft.mockRejectedValue(new Error('disk full'));
+    submitDraft.mockRejectedValue(new Error('disk full'));
     await userEvent.click(screen.getByText('Publish'));
-    expect(await screen.findByText('Could not queue this entry. (disk full)')).toBeDefined();
+    expect(await screen.findByText("Couldn't publish your entry. (disk full)")).toBeDefined();
+    expect(screen.getByText('Retry')).toBeDefined();
+    expect(useComposeDraftStore.getState().draft).not.toBeNull();
   });
 
   it('does not offer the crop button to non-members', async () => {

@@ -30,8 +30,8 @@ const { fetchUserProfile } = vi.hoisted(() => ({
 }));
 vi.mock('../../../data/users.js', () => ({ fetchUserProfile }));
 
-const { enqueueDraft } = vi.hoisted(() => ({ enqueueDraft: vi.fn() }));
-vi.mock('../../../flows/composeFlow.js', () => ({ enqueueDraft }));
+const { submitDraft } = vi.hoisted(() => ({ submitDraft: vi.fn() }));
+vi.mock('../../../flows/composeFlow.js', () => ({ submitDraft, describeSubmitError: () => 'x' }));
 
 const replace = vi.fn();
 const goBack = vi.fn();
@@ -115,8 +115,8 @@ describe('EditEntryScreen', () => {
     expect(screen.queryByText('Save')).toBeNull();
   });
 
-  it('Save enqueues the edit and returns to SCR-06', async () => {
-    enqueueDraft.mockResolvedValue('q1');
+  it('Save sends the edit and returns to SCR-06', async () => {
+    submitDraft.mockResolvedValue('e1');
     renderScreen();
     await screen.findByDisplayValue('Sunrise');
 

@@ -19,7 +19,6 @@ import { PhotoScreen } from '../../screens/SCR-07-full-screen-photo/PhotoScreen.
 import { NewEntryScreen } from '../../screens/SCR-09-new-entry/NewEntryScreen.js';
 import { DescriptionEditorScreen } from '../../screens/SCR-11-description-editor/DescriptionEditorScreen.js';
 import { EditEntryScreen } from '../../screens/SCR-13-edit-entry/EditEntryScreen.js';
-import { UploadProgressScreen } from '../../screens/SCR-14-upload-progress/UploadProgressScreen.js';
 import { ReportEntryScreen } from '../../screens/SCR-16-report-entry/ReportEntryScreen.js';
 import { HiddenMembersScreen } from '../../screens/SCR-31-hidden-members/HiddenMembersScreen.js';
 import { ProfileScreen } from '../../screens/SCR-17-18-profile/ProfileScreen.js';
@@ -235,7 +234,6 @@ function AppRouteTable() {
           </Suspense>
         }
       />
-      <Route path="/uploads" element={<UploadProgressScreen />} />
       <Route path="/me" element={<ProfileScreen />} />
       <Route path="/user/:username" element={<UserProfileRoute />} />
       <Route path="/user/:username/followers" element={<FollowersRoute />} />

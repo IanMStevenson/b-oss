@@ -31,8 +31,9 @@ import type { DayEligibility } from '../../data/journal.js';
 import { validatePickedPhoto } from '../../data/photoValidation.js';
 import { useMembership } from '../../data/useMembership.js';
 import { MembershipCheckFailed } from '../../components/MembershipCheckFailed.js';
-import { enqueueDraft } from '../../flows/composeFlow.js';
-import { describeQueueError } from '../../data/errors.js';
+import { submitDraft, describeSubmitError } from '../../flows/composeFlow.js';
+import { fetchUserProfile } from '../../data/users.js';
+import { UploadingNotice } from '../../components/UploadingNotice.js';
 import { DateField } from '../../components/DateField.js';
 import { DescriptionField, TextField, ToggleRow } from '../../components/ComposeForm.js';
 import { ThumbnailPhotoFrame } from '../../components/ThumbnailPhotoFrame.js';
@@ -55,6 +56,13 @@ export function ComposeEntryScreen() {
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [confirmDiscard, setConfirmDiscard] = useState(false);
+  // Set once Blipfoto has accepted the entry: the screen then shows the completion view, and the
+  // draft is gone. `total` arrives later, from one profile call, and is simply left out if that fails.
+  const [published, setPublished] = useState<{
+    entryId: string;
+    photoSrc: string | null;
+    total: number | null;
+  } | null>(null);
 
   useEffect(() => {
     if (!draft || draft.mode !== 'publish') {
@@ -115,13 +123,60 @@ export function ComposeEntryScreen() {
     setSubmitting(true);
     setSubmitError(null);
     try {
-      await enqueueDraft(draft);
+      const entryId = await submitDraft(draft);
+      setPublished({ entryId, photoSrc: draft.photo?.webPath ?? null, total: null });
       clearDraft();
-      navigate.replace('/uploads');
+      setSubmitting(false);
+      fetchUserProfile().then(
+        (profile) => {
+          const total = profile.details?.entry_total;
+          if (typeof total === 'number') setPublished((p) => (p ? { ...p, total } : p));
+        },
+        () => {},
+      );
     } catch (err) {
-      setSubmitError(describeQueueError(err, 'Could not queue this entry.'));
+      setSubmitError(describeSubmitError(err, draft.accountId, "Couldn't publish your entry."));
       setSubmitting(false);
     }
+  }
+
+  if (published) {
+    return (
+      <IonPage>
+        <IonHeader>
+          <AppHeader
+            title="New entry"
+            variant="back"
+            onBack={() => navigate.replace('/browse')}
+            accountIndicator
+          />
+        </IonHeader>
+        <IonContent>
+          <div className="compose-form compose-published">
+            <h2>Your entry has been published</h2>
+            {published.photoSrc && (
+              <img className="compose-published-photo" src={published.photoSrc} alt="" />
+            )}
+            {published.total !== null && (
+              <IonText color="medium">
+                <p>
+                  You now have {published.total} {published.total === 1 ? 'entry' : 'entries'}.
+                </p>
+              </IonText>
+            )}
+            <IonButton
+              expand="block"
+              onClick={() => navigate.replace(`/entry/${published.entryId}`)}
+            >
+              View entry
+            </IonButton>
+            <IonButton expand="block" fill="outline" onClick={() => navigate.replace('/compose')}>
+              Add another
+            </IonButton>
+          </div>
+        </IonContent>
+      </IonPage>
+    );
   }
 
   if (!draft || draft.mode !== 'publish') {
@@ -252,9 +307,10 @@ export function ComposeEntryScreen() {
           </>
         )}
 
+        {submitting && <UploadingNotice what="publish" />}
         <div className="compose-form">
           <IonButton expand="block" disabled={!canPublish} onClick={() => void handlePublish()}>
-            {submitting ? <IonSpinner name="dots" /> : 'Publish'}
+            {submitting ? <IonSpinner name="dots" /> : submitError ? 'Retry' : 'Publish'}
           </IonButton>
         </div>
       </IonContent>

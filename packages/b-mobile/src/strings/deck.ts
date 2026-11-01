@@ -46,7 +46,7 @@ export const STRINGS = {
   'CONFIRM.refuse.offer_hide': "Also hide {username}, so you don't see their entries either?",
   'CONFIRM.refuse.title': "Refuse {username}'s request?",
   'CONFIRM.remove_account.body':
-    "This signs the account out of the app completely and cancels any of its uploads still in progress. You'll need to sign in again to use it here.",
+    "This signs the account out of the app completely and You'll need to sign in again to use it here.",
   'CONFIRM.remove_account.button': 'Remove account',
   'CONFIRM.remove_account.title': 'Remove {username} from this app?',
   'CONFIRM.remove_follower.button': 'Remove follower',
@@ -184,8 +184,6 @@ export const STRINGS = {
     "Camera access is off, so you can't take a photo here. You can still choose one from your device.",
   'SCR-09.permission.open_settings': 'Open settings',
   'SCR-13.error.generic': "Couldn't save your changes. Check your connection and try again.",
-  'SCR-14.empty':
-    "No uploads yet. Entries you publish will show up here while they're on their way.",
   'SCR-15.error.text_kept': 'Your text is still here.',
   'SCR-15.error.post_failed': "Couldn't post your comment. Your text is still here - try again.",
   'SCR-16.error.no_reason': 'Select a reason',

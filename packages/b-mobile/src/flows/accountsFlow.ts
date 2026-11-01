@@ -28,8 +28,6 @@ import {
   ALL_PUSH_STREAMS,
 } from '../state/accountsStore.js';
 import type { StoredAccount, PushStreams } from '../state/accountsStore.js';
-import { useUploadQueueStore } from '../state/uploadQueueStore.js';
-import { deleteQueuedFile } from '../platform/upload.js';
 import { refreshAccountAvatar } from './avatarFlow.js';
 import { runOAuthRound, OAuthCancelledError } from './oauthRound.js';
 import type { OAuthResult } from './oauthRound.js';
@@ -290,15 +288,6 @@ export async function removeAccount(accountId: string): Promise<void> {
 
   useAccountsStore.getState().removeAccountLocally(accountId);
   cancelReminderForAccount(accountId);
-  await cancelQueuedUploadsForAccount(accountId);
-}
-
-/** §9: "in-flight work using a removed account's token is cancelled, not left running." Also
- * cleans up each cancelled item's copied photo file — there's no further use for it once the
- * item itself is gone. */
-async function cancelQueuedUploadsForAccount(accountId: string): Promise<void> {
-  const cancelled = useUploadQueueStore.getState().cancelForAccount(accountId);
-  await Promise.all(cancelled.filter((i) => i.filePath).map((i) => deleteQueuedFile(i.filePath!)));
 }
 
 /** FLW-22 — change mode. Applies the token-lifecycle rules generally rather than as 16

@@ -42,10 +42,10 @@ Known Blipfoto API limits: [AppLimitations.md](AppLimitations.md). Paths are rel
   double-tap → `/photo`. Calendar and ±1-year history need a signed-in account.
 - **Photo**: b-view Lightbox, zoom/pan, retry on image error. **New entry**: Take / Choose photo, or a shared photo.
 - **Compose details**, **Location picker**: see Compose. **Edit entry**: title, description, tags,
-  location, replace photo, Delete entry; no date field; Save enqueues and returns to the entry,
-  which shows the new title, description, tags and location with "Saving your changes…" until the
-  edit goes through, then reloads. If it fails, the entry as saved, "Your changes to this entry
-  weren't saved" with the error, and View uploads (b-oss#412).
+  location, replace photo, Delete entry; no date field; Save sends the change and waits
+  ("Saving your changes… Please don't leave the app until the upload completes."), then returns to
+  the entry. If it fails, the form stays with the edits intact, the error shown and the button
+  reading Retry (b-oss#730).
   In Edit, turning "Add to map" on for an entry whose position the app doesn't hold (the entry's
   `location` is hidden while the map is off, though Blipfoto keeps the co-ordinates) looks it up
   immediately, not queued (`data/entryLocation.ts`): map on without a position, read the entry
@@ -53,9 +53,6 @@ Known Blipfoto API limits: [AppLimitations.md](AppLimitations.md). Paths are rel
   map on for good. With no stored position the picker opens empty; if the entry can't be hidden
   again the screen says it is showing on the map, and Save switches it off.
 - **Biography editor** (`/compose/description`, despite the path): from Settings → Profile.
-- **Uploads**: Waiting / Uploading… / Uploaded / Failed (+ error); indeterminate bar while
-  uploading; tap an uploaded item to open it. A failed item has Retry (back to Waiting, fresh
-  attempt count) and Remove (asks first; drops it and its copied photo).
 - **Report** (entry, comment, member): read-write accounts get the in-app form: five reasons (at
   least one required) plus note. The API accepts reports only with a read-write user token, so
   signed out or read-only, Report shows "Blipfoto requires reports via Zendesk unless you are
@@ -132,13 +129,17 @@ Known Blipfoto API limits: [AppLimitations.md](AppLimitations.md). Paths are rel
   "Take a photo" first asks for approximate location access (a refusal still takes the photo): the
   system camera embeds where the photo was taken only when the requesting app holds a location
   permission. That embedded position is read from the capture the same way.
-  Back with changes asks "Discard this entry?". Publish enqueues and goes to `/uploads`.
-- Enqueue copies the photo into app storage. The runner does one item at a time with that item's
-  own account token. Transport errors retry after 5s, 15s, 45s, 2m, 5m and fail after 6 attempts;
-  token invalid → app-token forced logout, item failed "Signed out — please sign in again and
-  retry."; other errors fail with the mapped message. Success deletes the copy and reschedules the
-  account's reminder. The queue is saved to prefs; at launch `AppShell` loads it, then starts the
-  runner, which resets items stuck `uploading` to `waiting` and resumes them.
+  Back with changes asks "Discard this entry?".
+- Publish happens in place (`flows/composeFlow.ts`, b-oss#730): the form shows "Publishing your
+  entry… Please don't leave the app until the upload completes." and the call goes to Blipfoto
+  with the draft account's token, straight from the picked photo. On success the screen becomes a
+  completion view: "Your entry has been published", the photo, "You now have N entries" (from one
+  profile call after publishing; left out if that call fails), **View entry** and **Add another**
+  (back to `/compose`). The account's reminder is rescheduled to skip today. On failure the form
+  stays with the draft intact, the error (with its cause) shown and the button reading Retry; a
+  retry after Blipfoto had in fact accepted the entry fails, since the date is taken. A rejected
+  token is a forced logout. There is no queue and no Uploads screen; an older version's saved
+  queue and copied photos are deleted unsent at launch (`discardLegacyUploadQueue`).
 - Share intent (`platform/shareIntent.ts`): `AppShell` reads the shared image once, caches it and
   opens `/compose`; New entry starts a draft from it once the write gate has passed.
 
@@ -163,7 +164,7 @@ Known Blipfoto API limits: [AppLimitations.md](AppLimitations.md). Paths are rel
   in the in-app browser. Later rounds for an account default to the in-app browser if it has ever
   signed in through it (`usesInAppBrowser`, b-oss#375), or if there are 2+ accounts.
 - Switching is local and instant; an account without an app token goes to reauth instead.
-  Disconnect revokes tokens, deregisters push, cancels its reminder and queued uploads; the first
+  Disconnect revokes tokens, deregisters push, cancels its reminder; the first
   remaining account (or anonymous) becomes active.
 - Forced logout clears one token, never the account. Code 50/51 on any app-token call triggers it
   (`data/client.ts`); if the active account becomes unusable, the next usable one (or anonymous)
@@ -190,7 +191,7 @@ Known Blipfoto API limits: [AppLimitations.md](AppLimitations.md). Paths are rel
   profile, follow requests, or external link. Comment rows: Reply (opens the entry with the reply
   composer open) and a menu with Delete (if allowed), Report, Hide this member.
 - Daily reminder: local notification per read-write account (on/off + time). A publish or edit
-  through the queue skips today. Cancelled on removal or switch to read-only. Tap switches to that
+  through the app skips today. Cancelled on removal or switch to read-only. Tap switches to that
   account if possible and opens `/compose`.
 
 ## Errors and network (`data/errors.ts`, `data/client.ts`)
@@ -240,7 +241,7 @@ Source comments cite these ids; the AppSpec that defined them has been removed.
 | 11  | Biography editor `/compose/description`                | 30    | Accounts `/accounts`                                   |
 | 12  | Location picker `/compose/location`                    | 31    | Hidden members `/hidden`                               |
 | 13  | Edit entry `/entry/:id/edit`                           | 15    | Retired (was New comment; now inline on SCR-06)        |
-| 14  | Upload progress `/uploads`                             | 26–28 | Do not exist                                           |
+| 14  | Retired (was Upload progress `/uploads`; b-oss#730)    | 26–28 | Do not exist                                           |
 
 | FLW | Flow — main code                                                            | FLW | Flow — main code                                                     |
 | --- | --------------------------------------------------------------------------- | --- | -------------------------------------------------------------------- |
