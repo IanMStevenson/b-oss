@@ -23,6 +23,14 @@ vi.mock('../../../screens/SCR-17-18-profile/ProfileScreen.js', async () => {
   };
 });
 
+const settingsSections = vi.fn();
+vi.mock('../../../screens/SCR-25-settings/SettingsScreen.js', () => ({
+  SettingsScreen: ({ section }: { section?: string }) => {
+    settingsSections(section);
+    return null;
+  },
+}));
+
 const signInReturnTo = vi.fn();
 vi.mock('../../../screens/SCR-01-sign-in/SignInScreen.js', () => ({
   SignInScreen: ({ returnTo }: { returnTo?: string }) => {
@@ -35,6 +43,7 @@ afterEach(() => {
   cleanup();
   mounts.mockClear();
   signInReturnTo.mockClear();
+  settingsSections.mockClear();
 });
 
 function acct(id: string) {
@@ -88,5 +97,18 @@ describe('renderAppRoutes', () => {
       </MemoryRouter>,
     );
     expect(signInReturnTo).toHaveBeenLastCalledWith(undefined);
+  });
+
+  it.each([
+    ['general', 'details'],
+    ['journal', 'details'],
+    ['app', 'appearance'],
+    ['browsing', 'appearance'],
+    ['notifications', 'notifications'],
+  ])('old settings path /settings/%s lands on %s (b-oss#734)', async (old, now) => {
+    useAccountsStore.setState({ accounts: [], activeAccountId: null, hydrated: true });
+    const { renderAppRoutes } = await import('../AppRoutes.js');
+    render(<MemoryRouter initialEntries={[`/settings/${old}`]}>{renderAppRoutes()}</MemoryRouter>);
+    expect(settingsSections).toHaveBeenLastCalledWith(now);
   });
 });

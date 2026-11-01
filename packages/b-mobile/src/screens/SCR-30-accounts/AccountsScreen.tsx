@@ -11,7 +11,7 @@
 // is exported so that popover doesn't duplicate the mode-label logic.
 //
 // Notifications (b-oss#244): no on/off button here any more — each row shows a text status (on /
-// off / needs sign-in) that switches to that account and opens Settings → Notifications, where
+// off / needs sign-in) that switches to that account and opens Settings → Notification settings, where
 // the per-stream toggles live. An account whose notification read token died (the
 // reauth-required push routes here) also gets **Sign in again**, which re-runs the enable path
 // with the streams it had, replacing the dead registration, and first checks the app token,
@@ -47,6 +47,8 @@ import {
   IonToast,
 } from '@ionic/react';
 import { AppHeader } from '../../components/AppHeader.js';
+import { ToggleRow } from '../../components/SettingsForm.js';
+import { useDevicePrefsStore } from '../../state/devicePrefsStore.js';
 import { AccountRowBody } from '../../components/AccountRowBody.js';
 import { MoreVertical } from 'lucide-react';
 import {
@@ -164,6 +166,10 @@ export function AccountsScreen({ reauthRequest }: { reauthRequest?: ReauthReques
     notifications: boolean;
   } | null>(null);
   const [reauthPromptId, setReauthPromptId] = useState<string | null>(null);
+  const confirmAccountBeforeReaction = useDevicePrefsStore((s) => s.confirmAccountBeforeReaction);
+  const setConfirmAccountBeforeReaction = useDevicePrefsStore(
+    (s) => s.setConfirmAccountBeforeReaction,
+  );
   const [removeId, setRemoveId] = useState<string | null>(null);
   const [toast, setToast] = useState<string | null>(null);
 
@@ -377,6 +383,18 @@ export function AccountsScreen({ reauthRequest }: { reauthRequest?: ReauthReques
             </IonNote>
           </IonItem>
         </IonList>
+
+        {/* Only meaningful with two or more accounts (b-oss#734; was in App → General). */}
+        {accounts.length >= 2 && (
+          <IonList>
+            <ToggleRow
+              label="Confirm account before star, favourite or comment"
+              caption="Ask which account to act as before each of these actions, instead of silently using whichever is active."
+              checked={confirmAccountBeforeReaction}
+              onChange={setConfirmAccountBeforeReaction}
+            />
+          </IonList>
+        )}
 
         {signInError && (
           <div className="ion-padding">

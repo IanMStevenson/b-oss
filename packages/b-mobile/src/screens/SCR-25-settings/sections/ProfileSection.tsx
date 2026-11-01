@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (C) 2026 Ian Stevenson
 
-// SCR-25 Profile section: Username (server-backed Save/Cancel, same shape as General/Journal),
+// SCR-25 Profile section: Username (server-backed Save/Cancel, same shape as Details & journal),
 // Biography (a link out to SCR-11 in its new `target="bio"` mode — see
 // DescriptionEditorScreen.tsx), and Avatar (take/choose with crop, or delete — each an immediate
 // action, not staged behind this section's own Save).
