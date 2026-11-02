@@ -5,10 +5,31 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [b-mobile 1.1.0] - 2026-10-31
+
+### Added
+
+- b-mobile: Dark and Mid themes, with a Theme setting. The map and the status bar follow the theme.
+- b-mobile: when you pick a photo from your gallery, its stored location is read and offered as the
+  entry's location; turning on "Add to map" while editing also finds the stored position.
+- b-mobile: Help & about and the "can't reach Blipfoto" screen link to the unofficial status page.
+- b-mobile: a thumbnail preview, and you can choose the thumbnail when replacing a photo.
+
 ### Changed
 
+- b-mobile: the Map screen and location picker use a new raster base map.
+- b-mobile: "Select thumbnail" replaces the old crop wording.
+- b-mobile: refuses a non-`https://` push service URL (build-time check in the release workflow, and
+  a clear error on the first request).
 - b-status and b-push Workers: plain `http://` requests are refused (GET/HEAD redirect to https, anything else gets 403) instead of being served.
-- b-mobile: refuses a non-`https://` push service URL (build-time check in the release workflow, and a clear error on the first request).
+- b-mobile: the app asks for the new media-location permission, used only to read the location
+  stored in a photo you pick.
+
+### Fixed
+
+- b-mobile: the thumbnail you selected was ignored by Blipfoto; it is now applied.
+- b-mobile: signing in a new account could leave you on the sign-in screen; the account now becomes
+  active only once sign-in finishes.
 
 ## [b-mobile 1.0.2] - 2026-10-26
 

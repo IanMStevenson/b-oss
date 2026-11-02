@@ -6,7 +6,7 @@
 // every action on it (including the privacy policy) must work with no account signed in. Nothing here reads or writes an account, so unlike
 // SCR-25 there's no server fetch anywhere on this screen at all.
 //
-// The link-handling toggle now lives in Settings → General, and Delete my account on the Accounts
+// The link-handling toggle now lives in Settings → Appearance, and Delete my account on the Accounts
 // page (b-oss#305, #306); neither is here any more.
 //
 // Same "one component, sub-sections via an optional route param" shape as SCR-25's SettingsScreen
@@ -372,8 +372,6 @@ function Licences() {
 
 function HelpInfoHub() {
   const navigate = useAppNavigate();
-  // __APP_VERSION__: b-mobile's own package.json version (src/appVersion.ts, set in vite.config.ts).
-  const version = typeof __APP_VERSION__ === 'string' ? __APP_VERSION__ : '1.0.0';
   // Desktop only (b-oss#696): the shell's own build, shown beside the web build. Null elsewhere.
   const [shellBuild, setShellBuild] = useState<ShellBuildCheck | null>(knownShellBuild());
   useEffect(() => {
@@ -416,10 +414,6 @@ function HelpInfoHub() {
           />
 
           <SectionHeader>About</SectionHeader>
-          <IonItem lines="full">
-            <span>App version</span>
-            <IonNote slot="end">{version}</IonNote>
-          </IonItem>
           {shellBuild && (
             <IonItem lines="full">
               <span>Desktop program version</span>

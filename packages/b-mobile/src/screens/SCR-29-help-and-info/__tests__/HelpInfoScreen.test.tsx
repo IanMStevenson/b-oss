@@ -54,13 +54,13 @@ describe('HelpInfoScreen hub — works with no account signed in (SCR-29 is not 
       'Blipfoto status (unofficial)',
       'Blipfoto terms & legal',
       'Blipfoto privacy policy',
-      'App version',
       'b-mobile privacy policy',
       'Open source licences',
     ]) {
       expect(screen.getAllByText(label).length).toBeGreaterThan(0);
     }
-    expect(screen.getByText('App version').closest('ion-item')!.textContent).toMatch(/\d+\.\d+/);
+    // The version lives in the nav menu footer only (b-oss#733).
+    expect(screen.queryByText('App version')).toBeNull();
   });
 
   it('no longer carries Delete my account or the link-handling toggle', () => {

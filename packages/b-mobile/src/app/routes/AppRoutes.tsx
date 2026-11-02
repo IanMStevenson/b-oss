@@ -19,7 +19,6 @@ import { PhotoScreen } from '../../screens/SCR-07-full-screen-photo/PhotoScreen.
 import { NewEntryScreen } from '../../screens/SCR-09-new-entry/NewEntryScreen.js';
 import { DescriptionEditorScreen } from '../../screens/SCR-11-description-editor/DescriptionEditorScreen.js';
 import { EditEntryScreen } from '../../screens/SCR-13-edit-entry/EditEntryScreen.js';
-import { UploadProgressScreen } from '../../screens/SCR-14-upload-progress/UploadProgressScreen.js';
 import { ReportEntryScreen } from '../../screens/SCR-16-report-entry/ReportEntryScreen.js';
 import { HiddenMembersScreen } from '../../screens/SCR-31-hidden-members/HiddenMembersScreen.js';
 import { ProfileScreen } from '../../screens/SCR-17-18-profile/ProfileScreen.js';
@@ -164,8 +163,20 @@ function UserAwardsRoute() {
   return <AwardsScreen username={useParam('username')} />;
 }
 
+// Settings pages renamed or merged in b-oss#734; the old paths redirect so saved links, resume
+// state and any in-flight navigation still land somewhere sensible.
+const LEGACY_SETTINGS_SECTIONS: Record<string, string> = {
+  general: 'details',
+  journal: 'details',
+  app: 'appearance',
+  browsing: 'appearance',
+};
+
 function SettingsSectionRoute() {
-  return <SettingsScreen section={useParam('section')} />;
+  const section = useParam('section');
+  const redirect = section ? LEGACY_SETTINGS_SECTIONS[section] : undefined;
+  if (redirect) return <Navigate to={`/settings/${redirect}`} replace />;
+  return <SettingsScreen section={section} />;
 }
 
 function HelpSectionRoute() {
@@ -235,7 +246,6 @@ function AppRouteTable() {
           </Suspense>
         }
       />
-      <Route path="/uploads" element={<UploadProgressScreen />} />
       <Route path="/me" element={<ProfileScreen />} />
       <Route path="/user/:username" element={<UserProfileRoute />} />
       <Route path="/user/:username/followers" element={<FollowersRoute />} />

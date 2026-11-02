@@ -13,7 +13,7 @@
 // date and is what actually gates Publish — both endpoints are listed in SCR-10's own API
 // touchpoints for exactly this division of labour.
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
   IonPage,
   IonHeader,
@@ -29,9 +29,11 @@ import { useComposeDraftStore } from '../../state/composeDraftStore.js';
 import { fetchDayEligibility } from '../../data/journal.js';
 import type { DayEligibility } from '../../data/journal.js';
 import { validatePickedPhoto } from '../../data/photoValidation.js';
+import { useMembership } from '../../data/useMembership.js';
+import { MembershipCheckFailed } from '../../components/MembershipCheckFailed.js';
+import { submitDraft, describeSubmitError } from '../../flows/composeFlow.js';
 import { fetchUserProfile } from '../../data/users.js';
-import { enqueueDraft } from '../../flows/composeFlow.js';
-import { describeError, mapApiError } from '../../data/errors.js';
+import { UploadingNotice } from '../../components/UploadingNotice.js';
 import { DateField } from '../../components/DateField.js';
 import { DescriptionField, TextField, ToggleRow } from '../../components/ComposeForm.js';
 import { ThumbnailPhotoFrame } from '../../components/ThumbnailPhotoFrame.js';
@@ -47,17 +49,24 @@ export function ComposeEntryScreen() {
   const patchDraft = useComposeDraftStore((s) => s.patchDraft);
   const clearDraft = useComposeDraftStore((s) => s.clearDraft);
 
-  const [isMember, setIsMember] = useState<boolean | null>(null);
+  const { isMember, failed: membershipFailed, retry: retryMembership } = useMembership();
   const [eligibility, setEligibility] = useState<DayEligibility | null>(null);
   const [eligibilityLoading, setEligibilityLoading] = useState(false);
   const [unusablePhoto, setUnusablePhoto] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [confirmDiscard, setConfirmDiscard] = useState(false);
+  // Set once Blipfoto has accepted the entry: the screen then shows the completion view, and the
+  // draft is gone. `total` arrives later, from one profile call, and is simply left out if that fails.
+  const [published, setPublished] = useState<{
+    entryId: string;
+    photoSrc: string | null;
+    total: number | null;
+  } | null>(null);
 
   useEffect(() => {
     if (!draft || draft.mode !== 'publish') {
-      navigate.replace('/compose');
+      navigate.goBackOr('/compose');
       return;
     }
     if (draft.photo) {
@@ -65,13 +74,6 @@ export function ComposeEntryScreen() {
       if (!result.ok) setUnusablePhoto(result.message);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  useEffect(() => {
-    fetchUserProfile().then(
-      (profile) => setIsMember(profile.details?.member === 1),
-      () => setIsMember(false),
-    );
   }, []);
 
   useEffect(() => {
@@ -102,7 +104,21 @@ export function ComposeEntryScreen() {
     };
   }, [draft?.date]);
 
+  // Set when the discard confirmation was raised by the header's home tap rather than Back.
+  const pendingHome = useRef<(() => void) | null>(null);
+
+  function handleHome(goHome: () => void): void {
+    if (draft?.dirty) {
+      pendingHome.current = goHome;
+      setConfirmDiscard(true);
+      return;
+    }
+    clearDraft();
+    goHome();
+  }
+
   function handleBack(): void {
+    pendingHome.current = null;
     if (draft?.dirty) {
       setConfirmDiscard(true);
       return;
@@ -121,14 +137,60 @@ export function ComposeEntryScreen() {
     setSubmitting(true);
     setSubmitError(null);
     try {
-      await enqueueDraft(draft);
+      const entryId = await submitDraft(draft);
+      setPublished({ entryId, photoSrc: draft.photo?.webPath ?? null, total: null });
       clearDraft();
-      navigate.replace('/uploads');
+      setSubmitting(false);
+      fetchUserProfile().then(
+        (profile) => {
+          const total = profile.details?.entry_total;
+          if (typeof total === 'number') setPublished((p) => (p ? { ...p, total } : p));
+        },
+        () => {},
+      );
     } catch (err) {
-      const outcome = mapApiError(err);
-      setSubmitError(describeError(outcome, 'Could not queue this entry.'));
+      setSubmitError(describeSubmitError(err, draft.accountId, "Couldn't publish your entry."));
       setSubmitting(false);
     }
+  }
+
+  if (published) {
+    return (
+      <IonPage>
+        <IonHeader>
+          <AppHeader
+            title="New entry"
+            variant="back"
+            onBack={() => navigate.replace('/browse')}
+            accountIndicator
+          />
+        </IonHeader>
+        <IonContent>
+          <div className="compose-form compose-published">
+            <h2>Your entry has been published</h2>
+            {published.photoSrc && (
+              <img className="compose-published-photo" src={published.photoSrc} alt="" />
+            )}
+            {published.total !== null && (
+              <IonText color="medium">
+                <p>
+                  You now have {published.total} {published.total === 1 ? 'entry' : 'entries'}.
+                </p>
+              </IonText>
+            )}
+            <IonButton
+              expand="block"
+              onClick={() => navigate.replace(`/entry/${published.entryId}`)}
+            >
+              View entry
+            </IonButton>
+            <IonButton expand="block" fill="outline" onClick={() => navigate.replace('/compose')}>
+              Add another
+            </IonButton>
+          </div>
+        </IonContent>
+      </IonPage>
+    );
   }
 
   if (!draft || draft.mode !== 'publish') {
@@ -146,7 +208,13 @@ export function ComposeEntryScreen() {
   return (
     <IonPage>
       <IonHeader>
-        <AppHeader title="New entry" variant="back" onBack={handleBack} accountIndicator />
+        <AppHeader
+          title="New entry"
+          variant="back"
+          onBack={handleBack}
+          onHome={handleHome}
+          accountIndicator
+        />
       </IonHeader>
       <IonContent>
         {unusablePhoto ? (
@@ -157,7 +225,7 @@ export function ComposeEntryScreen() {
             <IonButton
               onClick={() => {
                 clearDraft();
-                navigate.replace('/compose');
+                navigate.goBackOr('/compose');
               }}
             >
               Choose another photo
@@ -172,6 +240,8 @@ export function ComposeEntryScreen() {
                 </IonText>
               </div>
             )}
+
+            {membershipFailed && <MembershipCheckFailed onRetry={retryMembership} />}
 
             {draft.photo && (
               <ThumbnailPhotoFrame
@@ -257,9 +327,10 @@ export function ComposeEntryScreen() {
           </>
         )}
 
+        {submitting && <UploadingNotice what="publish" />}
         <div className="compose-form">
           <IonButton expand="block" disabled={!canPublish} onClick={() => void handlePublish()}>
-            {submitting ? <IonSpinner name="dots" /> : 'Publish'}
+            {submitting ? <IonSpinner name="dots" /> : submitError ? 'Retry' : 'Publish'}
           </IonButton>
         </div>
       </IonContent>
@@ -275,7 +346,8 @@ export function ComposeEntryScreen() {
             role: 'destructive',
             handler: () => {
               clearDraft();
-              navigate.goBack();
+              if (pendingHome.current) pendingHome.current();
+              else navigate.goBack();
             },
           },
         ]}

@@ -12,7 +12,7 @@
 // Loads the entry once (there's no cheaper source — SCR-06 deliberately doesn't hand its own
 // loaded entry down, same deep-link-resilience reasoning as SCR-07/SCR-15/SCR-16) and
 // seeds composeDraftStore in 'edit' mode; reuses SCR-10's shared draft/SCR-11/SCR-12 machinery
-// rather than a parallel form. Save enqueues the same durable background upload as compose (§9).
+// rather than a parallel form. Save sends the change and waits for the answer, as compose does (§9).
 // Delete is immediate (no draft involved) — same confirm-then-delete-then-navigate-to-Browse
 // behaviour this screen inherited from EntryDetailScreen's old overflow menu.
 
@@ -33,11 +33,13 @@ import { useAppNavigate } from '../../app/routes/useAppNavigate.js';
 import { useComposeDraftStore } from '../../state/composeDraftStore.js';
 import { useActiveAccount } from '../../state/accountsStore.js';
 import { fetchEntry, deleteEntry } from '../../data/entries.js';
-import { enqueueDraft } from '../../flows/composeFlow.js';
+import { UploadingNotice } from '../../components/UploadingNotice.js';
+import { submitDraft, describeSubmitError } from '../../flows/composeFlow.js';
 import { revealStoredPosition, StillVisibleError } from '../../data/entryLocation.js';
 import { ThumbnailPhotoFrame } from '../../components/ThumbnailPhotoFrame.js';
 import { cropToProportions } from '../../data/imageCrop.js';
-import { fetchUserProfile } from '../../data/users.js';
+import { useMembership } from '../../data/useMembership.js';
+import { MembershipCheckFailed } from '../../components/MembershipCheckFailed.js';
 import type { Area } from 'react-easy-crop';
 import { describeError, mapApiError } from '../../data/errors.js';
 
@@ -53,7 +55,7 @@ export function EditEntryScreen({ entryId }: EditEntryScreenProps) {
   const patchDraft = useComposeDraftStore((s) => s.patchDraft);
   const clearDraft = useComposeDraftStore((s) => s.clearDraft);
 
-  const [isMember, setIsMember] = useState(false);
+  const { isMember, failed: membershipFailed, retry: retryMembership } = useMembership();
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
   // The entry's current photo (its thumbnail, like the site's edit page), shown until a replacement is picked. Only known when this screen
@@ -81,13 +83,6 @@ export function EditEntryScreen({ entryId }: EditEntryScreenProps) {
   // change unmounts it) — re-trigger a pointless refetch-and-reseed race straight after saving.
   // A ref survives that state change without re-running the effect, since it isn't a dependency.
   const hasSeededRef = useRef(isCurrentDraft);
-
-  useEffect(() => {
-    fetchUserProfile().then(
-      (profile) => setIsMember(profile.details?.member === 1),
-      () => setIsMember(false),
-    );
-  }, []);
 
   useEffect(() => {
     if (hasSeededRef.current) {
@@ -132,7 +127,21 @@ export function EditEntryScreen({ entryId }: EditEntryScreenProps) {
     // doesn't add a re-run trigger beyond entryId/activeAccount.
   }, [entryId, activeAccount, setDraft]);
 
+  // Set when the discard confirmation was raised by the header's home tap rather than Back.
+  const pendingHome = useRef<(() => void) | null>(null);
+
+  function handleHome(goHome: () => void): void {
+    if (draft?.dirty) {
+      pendingHome.current = goHome;
+      setConfirmDiscard(true);
+      return;
+    }
+    clearDraft();
+    goHome();
+  }
+
   function handleBack(): void {
+    pendingHome.current = null;
     if (draft?.dirty) {
       setConfirmDiscard(true);
       return;
@@ -146,12 +155,11 @@ export function EditEntryScreen({ entryId }: EditEntryScreenProps) {
     setSubmitting(true);
     setSubmitError(null);
     try {
-      await enqueueDraft(draft);
+      await submitDraft(draft);
       clearDraft();
-      navigate.replace(`/entry/${entryId}`);
+      navigate.goBackOr(`/entry/${entryId}`);
     } catch (err) {
-      const outcome = mapApiError(err);
-      setSubmitError(describeError(outcome, 'Could not queue this change.'));
+      setSubmitError(describeSubmitError(err, draft.accountId, "Couldn't save your changes."));
       setSubmitting(false);
     }
   }
@@ -229,7 +237,7 @@ export function EditEntryScreen({ entryId }: EditEntryScreenProps) {
       <ThumbnailPhotoFrame
         photo={draft.photo}
         crop={draft.thumbnailCrop}
-        canSelect={isMember}
+        canSelect={isMember === true}
         onCropChange={handleCropComplete}
       />
     ) : (
@@ -241,9 +249,16 @@ export function EditEntryScreen({ entryId }: EditEntryScreenProps) {
   return (
     <IonPage>
       <IonHeader>
-        <AppHeader title="Edit entry" variant="back" onBack={handleBack} accountIndicator />
+        <AppHeader
+          title="Edit entry"
+          variant="back"
+          onBack={handleBack}
+          onHome={handleHome}
+          accountIndicator
+        />
       </IonHeader>
       <IonContent>
+        {membershipFailed && draft.photo && <MembershipCheckFailed onRetry={retryMembership} />}
         {photoFrame}
         <div className="compose-form">
           {submitError && (
@@ -330,12 +345,13 @@ export function EditEntryScreen({ entryId }: EditEntryScreenProps) {
             </>
           )}
 
+          {submitting && <UploadingNotice what="save" />}
           <IonButton
             expand="block"
             disabled={submitting || editLevel === 0}
             onClick={() => void handleSave()}
           >
-            {submitting ? <IonSpinner name="dots" /> : 'Save'}
+            {submitting ? <IonSpinner name="dots" /> : submitError ? 'Retry' : 'Save'}
           </IonButton>
 
           <div className="compose-danger-zone">
@@ -374,7 +390,8 @@ export function EditEntryScreen({ entryId }: EditEntryScreenProps) {
             role: 'destructive',
             handler: () => {
               clearDraft();
-              navigate.goBack();
+              if (pendingHome.current) pendingHome.current();
+              else navigate.goBack();
             },
           },
         ]}

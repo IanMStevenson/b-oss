@@ -49,7 +49,7 @@ export async function setReminderEnabled(
   return 'refused';
 }
 
-/** FLW-18 step 3 / §12: called by flows/uploadQueueRunner.ts whenever a publish (new entry or
+/** FLW-18 step 3 / §12: called by flows/composeFlow.ts whenever a publish (new entry or
  * edit — either counts as "published through the app today") succeeds. A no-op if that account
  * has no enabled reminder. Never awaited by the caller — scheduling failures here must never
  * surface as an upload failure; best-effort. */

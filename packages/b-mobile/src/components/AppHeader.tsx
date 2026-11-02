@@ -12,14 +12,17 @@
 // (tabs, segments, search) puts both inside one shared <IonHeader>, Ionic's normal multi-toolbar
 // pattern, rather than stacking two independent <IonHeader> regions.
 
-import type { CSSProperties, ReactNode } from 'react';
+import type { CSSProperties, MouseEvent, ReactNode } from 'react';
 import { IonToolbar, IonButtons, IonMenuButton, IonBackButton } from '@ionic/react';
 import { AccountIndicator } from './AccountIndicator.js';
+import { useHasRouter, useHeaderNav } from '../app/routes/useHeaderNav.js';
 
 interface AppHeaderProps {
   title: string;
-  /** 'menu' for anything reachable directly from NavMenu; 'back' for everything reached by
-   * drilling in from another screen. Same position either way. */
+  /** Leave unset for a screen that is also a menu destination: the header then shows ☰ when the
+   * screen was reached from the menu and ← when it was reached by tapping something inside
+   * another screen (every in-app push marks itself; see useHeaderNav). Pass 'back' only for a
+   * screen that is never in the menu, so a deep link with no history still shows ←. */
   variant?: 'menu' | 'back';
   /** Only used for variant="back" — where IonBackButton lands if there's no history to pop to
    * (a deep link opened fresh, not navigated to from within the app). Ignored if `onBack` is
@@ -31,6 +34,10 @@ interface AppHeaderProps {
    * calling this instead of navigating. Leave unset for a screen with nothing to lose by leaving
    * immediately (the common case). */
   onBack?: () => void;
+  /** Tapping "b-mobile" goes home (Browse) and clears the stack. A screen with unsaved changes
+   * passes this to intercept: it receives `goHome` and decides whether to call it now or after a
+   * discard confirmation. */
+  onHome?: (goHome: () => void) => void;
   /** Extra content after the title (e.g. AccountIndicator) — kept optional rather than every
    * screen reimplementing the same IonButtons/slot="end" wrapper. */
   end?: ReactNode;
@@ -48,14 +55,51 @@ interface AppHeaderProps {
   accountIndicator?: boolean;
 }
 
-export function AppHeader({
+interface HeaderNavProps {
+  drilledIn: boolean;
+  isHome: boolean;
+  goHome: () => void;
+}
+
+/** Resolves arrival and home navigation from the router. Without a Router (isolated screen
+ * tests) the header still renders, as a menu header whose "b-mobile" does nothing. */
+export function AppHeader(props: AppHeaderProps) {
+  return useHasRouter() ? (
+    <RoutedAppHeader {...props} />
+  ) : (
+    <AppHeaderView {...props} drilledIn={false} isHome={false} goHome={() => undefined} />
+  );
+}
+
+function RoutedAppHeader(props: AppHeaderProps) {
+  return <AppHeaderView {...props} {...useHeaderNav()} />;
+}
+
+function AppHeaderView({
   title,
-  variant = 'menu',
+  variant,
   backHref = '/browse',
   onBack,
+  onHome,
   end,
-  accountIndicator = variant === 'menu',
-}: AppHeaderProps) {
+  accountIndicator = variant !== 'back',
+  drilledIn,
+  isHome,
+  goHome,
+}: AppHeaderProps & HeaderNavProps) {
+  const resolved = variant ?? (drilledIn ? 'back' : 'menu');
+
+  function handleHome(event: MouseEvent<HTMLElement>): void {
+    if (isHome) {
+      // Already home: scroll this page's content to the top.
+      const content = event.currentTarget.closest('.ion-page')?.querySelector('ion-content');
+      void content?.scrollToTop(300);
+      return;
+    }
+    if (onHome) onHome(goHome);
+    else goHome();
+  }
+
   return (
     <IonToolbar
       className="app-header-toolbar"
@@ -73,7 +117,7 @@ export function AppHeader({
       }
     >
       <IonButtons slot="start">
-        {variant === 'back' ? (
+        {resolved === 'back' ? (
           // Same IonBackButton (so the same arrow icon and position) either way; a supplied
           // onClick replaces its pop-navigation entirely (IonBackButton spreads props after its
           // own click handler), which is exactly what a confirm-before-discard screen needs.
@@ -85,17 +129,26 @@ export function AppHeader({
         ) : (
           <IonMenuButton />
         )}
-        <span
+        <button
+          type="button"
+          aria-label="b-mobile, go to Browse"
+          onClick={handleHome}
           style={{
+            background: 'none',
+            border: 'none',
+            padding: '8px 4px',
+            color: 'inherit',
+            font: 'inherit',
             fontWeight: 700,
             fontSize: '16px',
             letterSpacing: '-0.01em',
             whiteSpace: 'nowrap',
             marginLeft: '4px',
+            cursor: 'pointer',
           }}
         >
           b-mobile
-        </span>
+        </button>
       </IonButtons>
       <IonButtons slot="end">
         <span
