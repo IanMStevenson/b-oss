@@ -27,11 +27,11 @@ afterEach(() => {
   vi.resetAllMocks();
 });
 
-function renderScreen() {
+function renderScreen(tag = 'sunrise') {
   return render(
     <MemoryRouter>
       <OverlayProvider>
-        <TagEntriesScreen tag="sunrise" />
+        <TagEntriesScreen tag={tag} />
       </OverlayProvider>
     </MemoryRouter>,
   );
@@ -64,6 +64,14 @@ describe('TagEntriesScreen', () => {
     vi.mocked(fetchTagPage).mockResolvedValue({ items: [], more: false });
     renderScreen();
     expect(await screen.findByText(/No entries tagged.*sunrise/)).toBeDefined();
+  });
+
+  it('explains, without searching, when the tag has symbols in', async () => {
+    const { fetchTagPage } = await import('../../../data/entries.js');
+    vi.mocked(fetchTagPage).mockClear();
+    renderScreen('arthurs-seat');
+    expect(await screen.findByText(/doesn't work for tags with symbols/)).toBeDefined();
+    expect(fetchTagPage).not.toHaveBeenCalled();
   });
 
   it('renders a grid of matching entries', async () => {

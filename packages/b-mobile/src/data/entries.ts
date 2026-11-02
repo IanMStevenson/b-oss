@@ -97,9 +97,12 @@ export async function fetchNearbyPage(
   });
 }
 
+/** Search syntax: a tag is searched as `#tag`; plain text never matches tags. Callers should check
+ * `isSearchableTag` first: a tag with symbols in can't be searched for at all. */
 export async function fetchTagPage(tag: string, pageIndex: number): Promise<Page<EntryIndex>> {
   return withRateLimitFallback(async (client) => {
-    const res = await client.searchEntries({ query: tag, pageIndex, pageSize: PAGE_SIZE });
+    const query = `#${tag.replace(/^#/, '')}`;
+    const res = await client.searchEntries({ query, pageIndex, pageSize: PAGE_SIZE });
     return { items: res.entries.map(stubToEntryIndex), ...pageMeta(res.page) };
   });
 }
