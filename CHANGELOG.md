@@ -5,6 +5,17 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [b-mobile 1.2.1] - 2026-11-02
+
+### Fixed
+
+- b-mobile: tapping a tag on an entry now lists its entries (the search was missing the `#`). Tags
+  with spaces or symbols can't be searched by Blipfoto, so the screen says so.
+- b-mobile: when something fails to load (entries, profiles, awards, notifications, comments, the
+  map, Settings, the biography editor), you now get a friendly message that says whether you're
+  offline or Blipfoto isn't answering, with Try again and a link to the status page, instead of
+  red error text.
+
 ## [b-mobile 1.2.0] - 2026-11-02
 
 ### Added
