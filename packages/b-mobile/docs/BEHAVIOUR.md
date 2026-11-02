@@ -25,7 +25,7 @@ Known Blipfoto API limits: [AppLimitations.md](AppLimitations.md). Paths are rel
   scrolls to the top. Compose, Edit, the description editor and the location picker ask to discard
   first when there are unsaved changes. The header shows ☰ for a screen reached from the menu and ←
   for one reached by tapping something inside another screen (every in-app push marks itself);
-  screens never in the menu always show ←. Closing the full-screen photo and saving an edit pop
+  screens never in the menu always show ←, as do Settings and Help (visits, not destinations: Back returns to where the user came from, falling back to Browse with no history). Closing the full-screen photo and saving an edit pop
   history rather than stacking a second Entry.
 - Header account indicator: only with 2+ stored accounts. Tap opens the switcher overlay
   (`app/AccountSwitcherOverlay.tsx`): tap to switch instantly; a needs-sign-in account (red) goes to

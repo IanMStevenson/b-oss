@@ -370,7 +370,13 @@ function HelpInfoHub() {
   return (
     <IonPage>
       <IonHeader>
-        <AppHeader title="Help & about" accountIndicator={false} />
+        <AppHeader
+          title="Help & about"
+          variant="back"
+          backHref="/browse"
+          // Help is a visit, not a destination (b-oss#744): always ←, never ☰.
+          accountIndicator={false}
+        />
       </IonHeader>
       <IonContent>
         <IonList>
