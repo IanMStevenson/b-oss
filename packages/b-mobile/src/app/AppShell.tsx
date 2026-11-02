@@ -220,27 +220,29 @@ function NavMenu() {
   return (
     <IonMenu contentId={MAIN_CONTENT_ID} swipeGesture={false}>
       <IonContent>
-        {pane.enabled && pane.wide && (
-          // Only where a pin means something: a desktop-profile window wide enough to hold the
-          // menu beside the page. Pressing it forces the menu open or collapsed, and is remembered.
-          <IonButton
-            fill="clear"
-            size="small"
-            className="nav-pin"
-            onClick={pane.togglePin}
-            aria-pressed={pane.open}
-          >
-            <span className="nav-pin-label">{pane.open ? 'Collapse menu' : 'Keep menu open'}</span>
-            {pane.open ? (
-              <PanelLeftClose size={16} aria-hidden="true" slot="end" />
-            ) : (
-              <PanelLeftOpen size={16} aria-hidden="true" slot="end" />
-            )}
-          </IonButton>
-        )}
         {/* Flex column filling the drawer so the version footer sits at the bottom of the screen
             (IonContent's own bottom padding keeps it clear of the gesture bar). */}
         <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100%' }}>
+          {pane.enabled && pane.wide && (
+            // Only where a pin means something: a desktop-profile window wide enough to hold the
+            // menu beside the page. Pressing it forces the menu open or collapsed, and is remembered.
+            <IonButton
+              fill="clear"
+              size="small"
+              className="nav-pin"
+              onClick={pane.togglePin}
+              aria-pressed={pane.open}
+            >
+              <span className="nav-pin-label">
+                {pane.open ? 'Collapse menu' : 'Keep menu open'}
+              </span>
+              {pane.open ? (
+                <PanelLeftClose size={16} aria-hidden="true" slot="end" />
+              ) : (
+                <PanelLeftOpen size={16} aria-hidden="true" slot="end" />
+              )}
+            </IonButton>
+          )}
           <IonList lines="none" style={{ padding: 0 }}>
             {activeAccount ? (
               <NavAccountBlock currentPath={pathname} />
