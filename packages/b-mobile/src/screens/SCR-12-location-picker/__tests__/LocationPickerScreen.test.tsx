@@ -45,7 +45,10 @@ const TILES = {
 };
 
 const { getTileLayerConfig } = vi.hoisted(() => ({ getTileLayerConfig: vi.fn() }));
-vi.mock('../../../platform/mapTiles.js', () => ({ getTileLayerConfig }));
+vi.mock('../../../platform/mapTiles.js', () => ({
+  getTileLayerConfig,
+  getSatelliteLayerConfig: () => null,
+}));
 
 /** The pins on a map. */
 function pins(map: L.Map): L.Marker[] {

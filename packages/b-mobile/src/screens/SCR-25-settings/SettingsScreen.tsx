@@ -106,7 +106,13 @@ function SettingsHub() {
   return (
     <IonPage>
       <IonHeader>
-        <AppHeader title="Settings" />
+        <AppHeader
+          title="Settings"
+          variant="back"
+          backHref="/browse"
+          // Settings is a visit, not a destination (b-oss#744): always ←, never ☰.
+          accountIndicator
+        />
       </IonHeader>
       <IonContent className="form-column">
         {/* App settings: device-local, never round-trip to Blipfoto's server — how b-mobile

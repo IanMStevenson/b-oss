@@ -63,6 +63,12 @@ describe('HelpInfoScreen hub — works with no account signed in (SCR-29 is not 
     expect(screen.queryByText('App version')).toBeNull();
   });
 
+  it('always shows ← (back arrow), never ☰ (b-oss#744)', () => {
+    renderHub();
+    expect(document.querySelector('ion-back-button')).not.toBeNull();
+    expect(document.querySelector('ion-menu-button')).toBeNull();
+  });
+
   it('no longer carries Delete my account or the link-handling toggle', () => {
     renderHub();
     expect(screen.queryByText('Delete my account')).toBeNull();

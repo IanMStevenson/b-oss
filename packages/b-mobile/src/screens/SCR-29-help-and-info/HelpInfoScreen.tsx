@@ -193,6 +193,7 @@ function SafetyPrivacy() {
 const OSM_COPYRIGHT_URL = 'https://www.openstreetmap.org/copyright';
 const GEOAPIFY_URL = 'https://www.geoapify.com/';
 const OPENMAPTILES_URL = 'https://openmaptiles.org/';
+const MAPTILER_URL = 'https://www.maptiler.com/copyright/';
 const GPL_URL = 'https://www.gnu.org/licenses/gpl-3.0.html';
 
 /** licences.generated.json's shape (scripts/licences.mjs). `texts` holds each distinct licence
@@ -335,7 +336,8 @@ function Licences() {
         Maps powered by <InlineLink url={GEOAPIFY_URL}>Geoapify</InlineLink>. Map style &copy;{' '}
         <InlineLink url={OPENMAPTILES_URL}>OpenMapTiles</InlineLink>. Map data &copy;{' '}
         <InlineLink url={OSM_COPYRIGHT_URL}>OpenStreetMap contributors</InlineLink>, available under
-        the Open Database License (ODbL).
+        the Open Database License (ODbL). Satellite imagery &copy;{' '}
+        <InlineLink url={MAPTILER_URL}>MapTiler</InlineLink>.
       </p>
 
       <p>
@@ -381,7 +383,13 @@ function HelpInfoHub() {
   return (
     <IonPage>
       <IonHeader>
-        <AppHeader title="Help & about" accountIndicator={false} />
+        <AppHeader
+          title="Help & about"
+          variant="back"
+          backHref="/browse"
+          // Help is a visit, not a destination (b-oss#744): always ←, never ☰.
+          accountIndicator={false}
+        />
       </IonHeader>
       <IonContent className="form-column">
         <IonList>

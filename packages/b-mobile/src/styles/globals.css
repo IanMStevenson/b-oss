@@ -297,6 +297,31 @@ ion-segment.settings-pill-segment ion-segment-button::part(native) {
   font: inherit;
 }
 
+/* Satellite switch (b-oss#741): a 44px-high pill, top right on the page surface, just below the
+   44px locate button (top 12px) that both map screens carry. The provider's logo sits bottom left
+   while the satellite layer shows. */
+.leaflet-top.leaflet-right .map-layer-switch {
+  margin: 68px 12px 0 0;
+}
+
+.map-layer-switch {
+  min-height: 44px;
+  padding: 0 14px;
+  border: none;
+  border-radius: 10px;
+  background: var(--bg);
+  color: var(--ink);
+  font: inherit;
+  font-weight: 600;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.25);
+}
+
+.map-watermark img {
+  display: block;
+  height: 22px;
+  width: auto;
+}
+
 /* The pin is an inline-SVG divIcon (components/mapPin.ts); drop Leaflet's default white box. */
 .map-pin {
   background: none;
