@@ -7,11 +7,14 @@ import { render, screen, cleanup, waitFor, act } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { createTrackedRouter } from '../../../app/routes/test-router.js';
 import { OverlayProvider } from '../../../app/OverlayProvider.js';
-import { BlipfotoError } from '@b-oss/b-api';
+import { BlipfotoError, NetworkError } from '@b-oss/b-api';
 import { EditEntryScreen } from '../EditEntryScreen.js';
 import { StillVisibleError } from '../../../data/entryLocation.js';
 import { useAccountsStore } from '../../../state/accountsStore.js';
 import { useComposeDraftStore } from '../../../state/composeDraftStore.js';
+
+const isOnline = vi.hoisted(() => vi.fn());
+vi.mock('../../../platform/connectivity.js', () => ({ isOnline }));
 
 const { fetchEntry, deleteEntry } = vi.hoisted(() => ({
   fetchEntry: vi.fn(),
@@ -116,6 +119,16 @@ describe('EditEntryScreen', () => {
     renderScreen();
     expect(await screen.findByText('Not found')).toBeDefined();
     expect(screen.queryByText('Save')).toBeNull();
+  });
+
+  it('keeps the header and offers Try again when the entry cannot be reached', async () => {
+    isOnline.mockResolvedValue(false);
+    fetchEntry.mockRejectedValueOnce(new NetworkError('offline'));
+    renderScreen();
+    expect(await screen.findByText('You seem to be offline')).toBeDefined();
+    expect(screen.getByText('Edit entry')).toBeDefined();
+    await userEvent.click(screen.getByText('Try again'));
+    expect(await screen.findByDisplayValue('Sunrise')).toBeDefined();
   });
 
   it('Save sends the edit and returns to SCR-06', async () => {
