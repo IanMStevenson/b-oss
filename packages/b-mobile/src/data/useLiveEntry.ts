@@ -15,6 +15,9 @@ import { useAccountsStore } from '../state/accountsStore.js';
 
 export interface LiveEntryResult {
   entryState: EntryState;
+  /** The entry failed to load at the transport level (no response), so LoadFailed can ask whether
+   * the phone is offline or Blipfoto isn't answering. */
+  errorIsTransport: boolean;
   prevEntryId: string | null;
   nextEntryId: string | null;
   actions: BlipEntryActions | null;
@@ -29,15 +32,16 @@ export interface LiveEntryResult {
   refresh: () => void;
 }
 
-const emptyResult: Omit<LiveEntryResult, 'entryState' | 'reload' | 'refresh'> = {
-  prevEntryId: null,
-  nextEntryId: null,
-  actions: null,
-  starred: false,
-  favorited: false,
-  friendship: null,
-  comments: [],
-};
+const emptyResult: Omit<LiveEntryResult, 'entryState' | 'errorIsTransport' | 'reload' | 'refresh'> =
+  {
+    prevEntryId: null,
+    nextEntryId: null,
+    actions: null,
+    starred: false,
+    favorited: false,
+    friendship: null,
+    comments: [],
+  };
 
 export function useLiveEntry(entryId: string): LiveEntryResult {
   // The response carries per-viewer state (star/favourite, which comments you can edit or delete,
@@ -50,10 +54,17 @@ export function useLiveEntry(entryId: string): LiveEntryResult {
 
   switch (state.status) {
     case 'loading':
-      return { entryState: { status: 'loading' }, ...emptyResult, reload, refresh };
+      return {
+        entryState: { status: 'loading' },
+        errorIsTransport: false,
+        ...emptyResult,
+        reload,
+        refresh,
+      };
     case 'error':
       return {
         entryState: { status: 'error', message: state.message },
+        errorIsTransport: state.isTransport,
         ...emptyResult,
         reload,
         refresh,
@@ -61,6 +72,7 @@ export function useLiveEntry(entryId: string): LiveEntryResult {
     case 'empty':
       return {
         entryState: { status: 'error', message: 'Entry not found.' },
+        errorIsTransport: false,
         ...emptyResult,
         reload,
         refresh,
@@ -68,6 +80,7 @@ export function useLiveEntry(entryId: string): LiveEntryResult {
     case 'loaded':
       return {
         entryState: { status: 'loaded', data: state.data.entry },
+        errorIsTransport: false,
         prevEntryId: state.data.prevEntryId,
         nextEntryId: state.data.nextEntryId,
         actions: state.data.actions,
