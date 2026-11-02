@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- b-oss#763: on Android < 15 Capacitor pads the window by the status-bar height, so the window
+     background shows behind the status bar. Brand-green strip at the top (the web view covers all
+     but the status-bar band); the rest keeps the theme's normal background (day/night). -->
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:drawable="?android:attr/colorBackground" />
+    <item android:gravity="top" android:height="64dp">
+        <color android:color="#1F4D3A" />
+    </item>
+</layer-list>
