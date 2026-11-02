@@ -392,6 +392,15 @@ nothing on some devices; `components/createMap.ts` (MapLibre) is kept, unused, f
   `osm-bright` shows local names. Geoapify's
   Free plan requires its attribution (Geoapify, OpenStreetMap contributors, OpenMapTiles), which is
   the map's attribution control, and the same credits are in Help & about → Licences.
+- **Satellite layer (b-oss#741):** `getSatelliteLayerConfig()`, MapTiler's `hybrid` map (satellite imagery
+  with labels, `@2x` supported, max zoom 20) with `VITE_MAPTILER_KEY`; no key → `null` → no switch, road map
+  only. `createLeafletMap` takes it as an optional fifth argument and adds a "Satellite" / "Map" button
+  (top right) that swaps the tile layer and the attribution. The MapTiler Free plan (non-commercial; a free
+  GPL app is taken at that plain reading) requires its logo and credit while the layer shows, so the logo
+  (hotlinked from MapTiler, as in their Leaflet sample, linked through `openUrl`) sits bottom left only
+  then. 100k requests a month, paused (not billed) at the limit. If the satellite tiles keep failing with
+  none loaded (four `tileerror`s), the map drops back to the road map; only the layer on show feeds the
+  "couldn't be displayed" failure above. The choice isn't remembered: each map opens on the road map.
 - **Links:** the attribution links are opened through `platform/browser.ts` (`openUrl`), not as
   `target=_blank` links in the WebView.
 - **Failure:** `components/leafletMap.ts` makes the map and reports `onFailed` if Leaflet throws, or

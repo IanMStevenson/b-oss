@@ -11,6 +11,11 @@
 // - the first TILE_ERRORS_BEFORE_FAILED tiles all fail with none loaded yet. One tile loading
 //   afterwards clears it (a flaky connection that recovers).
 //
+// Satellite (b-oss#741): when a second tile config is passed, a corner button switches between the
+// road map and the satellite layer and back. Only the layer on show feeds the failure reporting
+// above: a satellite layer that keeps failing with none loaded drops back to the road map rather
+// than reporting the whole map as broken. The provider's logo and credit show with its layer.
+//
 // Settings chosen for a phone and a provider that makes every view revalidate its tiles
 // (`cache-control: no-cache`): `updateWhenIdle` loads tiles once a pan ends rather than during it,
 // and `updateWhenZooming: false` skips the intermediate zoom levels a pinch passes through, so a
@@ -38,6 +43,7 @@ export function createLeafletMap(
   view: { center: [number, number]; zoom: number },
   tiles: TileLayerConfig,
   handlers: MapFailureHandlers,
+  satellite: TileLayerConfig | null = null,
 ): L.Map | null {
   let map: L.Map;
   let attribution: L.Control.Attribution;
@@ -45,7 +51,7 @@ export function createLeafletMap(
     map = L.map(container, {
       center: view.center,
       zoom: view.zoom,
-      maxZoom: tiles.maxZoom,
+      maxZoom: Math.max(tiles.maxZoom, satellite?.maxZoom ?? 0),
       attributionControl: false,
       zoomControl: false,
       // Leaflet's default is `L.Browser.mobile`; stated so it doesn't depend on UA sniffing.
@@ -57,30 +63,10 @@ export function createLeafletMap(
       .addAttribution(tiles.attribution)
       .addTo(map);
 
-    const layer = L.tileLayer(tiles.urlTemplate, {
-      maxZoom: tiles.maxZoom,
-      updateWhenIdle: true,
-      updateWhenZooming: false,
-      keepBuffer: 2,
-    }).addTo(map);
+    const road = buildLayer(tiles).addTo(map);
+    watchFailures(road, handlers);
 
-    let loaded = 0;
-    let errors = 0;
-    let failed = false;
-    layer.on('tileload', () => {
-      loaded += 1;
-      if (failed) {
-        failed = false;
-        handlers.onRecovered();
-      }
-    });
-    layer.on('tileerror', () => {
-      errors += 1;
-      if (loaded === 0 && !failed && errors >= TILE_ERRORS_BEFORE_FAILED) {
-        failed = true;
-        handlers.onFailed();
-      }
-    });
+    if (satellite) addLayerSwitch(map, attribution, tiles, road, satellite);
   } catch {
     handlers.onFailed();
     return null;
@@ -96,4 +82,106 @@ export function createLeafletMap(
     void openUrl(link.href);
   });
   return map;
+}
+
+function buildLayer(config: TileLayerConfig): L.TileLayer {
+  return L.tileLayer(config.urlTemplate, {
+    maxZoom: config.maxZoom,
+    updateWhenIdle: true,
+    updateWhenZooming: false,
+    keepBuffer: 2,
+  });
+}
+
+/** Reports a layer's failure and recovery: see the file header for the rule. */
+function watchFailures(layer: L.TileLayer, handlers: MapFailureHandlers): void {
+  let loaded = 0;
+  let errors = 0;
+  let failed = false;
+  layer.on('tileload', () => {
+    loaded += 1;
+    if (failed) {
+      failed = false;
+      handlers.onRecovered();
+    }
+  });
+  layer.on('tileerror', () => {
+    errors += 1;
+    if (loaded === 0 && !failed && errors >= TILE_ERRORS_BEFORE_FAILED) {
+      failed = true;
+      handlers.onFailed();
+    }
+  });
+}
+
+export const SATELLITE_ON_LABEL = 'Show satellite view';
+export const SATELLITE_OFF_LABEL = 'Show road map';
+
+/** The layer button (top right) and, while the satellite layer shows, its provider's logo
+ * (bottom left, clear of the attribution strip at the bottom right). */
+function addLayerSwitch(
+  map: L.Map,
+  attribution: L.Control.Attribution,
+  roadConfig: TileLayerConfig,
+  roadLayer: L.TileLayer,
+  satelliteConfig: TileLayerConfig,
+): void {
+  const satelliteLayer = buildLayer(satelliteConfig);
+  let showingSatellite = false;
+
+  const button = L.DomUtil.create('button', 'map-layer-switch');
+  button.type = 'button';
+
+  const logoControl = new L.Control({ position: 'bottomleft' });
+  logoControl.onAdd = () => {
+    const wrap = L.DomUtil.create('div', 'map-watermark');
+    const mark = satelliteConfig.watermark;
+    if (mark) {
+      const logo = L.DomUtil.create('a', '', wrap);
+      logo.href = mark.href;
+      const img = L.DomUtil.create('img', '', logo);
+      img.src = mark.imageUrl;
+      img.alt = mark.alt;
+      // Links go through the app's external-link mechanism, as the attribution's do.
+      logo.addEventListener('click', (e) => {
+        e.preventDefault();
+        void openUrl(mark.href);
+      });
+    }
+    return wrap;
+  };
+
+  const render = () => {
+    button.textContent = showingSatellite ? 'Map' : 'Satellite';
+    button.setAttribute('aria-label', showingSatellite ? SATELLITE_OFF_LABEL : SATELLITE_ON_LABEL);
+  };
+
+  const show = (satelliteOn: boolean) => {
+    if (satelliteOn === showingSatellite) return;
+    showingSatellite = satelliteOn;
+    const [on, off] = satelliteOn ? [satelliteConfig, roadConfig] : [roadConfig, satelliteConfig];
+    attribution.removeAttribution(off.attribution).addAttribution(on.attribution);
+    if (satelliteOn) {
+      map.removeLayer(roadLayer);
+      satelliteLayer.addTo(map);
+      if (satelliteConfig.watermark) logoControl.addTo(map);
+    } else {
+      map.removeLayer(satelliteLayer);
+      roadLayer.addTo(map);
+      logoControl.remove();
+    }
+    render();
+  };
+
+  // A satellite layer that keeps failing with none loaded drops back to the road map.
+  watchFailures(satelliteLayer, { onFailed: () => show(false), onRecovered: () => undefined });
+
+  const switchControl = new L.Control({ position: 'topright' });
+  switchControl.onAdd = () => {
+    L.DomEvent.disableClickPropagation(button);
+    L.DomEvent.on(button, 'click', () => show(!showingSatellite));
+    render();
+    return button;
+  };
+  switchControl.addTo(map);
 }

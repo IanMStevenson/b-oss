@@ -6,7 +6,7 @@
 // exercised through a mocked consumer.
 
 import { describe, it, expect, afterEach, vi } from 'vitest';
-import { getTileLayerConfig } from '../mapTiles.js';
+import { getTileLayerConfig, getSatelliteLayerConfig } from '../mapTiles.js';
 
 afterEach(() => {
   vi.unstubAllEnvs();
@@ -33,5 +33,28 @@ describe('getTileLayerConfig', () => {
     expect(attribution).toContain('Powered by <a href="https://www.geoapify.com/">Geoapify</a>');
     expect(attribution).toContain('https://www.openstreetmap.org/copyright');
     expect(attribution).toContain('https://openmaptiles.org/');
+  });
+});
+
+describe('getSatelliteLayerConfig', () => {
+  it('returns null with no MapTiler key, so the layer switch is not offered', () => {
+    vi.stubEnv('VITE_MAPTILER_KEY', '');
+    expect(getSatelliteLayerConfig()).toBeNull();
+  });
+
+  it('builds a MapTiler hybrid URL with the key and the retina token', () => {
+    vi.stubEnv('VITE_MAPTILER_KEY', 'k&1');
+    const config = getSatelliteLayerConfig();
+    expect(config?.urlTemplate).toBe(
+      'https://api.maptiler.com/maps/hybrid/256/{z}/{x}/{y}{r}.jpg?key=k%261',
+    );
+  });
+
+  it("carries the credit and logo MapTiler's Free plan requires", () => {
+    vi.stubEnv('VITE_MAPTILER_KEY', 'k');
+    const config = getSatelliteLayerConfig();
+    expect(config?.attribution).toContain('© MapTiler');
+    expect(config?.attribution).toContain('https://www.openstreetmap.org/copyright');
+    expect(config?.watermark?.href).toBe('https://www.maptiler.com/');
   });
 });

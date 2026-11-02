@@ -27,6 +27,8 @@ export interface TileLayerConfig {
   maxZoom: number;
   /** HTML for Leaflet's attribution control; links are opened through platform/browser.ts. */
   attribution: string;
+  /** A logo the provider's terms require while this layer is showing (shown as a link). */
+  watermark?: { href: string; imageUrl: string; alt: string };
 }
 
 /** The credits Geoapify's Free plan requires: itself, the OpenStreetMap data (ODbL), and
@@ -44,5 +46,35 @@ export function getTileLayerConfig(): TileLayerConfig | null {
     urlTemplate: `https://maps.geoapify.com/v1/tile/${STYLE}/{z}/{x}/{y}{r}.png?apiKey=${encodeURIComponent(key)}`,
     maxZoom: MAX_ZOOM,
     attribution: ATTRIBUTION,
+  };
+}
+
+/** MapTiler's `hybrid` map: satellite imagery with place and road labels in one layer (b-oss#741).
+ * Checked against the live API: `/maps/hybrid/256/{z}/{x}/{y}.jpg`; a bad key is a 403, an unknown
+ * map id a 404. A 256px tile (and its `@2x`) counts as one request against the Free plan's 100k a
+ * month, and the plan pauses at the limit rather than billing. The Free plan is limited to
+ * non-commercial use (a free GPL app is taken at that plain reading) and requires the MapTiler
+ * logo and credit while the layer shows. */
+const SATELLITE_MAX_ZOOM = 20;
+
+const SATELLITE_ATTRIBUTION = [
+  '<a href="https://www.maptiler.com/copyright/" target="_blank">© MapTiler</a>',
+  '<a href="https://www.openstreetmap.org/copyright" target="_blank">© OpenStreetMap contributors</a>',
+].join(' ');
+
+/** Null when no MapTiler key is configured (VITE_MAPTILER_KEY, never committed with a real
+ * value): the layer selector is then not offered and the road map is unchanged. */
+export function getSatelliteLayerConfig(): TileLayerConfig | null {
+  const key = import.meta.env.VITE_MAPTILER_KEY;
+  if (!key) return null;
+  return {
+    urlTemplate: `https://api.maptiler.com/maps/hybrid/256/{z}/{x}/{y}{r}.jpg?key=${encodeURIComponent(key)}`,
+    maxZoom: SATELLITE_MAX_ZOOM,
+    attribution: SATELLITE_ATTRIBUTION,
+    watermark: {
+      href: 'https://www.maptiler.com/',
+      imageUrl: 'https://api.maptiler.com/resources/logo.svg',
+      alt: 'MapTiler',
+    },
   };
 }
