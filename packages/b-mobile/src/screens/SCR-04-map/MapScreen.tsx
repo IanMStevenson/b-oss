@@ -34,7 +34,7 @@ import type { Map as LeafletMap, Marker } from 'leaflet';
 import { createPinIcon } from '../../components/mapPin.js';
 import { LocateFixed } from 'lucide-react';
 import { AppHeader } from '../../components/AppHeader.js';
-import { getTileLayerConfig } from '../../platform/mapTiles.js';
+import { getTileLayerConfig, getSatelliteLayerConfig } from '../../platform/mapTiles.js';
 import { createLeafletMap, MAP_FAILED_MESSAGE } from '../../components/leafletMap.js';
 import { getCurrentPosition } from '../../platform/geolocation.js';
 import { resolveImage } from '../../platform/imageCache.js';
@@ -74,6 +74,7 @@ export function MapScreen({ focusedEntryId }: MapScreenProps) {
   const hiddenMembers = useHiddenMembers();
   // The base map is always light (b-oss#655), so a theme change doesn't touch it.
   const tiles = useMemo(() => getTileLayerConfig(), []);
+  const satellite = useMemo(() => getSatelliteLayerConfig(), []);
 
   const containerRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<LeafletMap | null>(null);
@@ -218,6 +219,7 @@ export function MapScreen({ focusedEntryId }: MapScreenProps) {
             if (!cancelled) setMapFailed(false);
           },
         },
+        satellite,
       );
       if (!map) {
         setEntriesStatus('empty');
@@ -264,7 +266,7 @@ export function MapScreen({ focusedEntryId }: MapScreenProps) {
       map?.remove();
       if (mapRef.current === map) mapRef.current = null;
     };
-  }, [tiles, focusedEntryId, renderMarkers]);
+  }, [tiles, satellite, focusedEntryId, renderMarkers]);
 
   // Leaflet reads the container's size once, at construction, and caches it — if IonContent/
   // IonPage's own layout hasn't settled yet at that exact moment (a real, observed race with the

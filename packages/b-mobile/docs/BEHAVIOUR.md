@@ -38,7 +38,7 @@ Known Blipfoto API limits: [AppLimitations.md](AppLimitations.md). Paths are rel
   fixed 900-entry total; Me shows a calendar and the profile's entry total; Nearby needs location
   ("Allow location" button if refused or no fix).
 - **Search**: Entries and People tabs, debounced. **Tag entries**: one paged grid. **Map**
-  (Leaflet raster tiles, lazy): one page per debounced viewport; `?entry=` opens its popup
+  (Leaflet raster tiles, lazy; a top-right button switches to a satellite view with labels and back — Map and location picker; it opens on the road map each time): one page per debounced viewport; `?entry=` opens its popup
   (only that pin); tapping a popup opens the entry; zoom buttons and a my-location button (a blue
   dot). Location picker: tap to place a draggable pin.
 - **Entry**: b-view `EntryDetail` plus app slots. Prev/next replaces the route. Star and Favourite

@@ -19,7 +19,7 @@ import { AppHeader } from '../../components/AppHeader.js';
 import { createPinIcon } from '../../components/mapPin.js';
 import { createLeafletMap, MAP_FAILED_MESSAGE } from '../../components/leafletMap.js';
 import '../../components/ComposeForm.css';
-import { getTileLayerConfig } from '../../platform/mapTiles.js';
+import { getTileLayerConfig, getSatelliteLayerConfig } from '../../platform/mapTiles.js';
 import { getCurrentPosition } from '../../platform/geolocation.js';
 import { useAppNavigate } from '../../app/routes/useAppNavigate.js';
 import { useComposeDraftStore } from '../../state/composeDraftStore.js';
@@ -35,6 +35,7 @@ export function LocationPickerScreen() {
   const patchDraft = useComposeDraftStore((s) => s.patchDraft);
   const clearDraft = useComposeDraftStore((s) => s.clearDraft);
   const tiles = useMemo(() => getTileLayerConfig(), []);
+  const satellite = useMemo(() => getSatelliteLayerConfig(), []);
 
   const containerRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<LeafletMap | null>(null);
@@ -86,6 +87,7 @@ export function LocationPickerScreen() {
           if (!cancelled) setMapFailed(false);
         },
       },
+      satellite,
     );
     if (!map) return;
     mapRef.current = map;
@@ -107,7 +109,7 @@ export function LocationPickerScreen() {
       markerRef.current = null;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [tiles]);
+  }, [tiles, satellite]);
 
   async function handleMyLocation(): Promise<void> {
     setLocationMessage(null);
