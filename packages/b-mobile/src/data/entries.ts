@@ -97,7 +97,8 @@ export async function fetchNearbyPage(
   });
 }
 
-/** Search syntax: a tag is searched as `#tag`; plain text never matches tags. */
+/** Search syntax: a tag is searched as `#tag`; plain text never matches tags. Callers should check
+ * `isSearchableTag` first: a tag with symbols in can't be searched for at all. */
 export async function fetchTagPage(tag: string, pageIndex: number): Promise<Page<EntryIndex>> {
   return withRateLimitFallback(async (client) => {
     const query = `#${tag.replace(/^#/, '')}`;

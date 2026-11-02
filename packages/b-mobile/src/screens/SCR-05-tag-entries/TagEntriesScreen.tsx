@@ -9,6 +9,8 @@ import { IonPage, IonHeader, IonContent, IonSpinner } from '@ionic/react';
 import { AppHeader } from '../../components/AppHeader.js';
 import { usePagedResource } from '../../data/usePagedResource.js';
 import { fetchTagPage, PAGE_SIZE } from '../../data/entries.js';
+import { isSearchableTag } from '../../data/tagSearch.js';
+import { t } from '../../strings/index.js';
 import { EntryGrid } from '../../components/EntryGrid.js';
 import { useAppNavigate } from '../../app/routes/useAppNavigate.js';
 import { useActiveAccount } from '../../state/accountsStore.js';
@@ -23,8 +25,11 @@ export function TagEntriesScreen({ tag }: TagEntriesScreenProps) {
   const activeAccount = useActiveAccount();
   // Back from an entry rebuilds this screen — remember the page you were on (b-oss#182).
   const resumeKey = `tag:${activeAccount?.id ?? 'anon'}:${tag}`;
+  const searchable = isSearchableTag(tag);
   const resource = usePagedResource(
-    (pageIndex) => fetchTagPage(tag, pageIndex),
+    // An unsearchable tag makes no request; the empty state below explains why.
+    (pageIndex) =>
+      searchable ? fetchTagPage(tag, pageIndex) : Promise.resolve({ items: [], more: false }),
     [tag],
     PAGE_SIZE,
     resumeKey,
@@ -51,7 +56,7 @@ export function TagEntriesScreen({ tag }: TagEntriesScreenProps) {
         {resource.status === 'empty' && (
           <EmptyState
             icon={<Tag size={40} strokeWidth={1.5} />}
-            title={`No entries tagged ‘${tag}’.`}
+            title={searchable ? `No entries tagged ‘${tag}’.` : t('SCR-05.unsearchable')}
           />
         )}
         {resource.status === 'loaded' && (

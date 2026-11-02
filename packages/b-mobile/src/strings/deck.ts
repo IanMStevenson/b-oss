@@ -170,6 +170,8 @@ export const STRINGS = {
   'SCR-04.empty.region': 'No entries in this area.',
   'SCR-04.error.unavailable': "Map isn't available right now.",
   'SCR-05.empty': 'No entries tagged #{tag}',
+  'SCR-05.unsearchable':
+    "Sorry, Blipfoto search doesn't work for tags with symbols or spaces in them.",
   'SCR-06.comments_disabled': 'Comments are turned off for this journal.',
   'SCR-06.empty.comments': 'No comments yet. Be the first.',
   'SCR-06.error.load_generic': "Couldn't load this entry. Check your connection and try again.",
