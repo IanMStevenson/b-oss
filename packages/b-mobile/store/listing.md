@@ -99,3 +99,9 @@ Changed:
 
 Fixed: default thumbnail crop, and clearer errors when publishing fails.
 ```
+
+### 1.2.1
+
+```
+Fixed: tapping a tag now lists its entries. When something can't load, you now get a clear message (offline, or Blipfoto not answering) with Try again and a link to the status page.
+```
