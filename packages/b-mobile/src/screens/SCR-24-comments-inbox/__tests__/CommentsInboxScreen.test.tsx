@@ -158,7 +158,7 @@ describe('CommentsInboxScreen', () => {
     expect(await screen.findByText('Something went wrong. Please try again.')).toBeDefined();
 
     fetchRecentComments.mockResolvedValueOnce([comment()]);
-    await userEvent.click(screen.getByText('Retry', { selector: 'ion-button' }));
+    await userEvent.click(screen.getByText('Try again'));
     expect(await screen.findByText('lovely light!')).toBeDefined();
   });
 

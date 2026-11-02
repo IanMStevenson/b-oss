@@ -96,7 +96,7 @@ describe('NotificationsInboxScreen', () => {
     expect(await screen.findByText('Something went wrong. Please try again.')).toBeDefined();
 
     fetchRecentNotifications.mockResolvedValueOnce([notification()]);
-    await userEvent.click(screen.getByText('Retry', { selector: 'ion-button' }));
+    await userEvent.click(screen.getByText('Try again'));
     expect(await screen.findByText('started following you')).toBeDefined();
   });
 

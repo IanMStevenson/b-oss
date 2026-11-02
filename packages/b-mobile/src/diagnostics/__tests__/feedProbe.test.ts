@@ -25,9 +25,9 @@ const client = new Proxy(
       name === 'then'
         ? undefined
         : (opts: { pageIndex: number; pageSize: number }) => {
-      calls.push(`${name}:${opts.pageIndex}:${opts.pageSize}`);
-      return respond();
-    },
+            calls.push(`${name}:${opts.pageIndex}:${opts.pageSize}`);
+            return respond();
+          },
   },
 );
 vi.mock('../../data/client.js', () => ({ getClient: () => Promise.resolve(client) }));

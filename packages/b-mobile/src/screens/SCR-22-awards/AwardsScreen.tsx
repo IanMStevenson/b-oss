@@ -15,7 +15,8 @@
 
 import { Award } from 'lucide-react';
 import { EmptyState } from '../../components/EmptyState.js';
-import { IonPage, IonHeader, IonContent, IonSpinner, IonText, IonButton } from '@ionic/react';
+import { LoadFailed } from '../../components/LoadFailed.js';
+import { IonPage, IonHeader, IonContent, IonSpinner } from '@ionic/react';
 import { AppHeader } from '../../components/AppHeader.js';
 import { useResource } from '../../data/useResource.js';
 import { fetchAwards } from '../../data/users.js';
@@ -81,12 +82,7 @@ export function AwardsScreen({ username }: AwardsScreenProps) {
           </div>
         )}
         {state.status === 'error' && (
-          <div className="ion-padding">
-            <IonText color="danger">
-              <p>{state.message}</p>
-            </IonText>
-            <IonButton onClick={reload}>Retry</IonButton>
-          </div>
+          <LoadFailed transport={state.isTransport} message={state.message} onRefresh={reload} />
         )}
         {state.status === 'empty' && (
           <EmptyState icon={<Award size={40} strokeWidth={1.5} />} title="No awards yet." />
