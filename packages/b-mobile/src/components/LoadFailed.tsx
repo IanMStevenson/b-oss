@@ -9,11 +9,10 @@
 // can't swipe. When Blipfoto itself isn't answering it also links to the unofficial status page
 // (b-oss#488).
 
-import { useEffect, useState } from 'react';
 import { IonButton, IonRefresher, IonRefresherContent, IonSpinner } from '@ionic/react';
 import type { RefresherEventDetail } from '@ionic/core';
 import { CloudOff, WifiOff } from 'lucide-react';
-import { isOnline } from '../platform/connectivity.js';
+import { useLoadDiagnosis } from './useLoadDiagnosis.js';
 import { openUrl } from '../platform/browser.js';
 import { BLIPFOTO_STATUS_URL } from '../statusLink.js';
 
@@ -25,21 +24,8 @@ interface LoadFailedProps {
   onRefresh: () => void;
 }
 
-type Diagnosis = 'checking' | 'offline' | 'blipfoto' | 'other';
-
 export function LoadFailed({ transport, message, onRefresh }: LoadFailedProps) {
-  const [diagnosis, setDiagnosis] = useState<Diagnosis>(transport ? 'checking' : 'other');
-
-  useEffect(() => {
-    if (!transport) return;
-    let cancelled = false;
-    void isOnline().then((online) => {
-      if (!cancelled) setDiagnosis(online ? 'blipfoto' : 'offline');
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, [transport]);
+  const { diagnosis, title, hint } = useLoadDiagnosis(transport, message);
 
   function handleRefresh(event: CustomEvent<RefresherEventDetail>): void {
     onRefresh();
@@ -47,18 +33,6 @@ export function LoadFailed({ transport, message, onRefresh }: LoadFailedProps) {
   }
 
   const offline = diagnosis === 'offline';
-  const title = {
-    checking: 'Couldn’t load',
-    offline: 'You seem to be offline',
-    blipfoto: 'Can’t reach Blipfoto',
-    other: 'Couldn’t load',
-  }[diagnosis];
-  const hint = {
-    checking: 'Checking your connection…',
-    offline: 'Check your connection.',
-    blipfoto: 'Your connection looks fine, but Blipfoto isn’t answering.',
-    other: message ?? 'Something went wrong.',
-  }[diagnosis];
 
   return (
     <>

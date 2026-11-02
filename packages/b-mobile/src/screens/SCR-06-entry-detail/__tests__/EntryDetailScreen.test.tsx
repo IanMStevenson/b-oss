@@ -19,6 +19,9 @@ import { t } from '../../../strings/index.js';
 import { REPORT_REQUEST_URL, REPORT_VIA_SUPPORT_MESSAGE } from '../../../flows/useReport.js';
 
 const { fetchAuthorAvatar } = vi.hoisted(() => ({ fetchAuthorAvatar: vi.fn() }));
+vi.mock('../../../platform/connectivity.js', () => ({
+  isOnline: vi.fn().mockResolvedValue(false),
+}));
 vi.mock('../../../data/users.js', () => ({ fetchAuthorAvatar }));
 
 vi.mock('../../../data/entries.js', () => ({
@@ -175,7 +178,17 @@ describe('EntryDetailScreen', () => {
     vi.mocked(fetchEntry).mockRejectedValue(new Error('Network down'));
     renderScreen();
     expect(await screen.findByText('Network down')).toBeDefined();
-    expect(screen.getByText('Retry')).toBeDefined();
+    expect(screen.getByText('Try again')).toBeDefined();
+  });
+
+  it('shows the friendly offline state when the entry cannot be reached', async () => {
+    const { fetchEntry } = await import('../../../data/entries.js');
+    const { isOnline } = await import('../../../platform/connectivity.js');
+    vi.mocked(isOnline).mockResolvedValue(false);
+    vi.mocked(fetchEntry).mockRejectedValue(new NetworkError('offline'));
+    renderScreen();
+    expect(await screen.findByText('You seem to be offline')).toBeDefined();
+    expect(screen.getByText('Try again')).toBeDefined();
   });
 
   it('renders the entry once loaded', async () => {

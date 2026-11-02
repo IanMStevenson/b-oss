@@ -26,7 +26,6 @@ import {
   IonButton,
   IonContent,
   IonSpinner,
-  IonText,
   IonSegment,
   IonSegmentButton,
   IonLabel,
@@ -280,12 +279,7 @@ export function ProfileScreen({ username }: ProfileScreenProps) {
         )}
 
         {state.status === 'error' && (
-          <div className="ion-padding">
-            <IonText color="danger">
-              <p>{state.message}</p>
-            </IonText>
-            <IonButton onClick={reload}>Retry</IonButton>
-          </div>
+          <LoadFailed transport={state.isTransport} message={state.message} onRefresh={reload} />
         )}
 
         {state.status === 'loaded' && isHidden && (

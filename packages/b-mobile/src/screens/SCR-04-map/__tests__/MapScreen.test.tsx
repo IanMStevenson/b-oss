@@ -10,6 +10,7 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { render, screen, cleanup, waitFor, act } from '@testing-library/react';
 import * as L from 'leaflet';
+import { NetworkError } from '@b-oss/b-api';
 import { MAP_FAILED_MESSAGE } from '../../../components/leafletMap.js';
 import { createTrackedRouter } from '../../../app/routes/test-router.js';
 import { MapScreen } from '../MapScreen.js';
@@ -23,6 +24,8 @@ const { mapInstances, failure } = vi.hoisted(() => ({
   /** Set by a test to make the next creation fail, as Leaflet does when it can't start. */
   failure: { createFails: false },
 }));
+
+vi.mock('../../../platform/connectivity.js', () => ({ isOnline: vi.fn() }));
 
 vi.mock('../../../components/leafletMap.js', async (importOriginal) => {
   const actual = await importOriginal<typeof import('../../../components/leafletMap.js')>();
@@ -293,6 +296,20 @@ describe('MapScreen', () => {
     await waitFor(() => expect(mapInstances.length).toBe(1));
 
     expect(await screen.findByText('Network down')).toBeDefined();
+  });
+
+  it('says so, and how to retry, when the phone is offline', async () => {
+    const { getTileLayerConfig } = await import('../../../platform/mapTiles.js');
+    const { fetchEntriesInBounds } = await import('../../../data/map.js');
+    const { isOnline } = await import('../../../platform/connectivity.js');
+    vi.mocked(getTileLayerConfig).mockReturnValue(TILES);
+    vi.mocked(isOnline).mockResolvedValue(false);
+    vi.mocked(fetchEntriesInBounds).mockRejectedValue(new NetworkError('offline'));
+    renderScreen();
+    await waitFor(() => expect(mapInstances.length).toBe(1));
+
+    expect(await screen.findByText('You seem to be offline')).toBeDefined();
+    expect(screen.getByText('Move the map to try again.')).toBeDefined();
   });
 
   it('does not create a marker for a hidden member’s entry', async () => {
