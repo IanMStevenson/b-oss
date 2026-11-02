@@ -29,7 +29,8 @@ BROWSE
 POST
 • Take a photo or choose one from your gallery
 • Add a title, description, tags and a location
-• Uploads queue up and retry on their own if the connection drops
+• Choose your thumbnail, and see a confirmation when your entry is published
+• Switch maps to a satellite view
 
 JOIN IN
 • Star and favourite entries
@@ -82,3 +83,19 @@ Privacy policy: https://b-oss.dev/b-mobile-privacy.html
 | Phone screenshots   | 2–8, 9:16, ≥ 1080 px         | First set: `store/graphics/screenshots/` (4, from the demo account) |
 | Tablet screenshots  | Optional (7- and 10-inch)    | Not provided (decision 2026-10-21); add later if wanted             |
 | Themed (monochrome) | Optional adaptive-icon layer | Done: `ic_launcher_monochrome` in the Android project               |
+
+## What's new (release notes, ≤ 500 characters)
+
+### 1.2.0
+
+```
+New: satellite view on the Map and when picking a location.
+
+Changed:
+• Publishing is now immediate and ends with a confirmation screen. There is no upload queue or Uploads screen any more.
+• The menu is reordered, with icons, your account at the top and the version at the bottom.
+• Settings is regrouped: Appearance, Reminders, Details & journal.
+• Settings and Help always show a back arrow.
+
+Fixed: default thumbnail crop, and clearer errors when publishing fails.
+```
