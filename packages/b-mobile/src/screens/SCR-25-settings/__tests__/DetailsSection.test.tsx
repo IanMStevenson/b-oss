@@ -7,7 +7,7 @@ import { render, screen, cleanup, waitFor, within } from '@testing-library/react
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
 import { BlipfotoError } from '@b-oss/b-api';
-import { GeneralSection } from '../sections/GeneralSection.js';
+import { DetailsSection } from '../sections/DetailsSection.js';
 import { useAccountsStore } from '../../../state/accountsStore.js';
 
 const { fetchUserSettings, saveUserSettings } = vi.hoisted(() => ({
@@ -45,7 +45,7 @@ beforeEach(() => {
   useAccountsStore.setState({ accounts: [account()], activeAccountId: 'a1', hydrated: true });
   fetchUserSettings.mockResolvedValue({
     username: 'alice',
-    journal_title: '',
+    journal_title: 'My journal',
     real_name: 'Alice Example',
     real_name_search: 0,
     biography: '',
@@ -71,7 +71,7 @@ afterEach(() => {
 function renderScreen() {
   return render(
     <MemoryRouter>
-      <GeneralSection />
+      <DetailsSection />
     </MemoryRouter>,
   );
 }
@@ -90,7 +90,7 @@ async function closePicker(row: HTMLElement, title: string): Promise<void> {
   await waitFor(() => expect(screen.queryByText(title)).toBeNull());
 }
 
-describe('GeneralSection', () => {
+describe('DetailsSection', () => {
   it('loads current values into the form', async () => {
     renderScreen();
     expect(await screen.findByDisplayValue('Alice Example')).toBeDefined();
@@ -102,7 +102,7 @@ describe('GeneralSection', () => {
     expect(await screen.findByText('Server error')).toBeDefined();
   });
 
-  it('edits and saves, sending only General fields', async () => {
+  it('edits and saves everything in one saveUserSettings call', async () => {
     renderScreen();
     const input = await screen.findByDisplayValue('Alice Example');
     await userEvent.clear(input);
@@ -115,9 +115,55 @@ describe('GeneralSection', () => {
         real_name_search: 0,
         country_code: 'gb',
         locale_code: 'en',
+        journal_title: 'My journal',
+        privacy: 0,
+        comments: 1,
       }),
     );
+    expect(saveUserSettings).toHaveBeenCalledTimes(1);
     expect(goBack).toHaveBeenCalled();
+  });
+
+  it('shows both the person and journal parts of the form', async () => {
+    renderScreen();
+    expect(await screen.findByDisplayValue('My journal')).toBeDefined();
+    expect(screen.getByText('About you')).toBeDefined();
+    expect(screen.getByText('Your journal')).toBeDefined();
+  });
+
+  it('a journal edit and a personal edit save together with one Save', async () => {
+    renderScreen();
+    await screen.findByDisplayValue('Alice Example');
+    const privacyToggle = screen.getByLabelText('Protected journal');
+    privacyToggle.dispatchEvent(
+      new CustomEvent('ionChange', { bubbles: true, detail: { checked: true } }),
+    );
+    await userEvent.type(screen.getByDisplayValue('My journal'), '!');
+    await userEvent.type(screen.getByDisplayValue('Alice Example'), '!');
+    await userEvent.click(screen.getByText('Save', { selector: 'ion-button' }));
+    await waitFor(() =>
+      expect(saveUserSettings).toHaveBeenCalledWith({
+        real_name: 'Alice Example!',
+        real_name_search: 0,
+        country_code: 'gb',
+        locale_code: 'en',
+        journal_title: 'My journal!',
+        privacy: 1,
+        comments: 1,
+      }),
+    );
+    expect(saveUserSettings).toHaveBeenCalledTimes(1);
+  });
+
+  it('a journal-only edit makes the form dirty and prompts before discarding', async () => {
+    renderScreen();
+    await screen.findByDisplayValue('My journal');
+    screen
+      .getByLabelText('Allow comments')
+      .dispatchEvent(new CustomEvent('ionChange', { bubbles: true, detail: { checked: false } }));
+    await userEvent.click(formCancel());
+    expect(await screen.findByText('Discard changes?')).toBeDefined();
+    expect(goBack).not.toHaveBeenCalled();
   });
 
   it('Country opens a sorted list titled "Select country" with the current choice marked', async () => {

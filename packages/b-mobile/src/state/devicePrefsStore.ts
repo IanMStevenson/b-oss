@@ -13,7 +13,7 @@
 // wired to a real native effect in Phase 10 via platform/blipfotoLinks.ts), and
 // `notificationPollingIntervalMinutes` (SCR-25 Notifications' Advanced control — stored locally
 // since there's no deployed b-push registration to PATCH yet; Phase 9 wires the live call).
-// `showZoomBar`/`showPagination`/`thumbnailMargins` (SCR-25's new Browsing section) are
+// `showZoomBar`/`showPagination`/`thumbnailMargins` (SCR-25's Appearance section) are
 // EntryGrid/ThumbnailGrid display prefs — device-wide, not account-scoped.
 //
 // Defaults live in profile/profile.ts (one row per platform profile). The store exposes the

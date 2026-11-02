@@ -5,7 +5,7 @@
 import { describe, it, expect, afterEach, beforeEach, vi } from 'vitest';
 import { render, screen, cleanup, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { MemoryRouter } from 'react-router-dom';
+import { createTrackedRouter } from '../../../app/routes/test-router.js';
 import { OverlayProvider } from '../../../app/OverlayProvider.js';
 import { ComposeEntryScreen } from '../ComposeEntryScreen.js';
 import { useComposeDraftStore } from '../../../state/composeDraftStore.js';
@@ -20,8 +20,12 @@ vi.mock('../../../data/journal.js', () => ({ fetchDayEligibility, fetchMonthElig
 const { fetchUserProfile } = vi.hoisted(() => ({ fetchUserProfile: vi.fn() }));
 vi.mock('../../../data/users.js', () => ({ fetchUserProfile }));
 
-const { enqueueDraft } = vi.hoisted(() => ({ enqueueDraft: vi.fn() }));
-vi.mock('../../../flows/composeFlow.js', () => ({ enqueueDraft }));
+const { submitDraft } = vi.hoisted(() => ({ submitDraft: vi.fn() }));
+vi.mock('../../../flows/composeFlow.js', () => ({
+  submitDraft,
+  describeSubmitError: (err: unknown, _id: string, fallback: string) =>
+    `${fallback} (${(err as Error).message})`,
+}));
 
 // react-easy-crop is rendering-heavy (canvas/pointer gesture handling) and irrelevant to this
 // screen's own logic under test — mocked wholesale, same "mock at the boundary" principle
@@ -32,8 +36,9 @@ vi.mock('../../../components/PhotoCropper.js', () => ({
 
 const push = vi.fn();
 const replace = vi.fn();
+const goBackOr = vi.fn();
 vi.mock('../../../app/routes/useAppNavigate.js', () => ({
-  useAppNavigate: () => ({ push, replace, goBack: vi.fn() }),
+  useAppNavigate: () => ({ push, replace, goBack: vi.fn(), goBackOr }),
 }));
 
 function baseDraft(overrides: Partial<ComposeDraft> = {}): ComposeDraft {
@@ -83,23 +88,25 @@ afterEach(() => {
 });
 
 function renderScreen() {
-  return render(
-    <MemoryRouter>
+  const { tracked, wrap } = createTrackedRouter();
+  render(
+    wrap(
       <OverlayProvider>
         <ComposeEntryScreen />
-      </OverlayProvider>
-    </MemoryRouter>,
+      </OverlayProvider>,
+    ),
   );
+  return tracked;
 }
 
 describe('ComposeEntryScreen', () => {
   it('redirects to SCR-09 when there is no active publish draft', async () => {
     useComposeDraftStore.setState({ draft: null });
     renderScreen();
-    await waitFor(() => expect(replace).toHaveBeenCalledWith('/compose'));
+    await waitFor(() => expect(goBackOr).toHaveBeenCalledWith('/compose'));
   });
 
-  it('enables Publish once the date is confirmed eligible, and enqueues on tap', async () => {
+  it('enables Publish once the date is confirmed eligible, and publishes on tap', async () => {
     renderScreen();
     await waitFor(() =>
       expect(screen.getByText('Publish').closest('ion-button')!.hasAttribute('disabled')).toBe(
@@ -107,11 +114,26 @@ describe('ComposeEntryScreen', () => {
       ),
     );
 
-    enqueueDraft.mockResolvedValue('q1');
+    submitDraft.mockResolvedValue('new1');
     await userEvent.click(screen.getByText('Publish'));
-    await waitFor(() => expect(enqueueDraft).toHaveBeenCalled());
+    await waitFor(() => expect(submitDraft).toHaveBeenCalled());
+    expect(await screen.findByText('Your entry has been published')).toBeDefined();
     expect(useComposeDraftStore.getState().draft).toBeNull();
-    expect(replace).toHaveBeenCalledWith('/uploads');
+    await userEvent.click(screen.getByText('View entry'));
+    expect(replace).toHaveBeenCalledWith('/entry/new1');
+  });
+
+  it("'Add another' on the completion screen goes back to the photo picker", async () => {
+    renderScreen();
+    await waitFor(() =>
+      expect(screen.getByText('Publish').closest('ion-button')!.hasAttribute('disabled')).toBe(
+        false,
+      ),
+    );
+    submitDraft.mockResolvedValue('new1');
+    await userEvent.click(screen.getByText('Publish'));
+    await userEvent.click(await screen.findByText('Add another'));
+    expect(replace).toHaveBeenCalledWith('/compose');
   });
 
   it('has the description editor inline, with the formatting toolbar, and keeps what is typed in the draft', async () => {
@@ -167,6 +189,36 @@ describe('ComposeEntryScreen', () => {
     });
     renderScreen();
     expect(await screen.findByText('Select thumbnail')).toBeDefined();
+  });
+
+  it("says membership couldn't be checked when the profile fetch fails, and retry recovers", async () => {
+    fetchUserProfile.mockRejectedValueOnce(new Error('502'));
+    fetchUserProfile.mockResolvedValue({
+      user: {},
+      details: { member: 1 },
+      visible: true,
+      friendship: null,
+      latestEntry: null,
+    });
+    renderScreen();
+    expect(await screen.findByText(/Couldn.t check membership/)).toBeDefined();
+    await userEvent.click(screen.getByText('Retry'));
+    expect(await screen.findByText('Select thumbnail')).toBeDefined();
+    expect(screen.queryByText(/Couldn.t check membership/)).toBeNull();
+  });
+
+  it('keeps the draft and offers Retry when publishing fails', async () => {
+    renderScreen();
+    await waitFor(() =>
+      expect(screen.getByText('Publish').closest('ion-button')!.hasAttribute('disabled')).toBe(
+        false,
+      ),
+    );
+    submitDraft.mockRejectedValue(new Error('disk full'));
+    await userEvent.click(screen.getByText('Publish'));
+    expect(await screen.findByText("Couldn't publish your entry. (disk full)")).toBeDefined();
+    expect(screen.getByText('Retry')).toBeDefined();
+    expect(useComposeDraftStore.getState().draft).not.toBeNull();
   });
 
   it('does not offer the crop button to non-members', async () => {
@@ -230,5 +282,24 @@ describe('ComposeEntryScreen', () => {
     expect(useComposeDraftStore.getState().draft?.date).toBe('2026-01-20');
     expect(row.getAttribute('aria-expanded')).toBe('false');
     expect(row.getAttribute('aria-label')).toMatch(/20/);
+  });
+
+  it('home tap with a clean draft clears it and goes to Browse', async () => {
+    const tracked = renderScreen();
+    await userEvent.click(screen.getByRole('button', { name: /b-mobile/ }));
+    expect(tracked.location.pathname).toBe('/browse');
+    expect(useComposeDraftStore.getState().draft).toBeNull();
+  });
+
+  it('home tap with unsaved changes asks to discard first, then goes to Browse', async () => {
+    useComposeDraftStore.setState({ draft: baseDraft({ dirty: true }) });
+    const tracked = renderScreen();
+    await userEvent.click(screen.getByRole('button', { name: /b-mobile/ }));
+    expect(await screen.findByText('Discard this entry?')).toBeDefined();
+    expect(tracked.location.pathname).toBe('/');
+    expect(useComposeDraftStore.getState().draft).not.toBeNull();
+    await userEvent.click(screen.getByRole('button', { name: 'Discard' }));
+    await waitFor(() => expect(tracked.location.pathname).toBe('/browse'));
+    expect(useComposeDraftStore.getState().draft).toBeNull();
   });
 });
