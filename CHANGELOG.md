@@ -5,6 +5,27 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [b-mobile 1.2.0] - 2026-11-02
+
+### Added
+
+- b-mobile: satellite view, switched on the Map and the location picker.
+
+### Changed
+
+- b-mobile: publishing now happens right away and ends on a confirmation screen. Uploads no longer
+  queue up in the background, and the Uploads screen is gone.
+- b-mobile: the menu follows the website's order, with icons, your account at the top and the app
+  version at the bottom.
+- b-mobile: Settings is regrouped into Appearance, Reminders, and Details & journal.
+- b-mobile: Settings and Help always show a back arrow, and tapping "b-mobile" in the header takes
+  you home.
+
+### Fixed
+
+- b-mobile: the default thumbnail is the centred square, as Blipfoto expects.
+- b-mobile: a failed membership check, and the real reason a publish failed, are now shown.
+
 ## [b-mobile 1.1.0] - 2026-10-31
 
 ### Added
