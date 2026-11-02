@@ -42,6 +42,7 @@ vi.mock('../../../components/leafletMap.js', async (importOriginal) => {
 
 vi.mock('../../../platform/mapTiles.js', () => ({
   getTileLayerConfig: vi.fn(),
+  getSatelliteLayerConfig: () => null,
 }));
 
 vi.mock('../../../platform/geolocation.js', async (importOriginal) => ({

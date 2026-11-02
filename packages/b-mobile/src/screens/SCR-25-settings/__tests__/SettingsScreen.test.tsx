@@ -209,11 +209,11 @@ describe('SettingsScreen section routing', () => {
     expect(screen.getByLabelText('Daily reminder')).toBeDefined();
   });
 
-  it('the hub is a nav-menu destination: menu button, no back arrow (b-oss#278)', async () => {
+  it('the hub is a visit, not a destination: always ← (back arrow), never ☰ (b-oss#744)', async () => {
     renderHub();
     await waitFor(() => expect(fetchUserSettings).toHaveBeenCalled());
-    expect(document.querySelector('ion-menu-button')).not.toBeNull();
-    expect(document.querySelector('ion-back-button')).toBeNull();
+    expect(document.querySelector('ion-back-button')).not.toBeNull();
+    expect(document.querySelector('ion-menu-button')).toBeNull();
   });
 
   it('Accounts and Hidden members rows push as drill-ins so they show a back arrow (b-oss#273)', async () => {

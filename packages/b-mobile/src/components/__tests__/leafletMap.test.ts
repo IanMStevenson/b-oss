@@ -7,7 +7,7 @@
 
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import * as L from 'leaflet';
-import { createLeafletMap } from '../leafletMap.js';
+import { createLeafletMap, SATELLITE_ON_LABEL, SATELLITE_OFF_LABEL } from '../leafletMap.js';
 
 const { openUrl } = vi.hoisted(() => ({ openUrl: vi.fn() }));
 vi.mock('../../platform/browser.js', () => ({ openUrl }));
@@ -88,5 +88,96 @@ describe('createLeafletMap', () => {
     link!.dispatchEvent(event);
     expect(event.defaultPrevented).toBe(true);
     expect(openUrl).toHaveBeenCalledWith('https://www.geoapify.com/');
+  });
+});
+
+describe('satellite layer switch (b-oss#741)', () => {
+  const satellite = {
+    urlTemplate: 'https://sat.example/{z}/{x}/{y}{r}.jpg',
+    maxZoom: 20,
+    attribution: '<a href="https://www.maptiler.com/copyright/">© MapTiler</a>',
+    watermark: {
+      href: 'https://www.maptiler.com/',
+      imageUrl: 'https://sat.example/logo.svg',
+      alt: 'MapTiler',
+    },
+  };
+
+  function setupWithSatellite() {
+    const container = document.createElement('div');
+    document.body.appendChild(container);
+    const handlers = { onFailed: vi.fn(), onRecovered: vi.fn() };
+    const map = createLeafletMap(
+      container,
+      { center: [51.5, -0.1], zoom: 10 },
+      tiles,
+      handlers,
+      satellite,
+    );
+    const layerUrls = () => {
+      const urls: string[] = [];
+      map?.eachLayer((l) => {
+        if (l instanceof L.TileLayer) urls.push((l as unknown as { _url: string })._url);
+      });
+      return urls;
+    };
+    const button = () => container.querySelector<HTMLButtonElement>('.map-layer-switch');
+    const satelliteLayer = () => {
+      let found: L.TileLayer | undefined;
+      map?.eachLayer((l) => {
+        if (
+          l instanceof L.TileLayer &&
+          (l as unknown as { _url: string })._url === satellite.urlTemplate
+        )
+          found = l;
+      });
+      return found;
+    };
+    return { container, handlers, map, layerUrls, button, satelliteLayer };
+  }
+
+  it('offers no switch when no satellite config is given', () => {
+    expect(setup().container.querySelector('.map-layer-switch')).toBeNull();
+  });
+
+  it('starts on the road map and switches to satellite and back', () => {
+    const { layerUrls, button, container } = setupWithSatellite();
+    expect(layerUrls()).toEqual([tiles.urlTemplate]);
+    expect(button()?.getAttribute('aria-label')).toBe(SATELLITE_ON_LABEL);
+    expect(container.querySelector('.map-watermark')).toBeNull();
+
+    button()?.click();
+    expect(layerUrls()).toEqual([satellite.urlTemplate]);
+    expect(button()?.getAttribute('aria-label')).toBe(SATELLITE_OFF_LABEL);
+    expect(container.querySelector('.map-watermark img')?.getAttribute('alt')).toBe('MapTiler');
+    expect(container.querySelector('.leaflet-control-attribution')?.textContent).toContain(
+      'MapTiler',
+    );
+    expect(container.querySelector('.leaflet-control-attribution')?.textContent).not.toContain(
+      'Geoapify',
+    );
+
+    button()?.click();
+    expect(layerUrls()).toEqual([tiles.urlTemplate]);
+    expect(container.querySelector('.map-watermark')).toBeNull();
+    expect(container.querySelector('.leaflet-control-attribution')?.textContent).toContain(
+      'Geoapify',
+    );
+  });
+
+  it('opens the logo link through the app browser', () => {
+    const { button, container } = setupWithSatellite();
+    button()?.click();
+    container.querySelector<HTMLAnchorElement>('.map-watermark a')?.click();
+    expect(openUrl).toHaveBeenCalledWith('https://www.maptiler.com/');
+  });
+
+  it('drops back to the road map, without reporting the map as failed, when satellite tiles keep failing', () => {
+    const { button, satelliteLayer, layerUrls, handlers } = setupWithSatellite();
+    button()?.click();
+    for (let i = 0; i < 4; i += 1) satelliteLayer()?.fire('tileerror');
+    expect(layerUrls()).toEqual([tiles.urlTemplate]);
+    expect(button()?.getAttribute('aria-label')).toBe(SATELLITE_ON_LABEL);
+    expect(handlers.onFailed).not.toHaveBeenCalled();
   });
 });
