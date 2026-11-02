@@ -48,6 +48,7 @@ import {
   saveNotificationSettings,
   type NotificationSettings,
 } from '../../../data/settings.js';
+import { LoadFailed } from '../../../components/LoadFailed.js';
 import { describeError, mapApiError } from '../../../data/errors.js';
 import {
   useActiveAccount,
@@ -463,6 +464,8 @@ export function NotificationsSection({
 
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
+  const [loadErrorIsTransport, setLoadErrorIsTransport] = useState(false);
+  const [loadAttempt, setLoadAttempt] = useState(0);
   const [savedFeed, setSavedFeed] = useState<Record<string, 0 | 1> | null>(null);
 
   useEffect(() => {
@@ -478,6 +481,7 @@ export function NotificationsSection({
       (err: unknown) => {
         if (cancelled) return;
         const outcome = mapApiError(err);
+        setLoadErrorIsTransport(outcome.kind === 'transport');
         setLoadError(describeError(outcome, 'Could not load notification settings.'));
         setLoading(false);
       },
@@ -485,7 +489,7 @@ export function NotificationsSection({
     return () => {
       cancelled = true;
     };
-  }, [accountId]);
+  }, [accountId, loadAttempt]);
 
   return (
     <div>
@@ -502,11 +506,11 @@ export function NotificationsSection({
           <IonSpinner />
         </div>
       ) : loadError ? (
-        <div className="ion-padding">
-          <IonText color="danger">
-            <p>{loadError}</p>
-          </IonText>
-        </div>
+        <LoadFailed
+          transport={loadErrorIsTransport}
+          message={loadError}
+          onRefresh={() => setLoadAttempt((n) => n + 1)}
+        />
       ) : (
         savedFeed && (
           <FeedSection

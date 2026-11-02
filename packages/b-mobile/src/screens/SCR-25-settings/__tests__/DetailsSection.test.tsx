@@ -6,7 +6,7 @@ import { describe, it, expect, afterEach, beforeEach, vi } from 'vitest';
 import { render, screen, cleanup, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
-import { BlipfotoError } from '@b-oss/b-api';
+import { BlipfotoError, NetworkError } from '@b-oss/b-api';
 import { DetailsSection } from '../sections/DetailsSection.js';
 import { useAccountsStore } from '../../../state/accountsStore.js';
 
@@ -14,6 +14,8 @@ const { fetchUserSettings, saveUserSettings } = vi.hoisted(() => ({
   fetchUserSettings: vi.fn(),
   saveUserSettings: vi.fn(),
 }));
+const isOnline = vi.hoisted(() => vi.fn());
+vi.mock('../../../platform/connectivity.js', () => ({ isOnline }));
 vi.mock('../../../data/settings.js', () => ({ fetchUserSettings, saveUserSettings }));
 
 const { fetchCountries, fetchLocales } = vi.hoisted(() => ({
@@ -100,6 +102,15 @@ describe('DetailsSection', () => {
     fetchUserSettings.mockRejectedValue(new BlipfotoError(500, 'Server error'));
     renderScreen();
     expect(await screen.findByText('Server error')).toBeDefined();
+  });
+
+  it('says it is offline when the load cannot reach Blipfoto, and Try again reloads', async () => {
+    isOnline.mockResolvedValue(false);
+    fetchUserSettings.mockRejectedValueOnce(new NetworkError('offline'));
+    renderScreen();
+    expect(await screen.findByText('You seem to be offline')).toBeDefined();
+    await userEvent.click(screen.getByText('Try again'));
+    expect(await screen.findByDisplayValue('Alice Example')).toBeDefined();
   });
 
   it('edits and saves everything in one saveUserSettings call', async () => {

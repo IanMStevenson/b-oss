@@ -12,10 +12,11 @@
 // loaded values with no Save affordance.
 
 import { useEffect, useState } from 'react';
-import { IonList, IonSpinner, IonText, IonAlert } from '@ionic/react';
+import { IonList, IonSpinner, IonAlert } from '@ionic/react';
 import { fetchUserSettings, saveUserSettings } from '../../../data/settings.js';
 import { fetchCountries, fetchLocales } from '../../../data/config.js';
 import type { ConfigOption } from '../../../data/config.js';
+import { LoadFailed } from '../../../components/LoadFailed.js';
 import { describeError, mapApiError } from '../../../data/errors.js';
 import { useCanWrite } from '../../../state/accountsStore.js';
 import { useAppNavigate } from '../../../app/routes/useAppNavigate.js';
@@ -43,6 +44,8 @@ export function DetailsSection() {
   const canWrite = useCanWrite();
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
+  const [loadErrorIsTransport, setLoadErrorIsTransport] = useState(false);
+  const [loadAttempt, setLoadAttempt] = useState(0);
   const [initial, setInitial] = useState<FormState | null>(null);
   const [form, setForm] = useState<FormState | null>(null);
   const [countries, setCountries] = useState<ConfigOption[]>([]);
@@ -53,6 +56,8 @@ export function DetailsSection() {
 
   useEffect(() => {
     let cancelled = false;
+    setLoading(true);
+    setLoadError(null);
     Promise.all([fetchUserSettings(), fetchCountries(), fetchLocales()]).then(
       ([settings, countryList, localeList]) => {
         if (cancelled) return;
@@ -74,6 +79,7 @@ export function DetailsSection() {
       (err: unknown) => {
         if (cancelled) return;
         const outcome = mapApiError(err);
+        setLoadErrorIsTransport(outcome.kind === 'transport');
         setLoadError(describeError(outcome, 'Could not load these settings.'));
         setLoading(false);
       },
@@ -81,7 +87,7 @@ export function DetailsSection() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [loadAttempt]);
 
   const dirty = !!(form && initial && JSON.stringify(form) !== JSON.stringify(initial));
 
@@ -125,11 +131,11 @@ export function DetailsSection() {
 
   if (loadError || !form) {
     return (
-      <div className="ion-padding">
-        <IonText color="danger">
-          <p>{loadError ?? 'Could not load these settings.'}</p>
-        </IonText>
-      </div>
+      <LoadFailed
+        transport={loadErrorIsTransport}
+        message={loadError ?? 'Could not load these settings.'}
+        onRefresh={() => setLoadAttempt((n) => n + 1)}
+      />
     );
   }
 

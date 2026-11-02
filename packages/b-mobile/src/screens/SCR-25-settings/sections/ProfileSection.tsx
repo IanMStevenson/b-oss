@@ -22,6 +22,7 @@
 import { useEffect, useState } from 'react';
 import { IonButton, IonItem, IonList, IonSpinner, IonText, IonAlert } from '@ionic/react';
 import { fetchUserSettings, saveUserSettings } from '../../../data/settings.js';
+import { LoadFailed } from '../../../components/LoadFailed.js';
 import { describeError, describeUploadError, mapApiError } from '../../../data/errors.js';
 import { recordFailure } from '../../../data/httpFailureLog.js';
 import { useCanWrite, useActiveAccount, useAccountsStore } from '../../../state/accountsStore.js';
@@ -49,6 +50,8 @@ export function ProfileSection() {
 
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
+  const [loadErrorIsTransport, setLoadErrorIsTransport] = useState(false);
+  const [loadAttempt, setLoadAttempt] = useState(0);
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
 
   const [initialUsername, setInitialUsername] = useState('');
@@ -88,6 +91,7 @@ export function ProfileSection() {
       () => setLoading(false),
       (err: unknown) => {
         const outcome = mapApiError(err);
+        setLoadErrorIsTransport(outcome.kind === 'transport');
         setLoadError(describeError(outcome, 'Could not load your profile.'));
         setLoading(false);
       },
@@ -96,7 +100,7 @@ export function ProfileSection() {
     // activeAccount but is re-created each render, which would otherwise re-trigger this on every
     // unrelated re-render.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeAccount?.id]);
+  }, [activeAccount?.id, loadAttempt]);
 
   const dirty = username !== initialUsername;
 
@@ -205,11 +209,11 @@ export function ProfileSection() {
 
   if (loadError) {
     return (
-      <div className="ion-padding">
-        <IonText color="danger">
-          <p>{loadError}</p>
-        </IonText>
-      </div>
+      <LoadFailed
+        transport={loadErrorIsTransport}
+        message={loadError}
+        onRefresh={() => setLoadAttempt((n) => n + 1)}
+      />
     );
   }
 
