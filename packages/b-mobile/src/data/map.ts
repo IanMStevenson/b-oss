@@ -82,16 +82,11 @@ export function splitWideRanges(ranges: MapBounds[]): MapBounds[] {
   });
 }
 
-/** Web Mercator's latitude limit: a pin beyond it is drawn on the map's top or bottom edge, not at
- * its real position (b-oss#697), and a non-finite value cannot be drawn at all. */
-const MAX_MERCATOR_LAT = 85.0511;
+/** Only a non-finite coordinate cannot be drawn. A pin beyond Web Mercator's latitude limit
+ * (about 85.05 degrees) is kept: the map draws it on its top or bottom edge, and its true
+ * coordinates show in the detail. */
 function isPlottable(lat: number, lon: number): boolean {
-  return (
-    Number.isFinite(lat) &&
-    Number.isFinite(lon) &&
-    Math.abs(lat) <= MAX_MERCATOR_LAT &&
-    Math.abs(lon) <= 180
-  );
+  return Number.isFinite(lat) && Number.isFinite(lon);
 }
 
 /** The ranges one viewport is sent as: normalised, then cut into strips. */
@@ -106,22 +101,11 @@ const MAX_MARKERS = 100;
 // Public browsing, same as entries.ts's Recent/Popular/Nearby/Tag/Search — falls back to the
 // anonymous token if the active account's own is rate-limited (client.ts's
 // withRateLimitFallback doc comment has the full reasoning).
-export interface FetchStats {
-  /** Entries the API returned across all requests, before any were left out (b-oss#697 diagnostics). */
-  received: number;
-  /** `id@lat,lon` of the entries left out because their coordinates cannot be drawn. */
-  unplottable: string[];
-}
-
-export async function fetchEntriesInBounds(
-  bounds: MapBounds,
-  stats?: FetchStats,
-): Promise<MapEntry[]> {
+export async function fetchEntriesInBounds(bounds: MapBounds): Promise<MapEntry[]> {
   const ranges = requestRanges(bounds);
   return withRateLimitFallback(async (client) => {
     const markers: MapEntry[] = [];
     const seen = new Set<string>();
-    const unplottable: string[] = [];
     for (const range of ranges) {
       const res = await client.searchEntries({
         location_type: 'bounding_box',
@@ -131,13 +115,9 @@ export async function fetchEntriesInBounds(
         max_lon: range.maxLon,
         pageSize: MAX_MARKERS,
       });
-      if (stats) stats.received += res.entries.length;
       for (const entry of res.entries) {
         if (!entry.location || seen.has(entry.entry_id_str)) continue;
-        if (!isPlottable(entry.location.lat, entry.location.lon)) {
-          unplottable.push(`${entry.entry_id_str}@${entry.location.lat},${entry.location.lon}`);
-          continue;
-        }
+        if (!isPlottable(entry.location.lat, entry.location.lon)) continue;
         seen.add(entry.entry_id_str);
         markers.push({
           entry_id: entry.entry_id_str,
@@ -148,12 +128,6 @@ export async function fetchEntriesInBounds(
           thumbnailUrl: entry.thumbnail_url,
         });
       }
-    }
-    if (stats) stats.unplottable.push(...unplottable);
-    if (unplottable.length > 0) {
-      console.warn(
-        `[map] ${unplottable.length} of the entries returned have coordinates that cannot be drawn: ${unplottable.slice(0, 5).join(' ')}`,
-      );
     }
     return markers;
   });

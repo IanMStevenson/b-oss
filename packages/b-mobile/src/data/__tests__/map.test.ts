@@ -106,7 +106,7 @@ describe('fetchEntriesInBounds', () => {
     expect(out.map((m) => m.entry_id)).toEqual(['a', 'b', 'c']);
   });
 
-  it('leaves out coordinates that cannot be drawn and logs them (b-oss#697)', async () => {
+  it('keeps polar pins with their true coordinates and skips non-finite ones (b-oss#779)', async () => {
     const e = (id: string, lat: number, lon: number) => ({
       entry_id_str: id,
       title: 't',
@@ -115,15 +115,13 @@ describe('fetchEntriesInBounds', () => {
       thumbnail_url: '',
     });
     client.searchEntries.mockResolvedValue({
-      entries: [e('1', 51.5, -2.6), e('2', 90, 0), e('3', Number.NaN, 4), e('4', -85, 179)],
+      entries: [e('1', 51.5, -2.6), e('2', 89, 10), e('3', Number.NaN, 4), e('4', -89, 179)],
     });
-    const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
-    const stats = { received: 0, unplottable: [] as string[] };
-    const markers = await fetchEntriesInBounds(b(-10, 10), stats);
-    expect(markers.map((m) => m.entry_id)).toEqual(['1', '4']);
-    expect(stats.received).toBe(4);
-    expect(stats.unplottable).toEqual(['2@90,0', '3@NaN,4']);
-    expect(warn).toHaveBeenCalledWith(expect.stringContaining('2 of the entries'));
-    warn.mockRestore();
+    const markers = await fetchEntriesInBounds(b(-10, 10));
+    expect(markers.map((m) => [m.entry_id, m.lat, m.lon])).toEqual([
+      ['1', 51.5, -2.6],
+      ['2', 89, 10],
+      ['4', -89, 179],
+    ]);
   });
 });
