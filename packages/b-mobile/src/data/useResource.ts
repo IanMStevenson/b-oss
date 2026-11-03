@@ -8,13 +8,14 @@
 // monotonically increasing request id and discards any response that's no longer the newest.
 
 import { useEffect, useRef, useState } from 'react';
+import { NetworkError } from '@b-oss/b-api';
 import { errorMessageOf } from './errors.js';
 
 export type ResourceState<T> =
   | { status: 'loading' }
   | { status: 'loaded'; data: T }
   | { status: 'empty' }
-  | { status: 'error'; message: string; retry: () => void };
+  | { status: 'error'; message: string; isTransport: boolean; retry: () => void };
 
 export interface UseResourceResult<T> {
   state: ResourceState<T>;
@@ -58,6 +59,7 @@ export function useResource<T>(
         setState({
           status: 'error',
           message: errorMessageOf(err, 'Something went wrong.'),
+          isTransport: err instanceof NetworkError,
           retry: load,
         });
       },

@@ -111,7 +111,7 @@ describe('ProfileScreen', () => {
     expect(await screen.findByText('Network down')).toBeDefined();
 
     vi.mocked(fetchUserProfile).mockResolvedValue(aliceProfile);
-    await userEvent.click(screen.getByText('Retry'));
+    await userEvent.click(screen.getByText('Try again'));
     expect(await screen.findByText("Alice's journal")).toBeDefined();
   });
 

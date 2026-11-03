@@ -24,8 +24,6 @@ import {
   IonHeader,
   IonContent,
   IonSpinner,
-  IonText,
-  IonButton,
   IonAlert,
   IonActionSheet,
   IonRefresher,
@@ -38,6 +36,7 @@ import { AppHeader } from '../../components/AppHeader.js';
 import { UserBadges } from '../../components/UserBadges.js';
 import { fetchRecentComments, unreadCommentIds } from '../../data/notifications.js';
 import { deleteComment } from '../../flows/commentsFlow.js';
+import { LoadFailed } from '../../components/LoadFailed.js';
 import { describeError, mapApiError } from '../../data/errors.js';
 import { useAppNavigate } from '../../app/routes/useAppNavigate.js';
 import { useAccountsStore } from '../../state/accountsStore.js';
@@ -62,6 +61,7 @@ export function CommentsInboxScreen() {
   const [status, setStatus] = useState<Status>('loading');
   const [items, setItems] = useState<BlipComment[]>([]);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [errorIsTransport, setErrorIsTransport] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<BlipComment | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
   const [overflowTarget, setOverflowTarget] = useState<BlipComment | null>(null);
@@ -74,6 +74,7 @@ export function CommentsInboxScreen() {
     clearComments();
     setStatus('loading');
     setErrorMessage(null);
+    setErrorIsTransport(false);
     fetchRecentComments().then(
       (comments) => {
         if (newIdsRef.current === null) {
@@ -85,6 +86,7 @@ export function CommentsInboxScreen() {
       },
       (err: unknown) => {
         const outcome = mapApiError(err);
+        setErrorIsTransport(outcome.kind === 'transport');
         setErrorMessage(describeError(outcome, 'Could not load comments.'));
         setStatus('error');
       },
@@ -165,12 +167,11 @@ export function CommentsInboxScreen() {
           </div>
         )}
         {status === 'error' && (
-          <div className="ion-padding">
-            <IonText color="danger">
-              <p>{errorMessage}</p>
-            </IonText>
-            <IonButton onClick={load}>Retry</IonButton>
-          </div>
+          <LoadFailed
+            transport={errorIsTransport}
+            message={errorMessage ?? undefined}
+            onRefresh={load}
+          />
         )}
         {status === 'empty' && (
           <EmptyState

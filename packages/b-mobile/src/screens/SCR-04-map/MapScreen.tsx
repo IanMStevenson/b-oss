@@ -29,12 +29,14 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { IonPage, IonHeader, IonContent, IonSpinner, IonText } from '@ionic/react';
+import { NetworkError } from '@b-oss/b-api';
 import { marker as leafletMarker, popup as leafletPopup, divIcon } from 'leaflet';
 import type { Map as LeafletMap, Marker } from 'leaflet';
 import { createPinIcon } from '../../components/mapPin.js';
 import { LocateFixed } from 'lucide-react';
 import { AppHeader } from '../../components/AppHeader.js';
 import { getTileLayerConfig, getSatelliteLayerConfig } from '../../platform/mapTiles.js';
+import { LoadFailedBanner } from '../../components/LoadFailedBanner.js';
 import { createLeafletMap, MAP_FAILED_MESSAGE } from '../../components/leafletMap.js';
 import { getCurrentPosition, LocationUnavailableError } from '../../platform/geolocation.js';
 import { resolveImage } from '../../platform/imageCache.js';
@@ -77,7 +79,6 @@ interface MapView {
   zoom: number;
 }
 
-const ENTRIES_FAILED_MESSAGE = 'Could not load entries for this area.';
 
 type EntriesStatus = 'loading' | 'loaded' | 'empty' | 'error';
 
@@ -132,6 +133,7 @@ export function MapScreen({ focusedEntryId }: MapScreenProps) {
   const debouncedBounds = useDebouncedValue(bounds, DEBOUNCE_MS);
   const [entriesStatus, setEntriesStatus] = useState<EntriesStatus>('loading');
   const [entriesError, setEntriesError] = useState<string | null>(null);
+  const [entriesErrorIsTransport, setEntriesErrorIsTransport] = useState(false);
   const [locationMessage, setLocationMessage] = useState<string | null>(null);
   const [mapFailed, setMapFailed] = useState(false);
 
@@ -378,6 +380,7 @@ export function MapScreen({ focusedEntryId }: MapScreenProps) {
         ).length;
         setEntriesStatus(visibleCount === 0 ? 'empty' : 'loaded');
         setEntriesError(null);
+        setEntriesErrorIsTransport(false);
       },
       (err: unknown) => {
         if (id !== requestIdRef.current) return;
@@ -386,7 +389,8 @@ export function MapScreen({ focusedEntryId }: MapScreenProps) {
         // Never the API's own text above the map (b-oss#669): a fixed message, the detail logged.
         console.warn('[map] entries request failed', errorMessageOf(err, 'unknown error'));
         setEntriesStatus('error');
-        setEntriesError(ENTRIES_FAILED_MESSAGE);
+        setEntriesError(errorMessageOf(err, 'Could not load entries.'));
+        setEntriesErrorIsTransport(err instanceof NetworkError);
       },
     );
   }, [debouncedBounds, renderMarkers, snapshot]);
@@ -449,14 +453,11 @@ export function MapScreen({ focusedEntryId }: MapScreenProps) {
               </button>
             )}
             {mapFailed && (
-              <div
-                className="ion-padding"
-                style={{ position: 'absolute', top: 0, left: 0, right: 0, background: 'var(--bg)' }}
-              >
-                <IonText color="danger">
-                  <p>{MAP_FAILED_MESSAGE}</p>
-                </IonText>
-              </div>
+              <LoadFailedBanner
+                transport={false}
+                title="Couldn’t show the map"
+                message={MAP_FAILED_MESSAGE}
+              />
             )}
             {entriesStatus === 'loading' && (
               <div style={{ position: 'absolute', top: 12, left: 58 }}>
@@ -464,23 +465,11 @@ export function MapScreen({ focusedEntryId }: MapScreenProps) {
               </div>
             )}
             {entriesStatus === 'error' && entriesError && (
-              <div
-                className="ion-padding"
-                style={{ position: 'absolute', top: 0, left: 0, right: 0, background: 'var(--bg)' }}
-              >
-                <IonText color="danger">
-                  <p>
-                    {entriesError}{' '}
-                    <button
-                      type="button"
-                      className="map-retry"
-                      onClick={() => setBounds((b) => (b ? { ...b } : b))}
-                    >
-                      Try again
-                    </button>
-                  </p>
-                </IonText>
-              </div>
+              <LoadFailedBanner
+                transport={entriesErrorIsTransport}
+                message={entriesError}
+                action="Move the map to try again."
+              />
             )}
             {locationMessage && (
               <div className="map-message">

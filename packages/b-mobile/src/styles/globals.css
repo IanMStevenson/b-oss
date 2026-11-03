@@ -442,6 +442,34 @@ ion-segment.settings-pill-segment ion-segment-button::part(native) {
   margin-top: 16px;
 }
 
+.load-failed-banner {
+  position: absolute;
+  top: 12px;
+  left: 58px;
+  right: 12px;
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  padding: 8px 12px;
+  border-radius: 10px;
+  background: var(--bg);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.25);
+  color: var(--ion-color-medium);
+}
+
+.load-failed-banner p {
+  margin: 0;
+}
+
+.load-failed-banner-title {
+  font-weight: 600;
+  color: var(--ion-text-color);
+}
+
+.load-failed-banner-hint {
+  font-size: 0.875rem;
+}
+
 .load-failed-status {
   margin-top: 4px;
   text-transform: none;

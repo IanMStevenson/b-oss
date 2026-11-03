@@ -8,13 +8,14 @@
 
 import { describe, it, expect, vi } from 'vitest';
 import { BlipfotoError } from '@b-oss/b-api';
-import { fetchEntry } from '../entries.js';
+import { fetchEntry, fetchTagPage } from '../entries.js';
 import { t } from '../../strings/index.js';
 
-const client = { getEntry: vi.fn() };
+const client = { getEntry: vi.fn(), searchEntries: vi.fn() };
 
 vi.mock('../client.js', () => ({
   getClient: () => Promise.resolve(client),
+  withRateLimitFallback: (fn: (c: typeof client) => Promise<unknown>) => fn(client),
 }));
 
 describe('fetchEntry', () => {
@@ -36,5 +37,15 @@ describe('fetchEntry', () => {
   it('leaves a non-BlipfotoError untouched', async () => {
     client.getEntry.mockRejectedValue(new Error('network down'));
     await expect(fetchEntry('e1')).rejects.toThrow('network down');
+  });
+});
+
+describe('fetchTagPage', () => {
+  it('searches for the tag with a # prefix', async () => {
+    client.searchEntries.mockResolvedValue({ entries: [], page: {} });
+    await fetchTagPage('arthursseat', 0);
+    expect(client.searchEntries).toHaveBeenCalledWith(
+      expect.objectContaining({ query: '#arthursseat' }),
+    );
   });
 });

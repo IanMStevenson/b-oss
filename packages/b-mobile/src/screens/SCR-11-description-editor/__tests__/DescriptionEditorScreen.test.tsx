@@ -5,6 +5,7 @@
 import { describe, it, expect, afterEach, beforeEach, vi } from 'vitest';
 import { render, screen, cleanup, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { NetworkError } from '@b-oss/b-api';
 import { createTrackedRouter } from '../../../app/routes/test-router.js';
 import { OverlayProvider } from '../../../app/OverlayProvider.js';
 import { DescriptionEditorScreen } from '../DescriptionEditorScreen.js';
@@ -13,6 +14,9 @@ const goBack = vi.fn();
 vi.mock('../../../app/routes/useAppNavigate.js', () => ({
   useAppNavigate: () => ({ push: vi.fn(), replace: vi.fn(), goBack }),
 }));
+
+const isOnline = vi.hoisted(() => vi.fn());
+vi.mock('../../../platform/connectivity.js', () => ({ isOnline }));
 
 const { fetchUserSettings, saveUserSettings } = vi.hoisted(() => ({
   fetchUserSettings: vi.fn(),
@@ -45,6 +49,18 @@ function renderScreen() {
 describe('DescriptionEditorScreen (biography)', () => {
   it('loads the current biography into the editor', async () => {
     renderScreen();
+    const box = await screen.findByPlaceholderText<HTMLTextAreaElement>(
+      'Tell people about yourself…',
+    );
+    expect(box.value).toBe('About me');
+  });
+
+  it('says it is offline when the load cannot reach Blipfoto, and Try again reloads', async () => {
+    isOnline.mockResolvedValue(false);
+    fetchUserSettings.mockRejectedValueOnce(new NetworkError('offline'));
+    renderScreen();
+    expect(await screen.findByText('You seem to be offline')).toBeDefined();
+    await userEvent.click(screen.getByText('Try again'));
     const box = await screen.findByPlaceholderText<HTMLTextAreaElement>(
       'Tell people about yourself…',
     );

@@ -17,7 +17,7 @@ import Hero from '../components/Hero.astro';
     style="border-top: none; padding-top: 0"
     data-screen-label="Privacy body"
   >
-    <p><em>Last updated: 30 October 2026</em></p>
+    <p><em>Last updated: 2 November 2026</em></p>
 
     <h2>Who is responsible</h2>
     <p>
@@ -37,8 +37,7 @@ import Hero from '../components/Hero.astro';
         used to talk to Blipfoto and are never shown or logged.
       </li>
       <li>
-        Your app settings, the list of members you have hidden, drafts, and photos queued for
-        upload.
+        Your app settings, the list of members you have hidden, and drafts.
       </li>
       <li>
         A cache of pictures you have looked at, which is refreshed after 15 minutes and which
@@ -109,9 +108,11 @@ import Hero from '../components/Hero.astro';
       Map screens load map tiles from Geoapify. When you open a map, Geoapify receives your
       device's IP address and the map area you are viewing, under
       <a href="https://www.geoapify.com/privacy-policy/">Geoapify's privacy policy</a>. If you
-      tap my-location, the map moves to your position, so the area Geoapify receives is the one
-      around you. Nothing is sent to Geoapify until you open a map. Earlier versions of the app
-      loaded map tiles from MapTiler instead.
+      switch the map to satellite view, the tiles come from MapTiler instead, which receives the
+      same information under <a href="https://www.maptiler.com/privacy-policy/">MapTiler's
+      privacy policy</a>. If you tap my-location, the map moves to your position, so the area
+      the tile provider receives is the one around you. Nothing is sent to either until you open
+      a map.
     </p>
 
     <h2>Notifications (optional)</h2>

@@ -440,7 +440,7 @@ Perform an entry search and return relevant results.
 
 | Name            | Description                                                       | Required? |
 | --------------- | ----------------------------------------------------------------- | --------- |
-| `query`         | Text query; may include `#` or `@` shortcuts.                     | No        |
+| `query`         | Text query; may include `#` or `@` shortcuts (see below).         | No        |
 | `location_type` | Filter by location: `radial` or `bounding_box`.                   | No        |
 | `lat`           | Latitude of central coordinate (radial).                          | No        |
 | `lon`           | Longitude of central coordinate (radial).                         | No        |
@@ -454,6 +454,17 @@ Perform an entry search and return relevant results.
 | `page_size`     | Number of results per page.                                       | No        |
 
 **Response:** `page` (Page), `entries` (array(Entry))
+
+**Query syntax (observed).** At least one of text, tag, user, date or a location filter is required, otherwise the call fails with `search.missing_options`.
+
+- `#word` filters by tag. Searching for the tag Arthursseat means `query=#Arthursseat`. The `#` must be URL-encoded as `%23` (`?query=%23Arthursseat`); a raw `#` is read as a URL fragment and never reaches the server. b-api's client encodes it for you.
+- Without the `#`, `query=Arthursseat` is a free-text match on title, description and username. **It does not match tags.**
+- `@username` filters by author (1–25 characters of `a-z`, `0-9`, `_`), so `#Arthursseat @someone` gives that user's entries with the tag. `@me` is the calling user, if authenticated as one. Private journals appear only to followers.
+- A date in the text, with no prefix, is detected automatically: one date matches exactly that day, two dates match a range. The `min_date` and `max_date` parameters are not supported.
+- The remaining text is a full-text match on title and description, plus username when it is three words or fewer. It becomes a phrase match when wrapped in matching quotes or when it has more than three words. There are no boolean operators or wildcards.
+- With no text, results default to `sort=date`, newest first.
+
+> **Gotcha: tags with symbols can't be searched.** The tag filter only recognises letters, digits and underscore (`\w+`), and matching is case-insensitive and exact. A tag containing a space, hyphen, accent or other symbol (for example `arthurs-seat`) cannot be searched for at all, and `#Arthursseat` will not match `arthurs-seat` or `arthurs_seat`. This is a limit of Blipfoto's search, not of b-api. Clients should say so rather than show an empty result.
 
 ---
 
