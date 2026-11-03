@@ -48,7 +48,7 @@ export const appFile = (path) => sh(`run-as ${PKG} cat ${path}`);
  * Android WebView's browser endpoint rejects Browser.setDownloadBehavior / context management.
  * So this is a minimal client (Node's built-in WebSocket) with evaluate/screenshot/console capture.
  */
-export async function connect({ port = 9333, timeoutMs = 30000 } = {}) {
+export async function connect({ port = 9333, timeoutMs = 30000, match } = {}) {
   const t0 = Date.now();
   let socket;
   while (Date.now() - t0 < timeoutMs) {
@@ -66,7 +66,9 @@ export async function connect({ port = 9333, timeoutMs = 30000 } = {}) {
   while (Date.now() - t0 < timeoutMs) {
     try {
       const list = await (await fetch(`http://127.0.0.1:${port}/json`)).json();
-      target = list.find((t) => t.type === 'page' && t.webSocketDebuggerUrl);
+      target = list.find(
+        (t) => t.type === 'page' && t.webSocketDebuggerUrl && (!match || match.test(t.url)),
+      );
       if (target) break;
     } catch {
       /* not up yet */
@@ -173,4 +175,21 @@ async function this_text(send) {
     returnByValue: true,
   });
   return r.result.value ?? '';
+}
+
+/** URLs of every WebView page in the app process (the main page and, e.g., the embedded sign-in). */
+export async function listTargets(port = 9333) {
+  const p = pid();
+  const m = p && sh('cat /proc/net/unix').match(new RegExp(`@(webview_devtools_remote_${p})\\b`));
+  if (!m) return [];
+  adb('forward', `tcp:${port}`, `localabstract:${m[1]}`);
+  try {
+    return (await (await fetch(`http://127.0.0.1:${port}/json`)).json()).map((t) => t.url);
+  } finally {
+    try {
+      adb('forward', '--remove', `tcp:${port}`);
+    } catch {
+      /* already gone */
+    }
+  }
 }

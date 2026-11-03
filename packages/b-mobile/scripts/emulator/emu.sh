@@ -50,7 +50,7 @@ case "$cmd" in
     # -no-window: headless. -gpu swiftshader_indirect: software GL, no host GPU needed.
     # Default quick-boot loads/saves the snapshot "default_boot" automatically.
     nohup "$EMU" -avd "$AVD" -no-window -no-audio -no-boot-anim -gpu swiftshader_indirect \
-      -port "${EMU_PORT:-5554}" -no-metrics -netdelay none -netspeed full -memory 2048 >"${EMU_LOG:-/tmp/emulator-$AVD.log}" 2>&1 &
+      -port "${EMU_PORT:-5554}" ${EMU_PROXY:+-http-proxy $EMU_PROXY} -no-metrics -netdelay none -netspeed full -memory 2048 >"${EMU_LOG:-/tmp/emulator-$AVD.log}" 2>&1 &
     adb wait-for-device
     until [ "$(adb shell getprop sys.boot_completed 2>/dev/null | tr -d '\r')" = 1 ]; do sleep 2; done
     # Quiet the UI: no animations (stable taps/screenshots), keep screen on, skip lock screen.

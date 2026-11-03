@@ -7,7 +7,8 @@
 // Needs the emulator booted (emu.sh start). Every adb call is pinned to the emulator serial.
 // Uses no real account and no real credentials; state is seeded through the app's own plugins.
 
-import { mkdirSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { homedir } from 'node:os';
 import { createHash } from 'node:crypto';
 import { parseArgs } from 'node:util';
 import * as L from './lib.mjs';
@@ -36,6 +37,7 @@ let current = null;
 const BENIGN = [
   /favicon\.ico/,
   /Error injecting safe area CSS/,
+  /ERR_TUNNEL_CONNECTION_FAILED/, // images from CDNs the dev-box egress proxy does not allow
   /ERR_CONNECTION_REFUSED.*(geoapify|maptiler)|(geoapify|maptiler).*ERR_CONNECTION_REFUSED/,
 ]; // map tiles: the emulator has no route to the tile provider
 const scrub = (e) => e.replace(/(api[_-]?key|key)=[^&\s]+/gi, '$1=<redacted>');
@@ -465,6 +467,113 @@ const checks = {
       !!L.pid() && real(c.errors).filter((e) => e.startsWith('exception')).length === 0,
     );
     await c.close();
+  },
+  /**
+   * Real OAuth sign-in with the owner's own test account (stretch check, opt-in: --only oauth).
+   * Credentials come only from ~/.config/b-mobile/emulator-account.env (BLIPFOTO_USER,
+   * BLIPFOTO_PASSWORD) and are never printed, logged, screenshotted or written to results; the
+   * login form is never captured. Needs the emulator to reach Blipfoto (EMU_PROXY, see README).
+   * One login per run: it is deliberately not part of the default set.
+   */
+  async oauth() {
+    const envFile = `${homedir()}/.config/b-mobile/emulator-account.env`;
+    if (!existsSync(envFile)) {
+      check('credentials file present', true, 'skipped: no emulator-account.env');
+      return;
+    }
+    const env = Object.fromEntries(
+      readFileSync(envFile, 'utf8')
+        .split('\n')
+        .map((l) => l.match(/^\s*([A-Z_]+)\s*=\s*(.*?)\s*$/))
+        .filter(Boolean)
+        .map((m) => [m[1], m[2].replace(/^(['"])(.*)\1$/, '$2')]),
+    );
+    if (!env.BLIPFOTO_USER || !env.BLIPFOTO_PASSWORD) {
+      check('credentials file has BLIPFOTO_USER and BLIPFOTO_PASSWORD', false);
+      return;
+    }
+    const secrets = [env.BLIPFOTO_USER, env.BLIPFOTO_PASSWORD];
+    const safe = (m) => secrets.reduce((t, v) => t.split(v).join('<redacted>'), String(m));
+    await fresh(o.integ);
+    L.clearData();
+    L.launch();
+    let c = await L.connect();
+    try {
+      await c.waitFor(`document.querySelector('ion-menu')`);
+      await tap(c, 'Sign in');
+      await c.waitFor(`location.pathname === '/sign-in'`);
+      await c.evaluate(
+        `(() => { const b=[...document.querySelectorAll('ion-button')].find(x=>x.innerText.trim()==='Got it'); b&&b.click(); return 1 })()`,
+      );
+      await L.sleep(600);
+      // Turn off "Use browser to sign in": the in-app (embedded WebView) path is the scriptable one.
+      await c.evaluate(
+        `(() => { const t=[...document.querySelectorAll('ion-toggle')].find(x=>(x.closest('ion-item')?.innerText||'').includes('Use browser')); if (t && t.checked) t.click(); return 1 })()`,
+      );
+      await L.sleep(400);
+      await c.evaluate(
+        `[...document.querySelectorAll('ion-button')].find(b=>b.innerText.trim()==='Continue').click()`,
+      );
+      const login = await L.connect({ match: /blipfoto\.com\/account\/signin/ });
+      await login.waitFor(`document.querySelector('input[name=password]')`);
+      // No captcha / bot-check element on the form: a stop condition if one ever appears.
+      const blocker = await login.evaluate(
+        `!!document.querySelector('iframe,.g-recaptcha,.cf-turnstile,[id*=captcha i],[class*=captcha i]')`,
+      );
+      check('login page has no captcha or bot-check element', !blocker);
+      if (blocker) {
+        await login.close();
+        return;
+      }
+      const status = await login.evaluate(`(() => {
+        const set = (n, v) => { const e=document.querySelector('input[name='+n+']'); const d=Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,'value'); d.set.call(e, v); e.dispatchEvent(new Event('input',{bubbles:true})); };
+        try { set('email', ${JSON.stringify(env.BLIPFOTO_USER)}); set('password', ${JSON.stringify(env.BLIPFOTO_PASSWORD)}); document.querySelector('input[type=submit]').click(); return 'submitted'; } catch (e) { return 'form error'; }
+      })()`);
+      check('login form filled and submitted', status === 'submitted');
+      await login.close().catch(() => {});
+      // Authorisation page (if any) then the redirect back to the app.
+      let onApp = false;
+      for (let i = 0; i < 40 && !onApp; i++) {
+        await L.sleep(1500);
+        const targets = await L.listTargets().catch(() => null);
+        if (!targets) continue;
+        const authPage = targets.find((u) => /blipfoto\.com\/oauth\/authorize/.test(u));
+        if (authPage) {
+          const a = await L.connect({ match: /oauth\/authorize/ });
+          await a
+            .evaluate(
+              `(() => { const b=[...document.querySelectorAll('input[type=submit],button')].find(x=>/approve|allow|authori[sz]e|accept/i.test(x.value||x.innerText||'')); if (b) { b.click(); return 'clicked' } return 'none' })()`,
+            )
+            .catch(() => {});
+          await a.close().catch(() => {});
+        }
+        onApp = !targets.some((u) => /blipfoto\.com/.test(u));
+      }
+      c = await L.connect({ match: /^https:\/\/localhost/ });
+      await L.sleep(4000);
+      const accounts = await c.evaluate(
+        `Capacitor.Plugins.Preferences.get({key:'b-mobile:accounts'}).then(r=>r.value)`,
+      );
+      const parsed = accounts ? JSON.parse(accounts) : { accounts: [] };
+      check(
+        'OAuth round trip returns to the app signed in',
+        parsed.accounts.length === 1 && parsed.accounts[0].appTokenScope !== null,
+        `accounts=${parsed.accounts.length}, scope=${parsed.accounts[0]?.appTokenScope ?? 'none'}`,
+      );
+      const tok = await c.evaluate(
+        `Capacitor.Plugins.SecureStorage.internalGetItem({ prefixedKey: 'capacitor-storage_token:' + ${JSON.stringify(parsed.accounts[0]?.id ?? '')} + ':app', sync: false }).then(r=>!!r.data, ()=>false)`,
+      );
+      check('app token stored in secure storage (value not read out)', tok === true);
+      check(
+        'no console errors',
+        real(c.errors).map(safe).length === 0,
+        real(c.errors).map(safe).join(' | '),
+      );
+    } catch (e) {
+      check('oauth ran to completion', false, safe(e.message));
+    } finally {
+      await c.close().catch(() => {});
+    }
   },
 };
 
