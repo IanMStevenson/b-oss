@@ -5,12 +5,12 @@ Automates the device checks the Playwright web harness cannot see, on a headless
 WebView over CDP and uses `adb shell` for system actions. No phone is involved: every adb call is
 pinned to the emulator serial (`emulator-5554`, override `EMU_SERIAL`/`EMU_PORT`).
 
-| File | What |
-|---|---|
-| `emu.sh` | `setup` (install emulator + image, create AVD), `start`, `stop`, `status` |
-| `run-checks.mjs` | The checks; writes `results.json` and screenshots |
-| `lib.mjs` | adb helpers and a minimal CDP client |
-| `build-sender.sh`, `sender/` | A tiny test "gallery" APK that shares an image with a URI grant |
+| File                         | What                                                                      |
+| ---------------------------- | ------------------------------------------------------------------------- |
+| `emu.sh`                     | `setup` (install emulator + image, create AVD), `start`, `stop`, `status` |
+| `run-checks.mjs`             | The checks; writes `results.json` and screenshots                         |
+| `lib.mjs`                    | adb helpers and a minimal CDP client                                      |
+| `build-sender.sh`, `sender/` | A tiny test "gallery" APK that shares an image with a URI grant           |
 
 ## Prerequisites
 
@@ -40,15 +40,15 @@ failing (see below). The two APKs can be any two builds: "main" is the old build
 
 ## What it checks
 
-| Check | How |
-|---|---|
-| `update` | Install old build, seed accounts/device prefs and a fake secure-storage token through the app's own plugins, `install -r` the new build over it, compare the on-disk prefs files and read everything back (prefs, token, account in the menu, dark theme) |
-| `start` | Cold start with cleared data reaches Browse, no console errors |
-| `links` | `bmobile-debug://entry/…` and `user/…` cold and warm; malformed escape ignored; `https://www.blipfoto.com/…` not handled by default, handled after opting in (via the preference, as a user does) |
-| `share` | Sender APK shares a PNG with a read grant, cold and warm; expects `/compose` |
-| `back` | Back on Browse is swallowed; Back from Map, Search, Settings and Help returns to Browse; Back with the menu open closes it |
-| `resume` | Background 4 s and resume keeps the screen; kill in background and relaunch starts cleanly |
-| `offline` | Airplane mode (`cmd connectivity airplane-mode`) shows "You seem to be offline"; restoring it clears that |
+| Check     | How                                                                                                                                                                                                                                                       |
+| --------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `update`  | Install old build, seed accounts/device prefs and a fake secure-storage token through the app's own plugins, `install -r` the new build over it, compare the on-disk prefs files and read everything back (prefs, token, account in the menu, dark theme) |
+| `start`   | Cold start with cleared data reaches Browse, no console errors                                                                                                                                                                                            |
+| `links`   | `bmobile-debug://entry/…` and `user/…` cold and warm; malformed escape ignored; `https://www.blipfoto.com/…` not handled by default, handled after opting in (via the preference, as a user does)                                                         |
+| `share`   | Sender APK shares a PNG with a read grant, cold and warm; expects `/compose`                                                                                                                                                                              |
+| `back`    | Back on Browse is swallowed; Back from Map, Search, Settings and Help returns to Browse; Back with the menu open closes it                                                                                                                                |
+| `resume`  | Background 4 s and resume keeps the screen; kill in background and relaunch starts cleanly                                                                                                                                                                |
+| `offline` | Airplane mode (`cmd connectivity airplane-mode`) shows "You seem to be offline"; restoring it clears that                                                                                                                                                 |
 
 State is seeded with a made-up token and a made-up account; nothing here uses a real account,
 and no token value is logged or stored in results.

@@ -68,12 +68,17 @@ export async function connect({ port = 9333, timeoutMs = 30000 } = {}) {
       const list = await (await fetch(`http://127.0.0.1:${port}/json`)).json();
       target = list.find((t) => t.type === 'page' && t.webSocketDebuggerUrl);
       if (target) break;
-    } catch { /* not up yet */ }
+    } catch {
+      /* not up yet */
+    }
     await sleep(500);
   }
   if (!target) throw new Error('no WebView page target');
   const ws = new WebSocket(target.webSocketDebuggerUrl);
-  await new Promise((res, rej) => { ws.onopen = res; ws.onerror = () => rej(new Error('cdp ws error')); });
+  await new Promise((res, rej) => {
+    ws.onopen = res;
+    ws.onerror = () => rej(new Error('cdp ws error'));
+  });
   let n = 0;
   const pending = new Map();
   const errors = [];
@@ -85,7 +90,9 @@ export async function connect({ port = 9333, timeoutMs = 30000 } = {}) {
       pending.delete(m.id);
       m.error ? rej(new Error(m.error.message)) : res(m.result);
     } else if (m.method === 'Runtime.exceptionThrown') {
-      errors.push(`exception: ${m.params.exceptionDetails.exception?.description ?? m.params.exceptionDetails.text}`);
+      errors.push(
+        `exception: ${m.params.exceptionDetails.exception?.description ?? m.params.exceptionDetails.text}`,
+      );
     } else if (m.method === 'Runtime.consoleAPICalled') {
       const text = m.params.args.map((a) => a.value ?? a.description ?? '').join(' ');
       logs.push(`${m.params.type}: ${text}`);
@@ -97,8 +104,20 @@ export async function connect({ port = 9333, timeoutMs = 30000 } = {}) {
   const send = (method, params = {}) =>
     new Promise((res, rej) => {
       const id = ++n;
-      const t = setTimeout(() => { pending.delete(id); rej(new Error(`CDP ${method} timed out`)); }, 10000);
-      pending.set(id, { res: (v) => { clearTimeout(t); res(v); }, rej: (e) => { clearTimeout(t); rej(e); } });
+      const t = setTimeout(() => {
+        pending.delete(id);
+        rej(new Error(`CDP ${method} timed out`));
+      }, 10000);
+      pending.set(id, {
+        res: (v) => {
+          clearTimeout(t);
+          res(v);
+        },
+        rej: (e) => {
+          clearTimeout(t);
+          rej(e);
+        },
+      });
       ws.send(JSON.stringify({ id, method, params }));
     });
   await send('Runtime.enable');
@@ -110,15 +129,25 @@ export async function connect({ port = 9333, timeoutMs = 30000 } = {}) {
     logs,
     /** Evaluates an expression (awaits promises) and returns its JSON value. */
     async evaluate(expression) {
-      const r = await send('Runtime.evaluate', { expression, awaitPromise: true, returnByValue: true });
-      if (r.exceptionDetails) throw new Error(r.exceptionDetails.exception?.description ?? r.exceptionDetails.text);
+      const r = await send('Runtime.evaluate', {
+        expression,
+        awaitPromise: true,
+        returnByValue: true,
+      });
+      if (r.exceptionDetails)
+        throw new Error(r.exceptionDetails.exception?.description ?? r.exceptionDetails.text);
       return r.result.value;
     },
     /** Polls an expression until it is truthy. */
     async waitFor(expression, { timeout = 40000, label = expression } = {}) {
       const t = Date.now();
       for (;;) {
-        try { const v = await this.evaluate(`!!(${expression})`); if (v) return v; } catch { /* page reloading */ }
+        try {
+          const v = await this.evaluate(`!!(${expression})`);
+          if (v) return v;
+        } catch {
+          /* page reloading */
+        }
         if (Date.now() - t > timeout) throw new Error(`timed out waiting for ${label}`);
         await sleep(300);
       }
@@ -130,11 +159,18 @@ export async function connect({ port = 9333, timeoutMs = 30000 } = {}) {
     },
     async close() {
       ws.close();
-      try { adb('forward', '--remove', `tcp:${port}`); } catch { /* already gone */ }
+      try {
+        adb('forward', '--remove', `tcp:${port}`);
+      } catch {
+        /* already gone */
+      }
     },
   };
 }
 async function this_text(send) {
-  const r = await send('Runtime.evaluate', { expression: 'document.body.innerText', returnByValue: true });
+  const r = await send('Runtime.evaluate', {
+    expression: 'document.body.innerText',
+    returnByValue: true,
+  });
   return r.result.value ?? '';
 }
