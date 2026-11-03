@@ -9,8 +9,7 @@
 //   - a stream's new total is stored only once its notification was delivered. If a delivery
 //     fails, that stream keeps its old total so the next poll tries again, and so does every
 //     stream after it (their delivery was not attempted).
-// This is the same rule b-push applies to its D1 rows. b-push still carries its own copy; moving
-// it onto this package is a separate follow-up.
+// b-push applies this same rule to its D1 rows, through this module.
 
 import type { UnreadTotals } from './unread-totals.js';
 
