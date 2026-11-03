@@ -20,6 +20,11 @@ vi.mock('../../../data/journal.js', () => ({ fetchDayEligibility, fetchMonthElig
 const { fetchUserProfile } = vi.hoisted(() => ({ fetchUserProfile: vi.fn() }));
 vi.mock('../../../data/users.js', () => ({ fetchUserProfile }));
 
+const { fetchEntryThumbnailUrl } = vi.hoisted(() => ({
+  fetchEntryThumbnailUrl: vi.fn(),
+}));
+vi.mock('../../../data/entries.js', () => ({ fetchEntryThumbnailUrl }));
+
 const { submitDraft } = vi.hoisted(() => ({ submitDraft: vi.fn() }));
 vi.mock('../../../flows/composeFlow.js', () => ({
   submitDraft,
@@ -66,6 +71,7 @@ function baseDraft(overrides: Partial<ComposeDraft> = {}): ComposeDraft {
 }
 
 beforeEach(() => {
+  fetchEntryThumbnailUrl.mockResolvedValue('https://img.example/t.jpg');
   fetchUserProfile.mockResolvedValue({
     user: {},
     details: { member: 0 },
@@ -118,6 +124,12 @@ describe('ComposeEntryScreen', () => {
     await userEvent.click(screen.getByText('Publish'));
     await waitFor(() => expect(submitDraft).toHaveBeenCalled());
     expect(await screen.findByText('Your entry has been published')).toBeDefined();
+    expect(fetchEntryThumbnailUrl).toHaveBeenCalledWith('new1');
+    await waitFor(() =>
+      expect(document.querySelector('.compose-published-photo')?.getAttribute('src')).toBe(
+        'https://img.example/t.jpg',
+      ),
+    );
     expect(useComposeDraftStore.getState().draft).toBeNull();
     await userEvent.click(screen.getByText('View entry'));
     expect(replace).toHaveBeenCalledWith('/entry/new1');

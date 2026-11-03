@@ -23,6 +23,7 @@ import {
 import { AppHeader } from '../../components/AppHeader.js';
 import { useAppNavigate } from '../../app/routes/useAppNavigate.js';
 import { fetchUserSettings, saveUserSettings } from '../../data/settings.js';
+import { LoadFailed } from '../../components/LoadFailed.js';
 import { describeError, mapApiError } from '../../data/errors.js';
 import '../../components/ComposeForm.css';
 import { BBCodeToolbar } from '../../components/BBCodeToolbar.js';
@@ -38,6 +39,8 @@ function BiographyEditor() {
 
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
+  const [loadErrorIsTransport, setLoadErrorIsTransport] = useState(false);
+  const [loadAttempt, setLoadAttempt] = useState(0);
   const [initial, setInitial] = useState('');
   const [content, setContent] = useState('');
   const [saving, setSaving] = useState(false);
@@ -46,6 +49,8 @@ function BiographyEditor() {
 
   useEffect(() => {
     let cancelled = false;
+    setLoading(true);
+    setLoadError(null);
     fetchUserSettings().then(
       (settings) => {
         if (cancelled) return;
@@ -56,6 +61,7 @@ function BiographyEditor() {
       (err: unknown) => {
         if (cancelled) return;
         const outcome = mapApiError(err);
+        setLoadErrorIsTransport(outcome.kind === 'transport');
         setLoadError(describeError(outcome, 'Could not load your biography.'));
         setLoading(false);
       },
@@ -63,7 +69,7 @@ function BiographyEditor() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [loadAttempt]);
 
   const hasChanges = content !== initial;
 
@@ -118,9 +124,11 @@ function BiographyEditor() {
           {loading ? (
             <IonSpinner />
           ) : loadError ? (
-            <IonText color="danger">
-              <p>{loadError}</p>
-            </IonText>
+            <LoadFailed
+              transport={loadErrorIsTransport}
+              message={loadError}
+              onRefresh={() => setLoadAttempt((n) => n + 1)}
+            />
           ) : (
             <>
               {saveError && (

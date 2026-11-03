@@ -55,7 +55,6 @@ import {
   IonRefresher,
   IonRefresherContent,
   IonSpinner,
-  IonText,
   IonButton,
   IonAlert,
   IonToast,
@@ -98,6 +97,7 @@ import {
   useHiddenMembersStore,
   useIsHidden,
 } from '../../state/hiddenMembersStore.js';
+import { LoadFailed } from '../../components/LoadFailed.js';
 import { describeError, mapApiError } from '../../data/errors.js';
 import type { BlipComment as ApiComment } from '@b-oss/b-api';
 import { useDevicePrefsStore } from '../../state/devicePrefsStore.js';
@@ -144,6 +144,7 @@ export function EntryDetailScreen({ entryId, initialReplyToCommentId }: EntryDet
   const signInPrompt = useSignInPrompt();
   const {
     entryState,
+    errorIsTransport,
     prevEntryId,
     nextEntryId,
     actions,
@@ -531,12 +532,11 @@ export function EntryDetailScreen({ entryId, initialReplyToCommentId }: EntryDet
         )}
 
         {entryState.status === 'error' && (
-          <div className="ion-padding">
-            <IonText color="danger">
-              <p>{entryState.message}</p>
-            </IonText>
-            <IonButton onClick={reload}>Retry</IonButton>
-          </div>
+          <LoadFailed
+            transport={errorIsTransport}
+            message={entryState.message}
+            onRefresh={reload}
+          />
         )}
 
         {entryState.status === 'loaded' && authorHidden && (

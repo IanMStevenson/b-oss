@@ -33,8 +33,6 @@ import {
   IonHeader,
   IonContent,
   IonSpinner,
-  IonText,
-  IonButton,
   IonRefresher,
   IonRefresherContent,
 } from '@ionic/react';
@@ -47,6 +45,7 @@ import {
   leadingActor,
   resolveNotificationTarget,
 } from '../../data/notifications.js';
+import { LoadFailed } from '../../components/LoadFailed.js';
 import { describeError, mapApiError } from '../../data/errors.js';
 import { useAppNavigate } from '../../app/routes/useAppNavigate.js';
 import { useHiddenMembers } from '../../state/hiddenMembersStore.js';
@@ -68,6 +67,7 @@ export function NotificationsInboxScreen() {
   const [status, setStatus] = useState<Status>('loading');
   const [items, setItems] = useState<BlipNotification[]>([]);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [errorIsTransport, setErrorIsTransport] = useState(false);
   const latestIdRef = useRef<string | null>(null);
   // `BlipNotification` has no unread flag. The badge count is the number of unread items, and the
   // endpoint returns newest first, so the first N rows of the first response are the new ones.
@@ -86,6 +86,7 @@ export function NotificationsInboxScreen() {
     clearNotifications();
     setStatus('loading');
     setErrorMessage(null);
+    setErrorIsTransport(false);
     fetchRecentNotifications().then(
       (notifications) => {
         if (newIdsRef.current === null) {
@@ -99,6 +100,7 @@ export function NotificationsInboxScreen() {
       },
       (err: unknown) => {
         const outcome = mapApiError(err);
+        setErrorIsTransport(outcome.kind === 'transport');
         setErrorMessage(describeError(outcome, 'Could not load notifications.'));
         setStatus('error');
       },
@@ -154,12 +156,11 @@ export function NotificationsInboxScreen() {
           </div>
         )}
         {status === 'error' && (
-          <div className="ion-padding">
-            <IonText color="danger">
-              <p>{errorMessage}</p>
-            </IonText>
-            <IonButton onClick={load}>Retry</IonButton>
-          </div>
+          <LoadFailed
+            transport={errorIsTransport}
+            message={errorMessage ?? undefined}
+            onRefresh={load}
+          />
         )}
         {status === 'empty' && (
           <EmptyState icon={<Bell size={40} strokeWidth={1.5} />} title="No notifications yet." />

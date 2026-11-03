@@ -41,6 +41,7 @@ import { cropToProportions } from '../../data/imageCrop.js';
 import { useMembership } from '../../data/useMembership.js';
 import { MembershipCheckFailed } from '../../components/MembershipCheckFailed.js';
 import type { Area } from 'react-easy-crop';
+import { LoadFailed } from '../../components/LoadFailed.js';
 import { describeError, mapApiError } from '../../data/errors.js';
 
 interface EditEntryScreenProps {
@@ -58,6 +59,8 @@ export function EditEntryScreen({ entryId }: EditEntryScreenProps) {
   const { isMember, failed: membershipFailed, retry: retryMembership } = useMembership();
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
+  const [loadErrorIsTransport, setLoadErrorIsTransport] = useState(false);
+  const [loadAttempt, setLoadAttempt] = useState(0);
   // The entry's current photo (its thumbnail, like the site's edit page), shown until a replacement is picked. Only known when this screen
   // instance loaded the entry itself (a resumed draft doesn't carry it).
   const [currentImage, setCurrentImage] = useState<string | null>(null);
@@ -91,6 +94,8 @@ export function EditEntryScreen({ entryId }: EditEntryScreenProps) {
     }
     if (!activeAccount) return;
     let cancelled = false;
+    setLoading(true);
+    setLoadError(null);
     fetchEntry(entryId).then(
       (loaded) => {
         if (cancelled) return;
@@ -116,6 +121,7 @@ export function EditEntryScreen({ entryId }: EditEntryScreenProps) {
       (err: unknown) => {
         if (cancelled) return;
         const outcome = mapApiError(err);
+        setLoadErrorIsTransport(outcome.kind === 'transport');
         setLoadError(describeError(outcome, 'Could not load this entry.'));
         setLoading(false);
       },
@@ -125,7 +131,7 @@ export function EditEntryScreen({ entryId }: EditEntryScreenProps) {
     };
     // setDraft is a stable Zustand action reference (never changes identity), so including it
     // doesn't add a re-run trigger beyond entryId/activeAccount.
-  }, [entryId, activeAccount, setDraft]);
+  }, [entryId, activeAccount, setDraft, loadAttempt]);
 
   // Set when the discard confirmation was raised by the header's home tap rather than Back.
   const pendingHome = useRef<(() => void) | null>(null);
@@ -203,9 +209,23 @@ export function EditEntryScreen({ entryId }: EditEntryScreenProps) {
     }
   }
 
+  // Loading and failed both show the same header as the form, so the page doesn't jump and a way
+  // back is always there.
+  const loadHeader = (
+    <IonHeader>
+      <AppHeader
+        title="Edit entry"
+        variant="back"
+        onBack={() => navigate.goBack()}
+        accountIndicator
+      />
+    </IonHeader>
+  );
+
   if (loading) {
     return (
       <IonPage>
+        {loadHeader}
         <IonContent className="ion-padding">
           <IonSpinner />
         </IonContent>
@@ -216,11 +236,13 @@ export function EditEntryScreen({ entryId }: EditEntryScreenProps) {
   if (loadError || !draft) {
     return (
       <IonPage>
-        <IonContent className="ion-padding">
-          <IonText color="danger">
-            <p>{loadError ?? 'Could not load this entry.'}</p>
-          </IonText>
-          <IonButton onClick={() => navigate.goBack()}>Back</IonButton>
+        {loadHeader}
+        <IonContent>
+          <LoadFailed
+            transport={loadErrorIsTransport}
+            message={loadError ?? 'Could not load this entry.'}
+            onRefresh={() => setLoadAttempt((n) => n + 1)}
+          />
         </IonContent>
       </IonPage>
     );

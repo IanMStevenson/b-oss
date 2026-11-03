@@ -418,7 +418,9 @@ ion-progress-bar.upload-progress {
 }
 
 .compose-published-photo {
+  /* The server thumbnail is 300px square: never render it larger (upscaling blurs it). */
+  width: 300px;
   max-width: 100%;
-  max-height: 50vh;
+  height: auto;
   border-radius: 4px;
 }

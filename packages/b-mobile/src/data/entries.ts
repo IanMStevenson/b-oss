@@ -97,9 +97,12 @@ export async function fetchNearbyPage(
   });
 }
 
+/** Search syntax: a tag is searched as `#tag`; plain text never matches tags. Callers should check
+ * `isSearchableTag` first: a tag with symbols in can't be searched for at all. */
 export async function fetchTagPage(tag: string, pageIndex: number): Promise<Page<EntryIndex>> {
   return withRateLimitFallback(async (client) => {
-    const res = await client.searchEntries({ query: tag, pageIndex, pageSize: PAGE_SIZE });
+    const query = `#${tag.replace(/^#/, '')}`;
+    const res = await client.searchEntries({ query, pageIndex, pageSize: PAGE_SIZE });
     return { items: res.entries.map(stubToEntryIndex), ...pageMeta(res.page) };
   });
 }
@@ -140,6 +143,14 @@ export interface LoadedEntry {
 export async function deleteEntry(entryId: string): Promise<void> {
   const client = await getClient();
   await client.deleteEntry(entryId);
+}
+
+/** The server's own thumbnail URL for an entry, read back after publishing (SCR-10's completion
+ * screen) so it shows what was actually stored rather than the local photo. */
+export async function fetchEntryThumbnailUrl(entryId: string): Promise<string> {
+  const client = await getClient();
+  const res = await client.getEntry(entryId);
+  return res.entry.thumbnail_url;
 }
 
 /** SCR-06's error-state message is whatever `Error.message` this throws (useResource/
