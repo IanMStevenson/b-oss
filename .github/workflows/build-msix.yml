@@ -44,9 +44,9 @@ jobs:
         env:
           RELEASE: '1'
           MAIN_VITE_BLIPFOTO_CLIENT_ID: ${{ secrets.BLIPFOTO_CLIENT_ID }}
-          IDENTITY_NAME: ${{ inputs.identity_name }}
-          PUBLISHER: ${{ inputs.publisher }}
-          PUBLISHER_DISPLAY_NAME: ${{ inputs.publisher_display_name }}
+          IDENTITY_NAME: ${{ inputs.identity_name || 'REPLACE_WITH_PARTNER_CENTER_IDENTITY_NAME' }}
+          PUBLISHER: ${{ inputs.publisher || 'CN=REPLACE_WITH_PARTNER_CENTER_PUBLISHER_ID' }}
+          PUBLISHER_DISPLAY_NAME: ${{ inputs.publisher_display_name || 'REPLACE_WITH_PUBLISHER_DISPLAY_NAME' }}
         shell: bash
         run: >
           npm run dist:store --workspace=packages/b-ark --
