@@ -5,6 +5,19 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [1.0.7] - 2026-11-03
+
+### Added
+
+- b-ark: available from the Microsoft Store. Store installs are updated by the Store.
+- b-ark, b-ark-chrome: when a backup fails, the notice says whether you're offline or Blipfoto isn't
+  answering, with Retry and a link to the unofficial Blipfoto status page.
+- b-ark, b-ark-chrome: the About popup links to the unofficial Blipfoto status page.
+
+### Changed
+
+- b-ark: updated to Electron 45.
+
 ## [b-mobile 1.2.2] - 2026-11-03
 
 ### Fixed
