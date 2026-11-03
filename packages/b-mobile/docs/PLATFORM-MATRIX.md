@@ -20,6 +20,19 @@ the production browser build (a dev server proxies the API like the desktop shel
 | `media.capture` | `"camera"` | `"camera"` | `"camera"` | `"camera"` |
 | `media.source` | `"system"` | `"system"` | `"webcam"` | `"system"` |
 
+Capabilities are read at run time and are not reactive. `capabilities()` is not a pure table:
+desktop `location` is rewritten once a location attempt succeeds (b-oss#672), and `web` is
+rewritten under the dev server. A component that read it earlier is not re-rendered, so new
+consumers call the function each time (`capabilities()`, `locationControlAvailable()`) and never
+cache the result.
+
+## Pointer (not a platform axis)
+
+Compact controls, the header refresh button and the whole-photo thumbnail selector follow the
+primary pointer (`(pointer: fine)`, one definition in `src/theme/finePointer.ts`), not the platform.
+So a tablet with a Bluetooth mouse on Android gets them too, by design, and a touch-only desktop
+window does not.
+
 ## Profile defaults
 
 The `prefs` rows are the defaults for the device preferences; the user's own changes are stored
@@ -44,4 +57,5 @@ on top as overrides.
 | `grid.baseTilePx` | `86` | `156` |
 | `grid.widthDerivedMinZoom` | `true` | `false` |
 | `keyboardWheelZoom` | `false` | `true` |
+| `locationControlLabel` | `"My location"` | `"Show current location"` |
 | `nav.split` | `"off"` | `"auto"` |

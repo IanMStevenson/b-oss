@@ -21,8 +21,8 @@ const caps = vi.hoisted((): { location: 'os' | 'pick-only'; kind: string; outcom
 vi.mock('../capabilities.js', () => ({
   locationControlAvailable: () => caps.location === 'os',
   recordDesktopLocationOutcome: (o: string) => caps.outcome.push(o),
+  usesBrowserLocation: () => caps.kind === 'desktop',
 }));
-vi.mock('../platformKind.js', () => ({ platformKind: () => caps.kind }));
 const logged = vi.hoisted(() => [] as { source: string; message: string }[]);
 vi.mock('../diagnostics.js', () => ({
   logError: (info: { source: string; message: string }) => logged.push(info),

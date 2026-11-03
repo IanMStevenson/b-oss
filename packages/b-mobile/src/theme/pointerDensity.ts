@@ -7,9 +7,10 @@
 // `[data-pointer='fine']`. It is live: attaching or removing a mouse changes the media query and
 // the attribute with it. A tablet with a mouse is therefore compact; a phone or touch tablet never.
 
+import { FINE_POINTER_QUERY } from './finePointer.js';
+
 export type PointerKind = 'fine' | 'coarse';
 
-const FINE_QUERY = '(pointer: fine)';
 
 export function pointerKind(fine: boolean): PointerKind {
   return fine ? 'fine' : 'coarse';
@@ -22,7 +23,7 @@ export function initPointerDensity(root: HTMLElement = document.documentElement)
     root.dataset.pointer = 'coarse';
     return () => {};
   }
-  const query = window.matchMedia(FINE_QUERY);
+  const query = window.matchMedia(FINE_POINTER_QUERY);
   const apply = (fine: boolean): void => {
     root.dataset.pointer = pointerKind(fine);
   };

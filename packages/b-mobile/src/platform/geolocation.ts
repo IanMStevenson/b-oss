@@ -16,9 +16,12 @@
 // still being able to tell the two apart if a future caller needs to.
 
 import { Geolocation } from '@capacitor/geolocation';
-import { locationControlAvailable, recordDesktopLocationOutcome } from './capabilities.js';
+import {
+  locationControlAvailable,
+  recordDesktopLocationOutcome,
+  usesBrowserLocation,
+} from './capabilities.js';
 import { logError } from './diagnostics.js';
-import { platformKind } from './platformKind.js';
 
 export interface Coordinates {
   lat: number;
@@ -60,11 +63,6 @@ function logLocationAttempt(text: string): void {
   logError({ source: 'geolocation', message: text });
 }
 
-/** The picker's control label: "Show current location" on desktop, "My location" as before elsewhere. */
-export function locationControlLabel(): string {
-  return platformKind() === 'desktop' ? 'Show current location' : 'My location';
-}
-
 let desktopSucceeded = false;
 
 /** Desktop: the browser location API directly (the shell grants it for the app origin). The
@@ -99,7 +97,7 @@ export async function getCurrentPosition(): Promise<Coordinates | null> {
   // Where there is no usable OS location and the desktop attempt has already failed, refuse up
   // front, the same way a refused permission does.
   if (!locationControlAvailable()) throw new Error('Location is not available here.');
-  if (platformKind() === 'desktop') return desktopPosition();
+  if (usesBrowserLocation()) return desktopPosition();
   await ensurePermission();
   try {
     const position = await Geolocation.getCurrentPosition({ enableHighAccuracy: false });

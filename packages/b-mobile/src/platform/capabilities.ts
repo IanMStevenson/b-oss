@@ -105,6 +105,13 @@ export function locationControlAvailable(): boolean {
   return platformKind() === 'desktop' && desktopLocation !== 'failed';
 }
 
+/** Whether this platform reads location through the browser API directly rather than Capacitor's
+ * permission flow: true where the tabled `location` is `pick-only` (the desktop shell), whatever
+ * the run-time outcome. Derived from the table, not the platform name. */
+export function usesBrowserLocation(): boolean {
+  return TABLE[platformKind()].location === 'pick-only';
+}
+
 export function capabilities(): PlatformCapabilities {
   const kind = platformKind();
   const base = TABLE[kind];

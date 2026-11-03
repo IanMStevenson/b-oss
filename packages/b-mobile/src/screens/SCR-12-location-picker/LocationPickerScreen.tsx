@@ -20,11 +20,8 @@ import { createPinIcon } from '../../components/mapPin.js';
 import { createLeafletMap, MAP_FAILED_MESSAGE } from '../../components/leafletMap.js';
 import '../../components/ComposeForm.css';
 import { getTileLayerConfig, getSatelliteLayerConfig } from '../../platform/mapTiles.js';
-import {
-  getCurrentPosition,
-  LocationUnavailableError,
-  locationControlLabel,
-} from '../../platform/geolocation.js';
+import { getCurrentPosition, LocationUnavailableError } from '../../platform/geolocation.js';
+import { profile } from '../../profile/profile.js';
 import { locationControlAvailable } from '../../platform/capabilities.js';
 import { useAppNavigate } from '../../app/routes/useAppNavigate.js';
 import { useComposeDraftStore } from '../../state/composeDraftStore.js';
@@ -177,7 +174,7 @@ export function LocationPickerScreen() {
                   type="button"
                   className="map-locate"
                   onClick={() => void handleMyLocation()}
-                  aria-label={locationControlLabel()}
+                  aria-label={profile().locationControlLabel}
                 >
                   <LocateFixed size={22} aria-hidden="true" />
                 </button>

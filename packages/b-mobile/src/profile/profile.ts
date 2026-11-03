@@ -81,6 +81,8 @@ export interface Profile {
   /** Ctrl+wheel and Ctrl +/-/0 drive the app's own zoom (grid and photo), and the shell's page zoom
    * is disabled so there is exactly one. Off on handheld, where touch pinch is the zoom. */
   keyboardWheelZoom: boolean;
+  /** The location picker's "use my position" control label. */
+  locationControlLabel: string;
   nav: {
     /** `auto`: on a wide window the menu sits beside the page (open by default, collapsed on
      * Browse and Entry, with a pin; app/navPane.ts). `off`: the menu is always the drawer. */
@@ -118,6 +120,7 @@ export const PROFILES: Record<ProfileKind, Profile> = {
     prefs: HANDHELD_PREFS,
     grid: { baseTilePx: HANDHELD_BASE_TILE_PX, widthDerivedMinZoom: true },
     keyboardWheelZoom: false,
+    locationControlLabel: 'My location',
     nav: { split: 'off' },
   },
   desktop: {
@@ -126,6 +129,7 @@ export const PROFILES: Record<ProfileKind, Profile> = {
     prefs: { ...HANDHELD_PREFS, thumbnailMargins: 'normal', photoFit: 'capped' },
     grid: { baseTilePx: DESKTOP_BASE_TILE_PX, widthDerivedMinZoom: false },
     keyboardWheelZoom: true,
+    locationControlLabel: 'Show current location',
     nav: { split: 'auto' },
   },
 };
