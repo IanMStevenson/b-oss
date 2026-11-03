@@ -250,6 +250,23 @@ describe('EntryDetailScreen', () => {
     expect(starEntry).toHaveBeenCalledWith('1');
   }, 15000);
 
+  it('shows an already-given star as pressed on load, though the API then reports star as unavailable', async () => {
+    const { fetchEntry } = await import('../../../data/entries.js');
+    vi.mocked(fetchEntry).mockResolvedValue({
+      ...baseLoadedEntry,
+      starred: true,
+      actions: { ...baseLoadedEntry.actions!, star: 0 },
+    });
+    renderScreen();
+    const starred = await screen.findByLabelText('Starred');
+    expect(starred.getAttribute('aria-pressed')).toBe('true');
+    expect(screen.getByLabelText('Favourite this entry').getAttribute('aria-pressed')).toBe(
+      'false',
+    );
+    await userEvent.click(starred);
+    expect(starEntry).not.toHaveBeenCalled();
+  }, 15000);
+
   it('rolls back the optimistic star on a genuine failure and shows a message', async () => {
     const { fetchEntry } = await import('../../../data/entries.js');
     vi.mocked(fetchEntry).mockResolvedValue(baseLoadedEntry);
