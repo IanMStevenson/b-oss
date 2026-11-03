@@ -44,7 +44,7 @@ function toPickedPhoto(raw: RawSharedImage): PickedPhoto | null {
   if (!raw.path) return null;
   return {
     uri: raw.path,
-    webPath: raw.path,
+    webPath: Capacitor.convertFileSrc(raw.path),
     mimeType: raw.mimeType ?? 'image/jpeg',
     width: raw.width && raw.width > 0 ? raw.width : null,
     height: raw.height && raw.height > 0 ? raw.height : null,
