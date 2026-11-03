@@ -125,7 +125,6 @@ const routes = [
   ['user-following', '/user/gbradley/following'],
   ['user-awards', '/user/gbradley/awards'],
   ['tag-entries', '/tag/light'],
-  ['uploads', '/uploads'],
   ['me', '/me'],
   ['me-requests', '/me/requests'],
   ['me-refused', '/me/refused'],
@@ -289,82 +288,6 @@ async function seedDraft(mode, patch = {}) {
   const go = await seedDraft('edit');
   await go('/entry/5000000000/edit');
   await shot('entry-edit-with-draft');
-}
-
-// Upload queue with items in every state, by driving uploadQueueStore through vite's module graph
-// (same trick as the draft above; the store's own persist() writes to prefs, harmless here).
-{
-  await page.goto(`${base}/browse`);
-  await settle(1500);
-  await page.evaluate(async () => {
-    const { useUploadQueueStore } = await import('/src/state/uploadQueueStore.ts');
-    const now = Date.now();
-    const base = {
-      accountId: 'cyclopstest',
-      filePath: null,
-      fileMimeType: null,
-      fields: {},
-      attempts: 0,
-      nextAttemptAt: null,
-      error: null,
-      resultEntryId: null,
-    };
-    useUploadQueueStore.setState({
-      hydrated: true,
-      items: [
-        {
-          ...base,
-          id: 'q1',
-          kind: 'publish',
-          status: 'uploading',
-          displayTitle: 'Harbour at dusk',
-          createdAt: now,
-        },
-        {
-          ...base,
-          id: 'q2',
-          kind: 'publish',
-          status: 'waiting',
-          displayTitle: 'Morning light',
-          createdAt: now - 1000,
-        },
-        {
-          ...base,
-          id: 'q3',
-          kind: 'edit',
-          entryId: '5000000000',
-          status: 'waiting',
-          displayTitle: 'A title long enough that it will need to be truncated on a phone screen',
-          createdAt: now - 2000,
-        },
-        {
-          ...base,
-          id: 'q4',
-          kind: 'publish',
-          status: 'failed',
-          attempts: 6,
-          error: 'Could not reach Blipfoto. Check your connection.',
-          displayTitle: 'Blurry cat',
-          createdAt: now - 3000,
-        },
-        {
-          ...base,
-          id: 'q5',
-          kind: 'publish',
-          status: 'uploaded',
-          resultEntryId: '5000000000',
-          displayTitle: 'Sunrise',
-          createdAt: now - 4000,
-        },
-      ],
-    });
-  });
-  await page.evaluate(() => {
-    history.pushState({}, '', '/uploads');
-    dispatchEvent(new PopStateEvent('popstate'));
-  });
-  await settle(1500);
-  await shot('uploads-with-items');
 }
 
 // Search with results / no results, and the people tab; Map with several entry pins and with one
