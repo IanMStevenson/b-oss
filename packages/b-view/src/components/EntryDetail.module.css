@@ -300,22 +300,16 @@
   background: var(--line-2);
 }
 
-.pillBtn[aria-pressed='true'] {
-  color: var(--accent-alt);
-}
-
-/* As on the Blipfoto website: a given star turns yellow, a given heart red (values sampled from
-   the site). Yellow is only ~1.6:1 against white, so the star also gets a darker amber outline to
-   stay visible on light themes; red clears 4:1 on both light and dark. */
-.pillStar[aria-pressed='true'] {
-  color: #ffc709;
-}
-
+/* As on the Blipfoto website: a given star is yellow, a given heart red (values sampled from the
+   site). Only the icon changes: the count keeps the theme's text colour, and an icon not given
+   stays solid in the theme's own colour. Yellow is only ~1.6:1 against white, so the star also
+   gets a darker amber outline to stay visible on light themes; red clears 4:1 on light and dark. */
 .pillStar[aria-pressed='true'] svg {
+  color: #ffc709;
   stroke: #be7121;
 }
 
-.pillHeart[aria-pressed='true'] {
+.pillHeart[aria-pressed='true'] svg {
   color: #db3936;
 }
 
