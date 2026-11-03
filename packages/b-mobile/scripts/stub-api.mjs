@@ -4,7 +4,7 @@
 // A stand-in for api.blipfoto.com/4/ so b-mobile can run in a browser with plausible data on a
 // machine with no route to the real API (the dev VM's egress is allowlisted). Serves canned,
 // generated responses for every endpoint b-mobile's data layer reads, and SVG "photos". Writes
-// are accepted and ignored. Used by scripts/screenshots.mjs; not a test double (the unit tests
+// are accepted and ignored (and logged: GET /__log). Used by scripts/screenshots.mjs; not a test double (the unit tests
 // mock at the data layer) and not meant to be faithful beyond what the UI renders.
 //
 //   node scripts/stub-api.mjs [port]            # default 5192
@@ -355,6 +355,7 @@ function svg(seed, kind) {
 }
 
 let avatarFail = 'none';
+const requestLog = [];
 
 // Controllable unread counts (/__unread?comments=5&notifications=1, /__token-dead?on=1), so a test
 // can raise them and watch what the desktop shell's poller does.
@@ -389,6 +390,11 @@ createServer((req, res) => {
   if (url.pathname === '/__token-dead') {
     unread.tokenDead = url.searchParams.get('on') === '1';
     return send(200, 'application/json', JSON.stringify(unread));
+  }
+  if (url.pathname === '/__log') return send(200, 'application/json', JSON.stringify(requestLog));
+  if (url.pathname === '/__log/reset') {
+    requestLog.length = 0;
+    return send(200, 'application/json', '[]');
   }
   if (url.pathname === '/__avatar-fail') {
     avatarFail = url.searchParams.get('mode') ?? 'none';
@@ -433,16 +439,56 @@ createServer((req, res) => {
   // The proxy rewrites /api/blipfoto/4/x.json -> /4/x.json.
   const m = url.pathname.match(/^\/4\/(.+?)(?:\.json)?$/);
   if (!m) return send(404, 'text/plain', 'not found');
-  let data;
-  try {
-    data = handle(m[1], url.searchParams);
-  } catch (err) {
-    if (!(err instanceof StubError)) throw err;
-    return send(
-      200,
-      'application/json',
-      JSON.stringify({ version: 4, error: { code: err.code, message: err.message }, data: null }),
-    );
-  }
-  send(200, 'application/json', JSON.stringify({ version: 4, error: null, data }));
+  const respond = () => {
+    let data;
+    try {
+      data = handle(m[1], url.searchParams);
+    } catch (err) {
+      if (!(err instanceof StubError)) throw err;
+      return send(
+        200,
+        'application/json',
+        JSON.stringify({ version: 4, error: { code: err.code, message: err.message }, data: null }),
+      );
+    }
+    send(200, 'application/json', JSON.stringify({ version: 4, error: null, data }));
+  };
+  // Request log (GET /__log, /__log/reset): every /4/ call, for scripts/flow-runner.mjs to diff
+  // two builds. Secrets are reduced to "present"; multipart bodies to their parts.
+  const chunks = [];
+  req.on('data', (c) => chunks.push(c));
+  req.on('end', () => {
+    const body = Buffer.concat(chunks);
+    const query = {};
+    for (const [k, v] of [...url.searchParams].sort(([a], [b]) => a.localeCompare(b)))
+      query[k] = /token|secret/i.test(k) ? '<redacted>' : v;
+    const type = (req.headers['content-type'] ?? '').split(';')[0];
+    let bodySummary = null;
+    if (body.length) {
+      if (type === 'multipart/form-data') {
+        bodySummary = [
+          ...body
+            .toString('latin1')
+            .matchAll(
+              /name="([^"]+)"(?:; filename="([^"]*)")?\r\n(?:Content-Type: ([^\r]*)\r\n)?\r\n/g,
+            ),
+        ].map((p) => (p[2] === undefined ? p[1] : `${p[1]} (file ${p[2]}, ${p[3]})`));
+      } else if (type === 'application/x-www-form-urlencoded') {
+        bodySummary = Object.fromEntries(
+          [...new URLSearchParams(body.toString())]
+            .sort(([a], [b]) => a.localeCompare(b))
+            .map(([k, v]) => [k, /token|secret/i.test(k) ? '<redacted>' : v]),
+        );
+      } else bodySummary = `${type || 'unknown'}, ${body.length} bytes`;
+    }
+    requestLog.push({
+      method: req.method,
+      path: m[1],
+      query,
+      body: bodySummary,
+      contentType: type || null,
+      authHeader: req.headers.authorization ? 'present' : null,
+    });
+    respond();
+  });
 }).listen(port, '127.0.0.1', () => console.log(`stub API on ${HOST}`));
