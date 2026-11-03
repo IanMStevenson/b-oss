@@ -527,12 +527,12 @@ export function EntryDetail({
                 <div className={styles.pill}>
                   {reactions ? (
                     <button
-                      className={`${styles.pillSeg} ${styles.pillBtn}`}
+                      className={`${styles.pillSeg} ${styles.pillBtn} ${styles.pillStar}`}
                       onClick={reactions.onToggleStar}
                       aria-pressed={reactions.starred}
-                      aria-label={reactions.starred ? 'Remove star' : 'Star this entry'}
+                      aria-label={reactions.starred ? 'Starred' : 'Star this entry'}
                     >
-                      <Star size={14} strokeWidth={1.5} fill="currentColor" />
+                      <Star size={14} strokeWidth={1.5} fill={reactions.starred ? 'currentColor' : 'none'} />
                       {entry.stars_total}
                     </button>
                   ) : (
@@ -543,12 +543,12 @@ export function EntryDetail({
                   )}
                   {reactions ? (
                     <button
-                      className={`${styles.pillSeg} ${styles.pillBtn}`}
+                      className={`${styles.pillSeg} ${styles.pillBtn} ${styles.pillHeart}`}
                       onClick={reactions.onToggleFavorite}
                       aria-pressed={reactions.favorited}
-                      aria-label={reactions.favorited ? 'Remove favourite' : 'Favourite this entry'}
+                      aria-label={reactions.favorited ? 'Favourited' : 'Favourite this entry'}
                     >
-                      <Heart size={14} strokeWidth={1.5} fill="currentColor" />
+                      <Heart size={14} strokeWidth={1.5} fill={reactions.favorited ? 'currentColor' : 'none'} />
                       {entry.favorites_total}
                     </button>
                   ) : (

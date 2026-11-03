@@ -304,6 +304,21 @@
   color: var(--accent-alt);
 }
 
+/* As on the Blipfoto website: a given star turns yellow, a given heart red (values sampled from
+   the site). Yellow is only ~1.6:1 against white, so the star also gets a darker amber outline to
+   stay visible on light themes; red clears 4:1 on both light and dark. */
+.pillStar[aria-pressed='true'] {
+  color: #ffc709;
+}
+
+.pillStar[aria-pressed='true'] svg {
+  stroke: #be7121;
+}
+
+.pillHeart[aria-pressed='true'] {
+  color: #db3936;
+}
+
 /* Tags as chips (Blipfoto's chips are blue; ours keep the brand green). */
 .tags {
   display: flex;
