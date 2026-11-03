@@ -6,7 +6,7 @@
   },
   "protocols": [{ "name": "b-ark", "schemes": ["b-ark"] }],
   "appx": {
-    "identityName": "REPLACE_WITH_PARTNER_CENTER_IDENTITY_NAME",
+    "identityName": "REPLACE-WITH-IDENTITY-NAME",
     "publisher": "CN=REPLACE_WITH_PARTNER_CENTER_PUBLISHER_ID",
     "publisherDisplayName": "REPLACE_WITH_PUBLISHER_DISPLAY_NAME",
     "applicationId": "bark"
