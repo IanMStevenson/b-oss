@@ -11,6 +11,7 @@ import { useSwipeNav } from '../useSwipeNav.js';
 import { usePinchZoom } from '../usePinchZoom.js';
 import { useKeyWheelZoom } from '../useKeyWheelZoom.js';
 import { stepZoom, zoomLimits, ZOOM_MAX_PERCENT } from '../zoomLimits.js';
+import { isEditableTarget } from '../isEditableTarget.js';
 import styles from './ThumbnailGrid.module.css';
 
 // Matches CSS constants: grid padding:18px top/bottom 24px sides,
@@ -435,6 +436,7 @@ export function ThumbnailGrid({
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
+      if (isEditableTarget(e.target)) return;
       if (e.key === 'ArrowLeft') prevBtnRef.current?.click();
       if (e.key === 'ArrowRight') nextBtnRef.current?.click();
     };
