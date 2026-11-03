@@ -306,7 +306,22 @@ export function EntryDetailScreen({ entryId, initialReplyToCommentId }: EntryDet
     );
   }
 
+  const starBusy = useRef(false);
+  const favBusy = useRef(false);
+
   async function handleStar(): Promise<void> {
+    // Stars can't be taken back, so a repeat tap (or one while the first is in flight) is ignored
+    // rather than bumping the count again.
+    if (baseReaction().starred || starBusy.current) return;
+    starBusy.current = true;
+    try {
+      await sendStar();
+    } finally {
+      starBusy.current = false;
+    }
+  }
+
+  async function sendStar(): Promise<void> {
     if (!(await gateReaction(true))) return;
     setReaction((prev) => {
       const base = prev ?? baseReaction();
@@ -325,6 +340,16 @@ export function EntryDetailScreen({ entryId, initialReplyToCommentId }: EntryDet
   }
 
   async function handleFavorite(): Promise<void> {
+    if (baseReaction().favorited || favBusy.current) return;
+    favBusy.current = true;
+    try {
+      await sendFavorite();
+    } finally {
+      favBusy.current = false;
+    }
+  }
+
+  async function sendFavorite(): Promise<void> {
     if (!(await gateReaction(true))) return;
     setReaction((prev) => {
       const base = prev ?? baseReaction();

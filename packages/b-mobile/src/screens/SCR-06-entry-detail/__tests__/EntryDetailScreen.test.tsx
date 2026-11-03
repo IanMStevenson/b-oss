@@ -243,7 +243,7 @@ describe('EntryDetailScreen', () => {
     // first setState, and a bare .click() doesn't synchronize with that the way userEvent does.
     await userEvent.click(starButton);
     await waitFor(() => {
-      const starred = screen.getByLabelText('Remove star');
+      const starred = screen.getByLabelText('Starred');
       expect(starred).toBeDefined();
       expect(starred.textContent).toContain('4');
     });
@@ -259,7 +259,7 @@ describe('EntryDetailScreen', () => {
     starButton.click();
     expect(await screen.findByText('Server refused')).toBeDefined();
     expect(await screen.findByLabelText('Star this entry')).toBeDefined();
-    expect(screen.queryByLabelText('Remove star')).toBeNull();
+    expect(screen.queryByLabelText('Starred')).toBeNull();
   });
 
   it('asks an anonymous user to sign in rather than starting a sign-in or calling the API', async () => {
