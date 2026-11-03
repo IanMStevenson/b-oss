@@ -26,7 +26,10 @@ const addListener = vi
   });
 
 vi.mock('@capacitor/core', () => ({
-  Capacitor: { isNativePlatform: () => isNative },
+  Capacitor: {
+    isNativePlatform: () => isNative,
+    convertFileSrc: (p: string) => p.replace('file://', 'http://localhost/_capacitor_file_'),
+  },
   registerPlugin: () => ({
     getSharedImage: () => getSharedImage(),
     addListener: (event: string, handler: () => void) => addListener(event, handler),
@@ -68,7 +71,7 @@ describe('checkForSharedImage / takePendingSharedPhoto', () => {
     const photo = takePendingSharedPhoto();
     expect(photo).toEqual({
       uri: 'file:///cache/shared/shared-1.jpg',
-      webPath: 'file:///cache/shared/shared-1.jpg',
+      webPath: 'http://localhost/_capacitor_file_/cache/shared/shared-1.jpg',
       mimeType: 'image/jpeg',
       width: 1200,
       height: 900,
