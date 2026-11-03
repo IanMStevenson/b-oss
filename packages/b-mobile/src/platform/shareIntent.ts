@@ -21,7 +21,7 @@
 // browser-mode development is for testing signed-in screens, not native OS share sheets), so
 // every export here is a no-op off native, the same stance every other platform/*.ts module takes.
 
-import { registerPlugin } from '@capacitor/core';
+import { Capacitor, registerPlugin } from '@capacitor/core';
 import type { PickedPhoto } from './camera.js';
 import { isCapacitorNative } from './platformKind.js';
 
