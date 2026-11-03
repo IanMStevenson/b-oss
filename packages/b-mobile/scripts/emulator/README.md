@@ -51,8 +51,8 @@ failing (see below). The two APKs can be any two builds: "main" is the old build
 | `oauth` (opt-in, `--only oauth`) | Real sign-in with the owner's own test account through the in-app WebView: fills the login form, approves, checks the app returns signed in with a stored token. Needs `~/.config/b-mobile/emulator-account.env` (`BLIPFOTO_USER`, `BLIPFOTO_PASSWORD`, mode 600), read only from that file; never printed, logged, screenshotted or written to results. One login per run; skipped if the file is missing |
 | `offline`                        | Airplane mode (`cmd connectivity airplane-mode`) shows "You seem to be offline"; restoring it clears that                                                                                                                                                                                                                                                                                                  |
 
-State is seeded with a made-up token and a made-up account; nothing here uses a real account,
-and no token value is logged or stored in results.
+The default checks seed a made-up token and account and use no real account. Only the opt-in
+`oauth` check uses a real test account, and no credential or token value is logged or stored in results.
 
 ### Reaching Blipfoto (for `oauth`, or to see real feeds)
 

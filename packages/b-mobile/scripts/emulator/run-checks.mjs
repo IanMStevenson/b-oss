@@ -5,7 +5,8 @@
 // Automated device checks on the headless emulator (b-oss#796). See README.md.
 //   node run-checks.mjs --main <main.apk> --integ <integ.apk> --out <dir> [--only update,links,...]
 // Needs the emulator booted (emu.sh start). Every adb call is pinned to the emulator serial.
-// Uses no real account and no real credentials; state is seeded through the app's own plugins.
+// The default checks use no real account: state is seeded through the app's own plugins. Only the
+// opt-in `oauth` check uses a real (test) account, from a credentials file outside the repo.
 
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { homedir } from 'node:os';
