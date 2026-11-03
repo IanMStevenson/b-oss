@@ -17,6 +17,7 @@
     "predist": "npm run build --workspace=packages/b-view-backup",
     "dist": "node ../../scripts/copy-icons.mjs && electron-vite build && electron-builder",
     "dist:win": "node ../../scripts/copy-icons.mjs && electron-vite build && electron-builder --win",
+    "dist:store": "node ../../scripts/copy-icons.mjs && electron-vite build && electron-builder --win appx --config electron-builder.store.json --publish never",
     "pack:mac": "node ../../scripts/copy-icons.mjs && electron-vite build && electron-builder --mac --universal --publish never",
     "release:mac": "node ../../scripts/copy-icons.mjs && electron-vite build && electron-builder --mac --universal --publish always",
     "test": "vitest run"
