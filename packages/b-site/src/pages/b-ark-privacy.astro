@@ -1,0 +1,81 @@
+---
+import Layout from '../layouts/Layout.astro';
+import Hero from '../components/Hero.astro';
+---
+
+<Layout
+  title="Privacy Policy · b-ark · b-oss"
+  description="Privacy policy for b-ark — the Windows desktop app that backs up your Blipfoto journal to a folder on your own computer."
+  narrow
+>
+  <Hero label="Privacy hero" title="Privacy Policy — b-ark">b-ark is a Windows desktop app that backs up your Blipfoto journal to a folder on your own
+      computer. This policy explains what data the app handles and where it goes.</Hero>
+
+  <section
+    class="block"
+    style="border-top: none; padding-top: 0"
+    data-screen-label="Privacy body"
+  >
+    <p><em>Last updated: 3 November 2026</em></p>
+
+    <h2>Who is responsible</h2>
+    <p>
+      b-ark is an open-source project, part of b-oss and led by Ian Stevenson. It is an
+      independent app built on Blipfoto's public API, and is not affiliated with or endorsed by
+      Blipfoto. Questions about this policy can be sent to
+      <a href="mailto:info@b-oss.dev">info@b-oss.dev</a> or through the
+      <a href="contact.html">contact page</a>, whose form is delivered by
+      <a href="https://web3forms.com/privacy">Web3Forms</a>.
+    </p>
+
+    <h2>What stays on your computer</h2>
+    <ul>
+      <li>Your backups, in the folder you choose.</li>
+      <li>The app's settings.</li>
+      <li>
+        Your Blipfoto sign-in details, which are encrypted using the operating system's secure
+        storage.
+      </li>
+      <li>A log file, written on your computer only.</li>
+    </ul>
+    <p>None of this is sent to the b-oss project.</p>
+
+    <h2>What is sent to Blipfoto</h2>
+    <p>
+      The app connects to Blipfoto (its API, your pictures, and the Blipfoto website where a
+      backup needs it) to back up your journal. That traffic is between your computer and
+      Blipfoto, under Blipfoto's own privacy policy. The b-oss project does not receive a copy.
+    </p>
+
+    <h2>Updates</h2>
+    <p>
+      <strong>If you downloaded b-ark from this website,</strong> the app by default checks for
+      updates by contacting GitHub, where the b-oss releases are published, and downloads a new
+      version if there is one. GitHub can see that request under
+      <a href="https://docs.github.com/en/site-policy/privacy-policies/github-general-privacy-statement">its privacy statement</a>.
+      You can turn this off in the app's settings.
+    </p>
+    <p>
+      <strong>If you installed b-ark through the Microsoft Store,</strong> Microsoft handles
+      updates, under Microsoft's own privacy policy.
+    </p>
+
+    <h2>What the app does not do</h2>
+    <p>
+      It has no analytics and no crash reporting, and sends nothing to the b-oss project. The
+      app has no server of its own.
+    </p>
+
+    <h2>Your rights</h2>
+    <p>
+      Everything the app holds is on your computer and under your control. Data held by
+      Blipfoto is managed through Blipfoto.
+    </p>
+
+    <h2>Changes to this policy</h2>
+    <p>
+      If this policy changes materially, the updated version will be published at this URL with
+      a revised date at the top.
+    </p>
+  </section>
+</Layout>
