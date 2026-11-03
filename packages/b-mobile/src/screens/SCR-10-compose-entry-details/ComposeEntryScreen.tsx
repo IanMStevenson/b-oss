@@ -33,6 +33,7 @@ import { useMembership } from '../../data/useMembership.js';
 import { MembershipCheckFailed } from '../../components/MembershipCheckFailed.js';
 import { submitDraft, describeSubmitError } from '../../flows/composeFlow.js';
 import { fetchUserProfile } from '../../data/users.js';
+import { fetchEntryThumbnailUrl } from '../../data/entries.js';
 import { UploadingNotice } from '../../components/UploadingNotice.js';
 import { DateField } from '../../components/DateField.js';
 import { DescriptionField, TextField, ToggleRow } from '../../components/ComposeForm.js';
@@ -60,7 +61,7 @@ export function ComposeEntryScreen() {
   // draft is gone. `total` arrives later, from one profile call, and is simply left out if that fails.
   const [published, setPublished] = useState<{
     entryId: string;
-    photoSrc: string | null;
+    thumbnailUrl: string | null;
     total: number | null;
   } | null>(null);
 
@@ -138,9 +139,13 @@ export function ComposeEntryScreen() {
     setSubmitError(null);
     try {
       const entryId = await submitDraft(draft);
-      setPublished({ entryId, photoSrc: draft.photo?.webPath ?? null, total: null });
+      setPublished({ entryId, thumbnailUrl: null, total: null });
       clearDraft();
       setSubmitting(false);
+      fetchEntryThumbnailUrl(entryId).then(
+        (thumbnailUrl) => setPublished((p) => (p ? { ...p, thumbnailUrl } : p)),
+        () => {},
+      );
       fetchUserProfile().then(
         (profile) => {
           const total = profile.details?.entry_total;
@@ -168,8 +173,8 @@ export function ComposeEntryScreen() {
         <IonContent>
           <div className="compose-form compose-published">
             <h2>Your entry has been published</h2>
-            {published.photoSrc && (
-              <img className="compose-published-photo" src={published.photoSrc} alt="" />
+            {published.thumbnailUrl && (
+              <img className="compose-published-photo" src={published.thumbnailUrl} alt="" />
             )}
             {published.total !== null && (
               <IonText color="medium">

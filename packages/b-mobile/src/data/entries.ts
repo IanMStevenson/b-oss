@@ -145,6 +145,14 @@ export async function deleteEntry(entryId: string): Promise<void> {
   await client.deleteEntry(entryId);
 }
 
+/** The server's own thumbnail URL for an entry, read back after publishing (SCR-10's completion
+ * screen) so it shows what was actually stored rather than the local photo. */
+export async function fetchEntryThumbnailUrl(entryId: string): Promise<string> {
+  const client = await getClient();
+  const res = await client.getEntry(entryId);
+  return res.entry.thumbnail_url;
+}
+
 /** SCR-06's error-state message is whatever `Error.message` this throws (useResource/
  * useLiveEntry display it as-is, with no mapApiError step of their own) — so codes 104/202 get
  * their own copy-deck wording (strings/deck.ts) by rewriting the error here,
