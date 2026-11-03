@@ -20,6 +20,21 @@ new release on next launch via electron-updater (which reads
 `latest.yml` from the GitHub Releases feed) and prompt the user to
 update.
 
+## Microsoft Store (MSIX)
+
+Tracked in [b-oss#805](https://github.com/IanMStevenson/b-oss/issues/805). The Store build is separate from the GitHub
+installer route above: it is an unsigned MSIX (the Store signs it), and it skips electron-updater
+(`process.windowsStore`), because the Store delivers updates.
+
+1. Do the usual release steps above (changelog, version bump, audit) for the version to submit.
+2. Run the **Build MSIX (Microsoft Store)** workflow from the Actions tab (workflow_dispatch). Enter the
+   three Identity values from Partner Center (Product identity): Package/Identity/Name, Publisher, and
+   PublisherDisplayName. They must match exactly or the upload is rejected.
+3. Download the `b-ark-msix` artifact and upload the `.appx` in a Partner Center submission.
+
+Local equivalent (Windows only; AppX can't be built under Wine):
+`npm run dist:store --workspace=packages/b-ark -- --config.appx.identityName=... --config.appx.publisher=... --config.appx.publisherDisplayName=...`
+
 ## Components and the common checklist
 
 Each distributable component has its own release process; this file is the b-ark one and holds

@@ -5,9 +5,6 @@ name: Build MSIX (Microsoft Store)
 # Partner Center (Product identity); the defaults are placeholders that give a package you
 # can inspect but not submit. See RELEASING.md (Microsoft Store).
 on:
-  push:
-    branches: [feat/b-ark-msix-store]
-    paths: [.github/workflows/build-msix.yml]  # TEMP: remove before merge
   workflow_dispatch:
     inputs:
       identity_name:
