@@ -17,10 +17,9 @@
 // of the page (b-oss#362: findable without being prominent). Report goes through flows/useReport,
 // which opens Blipfoto's support form instead when signed out or read-only. Star/Favourite share EntryDetail's one `reactions` slot, which can't independently hide
 // just one of the two the way the old hand-built action row could — offered only when both
-// actions.star and actions.favorite agree (both permitted or the viewer is anonymous, matching
-// the old per-button "!activeAccount || actions?.x !== 0" rule combined across both flags); the
-// two are not known to diverge in practice, and splitting the slot for a case that may never occur
-// wasn't worth a further b-view change here.
+// actions.star and actions.favorite agree (each permitted or already given, or the viewer is
+// anonymous; the API turns an action off once it has been given, so "given" counts as permitted).
+// Splitting the slot wasn't worth a further b-view change.
 //
 // No more "More" overflow menu (2026-09 feedback round: every item it held now has its own inline
 // home, so the menu itself goes away) — Edit is the one action left in EntryDetail's own
@@ -515,8 +514,13 @@ export function EntryDetailScreen({ entryId, initialReplyToCommentId }: EntryDet
     return <ActionPill items={items} />;
   }
 
+  // Once you've starred (or favourited) an entry the API reports that action as no longer
+  // available (actions.star === 0), so "given" must count as permitted too — otherwise the buttons
+  // vanish into plain static counts exactly when they should show the given state.
   const showReactions =
-    !hideForReadOnly && (!activeAccount || (actions?.star !== 0 && actions?.favorite !== 0));
+    !hideForReadOnly &&
+    (!activeAccount ||
+      ((actions?.star !== 0 || starred) && (actions?.favorite !== 0 || favorited)));
   const showComment = !hideForReadOnly && (!activeAccount || actions?.comment !== 0);
   // Comments switched off on this journal (actions.comment === 0): say so rather than leaving the
   // user to wonder where the comment box went (SCR-06.comments_disabled, per the spec).
