@@ -532,7 +532,7 @@ export function EntryDetail({
                       aria-pressed={reactions.starred}
                       aria-label={reactions.starred ? 'Starred' : 'Star this entry'}
                     >
-                      <Star size={14} strokeWidth={1.5} fill={reactions.starred ? 'currentColor' : 'none'} />
+                      <Star size={14} strokeWidth={1.5} fill="currentColor" />
                       {entry.stars_total}
                     </button>
                   ) : (
@@ -548,7 +548,7 @@ export function EntryDetail({
                       aria-pressed={reactions.favorited}
                       aria-label={reactions.favorited ? 'Favourited' : 'Favourite this entry'}
                     >
-                      <Heart size={14} strokeWidth={1.5} fill={reactions.favorited ? 'currentColor' : 'none'} />
+                      <Heart size={14} strokeWidth={1.5} fill="currentColor" />
                       {entry.favorites_total}
                     </button>
                   ) : (
