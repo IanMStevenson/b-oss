@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (C) 2026 Ian Stevenson
 
+import { isEditableTarget } from '../isEditableTarget.js';
 import { useEffect, useRef, useState, useCallback, type ReactNode } from 'react';
 import {
   ArrowLeft,
@@ -367,6 +368,7 @@ export function EntryDetail({
     const handler = (e: KeyboardEvent) => {
       // Only handle entry navigation keys when lightbox is closed
       if (lightboxIndex !== null) return;
+      if (isEditableTarget(e.target)) return; // arrows move the caret while typing
       if (e.key === 'ArrowLeft' && prevEntryId) onNavigate(prevEntryId);
       if (e.key === 'ArrowRight' && nextEntryId) onNavigate(nextEntryId);
     };
