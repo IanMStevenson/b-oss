@@ -32,8 +32,14 @@ export type DeepLinkTarget =
   | { kind: 'oauth' }
   | { kind: 'ignore' };
 
-function resolveBmobilePath(parsed: URL): DeepLinkTarget {
-  const segment = parsed.pathname.replace(/^\/+|\/+$/g, '');
+// Split by hand rather than reading `URL#host`/`pathname`: WebViews before about Chromium M130
+// don't parse the host of a non-special scheme, so `bmobile://entry/5` gives host `''` and
+// pathname `//entry/5` there (b-oss#796).
+function resolveBmobilePath(url: string): DeepLinkTarget {
+  const rest = url.replace(/^[^:]+:\/\//, '').split(/[?#]/)[0] ?? '';
+  const slash = rest.indexOf('/');
+  const host = slash === -1 ? rest : rest.slice(0, slash);
+  const segment = (slash === -1 ? '' : rest.slice(slash)).replace(/^\/+|\/+$/g, '');
   if (!segment) return { kind: 'ignore' };
   // Any app can send a VIEW intent, so a malformed percent-escape (`%E0%A4%A`, a bare `%`) must
   // resolve to `ignore` rather than let decodeURIComponent's URIError escape to the listener.
@@ -43,8 +49,8 @@ function resolveBmobilePath(parsed: URL): DeepLinkTarget {
   } catch {
     return { kind: 'ignore' };
   }
-  if (parsed.host === 'entry') return { kind: 'entry', entryId: decoded };
-  if (parsed.host === 'user') return { kind: 'profile', username: decoded };
+  if (host === 'entry') return { kind: 'entry', entryId: decoded };
+  if (host === 'user') return { kind: 'profile', username: decoded };
   return { kind: 'ignore' };
 }
 
@@ -63,7 +69,7 @@ export function resolveDeepLink(url: string): DeepLinkTarget {
 
   // bmobile-debug: is the debug build's own scheme (b-oss#462); only its manifest registers it.
   if (parsed.protocol === 'bmobile:' || parsed.protocol === 'bmobile-debug:') {
-    return resolveBmobilePath(parsed);
+    return resolveBmobilePath(url);
   }
 
   const hostname = parsed.hostname.toLowerCase();

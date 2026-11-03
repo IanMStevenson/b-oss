@@ -35,6 +35,32 @@ describe('resolveDeepLink', () => {
     });
   });
 
+  it('resolves custom-scheme links when the WebView leaves the host empty (b-oss#796)', () => {
+    const RealURL = globalThis.URL;
+    // Older WebViews (< ~M130): host '' and pathname '//entry/5' for a non-special scheme.
+    class OldUrl extends RealURL {
+      override get host() {
+        return '';
+      }
+      override get pathname() {
+        return '//' + super.href.replace(/^[^:]+:\/\//, '');
+      }
+    }
+    vi.stubGlobal('URL', OldUrl);
+    try {
+      expect(resolveDeepLink('bmobile-debug://entry/5000000000')).toEqual({
+        kind: 'entry',
+        entryId: '5000000000',
+      });
+      expect(resolveDeepLink('bmobile-debug://user/alice?x=1')).toEqual({
+        kind: 'profile',
+        username: 'alice',
+      });
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
   it('resolves bmobile://user/:username to a profile target', () => {
     expect(resolveDeepLink('bmobile://user/alice')).toEqual({
       kind: 'profile',
