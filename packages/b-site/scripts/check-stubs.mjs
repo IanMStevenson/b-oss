@@ -9,7 +9,8 @@ const dist = resolve(dirname(fileURLToPath(import.meta.url)), '../dist');
 const problems = [];
 for (const [from, to] of Object.entries(redirects)) {
   if (!to.startsWith(NEW_ORIGIN + '/')) problems.push(`${from} -> ${to}: not on ${NEW_ORIGIN}`);
-  const path = to.slice(NEW_ORIGIN.length + 1) || 'index.html';
+  const slug = to.slice(NEW_ORIGIN.length + 1);
+  const path = slug ? `${slug}.html` : 'index.html';
   if (!existsSync(join(dist, path))) problems.push(`${from} -> ${to}: ${path} is not in dist/`);
 }
 if (problems.length) {

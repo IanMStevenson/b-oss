@@ -42,7 +42,10 @@ const result = await build({
 const outputs = Array.isArray(result) ? result.flatMap((r) => r.output) : result.output;
 const chunk = outputs.find((o) => o.type === 'chunk');
 if (!chunk || chunk.type !== 'chunk') throw new Error('preview bundle not produced');
-const js = chunk.code.replaceAll('</script', '<\\/script');
+// The page links extensionless URLs; a preview opened from disk needs the real file names.
+const js = chunk.code
+  .replaceAll('</script', '<\\/script')
+  .replaceAll('"how-this-works"', '"how-this-works.html"');
 const css = readFileSync(join(dist, 'site.css'), 'utf8');
 
 const STATES = [
@@ -63,7 +66,7 @@ function inline(file, { fixture } = {}) {
     // Social/icon/manifest links point at files that aren't beside a preview.
     .replace(/<link rel="(icon|apple-touch-icon|manifest|canonical)"[^>]*>/g, '')
     .replace(/<script type="module" src="[^"]*"><\/script>/g, '')
-    .replaceAll('href="status.html"', 'href="status-all-good.html"');
+    .replaceAll('href="status"', 'href="status-all-good.html"');
   if (fixture) {
     html = html
       .replace('<html lang="en"', `<html lang="en" data-fixture="${fixture}"`)
