@@ -38,7 +38,6 @@ export const stop = () => sh(`am force-stop ${PKG}`);
 export const key = (k) => sh(`input keyevent ${k}`);
 export const back = () => key('KEYCODE_BACK');
 export const home = () => key('KEYCODE_HOME');
-export const grantNothing = () => {};
 
 /** Reads a file inside the app's private data (debug build: run-as works). */
 export const appFile = (path) => sh(`run-as ${PKG} cat ${path}`);
