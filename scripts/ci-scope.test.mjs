@@ -87,7 +87,7 @@ describe('typecheckSteps', () => {
 
   it('builds only the upstream packages a scoped package needs', () => {
     expect(typecheckSteps(['b-push'], graph)).toEqual([
-      ['--build', 'packages/b-api'],
+      ['--build', 'packages/b-api', 'packages/b-notify-core'],
       ['-p', 'packages/b-push', '--noEmit'],
     ]);
     expect(typecheckSteps(['b-status'], graph)).toEqual([['-p', 'packages/b-status', '--noEmit']]);
