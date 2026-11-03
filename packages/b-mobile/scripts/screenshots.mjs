@@ -293,7 +293,7 @@ async function seedDraft(mode, patch = {}) {
 
 // Upload queue with items in every state, by driving uploadQueueStore through vite's module graph
 // (same trick as the draft above; the store's own persist() writes to prefs, harmless here).
-{
+try {
   await page.goto(`${base}/browse`);
   await settle(1500);
   await page.evaluate(async () => {
@@ -365,6 +365,9 @@ async function seedDraft(mode, patch = {}) {
   });
   await settle(1500);
   await shot('uploads-with-items');
+} catch (e) {
+  // The upload queue store no longer exists in the app (b-oss#770): skip, don't abort the sweep.
+  console.log('uploads-with-items skipped:', String(e).slice(0, 120));
 }
 
 // Search with results / no results, and the people tab; Map with several entry pins and with one
