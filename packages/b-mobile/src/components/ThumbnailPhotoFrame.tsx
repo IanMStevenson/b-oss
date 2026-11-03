@@ -18,15 +18,10 @@ import {
   THUMBNAIL_MIN_EDGE,
 } from '../data/imageCrop.js';
 import type { ComposePhoto, ThumbnailCropDraft } from '../state/composeDraftStore.js';
+import { isFinePointer } from '../theme/finePointer.js';
 import './ComposeForm.css';
 
 const PREVIEW_SIZE = 200;
-
-/** True when the primary pointer is precise (mouse/trackpad): the whole-photo selector is used
- * instead of the pan/zoom cropper (b-oss#718). Read when the cropper opens. */
-function isPointerFine(): boolean {
-  return typeof window.matchMedia === 'function' && window.matchMedia('(pointer: fine)').matches;
-}
 
 interface ThumbnailPhotoFrameProps {
   photo: ComposePhoto;
@@ -56,7 +51,7 @@ export function ThumbnailPhotoFrame({
     <div className="compose-thumb-frame">
       {cropping ? (
         <div className="compose-photo-frame">
-          {isPointerFine() && shown && ratio && naturalWidth ? (
+          {isFinePointer() && shown && ratio && naturalWidth ? (
             <SquareSelector
               imageSrc={photo.webPath}
               initial={shown}

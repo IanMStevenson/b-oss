@@ -11,16 +11,13 @@ import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { IonButton } from '@ionic/react';
 import { RefreshCw } from 'lucide-react';
-
-const FINE_QUERY = '(pointer: fine)';
+import { FINE_POINTER_QUERY, isFinePointer } from '../theme/finePointer.js';
 
 export function useFinePointer(): boolean {
-  const [fine, setFine] = useState(
-    () => typeof window.matchMedia === 'function' && window.matchMedia(FINE_QUERY).matches,
-  );
+  const [fine, setFine] = useState(isFinePointer);
   useEffect(() => {
     if (typeof window.matchMedia !== 'function') return;
-    const query = window.matchMedia(FINE_QUERY);
+    const query = window.matchMedia(FINE_POINTER_QUERY);
     const onChange = (e: MediaQueryListEvent): void => setFine(e.matches);
     setFine(query.matches);
     query.addEventListener('change', onChange);

@@ -246,6 +246,18 @@ reminders,details,profile,notifications}`; the old `/settings/{general,journal,a
   blipfoto.com entry, profile and follow-request URLs only when "Open blipfoto.com links in this
   app" is on (default off).
 
+## Deliberate changes from the desktop work that reach Android
+
+Recorded so they are not mistaken for defects (b-oss#781, review b-oss#768).
+- **Keyboard scrolling** (`app/keyboardScroll.ts`): input-driven, not platform-gated, on purpose. A
+  tablet with a hardware keyboard behaves like a PC with one: arrows, PageUp/PageDown, Home and End
+  scroll the page. Controls that use those keys themselves (inputs, sliders, maps, Ionic overlays)
+  are excluded. New for hardware-keyboard Android users; not a regression.
+- **Fonts** (`b-visual` `fonts.css`): Roboto 600 and 700 now ship on all platforms, so headings use
+  real bold instead of synthesised bold. Expect heading-weight differences in screenshot
+  comparisons; not a defect unless something else is wrong.
+- **Wording**: the location prompt in Browse says "device settings", not "phone settings".
+
 ## ID index
 
 Source comments cite these ids; the AppSpec that defined them has been removed.

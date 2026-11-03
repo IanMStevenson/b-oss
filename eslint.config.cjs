@@ -30,6 +30,7 @@ module.exports = [
           { group: ['electron'], message: 'Only packages/b-ark and packages/b-mobile-pc may import from electron.' },
           { group: ['@capacitor/*'], message: 'Only packages/b-mobile/src/platform/** may import from @capacitor/*.' },
           { group: ['**/platform/platformKind', '**/platform/platformKind.js'], message: 'Only packages/b-mobile/src/platform/** and src/profile/** may import platformKind — screens and flows use capabilities() / profile() (b-oss#633).' },
+          { group: ['**/platform/desktop', '**/platform/desktop.js'], message: 'Only packages/b-mobile/src/platform/** may import platform/desktop (the desktop bridge) — screens and flows use capabilities() / profile() (b-oss#633).' },
           { group: ['react-router', 'react-router-dom'], message: 'Only packages/b-mobile/src/app/routes/** may import react-router — screens use useAppNavigate() instead (app-architecture.md §5).' }
         ]
       }],
@@ -88,6 +89,7 @@ module.exports = [
       'no-restricted-imports': ['error', {
         patterns: [
           { group: ['**/platform/platformKind', '**/platform/platformKind.js'], message: 'Only packages/b-mobile/src/platform/** and src/profile/** may import platformKind — screens and flows use capabilities() / profile() (b-oss#633).' },
+          { group: ['**/platform/desktop', '**/platform/desktop.js'], message: 'Only packages/b-mobile/src/platform/** may import platform/desktop (the desktop bridge) — screens and flows use capabilities() / profile() (b-oss#633).' },
           { group: ['@capacitor/*'], message: 'Only packages/b-mobile/src/platform/** may import from @capacitor/*.' }
         ]
       }],
