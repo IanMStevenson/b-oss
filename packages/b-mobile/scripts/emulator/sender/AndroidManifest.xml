@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Test-only "other app" that shares an image to b-mobile with a URI grant, like a gallery app
+     (b-oss#796). adb's `am start` cannot grant MediaStore URIs, so this stands in for the sharer. -->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android" package="emutest.sender">
+  <application android:label="emu sender">
+    <activity android:name="emutest.Send" android:exported="true" android:theme="@android:style/Theme.NoDisplay" />
+    <provider android:name="emutest.Img" android:authorities="emutest.sender" android:exported="false" android:grantUriPermissions="true" />
+  </application>
+</manifest>
