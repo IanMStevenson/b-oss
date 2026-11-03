@@ -5,6 +5,18 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [b-mobile 1.2.2] - 2026-11-03
+
+### Fixed
+
+- b-mobile: a star or heart you've given now shows as given (star yellow, heart red) when an entry
+  opens, and repeat taps no longer bump the count.
+- b-mobile: after publishing, the confirmation screen shows the entry's thumbnail as Blipfoto has
+  it, instead of a squashed copy of your photo.
+- b-mobile: on Android 10 and older the area behind the status bar is brand green instead of white.
+- b-mobile: links that open the app, and the preview of a photo shared into it, work on older
+  Android WebViews.
+
 ## [b-mobile 1.2.1] - 2026-11-02
 
 ### Fixed
