@@ -131,6 +131,11 @@ and the repoint command for "make that worktree available via Mutagen."
   `*.yml` and `linux-unpacked/` are ignored), so on Windows run
   `packages\b-mobile-pc\dist-electron\win-unpacked\b-mobile.exe` from the synced folder: fast launch,
   no unpacking, a few MB per rebuild. See `packages/b-mobile-pc/README.md`.
+  **When Ian asks for a b-mobile-pc build "on Mutagen", he means this unpacked folder**, not the
+  `dist/` + `electron.cmd` loop: run `packages/b-mobile-pc/scripts/build-win-docker.sh` in the feeding
+  worktree (it also makes the installers, which stay out of the relay), flush the relay, and give him the
+  version. Inside Docker git is unavailable, so the commit-count digit reads `0`
+  (e.g. `1.2.1.0.40`, not `1.2.1.600.40`); that is expected.
 
 ## b-mobile-pc dev loop (Windows): quit before a build lands
 
