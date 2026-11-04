@@ -16,7 +16,7 @@ const ACTION_LABEL: Record<ReasonAction, string> = {
   dismiss: 'Dismiss',
   backup_now: 'Retry',
   status: 'Check Blipfoto Status',
-  open_startup_settings: 'Open Windows Startup settings',
+  dont_show_again: "Don't show again",
 };
 
 /**

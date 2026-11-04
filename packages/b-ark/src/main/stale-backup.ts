@@ -23,13 +23,6 @@ export interface StaleCheckInput {
   /** Threshold in schedule intervals; 0 (or undefined-as-default handled by caller) is off. */
   intervals: number;
   now: Date;
-  /** Platform id, e.g. process.platform. */
-  platform: string;
-  /**
-   * Whether b-ark is currently set to start at sign-in, when known. Optional so the
-   * Store-build startup-task state can be passed in later; absent means "unknown".
-   */
-  startupEnabled?: boolean;
 }
 
 export function thresholdDays(intervals: number, interval: ScheduleInterval): number {
@@ -68,7 +61,5 @@ export function checkStaleBackup(input: StaleCheckInput): StaleBackupNotice | nu
   return {
     lastBackupAt: new Date(oldest).toISOString(),
     daysSince: Math.floor(gapMs / DAY_MS),
-    platform: input.platform,
-    ...(input.startupEnabled !== undefined ? { startupEnabled: input.startupEnabled } : {}),
   };
 }

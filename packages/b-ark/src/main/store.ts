@@ -47,6 +47,9 @@ export function ensureAppDefaults(): void {
   const current = store.get('app') as Partial<UserDataStore['app']> | undefined;
   const merged: UserDataStore['app'] = {
     autoUpdateEnabled: current?.autoUpdateEnabled ?? localDefaults.app.autoUpdateEnabled,
+    ...(current?.staleAlertEnabled !== undefined
+      ? { staleAlertEnabled: current.staleAlertEnabled }
+      : {}),
     ...(current?.staleAlertIntervals !== undefined
       ? { staleAlertIntervals: current.staleAlertIntervals }
       : {}),

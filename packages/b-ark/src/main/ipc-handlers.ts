@@ -537,8 +537,10 @@ export function registerIpcHandlers(
     emitStoreChanged();
   });
 
-  ipcMain.handle('openStartupSettings', async () => {
-    if (process.platform === 'win32') await shell.openExternal('ms-settings:startupapps');
+  ipcMain.handle('disableStaleBackupAlert', () => {
+    userDataStore.set('app', { ...userDataStore.get('app'), staleAlertEnabled: false });
+    setStaleBackupNotice(null);
+    emitStoreChanged();
   });
 
   ipcMain.handle('getViewerUrl', async (_event, id: string): Promise<string> => {
@@ -658,6 +660,12 @@ export function registerIpcHandlers(
         // setupAutoUpdater() on startup, so we don't toggle anything live.
       }
 
+      if (partial.staleAlertEnabled !== undefined) {
+        userDataStore.set('app', {
+          ...userDataStore.get('app'),
+          staleAlertEnabled: partial.staleAlertEnabled,
+        });
+      }
       if (partial.staleAlertIntervals !== undefined) {
         userDataStore.set('app', {
           ...userDataStore.get('app'),

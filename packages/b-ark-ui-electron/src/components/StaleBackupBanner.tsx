@@ -13,7 +13,7 @@ export function StaleBackupBanner() {
   if (!notice) return null;
 
   function onAction(action: ReasonAction): void {
-    if (action === 'open_startup_settings') void backend.openStartupSettings?.();
+    if (action === 'dont_show_again') void backend.disableStaleBackupAlert?.();
     else if (action === 'dismiss') void backend.dismissStaleBackupNotice?.();
   }
 

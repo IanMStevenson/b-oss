@@ -23,7 +23,7 @@ contextBridge.exposeInMainWorld('api', {
   dismissOutstanding: (id: string) => ipcRenderer.invoke('dismissOutstanding', id),
   retryOutstanding: (id: string) => ipcRenderer.invoke('retryOutstanding', id),
   dismissStaleBackupNotice: () => ipcRenderer.invoke('dismissStaleBackupNotice'),
-  openStartupSettings: () => ipcRenderer.invoke('openStartupSettings'),
+  disableStaleBackupAlert: () => ipcRenderer.invoke('disableStaleBackupAlert'),
   openViewer: (id: string) => ipcRenderer.invoke('openViewer', id),
   getViewerUrl: (id: string) => ipcRenderer.invoke('getViewerUrl', id),
   pickFolder: () => ipcRenderer.invoke('pickFolder'),

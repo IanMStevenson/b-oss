@@ -13,7 +13,6 @@ function input(over: Partial<StaleCheckInput> = {}): StaleCheckInput {
     schedule: { enabled: true, interval: 'daily' },
     intervals: 3,
     now: NOW,
-    platform: 'win32',
     ...over,
   };
 }
@@ -30,7 +29,7 @@ describe('thresholdDays', () => {
 describe('checkStaleBackup', () => {
   it('flags a gap past the threshold', () => {
     const n = checkStaleBackup(input());
-    expect(n).toMatchObject({ daysSince: 9, platform: 'win32' });
+    expect(n).toMatchObject({ daysSince: 9 });
     expect(n?.lastBackupAt).toBe(daysAgo(9));
   });
 
@@ -102,10 +101,5 @@ describe('checkStaleBackup', () => {
       checkStaleBackup(input({ accounts: [{ last_backup_at: 'garbage', rag_state: 'green' }] })),
     ).toBeNull();
     expect(checkStaleBackup(input({ now: new Date('nope') }))).toBeNull();
-  });
-
-  it('passes the optional startup state through only when known', () => {
-    expect(checkStaleBackup(input())).not.toHaveProperty('startupEnabled');
-    expect(checkStaleBackup(input({ startupEnabled: false }))?.startupEnabled).toBe(false);
   });
 });

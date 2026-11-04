@@ -7,7 +7,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
-- b-ark: a new "Warn if backups stop" setting. If b-ark opens and the last backup was a long time ago (3 backup intervals by default, never under 3 days), a notice says so and, on Windows, points you at your Startup settings. A computer that was off is normal; the notice is only a prompt to check.
+- b-ark: a new "Warn if scheduled backups stop" setting, part of Scheduled backups. If b-ark opens and the last backup was a long time ago (3 backup intervals by default, never under 3 days), a notice says so, with Dismiss and "Don't show again". A computer that was off is normal; the notice is only a prompt to check.
 
 ## [1.0.7] - 2026-11-03
 

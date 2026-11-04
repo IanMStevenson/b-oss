@@ -232,11 +232,11 @@ void app.whenReady().then(async () => {
     checkStaleBackup({
       accounts: getAccounts(),
       schedule: getPortableSettings().schedule,
-      intervals: store.get('app').staleAlertIntervals ?? DEFAULT_STALE_ALERT_INTERVALS,
+      intervals:
+        store.get('app').staleAlertEnabled === false
+          ? 0
+          : (store.get('app').staleAlertIntervals ?? DEFAULT_STALE_ALERT_INTERVALS),
       now: new Date(),
-      platform: process.platform,
-      // Only the login-item setting is known here; the Store build's startup task is not.
-      startupEnabled: process.windowsStore ? undefined : store.get('app').startWithWindows,
     }),
   );
   scheduler.rearm();

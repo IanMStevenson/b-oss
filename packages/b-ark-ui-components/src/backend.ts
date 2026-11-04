@@ -155,7 +155,8 @@ export interface AppStore {
   };
   app: {
     autoUpdateEnabled: boolean;
-    /** Stale-backup alert threshold in schedule intervals; 0 is off. Electron only; absent = default. */
+    /** Stale-backup alert (part of Scheduled). Electron only; absent = on, default threshold. */
+    staleAlertEnabled?: boolean;
     staleAlertIntervals?: number;
   };
   /** Set at launch when the previous backup was long ago; cleared on dismiss. Electron only. */
@@ -167,10 +168,6 @@ export interface StaleBackupNotice {
   /** The oldest last successful backup across accounts (ISO). */
   lastBackupAt: string;
   daysSince: number;
-  /** process.platform of the host, so the UI only offers Windows guidance on Windows. */
-  platform: string;
-  /** Whether b-ark is set to start at sign-in, when known. Absent = unknown. */
-  startupEnabled?: boolean;
 }
 
 export interface LogEntry {
@@ -226,6 +223,7 @@ export interface SharedSettingsPartial {
   thumbnailSizePercent?: number;
   showInfoOverlay?: boolean;
   autoUpdateEnabled?: boolean;
+  staleAlertEnabled?: boolean;
   staleAlertIntervals?: number;
   enableWebScrape?: boolean;
   downloadHires?: boolean;
@@ -255,8 +253,8 @@ export interface BackendContext {
   retryOutstanding(accountId: string): Promise<void>;
   /** Hide the stale-backup notice for this session. Electron only. */
   dismissStaleBackupNotice?(): Promise<void>;
-  /** Open Windows' Startup apps settings. Electron (Windows) only. */
-  openStartupSettings?(): Promise<void>;
+  /** Turn the stale-backup alert off for good ('Don't show again'). Electron only. */
+  disableStaleBackupAlert?(): Promise<void>;
 
   openViewer(accountId: string): Promise<void>;
   getViewerUrl(accountId: string): Promise<string>;
