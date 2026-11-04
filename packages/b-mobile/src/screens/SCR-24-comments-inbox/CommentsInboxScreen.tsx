@@ -34,6 +34,7 @@ import { CornerUpLeft, MessageSquare, MoreVertical } from 'lucide-react';
 import { EmptyState } from '../../components/EmptyState.js';
 import { AppHeader } from '../../components/AppHeader.js';
 import { UserBadges } from '../../components/UserBadges.js';
+import { useRefreshOnResume } from '../../hooks/useRefreshOnResume.js';
 import { fetchRecentComments, unreadCommentIds } from '../../data/notifications.js';
 import { deleteComment } from '../../flows/commentsFlow.js';
 import { LoadFailed } from '../../components/LoadFailed.js';
@@ -97,18 +98,32 @@ export function CommentsInboxScreen() {
     load();
   }, [load]);
 
+  // Incremental fetch of anything newer than the top row. Shared by pull-to-refresh and by the
+  // app resuming (b-oss#821); only a resume flags the arriving rows as new.
+  const fetchNewer = useCallback(
+    (markNew: boolean): Promise<void> => {
+      return fetchRecentComments(latestIdRef.current ?? undefined).then(
+        (fresh) => {
+          if (fresh.length > 0) {
+            latestIdRef.current = fresh[0].comment_id_str;
+            if (markNew) for (const c of unreadCommentIds(fresh)) newIdsRef.current?.add(c);
+            clearComments();
+            setItems((prev) => [...fresh, ...prev]);
+            setStatus('loaded');
+          }
+        },
+        () => {},
+      );
+    },
+    [clearComments],
+  );
+
+  useRefreshOnResume(() => {
+    if (status === 'loaded' || status === 'empty') void fetchNewer(true);
+  });
+
   function handleRefresh(event: CustomEvent<RefresherEventDetail>): void {
-    fetchRecentComments(latestIdRef.current ?? undefined).then(
-      (fresh) => {
-        if (fresh.length > 0) {
-          latestIdRef.current = fresh[0].comment_id_str;
-          setItems((prev) => [...fresh, ...prev]);
-          setStatus('loaded');
-        }
-        event.detail.complete();
-      },
-      () => event.detail.complete(),
-    );
+    void fetchNewer(false).then(() => event.detail.complete());
   }
 
   function handleHide(username: string): void {
