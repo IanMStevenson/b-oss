@@ -49,13 +49,13 @@ Known Blipfoto API limits: [AppLimitations.md](AppLimitations.md). Paths are rel
   Swiping the bar (horizontal only; it overrides the entry's page swipe in its own area via
   `data-no-swipe`) does the same, mirrored like the journal swipe. The first item greys out the
   right arrow; the true end of the list greys out the left; no wrapping. At the last loaded entry it
-  fetches the next page (and the previous one when a grid had jumped ahead). The caption names the
-  source ("Recent", "Search Results", "pinetrees Faves", "#tag"). Tapping the caption (shown with a
-  "…") opens a sheet: "Navigating the grid view you arrived from" + where from ("Search: pinetrees"),
-  then Hide navigation bar / Turn off in Settings / Cancel. It remembers one record: the entry it
+  fetches the next page (and the previous one when a grid had jumped ahead). The caption reads
+  "Navigating: " plus the source ("Recent", "Search Results", "pinetrees Faves", "#tag"). Tapping it
+  opens a sheet, with a close (X) at the top right: "Navigating the grid view you arrived from" + where from ("Search: pinetrees"),
+  then Hide navigation bar / Turn off in Settings. It remembers one record: the entry it
   last drew on. It shows whenever the entry screen is on that entry again by any route (Back,
   journal prev/next, links), is cleared by a source-list grid appearing or by Hide, and never changes
-  the setting. Settings → Appearance → "Navigate from the grid" (on by default) turns it off
+  the setting. Settings → Appearance → "Grid View Navigation Bar" (on by default) turns it off
   everywhere. Code: `state/sourceNavStore.ts`, `components/SourceNavBar.tsx`.
 - **Search**: Entries and People tabs, debounced. **Tag entries**: one paged grid. **Map**
   (Leaflet raster tiles, lazy; a top-right button switches to a satellite view with labels and back — Map and location picker; it opens on the road map each time): one page per debounced viewport; `?entry=` opens its popup

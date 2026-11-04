@@ -590,3 +590,37 @@ ion-content.has-source-nav {
 .source-nav-active .system-nav-strip {
   background: var(--brand-fill);
 }
+
+/* The caption's sheet (b-oss#819): a short bottom sheet, close (X) at the top right clear of the text. */
+ion-modal.source-nav-sheet {
+  --border-radius: 16px 16px 0 0;
+}
+
+.source-nav-sheet-body {
+  position: relative;
+  padding: 20px 16px calc(16px + var(--ion-safe-area-bottom, 0px));
+}
+
+.source-nav-sheet-close {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 44px;
+  height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: none;
+  border: none;
+  color: var(--muted);
+}
+
+.source-nav-sheet-title {
+  margin: 0 48px 4px 0;
+  font-weight: 600;
+}
+
+.source-nav-sheet-source {
+  margin: 0 0 16px;
+  color: var(--muted);
+}

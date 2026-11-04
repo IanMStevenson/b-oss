@@ -90,8 +90,8 @@ export function AppearanceSection() {
         onChange={setShowPagination}
       />
       <ToggleRow
-        label="Navigate from the grid"
-        caption="When you open an entry from Browse, Search, a tag or Faves, show a bar at the bottom to step through that list."
+        label="Grid View Navigation Bar"
+        caption="When you open an entry from a grid view, the entry will have a second navigation for the grid. Navigate search results or new entries from your followers without having to keep going back to the grid. Tap its caption to hide it."
         checked={showSourceNavBar}
         onChange={setShowSourceNavBar}
       />

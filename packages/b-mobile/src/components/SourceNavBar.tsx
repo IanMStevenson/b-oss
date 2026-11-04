@@ -5,13 +5,13 @@
 // (b-oss#819; behaviour in BEHAVIOUR.md). Left arrow = further along the grid's reading order,
 // right arrow = back towards the first item, so on a newest-first feed it reads like the journal's
 // own timeline (older on the left). Swiping the bar does the same, mirrored like the page swipe
-// (swipe left = what the right arrow does). Tapping the caption opens where you came from, with
-// Hide / Turn off in Settings. The region carries `data-no-swipe` so b-view's page swipe, which
+// (swipe left = what the right arrow does). Tapping the caption opens a small sheet saying where you
+// came from, with Hide / Turn off in Settings and a close (X) at the top right. The region carries `data-no-swipe` so b-view's page swipe, which
 // would otherwise move through the journal, ignores touches that start here.
 
 import { useRef, useState, type TouchEvent } from 'react';
-import { IonActionSheet, IonSpinner } from '@ionic/react';
-import { ChevronLeft, ChevronRight, Ellipsis } from 'lucide-react';
+import { IonButton, IonModal, IonSpinner } from '@ionic/react';
+import { ChevronLeft, ChevronRight, X } from 'lucide-react';
 import { useAppNavigate } from '../app/routes/useAppNavigate.js';
 import { useDevicePrefsStore } from '../state/devicePrefsStore.js';
 import { sourceNavReach, useSourceNavStore } from '../state/sourceNavStore.js';
@@ -73,11 +73,11 @@ export function SourceNavBar() {
         <button
           type="button"
           className="source-nav-caption"
-          aria-label={`${anchor.source.label}, more options`}
+          aria-label={`Navigating: ${anchor.source.label}. Options`}
           onClick={() => setSheetOpen(true)}
         >
-          <span className="source-nav-label">{anchor.source.label}</span>
-          {loading ? <IonSpinner name="dots" /> : <Ellipsis size={18} aria-hidden="true" />}
+          <span className="source-nav-label">Navigating: {anchor.source.label}</span>
+          {loading && <IonSpinner name="dots" />}
         </button>
         <button
           type="button"
@@ -89,26 +89,47 @@ export function SourceNavBar() {
           <ChevronRight size={26} />
         </button>
       </div>
-      <IonActionSheet
+      <IonModal
         isOpen={sheetOpen}
-        header="Navigating the grid view you arrived from"
-        subHeader={anchor.source.detail}
+        className="source-nav-sheet"
+        breakpoints={[0, 0.3]}
+        initialBreakpoint={0.3}
+        handle={false}
         onDidDismiss={() => setSheetOpen(false)}
-        buttons={[
-          {
-            text: 'Hide navigation bar',
-            handler: () => useSourceNavStore.getState().clear(),
-          },
-          {
-            text: 'Turn off in Settings',
-            handler: () => {
+      >
+        <div className="source-nav-sheet-body">
+          <button
+            type="button"
+            className="source-nav-sheet-close"
+            aria-label="Close"
+            onClick={() => setSheetOpen(false)}
+          >
+            <X size={22} />
+          </button>
+          <p className="source-nav-sheet-title">Navigating the grid view you arrived from</p>
+          <p className="source-nav-sheet-source">{anchor.source.detail}</p>
+          <IonButton
+            expand="block"
+            onClick={() => {
+              setSheetOpen(false);
+              useSourceNavStore.getState().clear();
+            }}
+          >
+            Hide navigation bar
+          </IonButton>
+          <IonButton
+            expand="block"
+            fill="outline"
+            onClick={() => {
+              setSheetOpen(false);
               setShowSourceNavBar(false);
               useSourceNavStore.getState().clear();
-            },
-          },
-          { text: 'Cancel', role: 'cancel' },
-        ]}
-      />
+            }}
+          >
+            Turn off in Settings
+          </IonButton>
+        </div>
+      </IonModal>
     </>
   );
 }
