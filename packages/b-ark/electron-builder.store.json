@@ -11,7 +11,7 @@
     "publisherDisplayName": "REPLACE_WITH_PUBLISHER_DISPLAY_NAME",
     "applicationId": "bark",
     "customExtensionsPath": "msix/startup-task-extension.xml",
-    "customExtensionsPath": "store/startup-task-extension.xml"
+    "customExtensionsPath": "msix/startup-task-extension.xml"
   },
   "publish": null
 }
