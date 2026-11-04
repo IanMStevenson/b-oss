@@ -2,6 +2,7 @@
 // Copyright (C) 2026 Ian Stevenson
 
 import type { Toast } from './view-types.js';
+import type { StartupTaskInfo } from './startupTask.js';
 
 export type ScheduleInterval = 'daily' | 'weekly' | 'monthly';
 
@@ -268,6 +269,15 @@ export interface BackendContext {
    */
   getAccountAvatar(accountId: string): Promise<string | null>;
   getBootState(): Promise<BootState>;
+  /**
+   * Microsoft Store build only: the Windows startup-task state, or `null` when this build starts
+   * with Windows some other way. Undefined under Chrome.
+   */
+  getStartupTask?(): Promise<StartupTaskInfo | null>;
+  /** Ask Windows to enable the startup task; resolves to the state afterwards. Store build only. */
+  enableStartupTask?(): Promise<StartupTaskInfo | null>;
+  /** Open Windows Settings > Apps > Startup. Store build only. */
+  openStartupSettings?(): Promise<void>;
   getLogs(): Promise<LogEntry[]>;
   exportLogsCsv(filters: LogCsvFilters): Promise<string | null>;
 

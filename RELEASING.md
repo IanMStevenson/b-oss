@@ -32,6 +32,16 @@ installer route above: it is an unsigned MSIX (the Store signs it), and it skips
    PublisherDisplayName. They must match exactly or the upload is rejected.
 3. Download the `b-ark-msix` artifact and upload the `.appx` in a Partner Center submission.
 
+**Start with Windows in the Store build.** MSIX ignores the registry Run key, so the manifest declares a
+`windows.startupTask` (`TaskId` `BArkStartup`, from `packages/b-ark/msix/startup-task-extension.xml`). In
+a Store install the main process (`startup-task.ts`) reads and changes the task through the WinRT
+StartupTask API, run from a Windows PowerShell child process (no native add-on). If the task is not
+enabled while the setting is on, the app shows a red banner with one action: **Turn on start with
+Windows** (task merely `Disabled`) or **Open Windows Startup settings** (`DisabledByUser`,
+`DisabledByPolicy`, or unreadable; an app cannot re-enable a task the user switched off). The NSIS
+installer keeps the registry route. The Windows-touching code is unverified until tested on a real install
+(sideload steps are in the PR that added it).
+
 Local equivalent (Windows only; AppX can't be built under Wine):
 `npm run dist:store --workspace=packages/b-ark -- --config.appx.identityName=... --config.appx.publisher=... --config.appx.publisherDisplayName=...`
 

@@ -7,6 +7,7 @@ import { AppProvider, useApp } from './context/AppContext.js';
 import { useContainerWidth } from './hooks/useContainerWidth.js';
 import { TopBar } from './components/TopBar.js';
 import { Sidebar } from './components/Sidebar.js';
+import { StartupTaskBanner } from './components/StartupTaskBanner.js';
 import { ToastHost } from './components/ToastHost.js';
 import { ChooseFolderScreen } from './components/screens/ChooseFolderScreen.js';
 import { FirstOpenScreen } from './components/screens/FirstOpenScreen.js';
@@ -61,6 +62,8 @@ function AppRoot() {
       }}
     >
       <TopBar />
+
+      {bootStage === 'ready' && <StartupTaskBanner />}
 
       {bootStage === 'loading' && (
         <div
