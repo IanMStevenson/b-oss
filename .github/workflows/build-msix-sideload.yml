@@ -6,6 +6,8 @@ name: Build MSIX sideload test (self-signed, NOT for the Store)
 # use build-msix.yml for that. The private key never leaves this job; only the public .cer is uploaded.
 on:
   workflow_dispatch:
+  push: # TEMPORARY: validate on this branch before the file exists on main; removed before merge
+    branches: [feat/b-ark-store-startup-task]
 
 jobs:
   build-msix-sideload:
