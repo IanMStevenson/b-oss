@@ -14,9 +14,9 @@ import {
 function fakeDriver(initial: StartupTaskState, afterEnable: StartupTaskState = 'enabled') {
   let state = initial;
   const driver: StartupTaskDriver = {
-    read: vi.fn(async (): Promise<StartupTaskState> => state),
-    requestEnable: vi.fn(async (): Promise<StartupTaskState> => (state = afterEnable)),
-    disable: vi.fn(async (): Promise<StartupTaskState> => (state = 'disabled')),
+    read: vi.fn(() => Promise.resolve(state)),
+    requestEnable: vi.fn(() => Promise.resolve((state = afterEnable))),
+    disable: vi.fn(() => Promise.resolve((state = 'disabled' as StartupTaskState))),
   };
   return driver;
 }
@@ -77,11 +77,9 @@ describe('createStartupTaskController', () => {
   it('turns a driver failure into unknown and reports it', async () => {
     const onError = vi.fn();
     const d: StartupTaskDriver = {
-      read: async () => {
-        throw new Error('no package identity');
-      },
-      requestEnable: async () => 'enabled',
-      disable: async () => 'disabled',
+      read: () => Promise.reject(new Error('no package identity')),
+      requestEnable: () => Promise.resolve('enabled'),
+      disable: () => Promise.resolve('disabled'),
     };
     const c = createStartupTaskController(d, onError);
     expect(await c.get()).toEqual({ state: 'unknown' });

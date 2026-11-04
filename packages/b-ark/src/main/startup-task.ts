@@ -45,9 +45,9 @@ function runPowerShell(op: StartupTaskOp): Promise<string> {
 }
 
 const powerShellDriver: StartupTaskDriver = {
-  read: async () => parseStartupTaskOutput(await runPowerShell('read')),
-  requestEnable: async () => parseStartupTaskOutput(await runPowerShell('enable')),
-  disable: async () => parseStartupTaskOutput(await runPowerShell('disable')),
+  read: () => runPowerShell('read').then(parseStartupTaskOutput),
+  requestEnable: () => runPowerShell('enable').then(parseStartupTaskOutput),
+  disable: () => runPowerShell('disable').then(parseStartupTaskOutput),
 };
 
 /** Only a Microsoft Store install uses the startup task. */
