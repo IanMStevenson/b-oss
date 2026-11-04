@@ -70,6 +70,12 @@ export function TagEntriesScreen({ tag }: TagEntriesScreenProps) {
             onSeek={resource.seekTo}
             onLoadBefore={resource.loadBefore}
             resumeKey={resumeKey}
+            navSource={{
+              label: `#${tag}`,
+              detail: `Tag: #${tag}`,
+              fetchPage: (pageIndex) => fetchTagPage(tag, pageIndex),
+              pageSize: PAGE_SIZE,
+            }}
           />
         )}
       </IonContent>

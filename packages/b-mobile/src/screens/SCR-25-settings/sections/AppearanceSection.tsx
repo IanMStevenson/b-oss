@@ -32,6 +32,8 @@ export function AppearanceSection() {
   const setShowZoomBar = useDevicePrefsStore((s) => s.setShowZoomBar);
   const showPagination = useDevicePrefsStore((s) => s.showPagination);
   const setShowPagination = useDevicePrefsStore((s) => s.setShowPagination);
+  const showSourceNavBar = useDevicePrefsStore((s) => s.showSourceNavBar);
+  const setShowSourceNavBar = useDevicePrefsStore((s) => s.setShowSourceNavBar);
   const thumbnailMargins = useDevicePrefsStore((s) => s.thumbnailMargins);
   const setThumbnailMargins = useDevicePrefsStore((s) => s.setThumbnailMargins);
   const photoFit = useDevicePrefsStore((s) => s.photoFit);
@@ -86,6 +88,12 @@ export function AppearanceSection() {
         caption={t('SCR-25.browsing.pagination.caption')}
         checked={showPagination}
         onChange={setShowPagination}
+      />
+      <ToggleRow
+        label="Navigate from the grid"
+        caption="When you open an entry from Browse, Search, a tag or Faves, show a bar at the bottom to step through that list."
+        checked={showSourceNavBar}
+        onChange={setShowSourceNavBar}
       />
       <SegmentRow
         label={t('SCR-25.browsing.margins')}

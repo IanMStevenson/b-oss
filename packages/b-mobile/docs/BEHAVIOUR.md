@@ -37,11 +37,35 @@ Known Blipfoto API limits: [AppLimitations.md](AppLimitations.md). Paths are rel
   (\*signed in). Only the active tab is mounted; choosing a tab starts it at page 1. Recent has a
   fixed 900-entry total; Me shows a calendar and the profile's entry total; Nearby needs location
   ("Allow location" button if refused or no fix).
+- **Source-list bar** (b-oss#819): opening an entry from a _source-list_ grid (Browse
+  Recent / Following / Popular / Milestones / New Blippers / Nearby, Search entries, Tag entries, a
+  profile's Faves — not Me or a journal's own Entries grid, where journal prev/next already does the
+  job) shows a bar at the bottom of the entry screen (header green, header depth, above the system
+  navigation area, which is painted the same green while it shows; the content scrolls clear of
+  it). It steps through the list you came from, not the journal; journal prev/next and swipe work as
+  normal. Left arrow = further along the grid's reading order (second result, third…), right arrow =
+  back towards the first item, so on a newest-first feed it matches the journal's timeline (older on
+  the left). It is defined by list position, so it also works for lists that are not date-ordered.
+  Swiping the bar (horizontal only; it overrides the entry's page swipe in its own area via
+  `data-no-swipe`) does the same, mirrored like the journal swipe. The first item greys out the
+  right arrow; the true end of the list greys out the left; no wrapping. At the last loaded entry it
+  fetches the next page (and the previous one when a grid had jumped ahead). The caption names the
+  source ("Recent", "Search Results", "pinetrees Faves", "#tag"). Tapping the caption (shown with a
+  "…") opens a sheet: "Navigating the grid view you arrived from" + where from ("Search: pinetrees"),
+  then Hide navigation bar / Turn off in Settings / Cancel. It remembers one record: the entry it
+  last drew on. It shows whenever the entry screen is on that entry again by any route (Back,
+  journal prev/next, links), is cleared by a source-list grid appearing or by Hide, and never changes
+  the setting. Settings → Appearance → "Navigate from the grid" (on by default) turns it off
+  everywhere. Code: `state/sourceNavStore.ts`, `components/SourceNavBar.tsx`.
 - **Search**: Entries and People tabs, debounced. **Tag entries**: one paged grid. **Map**
   (Leaflet raster tiles, lazy; a top-right button switches to a satellite view with labels and back — Map and location picker; it opens on the road map each time): one page per debounced viewport; `?entry=` opens its popup
   (only that pin); tapping a popup opens the entry; zoom buttons and a my-location button (a blue
   dot). Location picker: tap to place a draggable pin.
-- **Entry**: b-view `EntryDetail` plus app slots. Prev/next replaces the route. Star and Favourite
+- **Entry**: b-view `EntryDetail` plus app slots. Prev/next replaces the route. Journal prev/next
+  treats entries as a timeline, oldest left and newest right: the left arrow (and ←) goes to the
+  older entry, the right arrow to the newer, and a swipe is mirrored like a page turn (swipe left =
+  newer, swipe right = older). Grids are inverted from this: newest first, top-left, older to the
+  right and below. Star and Favourite
   are one-way (no unstar). Inline comment/reply/edit composers, with unsent text kept in memory per
   target (`data/commentDrafts.ts`). Reply/Edit/Delete per comment follow the API's `actions` flags;
   Report and Hide member (same confirmation as Hide user) on others' comments. Author block with Follow/Following/Requested. Others' entries: Report
@@ -85,7 +109,7 @@ Known Blipfoto API limits: [AppLimitations.md](AppLimitations.md). Paths are rel
   Save, one `saveUserSettings` call, one discard prompt), Profile, Notification settings (all
   disabled signed out), Refused followers (protected journal only; stays in Settings). Server-backed
   sections use Save/Cancel; device settings apply at once. Pages are `/settings/{appearance,
-  reminders,details,profile,notifications}`; the old `/settings/{general,journal,app,browsing}`
+reminders,details,profile,notifications}`; the old `/settings/{general,journal,app,browsing}`
   redirect to `details` / `appearance`.
 - **Theme** (App settings → Appearance): System (default), Light, Dark, Mid. System
   follows Android's dark-theme setting and picks Light or Dark, never Mid. Stored in device prefs and

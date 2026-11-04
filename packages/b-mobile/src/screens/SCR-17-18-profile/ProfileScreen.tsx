@@ -96,8 +96,12 @@ function GridTab({
   pageSize = PAGE_SIZE,
   resumeKey,
   showCalendar,
+  navLabel,
 }: {
   fetchPage: (pageIndex: number) => Promise<Page<EntryIndex>>;
+  /** Marks the grid as a source list for the bottom navigation bar, with this caption (b-oss#819).
+   * Omitted for the Entries tab, a journal, where journal navigation does the same job. */
+  navLabel?: string;
   /** fetchPage is a fresh closure every render, so its own identity can't drive
    * usePagedResource's refetch — pass whatever value actually determines what it fetches
    * (effectiveUsername here) so switching accounts on /me, or navigating between two different
@@ -152,6 +156,9 @@ function GridTab({
         resumeKey={resumeKey}
         showCalendar={showCalendar}
         overlayContent={showCalendar ? 'date-title' : 'journal'}
+        navSource={
+          navLabel ? { label: navLabel, detail: navLabel, fetchPage, pageSize } : undefined
+        }
       />
     </div>
   );
@@ -543,6 +550,7 @@ export function ProfileScreen({ username }: ProfileScreenProps) {
                     fetchPage={(pageIndex) => fetchFavoriteEntriesFor(effectiveUsername, pageIndex)}
                     pageSize={JOURNAL_PAGE_SIZE}
                     resumeKey={`${resumeScope}:faves`}
+                    navLabel={effectiveUsername ? `${effectiveUsername} Faves` : 'Faves'}
                     refetchKey={effectiveUsername}
                     onSelectEntry={(id) => navigate.push(`/entry/${id}`)}
                   />

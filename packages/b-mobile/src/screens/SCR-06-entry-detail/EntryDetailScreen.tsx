@@ -51,6 +51,7 @@ import {
   IonPage,
   IonHeader,
   IonContent,
+  IonFooter,
   IonRefresher,
   IonRefresherContent,
   IonSpinner,
@@ -75,6 +76,9 @@ import { t } from '../../strings/index.js';
 import { fetchCalendarMonth, fetchHistoryItems } from '../../data/journalDays.js';
 import { openUrl } from '../../platform/browser.js';
 import { resolveImage, invalidateImage } from '../../platform/imageCache.js';
+import { SourceNavBar } from '../../components/SourceNavBar.js';
+import { useSourceNavStore } from '../../state/sourceNavStore.js';
+import { useSourceNavSystemBar } from '../../components/useSourceNavSystemBar.js';
 import { useAppNavigate } from '../../app/routes/useAppNavigate.js';
 import { useSignInPrompt } from '../../app/routes/useSignInPrompt.js';
 import { useOverlay } from '../../app/OverlayProvider.js';
@@ -156,6 +160,12 @@ export function EntryDetailScreen({ entryId, initialReplyToCommentId }: EntryDet
 
   // Coming Back to an entry (say from the author's profile) lands where you were scrolled to, not
   // at the top (b-oss#190). Only once the entry has loaded and given the page its height.
+  // The source-list bar (b-oss#819) shows whenever this screen is on the entry it last drew on.
+  const sourceNavEnabled = useDevicePrefsStore((s) => s.showSourceNavBar);
+  const showSourceNav = useSourceNavStore(
+    (s) => sourceNavEnabled && s.anchor !== null && s.anchor.entryId === entryId,
+  );
+  useSourceNavSystemBar(showSourceNav);
   const scroll = useScrollResume(`entry:${entryId}`, entryState.status === 'loaded');
 
   const [reaction, setReaction] = useState<ReactionOverlay | null>(null);
@@ -541,7 +551,7 @@ export function EntryDetailScreen({ entryId, initialReplyToCommentId }: EntryDet
       <IonHeader>
         <AppHeader title="Entry" variant="back" backHref="/browse" accountIndicator />
       </IonHeader>
-      <IonContent {...scroll}>
+      <IonContent {...scroll} className={showSourceNav ? 'has-source-nav' : undefined}>
         {/* Pull-down at the top reloads the entry and its comments in place (no spinner swap). */}
         <IonRefresher
           slot="fixed"
@@ -748,6 +758,11 @@ export function EntryDetailScreen({ entryId, initialReplyToCommentId }: EntryDet
           </>
         )}
       </IonContent>
+      {showSourceNav && (
+        <IonFooter className="source-nav-footer">
+          <SourceNavBar />
+        </IonFooter>
+      )}
 
       {accountConfirmDialog}
       {signInPrompt.element}

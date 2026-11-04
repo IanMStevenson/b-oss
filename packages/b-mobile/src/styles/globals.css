@@ -526,3 +526,67 @@ ion-item.nav-item-current::before {
 ion-item.nav-item-current::after {
   bottom: 0;
 }
+
+/* Source-list navigation bar (b-oss#819): the entry screen's bottom bar that steps through the grid
+   the entry was opened from. The header's green and depth; the footer's bottom padding clears the
+   system navigation area, which is painted the same green while the bar shows. */
+ion-footer.source-nav-footer {
+  background: var(--brand-fill);
+  padding-bottom: var(--ion-safe-area-bottom, 0px);
+}
+
+ion-footer.source-nav-footer::before {
+  display: none;
+}
+
+.source-nav-bar {
+  display: flex;
+  align-items: stretch;
+  height: 48px;
+  background: var(--brand-fill);
+  color: var(--on-brand-fill);
+}
+
+.source-nav-arrow,
+.source-nav-caption {
+  background: none;
+  border: none;
+  color: inherit;
+  font: inherit;
+}
+
+.source-nav-arrow {
+  flex: 0 0 56px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.source-nav-arrow:disabled {
+  opacity: 0.35;
+}
+
+.source-nav-caption {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  font-weight: 600;
+}
+
+.source-nav-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* The content above the bar needs only its own padding: the footer already clears the inset. */
+ion-content.has-source-nav {
+  --padding-bottom: 0px;
+}
+
+.source-nav-active .system-nav-strip {
+  background: var(--brand-fill);
+}
