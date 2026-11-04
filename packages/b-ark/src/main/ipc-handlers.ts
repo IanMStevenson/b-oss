@@ -51,6 +51,12 @@ import { startServer, stopServer, getServerPort } from './http-server.js';
 import { BackupScheduler, computeNextRun } from './scheduler.js';
 import { writeBViewFiles } from './b-view-files.js';
 import { toCsv } from './log-csv.js';
+import {
+  applyStartWithWindows,
+  enableStartupTask,
+  getStartupTaskInfo,
+  openStartupSettings,
+} from './startup-task.js';
 import { rebuildTrayMenu, refreshTrayIcon } from './tray.js';
 import { showBackupFailedNotification } from './notifications.js';
 import { completedStatus, withOutstanding } from './rag-reasons.js';
@@ -568,6 +574,10 @@ export function registerIpcHandlers(
     emitStoreChanged();
   });
 
+  ipcMain.handle('getStartupTask', () => getStartupTaskInfo());
+  ipcMain.handle('enableStartupTask', () => enableStartupTask());
+  ipcMain.handle('openStartupSettings', () => openStartupSettings());
+
   ipcMain.handle('getBootState', (): BootState => {
     const folder = getBackupFolder();
     if (!folder) return { stage: 'pick-folder' };
@@ -600,9 +610,7 @@ export function registerIpcHandlers(
           ...userDataStore.get('app'),
           startWithWindows: partial.startWithWindows,
         });
-        if (app.isPackaged) {
-          app.setLoginItemSettings({ openAtLogin: partial.startWithWindows });
-        }
+        await applyStartWithWindows(partial.startWithWindows);
         rebuildTrayMenu();
       }
 

@@ -9,7 +9,9 @@
     "identityName": "REPLACE-WITH-IDENTITY-NAME",
     "publisher": "CN=REPLACE_WITH_PARTNER_CENTER_PUBLISHER_ID",
     "publisherDisplayName": "REPLACE_WITH_PUBLISHER_DISPLAY_NAME",
-    "applicationId": "bark"
+    "applicationId": "bark",
+    "customExtensionsPath": "msix/startup-task-extension.xml",
+    "customExtensionsPath": "store/startup-task-extension.xml"
   },
   "publish": null
 }

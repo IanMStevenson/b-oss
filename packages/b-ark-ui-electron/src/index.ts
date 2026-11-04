@@ -20,5 +20,7 @@ export type {
   UserDataStore,
   ScheduleInterval,
   SharedSettingsPartial,
+  StartupTaskInfo,
+  StartupTaskState,
 } from './backend.js';
 export { ElectronBackend } from './electron-backend.js';

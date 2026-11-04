@@ -24,6 +24,7 @@ import {
   ensureAppDefaults,
 } from './store.js';
 import { migrateFromV1IfNeeded } from './migrate-store.js';
+import { reconcileStartWithWindowsOnLaunch } from './startup-task.js';
 
 // Name shown in OS dialogs ("Open b-ark?"), taskbar tooltip, userData dir, etc.
 // In packaged builds electron-builder sets this from productName; in dev we
@@ -184,9 +185,7 @@ void app.whenReady().then(async () => {
     }
   }
 
-  if (app.isPackaged) {
-    app.setLoginItemSettings({ openAtLogin: store.get('app').startWithWindows });
-  }
+  reconcileStartWithWindowsOnLaunch(store.get('app').startWithWindows);
 });
 
 app.on('second-instance', (_event, argv) => {

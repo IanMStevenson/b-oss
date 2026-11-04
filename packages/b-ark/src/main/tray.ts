@@ -2,6 +2,7 @@
 // Copyright (C) 2026 Ian Stevenson
 
 import { Tray, Menu, nativeImage, app, type BrowserWindow } from 'electron';
+import { applyStartWithWindows } from './startup-task.js';
 import path from 'node:path';
 import type Store from 'electron-store';
 import type { UserDataStore } from '@b-oss/b-ark-ui-electron';
@@ -43,9 +44,7 @@ export function createTray(
         click() {
           const next = !store.get('app').startWithWindows;
           store.set('app', { ...store.get('app'), startWithWindows: next });
-          if (app.isPackaged) {
-            app.setLoginItemSettings({ openAtLogin: next });
-          }
+          void applyStartWithWindows(next);
           tray.setContextMenu(buildMenu());
         },
       },
