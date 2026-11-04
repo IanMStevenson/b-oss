@@ -52,7 +52,7 @@ import { BackupScheduler, computeNextRun } from './scheduler.js';
 import { writeBViewFiles } from './b-view-files.js';
 import { toCsv } from './log-csv.js';
 import {
-  applyStartWithWindows,
+  applyStartAtSignIn,
   enableStartupTask,
   getStartupTaskInfo,
   openStartupSettings,
@@ -75,6 +75,16 @@ function delay(ms: number): Promise<void> {
 }
 
 const activeEngines = new Map<string, BackupEngine>();
+
+export function isBackupRunning(): boolean {
+  return activeEngines.size > 0;
+}
+
+/** Set by registerIpcHandlers: flips Scheduled the same way the Settings toggle does (tray menu). */
+let setScheduledImpl: ((enabled: boolean) => Promise<void>) | null = null;
+export function setScheduledEnabled(enabled: boolean): Promise<void> {
+  return setScheduledImpl?.(enabled) ?? Promise.resolve();
+}
 
 // Shared in-flight promise map: manual and scheduled callers awaiting the
 // same id resolve from the same promise rather than racing or skipping.
@@ -557,6 +567,9 @@ export function registerIpcHandlers(
         blockedRoots: getBlockedRoots(),
       });
       const { existing } = await bindBackupFolder(folder);
+      // The folder may bring its own Scheduled value; keep sign-in behaviour in step.
+      await applyScheduledToSignIn();
+      rebuildTrayMenu();
       scheduler.rearm();
       emitStoreChanged();
       return { folder, existingSettings: existing };
@@ -570,9 +583,25 @@ export function registerIpcHandlers(
       blockedRoots: getBlockedRoots(),
     });
     await bindBackupFolder(validated);
+    await applyScheduledToSignIn();
+    rebuildTrayMenu();
     scheduler.rearm();
     emitStoreChanged();
   });
+
+  // Scheduled is the master setting: it also decides start-at-sign-in.
+  async function applyScheduledToSignIn(): Promise<void> {
+    await applyStartAtSignIn(getPortableSettings().schedule.enabled);
+  }
+
+  setScheduledImpl = async (enabled) => {
+    const current = getPortableSettings();
+    await savePortableSettings({ ...current, schedule: { ...current.schedule, enabled } });
+    await applyScheduledToSignIn();
+    rebuildTrayMenu();
+    scheduler.rearm();
+    emitStoreChanged();
+  };
 
   ipcMain.handle('getStartupTask', () => getStartupTaskInfo());
   ipcMain.handle('enableStartupTask', () => enableStartupTask());
@@ -605,12 +634,8 @@ export function registerIpcHandlers(
       };
       await savePortableSettings(next);
 
-      if (partial.startWithWindows !== undefined) {
-        userDataStore.set('app', {
-          ...userDataStore.get('app'),
-          startWithWindows: partial.startWithWindows,
-        });
-        await applyStartWithWindows(partial.startWithWindows);
+      if (next.schedule.enabled !== current.schedule.enabled) {
+        await applyScheduledToSignIn();
         rebuildTrayMenu();
       }
 

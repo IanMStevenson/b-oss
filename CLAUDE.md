@@ -62,7 +62,7 @@ Settings live in two places:
   shared schedule, delay, gap-check, redo, accounts list (identity only), account order,
   and thumbnail size. Follows the folder between machines.
 - **Machine-local** — `userData/b-ark-config.json` (electron-store, schema_version: 2).
-  Holds `backup_folder` path, `app.startWithWindows`, encrypted `tokens` (keyed by
+  Holds `backup_folder` path, `app.autoUpdateEnabled`, encrypted `tokens` (keyed by
   username), and per-account `status` (last_backup_at, RAG, error_message, totals).
 
 The unified log lives at `{backup_folder}/_log.ndjson`. The scheduler is one shared

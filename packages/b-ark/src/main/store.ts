@@ -28,7 +28,7 @@ const DEFAULT_STATUS: AccountStatus = {
 const localDefaults = {
   schema_version: 2,
   backup_folder: '',
-  app: { startWithWindows: true, autoUpdateEnabled: true },
+  app: { autoUpdateEnabled: true },
   tokens: {},
   status: {},
   web_sessions: {},
@@ -45,7 +45,6 @@ export const store = new Store<UserDataStore>({ defaults: localDefaults, name: '
 export function ensureAppDefaults(): void {
   const current = store.get('app') as Partial<UserDataStore['app']> | undefined;
   const merged: UserDataStore['app'] = {
-    startWithWindows: current?.startWithWindows ?? localDefaults.app.startWithWindows,
     autoUpdateEnabled: current?.autoUpdateEnabled ?? localDefaults.app.autoUpdateEnabled,
   };
   store.set('app', merged);

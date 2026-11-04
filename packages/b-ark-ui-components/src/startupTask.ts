@@ -31,8 +31,8 @@ export interface StartupTaskWarning {
 const SETTINGS_PATH = 'Windows Settings → Apps → Startup';
 
 /**
- * The warning to show, or null when nothing is wrong. Only warns when the user wants b-ark to start
- * with Windows (`wanted`): with the setting off, a disabled task is exactly what they asked for.
+ * The warning to show, or null when nothing is wrong. Only warns when the user has Scheduled backups on, which
+ * means b-ark should start with Windows (`wanted`): with the setting off, a disabled task is exactly what they asked for.
  * Every non-null result carries exactly one action.
  */
 export function describeStartupTask(
@@ -48,9 +48,9 @@ export function describeStartupTask(
     case 'disabled':
       return {
         headline: 'b-ark will not start when you sign in to Windows',
-        text: `${consequence} Start with Windows is switched off in Windows.`,
+        text: `${consequence} Starting with Windows is switched off in Windows.`,
         action: 'enable',
-        actionLabel: 'Turn on start with Windows',
+        actionLabel: 'Allow b-ark to start with Windows',
       };
     case 'disabled-by-user':
       return {

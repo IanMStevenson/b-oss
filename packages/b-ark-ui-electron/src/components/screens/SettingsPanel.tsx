@@ -290,7 +290,6 @@ export function SettingsPanel() {
   const [gapCheck, setGapCheck] = useState(firstAcct?.gap_check_days ?? 31);
   const [redo, setRedo] = useState(firstAcct?.redo_count ?? 7);
   const [showInfoOverlay, setShowInfoOverlay] = useState(store?.ui.showInfoOverlay ?? true);
-  const [startWithWindows, setStartWithWindows] = useState(store?.app.startWithWindows ?? true);
   const [autoUpdateEnabled, setAutoUpdateEnabled] = useState(store?.app.autoUpdateEnabled ?? true);
   const [enableWebScrape, setEnableWebScrape] = useState(
     firstAcct?.enable_web_scrape ?? false,
@@ -312,7 +311,6 @@ export function SettingsPanel() {
     setGapCheck(a.gap_check_days);
     setRedo(a.redo_count);
     setShowInfoOverlay(store.ui.showInfoOverlay);
-    setStartWithWindows(store.app.startWithWindows);
     setAutoUpdateEnabled(store.app.autoUpdateEnabled);
     setEnableWebScrape(a.enable_web_scrape ?? false);
     setDownloadHires(a.download_hires ?? false);
@@ -438,9 +436,9 @@ export function SettingsPanel() {
 
           {/* Schedule */}
           <SettingBlock
-            label="Schedule"
+            label="Scheduled backups"
             hint="Shared across all journals"
-            description="When the timer fires, every journal is backed up sequentially in account order."
+            description="When the timer fires, every journal is backed up sequentially in account order. Turning this on means b-ark will start with Windows."
           >
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 4 }}>
@@ -710,25 +708,6 @@ export function SettingsPanel() {
               />
               <span style={{ fontSize: 13, color: 'var(--ink-2)' }}>
                 {showInfoOverlay ? 'On' : 'Off'}
-              </span>
-            </div>
-          </SettingBlock>
-
-          <SettingBlock
-            label="Start with Windows"
-            hint="This device only"
-            description="Open b-ark automatically on login. It stays in the system tray until you open it. Unlike the settings above, this doesn't travel with the backup folder to another machine."
-          >
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-              <PillToggle
-                checked={startWithWindows}
-                onChange={(v) => {
-                  setStartWithWindows(v);
-                  save({ startWithWindows: v });
-                }}
-              />
-              <span style={{ fontSize: 13, color: 'var(--ink-2)' }}>
-                {startWithWindows ? 'On' : 'Off'}
               </span>
             </div>
           </SettingBlock>

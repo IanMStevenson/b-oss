@@ -2,11 +2,10 @@
 // Copyright (C) 2026 Ian Stevenson
 
 import { Tray, Menu, nativeImage, app, type BrowserWindow } from 'electron';
-import { applyStartWithWindows } from './startup-task.js';
 import path from 'node:path';
 import type Store from 'electron-store';
 import type { UserDataStore } from '@b-oss/b-ark-ui-electron';
-import { getWorstRag } from './store.js';
+import { getWorstRag, getPortableSettings } from './store.js';
 
 let rebuilder: (() => void) | null = null;
 let iconRefresher: (() => void) | null = null;
@@ -14,6 +13,7 @@ let iconRefresher: (() => void) | null = null;
 export function createTray(
   getWindow: () => BrowserWindow | null,
   store: Store<UserDataStore>,
+  actions: { onExit: () => void; onToggleScheduled: (enabled: boolean) => void },
 ): Tray {
   function ragIconPath(rag: 'green' | 'amber' | 'red' | null): string {
     const filename =
@@ -37,24 +37,15 @@ export function createTray(
       { label: 'Open b-ark', click: () => getWindow()?.show() },
       { type: 'separator' },
       {
-        label: 'Start with Windows',
+        label: 'Enable scheduled backups',
         type: 'checkbox',
-        checked: store.get('app').startWithWindows,
-        enabled: app.isPackaged,
-        click() {
-          const next = !store.get('app').startWithWindows;
-          store.set('app', { ...store.get('app'), startWithWindows: next });
-          void applyStartWithWindows(next);
-          tray.setContextMenu(buildMenu());
-        },
+        checked: getPortableSettings().schedule.enabled,
+        click: () => actions.onToggleScheduled(!getPortableSettings().schedule.enabled),
       },
       { type: 'separator' },
       {
         label: 'Exit',
-        click: () => {
-          app.isQuitting = true;
-          app.quit();
-        },
+        click: () => actions.onExit(),
       },
     ]);
   }
@@ -78,9 +69,8 @@ export function createTray(
 }
 
 /**
- * Rebuild the tray menu so its Start-with-Windows checkbox reflects the
- * latest value from the local store. Called from ipc-handlers after the
- * Settings panel toggles the setting.
+ * Rebuild the tray menu so its Enable-scheduled-backups checkbox reflects the
+ * current Scheduled setting. Called from ipc-handlers when it changes.
  */
 export function rebuildTrayMenu(): void {
   rebuilder?.();

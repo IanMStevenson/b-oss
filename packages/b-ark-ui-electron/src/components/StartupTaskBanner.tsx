@@ -13,7 +13,8 @@ import { useApp } from '../context/AppContext.js';
 
 export function StartupTaskBanner() {
   const { state, backend } = useApp();
-  const wanted = state.store?.app.startWithWindows ?? false;
+  // Scheduled is the master setting and also decides start-at-sign-in.
+  const wanted = state.store?.accounts[0]?.schedule.enabled ?? false;
   const [info, setInfo] = useState<StartupTaskInfo | null>(null);
   const [busy, setBusy] = useState(false);
 

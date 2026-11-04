@@ -17,6 +17,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ### Changed
 
 - b-ark: updated to Electron 45.
+- b-ark: **Scheduled backups** is now the one setting for background backups. Turning it on also makes b-ark start with Windows (the separate "Start with Windows" setting is gone; the tray item is now "Enable scheduled backups"). With it off, closing the window exits b-ark, asking first if a backup is running; with it on, the tray's Exit asks before disabling scheduled backups.
 
 ## [b-mobile 1.2.2] - 2026-11-03
 
