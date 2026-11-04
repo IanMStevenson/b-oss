@@ -14,6 +14,7 @@ export type {
   AccountConfig,
   RagReason,
   AppStore,
+  StaleBackupNotice,
   LogEntry,
   BackupErrorPayload,
   BackupPhase,

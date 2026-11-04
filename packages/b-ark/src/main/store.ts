@@ -8,6 +8,7 @@ import type {
   AppStore,
   BArkSettings,
   PortableAccount,
+  StaleBackupNotice,
   UserDataStore,
 } from '@b-oss/b-ark-ui-electron';
 import { PortableSettingsManager } from './portable-settings.js';
@@ -46,6 +47,9 @@ export function ensureAppDefaults(): void {
   const current = store.get('app') as Partial<UserDataStore['app']> | undefined;
   const merged: UserDataStore['app'] = {
     autoUpdateEnabled: current?.autoUpdateEnabled ?? localDefaults.app.autoUpdateEnabled,
+    ...(current?.staleAlertIntervals !== undefined
+      ? { staleAlertIntervals: current.staleAlertIntervals }
+      : {}),
   };
   store.set('app', merged);
 }
@@ -350,6 +354,13 @@ export async function deleteAccount(id: string): Promise<void> {
   }
 }
 
+// Session-only: computed once at launch (before the catch-up backup) and dropped on dismiss.
+let staleBackupNotice: StaleBackupNotice | null = null;
+
+export function setStaleBackupNotice(notice: StaleBackupNotice | null): void {
+  staleBackupNotice = notice;
+}
+
 export function getAppStore(): AppStore {
   return {
     accounts: getAccounts(),
@@ -359,6 +370,7 @@ export function getAppStore(): AppStore {
       showInfoOverlay: portableCache.ui.show_info_overlay,
     },
     app: store.get('app'),
+    staleBackupNotice,
   };
 }
 

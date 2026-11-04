@@ -14,6 +14,7 @@ import {
 import { createTray } from './tray.js';
 import { setupAutoUpdater } from './updater.js';
 import { BackupScheduler } from './scheduler.js';
+import { checkStaleBackup, DEFAULT_STALE_ALERT_INTERVALS } from './stale-backup.js';
 import { stopAllServers } from './http-server.js';
 import {
   getAccounts,
@@ -22,6 +23,7 @@ import {
   loadWebSessionStates,
   getPortableSettings,
   ensureAppDefaults,
+  setStaleBackupNotice,
 } from './store.js';
 import { migrateFromV1IfNeeded } from './migrate-store.js';
 import { reconcileStartAtSignInOnLaunch } from './startup-task.js';
@@ -225,6 +227,18 @@ void app.whenReady().then(async () => {
   registerIpcHandlers(() => mainWindow, scheduler);
   setupAutoUpdater();
 
+  // Measure the gap BEFORE rearm(): an overdue backup fires immediately and would reset it.
+  setStaleBackupNotice(
+    checkStaleBackup({
+      accounts: getAccounts(),
+      schedule: getPortableSettings().schedule,
+      intervals: store.get('app').staleAlertIntervals ?? DEFAULT_STALE_ALERT_INTERVALS,
+      now: new Date(),
+      platform: process.platform,
+      // Only the login-item setting is known here; the Store build's startup task is not.
+      startupEnabled: process.windowsStore ? undefined : store.get('app').startWithWindows,
+    }),
+  );
   scheduler.rearm();
 
   for (const account of getAccounts()) {

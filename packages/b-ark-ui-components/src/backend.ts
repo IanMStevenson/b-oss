@@ -84,7 +84,7 @@ export interface AccountStatus {
 export interface UserDataStore {
   schema_version: 2;
   backup_folder: string;
-  app: { autoUpdateEnabled: boolean };
+  app: { autoUpdateEnabled: boolean; staleAlertEnabled?: boolean; staleAlertIntervals?: number };
   tokens: Record<string, string>;
   status: Record<string, AccountStatus>;
   /**
@@ -155,7 +155,22 @@ export interface AppStore {
   };
   app: {
     autoUpdateEnabled: boolean;
+    /** Stale-backup alert threshold in schedule intervals; 0 is off. Electron only; absent = default. */
+    staleAlertIntervals?: number;
   };
+  /** Set at launch when the previous backup was long ago; cleared on dismiss. Electron only. */
+  staleBackupNotice?: StaleBackupNotice | null;
+}
+
+/** Data behind the "b-ark had not backed up for a while" notice; wording is the UI's. */
+export interface StaleBackupNotice {
+  /** The oldest last successful backup across accounts (ISO). */
+  lastBackupAt: string;
+  daysSince: number;
+  /** process.platform of the host, so the UI only offers Windows guidance on Windows. */
+  platform: string;
+  /** Whether b-ark is set to start at sign-in, when known. Absent = unknown. */
+  startupEnabled?: boolean;
 }
 
 export interface LogEntry {
@@ -211,6 +226,7 @@ export interface SharedSettingsPartial {
   thumbnailSizePercent?: number;
   showInfoOverlay?: boolean;
   autoUpdateEnabled?: boolean;
+  staleAlertIntervals?: number;
   enableWebScrape?: boolean;
   downloadHires?: boolean;
 }
@@ -237,6 +253,10 @@ export interface BackendContext {
   dismissOutstanding(accountId: string): Promise<void>;
   /** Start a fresh give-up window for unfetchable entries and run a backup to retry them. */
   retryOutstanding(accountId: string): Promise<void>;
+  /** Hide the stale-backup notice for this session. Electron only. */
+  dismissStaleBackupNotice?(): Promise<void>;
+  /** Open Windows' Startup apps settings. Electron (Windows) only. */
+  openStartupSettings?(): Promise<void>;
 
   openViewer(accountId: string): Promise<void>;
   getViewerUrl(accountId: string): Promise<string>;

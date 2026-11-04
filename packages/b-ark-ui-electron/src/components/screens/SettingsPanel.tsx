@@ -291,9 +291,8 @@ export function SettingsPanel() {
   const [redo, setRedo] = useState(firstAcct?.redo_count ?? 7);
   const [showInfoOverlay, setShowInfoOverlay] = useState(store?.ui.showInfoOverlay ?? true);
   const [autoUpdateEnabled, setAutoUpdateEnabled] = useState(store?.app.autoUpdateEnabled ?? true);
-  const [enableWebScrape, setEnableWebScrape] = useState(
-    firstAcct?.enable_web_scrape ?? false,
-  );
+  const [staleIntervals, setStaleIntervals] = useState(store?.app.staleAlertIntervals ?? 3);
+  const [enableWebScrape, setEnableWebScrape] = useState(firstAcct?.enable_web_scrape ?? false);
   const [downloadHires, setDownloadHires] = useState(firstAcct?.download_hires ?? false);
 
   const [focusedField, setFocusedField] = useState<string | null>(null);
@@ -312,6 +311,7 @@ export function SettingsPanel() {
     setRedo(a.redo_count);
     setShowInfoOverlay(store.ui.showInfoOverlay);
     setAutoUpdateEnabled(store.app.autoUpdateEnabled);
+    setStaleIntervals(store.app.staleAlertIntervals ?? 3);
     setEnableWebScrape(a.enable_web_scrape ?? false);
     setDownloadHires(a.download_hires ?? false);
   }, [store]);
@@ -665,9 +665,9 @@ export function SettingsPanel() {
               }}
             >
               <span style={{ fontSize: 12, color: 'var(--muted)' }}>
-                Always download hires images too, even when the original is already
-                available (a redundant extra copy). A hires image is fetched
-                regardless of this setting whenever the original isn't available.
+                Always download hires images too, even when the original is already available (a
+                redundant extra copy). A hires image is fetched regardless of this setting whenever
+                the original isn't available.
               </span>
               <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                 <PillToggle
@@ -729,6 +729,30 @@ export function SettingsPanel() {
                 {autoUpdateEnabled ? 'On' : 'Off'}
               </span>
             </div>
+          </SettingBlock>
+
+          <SettingBlock
+            label="Warn if backups stop"
+            hint="This device only"
+            description="When b-ark opens, it warns you if the last backup was a long time ago, counted in backup intervals (never less than 3 days). A computer that was switched off is normal, so this is just a prompt to check. Checked at launch."
+          >
+            <select
+              value={staleIntervals}
+              onChange={(e) => {
+                const v = parseInt(e.target.value, 10);
+                setStaleIntervals(v);
+                save({ staleAlertIntervals: v });
+              }}
+              style={{ ...selectStyle, width: 220 }}
+            >
+              <option value={0}>Off</option>
+              {[2, 3, 4, 6, 10].map((n) => (
+                <option key={n} value={n}>
+                  After {n} missed{' '}
+                  {interval === 'daily' ? 'days' : interval === 'weekly' ? 'weeks' : 'months'}
+                </option>
+              ))}
+            </select>
           </SettingBlock>
 
           <SettingBlock label="Accounts" description="Each Blipfoto account is one journal.">

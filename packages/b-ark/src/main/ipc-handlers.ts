@@ -34,6 +34,7 @@ import {
   getAppStore,
   getBackupFolder,
   getPortableSettings,
+  setStaleBackupNotice,
   savePortableSettings,
   bindBackupFolder,
   store as userDataStore,
@@ -531,6 +532,15 @@ export function registerIpcHandlers(
     void shell.openExternal(`http://localhost:${port}/`);
   });
 
+  ipcMain.handle('dismissStaleBackupNotice', () => {
+    setStaleBackupNotice(null);
+    emitStoreChanged();
+  });
+
+  ipcMain.handle('openStartupSettings', async () => {
+    if (process.platform === 'win32') await shell.openExternal('ms-settings:startupapps');
+  });
+
   ipcMain.handle('getViewerUrl', async (_event, id: string): Promise<string> => {
     const account = getAccount(id);
     if (!account?.backup_folder) return '';
@@ -646,6 +656,13 @@ export function registerIpcHandlers(
         });
         // Takes effect at next launch — the updater's check fires once during
         // setupAutoUpdater() on startup, so we don't toggle anything live.
+      }
+
+      if (partial.staleAlertIntervals !== undefined) {
+        userDataStore.set('app', {
+          ...userDataStore.get('app'),
+          staleAlertIntervals: partial.staleAlertIntervals,
+        });
       }
 
       scheduler.rearm();

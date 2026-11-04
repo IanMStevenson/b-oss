@@ -4,7 +4,8 @@
 import type { AccountConfig, NetworkFailure, RagReason } from './backend.js';
 
 /** What the user can do about a reason, from the amber banner. */
-export type ReasonAction = 'sign_in' | 'retry' | 'dismiss' | 'backup_now' | 'status';
+export type ReasonAction =
+  'sign_in' | 'retry' | 'dismiss' | 'backup_now' | 'status' | 'open_startup_settings';
 
 export interface DescribedReason {
   key: string;

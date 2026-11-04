@@ -15,6 +15,7 @@ export type {
   RagReason,
   NetworkFailure,
   AppStore,
+  StaleBackupNotice,
   LogEntry,
   BackupErrorPayload,
   BackupPhase,
@@ -50,6 +51,7 @@ export type {
   StartupTaskAction,
   StartupTaskWarning,
 } from './startupTask.js';
+export { describeStaleBackup } from './staleBackup.js';
 export { describeReasons } from './ragReasons.js';
 export type { DescribedReason, ReasonAction } from './ragReasons.js';
 export { ToastHost } from './ToastHost.js';
