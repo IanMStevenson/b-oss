@@ -115,6 +115,18 @@ describe('ProfileScreen', () => {
     expect(await screen.findByText("Alice's journal")).toBeDefined();
   });
 
+  it('opens the profile picture full size on tap and closes on tap (b-oss#825)', async () => {
+    const { fetchUserProfile } = await import('../../../data/users.js');
+    vi.mocked(fetchUserProfile).mockResolvedValue(aliceProfile);
+    renderScreen('alice');
+    await userEvent.click(
+      await screen.findByRole('button', { name: "View alice's profile picture" }),
+    );
+    const dialog = screen.getByRole('dialog', { name: "alice's profile picture" });
+    await userEvent.click(dialog);
+    expect(screen.queryByRole('dialog', { name: "alice's profile picture" })).toBeNull();
+  });
+
   it("renders another member's profile with a Follow button", async () => {
     const { fetchUserProfile } = await import('../../../data/users.js');
     vi.mocked(fetchUserProfile).mockResolvedValue(aliceProfile);
