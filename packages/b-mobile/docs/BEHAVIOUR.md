@@ -51,8 +51,8 @@ Known Blipfoto API limits: [AppLimitations.md](AppLimitations.md). Paths are rel
   right arrow; the true end of the list greys out the left; no wrapping. At the last loaded entry it
   fetches the next page (and the previous one when a grid had jumped ahead). The caption reads
   "Navigating: " plus the source ("Recent", "Search Results", "pinetrees Faves", "#tag"). Tapping it
-  opens a sheet, with a close (X) at the top right: "Navigating the grid view you arrived from" + where from ("Search: pinetrees"),
-  then Hide navigation bar / Turn off in Settings. It remembers one record: the entry it
+  opens a sheet, with a close (X) at the top right, whose one line is "Navigating: " plus where from ("Recent",
+  `Search "@cyclops kittens"`, `Tag #sunset`, "pinetrees Faves"); then Hide navigation bar / Turn off in Settings. It remembers one record: the entry it
   last drew on. It shows whenever the entry screen is on that entry again by any route (Back,
   journal prev/next, links), is cleared by a source-list grid appearing or by Hide, and never changes
   the setting. Settings → Appearance → "Grid View Navigation Bar" (on by default) turns it off

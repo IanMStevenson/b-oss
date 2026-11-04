@@ -147,7 +147,7 @@ function EntriesTab({
       lastPageIndex={resource.lastPageIndex}
       navSource={{
         label: 'Search Results',
-        detail: `Search: ${trimmed}`,
+        detail: `Search "${trimmed}"`,
         fetchPage: (pageIndex) => fetchSearchEntriesPage(trimmed, pageIndex),
         pageSize: PAGE_SIZE,
       }}

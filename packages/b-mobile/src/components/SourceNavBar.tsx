@@ -106,8 +106,7 @@ export function SourceNavBar() {
           >
             <X size={22} />
           </button>
-          <p className="source-nav-sheet-title">Navigating the grid view you arrived from</p>
-          <p className="source-nav-sheet-source">{anchor.source.detail}</p>
+          <p className="source-nav-sheet-title">Navigating: {anchor.source.detail}</p>
           <IonButton
             expand="block"
             onClick={() => {

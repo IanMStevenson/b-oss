@@ -73,7 +73,7 @@ export function TagEntriesScreen({ tag }: TagEntriesScreenProps) {
             lastPageIndex={resource.lastPageIndex}
             navSource={{
               label: `#${tag}`,
-              detail: `Tag: #${tag}`,
+              detail: `Tag #${tag}`,
               fetchPage: (pageIndex) => fetchTagPage(tag, pageIndex),
               pageSize: PAGE_SIZE,
             }}
