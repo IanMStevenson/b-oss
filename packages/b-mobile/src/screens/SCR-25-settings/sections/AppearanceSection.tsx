@@ -32,6 +32,8 @@ export function AppearanceSection() {
   const setShowZoomBar = useDevicePrefsStore((s) => s.setShowZoomBar);
   const showPagination = useDevicePrefsStore((s) => s.showPagination);
   const setShowPagination = useDevicePrefsStore((s) => s.setShowPagination);
+  const showSourceNavBar = useDevicePrefsStore((s) => s.showSourceNavBar);
+  const setShowSourceNavBar = useDevicePrefsStore((s) => s.setShowSourceNavBar);
   const thumbnailMargins = useDevicePrefsStore((s) => s.thumbnailMargins);
   const setThumbnailMargins = useDevicePrefsStore((s) => s.setThumbnailMargins);
   const photoFit = useDevicePrefsStore((s) => s.photoFit);
@@ -86,6 +88,12 @@ export function AppearanceSection() {
         caption={t('SCR-25.browsing.pagination.caption')}
         checked={showPagination}
         onChange={setShowPagination}
+      />
+      <ToggleRow
+        label="Grid View Navigation Bar"
+        caption="When you open an entry from a grid view, the entry will have a second navigation for the grid. Navigate search results or new entries from your followers without having to keep going back to the grid. Tap its caption to hide it."
+        checked={showSourceNavBar}
+        onChange={setShowSourceNavBar}
       />
       <SegmentRow
         label={t('SCR-25.browsing.margins')}

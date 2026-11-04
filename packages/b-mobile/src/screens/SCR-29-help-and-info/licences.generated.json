@@ -58,7 +58,7 @@
     },
     {
       "name": "@capacitor/android",
-      "version": "8.5.3",
+      "version": "8.6.0",
       "license": "MIT",
       "repository": "https://github.com/ionic-team/capacitor",
       "texts": [2]
@@ -86,7 +86,7 @@
     },
     {
       "name": "@capacitor/core",
-      "version": "8.5.3",
+      "version": "8.6.0",
       "license": "MIT",
       "repository": "https://github.com/ionic-team/capacitor",
       "texts": [2]
@@ -177,21 +177,21 @@
     },
     {
       "name": "@ionic/core",
-      "version": "9.0.9",
+      "version": "9.0.10",
       "license": "MIT",
       "repository": "https://github.com/ionic-team/ionic-framework",
       "texts": [7]
     },
     {
       "name": "@ionic/react",
-      "version": "9.0.9",
+      "version": "9.0.10",
       "license": "MIT",
       "repository": "https://github.com/ionic-team/ionic-framework",
       "texts": [7]
     },
     {
       "name": "@ionic/react-router",
-      "version": "9.0.9",
+      "version": "9.0.10",
       "license": "MIT",
       "repository": "https://github.com/ionic-team/ionic-framework",
       "texts": [7]
@@ -261,7 +261,7 @@
     },
     {
       "name": "@maplibre/vt-pbf",
-      "version": "4.3.2",
+      "version": "4.3.3",
       "license": "MIT",
       "repository": "https://github.com/maplibre/vt-pbf",
       "texts": [17]
@@ -450,14 +450,14 @@
     },
     {
       "name": "lucide-react",
-      "version": "1.61.0",
+      "version": "1.66.0",
       "license": "ISC",
       "repository": "https://github.com/lucide-icons/lucide",
       "texts": [40]
     },
     {
       "name": "maplibre-gl",
-      "version": "6.15.0",
+      "version": "6.16.0",
       "license": "BSD-3-Clause",
       "repository": "https://github.com/maplibre/maplibre-gl-js",
       "texts": [41]
@@ -569,7 +569,7 @@
     },
     {
       "name": "prosemirror-view",
-      "version": "1.42.8",
+      "version": "1.42.9",
       "license": "MIT",
       "repository": "https://code.haverbeke.berlin/prosemirror/prosemirror-view",
       "texts": [51]

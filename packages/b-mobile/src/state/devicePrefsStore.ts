@@ -53,6 +53,9 @@ interface PersistedShape {
    * account-scoped — device-wide like Misc's fields. */
   showZoomBar: boolean;
   showPagination: boolean;
+  /** The bottom bar that steps through the grid an entry was opened from (b-oss#819). Opt-in: off
+   * by default so nobody's entry screen changes until they choose it (Settings → Appearance). */
+  showSourceNavBar: boolean;
   /** 'normal' = today's spacing. 'narrow' keeps the same column count as 'normal' at a given zoom
    * level but shrinks margins/gaps to a few px. 'none' removes margins/gaps entirely, at which
    * point zoom directly controls how many thumbnails fit per row (ThumbnailGrid.tsx's own header
@@ -85,6 +88,7 @@ interface DevicePrefsState extends PersistedShape {
   setSeenFirstRunExplainer: (value: boolean) => void;
   setShowZoomBar: (value: boolean) => void;
   setShowPagination: (value: boolean) => void;
+  setShowSourceNavBar: (value: boolean) => void;
   setThumbnailMargins: (value: PersistedShape['thumbnailMargins']) => void;
   setThumbnailZoomPercent: (value: number) => void;
   setPhotoFit: (value: PersistedShape['photoFit']) => void;
@@ -101,6 +105,7 @@ const defaults: PersistedShape = {
   seenFirstRunExplainer: false,
   showZoomBar: true,
   showPagination: true,
+  showSourceNavBar: false,
   thumbnailMargins: 'none',
   thumbnailZoomPercent: 100,
   photoFit: 'full-width',
@@ -218,6 +223,14 @@ export const useDevicePrefsStore = create<DevicePrefsState>((set) => ({
     });
   },
 
+  setShowSourceNavBar: (value) => {
+    set((prev) => {
+      const shape: PersistedShape = { ...toPersisted(prev), showSourceNavBar: value };
+      persist(shape);
+      return shape;
+    });
+  },
+
   setThumbnailMargins: (value) => {
     set((prev) => {
       const shape: PersistedShape = { ...toPersisted(prev), thumbnailMargins: value };
@@ -269,6 +282,7 @@ function toPersisted(state: PersistedShape): PersistedShape {
     seenFirstRunExplainer: state.seenFirstRunExplainer,
     showZoomBar: state.showZoomBar,
     showPagination: state.showPagination,
+    showSourceNavBar: state.showSourceNavBar,
     thumbnailMargins: state.thumbnailMargins,
     thumbnailZoomPercent: state.thumbnailZoomPercent,
     photoFit: state.photoFit,
