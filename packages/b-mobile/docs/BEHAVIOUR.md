@@ -55,8 +55,8 @@ Known Blipfoto API limits: [AppLimitations.md](AppLimitations.md). Paths are rel
   `Search "@cyclops kittens"`, `Tag #sunset`, "pinetrees Faves"); then Hide navigation bar / Turn off in Settings. It remembers one record: the entry it
   last drew on. It shows whenever the entry screen is on that entry again by any route (Back,
   journal prev/next, links), is cleared by a source-list grid appearing or by Hide, and never changes
-  the setting. Settings → Appearance → "Grid View Navigation Bar" (on by default) turns it off
-  everywhere. Code: `state/sourceNavStore.ts`, `components/SourceNavBar.tsx`.
+  the setting. Settings → Appearance → "Grid View Navigation Bar" (opt-in, off by default) turns it
+  on; with it off the bar never shows. Code: `state/sourceNavStore.ts`, `components/SourceNavBar.tsx`.
 - **Search**: Entries and People tabs, debounced. **Tag entries**: one paged grid. **Map**
   (Leaflet raster tiles, lazy; a top-right button switches to a satellite view with labels and back — Map and location picker; it opens on the road map each time): one page per debounced viewport; `?entry=` opens its popup
   (only that pin); tapping a popup opens the entry; zoom buttons and a my-location button (a blue

@@ -53,8 +53,8 @@ interface PersistedShape {
    * account-scoped — device-wide like Misc's fields. */
   showZoomBar: boolean;
   showPagination: boolean;
-  /** The bottom bar that steps through the grid an entry was opened from (b-oss#819). On by
-   * default; turning it off removes it everywhere. */
+  /** The bottom bar that steps through the grid an entry was opened from (b-oss#819). Opt-in: off
+   * by default so nobody's entry screen changes until they choose it (Settings → Appearance). */
   showSourceNavBar: boolean;
   /** 'normal' = today's spacing. 'narrow' keeps the same column count as 'normal' at a given zoom
    * level but shrinks margins/gaps to a few px. 'none' removes margins/gaps entirely, at which
@@ -105,7 +105,7 @@ const defaults: PersistedShape = {
   seenFirstRunExplainer: false,
   showZoomBar: true,
   showPagination: true,
-  showSourceNavBar: true,
+  showSourceNavBar: false,
   thumbnailMargins: 'none',
   thumbnailZoomPercent: 100,
   photoFit: 'full-width',
