@@ -96,7 +96,7 @@ Known Blipfoto API limits: [AppLimitations.md](AppLimitations.md). Paths are rel
   `Reporting the member <user>, not just this entry: `. Afterwards offers to hide.
 - **Profile** (`/me`, `/user/:u`, one component): tabs About, Entries, Faves, Followers, Following.
   Stat row: entries; Follow/Following/Request sent (others) or Pending requests (own, protected
-  journal); Awards. Report (when they have a visible entry) and Hide/Unhide for others. Tapping the profile picture opens it full size in an overlay (natural size, shrunk to fit, tap to close).
+  journal); Awards. Report (when they have a visible entry) and Hide/Unhide for others. Tapping the profile picture opens it full size in an overlay (natural size, shrunk to fit; tap or Android Back closes).
 - **Followers/Following**: people list; Remove follower on your own followers. **Pending
   requests**: Approve/Refuse, then offers to hide. **Refused followers**: Allow, immediate.
 - **Awards**: whole catalogue from the API; earned = `added_stamp !== null`; `secret` → "Secret".

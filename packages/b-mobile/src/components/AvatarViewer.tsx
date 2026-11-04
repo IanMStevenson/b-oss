@@ -5,10 +5,17 @@
 // it on a profile opens this plain fixed-position backdrop + image — the same approach as
 // AccountSwitcherOverlay, not IonModal. The image shows at its natural size (the API gives one
 // avatar_url, about 300x300) and is only ever shrunk to fit the screen, never enlarged.
-// Tap anywhere (or Escape) to close.
+// Tap anywhere, Escape or the Android Back button closes it (Back is claimed via Ionic's
+// `ionBackButton`, as BrowseBackGuard does, at a priority above it so Back doesn't leave the profile).
 
 import { useEffect } from 'react';
 import { CachedImage } from './CachedImage.js';
+
+// Above BROWSE_BACK_PRIORITY (1); not calling processNextHandler stops the router going back.
+const AVATAR_BACK_PRIORITY = 10;
+interface BackButtonDetail {
+  register: (priority: number, handler: (processNextHandler: () => void) => void) => void;
+}
 
 export function AvatarViewer({
   src,
@@ -24,7 +31,14 @@ export function AvatarViewer({
       if (e.key === 'Escape') onDismiss();
     };
     window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
+    const onBack = (e: Event): void => {
+      (e as CustomEvent<BackButtonDetail>).detail.register(AVATAR_BACK_PRIORITY, () => onDismiss());
+    };
+    document.addEventListener('ionBackButton', onBack);
+    return () => {
+      window.removeEventListener('keydown', onKey);
+      document.removeEventListener('ionBackButton', onBack);
+    };
   }, [onDismiss]);
 
   return (
