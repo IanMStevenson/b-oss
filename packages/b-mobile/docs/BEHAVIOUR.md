@@ -202,7 +202,7 @@ Known Blipfoto API limits: [AppLimitations.md](AppLimitations.md). Paths are rel
   `/accounts`; `reauth-required` → `/accounts?reauth=<id>`. Unread counts are memory only,
   refreshed on launch, account switch and push, and zeroed on opening an inbox.
 - Inboxes: the API marks items read when fetched (comments: all of them), so "new" rows come from
-  the first response only; pull-to-refresh fetches newer items only. Notification tap → entry,
+  the first response only; pull-to-refresh fetches newer items only, and so does the app resuming while the inbox is open (b-oss#821; resumed arrivals are marked new). Notification tap → entry,
   profile, follow requests, or external link. Comment rows: Reply (opens the entry with the reply
   composer open) and a menu with Delete (if allowed), Report, Hide this member.
 - Daily reminder: local notification per read-write account (on/off + time). A publish or edit

@@ -20,6 +20,9 @@ vi.mock('../../../data/notifications.js', async () => {
   return { ...actual, fetchRecentComments };
 });
 
+const { onAppStateChange } = vi.hoisted(() => ({ onAppStateChange: vi.fn() }));
+vi.mock('../../../platform/appState.js', () => ({ onAppStateChange }));
+
 const { deleteComment } = vi.hoisted(() => ({ deleteComment: vi.fn() }));
 vi.mock('../../../flows/commentsFlow.js', () => ({ deleteComment }));
 
@@ -307,5 +310,28 @@ describe('CommentsInboxScreen', () => {
     await waitFor(() => expect(fetchRecentComments).toHaveBeenCalledTimes(2));
     expect(await screen.findByText('a brand new comment')).toBeDefined();
     expect(screen.getAllByText('New')).toHaveLength(1); // still only the original one
+  });
+
+  it('fetches only newer comments when the app resumes (b-oss#821)', async () => {
+    let onState: (active: boolean) => void = () => {};
+    onAppStateChange.mockImplementation((h: (active: boolean) => void) => {
+      onState = h;
+      return () => {};
+    });
+    fetchRecentComments.mockResolvedValueOnce([comment({ comment_id_str: '5', unread: 0 })]);
+    renderScreen();
+    expect(await screen.findByText('lovely light!')).toBeDefined();
+
+    fetchRecentComments.mockResolvedValueOnce([
+      comment({
+        comment_id_str: '6',
+        content: 'fresh comment',
+        content_html: '<p>fresh comment</p>',
+      }),
+    ]);
+    onState(true);
+    expect(await screen.findByText('fresh comment')).toBeDefined();
+    expect(fetchRecentComments).toHaveBeenLastCalledWith('5');
+    expect(screen.getAllByText('New')).toHaveLength(1);
   });
 });
