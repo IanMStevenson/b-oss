@@ -3,7 +3,7 @@
 Source of truth for the text pasted into Partner Center, so what is published can be
 reproduced and updated. Tracked in
 [b-oss#805](https://github.com/IanMStevenson/b-oss/issues/805). Limits are the ones
-Partner Center states for each field. Screenshots live in `screenshots/` beside this file and
+Partner Center states for each field. Screenshots, once taken, live in `screenshots/` beside this file and
 are uploaded directly.
 
 Run `node scripts/check-store-listing.mjs` (repo root) after any edit: it reads the fenced
@@ -109,7 +109,7 @@ No other sign-in, purchase, advertising or network service is involved. Everythi
 ### Category and ratings (suggestions; confirm against the Partner Center dropdowns)
 
 - Category: Productivity (alternative: Utilities & tools; Photo & video is a poor fit, the app archives and views rather than edits). Not confirmed against the live list.
-- Age rating: complete the IARC questionnaire as a utility with no user-generated content *created in the app*, no chat, no in-app purchases, no ads, no violence, sexual content, gambling or location sharing. Caveat for Ian to decide: the viewer shows the user's own downloaded journal content (photos and comments by Blipfoto users), so answer the user-generated-content question the way the form's wording requires; the app itself does not host or share it. Expect a low rating (3+/Everyone) but let the questionnaire decide.
+- Age rating: complete the IARC questionnaire as a utility with no user-generated content _created in the app_, no chat, no in-app purchases, no ads, no violence, sexual content, gambling or location sharing. Caveat for Ian to decide: the viewer shows the user's own downloaded journal content (photos and comments by Blipfoto users), so answer the user-generated-content question the way the form's wording requires; the app itself does not host or share it. Expect a low rating (3+/Everyone) but let the questionnaire decide.
 - Pricing: free. Markets: all.
 - Support contact / website: https://b-oss.dev/b-ark (Ian to confirm the support email to enter).
 
@@ -123,16 +123,9 @@ Checked against the site source on 2026-11-04 (see the PR for findings).
 
 ### Screenshots
 
-Uploaded in Partner Center, from `screenshots/`: PNG, 1366x768 or larger (up to 3840x2160), up to
-10 per listing, 4 recommended. Synthetic fixture and made-up account names; see the PR for how
-they were produced.
-
-| File | Size | Shows |
-| --- | --- | --- |
-| `1-accounts-main.png` | 1920x1080 | Three journals in the sidebar, thumbnail grid, status bar |
-| `2-backup-in-progress.png` | 1920x1080 | A backup running: phase banner and progress |
-| `3-built-in-viewer.png` | 1920x1080 | An entry open in the built-in viewer |
-| `4-settings.png` | 1600x880 | Settings: folder, schedule, delay, gap check, redo |
+TODO: none yet. At least one is required (four or more recommended): PNG, 1366x768 or larger
+(up to 3840x2160), up to 10 per listing. They must be of the real app showing real photos and
+thumbnails, not placeholder images. The first set was removed for using placeholders.
 
 ### Still needed
 
