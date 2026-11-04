@@ -110,7 +110,7 @@ function footer(): HTMLElement {
       ...left,
       note ? h('span', { class: 'st-note', role: 'status' }, note) : null,
     ),
-    h('a', { href: 'how-this-works.html', class: 'st-howlink' }, 'How this works'),
+    h('a', { href: 'how-this-works', class: 'st-howlink' }, 'How this works'),
   );
 }
 

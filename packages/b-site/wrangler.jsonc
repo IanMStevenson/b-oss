@@ -8,7 +8,7 @@
     // Our URLs are the literal `page.html` files (store listings link to them). The default
     // would 307 `/b-api.html` -> `/b-api`, contradicting the canonical and sitemap URLs.
     // With "none", `/` needs the rewrite in public/_redirects to reach index.html.
-    "html_handling": "none",
+    "html_handling": "drop-trailing-slash",
     "not_found_handling": "404-page"
   }
 }
