@@ -48,6 +48,7 @@ on top as overrides.
 | `prefs.seenFirstRunExplainer` | `false` | `false` |
 | `prefs.showZoomBar` | `true` | `true` |
 | `prefs.showPagination` | `true` | `true` |
+| `prefs.showSourceNavBar` | `false` | `false` |
 | `prefs.thumbnailMargins` | `"none"` | `"normal"` |
 | `prefs.thumbnailZoomPercent` | `100` | `100` |
 | `prefs.photoFit` | `"full-width"` | `"capped"` |

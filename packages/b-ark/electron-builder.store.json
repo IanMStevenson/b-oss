@@ -1,0 +1,16 @@
+{
+  "extends": "./electron-builder.json",
+  "win": {
+    "target": [{ "target": "appx", "arch": ["x64"] }],
+    "icon": "resources/icon.ico"
+  },
+  "protocols": [{ "name": "b-ark", "schemes": ["b-ark"] }],
+  "appx": {
+    "identityName": "REPLACE-WITH-IDENTITY-NAME",
+    "publisher": "CN=REPLACE_WITH_PARTNER_CENTER_PUBLISHER_ID",
+    "publisherDisplayName": "REPLACE_WITH_PUBLISHER_DISPLAY_NAME",
+    "applicationId": "bark",
+    "customExtensionsPath": "msix/startup-task-extension.xml"
+  },
+  "publish": null
+}

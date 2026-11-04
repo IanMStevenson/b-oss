@@ -105,3 +105,9 @@ Fixed: default thumbnail crop, and clearer errors when publishing fails.
 ```
 Fixed: tapping a tag now lists its entries. When something can't load, you now get a clear message (offline, or Blipfoto not answering) with Try again and a link to the status page.
 ```
+
+### 1.2.2
+
+```
+Fixed: starred and favourited entries now show as given, the publish confirmation shows your entry's thumbnail, the status bar is green on Android 10 and older, and app links and shared photos work on older devices.
+```

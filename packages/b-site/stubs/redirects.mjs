@@ -19,9 +19,9 @@ const pages = [
 
 /**
  * Keys have no extension: with `build.format: 'file'` Astro writes `b-api.html`, which GitHub Pages
- * serves at both `/b-api` and `/b-api.html`. The root route writes `index.html`.
+ * serves at both `/b-api` and `/b-api.html`; targets are the extensionless URLs. The root route writes `index.html`.
  */
 export const redirects = {
   '/': `${NEW_ORIGIN}/`,
-  ...Object.fromEntries(pages.map((p) => [`/${p}`, `${NEW_ORIGIN}/${p}.html`])),
+  ...Object.fromEntries(pages.map((p) => [`/${p}`, `${NEW_ORIGIN}/${p}`])),
 };

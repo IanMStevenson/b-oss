@@ -2,6 +2,7 @@
 // Copyright (C) 2026 Ian Stevenson
 
 import type { Toast } from './view-types.js';
+import type { StartupTaskInfo } from './startupTask.js';
 
 export type ScheduleInterval = 'daily' | 'weekly' | 'monthly';
 
@@ -83,7 +84,7 @@ export interface AccountStatus {
 export interface UserDataStore {
   schema_version: 2;
   backup_folder: string;
-  app: { startWithWindows: boolean; autoUpdateEnabled: boolean };
+  app: { autoUpdateEnabled: boolean; staleAlertEnabled?: boolean; staleAlertIntervals?: number };
   tokens: Record<string, string>;
   status: Record<string, AccountStatus>;
   /**
@@ -153,9 +154,20 @@ export interface AppStore {
     showInfoOverlay: boolean;
   };
   app: {
-    startWithWindows: boolean;
     autoUpdateEnabled: boolean;
+    /** Stale-backup alert (part of Scheduled). Electron only; absent = on, default threshold. */
+    staleAlertEnabled?: boolean;
+    staleAlertIntervals?: number;
   };
+  /** Set at launch when the previous backup was long ago; cleared on dismiss. Electron only. */
+  staleBackupNotice?: StaleBackupNotice | null;
+}
+
+/** Data behind the "b-ark had not backed up for a while" notice; wording is the UI's. */
+export interface StaleBackupNotice {
+  /** The oldest last successful backup across accounts (ISO). */
+  lastBackupAt: string;
+  daysSince: number;
 }
 
 export interface LogEntry {
@@ -210,8 +222,9 @@ export interface SharedSettingsPartial {
   redo_count?: number;
   thumbnailSizePercent?: number;
   showInfoOverlay?: boolean;
-  startWithWindows?: boolean;
   autoUpdateEnabled?: boolean;
+  staleAlertEnabled?: boolean;
+  staleAlertIntervals?: number;
   enableWebScrape?: boolean;
   downloadHires?: boolean;
 }
@@ -238,6 +251,10 @@ export interface BackendContext {
   dismissOutstanding(accountId: string): Promise<void>;
   /** Start a fresh give-up window for unfetchable entries and run a backup to retry them. */
   retryOutstanding(accountId: string): Promise<void>;
+  /** Hide the stale-backup notice for this session. Electron only. */
+  dismissStaleBackupNotice?(): Promise<void>;
+  /** Turn the stale-backup alert off for good ('Don't show again'). Electron only. */
+  disableStaleBackupAlert?(): Promise<void>;
 
   openViewer(accountId: string): Promise<void>;
   getViewerUrl(accountId: string): Promise<string>;
@@ -268,6 +285,15 @@ export interface BackendContext {
    */
   getAccountAvatar(accountId: string): Promise<string | null>;
   getBootState(): Promise<BootState>;
+  /**
+   * Microsoft Store build only: the Windows startup-task state, or `null` when this build starts
+   * with Windows some other way. Undefined under Chrome.
+   */
+  getStartupTask?(): Promise<StartupTaskInfo | null>;
+  /** Ask Windows to enable the startup task; resolves to the state afterwards. Store build only. */
+  enableStartupTask?(): Promise<StartupTaskInfo | null>;
+  /** Open Windows Settings > Apps > Startup. Store build only. */
+  openStartupSettings?(): Promise<void>;
   getLogs(): Promise<LogEntry[]>;
   exportLogsCsv(filters: LogCsvFilters): Promise<string | null>;
 

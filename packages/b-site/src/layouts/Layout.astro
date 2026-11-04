@@ -18,8 +18,8 @@ interface Props {
 
 const { title, description, nav, narrow = false, lightbox = false, noindex = false } = Astro.props;
 
-// `index.html` is canonically `/`; every other page is its own `.html` URL.
-const canonical = new URL(Astro.url.pathname.replace(/\/index\.html$/, '/'), Astro.site).href;
+// Canonical URLs are extensionless (`/b-ark`); `index.html` is `/`. The `.html` URLs redirect here.
+const canonical = new URL(Astro.url.pathname.replace(/(\/index)?\.html$/, ''), Astro.site).href;
 const socialImage = new URL('assets/b-oss-icon-large.png', Astro.site).href;
 ---
 

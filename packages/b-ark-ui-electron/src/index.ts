@@ -7,6 +7,7 @@ export type {
   AccountConfig,
   RagReason,
   AppStore,
+  StaleBackupNotice,
   BootState,
   LogCsvFilters,
   LogEntry,
@@ -20,5 +21,7 @@ export type {
   UserDataStore,
   ScheduleInterval,
   SharedSettingsPartial,
+  StartupTaskInfo,
+  StartupTaskState,
 } from './backend.js';
 export { ElectronBackend } from './electron-backend.js';

@@ -20,6 +20,9 @@ vi.mock('../../../data/notifications.js', async () => {
   return { ...actual, fetchRecentNotifications };
 });
 
+const { onAppStateChange } = vi.hoisted(() => ({ onAppStateChange: vi.fn() }));
+vi.mock('../../../platform/appState.js', () => ({ onAppStateChange }));
+
 const { openUrl } = vi.hoisted(() => ({ openUrl: vi.fn() }));
 vi.mock('../../../platform/browser.js', () => ({ openUrl }));
 
@@ -218,5 +221,36 @@ describe('NotificationsInboxScreen', () => {
     refresher.dispatchEvent(new CustomEvent('ionRefresh', { detail: { complete: () => {} } }));
     await waitFor(() => expect(fetchRecentNotifications).toHaveBeenCalledWith('5'));
     expect(await screen.findByText('a brand new one')).toBeDefined();
+  });
+
+  it('fetches only newer notifications when the app resumes, and marks them new (b-oss#821)', async () => {
+    let onState: (active: boolean) => void = () => {};
+    onAppStateChange.mockImplementation((h: (active: boolean) => void) => {
+      onState = h;
+      return () => {};
+    });
+    useNotificationCountsStore.setState({ comments: 0, notifications: 0 });
+    fetchRecentNotifications.mockResolvedValueOnce([notification({ notification_id_str: '5' })]);
+    renderScreen();
+    expect(await screen.findByText('started following you')).toBeDefined();
+
+    useNotificationCountsStore.setState({ notifications: 1 });
+    fetchRecentNotifications.mockResolvedValueOnce([
+      notification({
+        notification_id_str: '6',
+        content: 'a push-tapped one',
+        content_html: 'a push-tapped one',
+      }),
+    ]);
+    onState(true);
+    expect(await screen.findByText('a push-tapped one')).toBeDefined();
+    expect(fetchRecentNotifications).toHaveBeenLastCalledWith('5');
+    expect(screen.getAllByText('New')).toHaveLength(1);
+    expect(useNotificationCountsStore.getState().notifications).toBe(0);
+
+    // Going to the background is not a reason to fetch.
+    fetchRecentNotifications.mockClear();
+    onState(false);
+    expect(fetchRecentNotifications).not.toHaveBeenCalled();
   });
 });

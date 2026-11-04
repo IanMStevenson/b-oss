@@ -14,6 +14,7 @@ export type {
   AccountConfig,
   RagReason,
   AppStore,
+  StaleBackupNotice,
   LogEntry,
   BackupErrorPayload,
   BackupPhase,
@@ -23,4 +24,6 @@ export type {
   BootState,
   BackendContext,
   LogCsvFilters,
+  StartupTaskInfo,
+  StartupTaskState,
 } from '@b-oss/b-ark-ui-components';

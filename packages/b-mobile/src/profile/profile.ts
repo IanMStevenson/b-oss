@@ -44,6 +44,9 @@ export interface DevicePrefValues {
    * account-scoped — device-wide like Misc's fields. */
   showZoomBar: boolean;
   showPagination: boolean;
+  /** The bottom bar that steps through the grid an entry was opened from (b-oss#819). Opt-in: off
+   * by default so nobody's entry screen changes until they choose it (Settings → Appearance). */
+  showSourceNavBar: boolean;
   /** 'normal' = today's spacing. 'narrow' keeps the same column count as 'normal' at a given zoom
    * level but shrinks margins/gaps to a few px. 'none' removes margins/gaps entirely, at which
    * point zoom directly controls how many thumbnails fit per row (ThumbnailGrid.tsx's own header
@@ -101,6 +104,7 @@ export const HANDHELD_PREFS: DevicePrefValues = {
   seenFirstRunExplainer: false,
   showZoomBar: true,
   showPagination: true,
+  showSourceNavBar: false,
   thumbnailMargins: 'none',
   thumbnailZoomPercent: 100,
   photoFit: 'full-width',

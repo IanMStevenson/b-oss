@@ -14,7 +14,7 @@
     "@b-oss/b-notify-core": "*"
   },
   "devDependencies": {
-    "@cloudflare/workers-types": "^5.20261024.1",
+    "@cloudflare/workers-types": "^5.20261101.1",
     "vitest": "^5.0.5"
   }
 }

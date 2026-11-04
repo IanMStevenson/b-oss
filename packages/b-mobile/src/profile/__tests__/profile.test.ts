@@ -27,6 +27,7 @@ describe('profile', () => {
       seenFirstRunExplainer: false,
       showZoomBar: true,
       showPagination: true,
+      showSourceNavBar: false,
       thumbnailMargins: 'none',
       thumbnailZoomPercent: 100,
       photoFit: 'full-width',

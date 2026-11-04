@@ -290,11 +290,10 @@ export function SettingsPanel() {
   const [gapCheck, setGapCheck] = useState(firstAcct?.gap_check_days ?? 31);
   const [redo, setRedo] = useState(firstAcct?.redo_count ?? 7);
   const [showInfoOverlay, setShowInfoOverlay] = useState(store?.ui.showInfoOverlay ?? true);
-  const [startWithWindows, setStartWithWindows] = useState(store?.app.startWithWindows ?? true);
   const [autoUpdateEnabled, setAutoUpdateEnabled] = useState(store?.app.autoUpdateEnabled ?? true);
-  const [enableWebScrape, setEnableWebScrape] = useState(
-    firstAcct?.enable_web_scrape ?? false,
-  );
+  const [staleEnabled, setStaleEnabled] = useState(store?.app.staleAlertEnabled ?? true);
+  const [staleIntervals, setStaleIntervals] = useState(store?.app.staleAlertIntervals ?? 3);
+  const [enableWebScrape, setEnableWebScrape] = useState(firstAcct?.enable_web_scrape ?? false);
   const [downloadHires, setDownloadHires] = useState(firstAcct?.download_hires ?? false);
 
   const [focusedField, setFocusedField] = useState<string | null>(null);
@@ -312,8 +311,9 @@ export function SettingsPanel() {
     setGapCheck(a.gap_check_days);
     setRedo(a.redo_count);
     setShowInfoOverlay(store.ui.showInfoOverlay);
-    setStartWithWindows(store.app.startWithWindows);
     setAutoUpdateEnabled(store.app.autoUpdateEnabled);
+    setStaleEnabled(store.app.staleAlertEnabled ?? true);
+    setStaleIntervals(store.app.staleAlertIntervals ?? 3);
     setEnableWebScrape(a.enable_web_scrape ?? false);
     setDownloadHires(a.download_hires ?? false);
   }, [store]);
@@ -438,9 +438,9 @@ export function SettingsPanel() {
 
           {/* Schedule */}
           <SettingBlock
-            label="Schedule"
+            label="Scheduled backups"
             hint="Shared across all journals"
-            description="When the timer fires, every journal is backed up sequentially in account order."
+            description="When the timer fires, every journal is backed up sequentially in account order. Turning this on means b-ark will start with Windows."
           >
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 4 }}>
@@ -560,6 +560,49 @@ export function SettingsPanel() {
             </div>
           </SettingBlock>
 
+          {/* Part of Scheduled: disabled while Scheduled is off. */}
+          <SettingBlock
+            label="Warn if scheduled backups stop"
+            hint="This device only"
+            description="When b-ark opens, it warns you if the last backup was a long time ago, counted in backup intervals (never less than 3 days). A computer that was switched off is normal, so this is just a prompt to check. Checked at launch."
+          >
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 10,
+                opacity: scheduleEnabled ? 1 : 0.4,
+                pointerEvents: scheduleEnabled ? 'auto' : 'none',
+              }}
+              aria-disabled={!scheduleEnabled}
+            >
+              <PillToggle
+                checked={staleEnabled}
+                onChange={(v) => {
+                  setStaleEnabled(v);
+                  save({ staleAlertEnabled: v });
+                }}
+              />
+              <select
+                value={staleIntervals}
+                disabled={!scheduleEnabled || !staleEnabled}
+                onChange={(e) => {
+                  const v = parseInt(e.target.value, 10);
+                  setStaleIntervals(v);
+                  save({ staleAlertIntervals: v });
+                }}
+                style={{ ...selectStyle, width: 220, opacity: staleEnabled ? 1 : 0.5 }}
+              >
+                {[2, 3, 4, 6, 10].map((n) => (
+                  <option key={n} value={n}>
+                    After {n} missed{' '}
+                    {interval === 'daily' ? 'days' : interval === 'weekly' ? 'weeks' : 'months'}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </SettingBlock>
+
           <SettingBlock
             label="Delay"
             hint="Shared across all journals"
@@ -667,9 +710,9 @@ export function SettingsPanel() {
               }}
             >
               <span style={{ fontSize: 12, color: 'var(--muted)' }}>
-                Always download hires images too, even when the original is already
-                available (a redundant extra copy). A hires image is fetched
-                regardless of this setting whenever the original isn't available.
+                Always download hires images too, even when the original is already available (a
+                redundant extra copy). A hires image is fetched regardless of this setting whenever
+                the original isn't available.
               </span>
               <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                 <PillToggle
@@ -710,25 +753,6 @@ export function SettingsPanel() {
               />
               <span style={{ fontSize: 13, color: 'var(--ink-2)' }}>
                 {showInfoOverlay ? 'On' : 'Off'}
-              </span>
-            </div>
-          </SettingBlock>
-
-          <SettingBlock
-            label="Start with Windows"
-            hint="This device only"
-            description="Open b-ark automatically on login. It stays in the system tray until you open it. Unlike the settings above, this doesn't travel with the backup folder to another machine."
-          >
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-              <PillToggle
-                checked={startWithWindows}
-                onChange={(v) => {
-                  setStartWithWindows(v);
-                  save({ startWithWindows: v });
-                }}
-              />
-              <span style={{ fontSize: 13, color: 'var(--ink-2)' }}>
-                {startWithWindows ? 'On' : 'Off'}
               </span>
             </div>
           </SettingBlock>

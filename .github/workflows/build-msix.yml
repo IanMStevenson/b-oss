@@ -1,0 +1,59 @@
+name: Build MSIX (Microsoft Store)
+
+# Manual: builds the unsigned MSIX for Microsoft Store submission and uploads it as an
+# artifact. The Store re-signs it, so no certificate is involved. Identity values come from
+# Partner Center (Product identity); the defaults are placeholders that give a package you
+# can inspect but not submit. See RELEASING.md (Microsoft Store).
+on:
+  workflow_dispatch:
+    inputs:
+      identity_name:
+        description: 'Partner Center Package/Identity/Name'
+        default: 'REPLACE-WITH-IDENTITY-NAME'
+      publisher:
+        description: 'Partner Center Package/Identity/Publisher (CN=...)'
+        default: 'CN=REPLACE_WITH_PARTNER_CENTER_PUBLISHER_ID'
+      publisher_display_name:
+        description: 'Partner Center Package/Properties/PublisherDisplayName'
+        default: 'REPLACE_WITH_PUBLISHER_DISPLAY_NAME'
+
+jobs:
+  build-msix:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '22'
+          cache: 'npm'
+      - name: Generate release version metadata
+        env:
+          RELEASE: '1'
+        run: npm run version:bump
+      - run: npm ci
+      - run: npm audit --omit=dev --audit-level=high
+      - run: npm run build --workspace=packages/b-api
+      - run: npm run build --workspace=packages/backup-engine
+      - run: npm run build --workspace=packages/b-view-backup
+      - run: npm run build --workspace=packages/b-ark-ui-components
+      - run: npm run build --workspace=packages/b-ark-ui-electron
+      - name: Build MSIX
+        env:
+          RELEASE: '1'
+          MAIN_VITE_BLIPFOTO_CLIENT_ID: ${{ secrets.BLIPFOTO_CLIENT_ID }}
+          IDENTITY_NAME: ${{ inputs.identity_name || 'REPLACE-WITH-IDENTITY-NAME' }}
+          PUBLISHER: ${{ inputs.publisher || 'CN=REPLACE_WITH_PARTNER_CENTER_PUBLISHER_ID' }}
+          PUBLISHER_DISPLAY_NAME: ${{ inputs.publisher_display_name || 'REPLACE_WITH_PUBLISHER_DISPLAY_NAME' }}
+        shell: bash
+        run: >
+          npm run dist:store --workspace=packages/b-ark --
+          "--config.appx.identityName=$IDENTITY_NAME"
+          "--config.appx.publisher=$PUBLISHER"
+          "--config.appx.publisherDisplayName=$PUBLISHER_DISPLAY_NAME"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: b-ark-msix
+          path: |
+            packages/b-ark/dist-electron/*.appx
+            packages/b-ark/dist-electron/*.msix
+          if-no-files-found: error

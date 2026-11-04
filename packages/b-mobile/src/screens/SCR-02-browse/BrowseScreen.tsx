@@ -38,6 +38,7 @@ import { fetchUserProfile } from '../../data/users.js';
 import type { Page } from '../../data/usePagedResource.js';
 import { ScrollEdgeHint } from '../../components/ScrollEdgeHint.js';
 import { EntryGrid } from '../../components/EntryGrid.js';
+import type { NavSource } from '../../state/sourceNavStore.js';
 import { useActiveAccount } from '../../state/accountsStore.js';
 import { useAppNavigate } from '../../app/routes/useAppNavigate.js';
 import { getCurrentPosition } from '../../platform/geolocation.js';
@@ -138,7 +139,18 @@ function NearbyByLocation() {
     );
   }
 
-  return <ResourceGrid resource={resource} onSelectEntry={(id) => navigate.push(`/entry/${id}`)} />;
+  return (
+    <ResourceGrid
+      resource={resource}
+      onSelectEntry={(id) => navigate.push(`/entry/${id}`)}
+      navSource={{
+        label: 'Nearby',
+        detail: 'Nearby',
+        fetchPage: (pageIndex) => fetchNearbyPage(pageIndex, coords),
+        pageSize: PAGE_SIZE,
+      }}
+    />
+  );
 }
 
 function ResourceGrid({
@@ -148,8 +160,11 @@ function ResourceGrid({
   resumeKey,
   showCalendar,
   overlayContent,
+  navSource,
 }: {
   resource: ReturnType<typeof usePagedResource<EntryIndex>>;
+  /** Marks the grid as a source list for the bottom navigation bar (b-oss#819). Omitted for Me. */
+  navSource?: NavSource;
   onSelectEntry: (entryId: string) => void;
   totalEntryCount?: number;
   /** Remembers the grid's page so Back from an entry lands on it (b-oss#182). */
@@ -192,6 +207,8 @@ function ResourceGrid({
       resumeKey={resumeKey}
       showCalendar={showCalendar}
       overlayContent={overlayContent}
+      navSource={navSource}
+      lastPageIndex={resource.lastPageIndex}
     />
   );
 }
@@ -200,8 +217,11 @@ function FeedTab({
   fetchPage,
   totalEntryCount,
   resumeKey,
+  label,
 }: {
   fetchPage: (pageIndex: number) => Promise<Page<EntryIndex>>;
+  /** The tab's name, for the bottom navigation bar's caption. */
+  label: string;
   totalEntryCount?: number;
   resumeKey: string;
 }) {
@@ -213,6 +233,7 @@ function FeedTab({
       onSelectEntry={(id) => navigate.push(`/entry/${id}`)}
       totalEntryCount={totalEntryCount}
       resumeKey={resumeKey}
+      navSource={{ label, detail: label, fetchPage, pageSize: PAGE_SIZE }}
     />
   );
 }
@@ -331,19 +352,34 @@ export function BrowseScreen() {
               fetchPage={fetchRecentPage}
               totalEntryCount={RECENT_TOTAL_ENTRIES}
               resumeKey={feedKey('recent')}
+              label="Recent"
             />
           )}
           {tab === 'popular' && (
-            <FeedTab fetchPage={fetchPopularPage} resumeKey={feedKey('popular')} />
+            <FeedTab fetchPage={fetchPopularPage} resumeKey={feedKey('popular')} label="Popular" />
           )}
           {tab === 'following' && (
-            <FeedTab fetchPage={fetchFollowingPage} resumeKey={feedKey('following')} />
+            <FeedTab
+              fetchPage={fetchFollowingPage}
+              resumeKey={feedKey('following')}
+              label="Following"
+            />
           )}
           {tab === 'justme' && <JustMeTab resumeKey={feedKey('justme')} />}
           {tab === 'milestones' && (
-            <FeedTab fetchPage={fetchMilestonesPage} resumeKey={feedKey('milestones')} />
+            <FeedTab
+              fetchPage={fetchMilestonesPage}
+              resumeKey={feedKey('milestones')}
+              label="Milestones"
+            />
           )}
-          {tab === 'new' && <FeedTab fetchPage={fetchNewBlippersPage} resumeKey={feedKey('new')} />}
+          {tab === 'new' && (
+            <FeedTab
+              fetchPage={fetchNewBlippersPage}
+              resumeKey={feedKey('new')}
+              label="New Blippers"
+            />
+          )}
           {tab === 'nearby' && <NearbyTab />}
         </div>
       </IonContent>

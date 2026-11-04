@@ -14,6 +14,7 @@ import {
 import { createTray } from './tray.js';
 import { setupAutoUpdater } from './updater.js';
 import { BackupScheduler } from './scheduler.js';
+import { checkStaleBackup, DEFAULT_STALE_ALERT_INTERVALS } from './stale-backup.js';
 import { stopAllServers } from './http-server.js';
 import {
   getAccounts,
@@ -22,8 +23,13 @@ import {
   loadWebSessionStates,
   getPortableSettings,
   ensureAppDefaults,
+  setStaleBackupNotice,
 } from './store.js';
 import { migrateFromV1IfNeeded } from './migrate-store.js';
+import { reconcileStartAtSignInOnLaunch } from './startup-task.js';
+import { isBackupRunning, setScheduledEnabled } from './ipc-handlers.js';
+import { electronExitDialogs } from './exit-dialogs.js';
+import { resolveTrayExit, resolveWindowClose } from './exit-policy.js';
 
 // Name shown in OS dialogs ("Open b-ark?"), taskbar tooltip, userData dir, etc.
 // In packaged builds electron-builder sets this from productName; in dev we
@@ -59,6 +65,19 @@ if (process.defaultApp) {
 }
 
 app.isQuitting = false;
+
+// True once Windows has told us the session is ending (shutdown / sign-out / restart).
+let sessionEnding = false;
+
+const exitContext = () => ({
+  scheduled: getPortableSettings().schedule.enabled,
+  backupRunning: isBackupRunning(),
+});
+
+function quitApp(): void {
+  app.isQuitting = true;
+  app.quit();
+}
 
 let mainWindow: BrowserWindow | null = null;
 
@@ -125,11 +144,27 @@ function createWindow(): BrowserWindow {
 
   win.once('ready-to-show', () => win.show());
 
+  // Only a user closing the window gets here with isQuitting false: app.quit() (update install,
+  // tray Exit, OS shutdown via before-quit) has already set it, so those closes pass straight
+  // through and never prompt.
+  let closeDialogOpen = false;
+  win.on('session-end', () => {
+    sessionEnding = true;
+  });
   win.on('close', (e) => {
-    if (!app.isQuitting) {
-      e.preventDefault();
-      win.hide();
-    }
+    if (app.isQuitting || sessionEnding) return;
+    e.preventDefault();
+    if (closeDialogOpen) return;
+    closeDialogOpen = true;
+    void resolveWindowClose(exitContext(), electronExitDialogs(win))
+      .then((action) => {
+        if (action === 'hide') win.hide();
+        else if (action === 'exit') quitApp();
+        // 'stay': the user chose Continue Backup; leave the window as it is.
+      })
+      .finally(() => {
+        closeDialogOpen = false;
+      });
   });
 
   const devServerUrl = process.env['ELECTRON_RENDERER_URL'];
@@ -172,10 +207,38 @@ void app.whenReady().then(async () => {
 
   mainWindow = createWindow();
 
-  createTray(() => mainWindow, store);
+  let trayExitDialogOpen = false;
+  createTray(() => mainWindow, store, {
+    onExit: () => {
+      if (trayExitDialogOpen) return;
+      trayExitDialogOpen = true;
+      void resolveTrayExit(exitContext(), electronExitDialogs(mainWindow))
+        .then((quit) => {
+          if (quit) quitApp();
+        })
+        .finally(() => {
+          trayExitDialogOpen = false;
+        });
+    },
+    onToggleScheduled: (enabled) => {
+      void setScheduledEnabled(enabled);
+    },
+  });
   registerIpcHandlers(() => mainWindow, scheduler);
   setupAutoUpdater();
 
+  // Measure the gap BEFORE rearm(): an overdue backup fires immediately and would reset it.
+  setStaleBackupNotice(
+    checkStaleBackup({
+      accounts: getAccounts(),
+      schedule: getPortableSettings().schedule,
+      intervals:
+        store.get('app').staleAlertEnabled === false
+          ? 0
+          : (store.get('app').staleAlertIntervals ?? DEFAULT_STALE_ALERT_INTERVALS),
+      now: new Date(),
+    }),
+  );
   scheduler.rearm();
 
   for (const account of getAccounts()) {
@@ -184,9 +247,8 @@ void app.whenReady().then(async () => {
     }
   }
 
-  if (app.isPackaged) {
-    app.setLoginItemSettings({ openAtLogin: store.get('app').startWithWindows });
-  }
+  // Scheduled is the master setting; sign-in behaviour follows it.
+  reconcileStartAtSignInOnLaunch(getPortableSettings().schedule.enabled);
 });
 
 app.on('second-instance', (_event, argv) => {

@@ -23,9 +23,10 @@ public/                    copied verbatim: site.css, site.js, assets/
 
 - **Change the header, nav or footer once** in `Header.astro` / `Footer.astro`. A new page needs
   a `src/pages/<name>.astro`, plus a `links` entry in `Header.astro` if it belongs in the nav.
-- **URLs are fixed.** `build.format: 'file'` emits `b-ark.html` rather than `b-ark/`, because the
-  Play and Chrome Web Store listings and released b-mobile builds link to the `.html` URLs.
-  Don't rename or move a page without leaving a redirect.
+- **URLs are extensionless** (`b-oss.dev/b-ark`) and canonical. `build.format: 'file'` emits
+  `b-ark.html`; Cloudflare (`html_handling: "drop-trailing-slash"`) serves it at `/b-ark` and
+  redirects `/b-ark.html` there, because the Play and Chrome Web Store listings and released
+  b-mobile builds link to the `.html` URLs. Don't rename or move a page without leaving a redirect.
 - **Links are relative** (`assets/…`, `contact.html`), so the site works from any sub-path.
 - **Styling** is all in `public/site.css` (design tokens are CSS custom properties at the top).
   `site.js` is the click-to-enlarge lightbox, loaded only by pages that pass `lightbox` to `Layout`.
@@ -38,9 +39,7 @@ public/                    copied verbatim: site.css, site.js, assets/
 Cloudflare account as b-push. Two files in `public/` configure it:
 
 - `_headers`: security headers on every response, and a day of caching for `/assets/*`.
-- `_redirects`: the rewrite `/ /index.html 200` and the short link `/b-status` -> `/status.html`.
-  With `html_handling: "none"` (needed so that `/b-api.html` is served as is rather than redirected
-  to `/b-api`) the bare `/` has no file to serve otherwise. `https://b-oss.dev/b-status` is linked
+- `_redirects`: the short link `/b-status` -> `/status`. `https://b-oss.dev/b-status` is linked
   from the apps ("Blipfoto status (unofficial)"), so keep it working if the status page moves.
 
 Check changes locally on Cloudflare's runtime: `npm run build -w @b-oss/b-site`, then
@@ -76,7 +75,7 @@ b-mobile builds link there, so that address stays up **permanently** as redirect
   `PAGES_DEPLOY=true` and Settings -> Pages -> Source = "GitHub Actions"; trigger it from the Actions
   tab (it also runs on pushes that change this package).
 
-Hygiene the build provides: `sitemap-index.xml` (`@astrojs/sitemap`, with the real `.html` URLs),
+Hygiene the build provides: `sitemap-index.xml` (`@astrojs/sitemap`, extensionless URLs),
 `robots.txt`, a canonical link and Open Graph tags per page, and a `404.html`. `site` in
 `astro.config.mjs` is `https://b-oss.dev` (override with `SITE_URL`).
 

@@ -33,6 +33,12 @@ describe('devicePrefsStore — shipped defaults', () => {
     expect(fresh.getState().thumbnailMargins).toBe('none');
     expect(fresh.getState().confirmAccountBeforeReaction).toBe(true);
   });
+
+  it('has the grid-view navigation bar off until the user opts in (b-oss#819)', async () => {
+    vi.resetModules();
+    const { useDevicePrefsStore: fresh } = await import('../devicePrefsStore.js');
+    expect(fresh.getState().showSourceNavBar).toBe(false);
+  });
 });
 
 describe('devicePrefsStore — Phase 8 fields', () => {

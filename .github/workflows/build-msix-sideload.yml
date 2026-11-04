@@ -1,0 +1,67 @@
+name: Build MSIX sideload test (self-signed, NOT for the Store)
+
+# Manual: builds the same MSIX as build-msix.yml but with a throwaway identity, signed with a
+# throwaway self-signed certificate, so it can be installed on a Windows PC for testing (start with
+# Windows, protocol, etc). The artifact is for testing only and must never be submitted to the Store:
+# use build-msix.yml for that. The private key never leaves this job; only the public .cer is uploaded.
+on:
+  workflow_dispatch:
+
+jobs:
+  build-msix-sideload:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '22'
+          cache: 'npm'
+      - name: Generate release version metadata
+        env:
+          RELEASE: '1'
+        run: npm run version:bump
+      - run: npm ci
+      - run: npm run build --workspace=packages/b-api
+      - run: npm run build --workspace=packages/backup-engine
+      - run: npm run build --workspace=packages/b-view-backup
+      - run: npm run build --workspace=packages/b-ark-ui-components
+      - run: npm run build --workspace=packages/b-ark-ui-electron
+      - name: Create self-signed certificate
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path sideload | Out-Null
+          $cert = New-SelfSignedCertificate -Type Custom -Subject 'CN=b-ark-sideload-test' `
+            -KeyUsage DigitalSignature -FriendlyName 'b-ark sideload test' `
+            -CertStoreLocation 'Cert:\CurrentUser\My' `
+            -TextExtension @('2.5.29.37={text}1.3.6.1.5.5.7.3.3', '2.5.29.19={text}')
+          $pw = ConvertTo-SecureString -String ([guid]::NewGuid().ToString()) -Force -AsPlainText
+          Export-PfxCertificate -Cert $cert -FilePath sideload\test.pfx -Password $pw | Out-Null
+          Export-Certificate -Cert $cert -FilePath sideload\b-ark-sideload-test.cer | Out-Null
+          "PFX_PASSWORD=$([System.Net.NetworkCredential]::new('', $pw).Password)" | Out-File -Append -Encoding utf8 $env:GITHUB_ENV
+      - name: Build MSIX
+        env:
+          RELEASE: '1'
+          MAIN_VITE_BLIPFOTO_CLIENT_ID: ${{ secrets.BLIPFOTO_CLIENT_ID }}
+        shell: bash
+        run: >
+          npm run dist:store --workspace=packages/b-ark --
+          "--config.appx.identityName=ImsTest.b-ark"
+          "--config.appx.publisher=CN=b-ark-sideload-test"
+          "--config.appx.publisherDisplayName=b-ark sideload test"
+      - name: Sign MSIX
+        shell: pwsh
+        run: |
+          $signtool = Get-ChildItem 'C:\Program Files (x86)\Windows Kits\10\bin\*\x64\signtool.exe' |
+            Sort-Object FullName -Descending | Select-Object -First 1
+          $appx = Get-ChildItem packages\b-ark\dist-electron\*.appx | Select-Object -First 1
+          & $signtool.FullName sign /fd SHA256 /f sideload\test.pfx /p $env:PFX_PASSWORD $appx.FullName
+          if ($LASTEXITCODE -ne 0) { throw 'signtool failed' }
+          Copy-Item $appx.FullName sideload\b-ark-sideload-test.appx
+          Remove-Item sideload\test.pfx
+      - uses: actions/upload-artifact@v4
+        with:
+          name: b-ark-msix-sideload-test
+          path: |
+            sideload/b-ark-sideload-test.appx
+            sideload/b-ark-sideload-test.cer
+          if-no-files-found: error
