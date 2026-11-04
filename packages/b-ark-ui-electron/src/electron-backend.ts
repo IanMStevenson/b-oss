@@ -28,6 +28,8 @@ declare global {
       cancelBackup(id: string): Promise<void>;
       dismissOutstanding(id: string): Promise<void>;
       retryOutstanding(id: string): Promise<void>;
+      dismissStaleBackupNotice(): Promise<void>;
+      disableStaleBackupAlert(): Promise<void>;
       openViewer(id: string): Promise<void>;
       getViewerUrl(id: string): Promise<string>;
       pickFolder(): Promise<string | null>;
@@ -62,6 +64,8 @@ export class ElectronBackend implements BackendContext {
   cancelBackup = (id: string) => window.api.cancelBackup(id);
   dismissOutstanding = (id: string) => window.api.dismissOutstanding(id);
   retryOutstanding = (id: string) => window.api.retryOutstanding(id);
+  dismissStaleBackupNotice = () => window.api.dismissStaleBackupNotice();
+  disableStaleBackupAlert = () => window.api.disableStaleBackupAlert();
   openViewer = (id: string) => window.api.openViewer(id);
   getViewerUrl = (id: string) => window.api.getViewerUrl(id);
   pickFolder = () => window.api.pickFolder();

@@ -7,6 +7,7 @@ export type {
   AccountConfig,
   RagReason,
   AppStore,
+  StaleBackupNotice,
   BootState,
   LogCsvFilters,
   LogEntry,

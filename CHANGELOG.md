@@ -5,6 +5,10 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Added
+
+- b-ark: a new "Warn if scheduled backups stop" setting, part of Scheduled backups. If b-ark opens and the last backup was a long time ago (3 backup intervals by default, never under 3 days), a notice says so, with Dismiss and "Don't show again". A computer that was off is normal; the notice is only a prompt to check.
+
 ## [1.0.7] - 2026-11-03
 
 ### Added
@@ -17,6 +21,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ### Changed
 
 - b-ark: updated to Electron 45.
+- b-ark: **Scheduled backups** is now the one setting for background backups. Turning it on also makes b-ark start with Windows (the separate "Start with Windows" setting is gone; the tray item is now "Enable scheduled backups"). With it off, closing the window exits b-ark, asking first if a backup is running; with it on, the tray's Exit asks before disabling scheduled backups.
 
 ## [b-mobile 1.2.2] - 2026-11-03
 

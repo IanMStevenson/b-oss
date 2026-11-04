@@ -49,7 +49,7 @@ function storeWith(accounts: AccountConfig[]): AppStore {
       accountOrder: accounts.map((a) => a.id),
       showInfoOverlay: true,
     },
-    app: { startWithWindows: false, autoUpdateEnabled: false },
+    app: { autoUpdateEnabled: false },
   };
 }
 

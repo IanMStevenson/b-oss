@@ -266,10 +266,12 @@ import Hero from '../components/Hero.astro';
             </td>
           </tr>
           <tr>
-            <td>Schedule</td>
+            <td>Scheduled backups</td>
             <td>
               Enable or disable automated backups, and set the start date, time of day, and
               interval (Daily / Weekly / Monthly). This schedule is shared across all accounts.
+              Turning it on means b-ark starts with Windows, opening silently to the system
+              tray. With it off, closing the window exits b-ark.
             </td>
           </tr>
           <tr>
@@ -292,13 +294,6 @@ import Hero from '../components/Hero.astro';
             <td>
               How many of your most-recent entries b-ark re-downloads on every run, to pick up
               any edits to captions, titles, or comments since the last backup.
-            </td>
-          </tr>
-          <tr>
-            <td>Start with Windows</td>
-            <td>
-              When enabled, b-ark opens silently to the system tray each time you log in, so
-              scheduled backups keep running without you having to remember to launch the app.
             </td>
           </tr>
           <tr>

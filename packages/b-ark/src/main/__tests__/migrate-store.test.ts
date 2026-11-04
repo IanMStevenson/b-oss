@@ -40,9 +40,8 @@ describe('migrateV1Shape (pure helper)', () => {
 
   it('one-account with folder → that folder is canonical', () => {
     const a = makeAccount({ id: 'acc-1', backup_folder: 'D:/data/b-ark' });
-    const result = migrateV1Shape({ accounts: [a], app: { startWithWindows: false } });
+    const result = migrateV1Shape({ accounts: [a] });
     expect(result.canonicalFolder).toBe('D:/data/b-ark');
-    expect(result.startWithWindows).toBe(false);
     expect(result.portableSettings.accounts).toEqual([
       {
         id: 'acc-1',

@@ -60,19 +60,19 @@ const controller: StartupTaskController = createStartupTaskController(
 
 let launchReconcile: Promise<unknown> = Promise.resolve();
 
-/** Make the login behaviour match the user's setting. Store: startup task; otherwise: Run key. */
-export async function applyStartWithWindows(wanted: boolean): Promise<void> {
+/** Make the sign-in behaviour match Scheduled (the master setting). Store: startup task; otherwise: Run key. */
+export async function applyStartAtSignIn(wanted: boolean): Promise<void> {
   if (isStoreBuild()) {
     const info = await controller.set(wanted);
-    log.info(`Startup task state after applying startWithWindows=${wanted}: ${info.state}`);
+    log.info(`Startup task state after applying scheduled=${wanted}: ${info.state}`);
   } else if (app.isPackaged) {
     app.setLoginItemSettings({ openAtLogin: wanted });
   }
 }
 
 /** At launch: reconcile once, and let the renderer's first state read wait for it. */
-export function reconcileStartWithWindowsOnLaunch(wanted: boolean): void {
-  launchReconcile = applyStartWithWindows(wanted).catch((err: unknown) =>
+export function reconcileStartAtSignInOnLaunch(wanted: boolean): void {
+  launchReconcile = applyStartAtSignIn(wanted).catch((err: unknown) =>
     log.warn('Startup reconcile failed', err),
   );
 }

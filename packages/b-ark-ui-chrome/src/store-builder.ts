@@ -147,7 +147,7 @@ export function buildAppStore({
       accountOrder: token ? [token.username] : [],
       showInfoOverlay: settings.showInfoOverlay ?? true,
     },
-    app: { startWithWindows: false, autoUpdateEnabled: false },
+    app: { autoUpdateEnabled: false },
   };
 }
 
