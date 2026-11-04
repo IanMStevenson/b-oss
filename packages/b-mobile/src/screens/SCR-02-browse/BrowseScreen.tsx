@@ -186,6 +186,7 @@ function ResourceGrid({
       showCalendar={showCalendar}
       overlayContent={overlayContent}
       navSource={navSource}
+      lastPageIndex={resource.lastPageIndex}
     />
   );
 }

@@ -70,6 +70,7 @@ export function TagEntriesScreen({ tag }: TagEntriesScreenProps) {
             onSeek={resource.seekTo}
             onLoadBefore={resource.loadBefore}
             resumeKey={resumeKey}
+            lastPageIndex={resource.lastPageIndex}
             navSource={{
               label: `#${tag}`,
               detail: `Tag: #${tag}`,

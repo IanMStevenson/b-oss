@@ -156,6 +156,7 @@ function GridTab({
         resumeKey={resumeKey}
         showCalendar={showCalendar}
         overlayContent={showCalendar ? 'date-title' : 'journal'}
+        lastPageIndex={resource.lastPageIndex}
         navSource={
           navLabel ? { label: navLabel, detail: navLabel, fetchPage, pageSize } : undefined
         }

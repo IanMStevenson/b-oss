@@ -99,6 +99,9 @@ interface EntryGridProps {
    * bottom bar that steps through this list, and this grid appearing clears any earlier one
    * (b-oss#819). Omit for a single journal's grid, where journal navigation does the same job. */
   navSource?: NavSource;
+  /** `resource.lastPageIndex`: the API page the last loaded entry came from, so the navigation bar
+   * fetches exactly the next page rather than guessing it from a count. Pair with `navSource`. */
+  lastPageIndex?: number;
 }
 
 export function EntryGrid({
@@ -115,6 +118,7 @@ export function EntryGrid({
   showCalendar = false,
   overlayContent = 'journal',
   navSource,
+  lastPageIndex = 0,
 }: EntryGridProps) {
   const hiddenMembers = useHiddenMembers();
   const navigate = useAppNavigate();
@@ -133,7 +137,9 @@ export function EntryGrid({
 
   function handleSelect(entryId: string): void {
     if (navSource && showSourceNavBar) {
-      useSourceNavStore.getState().begin(navSource, entries, entriesOffset ?? 0, hasMore, entryId);
+      useSourceNavStore
+        .getState()
+        .begin(navSource, entries, entriesOffset ?? 0, lastPageIndex, hasMore, entryId);
     }
     onSelectEntry(entryId);
   }

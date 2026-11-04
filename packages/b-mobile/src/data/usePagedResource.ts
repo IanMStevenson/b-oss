@@ -57,6 +57,8 @@ export interface PagedResourceState<T> {
   loadingMore: boolean;
   loadMore: () => void;
   refresh: () => void;
+  /** The API page index of the last page loaded into `items` (0 for the first page). */
+  lastPageIndex: number;
   /** Absolute index of `items[0]` in the full server-side feed — 0 except right after `seekTo()`
    * re-anchors the loaded window somewhere else. */
   windowStart: number;
@@ -277,5 +279,6 @@ export function usePagedResource<T>(
     loadBefore,
     seeking,
     seekTo,
+    lastPageIndex: pageIndexRef.current,
   };
 }

@@ -33,6 +33,8 @@ interface Anchor {
   ids: string[];
   /** Absolute index of `ids[0]` in the full feed (non-zero after the grid seeked). */
   windowStart: number;
+  /** API page index of the last page loaded into `ids`; the next fetch forward is this + 1. */
+  lastPageIndex: number;
   /** More entries exist after the last loaded one. */
   hasMore: boolean;
   /** The entry the bar last drew on. */
@@ -48,6 +50,7 @@ interface SourceNavState {
     source: NavSource,
     entries: readonly EntryIndex[],
     windowStart: number,
+    lastPageIndex: number,
     hasMore: boolean,
     entryId: string,
   ) => void;
@@ -64,9 +67,16 @@ export const useSourceNavStore = create<SourceNavState>((set, get) => ({
   anchor: null,
   loading: false,
 
-  begin: (source, entries, windowStart, hasMore, entryId) =>
+  begin: (source, entries, windowStart, lastPageIndex, hasMore, entryId) =>
     set({
-      anchor: { source, ids: entries.map((e) => e.entry_id), windowStart, hasMore, entryId },
+      anchor: {
+        source,
+        ids: entries.map((e) => e.entry_id),
+        windowStart,
+        lastPageIndex,
+        hasMore,
+        entryId,
+      },
       loading: false,
     }),
 
@@ -81,10 +91,12 @@ export const useSourceNavStore = create<SourceNavState>((set, get) => ({
     let target = start.ids[at + direction];
     if (target === undefined) {
       const forward = direction === 1;
-      if (forward ? !start.hasMore : start.windowStart <= 0) return null;
-      const pageIndex = forward
-        ? (start.windowStart + start.ids.length) / start.source.pageSize
-        : Math.max(0, start.windowStart / start.source.pageSize - 1);
+      // `windowStart` is always `pageIndex * pageSize` (usePagedResource only ever sets it that
+      // way), so the page before the window is a whole number; guard anyway rather than fetch a
+      // fractional page index.
+      const backIndex = start.windowStart / start.source.pageSize - 1;
+      if (forward ? !start.hasMore : !Number.isInteger(backIndex) || backIndex < 0) return null;
+      const pageIndex = forward ? start.lastPageIndex + 1 : backIndex;
       set({ loading: true });
       let page: Page<EntryIndex>;
       try {
@@ -99,15 +111,26 @@ export const useSourceNavStore = create<SourceNavState>((set, get) => ({
         set({ loading: false });
         return null;
       }
+      // The server clamps a too-deep page index and answers with the deepest page it has: a repeat,
+      // not new entries. Treat that as the end of the list (as usePagedResource.loadMore does).
+      if (page.index !== undefined && page.index !== pageIndex) {
+        set({ anchor: { ...now, hasMore: forward ? false : now.hasMore }, loading: false });
+        return null;
+      }
       const known = new Set(now.ids);
       const fresh = page.items.map((e) => e.entry_id).filter((id) => !known.has(id));
       const ids = forward ? [...now.ids, ...fresh] : [...fresh, ...now.ids];
-      const windowStart = forward ? now.windowStart : Math.max(0, now.windowStart - fresh.length);
-      const hasMore = forward ? page.more : now.hasMore;
       const nowAt = ids.indexOf(now.entryId);
       target = ids[nowAt + direction];
       set({
-        anchor: { ...now, ids, windowStart, hasMore, entryId: target ?? now.entryId },
+        anchor: {
+          ...now,
+          ids,
+          windowStart: forward ? now.windowStart : pageIndex * start.source.pageSize,
+          lastPageIndex: forward ? pageIndex : now.lastPageIndex,
+          hasMore: forward ? page.more : now.hasMore,
+          entryId: target ?? now.entryId,
+        },
         loading: false,
       });
       return target ?? null;
