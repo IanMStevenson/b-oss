@@ -1162,6 +1162,19 @@ p.st-sub {
 .st-refresh:hover {
   opacity: 0.75;
 }
+.st-reload {
+  margin-left: 6px;
+  padding: 6px 12px;
+  border: 1px solid currentColor;
+  border-radius: 6px;
+  background: none;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+.st-reload:hover {
+  opacity: 0.75;
+}
 .st-foot-left {
   display: inline-flex;
   align-items: center;
