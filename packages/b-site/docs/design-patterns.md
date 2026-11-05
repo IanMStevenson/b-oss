@@ -9,7 +9,7 @@ and say why in the PR. No page-local styling (`style="..."`) for anything that c
 
 ## Page recipes
 
-### Product page (b-ark, b-api; b-mobile needs checking against this)
+### Product page (b-ark, b-api, b-mobile)
 
 This is the **target recipe**, not a description of every page today. Known differences on the
 integration branch: `b-ark` styles its per-variant "Get it" labels inline, and `b-api` has no contact
@@ -22,7 +22,7 @@ band and titles its section "Get b-api". Bring them in line when those pages are
 4. *(b-ark only)* a "which one?" comparison section, linking to `b-ark-versions`.
 5. **Get it** (`section.block#download`, eyebrow "Get it"): rows of **tri-link cards** (see below), one
    row per product variant, each with a small eyebrow label ("b-ark · Windows desktop").
-6. **CtaBand**: "Contact us with feedback, suggestions and bugs." (Not on b-mobile yet.)
+6. **CtaBand**: "Contact us with feedback, suggestions and bugs." (b-mobile gets it too; Ian confirmed b-mobile follows this recipe.)
 
 The "Get it" cards are the page's calls to action and always come last. Nothing about getting the
 product is above the fold except the page's own navigation.
@@ -90,7 +90,5 @@ Infrastructure that stays easy to reach: contact form, privacy policies, b-statu
 
 ## Open questions
 
-- b-mobile: it has not had the contact band or the intro-plus-screenshot-plus-Get-it rhythm; is
-  the recipe above right for it, or does it want something of its own?
 - Homepage: how b-ark-chrome, b-status and the developer links (repo, b-api) fit the app-card
   pattern. Being worked in the homepage proposal ([b-oss#839](https://github.com/IanMStevenson/b-oss/issues/839)).
