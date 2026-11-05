@@ -37,7 +37,7 @@ Back up your Blipfoto journal, entries and photos, to a folder on your own PC, a
 ```
 b-ark keeps a complete copy of your Blipfoto journal on your own PC.
 
-Sign in with your Blipfoto account, choose a folder, and b-ark downloads every entry: the photo, title, description, tags, comments and details. After that it keeps your copy up to date on a schedule you set, quietly in the background, so posts you make from your phone are backed up too. b-ark can start with Windows. [IAN TO CONFIRM once the startup-at-sign-in change lands]
+Sign in with your Blipfoto account, choose a folder, and b-ark downloads every entry: the photo, title, description, tags, comments and details. After that it keeps your copy up to date on a schedule you set, quietly in the background, so posts you make from your phone are backed up too. Turn on scheduled backups and b-ark starts with Windows, so backups run without you opening it.
 
 Backup
 - Downloads your entries and their images into a folder you choose, anywhere on your PC, including a cloud-synced folder.
@@ -99,7 +99,7 @@ Partner Center's "Notes for certification" field. Its character limit was not co
 from Microsoft's docs; the checker holds this to 1,500 characters to be safe.
 
 ```
-b-ark backs up a user's own Blipfoto journal, so it needs a Blipfoto account and an internet connection; without one only the empty welcome screens are visible. [IAN TO CONFIRM: test-account details, if any, go in this field in Partner Center only, never in this repository.]
+b-ark backs up a user's own Blipfoto journal, so it needs a Blipfoto account and an internet connection; without one only the empty welcome screens are visible. Test-account details, if any, go in this field in Partner Center only, never in this repository.
 
 What to expect: on first launch b-ark asks for a backup folder (any empty folder). "Add account" opens the default browser on Blipfoto's authorisation page; after approving, the browser hands back to b-ark through its b-ark:// link and the journal appears in the sidebar. "Backup now" then downloads entries; thumbnails appear as they arrive and a progress banner shows the phase. The gear icon opens settings (schedule, folder, delay). Closing the window hides b-ark to the system tray; Exit in the tray menu quits it.
 
