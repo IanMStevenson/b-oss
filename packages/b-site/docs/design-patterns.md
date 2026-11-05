@@ -90,7 +90,7 @@ Its own styling, every class prefixed `st-`; see [`status-page.md`](status-page.
 | Tinted band | `.bands`, `.band-tint` | Homepage sections: full-width tint from design tokens, no markup outside the page column. A `CtaBand` directly inside drops its own box. |
 | Button | `.btn`, `.btn.primary` | One primary action per block. A store badge counts as the primary action, so "Learn more" beside one is a plain `.btn`, even while the badge says "coming soon". |
 | Band | `CtaBand.astro` | One line and one button. With no props it is the contact band, the last thing before the footer. Slot text plus `href` and `label` point it elsewhere (b-status on the homepage). |
-| Header, footer | `Header.astro`, `Footer.astro` | Nav and footer links are defined once, there. Nav: Home, b-ark, b-mobile, Status, About, Contact. Footer: About, Status, Privacy, Contact, GitHub. |
+| Header, footer | `Header.astro`, `Footer.astro` | Nav and footer links are defined once, there. Nav: Home, b-ark, b-mobile, b-api, Status, About, Contact. Footer: About, Status, Privacy, Contact, GitHub. |
 
 Design tokens (colours, radius, shadow) are CSS custom properties at the top of `public/site.css`.
 Narrow screens: layouts collapse at 820px, 720px, 640px, 520px and 420px; check a phone width before presenting.
@@ -99,7 +99,7 @@ Narrow screens: layouts collapse at 820px, 720px, 640px, 520px and 420px; check 
 
 - Aimed at non-technical readers who know blipfoto. Short sentences, no jargon, no history.
 - Names are lowercase and hyphenated: b-ark, b-mobile, b-oss. So is "blipfoto", always; avoid
-  starting a sentence with it. Older copy still says "Blipfoto"; do not hunt for it.
+  starting a sentence with it. Older copy still says "Blipfoto" until a separate site-wide sweep.
 - Don't promise what isn't live. A store that isn't live shows "coming soon"; flipping it live is a
   one-line change in `src/stores.ts`.
 - Existing URLs never change (they are linked from the stores and the apps). See the README.
@@ -116,8 +116,3 @@ Narrow screens: layouts collapse at 820px, 720px, 640px, 520px and 420px; check 
 
 Infrastructure that stays easy to reach: contact form, privacy policies, b-status, and the repo
 (for co-developers).
-
-## Open questions
-
-- Whether b-api returns to the top nav.
-- Whether to change existing "Blipfoto" copy across the site to lowercase.
