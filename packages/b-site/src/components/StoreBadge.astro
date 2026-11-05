@@ -16,6 +16,10 @@ const label = Astro.props.label ?? product;
 const entry = (STORES[product] as Partial<Record<StoreKey, StoreEntry>>)[store];
 if (!entry) throw new Error(`No ${store} entry for ${product} in src/stores.ts`);
 const storeName = STORE_NAMES[store];
+// At launch the real Microsoft badge needs an artwork branch below; fail the build until it has one.
+if (entry.state === 'live' && store === 'microsoft') {
+  throw new Error('Add the official Microsoft Store badge to StoreBadge.astro before marking it live.');
+}
 ---
 
 {
