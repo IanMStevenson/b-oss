@@ -13,6 +13,8 @@ import { h, s, setChildren } from './dom';
 import { renderHistory } from './history';
 import { renderLanes } from './lanes';
 import {
+  isStale,
+  MINUTE,
   nextAllowedFetch,
   nextAutoFetchAt,
   REFETCH_JITTER_MS,
@@ -26,6 +28,10 @@ import { initShare } from './share';
 import { INCIDENT_PAGE, renderIncidents, renderUptime } from './tables';
 import type { StatusSnapshot } from './types';
 
+/** A fetch that takes longer than this is abandoned (and counts as a failure). */
+const FETCH_TIMEOUT_MS = 15_000;
+/** Wake-ups (focus, online, ...) fetch at most this often, so a flurry of events is one request. */
+const WAKE_GAP_MS = 5_000;
 const DEFAULT_URL = 'https://b-status.b-oss.workers.dev/v1/status';
 
 /** Settings handed in by the page (status.astro reads the build-time PUBLIC_* variables, so no
@@ -57,6 +63,8 @@ let lastFetchAt: number | null = null;
 let shown = INCIDENT_PAGE;
 let note = '';
 let busy = false;
+/** The in-flight fetch, so waking from a freeze can abandon one that will never settle. */
+let inflight: AbortController | undefined;
 let failures = 0;
 /** True for a `?fixture=` preview: there is no service to poll. */
 let fixtureMode = false;
@@ -97,6 +105,17 @@ function footer(): HTMLElement {
     void load(true);
   });
   const left: (string | HTMLElement | null)[] = [];
+  if (snap && !busy && pageAsleep(now)) {
+    // The tab missed its fetches (frozen or discarded): say so, with a way out that always works.
+    const reload = h('button', { type: 'button', class: 'st-reload' }, 'Reload');
+    reload.addEventListener('click', () => location.reload());
+    return h(
+      'div',
+      { class: 'st-banner-foot' },
+      h('span', { class: 'st-foot-left' }, 'This page is out of date. ', reload),
+      h('a', { href: 'how-this-works', class: 'st-howlink' }, 'How this works'),
+    );
+  }
   if (!snap) left.push(failedToLoad ? 'No data yet' : 'Loading…');
   else if (failedToLoad) left.push(`Last data from ${updatedLabel(snap.generated_at)}`);
   else left.push(lastCheckedText(snap, now));
@@ -171,8 +190,11 @@ async function load(manual: boolean): Promise<void> {
   busy = true;
   note = '';
   renderAll();
+  const mine = new AbortController();
+  inflight = mine;
+  const giveUp = setTimeout(() => mine.abort(), FETCH_TIMEOUT_MS);
   try {
-    const res = await fetch(STATUS_URL, { credentials: 'omit' });
+    const res = await fetch(STATUS_URL, { credentials: 'omit', signal: mine.signal });
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const next = (await res.json()) as StatusSnapshot;
     if (next.version !== 1) throw new Error('unknown snapshot version');
@@ -182,6 +204,9 @@ async function load(manual: boolean): Promise<void> {
   } catch {
     failedToLoad = true;
   }
+  clearTimeout(giveUp);
+  if (inflight !== mine) return; // abandoned on wake; the newer fetch owns the state
+  inflight = undefined;
   lastFetchAt = Date.now();
   failures = failedToLoad ? failures + 1 : 0;
   busy = false;
@@ -198,6 +223,31 @@ function scheduleFetch(): void {
   fetchTimer = setTimeout(() => void load(false), Math.max(0, at - Date.now()));
 }
 
+/** True when the page has gone without a fetch for two sampling intervals, i.e. it was asleep. */
+function pageAsleep(now: number): boolean {
+  return (
+    !!snap &&
+    lastFetchAt !== null &&
+    now - lastFetchAt > 2 * snap.definition.sample_interval_minutes * MINUTE
+  );
+}
+
+/** The tab came back (visible, restored from the back-forward cache, focused, or online again). A
+ * fetch that was in flight when the tab froze may never settle, so abandon it; then fetch at once
+ * if the data is old, ignoring the manual-refresh floor (a person is looking at the page). */
+function wake(): void {
+  if (fixtureMode || document.hidden) return;
+  const now = Date.now();
+  const old = failedToLoad || !snap || pageAsleep(now) || isStale(snap, now);
+  if (busy && old) {
+    inflight?.abort();
+    inflight = undefined;
+    busy = false;
+  }
+  if (!old || busy || (lastFetchAt !== null && now - lastFetchAt < WAKE_GAP_MS)) return;
+  void load(false);
+}
+
 /** Visible: redraw every TICK_MS and keep the fetch armed. Hidden: both timers off. */
 function syncVisibility(): void {
   clearInterval(tickTimer);
@@ -208,6 +258,7 @@ function syncVisibility(): void {
   }, TICK_MS);
   if (snap || failedToLoad) renderAll();
   scheduleFetch();
+  wake();
 }
 
 export function start(opts: StatusOptions): void {
@@ -234,6 +285,9 @@ export function start(opts: StatusOptions): void {
   mobileQuery.addEventListener('change', renderCharts);
 
   document.addEventListener('visibilitychange', syncVisibility);
+  window.addEventListener('pageshow', wake);
+  window.addEventListener('focus', wake);
+  window.addEventListener('online', wake);
 
   void (async () => {
     if (opts.loadFixtures) {
