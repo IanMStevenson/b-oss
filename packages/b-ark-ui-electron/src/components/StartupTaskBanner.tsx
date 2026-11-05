@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (C) 2026 Ian Stevenson
 
-// Container for the shared StartupTaskBanner. Only does anything in Microsoft Store builds, where
-// the backend reports a Windows startup-task state; elsewhere getStartupTask is absent or null.
+// Container for the shared StartupTaskBanner. Only does anything where the main process reports a
+// start-at-sign-in state (and Scheduled is on); elsewhere getStartupTask is absent or null.
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   StartupTaskBanner as StartupTaskBannerView,
@@ -22,7 +22,7 @@ export function StartupTaskBanner() {
     void backend
       .getStartupTask?.()
       .then(setInfo)
-      .catch(() => setInfo({ state: 'unknown' }));
+      .catch(() => setInfo((prev) => (prev ? { ...prev, state: 'unknown' } : null)));
   }, [backend]);
 
   const warning = describeStartupTask(info, wanted);

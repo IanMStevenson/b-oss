@@ -26,6 +26,8 @@ jobs:
       - run: npm run build --workspace=packages/b-view-backup
       - run: npm run build --workspace=packages/b-ark-ui-components
       - run: npm run build --workspace=packages/b-ark-ui-electron
+      - name: Build the start-at-sign-in add-on (Rust, Windows x64)
+        run: node packages/b-ark/native/win-startup/build.mjs
       - name: Create self-signed certificate
         shell: pwsh
         run: |

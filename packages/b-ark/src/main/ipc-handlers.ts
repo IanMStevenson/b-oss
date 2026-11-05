@@ -57,7 +57,7 @@ import {
   enableStartupTask,
   getStartupTaskInfo,
   openStartupSettings,
-} from './startup-task.js';
+} from './start-at-sign-in.js';
 import { rebuildTrayMenu, refreshTrayIcon } from './tray.js';
 import { showBackupFailedNotification } from './notifications.js';
 import { completedStatus, withOutstanding } from './rag-reasons.js';

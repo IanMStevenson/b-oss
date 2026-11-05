@@ -22,6 +22,7 @@ export type {
   ScheduleInterval,
   SharedSettingsPartial,
   StartupTaskInfo,
+  StartupSettingsLocation,
   StartupTaskState,
 } from './backend.js';
 export { ElectronBackend } from './electron-backend.js';

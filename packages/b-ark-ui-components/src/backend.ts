@@ -286,13 +286,14 @@ export interface BackendContext {
   getAccountAvatar(accountId: string): Promise<string | null>;
   getBootState(): Promise<BootState>;
   /**
-   * Microsoft Store build only: the Windows startup-task state, or `null` when this build starts
-   * with Windows some other way. Undefined under Chrome.
+   * Whether b-ark starts at sign-in, as the platform reports it, with the platform's wording for
+   * where to fix it; `null` when this build does not report (nothing to warn about, or Scheduled is
+   * off). Undefined under Chrome.
    */
   getStartupTask?(): Promise<StartupTaskInfo | null>;
-  /** Ask Windows to enable the startup task; resolves to the state afterwards. Store build only. */
+  /** Ask the system to switch start-at-sign-in on; resolves to the state afterwards. */
   enableStartupTask?(): Promise<StartupTaskInfo | null>;
-  /** Open Windows Settings > Apps > Startup. Store build only. */
+  /** Open the platform's settings page for start-at-sign-in (the wording is in `getStartupTask`). */
   openStartupSettings?(): Promise<void>;
   getLogs(): Promise<LogEntry[]>;
   exportLogsCsv(filters: LogCsvFilters): Promise<string | null>;
