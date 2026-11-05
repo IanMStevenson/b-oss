@@ -11,10 +11,10 @@ import StoreBadge from '../components/StoreBadge.astro';
   description="Free, open-source tools for blipfoto: b-mobile to browse and post, b-ark and b-ark-chrome to keep your own copy of your blips, and an unofficial status page."
   nav="home"
 >
-  <Hero label="Hero" icon="b-oss" title="b-oss - free tools for blipfoto">Apps to browse and post from your phone and to keep your own copy of your blips, plus a page that shows whether blipfoto is working. Free and open source.</Hero>
+  <Hero label="Hero" icon="b-oss" title="b-oss - free tools for blipfoto">Post from your phone, back up your blips and check if blipfoto is working. Free and open source.</Hero>
 
   <div class="bands">
-  <section class="app-card" data-screen-label="App: b-mobile">
+  <section class="app-card band-tint" data-screen-label="App: b-mobile">
     <div class="app-card-meta">
       <div class="app-card-head">
         <img src="assets/b-oss-icon.png" alt="" />
@@ -45,7 +45,7 @@ import StoreBadge from '../components/StoreBadge.astro';
     />
   </section>
 
-  <section class="app-card band-tint" data-screen-label="App: b-ark">
+  <section class="app-card" data-screen-label="App: b-ark">
     <div class="app-card-meta">
       <div class="app-card-head">
         <img src="assets/b-oss-icon.png" alt="" />
@@ -73,7 +73,7 @@ import StoreBadge from '../components/StoreBadge.astro';
     </div>
   </section>
 
-  <section class="app-card" data-screen-label="App: b-ark-chrome">
+  <section class="app-card band-tint" data-screen-label="App: b-ark-chrome">
     <div class="app-card-meta">
       <div class="app-card-head">
         <img src="assets/b-oss-icon.png" alt="" />
@@ -101,20 +101,20 @@ import StoreBadge from '../components/StoreBadge.astro';
     </div>
   </section>
 
-  <section class="band-tint" data-screen-label="b-status">
+  <section data-screen-label="b-status">
     <CtaBand href="status" label="See the status">
       <strong>Is blipfoto working?</strong> b-status checks every 15 minutes and shows the history.
       Unofficial; not run by blipfoto.
     </CtaBand>
   </section>
 
-  <section class="block" data-screen-label="For developers">
-    <p class="section-eyebrow">For developers</p>
+  <section class="block band-tint" data-screen-label="For developers">
     <div class="prose">
       <p>
-        b-oss is open source. <a href="https://github.com/IanMStevenson/b-oss">Read the code on
-        GitHub</a>; issues and pull requests are welcome. Building something of your own?
-        <a href="b-api">b-api</a> is our TypeScript client for the blipfoto API, free to reuse.
+        <strong>b-oss is open source.</strong> If you're a developer, visit our
+        <a href="https://github.com/IanMStevenson/b-oss">GitHub repository</a>. Feel free to raise
+        issues or PRs. Building something of your own? Why not use <a href="b-api">b-api</a>, our free
+        and open TypeScript client for the blipfoto API.
       </p>
     </div>
   </section>
