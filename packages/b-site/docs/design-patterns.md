@@ -56,10 +56,10 @@ A showcase of what's here, in this order:
    "working" on the page.
 4. **Open source and developers** (tinted `section.block`): a `prose` paragraph with no heading or cards,
    linking the repo and b-api.
-5. **CtaBand** for contact, then a privacy button under it, as on product pages.
+5. **CtaBand** for contact, as its own white band. Privacy is reached from the footer.
 
-Items 2 to 4 sit in a `.bands` wrapper: no divider lines, and strict alternation of `.band-tint` and white,
-starting tinted under the white hero. This is the homepage only; other pages keep the thin dividers.
+Items 2 to 5 sit in a `.bands` wrapper: no divider lines, and strict alternation of `.band-tint` and white,
+starting tinted under the white hero. This is the homepage only; other pages keep the thin dividers and the contact card.
 
 ### Guide pages (b-ark-guide, b-ark-chrome-guide, b-mobile-guide)
 
