@@ -9,14 +9,25 @@ import { User } from 'lucide-react';
 import { CachedImage } from './CachedImage.js';
 import { useDevicePrefsStore } from '../state/devicePrefsStore.js';
 
-export function AccountAvatar({ avatarUrl, size }: { avatarUrl: string | null; size: number }) {
+// Square like every other profile picture (b-oss#827), except the header indicator, which passes
+// `round` — a round account button is the convention for an account menu and square looked wrong there.
+export function AccountAvatar({
+  avatarUrl,
+  size,
+  round = false,
+}: {
+  avatarUrl: string | null;
+  size: number;
+  round?: boolean;
+}) {
+  const borderRadius = round ? '50%' : undefined;
   const style = useDevicePrefsStore((s) => s.accountAvatarStyle);
   if (avatarUrl && style === 'picture') {
     return (
       <CachedImage
         src={avatarUrl}
         alt=""
-        style={{ width: size, height: size, objectFit: 'cover', flexShrink: 0 }}
+        style={{ width: size, height: size, objectFit: 'cover', borderRadius, flexShrink: 0 }}
       />
     );
   }
@@ -29,6 +40,7 @@ export function AccountAvatar({ avatarUrl, size }: { avatarUrl: string | null; s
         justifyContent: 'center',
         width: size,
         height: size,
+        borderRadius,
         background: 'var(--brand-fill)',
         color: 'var(--on-brand-fill)',
         flexShrink: 0,

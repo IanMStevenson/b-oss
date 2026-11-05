@@ -39,7 +39,7 @@ export function AccountIndicator() {
         height: SIZE,
       }}
     >
-      <AccountAvatar avatarUrl={activeAccount.avatarUrl} size={SIZE} />
+      <AccountAvatar avatarUrl={activeAccount.avatarUrl} size={SIZE} round />
     </button>
   );
 }
