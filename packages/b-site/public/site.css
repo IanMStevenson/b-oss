@@ -2023,6 +2023,7 @@ p.st-sub {
   display: block;
   height: 56px;
   width: auto;
+  max-width: none; /* the global img cap would squash the badge and distort it */
 }
 .store-badge-play img {
   height: 83px;
