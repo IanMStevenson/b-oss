@@ -15,7 +15,9 @@ This is the **target recipe**, not a description of every page today. Known diff
 integration branch: `b-ark` styles its per-product "Get it" labels inline, and `b-api` titles its
 section "Get b-api". Bring them in line when those pages are next touched.
 
-1. **Hero** (`Hero.astro`): the b-oss icon, product name as `h1`, one-line lead.
+1. **Hero** (`Hero.astro`): the b-oss icon on the left, `h1` as "name - what it is" ("b-ark - backup for
+   blipfoto"), and a lead of up to two lines that says what the thing does for a non-technical reader,
+   never what is on the page.
 2. **Introduction** (`section.block`, eyebrow "Introduction"): a short `prose` paragraph and a
    `feature-list` of 4 ticks, each a bold lead word and one sentence (`FeatureItem`).
 3. **Screenshot** (`.shot`): one image. `.shot` only frames it and crops to 16:10; the centring and
@@ -24,8 +26,10 @@ section "Get b-api". Bring them in line when those pages are next touched.
 5. **Get it** (`section.block#download`, eyebrow "Get it"): rows of **tri-link cards** (see below), one
    row per product, each with a small eyebrow label ("b-ark · Windows desktop").
 6. **CtaBand**: "Contact us with feedback, suggestions and bugs." Every product page has it.
+7. **Privacy buttons**: a `.btn-row` of plain buttons under the band, no heading, labels that say what
+   they are ("b-mobile privacy policy", "Delete your b-mobile data").
 
-The "Get it" cards are the page's calls to action and always come last. Nothing about getting the
+The "Get it" cards are the page's calls to action and come last apart from the band and privacy buttons. Nothing about getting the
 product is above the fold except the page's own navigation. This is for product pages only; the
 homepage is the showcase and carries store badges in its app-cards.
 
@@ -41,16 +45,18 @@ the detailed comparison, linked from `b-ark`.
 A showcase of what's here, in this order:
 
 1. **Hero**: what b-oss offers, in one sentence.
-2. One **app-card** per app, b-mobile, b-ark, then b-ark-chrome: icon, name, tagline, a short summary
+2. One **app-card** per app, b-mobile, b-ark, then b-ark-chrome (b-ark tinted): icon, name, tagline, a short summary
    with no ticks, a `.store-badges` row, a plain "Learn more" button, and screenshots beside it.
    b-mobile-pc is a second badge on the b-mobile card, because it is the same product. Comparing the
    backups is left to the `b-ark` page.
-3. **CtaBand** for b-status. It has no store, and a screenshot would freeze "working" on the page.
+3. **CtaBand** for b-status, in its own tinted band. It has no store, and a screenshot would freeze
+   "working" on the page.
 4. **For developers** (`section.block`, eyebrow): a short `prose` paragraph, no cards, linking the repo
    and b-api.
-5. **CtaBand** for contact.
+5. **CtaBand** for contact, then a privacy button under it, as on product pages.
 
-The legacy b-ark installer never appears on the homepage.
+Items 2 to 4 sit in a `.bands` wrapper: no divider lines, and strict alternation between white and
+`.band-tint`. This is the homepage only; other pages keep the thin dividers.
 
 ### Guide pages (b-ark-guide, b-ark-chrome-guide, b-mobile-guide)
 
@@ -72,7 +78,7 @@ Its own styling, every class prefixed `st-`; see [`status-page.md`](status-page.
 
 | Piece | Where | Use |
 |---|---|---|
-| Hero | `components/Hero.astro` | Top of every page. Icon optional: the `icon` prop is its alt text, and the image is always the b-oss icon. |
+| Hero | `components/Hero.astro` | Top of every page except Status and How this works. Text left-aligned. Icon optional, on the homepage, product pages, about and the compare page: the `icon` prop is its alt text, and the image is always the b-oss icon. It sits left of the text, and beside the heading only on narrow screens. |
 | Eyebrow | `.section-eyebrow` | Small uppercase label that opens a `section.block`. |
 | Prose | `.prose` | Running text; links underlined. |
 | Feature ticks | `.feature-list` + `FeatureItem` | 3 to 6 short points. |
@@ -81,6 +87,7 @@ Its own styling, every class prefixed `st-`; see [`status-page.md`](status-page.
 | Tri-link card | `.tri-links` > `.tri-link` | Icon (or store badge), `h3`, one-line `p`. Three per row, centred; a row with fewer cards centres. The whole card is the link. |
 | App card | `.app-card` | Product block on the homepage and `b-ark-versions`. |
 | Store badge | `StoreBadge.astro`, `src/stores.ts` | Official badge artwork, unmodified, linking to a live listing; a black, plain-text "coming soon" box when not live. Two forms: `bare` inside a tri-link card (the card is the link), or linked by itself in a `.store-badges` row inside an app-card. |
+| Tinted band | `.bands`, `.band-tint` | Homepage sections: full-width tint from design tokens, no markup outside the page column. A `CtaBand` directly inside drops its own box. |
 | Button | `.btn`, `.btn.primary` | One primary action per block. A store badge counts as the primary action, so "Learn more" beside one is a plain `.btn`, even while the badge says "coming soon". |
 | Band | `CtaBand.astro` | One line and one button. With no props it is the contact band, the last thing before the footer. Slot text plus `href` and `label` point it elsewhere (b-status on the homepage). |
 | Header, footer | `Header.astro`, `Footer.astro` | Nav and footer links are defined once, there. Nav: Home, b-ark, b-mobile, Status, About, Contact. Footer: About, Status, Privacy, Contact, GitHub. |
@@ -102,7 +109,7 @@ Narrow screens: layouts collapse at 820px, 720px, 640px, 520px and 420px; check 
 | Product | What it is | Stores |
 |---|---|---|
 | b-mobile | The blipfoto app for Android; b-mobile-pc is the same product for Windows, same features as far as the platform allows | Google Play; Microsoft Store (coming) |
-| b-ark | Backup and archive, Windows desktop app | Microsoft Store (coming); legacy installer on GitHub, linked from the `b-ark` page and `b-ark-versions` until the Store launch, never from the homepage |
+| b-ark | Backup and archive, Windows desktop app | Microsoft Store (coming), the only route. Legacy installers stay on GitHub, not linked from the site |
 | b-ark-chrome | Backup and archive as a Chrome extension. A different but related product to b-ark (different features), not a second form of the same one | Chrome Web Store |
 | b-status | The unofficial blipfoto status page | none; lives on the site |
 | b-api | TypeScript client for the blipfoto API, for developers | none; GitHub |
@@ -112,5 +119,5 @@ Infrastructure that stays easy to reach: contact form, privacy policies, b-statu
 
 ## Open questions
 
-- Privacy and data-deletion links at the foot of the `b-ark` and `b-mobile` pages: how they should look.
+- Whether b-api returns to the top nav.
 - Whether to change existing "Blipfoto" copy across the site to lowercase.
