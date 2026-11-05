@@ -2029,6 +2029,12 @@ p.st-sub {
   height: 83px;
   margin: -13px -18px;
 }
+/* Chrome's badge is white and pale, so it is shown a little larger than the others (resize only,
+   proportions kept) and in Google's own bordered variant, to give it comparable weight. */
+.store-badge-chrome,
+.store-badge-chrome img {
+  height: 68px;
+}
 a.store-badge {
   transition: transform 160ms cubic-bezier(0.22, 0.61, 0.36, 1);
 }

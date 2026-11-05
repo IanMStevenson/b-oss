@@ -30,7 +30,7 @@ if (entry.state === 'live' && store === 'microsoft') {
     {bare ? (
       <span class={`store-badge store-badge-${store}`}>
         {store === 'play' && <img src="assets/stores/google-play.png" width="646" height="250" alt="" />}
-        {store === 'chrome' && <img src="assets/stores/chrome-web-store.png" width="496" height="150" alt="" />}
+        {store === 'chrome' && <img src="assets/stores/chrome-web-store-border.png" width="496" height="150" alt="" />}
       </span>
     ) : (
     <a class={`store-badge store-badge-${store}`} href={entry.url}>
@@ -44,7 +44,7 @@ if (entry.state === 'live' && store === 'microsoft') {
       )}
       {store === 'chrome' && (
         <img
-          src="assets/stores/chrome-web-store.png"
+          src="assets/stores/chrome-web-store-border.png"
           width="496"
           height="150"
           alt={`Get ${label}, available in the Chrome Web Store`}
