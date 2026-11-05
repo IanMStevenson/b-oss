@@ -6,7 +6,25 @@ import type { StartupTaskInfo, StartupTaskState } from '@b-oss/b-ark-ui-electron
 /** Must match TaskId in msix/startup-task-extension.xml. */
 export const STARTUP_TASK_ID = 'BArkStartup';
 
+/** Must match `appx.applicationId` in electron-builder.store.json (checked by a test). */
+export const STARTUP_TASK_APP_ID = 'bark';
+
 export type StartupTaskOp = 'read' | 'enable' | 'disable';
+
+/**
+ * Package family name (`<identity name>_<publisher hash>`) from the path of the packaged exe,
+ * e.g. `C:\Program Files\WindowsApps\ImsTest.b-ark_1.0.7.0_x64__bgf47mq2ba09r\app\b-ark.exe`
+ * gives `ImsTest.b-ark_bgf47mq2ba09r`. Null when the path is not inside a WindowsApps package.
+ */
+export function packageFamilyNameFromExePath(exePath: string): string | null {
+  const match = /[\\/]WindowsApps[\\/]([^\\/]+)[\\/]/i.exec(exePath);
+  const parts = match?.[1]?.split('_');
+  // <name>_<version>_<arch>_<resource id (often empty)>_<publisher id>
+  if (!parts || parts.length < 5) return null;
+  const name = parts[0];
+  const publisher = parts[parts.length - 1];
+  return name && publisher ? `${name}_${publisher}` : null;
+}
 
 /** Windows.ApplicationModel.StartupTaskState names, as PowerShell prints the enum. */
 const STATE_BY_NAME: Record<string, StartupTaskState> = {
@@ -24,18 +42,22 @@ export function parseStartupTaskOutput(stdout: string): StartupTaskState {
 }
 
 /**
- * Windows PowerShell 5.1 script that talks to the WinRT StartupTask API. It must run as a child of
- * the packaged app so it inherits the package identity (UNVERIFIED on a real install).
+ * Windows PowerShell 5.1 script that talks to the WinRT StartupTask API. It needs the app's package
+ * identity, so it is run inside the package (see buildInvokeInPackageScript).
  */
-export function buildStartupTaskScript(op: StartupTaskOp, taskId = STARTUP_TASK_ID): string {
+export function buildStartupTaskScript(
+  op: StartupTaskOp,
+  taskId = STARTUP_TASK_ID,
+  /** When set, the result (or `ERROR=<message>`) is written to this file instead of stdout. */
+  outFile?: string,
+): string {
   const action =
     op === 'enable'
       ? "if ($task.State -eq 'Disabled') { [void](Await ($task.RequestEnableAsync()) ([Windows.ApplicationModel.StartupTaskState])) }"
       : op === 'disable'
         ? '$task.Disable()'
         : '';
-  return [
-    "$ErrorActionPreference = 'Stop'",
+  const body = [
     'Add-Type -AssemblyName System.Runtime.WindowsRuntime',
     '[void][Windows.ApplicationModel.StartupTask, Windows.ApplicationModel, ContentType = WindowsRuntime]',
     "$asTask = [System.WindowsRuntimeSystemExtensions].GetMethods() | Where-Object { $_.Name -eq 'AsTask' -and $_.GetParameters().Count -eq 1 -and $_.GetParameters()[0].ParameterType.Name -eq 'IAsyncOperation`1' } | Select-Object -First 1",
@@ -44,10 +66,40 @@ export function buildStartupTaskScript(op: StartupTaskOp, taskId = STARTUP_TASK_
     action,
     // Re-read: the first instance can be stale after Disable().
     `$task = Await ([Windows.ApplicationModel.StartupTask]::GetAsync('${taskId}')) ([Windows.ApplicationModel.StartupTask])`,
-    "Write-Output ('STATE=' + $task.State)",
-  ]
-    .filter((l) => l !== '')
-    .join('\n');
+    "$result = 'STATE=' + $task.State",
+  ].filter((l) => l !== '');
+  if (outFile === undefined) {
+    return ["$ErrorActionPreference = 'Stop'", ...body, 'Write-Output $result'].join('\n');
+  }
+  const file = outFile.replace(/'/g, "''");
+  return [
+    "$ErrorActionPreference = 'Stop'",
+    'try {',
+    ...body,
+    `Set-Content -LiteralPath '${file}' -Value $result -Encoding ASCII`,
+    '} catch {',
+    `Set-Content -LiteralPath '${file}' -Value ('ERROR=' + $_.Exception.Message) -Encoding ASCII`,
+    '}',
+  ].join('\n');
+}
+
+/**
+ * Outer script (run by an ordinary Windows PowerShell) that starts `innerEncoded` (a base64
+ * UTF-16 PowerShell script) INSIDE the app's package. A child that Node spawns does not get the
+ * package identity (verified on a real install: GetAsync fails with "Element not found" and
+ * "The process has no package identity"), but one started with Invoke-CommandInDesktopPackage
+ * does, and then finds the manifest's startup task.
+ */
+export function buildInvokeInPackageScript(
+  packageFamilyName: string,
+  appId: string,
+  innerEncoded: string,
+): string {
+  const q = (v: string): string => v.replace(/'/g, "''");
+  return [
+    "$ErrorActionPreference = 'Stop'",
+    `Invoke-CommandInDesktopPackage -PackageFamilyName '${q(packageFamilyName)}' -AppId '${q(appId)}' -Command 'powershell.exe' -Args '-NoProfile -NonInteractive -ExecutionPolicy Bypass -EncodedCommand ${innerEncoded}'`,
+  ].join('\n');
 }
 
 /** Thin seam over Windows; the real one is PowerShell, tests use a fake. */
