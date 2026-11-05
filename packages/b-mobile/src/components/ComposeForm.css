@@ -423,4 +423,6 @@ ion-progress-bar.upload-progress {
   max-width: 100%;
   height: auto;
   border-radius: 4px;
+  /* .compose-form is a flex column, so text-align doesn't centre a fixed-width item. */
+  align-self: center;
 }

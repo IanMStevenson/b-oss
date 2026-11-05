@@ -190,7 +190,6 @@ ion-segment.settings-pill-segment ion-segment-button::part(native) {
   display: block;
   width: 40px;
   height: 40px;
-  border-radius: 50%;
   object-fit: cover;
   background: var(--bg-alt);
 }

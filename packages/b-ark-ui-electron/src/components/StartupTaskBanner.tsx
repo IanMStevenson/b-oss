@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (C) 2026 Ian Stevenson
 
-// Container for the shared StartupTaskBanner. Only does anything in Microsoft Store builds, where
-// the backend reports a Windows startup-task state; elsewhere getStartupTask is absent or null.
+// Container for the shared StartupTaskBanner. Only does anything where the main process reports a
+// start-at-sign-in state (and Scheduled is on); elsewhere getStartupTask is absent or null.
 import { useCallback, useEffect, useState } from 'react';
 import {
   StartupTaskBanner as StartupTaskBannerView,
@@ -22,18 +22,26 @@ export function StartupTaskBanner() {
     void backend
       .getStartupTask?.()
       .then(setInfo)
-      .catch(() => setInfo({ state: 'unknown' }));
+      .catch(() => setInfo((prev) => (prev ? { ...prev, state: 'unknown' } : null)));
   }, [backend]);
 
-  // On mount, whenever the setting changes, and when the window regains focus (the user may have
-  // just fixed it in Windows Settings).
+  const warning = describeStartupTask(info, wanted);
+  // On mount, whenever the setting changes, and whenever the window regains focus or becomes
+  // visible (the user may have just changed it in the system's settings). Main shares an in-flight
+  // call and keeps a short cache, so rapid focus events stay cheap.
   useEffect(() => {
     refresh();
+    const onVisible = (): void => {
+      if (document.visibilityState === 'visible') refresh();
+    };
     window.addEventListener('focus', refresh);
-    return () => window.removeEventListener('focus', refresh);
+    document.addEventListener('visibilitychange', onVisible);
+    return () => {
+      window.removeEventListener('focus', refresh);
+      document.removeEventListener('visibilitychange', onVisible);
+    };
   }, [refresh, wanted]);
 
-  const warning = describeStartupTask(info, wanted);
   if (!warning) return null;
 
   function onAction(action: StartupTaskAction): void {

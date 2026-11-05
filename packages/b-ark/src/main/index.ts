@@ -26,7 +26,7 @@ import {
   setStaleBackupNotice,
 } from './store.js';
 import { migrateFromV1IfNeeded } from './migrate-store.js';
-import { reconcileStartAtSignInOnLaunch } from './startup-task.js';
+import { reconcileStartAtSignInOnLaunch } from './start-at-sign-in.js';
 import { isBackupRunning, setScheduledEnabled } from './ipc-handlers.js';
 import { electronExitDialogs } from './exit-dialogs.js';
 import { resolveTrayExit, resolveWindowClose } from './exit-policy.js';

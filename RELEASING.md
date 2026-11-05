@@ -34,10 +34,12 @@ installer route above: it is an unsigned MSIX (the Store signs it), and it skips
 
 **Start at sign-in in the Store build** (driven by the Scheduled backups setting). MSIX ignores the registry Run key, so the manifest declares a
 `windows.startupTask` (`TaskId` `BArkStartup`, from `packages/b-ark/msix/startup-task-extension.xml`). In
-a Store install the main process (`startup-task.ts`) reads and changes the task through the WinRT
-StartupTask API, run from a Windows PowerShell child process (no native add-on). If the task is not
-enabled while Scheduled backups is on, the app shows a red banner with one action: **Allow b-ark to start
-with Windows** (task merely `Disabled`) or **Open Windows Startup settings** (`DisabledByUser`,
+a Store install the main process (`start-at-sign-in.ts`) reads and changes the task through the WinRT
+StartupTask API in a small native Node-API add-on (`packages/b-ark/native/win-startup`, Rust, Windows x64;
+built by `build.mjs` in both MSIX workflows and packed unpacked by `electron-builder.store.json`). The
+manifest starts the task disabled; the app enables it only while Scheduled backups is on. If the task is
+not enabled while Scheduled is on, the app shows a red banner with one action: **Allow b-ark to start when
+you sign in** (task merely `Disabled`) or **Open Windows Startup settings** (`DisabledByUser`,
 `DisabledByPolicy`, or unreadable; an app cannot re-enable a task the user switched off). The NSIS
 installer keeps the registry route. The Windows-touching code is unverified until tested on a real install
 (sideload steps are in the PR that added it).

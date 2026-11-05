@@ -55,6 +55,7 @@ import { useAccountsStore, useActiveAccount } from '../../state/accountsStore.js
 import { resumeClear, resumeGet, resumeSet } from '../../data/resumeCache.js';
 import { useHiddenMembersStore, useIsHidden } from '../../state/hiddenMembersStore.js';
 import { CachedImage } from '../../components/CachedImage.js';
+import { AvatarViewer } from '../../components/AvatarViewer.js';
 import { UserBadges } from '../../components/UserBadges.js';
 import { EntryGrid } from '../../components/EntryGrid.js';
 import { PeopleList } from '../../components/PeopleList.js';
@@ -170,6 +171,7 @@ export function ProfileScreen({ username }: ProfileScreenProps) {
   const { report, reportDialog } = useReport();
   const { share, shareDialog } = useShareLink();
   const { showUpgradePrompt } = useOverlay();
+  const [showAvatar, setShowAvatar] = useState(false);
   const signInPrompt = useSignInPrompt();
   const activeAccount = useActiveAccount();
   const isOwn = username === undefined || username === activeAccount?.username;
@@ -314,11 +316,25 @@ export function ProfileScreen({ username }: ProfileScreenProps) {
                 padding: '12px 16px 8px',
               }}
             >
-              <CachedImage
-                src={state.data.user.avatar_url}
-                alt=""
-                style={{ width: 48, height: 48, borderRadius: '50%', flex: 'none' }}
-              />
+              <button
+                type="button"
+                aria-label={`View ${state.data.user.username}'s profile picture`}
+                onClick={() => setShowAvatar(true)}
+                style={{ background: 'none', border: 'none', padding: 0, flex: 'none' }}
+              >
+                <CachedImage
+                  src={state.data.user.avatar_url}
+                  alt=""
+                  style={{ width: 48, height: 48, display: 'block' }}
+                />
+              </button>
+              {showAvatar && (
+                <AvatarViewer
+                  src={state.data.user.avatar_url}
+                  label={`${state.data.user.username}'s profile picture`}
+                  onDismiss={() => setShowAvatar(false)}
+                />
+              )}
               <div style={{ flex: 1, minWidth: 0 }}>
                 <h2
                   style={{
