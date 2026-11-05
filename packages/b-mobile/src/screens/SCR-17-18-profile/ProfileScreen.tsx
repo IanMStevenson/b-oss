@@ -325,7 +325,7 @@ export function ProfileScreen({ username }: ProfileScreenProps) {
                 <CachedImage
                   src={state.data.user.avatar_url}
                   alt=""
-                  style={{ width: 48, height: 48, borderRadius: '50%', display: 'block' }}
+                  style={{ width: 48, height: 48, display: 'block' }}
                 />
               </button>
               {showAvatar && (

@@ -16,7 +16,7 @@ export function AccountAvatar({ avatarUrl, size }: { avatarUrl: string | null; s
       <CachedImage
         src={avatarUrl}
         alt=""
-        style={{ width: size, height: size, borderRadius: '50%', flexShrink: 0 }}
+        style={{ width: size, height: size, objectFit: 'cover', flexShrink: 0 }}
       />
     );
   }
@@ -29,7 +29,6 @@ export function AccountAvatar({ avatarUrl, size }: { avatarUrl: string | null; s
         justifyContent: 'center',
         width: size,
         height: size,
-        borderRadius: '50%',
         background: 'var(--brand-fill)',
         color: 'var(--on-brand-fill)',
         flexShrink: 0,

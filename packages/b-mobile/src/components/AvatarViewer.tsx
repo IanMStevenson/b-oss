@@ -65,7 +65,6 @@ export function AvatarViewer({
           maxWidth: '100%',
           maxHeight: '100%',
           objectFit: 'contain',
-          borderRadius: 12,
           background: 'var(--bg, #fff)',
         }}
       />
