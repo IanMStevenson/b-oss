@@ -11,12 +11,15 @@ and say why in the PR. No page-local styling (`style="..."`) for anything that c
 
 ### Product page (b-ark, b-api, b-mobile)
 
-This is the **target recipe**, not a description of every page today. Known differences on the
-integration branch: `b-ark` styles its per-product "Get it" labels inline, and `b-api` titles its
-section "Get b-api". Bring them in line when those pages are next touched.
+`b-mobile` is the exemplar: build new product pages like it. Follow-ups, not current work:
+
+- **`b-ark`:** 4 ticks rather than 6; one `.shot` in an inline-styled wrapper rather than `PhoneShots`; a
+  comparison section in place of "Good to know"; inline-styled "Get it" row labels.
+- **`b-api`:** the same inline-styled `.shot` wrapper; no "Good to know"; its section says "Get b-api"
+  rather than "Get it"; no privacy buttons, as it is a code library, not an app.
 
 1. **Hero** (`Hero.astro`): the b-oss icon on the left, `h1` as "name - what it is" ("b-ark - backup for
-   blipfoto"), and a lead of up to two lines that says what the thing does for a non-technical reader,
+   blipfoto"), and a one-line lead (on desktop) that says what the thing does for a non-technical reader,
    never what is on the page.
 2. **Introduction** (`section.block`, eyebrow "Introduction"): a short `prose` paragraph and a
    `feature-list` of 4 ticks, each a bold lead word and one sentence (`FeatureItem`).
@@ -45,18 +48,18 @@ the detailed comparison, linked from `b-ark`.
 A showcase of what's here, in this order:
 
 1. **Hero**: what b-oss offers, in one sentence.
-2. One **app-card** per app, b-mobile, b-ark, then b-ark-chrome (b-ark tinted): icon, name, tagline, a short summary
+2. One **app-card** per app, b-mobile (tinted), b-ark, then b-ark-chrome (tinted): icon, name, tagline, a short summary
    with no ticks, a `.store-badges` row, a plain "Learn more" button, and screenshots beside it.
    b-mobile-pc is a second badge on the b-mobile card, because it is the same product. Comparing the
    backups is left to the `b-ark` page.
-3. **CtaBand** for b-status, in its own tinted band. It has no store, and a screenshot would freeze
+3. **CtaBand** for b-status, as its own white band. It has no store, and a screenshot would freeze
    "working" on the page.
-4. **For developers** (`section.block`, eyebrow): a short `prose` paragraph, no cards, linking the repo
-   and b-api.
+4. **Open source and developers** (tinted `section.block`): a `prose` paragraph with no heading or cards,
+   linking the repo and b-api.
 5. **CtaBand** for contact, then a privacy button under it, as on product pages.
 
-Items 2 to 4 sit in a `.bands` wrapper: no divider lines, and strict alternation between white and
-`.band-tint`. This is the homepage only; other pages keep the thin dividers.
+Items 2 to 4 sit in a `.bands` wrapper: no divider lines, and strict alternation of `.band-tint` and white,
+starting tinted under the white hero. This is the homepage only; other pages keep the thin dividers.
 
 ### Guide pages (b-ark-guide, b-ark-chrome-guide, b-mobile-guide)
 
@@ -90,7 +93,7 @@ Its own styling, every class prefixed `st-`; see [`status-page.md`](status-page.
 | Tinted band | `.bands`, `.band-tint` | Homepage sections: full-width tint from design tokens, no markup outside the page column. A `CtaBand` directly inside drops its own box. |
 | Button | `.btn`, `.btn.primary` | One primary action per block. A store badge counts as the primary action, so "Learn more" beside one is a plain `.btn`, even while the badge says "coming soon". |
 | Band | `CtaBand.astro` | One line and one button. With no props it is the contact band, the last thing before the footer. Slot text plus `href` and `label` point it elsewhere (b-status on the homepage). |
-| Header, footer | `Header.astro`, `Footer.astro` | Nav and footer links are defined once, there. Nav: Home, b-ark, b-mobile, b-api, Status, About, Contact. Footer: About, Status, Privacy, Contact, GitHub. |
+| Header, footer | `Header.astro`, `Footer.astro` | Nav and footer links are defined once, there. Nav: Home, b-ark, b-mobile, b-api, Status, About, Contact. Footer: About, Status, Privacy, GitHub, Contact. |
 
 Design tokens (colours, radius, shadow) are CSS custom properties at the top of `public/site.css`.
 Narrow screens: layouts collapse at 820px, 720px, 640px, 520px and 420px; check a phone width before presenting.
