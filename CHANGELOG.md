@@ -9,6 +9,18 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 - b-ark: a new "Warn if scheduled backups stop" setting, part of Scheduled backups. If b-ark opens and the last backup was a long time ago (3 backup intervals by default, never under 3 days), a notice says so, with Dismiss and "Don't show again". A computer that was off is normal; the notice is only a prompt to check.
 
+## [b-mobile 1.3.0] - 2026-11-05
+
+### Added
+
+- b-mobile: opening an entry from a browse, search, tag or Faves grid shows a bar at the bottom to step through that grid (swipe it, or use the arrows). Tap the caption for where you came from, hide it, or turn it off in Settings > Appearance.
+- b-mobile: tap a profile picture to view it full size. Profile pictures are now square throughout, apart from the round account button in the header.
+
+### Fixed
+
+- b-mobile: the Notifications and Comments lists refresh when you come back to the app.
+- b-mobile: the thumbnail on the publish-complete screen is centred.
+
 ## [1.0.7] - 2026-11-03
 
 ### Added
