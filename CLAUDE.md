@@ -6,7 +6,8 @@ b-oss is a monorepo of Blipfoto backup tools. b-ark is the Electron desktop app.
 b-ark-chrome is the Chrome-extension sibling (single-account, folder-based backup via
 the File System Access API). b-view is the shared journal-viewer component kit, and
 b-view-backup is the backup-folder data layer plus the standalone viewer SPA built on it.
-b-mobile is the Capacitor (Android) app for browsing and posting to Blipfoto, b-push is its
+b-mobile is the Capacitor (Android) app for browsing and posting to Blipfoto, b-mobile-pc is the
+Electron shell that runs b-mobile's web build as a Windows desktop app, b-push is its
 Cloudflare Worker notification service, b-status is the Cloudflare Worker monitor behind the unofficial
 Blipfoto status page (hosted in b-site), and b-visual holds the shared design tokens and style
 guide. All names are lowercase and hyphenated.
@@ -162,6 +163,26 @@ CI (PRs and pushes to `main`) runs typecheck, lint and test only for the package
 affect (changed packages plus their dependents), planned by `scripts/ci-scope.mjs`; root config
 changes run everything. Run the same scoped task locally with
 `node scripts/ci-scope.mjs run <typecheck|lint|test> --packages b-status,b-push`.
+
+CI does not run the b-mobile-pc e2e suite or the Android emulator rig below; run them locally when a
+change touches the desktop shell or b-mobile's native/WebView behaviour.
+
+### Test harnesses (b-mobile, b-mobile-pc; local only)
+
+```bash
+npm run e2e -w @b-oss/b-mobile-pc   # real Electron shell in Docker + virtual display, stub API; Linux + Docker
+packages/b-mobile/scripts/emulator/emu.sh setup && packages/b-mobile/scripts/emulator/emu.sh start   # headless Android emulator
+node packages/b-mobile/scripts/emulator/run-checks.mjs --main <old.apk> --integ <new.apk> --sender <sender.apk> --out <dir>
+node packages/b-mobile/scripts/flow-runner.mjs <outDir> [baseUrl] [flow,...]   # scripted flows vs scripts/stub-api.mjs; diff two runs with scripts/flow-diff.mjs
+node packages/b-mobile/scripts/compare-shots.mjs --a <dirA> --b <dirB> --out <outDir>   # screenshot diff of two worktrees' builds
+```
+
+Emulator rig: needs `/dev/kvm`, the Android SDK and ~2 GB first download (setup ~20 min through the proxy);
+cold boot ~75 s, a full check run ~3 min, ~4.3 GB RAM for one emulator at a time. It catches update-over-data,
+deep links, share intents, Back and resume on the real WebView; FCM push and real-account flows stay manual.
+Setup, the check list and limits: `packages/b-mobile/scripts/emulator/README.md`. e2e details (several runs at
+once, variants): `packages/b-mobile-pc/e2e/README.md`. `flow-runner.mjs` and `compare-shots.mjs` need
+`playwright-core` and an `npm ci`'d worktree; their header comments give the stub and dev-server setup.
 
 ### Local Android build + lint check (b-mobile; no CI)
 
