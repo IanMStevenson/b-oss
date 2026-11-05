@@ -50,6 +50,9 @@ describe('buildStartupTaskScript', () => {
     expect(buildStartupTaskScript('enable')).toContain("-eq 'Disabled'");
     expect(buildStartupTaskScript('disable')).toContain('$task.Disable()');
   });
+  it('runs the in-package PowerShell hidden', () => {
+    expect(buildInvokeInPackageScript('A_b', 'bark', 'QQ==')).toContain('-WindowStyle Hidden');
+  });
 });
 
 describe('createStartupTaskController', () => {
@@ -62,27 +65,27 @@ describe('createStartupTaskController', () => {
     const d = fakeDriver('disabled', 'disabled');
     expect(await createStartupTaskController(d).set(true)).toEqual({ state: 'disabled' });
   });
-  it('never tries to change a user- or policy-blocked task', async () => {
+  it('makes one Windows call per set, and reports what Windows says', async () => {
     for (const s of ['disabled-by-user', 'disabled-by-policy'] as const) {
-      const d = fakeDriver(s);
+      const d = fakeDriver(s, s);
       expect(await createStartupTaskController(d).set(true)).toEqual({ state: s });
-      expect(await createStartupTaskController(d).set(false)).toEqual({ state: s });
-      expect(d.requestEnable).not.toHaveBeenCalled();
-      expect(d.disable).not.toHaveBeenCalled();
+      expect(d.read).not.toHaveBeenCalled();
+      expect(d.requestEnable).toHaveBeenCalledOnce();
     }
-  });
-  it('disables an enabled task when not wanted, leaves an enabled one when wanted', async () => {
     const d = fakeDriver('enabled');
-    const c = createStartupTaskController(d);
-    await c.set(true);
-    expect(d.disable).not.toHaveBeenCalled();
-    expect(await c.set(false)).toEqual({ state: 'disabled' });
+    expect(await createStartupTaskController(d).set(false)).toEqual({ state: 'disabled' });
+    expect(d.read).not.toHaveBeenCalled();
+    expect(d.disable).toHaveBeenCalledOnce();
+  });
+  it('leaves blocked states alone inside the script itself', () => {
+    expect(buildStartupTaskScript('enable')).toContain("-eq 'Disabled'");
+    expect(buildStartupTaskScript('disable')).toContain("$task.State -eq 'Enabled'");
   });
   it('turns a driver failure into unknown and reports it', async () => {
     const onError = vi.fn();
     const d: StartupTaskDriver = {
       read: () => Promise.reject(new Error('no package identity')),
-      requestEnable: () => Promise.resolve('enabled'),
+      requestEnable: () => Promise.reject(new Error('no package identity')),
       disable: () => Promise.resolve('disabled'),
     };
     const c = createStartupTaskController(d, onError);

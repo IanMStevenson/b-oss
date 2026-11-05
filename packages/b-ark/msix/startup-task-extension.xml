@@ -1,3 +1,3 @@
 <desktop:Extension Category="windows.startupTask" Executable="app\b-ark.exe" EntryPoint="Windows.FullTrustApplication">
-  <desktop:StartupTask TaskId="BArkStartup" Enabled="true" DisplayName="b-ark" />
+  <desktop:StartupTask TaskId="BArkStartup" Enabled="false" DisplayName="b-ark" />
 </desktop:Extension>

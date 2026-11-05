@@ -615,7 +615,9 @@ export function registerIpcHandlers(
     emitStoreChanged();
   };
 
-  ipcMain.handle('getStartupTask', () => getStartupTaskInfo());
+  ipcMain.handle('getStartupTask', () =>
+    getStartupTaskInfo(getPortableSettings().schedule.enabled),
+  );
   ipcMain.handle('enableStartupTask', () => enableStartupTask());
   ipcMain.handle('openStartupSettings', () => openStartupSettings());
 

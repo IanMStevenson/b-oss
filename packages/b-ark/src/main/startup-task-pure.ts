@@ -55,7 +55,7 @@ export function buildStartupTaskScript(
     op === 'enable'
       ? "if ($task.State -eq 'Disabled') { [void](Await ($task.RequestEnableAsync()) ([Windows.ApplicationModel.StartupTaskState])) }"
       : op === 'disable'
-        ? '$task.Disable()'
+        ? "if ($task.State -eq 'Enabled') { $task.Disable() }"
         : '';
   const body = [
     'Add-Type -AssemblyName System.Runtime.WindowsRuntime',
@@ -98,7 +98,7 @@ export function buildInvokeInPackageScript(
   const q = (v: string): string => v.replace(/'/g, "''");
   return [
     "$ErrorActionPreference = 'Stop'",
-    `Invoke-CommandInDesktopPackage -PackageFamilyName '${q(packageFamilyName)}' -AppId '${q(appId)}' -Command 'powershell.exe' -Args '-NoProfile -NonInteractive -ExecutionPolicy Bypass -EncodedCommand ${innerEncoded}'`,
+    `Invoke-CommandInDesktopPackage -PackageFamilyName '${q(packageFamilyName)}' -AppId '${q(appId)}' -Command 'powershell.exe' -Args '-NoProfile -NonInteractive -WindowStyle Hidden -ExecutionPolicy Bypass -EncodedCommand ${innerEncoded}'`,
   ].join('\n');
 }
 
@@ -113,9 +113,8 @@ export interface StartupTaskController {
   /** Current state; never rejects (a failed read is `unknown`). */
   get: () => Promise<StartupTaskInfo>;
   /**
-   * Make Windows match `wanted` as far as an app is allowed to. Enables only a plain `disabled`
-   * task and disables only an `enabled` one: DisabledByUser/ByPolicy cannot be changed by the app
-   * and are reported back so the UI can say so.
+   * Make Windows match `wanted` as far as an app is allowed to. DisabledByUser/ByPolicy cannot be
+   * changed by the app and are reported back so the UI can say so.
    */
   set: (wanted: boolean) => Promise<StartupTaskInfo>;
 }
@@ -134,12 +133,12 @@ export function createStartupTaskController(
   }
   return {
     get: () => safe(() => driver.read(), 'read'),
-    async set(wanted) {
-      const current = await safe(() => driver.read(), 'read');
-      if (wanted && current.state === 'disabled')
-        return safe(() => driver.requestEnable(), 'enable');
-      if (!wanted && current.state === 'enabled') return safe(() => driver.disable(), 'disable');
-      return current;
-    },
+    // One Windows call each (every call opens a short-lived process): the script itself enables
+    // only a plain Disabled task and disables only an Enabled one, so blocked states come back
+    // unchanged for the UI to explain.
+    set: (wanted) =>
+      wanted
+        ? safe(() => driver.requestEnable(), 'enable')
+        : safe(() => driver.disable(), 'disable'),
   };
 }

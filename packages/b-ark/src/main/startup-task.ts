@@ -107,34 +107,60 @@ const controller: StartupTaskController = createStartupTaskController(
   (message, err) => log.warn(message, err),
 );
 
+// Every Windows call starts a short-lived PowerShell inside the package, so keep them rare: share
+// one in-flight call, and reuse a recent answer.
+const CACHE_MS = 15_000;
+let cached: { info: StartupTaskInfo; at: number } | null = null;
+let inflight: Promise<StartupTaskInfo> | null = null;
+
+function remember(info: StartupTaskInfo): StartupTaskInfo {
+  cached = { info, at: Date.now() };
+  return info;
+}
+
+async function readState(): Promise<StartupTaskInfo> {
+  if (cached && Date.now() - cached.at < CACHE_MS) return cached.info;
+  inflight ??= controller
+    .get()
+    .then(remember)
+    .finally(() => (inflight = null));
+  return inflight;
+}
+
 let launchReconcile: Promise<unknown> = Promise.resolve();
 
 /** Make the sign-in behaviour match Scheduled (the master setting). Store: startup task; otherwise: Run key. */
 export async function applyStartAtSignIn(wanted: boolean): Promise<void> {
   if (isStoreBuild()) {
-    const info = await controller.set(wanted);
+    const info = remember(await controller.set(wanted));
     log.info(`Startup task state after applying scheduled=${wanted}: ${info.state}`);
   } else if (app.isPackaged) {
     app.setLoginItemSettings({ openAtLogin: wanted });
   }
 }
 
-/** At launch: reconcile once, and let the renderer's first state read wait for it. */
+/**
+ * At launch: with Scheduled on, make the sign-in behaviour match (one Windows call, whose answer
+ * also feeds the banner). With Scheduled off in a Store build there is nothing to check or change
+ * until the user turns Scheduled on.
+ */
 export function reconcileStartAtSignInOnLaunch(wanted: boolean): void {
+  if (isStoreBuild() && !wanted) return;
   launchReconcile = applyStartAtSignIn(wanted).catch((err: unknown) =>
     log.warn('Startup reconcile failed', err),
   );
 }
 
-export async function getStartupTaskInfo(): Promise<StartupTaskInfo | null> {
-  if (!isStoreBuild()) return null;
+/** `scheduled` false: nothing is wanted, so the banner has nothing to say and Windows isn't asked. */
+export async function getStartupTaskInfo(scheduled: boolean): Promise<StartupTaskInfo | null> {
+  if (!isStoreBuild() || !scheduled) return null;
   await launchReconcile;
-  return controller.get();
+  return readState();
 }
 
 export async function enableStartupTask(): Promise<StartupTaskInfo | null> {
   if (!isStoreBuild()) return null;
-  return controller.set(true);
+  return remember(await controller.set(true));
 }
 
 export async function openStartupSettings(): Promise<void> {

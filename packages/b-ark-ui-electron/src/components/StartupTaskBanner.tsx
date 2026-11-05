@@ -3,7 +3,7 @@
 
 // Container for the shared StartupTaskBanner. Only does anything in Microsoft Store builds, where
 // the backend reports a Windows startup-task state; elsewhere getStartupTask is absent or null.
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   StartupTaskBanner as StartupTaskBannerView,
   describeStartupTask,
@@ -25,15 +25,21 @@ export function StartupTaskBanner() {
       .catch(() => setInfo({ state: 'unknown' }));
   }, [backend]);
 
-  // On mount, whenever the setting changes, and when the window regains focus (the user may have
-  // just fixed it in Windows Settings).
+  const warning = describeStartupTask(info, wanted);
+  const warningShown = useRef(false);
+  warningShown.current = warning !== null;
+
+  // On mount and whenever the setting changes. On focus only while a warning is showing (the user
+  // may have just fixed it in Windows Settings): otherwise every click would ask Windows again.
   useEffect(() => {
     refresh();
-    window.addEventListener('focus', refresh);
-    return () => window.removeEventListener('focus', refresh);
+    const onFocus = (): void => {
+      if (warningShown.current) refresh();
+    };
+    window.addEventListener('focus', onFocus);
+    return () => window.removeEventListener('focus', onFocus);
   }, [refresh, wanted]);
 
-  const warning = describeStartupTask(info, wanted);
   if (!warning) return null;
 
   function onAction(action: StartupTaskAction): void {
