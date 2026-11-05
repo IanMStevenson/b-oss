@@ -57,8 +57,8 @@ import StoreBadge from '../components/StoreBadge.astro';
         <h3 style="margin-top: 0">Choose b-ark-chrome if…</h3>
         <p>
           you're on Mac or Linux, you usually post from your computer, or you want the
-          simplest possible setup — one click from the Chrome Web Store, no installer, no
-          security warnings, and silent automatic updates.
+          simplest possible setup — one click from the Chrome Web Store, and silent automatic
+          updates.
         </p>
       </div>
       <div>
@@ -85,35 +85,8 @@ import StoreBadge from '../components/StoreBadge.astro';
       <div class="tri-link tri-link-soon" data-link="microsoft-store">
         <StoreBadge product="b-ark" store="microsoft" bare />
         <h3>Microsoft Store</h3>
-        <p>Coming soon. The easiest way to install and keep b-ark up to date.</p>
+        <p>Coming soon. Install b-ark and keep it up to date.</p>
       </div>
-
-      <a
-        class="tri-link"
-        href="https://github.com/IanMStevenson/b-oss/releases/download/b-ark-latest/b-ark-Setup.exe"
-        data-link="download-latest"
-      >
-        <span class="ico" aria-hidden="true">
-          <svg width="32" height="32" viewBox="0 0 32 32" fill="none">
-            <path
-              d="M16 4v17m0 0-6-6m6 6 6-6"
-              stroke="currentColor"
-              stroke-width="2"
-              stroke-linecap="round"
-              stroke-linejoin="round"
-            />
-            <path
-              d="M5 24v2a2 2 0 0 0 2 2h18a2 2 0 0 0 2-2v-2"
-              stroke="currentColor"
-              stroke-width="2"
-              stroke-linecap="round"
-              stroke-linejoin="round"
-            />
-          </svg>
-        </span>
-        <h3>Download</h3>
-        <p>Latest release for Windows.</p>
-      </a>
 
       <a class="tri-link" href="b-ark-guide" data-link="user-guide">
         <span class="ico" aria-hidden="true">
@@ -172,12 +145,12 @@ import StoreBadge from '../components/StoreBadge.astro';
         <p>Install, connect, and back up from your browser.</p>
       </a>
     </div>
-
-    <p style="margin-top: 24px">
-      <a href="b-ark-privacy">b-ark privacy policy</a> ·
-      <a href="b-ark-chrome-privacy">b-ark-chrome privacy policy</a>
-    </p>
   </section>
 
   <CtaBand />
+
+  <div class="btn-row">
+    <a class="btn" href="b-ark-privacy">b-ark privacy policy</a>
+    <a class="btn" href="b-ark-chrome-privacy">b-ark-chrome privacy policy</a>
+  </div>
 </Layout>

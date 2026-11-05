@@ -21,10 +21,7 @@ import Hero from '../components/Hero.astro';
     <nav class="toc" aria-label="Contents">
       <p class="toc-title">Contents</p>
       <ol>
-        <li><a href="#download">Download</a></li>
-        <li><a href="#browser-warning">Browser download warning</a></li>
-        <li><a href="#smartscreen">Windows SmartScreen warning</a></li>
-        <li><a href="#installation">Installation</a></li>
+        <li><a href="#installation">Install from the Microsoft Store</a></li>
         <li><a href="#choose-folder">Choose a backup folder</a></li>
         <li><a href="#add-account">Add your blipfoto account</a></li>
         <li><a href="#first-backup">Run your first backup</a></li>
@@ -35,90 +32,13 @@ import Hero from '../components/Hero.astro';
     </nav>
 
     <div class="prose">
-      <h2 id="download">1. Download</h2>
+      <h2 id="installation">1. Install from the Microsoft Store</h2>
       <p>
-        Download the latest installer,
-        <a href="https://github.com/IanMStevenson/b-oss/releases/download/b-ark-latest/b-ark-Setup.exe"><code>b-ark-Setup.exe</code></a>.
-        Earlier versions, release notes and checksums are on the
-        <a href="https://github.com/IanMStevenson/b-oss/releases">releases page</a>.
+        b-ark is coming soon to the Microsoft Store. Install it like any other Store app, then open
+        it.
       </p>
 
-      <h2 id="browser-warning">2. Browser download warning</h2>
-      <p>
-        Because the b-ark installer is not signed by a commercial certificate authority (and I'm
-        not spending hundreds of pounds on such a certificate), your browser will warn you
-        before saving it. The steps differ slightly by browser.
-      </p>
-
-      <h3>Microsoft Edge</h3>
-      <p>After the download completes, Edge shows a warning in the downloads panel.</p>
-      <figure>
-        <img
-          src="assets/guide/edge-download-warning.png"
-          alt="Microsoft Edge download warning"
-        />
-        <figcaption>Edge download warning</figcaption>
-      </figure>
-      <ol>
-        <li>Click the <strong>"…"</strong> (three dots) on the download entry.</li>
-        <li>Choose <strong>"Keep"</strong>.</li>
-        <li>
-          If a further confirmation appears, click <strong>"Show more"</strong> &rarr;
-          <strong>"Keep anyway"</strong>.
-        </li>
-      </ol>
-
-      <h3>Google Chrome</h3>
-      <p>
-        Chrome may shows the file in the downloads bar at the bottom of the window with a
-        warning icon.
-      </p>
-      <!-- <figure>
-      <img src="assets/guide/chrome-download-warning.png" alt="Google Chrome download warning" />
-      <figcaption>Chrome download warning</figcaption>
-    </figure> -->
-      <ol>
-        <li>
-          Click the <strong>chevron</strong> or <strong>down arrow</strong> (&#x25BE;) next to
-          the "Discard" button.
-        </li>
-        <li>Choose <strong>"Keep dangerous download"</strong>.</li>
-        <li>If prompted again, click <strong>"Keep anyway"</strong>.</li>
-      </ol>
-
-      <h2 id="smartscreen">3. Windows SmartScreen warning</h2>
-      <p>
-        When you run the installer, Windows Defender SmartScreen shows a blue dialog because
-        b-ark has not yet built up a reputation with Microsoft.
-      </p>
-      <figure>
-        <img src="assets/guide/smartscreen-initial.png" alt="SmartScreen initial dialog" />
-        <figcaption>SmartScreen initial dialog</figcaption>
-      </figure>
-      <ol>
-        <li>
-          Click <strong>"More info"</strong> (the text link near the bottom-left of the dialog).
-        </li>
-      </ol>
-      <figure>
-        <img
-          src="assets/guide/smartscreen-more-info.png"
-          alt="SmartScreen after clicking More info"
-        />
-        <figcaption>SmartScreen after clicking "More info"</figcaption>
-      </figure>
-      <ol start="2">
-        <li>Click <strong>"Run anyway"</strong>.</li>
-        <li>If a User Account Control (UAC) prompt follows, click <strong>"Yes"</strong>.</li>
-      </ol>
-
-      <h2 id="installation">4. Installation</h2>
-      <p>
-        The installer runs silently with no options to choose. It installs b-ark into your user
-        profile (no administrator rights required) and launches the app when it finishes.
-      </p>
-
-      <h2 id="choose-folder">5. Choose a backup folder</h2>
+      <h2 id="choose-folder">2. Choose a backup folder</h2>
       <p>
         The first thing b-ark asks you to do is pick a folder where it will store your backup
         files and its portable settings.
@@ -143,7 +63,7 @@ import Hero from '../components/Hero.astro';
         setting up on a new machine), b-ark will load your previous settings automatically.
       </p>
 
-      <h2 id="add-account">6. Add your blipfoto account</h2>
+      <h2 id="add-account">3. Add your blipfoto account</h2>
       <p>After choosing a folder, b-ark shows the welcome screen.</p>
       <figure>
         <img src="assets/guide/welcome.png" alt="Welcome screen" />
@@ -182,7 +102,7 @@ import Hero from '../components/Hero.astro';
         </li>
       </ul>
 
-      <h2 id="first-backup">7. Run your first backup</h2>
+      <h2 id="first-backup">4. Run your first backup</h2>
       <p>
         After connecting your account you are taken to a confirmation screen. Click
         <strong>"Run first backup"</strong> to start immediately, or
@@ -239,7 +159,7 @@ import Hero from '../components/Hero.astro';
       </p>
       <p>Your journal thumbnails appear in the main view.</p>
 
-      <h2 id="settings">8. Settings reference</h2>
+      <h2 id="settings">5. Settings reference</h2>
       <p>
         Open the settings panel by clicking the <strong>gear icon</strong> in the toolbar, or by
         clicking <strong>"Review settings"</strong> after connecting an account.
@@ -299,14 +219,14 @@ import Hero from '../components/Hero.astro';
           <tr>
             <td>Check for updates automatically</td>
             <td>
-              b-ark checks GitHub for a newer release each time it starts and offers to install
-              it if one is available.
+              For older copies of b-ark installed from this website: checks for a newer release each time it
+              starts. Copies from the Microsoft Store are updated by the Store.
             </td>
           </tr>
         </tbody>
       </table>
 
-      <h2 id="b-view">9. Browsing your journal with b-view</h2>
+      <h2 id="b-view">6. Browsing your journal with b-view</h2>
       <p>
         The b-ark app uses <strong>b-view</strong> to display and browse journal entries. It has
         a thumbnail grid view and an entry view.
@@ -385,7 +305,7 @@ import Hero from '../components/Hero.astro';
         required.
       </p>
 
-      <h2 id="ai">10. Using your backup with AI</h2>
+      <h2 id="ai">7. Using your backup with AI</h2>
       <p>
         Each account's backup folder contains a <code>README.md</code> file. It explains your
         journal's data format and gives guidance on using the backup with AI assistants: Claude,
