@@ -9,9 +9,11 @@ interface Props {
   store: StoreKey;
   /** The product's display name, used in the alt text ("Get b-mobile on Google Play"). */
   label?: string;
+  /** Artwork only, no link: for use inside a card that is itself the link (alt text left empty). */
+  bare?: boolean;
 }
 
-const { product, store } = Astro.props;
+const { product, store, bare = false } = Astro.props;
 const label = Astro.props.label ?? product;
 const entry = (STORES[product] as Partial<Record<StoreKey, StoreEntry>>)[store];
 if (!entry) throw new Error(`No ${store} entry for ${product} in src/stores.ts`);
@@ -24,6 +26,13 @@ if (entry.state === 'live' && store === 'microsoft') {
 
 {
   entry.state === 'live' ? (
+    <Fragment>
+    {bare ? (
+      <span class={`store-badge store-badge-${store}`}>
+        {store === 'play' && <img src="assets/stores/google-play.png" width="646" height="250" alt="" />}
+        {store === 'chrome' && <img src="assets/stores/chrome-web-store.png" width="496" height="150" alt="" />}
+      </span>
+    ) : (
     <a class={`store-badge store-badge-${store}`} href={entry.url}>
       {store === 'play' && (
         <img
@@ -42,11 +51,12 @@ if (entry.state === 'live' && store === 'microsoft') {
         />
       )}
     </a>
+    )}
+    </Fragment>
   ) : (
     <span
       class="store-badge store-badge-soon"
-      role="img"
-      aria-label={`${label}: coming soon to ${storeName}`}
+      {...(bare ? { 'aria-hidden': 'true' } : { role: 'img', 'aria-label': `${label}: coming soon to ${storeName}` })}
     >
       <svg viewBox="0 0 496 150" aria-hidden="true" focusable="false">
         <rect x="2" y="2" width="492" height="146" rx="24" class="soon-bg" />

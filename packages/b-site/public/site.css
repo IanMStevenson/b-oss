@@ -2062,3 +2062,14 @@ a.store-badge:hover {
   letter-spacing: -0.01em;
   opacity: 0.85;
 }
+.tri-link .store-badge {
+  margin-bottom: 12px;
+}
+.tri-link-soon,
+.tri-link-soon:hover {
+  cursor: default;
+  background: var(--green-50);
+  border-style: dashed;
+  box-shadow: none;
+  transform: none;
+}
