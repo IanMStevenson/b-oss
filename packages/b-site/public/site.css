@@ -2116,9 +2116,6 @@ a.store-badge:hover {
   padding: 52px 0;
   border-top: none;
 }
-.bands + .cta-band {
-  margin-top: 36px;
-}
 .band-tint {
   background: var(--green-100);
   box-shadow: 0 0 0 100vmax var(--green-100);
