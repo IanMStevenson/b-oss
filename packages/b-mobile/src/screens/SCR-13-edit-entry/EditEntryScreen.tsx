@@ -29,8 +29,6 @@ import {
 import { AppHeader } from '../../components/AppHeader.js';
 import { CachedImage } from '../../components/CachedImage.js';
 import { DateField } from '../../components/DateField.js';
-import { fetchDayEligibility } from '../../data/journal.js';
-import type { DayEligibility } from '../../data/journal.js';
 import { DescriptionField, TextField, ToggleRow } from '../../components/ComposeForm.js';
 import { useAppNavigate } from '../../app/routes/useAppNavigate.js';
 import { useComposeDraftStore } from '../../state/composeDraftStore.js';
@@ -76,10 +74,6 @@ export function EditEntryScreen({ entryId }: EditEntryScreenProps) {
   // "Add to map" for an entry whose position the app doesn't hold: looking it up (b-oss#650).
   const [lookingUpPosition, setLookingUpPosition] = useState(false);
   const [mapMessage, setMapMessage] = useState<string | null>(null);
-
-  // Availability of a newly picked date (never checked for the entry's own date).
-  const [eligibility, setEligibility] = useState<DayEligibility | null>(null);
-  const [eligibilityLoading, setEligibilityLoading] = useState(false);
 
   // Blipfoto only lets part of an older entry be changed (actions.edit): it ignores the rest
   // without an error, so the form offers only what will actually be saved.
@@ -140,37 +134,6 @@ export function EditEntryScreen({ entryId }: EditEntryScreenProps) {
     // setDraft is a stable Zustand action reference (never changes identity), so including it
     // doesn't add a re-run trigger beyond entryId/activeAccount.
   }, [entryId, activeAccount, setDraft, loadAttempt]);
-
-  const pickedDate = draft?.date;
-  const originalDate = draft?.originalDate;
-  useEffect(() => {
-    if (!pickedDate || !originalDate || pickedDate === originalDate) {
-      setEligibility(null);
-      setEligibilityLoading(false);
-      return;
-    }
-    let cancelled = false;
-    setEligibilityLoading(true);
-    fetchDayEligibility(pickedDate).then(
-      (result) => {
-        if (cancelled) return;
-        setEligibility(result);
-        setEligibilityLoading(false);
-      },
-      () => {
-        if (cancelled) return;
-        setEligibility({
-          publishable: false,
-          message: 'Could not check that date.',
-          existingEntryId: null,
-        });
-        setEligibilityLoading(false);
-      },
-    );
-    return () => {
-      cancelled = true;
-    };
-  }, [pickedDate, originalDate]);
 
   // Set when the discard confirmation was raised by the header's home tap rather than Back.
   const pendingHome = useRef<(() => void) | null>(null);
@@ -365,15 +328,7 @@ export function EditEntryScreen({ entryId }: EditEntryScreenProps) {
                 onChange={(description) => patchDraft({ description })}
               />
 
-              <div>
-                <DateField value={draft.date} onChange={(date) => patchDraft({ date })} />
-                {eligibilityLoading && <IonSpinner name="dots" />}
-                {!eligibilityLoading && eligibility?.message && (
-                  <IonText color="warning">
-                    <p>{eligibility.message}</p>
-                  </IonText>
-                )}
-              </div>
+              <DateField value={draft.date} onChange={(date) => patchDraft({ date })} />
             </>
           )}
 
@@ -419,12 +374,7 @@ export function EditEntryScreen({ entryId }: EditEntryScreenProps) {
           {submitting && <UploadingNotice what="save" />}
           <IonButton
             expand="block"
-            disabled={
-              submitting ||
-              editLevel === 0 ||
-              eligibilityLoading ||
-              eligibility?.publishable === false
-            }
+            disabled={submitting || editLevel === 0}
             onClick={() => void handleSave()}
           >
             {submitting ? <IonSpinner name="dots" /> : submitError ? 'Retry' : 'Save'}
