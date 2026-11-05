@@ -11,6 +11,10 @@ and say why in the PR. No page-local styling (`style="..."`) for anything that c
 
 ### Product page (b-ark, b-api; b-mobile needs checking against this)
 
+This is the **target recipe**, not a description of every page today. Known differences on the
+integration branch: `b-ark` styles its per-variant "Get it" labels inline, and `b-api` has no contact
+band and titles its section "Get b-api". Bring them in line when those pages are next touched.
+
 1. **Hero** (`Hero.astro`): big icon, product name as `h1`, one-line lead.
 2. **Introduction** (`section.block`, eyebrow "Introduction"): a short `prose` paragraph and a
    `feature-list` of 4 ticks, each a bold lead word and one sentence (`FeatureItem`).
@@ -54,7 +58,7 @@ Its own styling, every class prefixed `st-`; see [`status-page.md`](status-page.
 | Phone shots | `PhoneShots.astro` | Row of captioned phone screenshots (centred). |
 | Tri-link card | `.tri-links` > `.tri-link` | Icon (or store badge), `h3`, one-line `p`. Three per row, centred; a row with fewer cards centres. The whole card is the link. |
 | App card | `.app-card` | Homepage product block. |
-| Store badge | `StoreBadge.astro`, `src/stores.ts` | Official badge artwork, unmodified, linking to a live listing; a black, plain-text "coming soon" box when not live. Used inside a tri-link card with `bare`. |
+| Store badge (arrives with [b-oss#850](https://github.com/IanMStevenson/b-oss/pull/850)) | `StoreBadge.astro`, `src/stores.ts` | Official badge artwork, unmodified, linking to a live listing; a black, plain-text "coming soon" box when not live. Used inside a tri-link card with `bare`. |
 | Button | `.btn`, `.btn.primary` | One primary action per block. |
 | Contact band | `CtaBand.astro` | Last thing before the footer. |
 | Header, footer | `Header.astro`, `Footer.astro` | Nav and footer links are defined once, there. |
