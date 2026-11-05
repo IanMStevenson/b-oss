@@ -3,6 +3,7 @@ import Layout from '../layouts/Layout.astro';
 import Hero from '../components/Hero.astro';
 import CtaBand from '../components/CtaBand.astro';
 import FeatureItem from '../components/FeatureItem.astro';
+import StoreBadge from '../components/StoreBadge.astro';
 ---
 
 <Layout
@@ -81,6 +82,12 @@ import FeatureItem from '../components/FeatureItem.astro';
       b-ark · Windows desktop
     </p>
     <div class="tri-links">
+      <div class="tri-link tri-link-soon" data-link="microsoft-store">
+        <StoreBadge product="b-ark" store="microsoft" bare />
+        <h3>Microsoft Store</h3>
+        <p>Coming soon. The easiest way to install and keep b-ark up to date.</p>
+      </div>
+
       <a
         class="tri-link"
         href="https://github.com/IanMStevenson/b-oss/releases/download/b-ark-latest/b-ark-Setup.exe"
@@ -139,23 +146,7 @@ import FeatureItem from '../components/FeatureItem.astro';
         href="https://chromewebstore.google.com/detail/b-ark-chrome/apcmndghbieclompadigikblmlafccpe"
         data-link="web-store"
       >
-        <span class="ico" aria-hidden="true">
-          <svg width="32" height="32" viewBox="0 0 32 32" fill="none">
-            <rect
-              x="4"
-              y="6"
-              width="24"
-              height="20"
-              rx="3"
-              stroke="currentColor"
-              stroke-width="2"
-            />
-            <path d="M4 11h24" stroke="currentColor" stroke-width="2" />
-            <circle cx="8" cy="8.5" r="1" fill="currentColor" />
-            <circle cx="12" cy="8.5" r="1" fill="currentColor" />
-            <circle cx="16" cy="8.5" r="1" fill="currentColor" />
-          </svg>
-        </span>
+        <StoreBadge product="b-ark-chrome" store="chrome" bare />
         <h3>Chrome Web Store</h3>
         <p>Install b-ark-chrome from the Chrome Web Store.</p>
       </a>

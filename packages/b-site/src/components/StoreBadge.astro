@@ -1,0 +1,65 @@
+---
+// One store badge. Live stores show the store's own badge artwork, unmodified (resized only), linked
+// to the listing. Stores not yet live show a same-shaped "coming soon" badge that is not a link.
+// Status comes from src/stores.ts; see the rules there. Official badges: public/assets/stores/.
+import { STORES, STORE_NAMES, type ProductKey, type StoreEntry, type StoreKey } from '../stores';
+
+interface Props {
+  product: ProductKey;
+  store: StoreKey;
+  /** The product's display name, used in the alt text ("Get b-mobile on Google Play"). */
+  label?: string;
+  /** Artwork only, no link: for use inside a card that is itself the link (alt text left empty). */
+  bare?: boolean;
+}
+
+const { product, store, bare = false } = Astro.props;
+const label = Astro.props.label ?? product;
+const entry = (STORES[product] as Partial<Record<StoreKey, StoreEntry>>)[store];
+if (!entry) throw new Error(`No ${store} entry for ${product} in src/stores.ts`);
+const storeName = STORE_NAMES[store];
+// At launch the real Microsoft badge needs an artwork branch below; fail the build until it has one.
+if (entry.state === 'live' && store === 'microsoft') {
+  throw new Error('Add the official Microsoft Store badge to StoreBadge.astro before marking it live.');
+}
+---
+
+{
+  entry.state === 'live' ? (
+    <Fragment>
+    {bare ? (
+      <span class={`store-badge store-badge-${store}`}>
+        {store === 'play' && <img src="assets/stores/google-play.png" width="646" height="250" alt="" />}
+        {store === 'chrome' && <img src="assets/stores/chrome-web-store-border.png" width="496" height="150" alt="" />}
+      </span>
+    ) : (
+    <a class={`store-badge store-badge-${store}`} href={entry.url}>
+      {store === 'play' && (
+        <img
+          src="assets/stores/google-play.png"
+          width="646"
+          height="250"
+          alt={`Get ${label} on Google Play`}
+        />
+      )}
+      {store === 'chrome' && (
+        <img
+          src="assets/stores/chrome-web-store-border.png"
+          width="496"
+          height="150"
+          alt={`Get ${label}, available in the Chrome Web Store`}
+        />
+      )}
+    </a>
+    )}
+    </Fragment>
+  ) : (
+    <span
+      class="store-badge store-badge-soon"
+      {...(bare ? { 'aria-hidden': 'true' } : { role: 'img', 'aria-label': `${label}: coming soon to ${storeName}` })}
+    >
+      <span>Coming soon to</span>
+      <span>Microsoft Store</span>
+    </span>
+  )
+}
