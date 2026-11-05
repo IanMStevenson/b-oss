@@ -18,6 +18,7 @@ import {
 } from './db.js';
 import { RequestBudget } from './budget.js';
 import { decryptReadToken, importEncryptionKey } from './crypto.js';
+import { decideNotifications, settle } from '@b-oss/b-notify-core';
 import { fetchUnreadTotals, ReadTokenInvalidError } from './blipfoto.js';
 import { DeviceUnregisteredError, sendFcmMessage } from './fcm.js';
 import { describeError } from './log.js';
@@ -119,65 +120,35 @@ async function pollOne(ctx: PollContext, reg: RegistrationRow): Promise<PollOneO
     throw err;
   }
 
-  const commentsDelta = totals.comments - reg.last_seen_comments_total;
-  const notificationsDelta = totals.notifications - reg.last_seen_notifications_total;
-
-  // A stream's new total is stored only once its push (if any) has been sent. If a send fails,
-  // that stream keeps its old total so the next poll pushes it again rather than losing it; a
-  // stream whose push wasn't attempted after an earlier failure keeps its old total too.
-  // A stream that's switched off still has its total stored, so one switched back on later
-  // starts from the current count rather than firing a catch-up push for everything that arrived
-  // while it was off (b-oss#244). With both toggles off the row still polls; the app DELETEs the
-  // registration when the user turns the last one off, so that state is transient.
-  let commentsSeen = totals.comments;
-  let notificationsSeen = totals.notifications;
-  let sendError: Error | null = null;
-  let pushed = 0;
-  let pushAttempted = false;
-  if (reg.push_comments && commentsDelta > 0) {
-    try {
-      pushAttempted = true;
-      await sendFcmMessage(
-        env,
-        reg.device_token,
-        {
-          kind: 'activity',
-          stream: 'comments',
-          accountId: reg.blipfoto_user_id,
-          count: commentsDelta,
-        },
-        budget,
-      );
-      pushed++;
-    } catch (err) {
-      sendError = err instanceof Error ? err : new Error(String(err));
-      commentsSeen = reg.last_seen_comments_total;
-    }
-  }
-  if (reg.push_notifications && notificationsDelta > 0) {
-    if (sendError === null) {
-      try {
-        pushAttempted = true;
-        await sendFcmMessage(
-          env,
-          reg.device_token,
-          {
-            kind: 'activity',
-            stream: 'notifications',
-            accountId: reg.blipfoto_user_id,
-            count: notificationsDelta,
-          },
-          budget,
-        );
-        pushed++;
-      } catch (err) {
-        sendError = err instanceof Error ? err : new Error(String(err));
-        notificationsSeen = reg.last_seen_notifications_total;
-      }
-    } else {
-      notificationsSeen = reg.last_seen_notifications_total;
-    }
-  }
+  // The count-diff rule and its delivery settling live in @b-oss/b-notify-core (shared with the
+  // desktop shell): a stream's new total is stored only once its push was sent; a failed send
+  // keeps that stream's old total (and every later stream's) so the next poll retries; a
+  // switched-off stream still has its total stored (b-oss#244). With both toggles off the row
+  // still polls; the app DELETEs the registration when the user turns the last one off, so that
+  // state is transient.
+  const lastSeen = {
+    comments: reg.last_seen_comments_total,
+    notifications: reg.last_seen_notifications_total,
+  };
+  const decision = decideNotifications({
+    totals,
+    lastSeen,
+    streams: { comments: !!reg.push_comments, notifications: !!reg.push_notifications },
+  });
+  // settle attempts the first delivery whenever there is one, so this equals "a send was tried".
+  const pushAttempted = decision.notify.length > 0;
+  const settled = await settle(decision, lastSeen, async (n) => {
+    await sendFcmMessage(
+      env,
+      reg.device_token,
+      { kind: 'activity', stream: n.stream, accountId: reg.blipfoto_user_id, count: n.count },
+      budget,
+    );
+  });
+  const pushed = settled.delivered.length;
+  const commentsSeen = settled.nextSeen.comments;
+  const notificationsSeen = settled.nextSeen.notifications;
+  const sendError = settled.error;
 
   if (pushAttempted) {
     // Written on its own, straight away: if the run died before a batched write, the next tick

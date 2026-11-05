@@ -113,7 +113,7 @@ export function ReportEntryScreen({
           accountIndicator
         />
       </IonHeader>
-      <IonContent className="ion-padding">
+      <IonContent className="ion-padding form-column">
         {error && (
           <IonText color="danger">
             <p>{error}</p>

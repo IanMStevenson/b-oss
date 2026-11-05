@@ -11,11 +11,11 @@ name: CI
 
 on:
   push:
-    branches: [main]
+    branches: [main, integration/b-mobile-pc]
     paths-ignore:
       - 'packages/b-site/**'
   pull_request:
-    branches: [main]
+    branches: [main, integration/b-mobile-pc]
     paths-ignore:
       - 'packages/b-site/**'
 

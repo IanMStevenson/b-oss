@@ -20,7 +20,9 @@ import { createPinIcon } from '../../components/mapPin.js';
 import { createLeafletMap, MAP_FAILED_MESSAGE } from '../../components/leafletMap.js';
 import '../../components/ComposeForm.css';
 import { getTileLayerConfig, getSatelliteLayerConfig } from '../../platform/mapTiles.js';
-import { getCurrentPosition } from '../../platform/geolocation.js';
+import { getCurrentPosition, LocationUnavailableError } from '../../platform/geolocation.js';
+import { profile } from '../../profile/profile.js';
+import { locationControlAvailable } from '../../platform/capabilities.js';
 import { useAppNavigate } from '../../app/routes/useAppNavigate.js';
 import { useComposeDraftStore } from '../../state/composeDraftStore.js';
 
@@ -121,8 +123,10 @@ export function LocationPickerScreen() {
       }
       placeMarker(coords.lat, coords.lon);
       mapRef.current?.setView([coords.lat, coords.lon], SELECTED_ZOOM, { animate: false });
-    } catch {
-      setLocationMessage('Location access was refused.');
+    } catch (err) {
+      setLocationMessage(
+        err instanceof LocationUnavailableError ? err.message : 'Location access was refused.',
+      );
     }
   }
 
@@ -165,14 +169,16 @@ export function LocationPickerScreen() {
               {/* Inline, not a class: Ionic can mount the page before it is in the document, when
                   a stylesheet's `position` doesn't read back and Leaflet would force `relative`. */}
               <div ref={containerRef} style={{ position: 'absolute', inset: 0 }} />
-              <button
-                type="button"
-                className="map-locate"
-                onClick={() => void handleMyLocation()}
-                aria-label="My location"
-              >
-                <LocateFixed size={22} aria-hidden="true" />
-              </button>
+              {locationControlAvailable() && (
+                <button
+                  type="button"
+                  className="map-locate"
+                  onClick={() => void handleMyLocation()}
+                  aria-label={profile().locationControlLabel}
+                >
+                  <LocateFixed size={22} aria-hidden="true" />
+                </button>
+              )}
               {mapFailed && (
                 <div
                   className="ion-padding"

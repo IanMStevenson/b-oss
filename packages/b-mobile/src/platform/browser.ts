@@ -7,11 +7,11 @@
 // for desktop-browser development though the OAuth round itself isn't testable that way (no
 // appUrlOpen event exists outside a native shell — see platform/deepLinks.ts).
 
-import { Capacitor } from '@capacitor/core';
 import { Browser } from '@capacitor/browser';
+import { isCapacitorNative } from './platformKind.js';
 
 export async function openUrl(url: string): Promise<void> {
-  if (!Capacitor.isNativePlatform()) {
+  if (!isCapacitorNative()) {
     window.open(url, '_blank', 'noopener,noreferrer');
     return;
   }
@@ -19,14 +19,14 @@ export async function openUrl(url: string): Promise<void> {
 }
 
 export async function closeBrowser(): Promise<void> {
-  if (!Capacitor.isNativePlatform()) return;
+  if (!isCapacitorNative()) return;
   await Browser.close();
 }
 
 /** Fires when the user closes the in-app browser manually (Android/iOS only) — the signal an
  * in-progress OAuth round uses to detect a cancellation that never reaches the redirect. */
 export function onBrowserFinished(handler: () => void): () => void {
-  if (!Capacitor.isNativePlatform()) return () => {};
+  if (!isCapacitorNative()) return () => {};
   let handle: { remove: () => void } | undefined;
   void Browser.addListener('browserFinished', handler).then((h) => {
     handle = h;

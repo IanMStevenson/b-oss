@@ -14,7 +14,8 @@
 // user-agent stylesheet, so applying a second multiplier there would double-scale — a no-op off
 // native, same stance every other platform/*.ts module takes.
 
-import { Capacitor, registerPlugin } from '@capacitor/core';
+import { registerPlugin } from '@capacitor/core';
+import { isCapacitorNative } from './platformKind.js';
 
 interface AccessibilityPlugin {
   getFontScale(): Promise<{ fontScale: number }>;
@@ -25,7 +26,7 @@ const Accessibility = registerPlugin<AccessibilityPlugin>('Accessibility');
 const BASE_ROOT_FONT_SIZE_PX = 16;
 
 export async function applyFontScale(): Promise<void> {
-  if (!Capacitor.isNativePlatform()) return;
+  if (!isCapacitorNative()) return;
   const { fontScale } = await Accessibility.getFontScale();
   document.documentElement.style.fontSize = `${BASE_ROOT_FONT_SIZE_PX * fontScale}px`;
 }

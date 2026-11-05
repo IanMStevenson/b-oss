@@ -6,8 +6,8 @@
 // single message with a link in it, not a separate link attachment. Web fallback is the Web
 // Share API where the browser has it, otherwise nothing (browser-mode development only).
 
-import { Capacitor } from '@capacitor/core';
 import { Share } from '@capacitor/share';
+import { isCapacitorNative } from './platformKind.js';
 
 export interface ShareLinkOptions {
   url: string;
@@ -24,7 +24,7 @@ function isCancellation(err: unknown): boolean {
 
 export async function shareLink(options: ShareLinkOptions): Promise<void> {
   try {
-    if (Capacitor.isNativePlatform()) {
+    if (isCapacitorNative()) {
       await Share.share(options);
     } else if (typeof navigator.share === 'function') {
       await navigator.share({ url: options.url, text: options.text, title: options.title });

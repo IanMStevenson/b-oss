@@ -42,6 +42,7 @@ import type { NavSource } from '../../state/sourceNavStore.js';
 import { useActiveAccount } from '../../state/accountsStore.js';
 import { useAppNavigate } from '../../app/routes/useAppNavigate.js';
 import { getCurrentPosition } from '../../platform/geolocation.js';
+import { capabilities } from '../../platform/capabilities.js';
 import type { EntryIndex } from '@b-oss/b-view';
 import { LoadFailed } from '../../components/LoadFailed.js';
 
@@ -56,6 +57,27 @@ type Tab = 'recent' | 'following' | 'justme' | 'popular' | 'milestones' | 'new' 
 const RECENT_TOTAL_ENTRIES = 50 * 18;
 
 function NearbyTab() {
+  return capabilities().location === 'os' ? <NearbyByLocation /> : <NearbyNeedsMap />;
+}
+
+/** No OS location (desktop): there is nothing to allow, so say so and point at the map. */
+function NearbyNeedsMap() {
+  const navigate = useAppNavigate();
+  return (
+    <>
+      <EmptyState
+        icon={<MapPin size={40} strokeWidth={1.5} />}
+        title="Nearby needs your location."
+        hint="This computer can't tell where you are. Use the map to explore places instead."
+      />
+      <div style={{ display: 'flex', justifyContent: 'center' }}>
+        <IonButton onClick={() => navigate.push('/map')}>Open the map</IonButton>
+      </div>
+    </>
+  );
+}
+
+function NearbyByLocation() {
   const navigate = useAppNavigate();
   const [coords, setCoords] = useState<{ lat: number; lon: number } | null>(null);
   const [locationDenied, setLocationDenied] = useState(false);
@@ -94,7 +116,7 @@ function NearbyTab() {
               icon={<MapPin size={40} strokeWidth={1.5} />}
               title="Nearby needs your location."
               hint={
-                asked ? 'If nothing happens, allow location in your phone settings.' : undefined
+                asked ? 'If nothing happens, allow location in your device settings.' : undefined
               }
             />
             <div style={{ display: 'flex', justifyContent: 'center' }}>

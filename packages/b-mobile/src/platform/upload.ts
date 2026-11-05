@@ -11,7 +11,6 @@
 // and clears the old upload queue's leftovers (discardLegacyUploadQueue). @capacitor/filesystem
 // ships a genuine web implementation, so the same code runs under `vite dev`.
 
-import { Capacitor } from '@capacitor/core';
 import { Filesystem, Directory } from '@capacitor/filesystem';
 import { FileTransfer } from '@capacitor/file-transfer';
 import type { FileTransferError } from '@capacitor/file-transfer';
@@ -21,6 +20,7 @@ import { base64ToBytes, bytesToBase64 } from '../data/binary.js';
 import { randomId } from '../data/id.js';
 import { deletePref } from './prefs.js';
 import type { PickedPhoto } from './camera.js';
+import { isCapacitorNative } from './platformKind.js';
 
 const UPLOADS_DIR = 'uploads';
 const LEGACY_QUEUE_PREF = 'b-mobile:upload-queue';
@@ -31,7 +31,7 @@ const LEGACY_QUEUE_PREF = 'b-mobile:upload-queue';
  * loaded into JS memory here; web gets an in-memory Blob, the only form b-api's default FormData
  * path can send. */
 export async function photoToFileSource(photo: PickedPhoto): Promise<FileSource> {
-  if (Capacitor.isNativePlatform() && photo.uri) {
+  if (isCapacitorNative() && photo.uri) {
     return { path: photo.uri, mimeType: photo.mimeType };
   }
   const blob = await (await fetch(photo.webPath)).blob();
@@ -76,7 +76,7 @@ export async function resolveFilePart(
 /** Returns the native multipart transport when running on-device, undefined on web (falls back
  * to b-api's default FormData/Blob path, which only ever sees blob-sourced files there anyway). */
 export function getMultipartImpl(): MultipartImpl | undefined {
-  if (!Capacitor.isNativePlatform()) return undefined;
+  if (!isCapacitorNative()) return undefined;
 
   return async ({ url, method, headers, fields, file }) => {
     const filePart = file ? await resolveFilePart(file) : undefined;

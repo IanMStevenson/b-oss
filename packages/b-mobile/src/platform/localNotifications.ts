@@ -26,8 +26,8 @@
 // export here is a silent no-op off native, which is honest given reminders (no fire-time network
 // check) already assume a real OS scheduler.
 
-import { Capacitor } from '@capacitor/core';
 import { LocalNotifications } from '@capacitor/local-notifications';
+import { isCapacitorNative } from './platformKind.js';
 
 export interface ReminderTime {
   hour: number;
@@ -49,7 +49,7 @@ function reminderIdFor(accountId: string): number {
  * remembered "blocked" state distinct from the setting itself (applied to reminders per §12's
  * explicit note). Returns whether the permission is held after this call. */
 export async function ensureNotificationPermission(): Promise<boolean> {
-  if (!Capacitor.isNativePlatform()) return false;
+  if (!isCapacitorNative()) return false;
   const current = await LocalNotifications.checkPermissions();
   if (current.display === 'granted') return true;
   const requested = await LocalNotifications.requestPermissions();
@@ -81,7 +81,7 @@ async function scheduleAt(
   time: ReminderTime,
   skipToday: boolean,
 ): Promise<boolean> {
-  if (!Capacitor.isNativePlatform()) return true;
+  if (!isCapacitorNative()) return true;
   const granted = await ensureNotificationPermission();
   if (!granted) return false;
 
@@ -119,13 +119,13 @@ export async function rescheduleReminderSkippingToday(
   accountId: string,
   time: ReminderTime,
 ): Promise<void> {
-  if (!Capacitor.isNativePlatform()) return;
+  if (!isCapacitorNative()) return;
   await LocalNotifications.cancel({ notifications: [{ id: reminderIdFor(accountId) }] });
   await scheduleAt(accountId, time, true);
 }
 
 export async function cancelReminder(accountId: string): Promise<void> {
-  if (!Capacitor.isNativePlatform()) return;
+  if (!isCapacitorNative()) return;
   await LocalNotifications.cancel({ notifications: [{ id: reminderIdFor(accountId) }] });
 }
 
@@ -133,7 +133,7 @@ export async function cancelReminder(accountId: string): Promise<void> {
  * `scheduleAt` attaches above. Returns a no-op unsubscribe on web, same convention as
  * platform/browser.ts's onBrowserFinished / platform/deepLinks.ts's onAppUrlOpen. */
 export function onReminderTapped(handler: (accountId: string) => void): () => void {
-  if (!Capacitor.isNativePlatform()) return () => {};
+  if (!isCapacitorNative()) return () => {};
   let handle: { remove: () => void } | undefined;
   void LocalNotifications.addListener('localNotificationActionPerformed', (action) => {
     const extra = action.notification.extra as { accountId?: string; kind?: string } | undefined;

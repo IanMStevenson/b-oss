@@ -56,7 +56,7 @@ export function AppearanceSection() {
         onChange={setTheme}
       />
       <CaptionRow>
-        System follows your phone&rsquo;s dark theme setting (Light or Dark). Mid is a softer dark
+        System follows your device&rsquo;s dark theme setting (Light or Dark). Mid is a softer dark
         grey you can choose here.
       </CaptionRow>
 

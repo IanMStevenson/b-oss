@@ -7,7 +7,7 @@ name: CI (site-only)
 
 on:
   pull_request:
-    branches: [main]
+    branches: [main, integration/b-mobile-pc]
     paths:
       - 'packages/b-site/**'
 

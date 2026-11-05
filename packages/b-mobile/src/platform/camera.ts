@@ -14,10 +14,13 @@
 // Android gallery picks go through platform/photoPick.ts instead, which returns the embedded
 // position (`gps`). The app never substitutes the phone's own position for a photo's (b-oss#650).
 
-import { Capacitor } from '@capacitor/core';
 import { Camera, CameraDirection } from '@capacitor/camera';
+import { Capacitor } from '@capacitor/core';
+import { isCapacitorNative } from './platformKind.js';
 import { hasNativePhotoPick, pickNativePhoto, readPhotoGps } from './photoPick.js';
 import { requestGeotagAccess } from './geolocation.js';
+import { desktopBridge } from './desktop.js';
+import { readExifGps } from './exifGps.js';
 
 export interface PickedPhoto {
   /** Native file URI — absent on web, where webPath is the only usable source. */
@@ -150,7 +153,44 @@ async function pickNative(): Promise<PickedPhoto | null> {
   }
 }
 
-export async function pickPhoto(): Promise<PickedPhoto | null> {
+/** Decodes just enough of an image to learn its size; null if the browser can't read it. */
+async function imageSize(blob: Blob): Promise<{ width: number; height: number } | null> {
+  try {
+    const bitmap = await createImageBitmap(blob);
+    const size = { width: bitmap.width, height: bitmap.height };
+    bitmap.close();
+    return size;
+  } catch {
+    return null;
+  }
+}
+
+/** Desktop: the shell's own dialog, which opens in the account's last folder (b-oss#739). */
+async function pickViaDesktopShell(accountId: string): Promise<PickedPhoto | null | undefined> {
+  const bridge = desktopBridge();
+  if (!bridge?.pickPhoto) return undefined;
+  const file = await bridge.pickPhoto(accountId);
+  if (!file) return null;
+  const blob = new Blob([file.bytes as Uint8Array<ArrayBuffer>], { type: file.mimeType });
+  const size = await imageSize(blob);
+  return {
+    webPath: URL.createObjectURL(blob),
+    mimeType: file.mimeType,
+    width: size?.width ?? null,
+    height: size?.height ?? null,
+    createdAt: new Date(file.modifiedMs).toISOString(),
+    sizeBytes: blob.size,
+    // The shell hands over the bytes, so the embedded position (b-oss#740) is read straight from them.
+    gps: readExifGps(file.bytes),
+  };
+}
+
+/** `accountId` lets the desktop shell reopen the dialog in that account's last photo folder. */
+export async function pickPhoto(accountId?: string): Promise<PickedPhoto | null> {
+  if (accountId) {
+    const viaShell = await pickViaDesktopShell(accountId);
+    if (viaShell !== undefined) return viaShell;
+  }
   if (hasNativePhotoPick()) return pickNative();
   // No permission requested for this path (§15/SCR-09) — the system picker grants access to the
   // chosen item only, which chooseFromGallery relies on natively.
@@ -158,10 +198,23 @@ export async function pickPhoto(): Promise<PickedPhoto | null> {
     const result = await Camera.chooseFromGallery({ includeMetadata: true });
     const first = result.results[0];
     if (!first) return null;
-    return toPickedPhoto(first);
+    const photo = toPickedPhoto(first);
+    // The web fallback is a plain file input and returns no position, so read it from the file
+    // itself (b-oss#740). A failure here just means no position.
+    photo.gps = await readWebPhotoGps(photo.webPath);
+    return photo;
   } catch (err) {
     if (isUserCancelled(err)) return null;
     throw err;
+  }
+}
+
+async function readWebPhotoGps(webPath: string): Promise<{ lat: number; lon: number } | null> {
+  try {
+    const bytes = new Uint8Array(await (await fetch(webPath)).arrayBuffer());
+    return readExifGps(bytes);
+  } catch {
+    return null;
   }
 }
 
@@ -169,5 +222,5 @@ export async function pickPhoto(): Promise<PickedPhoto | null> {
  * fallback for chooseFromGallery/takePhoto needs none, so SCR-09 can skip rendering permission-
  * specific copy there. */
 export function isNativeCamera(): boolean {
-  return Capacitor.isNativePlatform();
+  return isCapacitorNative();
 }

@@ -52,12 +52,13 @@ Local equivalent (Windows only; AppX can't be built under Wine):
 Each distributable component has its own release process; this file is the b-ark one and holds
 the checklist the others follow ([b-oss#444](https://github.com/IanMStevenson/b-oss/issues/444)).
 
-| Component    | How it is released                                                           | Process                                                                                    |
-| ------------ | ---------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------ |
-| b-ark        | Windows installer on GitHub Releases (Mac blocked)                           | This file                                                                                  |
-| b-ark-chrome | Zip uploaded to the Chrome Web Store                                         | [packages/b-ark-chrome/RELEASING.md](packages/b-ark-chrome/RELEASING.md)                   |
-| b-mobile     | Built and signed in CI from a gated tag; AAB uploaded to Google Play by hand | [packages/b-mobile/docs/RELEASING-android.md](packages/b-mobile/docs/RELEASING-android.md) |
-| b-api        | Source only: consumers pull it from the repo                                 | [packages/b-api/RELEASING.md](packages/b-api/RELEASING.md)                                 |
+| Component    | How it is released                                                                                                                                                         | Process                                                                                    |
+| ------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------ |
+| b-ark        | Windows installer on GitHub Releases (Mac blocked)                                                                                                                         | This file                                                                                  |
+| b-ark-chrome | Zip uploaded to the Chrome Web Store                                                                                                                                       | [packages/b-ark-chrome/RELEASING.md](packages/b-ark-chrome/RELEASING.md)                   |
+| b-mobile     | Built and signed in CI from a gated tag; AAB uploaded to Google Play by hand                                                                                               | [packages/b-mobile/docs/RELEASING-android.md](packages/b-mobile/docs/RELEASING-android.md) |
+| b-mobile-pc  | Not released yet: Windows packaging follows the merge to `main` and goes through the Microsoft Store only ([b-oss#612](https://github.com/IanMStevenson/b-oss/issues/612)) | [packages/b-mobile-pc/README.md](packages/b-mobile-pc/README.md)                           |
+| b-api        | Source only: consumers pull it from the repo                                                                                                                               | [packages/b-api/RELEASING.md](packages/b-api/RELEASING.md)                                 |
 
 b-ark and b-ark-chrome share a version number and a CHANGELOG section (1.0.5 shipped both). b-mobile
 and b-api version independently.

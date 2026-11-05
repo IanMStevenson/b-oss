@@ -11,10 +11,10 @@
 import { useEffect, useRef } from 'react';
 import { IonAlert } from '@ionic/react';
 import { AccountMismatchError } from '../flows/accountMismatch.js';
-import { isNativePlatform } from '../platform/appState.js';
+import { capabilities } from '../platform/capabilities.js';
 import { t } from '../strings/index.js';
 
-/** Whether retrying in the in-app browser could help. It only exists on native, and it only helps
+/** Whether retrying in the in-app browser could help. It only exists where the platform has one, and it only helps
  * if the token came from a sign-in round: a known wrong owner always did, while b-push's 403
  * (owner unknown) on a read-only account was about the app token itself, which no new round of
  * the notifications flow would replace. */
@@ -22,7 +22,7 @@ export function canRetryInApp(
   err: AccountMismatchError,
   scope: 'read' | 'read,write' | null,
 ): boolean {
-  return isNativePlatform() && (err.actual !== null || scope === 'read,write');
+  return capabilities().auth.embeddedAvailable && (err.actual !== null || scope === 'read,write');
 }
 
 export function accountMismatchMessage(err: AccountMismatchError, canRetry: boolean): string {

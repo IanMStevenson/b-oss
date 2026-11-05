@@ -68,7 +68,10 @@ function tileLayerOf(map: L.Map): L.TileLayer {
 }
 
 const { getCurrentPosition } = vi.hoisted(() => ({ getCurrentPosition: vi.fn() }));
-vi.mock('../../../platform/geolocation.js', () => ({ getCurrentPosition }));
+vi.mock('../../../platform/geolocation.js', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../../../platform/geolocation.js')>()),
+  getCurrentPosition,
+}));
 
 const goBack = vi.fn();
 vi.mock('../../../app/routes/useAppNavigate.js', () => ({
@@ -116,6 +119,29 @@ function renderScreen() {
   );
   return tracked;
 }
+
+// Capabilities under test: the jsdom default is `web` (location and camera both available); the
+// pick-only / files-only cases flip these (b-oss#636).
+const caps = vi.hoisted((): { location: 'os' | 'pick-only'; capture: 'camera' | 'files-only' } => ({
+  location: 'os',
+  capture: 'camera',
+}));
+vi.mock('../../../platform/capabilities.js', async (importOriginal) => {
+  const real = await importOriginal<typeof import('../../../platform/capabilities.js')>();
+  return {
+    ...real,
+    locationControlAvailable: () => caps.location === 'os',
+    capabilities: () => ({
+      ...real.capabilities(),
+      location: caps.location,
+      media: { capture: caps.capture },
+    }),
+  };
+});
+afterEach(() => {
+  caps.location = 'os';
+  caps.capture = 'camera';
+});
 
 describe('LocationPickerScreen', () => {
   it('shows the unavailable message instead of a blank map when no tile key is configured', () => {
@@ -259,5 +285,31 @@ describe('LocationPickerScreen', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Discard' }));
     await waitFor(() => expect(tracked.location.pathname).toBe('/browse'));
     expect(useComposeDraftStore.getState().draft).toBeNull();
+  });
+});
+
+describe('LocationPickerScreen without OS location (desktop, b-oss#636)', () => {
+  it('has no "My location" control but still places a marker from a map tap', async () => {
+    caps.location = 'pick-only';
+    renderScreen();
+    await waitFor(() => expect(mapInstances.length).toBe(1));
+    expect(screen.queryByRole('button', { name: 'My location' })).toBeNull();
+    mapInstances[0].fire('click', { latlng: L.latLng(10, 20) });
+    await waitFor(() => expect(pins(mapInstances[0]).length).toBe(1));
+    await userEvent.click(screen.getByText('Done'));
+    expect(useComposeDraftStore.getState().draft?.location).toEqual({ lat: 10, lon: 20 });
+  });
+});
+
+describe('LocationPickerScreen: desktop first attempt fails (b-oss#672)', () => {
+  it('shows the Windows-location message, hides the control and keeps picking on the map', async () => {
+    const { LocationUnavailableError } = await import('../../../platform/geolocation.js');
+    getCurrentPosition.mockRejectedValue(new LocationUnavailableError());
+    renderScreen();
+    await waitFor(() => expect(mapInstances.length).toBe(1));
+    await userEvent.click(screen.getByRole('button', { name: 'My location' }));
+    expect(
+      await screen.findByText(/Windows location is off, or not available to this app/),
+    ).toBeDefined();
   });
 });

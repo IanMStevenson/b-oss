@@ -28,6 +28,7 @@ import { useActiveAccount, useCanWrite } from '../state/accountsStore.js';
 import { UserRow } from './UserRow.js';
 import type { BlipUser } from '@b-oss/b-api';
 import { LoadFailed } from './LoadFailed.js';
+import { PointerRefresh } from '../components/PointerRefresh.js';
 
 export interface PeopleListProps {
   username: string;
@@ -118,6 +119,7 @@ export function PeopleList({ username, mode, onReady }: PeopleListProps) {
           <IonRefresher slot="fixed" onIonRefresh={handleRefresh}>
             <IonRefresherContent />
           </IonRefresher>
+          <PointerRefresh onRefresh={resource.refresh} />
           {resource.items.map((user) => (
             <UserRow
               key={user.username}

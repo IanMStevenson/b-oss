@@ -12,6 +12,16 @@
       "env": { "NODE_ENV": "development" }
     },
     {
+      "name": "Electron Main (b-mobile-pc)",
+      "type": "node",
+      "request": "launch",
+      "cwd": "${workspaceFolder}/packages/b-mobile-pc",
+      "runtimeExecutable": "${workspaceFolder}/node_modules/.bin/electron",
+      "runtimeArgs": ["--inspect=5859", "."],
+      "windows": { "runtimeExecutable": "${workspaceFolder}/node_modules/.bin/electron.cmd" },
+      "env": { "NODE_ENV": "development" }
+    },
+    {
       "name": "Vitest",
       "type": "node",
       "request": "launch",

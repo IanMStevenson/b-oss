@@ -25,6 +25,7 @@ import {
 } from '@b-oss/b-api';
 import { openUrl, closeBrowser, onBrowserFinished } from '../platform/browser.js';
 import { onAppUrlOpen } from '../platform/deepLinks.js';
+import { capabilities } from '../platform/capabilities.js';
 import { openEmbeddedAuth, EmbeddedAuthCancelledError } from '../platform/embeddedAuth.js';
 import { getClientForToken } from '../data/client.js';
 
@@ -54,6 +55,14 @@ function generateState(): string {
   return Array.from(bytes, (b) => b.toString(16).padStart(2, '0')).join('');
 }
 
+/** The desktop shell has no system-browser round trip (no deep link comes back to the app), so
+ * every round there runs in the embedded window whatever the caller asked for. On Android and in a
+ * browser this is false and callers choose as before. */
+function embeddedIsTheOnlyWay(): boolean {
+  const { auth } = capabilities();
+  return auth.embeddedAvailable && !auth.userCanChooseBrowser;
+}
+
 /** Runs a single OAuth round for the given scope. Resolves with the verified token, or rejects
  * with OAuthCancelledError (declined, closed without completing, or a state mismatch) or the
  * underlying error otherwise. `useEmbedded` runs it in an app-owned WebView with cookies cleared
@@ -63,7 +72,7 @@ export function runOAuthRound(
   scope: 'read' | 'read,write',
   options: { useEmbedded?: boolean } = {},
 ): Promise<OAuthResult> {
-  if (options.useEmbedded) return runOAuthRoundEmbedded(scope);
+  if (options.useEmbedded || embeddedIsTheOnlyWay()) return runOAuthRoundEmbedded(scope);
 
   return new Promise((resolve, reject) => {
     const state = generateState();

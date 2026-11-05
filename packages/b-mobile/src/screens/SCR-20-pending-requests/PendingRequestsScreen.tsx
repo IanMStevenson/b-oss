@@ -33,6 +33,7 @@ import { useHiddenMembersStore } from '../../state/hiddenMembersStore.js';
 import { UserRow } from '../../components/UserRow.js';
 import type { BlipUser } from '@b-oss/b-api';
 import { LoadFailed } from '../../components/LoadFailed.js';
+import { PointerRefresh } from '../../components/PointerRefresh.js';
 
 export function PendingRequestsScreen() {
   const navigate = useAppNavigate();
@@ -124,6 +125,7 @@ export function PendingRequestsScreen() {
             <IonRefresher slot="fixed" onIonRefresh={handleRefresh}>
               <IonRefresherContent />
             </IonRefresher>
+            <PointerRefresh onRefresh={resource.refresh} />
             {resource.items.map((user) => (
               <UserRow
                 key={user.username}

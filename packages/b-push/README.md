@@ -38,6 +38,7 @@ From an up-to-date checkout of `main` on the VM:
 ```
 cd packages/b-push
 git log -1 --oneline          # check this is the commit you mean to deploy
+(cd ../.. && npx tsc --build packages/b-api packages/b-notify-core)    # both packages' `main` is dist/, so build them first
 read -rs CLOUDFLARE_API_TOKEN && export CLOUDFLARE_API_TOKEN    # paste the token; nothing shows
 npx wrangler@4.148.0 deploy
 unset CLOUDFLARE_API_TOKEN

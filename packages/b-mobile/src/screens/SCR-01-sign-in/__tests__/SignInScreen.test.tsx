@@ -94,8 +94,12 @@ vi.mock('../../../platform/browser.js', () => ({ openUrl: (url: string) => openU
 // Defaults to false (matching a desktop-browser dev session) so every pre-existing test in this
 // file exercises the same "toggle hidden" shape it always has — only the tests that explicitly
 // flip this to true are testing the native-only toggle.
-let isNative = false;
-vi.mock('../../../platform/appState.js', () => ({ isNativePlatform: () => isNative }));
+// Hoisted: the prefs store reads the platform when it is first imported, before module-level `let`s exist.
+const platform = vi.hoisted(() => ({ isNative: false, desktop: false }));
+vi.mock('../../../platform/platformKind.js', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../../../platform/platformKind.js')>()),
+  platformKind: () => (platform.desktop ? 'desktop' : platform.isNative ? 'android' : 'web'),
+}));
 
 // Defaults true: a Firebase-configured build, so the notifications toggle is usable.
 let pushAvailable = true;
@@ -112,7 +116,8 @@ afterEach(() => {
   cleanup();
   vi.resetAllMocks();
   useDevicePrefsStore.setState({ hydrated: false, seenFirstRunExplainer: false });
-  isNative = false;
+  platform.isNative = false;
+  platform.desktop = false;
   pushAvailable = true;
   accountsStore.useAccountsStore.setState({ accounts: [], activeAccountId: null });
 });
@@ -222,7 +227,7 @@ describe('SignInScreen', () => {
   });
 
   it('on native with no accounts yet, defaults to the browser (reuses an existing login)', async () => {
-    isNative = true;
+    platform.isNative = true;
     signInDeliberate.mockResolvedValue('acct1');
     renderScreen();
 
@@ -239,7 +244,7 @@ describe('SignInScreen', () => {
   });
 
   it('on native with an account already here, defaults to signing in inside the app', async () => {
-    isNative = true;
+    platform.isNative = true;
     accountsStore.useAccountsStore.setState({ accounts: [storedAccount('ian')] });
     signInDeliberate.mockResolvedValue('acct1');
     renderScreen();
@@ -257,7 +262,7 @@ describe('SignInScreen', () => {
   });
 
   it('turning "Use browser to sign in" on uses the system browser (useEmbedded false)', async () => {
-    isNative = true;
+    platform.isNative = true;
     accountsStore.useAccountsStore.setState({ accounts: [storedAccount('ian')] });
     signInDeliberate.mockResolvedValue('acct1');
     renderScreen();
@@ -276,14 +281,37 @@ describe('SignInScreen', () => {
   });
 
   it('keeps the explanation inside the same item as the toggle it describes', () => {
-    isNative = true;
+    platform.isNative = true;
     renderScreen();
     const item = screen.getByLabelText('Use browser to sign in').closest('ion-item')!;
     expect(item.textContent).toContain('already signed in to Blipfoto');
   });
 
+  it('on desktop, notifications are a plain setting: usable toggle, no "not available" copy, no browser choice (b-oss#610)', async () => {
+    platform.desktop = true;
+    pushAvailable = false; // irrelevant on desktop: there is no push service to be unavailable
+    signInDeliberate.mockResolvedValue('acct1');
+    renderScreen();
+
+    expect(screen.queryByText('Notifications aren’t available in this build.')).toBeNull();
+    expect(
+      (screen.getByLabelText('Get notifications') as unknown as { disabled: boolean }).disabled,
+    ).toBeFalsy();
+    expect(screen.queryByLabelText('Use browser to sign in')).toBeNull();
+    screen
+      .getByLabelText('Get notifications')
+      .dispatchEvent(new CustomEvent('ionChange', { bubbles: true, detail: { checked: true } }));
+    await userEvent.click(screen.getByText('Continue'));
+    await waitFor(() =>
+      expect(signInDeliberate).toHaveBeenCalledWith(
+        expect.objectContaining({ notifications: true, useEmbedded: true }),
+        expect.anything(),
+      ),
+    );
+  });
+
   it('on native without Firebase credentials, disables notifications and never requests them', async () => {
-    isNative = true;
+    platform.isNative = true;
     pushAvailable = false;
     signInDeliberate.mockResolvedValue('acct1');
     renderScreen();
@@ -321,7 +349,7 @@ describe('SignInScreen', () => {
   });
 
   it('the first account can still choose the in-app browser', async () => {
-    isNative = true;
+    platform.isNative = true;
     signInDeliberate.mockResolvedValue('acct1');
     renderScreen();
 
@@ -354,7 +382,7 @@ describe('SignInScreen', () => {
   });
 
   it('on native, retry redoes just the notifications round in the clean in-app browser', async () => {
-    isNative = true;
+    platform.isNative = true;
     accountsStore.useAccountsStore.setState({ accounts: [storedAccount('carol')] });
     signInDeliberate.mockRejectedValue(new AccountMismatchError('carol', 'mallory', true));
     changeAccountMode.mockResolvedValue(undefined);

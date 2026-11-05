@@ -28,7 +28,12 @@
 
 import { useEffect, useState } from 'react';
 import type { ReactNode } from 'react';
-import { IonPage, IonHeader, IonContent, IonList, IonButton } from '@ionic/react';
+import {
+  checkShellBuild,
+  knownShellBuild,
+  type ShellBuildCheck,
+} from '../../platform/shellBuild.js';
+import { IonPage, IonHeader, IonContent, IonList, IonItem, IonNote, IonButton } from '@ionic/react';
 import { NavRow, SectionHeader } from '../../components/SettingsForm.js';
 import { AppHeader } from '../../components/AppHeader.js';
 import { CachedImage } from '../../components/CachedImage.js';
@@ -74,7 +79,7 @@ function SectionScreen({ section }: { section: HelpInfoSection }) {
       <IonHeader>
         <AppHeader title={SECTION_TITLES[section]} variant="back" backHref="/help" />
       </IonHeader>
-      <IonContent className="ion-padding">
+      <IonContent className="ion-padding form-column">
         {section === 'icon-guide' && <IconGuide />}
         {section === 'safety-privacy' && <SafetyPrivacy />}
         {section === 'licences' && <Licences />}
@@ -369,6 +374,12 @@ function Licences() {
 
 function HelpInfoHub() {
   const navigate = useAppNavigate();
+  // Desktop only (b-oss#696): the shell's own build, shown beside the web build. Null elsewhere.
+  const [shellBuild, setShellBuild] = useState<ShellBuildCheck | null>(knownShellBuild());
+  useEffect(() => {
+    void checkShellBuild().then(setShellBuild);
+  }, []);
+
   return (
     <IonPage>
       <IonHeader>
@@ -380,7 +391,7 @@ function HelpInfoHub() {
           accountIndicator={false}
         />
       </IonHeader>
-      <IonContent>
+      <IonContent className="form-column">
         <IonList>
           <SectionHeader>Help</SectionHeader>
           <NavRow label="Help" kind="external" onClick={() => void openUrl(HELP_URL)} />
@@ -411,6 +422,15 @@ function HelpInfoHub() {
           />
 
           <SectionHeader>About</SectionHeader>
+          {shellBuild && (
+            <IonItem lines="full">
+              <span>Desktop program version</span>
+              <IonNote slot="end">
+                {shellBuild.shell}
+                {shellBuild.kind === 'mismatch' ? ' (differs)' : ''}
+              </IonNote>
+            </IonItem>
+          )}
           <NavRow
             label="b-mobile privacy policy"
             kind="external"

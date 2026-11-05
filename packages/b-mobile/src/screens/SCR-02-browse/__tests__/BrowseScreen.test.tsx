@@ -65,6 +65,30 @@ function renderScreen() {
   );
 }
 
+// Capabilities under test: the jsdom default is `web` (location and camera both available); the
+// pick-only / files-only cases flip these (b-oss#636).
+const caps = vi.hoisted(
+  (): { location: 'os' | 'pick-only'; capture: 'camera' | 'files-only' } => ({
+    location: 'os',
+    capture: 'camera',
+  }),
+);
+vi.mock('../../../platform/capabilities.js', async (importOriginal) => {
+  const real = await importOriginal<typeof import('../../../platform/capabilities.js')>();
+  return {
+    ...real,
+    capabilities: () => ({
+      ...real.capabilities(),
+      location: caps.location,
+      media: { capture: caps.capture },
+    }),
+  };
+});
+afterEach(() => {
+  caps.location = 'os';
+  caps.capture = 'camera';
+});
+
 describe('BrowseScreen', () => {
   it('loads the Recent tab on open and shows an error with retry on failure', async () => {
     const { fetchRecentPage } = await import('../../../data/entries.js');
@@ -406,5 +430,26 @@ describe('BrowseScreen', () => {
       pickTab('justme');
       expect(await screen.findByLabelText('Jump to date')).toBeDefined();
     });
+  });
+});
+
+describe('BrowseScreen Nearby without OS location (desktop, b-oss#636)', () => {
+  it('explains there is no location here and points at the map; never asks for location', async () => {
+    caps.location = 'pick-only';
+    const { fetchRecentPage } = await import('../../../data/entries.js');
+    const { useActiveAccount } = await import('../../../state/accountsStore.js');
+    const { getCurrentPosition } = await import('../../../platform/geolocation.js');
+    vi.mocked(useActiveAccount).mockReturnValue(null);
+    vi.mocked(fetchRecentPage).mockResolvedValue({ items: [], more: false });
+    renderScreen();
+    await screen.findByText('Nothing here yet.');
+
+    const segment = document.querySelector('ion-segment')!;
+    segment.dispatchEvent(new CustomEvent('ionChange', { detail: { value: 'nearby' } }));
+
+    expect(await screen.findByText('Nearby needs your location.')).toBeDefined();
+    expect(screen.getByText('Open the map')).toBeDefined();
+    expect(screen.queryByText('Allow location')).toBeNull();
+    expect(getCurrentPosition).not.toHaveBeenCalled();
   });
 });

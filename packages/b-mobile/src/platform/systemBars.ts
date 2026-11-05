@@ -11,10 +11,11 @@
 // light icons; the strip under the navigation bar takes the theme's page colour, so the navigation
 // bar's icons follow whether the theme is dark.
 
-import { Capacitor, SystemBars, SystemBarsStyle, SystemBarType } from '@capacitor/core';
+import { SystemBars, SystemBarsStyle, SystemBarType } from '@capacitor/core';
+import { isCapacitorNative } from './platformKind.js';
 
 export async function applySystemBarStyles(darkTheme = false): Promise<void> {
-  if (!Capacitor.isNativePlatform()) return;
+  if (!isCapacitorNative()) return;
   try {
     // "Dark" = light icons (for a dark background); "Light" = dark icons.
     await SystemBars.setStyle({ bar: SystemBarType.StatusBar, style: SystemBarsStyle.Dark });

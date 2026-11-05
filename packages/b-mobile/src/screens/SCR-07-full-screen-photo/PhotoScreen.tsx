@@ -20,6 +20,7 @@ import { IonPage, IonContent, IonSpinner, IonText, IonButton } from '@ionic/reac
 import { Lightbox, formatLongDate } from '@b-oss/b-view';
 import { useLiveEntry } from '../../data/useLiveEntry.js';
 import { useAppNavigate, usePhotoOpenedFrom } from '../../app/routes/useAppNavigate.js';
+import { profile } from '../../profile/profile.js';
 
 interface PhotoScreenProps {
   entryId: string;
@@ -102,6 +103,7 @@ export function PhotoScreen({ entryId }: PhotoScreenProps) {
                 onNext: nextEntryId ? () => goTo(nextEntryId) : undefined,
               }}
               onImageError={() => setImageError(true)}
+              keyboardZoom={profile().keyboardWheelZoom}
             />
           ) : (
             <div

@@ -26,6 +26,7 @@ import { clearServiceToken, handleForcedLogout } from './accountsFlow.js';
 import { AccountMismatchError } from './accountMismatch.js';
 import type { PushPayload } from '../platform/push.js';
 import { authReady } from '../state/authReady.js';
+import { enablePollingNotifications, usesPolling } from './pollingNotifications.js';
 
 /** Checked/requested *before* any read-token authorization round for notifications: never make
  * the user authorize something already known to be undeliverable (app-architecture.md §11).
@@ -133,6 +134,11 @@ export async function deregisterAccountFromPush(accountId: string): Promise<void
  * The local copy is updated only after the service accepts the change, so the toggles never show
  * something the service isn't doing. Throws on failure: the user just moved a visible control. */
 export async function updatePushStreams(accountId: string, streams: PushStreams): Promise<void> {
+  if (usesPolling()) {
+    // Desktop (b-oss#610): nothing to tell a service; the shell is told by the accounts store.
+    enablePollingNotifications(accountId, streams);
+    return;
+  }
   const account = useAccountsStore.getState().accounts.find((a) => a.id === accountId);
   const secret = account?.notificationRegistrationId
     ? await getRegistrationSecret(accountId)
@@ -191,6 +197,8 @@ export async function handleDeviceTokenRotated(newToken: string): Promise<void> 
  * same `handleForcedLogout('service')` path FLW-02's background-token handling already uses for
  * the reauth-required push. */
 export async function runLaunchBackstopCheck(): Promise<void> {
+  // Desktop has no OS push permission and no service registration to check (b-oss#610).
+  if (usesPolling()) return;
   for (const account of useAccountsStore.getState().accounts) {
     if (!account.hasServiceToken) continue;
 
@@ -233,7 +241,8 @@ export async function routeForPushTap(payload: PushPayload): Promise<string> {
   await authReady;
   if (payload.kind === 'reauth-required') {
     // May already have run from onPushReceived or a launch backstop check; it's idempotent.
-    handleForcedLogout(payload.accountId, 'service');
+    // On desktop the dead credential is the account's one app token (b-oss#610).
+    handleForcedLogout(payload.accountId, usesPolling() ? 'app' : 'service');
     // SCR-30 opens with this account's "needs to sign in again" dialog (b-oss#263).
     return `/accounts?reauth=${encodeURIComponent(payload.accountId)}`;
   }

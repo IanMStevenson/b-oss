@@ -23,6 +23,7 @@
 
 import { Capacitor, registerPlugin } from '@capacitor/core';
 import type { PickedPhoto } from './camera.js';
+import { isCapacitorNative } from './platformKind.js';
 
 interface RawSharedImage {
   path: string;
@@ -59,7 +60,7 @@ let pendingSharedPhoto: PickedPhoto | null = null;
  * `takePendingSharedPhoto()`. Returns whether a photo was actually found, which is all the
  * caller needs to decide whether to navigate to `/compose` at all. */
 export async function checkForSharedImage(): Promise<boolean> {
-  if (!Capacitor.isNativePlatform()) return false;
+  if (!isCapacitorNative()) return false;
   const raw = await ShareIntent.getSharedImage();
   pendingSharedPhoto = toPickedPhoto(raw);
   return pendingSharedPhoto !== null;
@@ -77,7 +78,7 @@ export function takePendingSharedPhoto(): PickedPhoto | null {
 /** Warm start only — a share arriving while the app is already running. The event itself carries
  * no payload; it only signals "call `checkForSharedImage()` now". */
 export function onShareReceived(handler: () => void): () => void {
-  if (!Capacitor.isNativePlatform()) return () => {};
+  if (!isCapacitorNative()) return () => {};
   let handle: { remove: () => void } | undefined;
   void ShareIntent.addListener('shareReceived', handler).then((h) => {
     handle = h;

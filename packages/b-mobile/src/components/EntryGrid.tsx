@@ -24,10 +24,12 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { IonRefresher, IonRefresherContent } from '@ionic/react';
+import { PointerRefresh } from './PointerRefresh.js';
 import type { RefresherEventDetail } from '@ionic/core';
 import { ThumbnailGrid } from '@b-oss/b-view';
 import type { EntryIndex, ThumbnailOverlayContent } from '@b-oss/b-view';
 import { resolveImage, invalidateImage } from '../platform/imageCache.js';
+import { profile } from '../profile/profile.js';
 import { useHiddenMembers } from '../state/hiddenMembersStore.js';
 import { useAppNavigate } from '../app/routes/useAppNavigate.js';
 import { useDevicePrefsStore } from '../state/devicePrefsStore.js';
@@ -50,15 +52,6 @@ const HIDDEN_TILE_SRC =
       '<path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/></g></svg>',
   );
 const HIDDEN_LABEL = 'hidden user';
-
-// ThumbnailGrid's tile size is baseTileSize * sizePercent/100. Its own default base (156px) is
-// tuned for b-view-backup's desktop viewport with its own zoom controls — at a typical ~360px
-// phone width that yields only 2 columns (3 would need ~578px). 86px comfortably fits 3 across
-// down to ~340px, degrading to 2 only on the narrowest phones (~320px) — still adjustable via
-// the same zoom control ThumbnailGrid already exposes, and sizePercent stays at the ordinary
-// 100% default rather than an odd-looking fraction, since 86px *is* this app's own "100%"
-// reference size, not a discount off the desktop one.
-const MOBILE_BASE_TILE_PX = 86;
 
 interface EntryGridProps {
   entries: EntryIndex[];
@@ -186,9 +179,13 @@ export function EntryGrid({
   // Pull-down reloads from page 1, so the remembered grid page goes too — otherwise the rebuilt
   // grid would restore the old page over the fresh data. (The feed's own resume entry is simply
   // overwritten when the reload lands.)
-  function handleRefresh(event: CustomEvent<RefresherEventDetail>): void {
+  function refreshFromTop(): void {
     if (topKey) resumeClear(topKey);
     onRefresh();
+  }
+
+  function handleRefresh(event: CustomEvent<RefresherEventDetail>): void {
+    refreshFromTop();
     event.detail.complete();
   }
 
@@ -197,6 +194,7 @@ export function EntryGrid({
       <IonRefresher slot="fixed" onIonRefresh={handleRefresh}>
         <IonRefresherContent />
       </IonRefresher>
+      <PointerRefresh onRefresh={refreshFromTop} />
       {/* ThumbnailGrid's own .container is `flex: 1` (ThumbnailGrid.module.css) — that only
           stretches to fill available height when its parent is itself a flex container (which
           is what b-view-backup's own shell already gives it). A plain block div here left
@@ -210,7 +208,9 @@ export function EntryGrid({
           onSelectEntry={handleSelect}
           sizePercent={sizePercent}
           onSizeChange={setSizePercent}
-          baseTileSize={MOBILE_BASE_TILE_PX}
+          baseTileSize={profile().grid.baseTilePx}
+          minZoomFromWidth={profile().grid.widthDerivedMinZoom}
+          keyboardWheelZoom={profile().keyboardWheelZoom}
           resolveAsset={resolveAsset}
           invalidateAsset={invalidateAsset}
           onSearchClick={() => navigate.push('/search')}

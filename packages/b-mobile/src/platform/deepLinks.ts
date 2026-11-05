@@ -9,11 +9,11 @@
 // prefix, for the duration of one in-progress round — both listeners coexist safely since
 // deepLinkResolver's own resolution explicitly ignores the OAuth redirect (never routes it).
 
-import { Capacitor } from '@capacitor/core';
 import { App } from '@capacitor/app';
+import { isCapacitorNative } from './platformKind.js';
 
 export function onAppUrlOpen(handler: (url: string) => void): () => void {
-  if (!Capacitor.isNativePlatform()) return () => {};
+  if (!isCapacitorNative()) return () => {};
   let handle: { remove: () => void } | undefined;
   void App.addListener('appUrlOpen', (event) => handler(event.url)).then((h) => {
     handle = h;
@@ -24,7 +24,7 @@ export function onAppUrlOpen(handler: (url: string) => void): () => void {
 /** Cold start's counterpart to `onAppUrlOpen` — the URL the app was actually launched with, if
  * any (a normal launch from the home screen icon has none). Checked once, at launch. */
 export async function getLaunchUrl(): Promise<string | null> {
-  if (!Capacitor.isNativePlatform()) return null;
+  if (!isCapacitorNative()) return null;
   const result = await App.getLaunchUrl();
   return result?.url ?? null;
 }
