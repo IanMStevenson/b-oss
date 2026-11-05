@@ -48,6 +48,7 @@ export { describeStartupTask } from './startupTask.js';
 export type {
   StartupTaskState,
   StartupTaskInfo,
+  StartupSettingsLocation,
   StartupTaskAction,
   StartupTaskWarning,
 } from './startupTask.js';

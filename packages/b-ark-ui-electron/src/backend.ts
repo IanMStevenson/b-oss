@@ -25,5 +25,6 @@ export type {
   BackendContext,
   LogCsvFilters,
   StartupTaskInfo,
+  StartupSettingsLocation,
   StartupTaskState,
 } from '@b-oss/b-ark-ui-components';
