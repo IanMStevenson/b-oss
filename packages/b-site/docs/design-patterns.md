@@ -22,10 +22,10 @@ and say why in the PR. No page-local styling (`style="..."`) for anything that c
    blipfoto"), and a one-line lead (on desktop) that says what the thing does for a non-technical reader,
    never what is on the page.
 2. **Introduction** (`section.block`, eyebrow "Introduction"): a short `prose` paragraph and a
-   `feature-list` of 4 ticks, each a bold lead word and one sentence (`FeatureItem`).
-3. **Screenshot** (`.shot`): one image. `.shot` only frames it and crops to 16:10; the centring and
-   `max-width: 520px` come from an inline wrapper on `b-ark` and `b-api` today.
-4. *(b-ark only)* a "which one?" comparison section, linking to `b-ark-versions`.
+   `feature-list` of ticks, each a bold lead word and one sentence (`FeatureItem`).
+3. **Screenshots** (`section.block`, eyebrow "Screenshots"): `PhoneShots`.
+4. **Good to know** (`section.block`, eyebrow "Good to know"): plain facts a reader should have before
+   installing.
 5. **Get it** (`section.block#download`, eyebrow "Get it"): rows of **tri-link cards** (see below), one
    row per product, each with a small eyebrow label ("b-ark · Windows desktop").
 6. **CtaBand**: "Contact us with feedback, suggestions and bugs." Every product page has it.
