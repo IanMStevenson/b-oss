@@ -3,7 +3,7 @@
 
 // Container for the shared StartupTaskBanner. Only does anything where the main process reports a
 // start-at-sign-in state (and Scheduled is on); elsewhere getStartupTask is absent or null.
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import {
   StartupTaskBanner as StartupTaskBannerView,
   describeStartupTask,
@@ -26,18 +26,20 @@ export function StartupTaskBanner() {
   }, [backend]);
 
   const warning = describeStartupTask(info, wanted);
-  const warningShown = useRef(false);
-  warningShown.current = warning !== null;
-
-  // On mount and whenever the setting changes. On focus only while a warning is showing (the user
-  // may have just fixed it in Windows Settings): otherwise every click would ask Windows again.
+  // On mount, whenever the setting changes, and whenever the window regains focus or becomes
+  // visible (the user may have just changed it in the system's settings). Main shares an in-flight
+  // call and keeps a short cache, so rapid focus events stay cheap.
   useEffect(() => {
     refresh();
-    const onFocus = (): void => {
-      if (warningShown.current) refresh();
+    const onVisible = (): void => {
+      if (document.visibilityState === 'visible') refresh();
     };
-    window.addEventListener('focus', onFocus);
-    return () => window.removeEventListener('focus', onFocus);
+    window.addEventListener('focus', refresh);
+    document.addEventListener('visibilitychange', onVisible);
+    return () => {
+      window.removeEventListener('focus', refresh);
+      document.removeEventListener('visibilitychange', onVisible);
+    };
   }, [refresh, wanted]);
 
   if (!warning) return null;
