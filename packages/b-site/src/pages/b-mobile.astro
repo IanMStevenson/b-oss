@@ -3,6 +3,7 @@ import Layout from '../layouts/Layout.astro';
 import Hero from '../components/Hero.astro';
 import FeatureItem from '../components/FeatureItem.astro';
 import PhoneShots from '../components/PhoneShots.astro';
+import StoreBadge from '../components/StoreBadge.astro';
 ---
 
 <Layout
@@ -66,7 +67,9 @@ import PhoneShots from '../components/PhoneShots.astro';
   <section class="block" data-screen-label="Get it">
     <p class="section-eyebrow">Get it</p>
     <div class="prose" style="margin-top: 18px">
-      <p>b-mobile is not on Google Play yet. This page will link to it when it is.</p>
+      <p class="store-badges">
+        <StoreBadge product="b-mobile" store="play" label="b-mobile" />
+      </p>
       <p>
         <a class="btn primary" href="b-mobile-guide">Read the user guide</a>
       </p>

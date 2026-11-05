@@ -3,6 +3,7 @@ import Layout from '../layouts/Layout.astro';
 import Hero from '../components/Hero.astro';
 import CtaBand from '../components/CtaBand.astro';
 import FeatureItem from '../components/FeatureItem.astro';
+import StoreBadge from '../components/StoreBadge.astro';
 ---
 
 <Layout
@@ -80,6 +81,9 @@ import FeatureItem from '../components/FeatureItem.astro';
     <p id="get-b-ark" class="section-eyebrow" style="margin-top: 8px; color: var(--ink-2)">
       b-ark · Windows desktop
     </p>
+    <p class="store-badges">
+      <StoreBadge product="b-ark" store="microsoft" label="b-ark" />
+    </p>
     <div class="tri-links">
       <a
         class="tri-link"
@@ -132,6 +136,9 @@ import FeatureItem from '../components/FeatureItem.astro';
 
     <p id="get-b-ark-chrome" class="section-eyebrow" style="margin-top: 24px; color: var(--ink-2)">
       b-ark-chrome · browser extension
+    </p>
+    <p class="store-badges">
+      <StoreBadge product="b-ark-chrome" store="chrome" label="b-ark-chrome" />
     </p>
     <div class="tri-links">
       <a

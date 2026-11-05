@@ -2001,3 +2001,64 @@ p.st-sub {
     position: static;
   }
 }
+
+/* ---------- Store badges ---------- */
+/* Every badge is the same visual size. Google's PNG carries its own clear space, so it is drawn
+   larger and pulled back with negative margins; the artwork itself is never altered. */
+.store-badges {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 14px 18px;
+}
+.store-badge {
+  display: inline-block;
+  height: 56px;
+  line-height: 0;
+  overflow: visible;
+}
+.store-badge img {
+  display: block;
+  height: 56px;
+  width: auto;
+}
+.store-badge-play img {
+  height: 83px;
+  margin: -13px -18px;
+}
+a.store-badge {
+  transition: transform 160ms cubic-bezier(0.22, 0.61, 0.36, 1);
+}
+a.store-badge:hover {
+  transform: translateY(-2px);
+}
+.store-badge-soon svg {
+  display: block;
+  height: 56px;
+  width: auto;
+}
+.store-badge-soon .soon-bg {
+  fill: #2b2f2d;
+  stroke: #8a928e;
+  stroke-width: 3;
+  stroke-dasharray: 10 8;
+}
+.store-badge-soon .soon-logo {
+  opacity: 0.55;
+}
+.store-badge-soon text {
+  font-family: inherit;
+  fill: #ffffff;
+}
+.store-badge-soon .soon-small {
+  font-size: 22px;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  fill: #f1c27a;
+}
+.store-badge-soon .soon-big {
+  font-size: 46px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  opacity: 0.85;
+}
