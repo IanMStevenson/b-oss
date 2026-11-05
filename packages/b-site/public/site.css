@@ -2035,32 +2035,25 @@ a.store-badge {
 a.store-badge:hover {
   transform: translateY(-2px);
 }
-/* "Coming soon" badge: plain text in the site font, the same footprint as the real badges. */
+/* "Coming soon" badge: black like the Store's own badge so the page is designed around it, but
+   plain text in the site font only (no logo, no Microsoft lettering). Same footprint as the others. */
 .store-badge-soon {
   display: inline-flex;
   flex-direction: column;
+  align-items: center;
   justify-content: center;
   height: 56px;
   min-width: 185px;
   padding: 0 18px;
   box-sizing: border-box;
-  line-height: 1.15;
-  border: 1.5px dashed var(--muted-2);
-  border-radius: 10px;
-  background: var(--green-50);
-  color: var(--muted);
-  text-align: left;
-}
-.store-badge-soon .soon-small {
-  font-size: 11px;
+  border: 1px solid #8a8a8a;
+  border-radius: 8px;
+  background: #000;
+  color: #fff;
+  font-size: 15px;
   font-weight: 600;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-}
-.store-badge-soon .soon-big {
-  font-size: 18px;
-  font-weight: 600;
-  color: var(--ink-2);
+  line-height: 1.25;
+  text-align: center;
 }
 .tri-link .store-badge {
   margin-bottom: 12px;
@@ -2068,8 +2061,7 @@ a.store-badge:hover {
 .tri-link-soon,
 .tri-link-soon:hover {
   cursor: default;
-  background: var(--green-50);
-  border-style: dashed;
+  background: #fff;
   box-shadow: none;
   transform: none;
 }
