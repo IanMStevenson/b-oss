@@ -123,9 +123,14 @@ Checked against the site source on 2026-11-04 (see the PR for findings).
 
 ### Screenshots
 
-TODO: none yet. At least one is required (four or more recommended): PNG, 1366x768 or larger
-(up to 3840x2160), up to 10 per listing. They must be of the real app showing real photos and
-thumbnails, not placeholder images. The first set was removed for using placeholders.
+Uploaded in Partner Center, from `screenshots/`: PNG, 1366x768 or larger (up to 3840x2160), up to
+10 per listing, 4 recommended. These must be of the real app showing real photos and thumbnails.
+
+| File                 | Size      | Shows                                                                                              |
+| -------------------- | --------- | -------------------------------------------------------------------------------------------------- |
+| `1-journal-grid.png` | 1920x1148 | The real Store build (1.0.7) with a demo journal (`bmobiledemo`, 14 entries) in the thumbnail grid |
+
+More screenshots still to take: the built-in viewer on an entry, a backup running, and Settings.
 
 ### Still needed
 
