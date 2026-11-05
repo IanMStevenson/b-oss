@@ -1,6 +1,7 @@
 ---
 import Layout from '../layouts/Layout.astro';
 import Hero from '../components/Hero.astro';
+import CtaBand from '../components/CtaBand.astro';
 import FeatureItem from '../components/FeatureItem.astro';
 import PhoneShots from '../components/PhoneShots.astro';
 import StoreBadge from '../components/StoreBadge.astro';
@@ -79,6 +80,12 @@ import { STORES } from '../stores';
         <p>Install b-mobile on your Android phone.</p>
       </a>
 
+      <div class="tri-link tri-link-soon" data-link="microsoft-store">
+        <StoreBadge product="b-mobile-windows" store="microsoft" label="b-mobile" bare />
+        <h3>Microsoft Store</h3>
+        <p>Coming soon. The same app for Windows.</p>
+      </div>
+
       <a class="tri-link" href="b-mobile-guide" data-link="user-guide">
         <span class="ico" aria-hidden="true">
           <svg width="32" height="32" viewBox="0 0 32 32" fill="none">
@@ -99,25 +106,13 @@ import { STORES } from '../stores';
         <h3>User Guide</h3>
         <p>Install, sign in, browse and post: everything you'll need.</p>
       </a>
-
-      <a class="tri-link" href="https://github.com/IanMStevenson/b-oss" data-link="open-source">
-        <span class="ico" aria-hidden="true">
-          <svg width="32" height="32" viewBox="0 0 32 32" fill="none">
-            <path
-              d="M16 3a13 13 0 0 0-4.1 25.3c.65.12.89-.28.89-.63 0-.31-.01-1.13-.02-2.22-3.62.79-4.39-1.74-4.39-1.74-.59-1.51-1.45-1.91-1.45-1.91-1.18-.81.09-.8.09-.8 1.31.09 2 1.34 2 1.34 1.16 1.99 3.05 1.42 3.79 1.08.12-.84.45-1.42.83-1.74-2.89-.33-5.93-1.45-5.93-6.43 0-1.42.5-2.58 1.34-3.49-.13-.33-.58-1.66.13-3.45 0 0 1.09-.35 3.58 1.33a12.4 12.4 0 0 1 6.52 0c2.49-1.68 3.58-1.33 3.58-1.33.71 1.79.26 3.12.13 3.45.83.91 1.34 2.07 1.34 3.49 0 4.99-3.05 6.09-5.95 6.41.47.4.88 1.19.88 2.4 0 1.73-.02 3.13-.02 3.55 0 .35.24.76.9.63A13 13 0 0 0 16 3Z"
-              fill="currentColor"
-            />
-          </svg>
-        </span>
-        <h3>Open Source</h3>
-        <p>Read the code on GitHub. Issues and pull requests welcome.</p>
-      </a>
     </div>
 
     <p style="margin-top: 24px">
       <a href="b-mobile-privacy">Privacy policy</a> ·
-      <a href="b-mobile-data-deletion">Delete your data</a> ·
-      <a href="contact">Contact</a>
+      <a href="b-mobile-data-deletion">Delete your data</a>
     </p>
   </section>
+
+  <CtaBand />
 </Layout>

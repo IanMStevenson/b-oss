@@ -7,11 +7,11 @@ import StoreBadge from '../components/StoreBadge.astro';
 ---
 
 <Layout
-  title="b-oss - free tools for Blipfoto"
-  description="Free, open-source tools for Blipfoto: b-mobile to browse and post, b-ark and b-ark-chrome to keep your own copy of your blips, and an unofficial status page."
+  title="b-oss - free tools for blipfoto"
+  description="Free, open-source tools for blipfoto: b-mobile to browse and post, b-ark and b-ark-chrome to keep your own copy of your blips, and an unofficial status page."
   nav="home"
 >
-  <Hero label="Hero" icon="b-oss" title="Free tools for Blipfoto.">Post from your phone, keep your own copy of your blips, and check whether Blipfoto is working. Open source.</Hero>
+  <Hero label="Hero" icon="b-oss" title="Free tools for blipfoto.">Post from your phone, keep your own copy of your blips, and check whether blipfoto is working. Open source.</Hero>
 
   <section class="app-card" data-screen-label="App: b-mobile">
     <div class="app-card-meta">
@@ -19,7 +19,7 @@ import StoreBadge from '../components/StoreBadge.astro';
         <img src="assets/b-oss-icon.png" alt="" />
         <div>
           <h2>b-mobile</h2>
-          <div class="tagline">The Blipfoto app: browse, post and get notified.</div>
+          <div class="tagline">The blipfoto app: browse, post and get notified.</div>
         </div>
       </div>
       <p class="summary">
@@ -83,59 +83,36 @@ import StoreBadge from '../components/StoreBadge.astro';
       </div>
       <p class="summary">
         Keeps your own copy of your blips. It saves each new blip moments after you post from your
-        computer, and catches up whenever you visit Blipfoto. No installer, no timer to set.
-        <a href="b-ark-versions">Not sure which backup? Compare them →</a>
+        computer, and catches up whenever you visit blipfoto. No installer, no timer to set.
       </p>
       <div class="store-badges">
         <StoreBadge product="b-ark-chrome" store="chrome" />
       </div>
       <div class="btn-row">
-        <a class="btn" href="b-ark-versions#b-ark-chrome">Learn more →</a>
+        <a class="btn" href="b-ark">Learn more →</a>
       </div>
     </div>
     <div class="shot">
       <img
         src="assets/guide-chrome/status-chip.png"
-        alt="Blipfoto in a browser, with the b-ark-chrome backup progress chip beside the logo."
+        alt="A browser showing blipfoto, with the b-ark-chrome backup progress chip beside the logo."
       />
     </div>
   </section>
 
   <CtaBand href="status" label="See the status">
-    <strong>Is Blipfoto working?</strong> b-status checks every 15 minutes and shows the history.
-    Unofficial; not run by Blipfoto.
+    <strong>Is blipfoto working?</strong> b-status checks every 15 minutes and shows the history.
+    Unofficial; not run by blipfoto.
   </CtaBand>
 
   <section class="block" data-screen-label="For developers">
     <p class="section-eyebrow">For developers</p>
-    <div class="tri-links">
-      <a class="tri-link" href="https://github.com/IanMStevenson/b-oss" data-link="open-source">
-        <span class="ico" aria-hidden="true">
-          <svg width="32" height="32" viewBox="0 0 32 32" fill="none">
-            <path
-              d="M16 3a13 13 0 0 0-4.1 25.3c.65.12.89-.28.89-.63 0-.31-.01-1.13-.02-2.22-3.62.79-4.39-1.74-4.39-1.74-.59-1.51-1.45-1.91-1.45-1.91-1.18-.81.09-.8.09-.8 1.31.09 2 1.34 2 1.34 1.16 1.99 3.05 1.42 3.79 1.08.12-.84.45-1.42.83-1.74-2.89-.33-5.93-1.45-5.93-6.43 0-1.42.5-2.58 1.34-3.49-.13-.33-.58-1.66.13-3.45 0 0 1.09-.35 3.58 1.33a12.4 12.4 0 0 1 6.52 0c2.49-1.68 3.58-1.33 3.58-1.33.71 1.79.26 3.12.13 3.45.83.91 1.34 2.07 1.34 3.49 0 4.99-3.05 6.09-5.95 6.41.47.4.88 1.19.88 2.4 0 1.73-.02 3.13-.02 3.55 0 .35.24.76.9.63A13 13 0 0 0 16 3Z"
-              fill="currentColor"
-            />
-          </svg>
-        </span>
-        <h3>Open Source</h3>
-        <p>Read the code on GitHub. Issues and pull requests welcome.</p>
-      </a>
-      <a class="tri-link" href="b-api" data-link="b-api">
-        <span class="ico" aria-hidden="true">
-          <svg width="32" height="32" viewBox="0 0 32 32" fill="none">
-            <path
-              d="M11 9 4 16l7 7M21 9l7 7-7 7"
-              stroke="currentColor"
-              stroke-width="2"
-              stroke-linecap="round"
-              stroke-linejoin="round"
-            />
-          </svg>
-        </span>
-        <h3>b-api</h3>
-        <p>TypeScript client for the Blipfoto API, free to reuse.</p>
-      </a>
+    <div class="prose">
+      <p>
+        b-oss is open source. <a href="https://github.com/IanMStevenson/b-oss">Read the code on
+        GitHub</a>; issues and pull requests are welcome. Building something of your own?
+        <a href="b-api">b-api</a> is our TypeScript client for the blipfoto API, free to reuse.
+      </p>
     </div>
   </section>
 
