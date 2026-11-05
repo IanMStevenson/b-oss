@@ -111,3 +111,9 @@ Fixed: tapping a tag now lists its entries. When something can't load, you now g
 ```
 Fixed: starred and favourited entries now show as given, the publish confirmation shows your entry's thumbnail, the status bar is green on Android 10 and older, and app links and shared photos work on older devices.
 ```
+
+### 1.3.0
+
+```
+New: a bottom bar to step through the grid you opened an entry from, and tap a profile picture to see it full size. Notifications and comments now refresh when you return to the app, and the publish confirmation thumbnail is centred.
+```
