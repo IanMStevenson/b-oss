@@ -57,13 +57,6 @@ The Chrome side mirrors the Electron split: `b-ark-chrome` is to `b-ark-ui-chrom
 - Naming: always lowercase hyphenated — b-ark, b-view, b-oss. Never capitalised.
 - TypeScript: strict mode always. Never use `any`.
 
-## Integration branch: b-mobile on desktop (b-mobile-pc)
-
-Work for running b-mobile on desktop (epic b-oss#605) goes by PR into the long-running branch
-`integration/b-mobile-pc`, **not `main`**; nothing from it touches `main` until everything is tested and
-proven, and only with Ian's explicit go-ahead. Merge `main` into the branch regularly. Rules, CI and
-the sync script: `docs/integration-b-mobile-pc.md`.
-
 ## Settings storage (shared model)
 
 Settings live in two places:
@@ -119,7 +112,7 @@ and the repoint command for "make that worktree available via Mutagen."
   `b-ark-chrome-relay` → `~/live/b-ark-chrome-dist` (built `dist/`, needs
   `npm run dev` running in whichever worktree feeds it) → Windows
   `D:\Dev\chrome-live\b-ark-chrome-build`.
-- **b-mobile-pc** (Windows testing of the desktop shell; on the `integration/b-mobile-pc` branch only):
+- **b-mobile-pc** (Windows testing of the desktop shell):
   local relay `b-mobile-pc-relay` → `~/live/b-mobile-pc-repo` (the **whole monorepo**, created with
   `--ignore-vcs --ignore=node_modules/ --ignore=e2e-out/` like b-ark's) → Windows
   `D:\Dev\debugging\b-mobile-pc-build` through `b-mobile-pc-live` (Ian creates that session once). It

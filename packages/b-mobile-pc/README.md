@@ -2,8 +2,7 @@
 
 b-mobile on desktop: an Electron shell that packages b-mobile's web build. Epic
 [b-oss#605](https://github.com/IanMStevenson/b-oss/issues/605); this package is
-[b-oss#609](https://github.com/IanMStevenson/b-oss/issues/609). It lives on the long-running
-`integration/b-mobile-pc` branch (see `docs/integration-b-mobile-pc.md`), not `main`.
+[b-oss#609](https://github.com/IanMStevenson/b-oss/issues/609).
 
 ## What it does
 
