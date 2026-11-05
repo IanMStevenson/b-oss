@@ -3,13 +3,14 @@ import Layout from '../layouts/Layout.astro';
 import Hero from '../components/Hero.astro';
 import CtaBand from '../components/CtaBand.astro';
 import FeatureItem from '../components/FeatureItem.astro';
+import StoreBadge from '../components/StoreBadge.astro';
 ---
 
 <Layout
   title="Which backup tool? · b-oss"
-  description="b-oss offers two ways to back up your blipfoto journal — b-ark (Windows desktop) and b-ark-chrome (Chrome extension). Here's how to choose."
+  description="b-oss offers two ways to back up your Blipfoto journal — b-ark (Windows desktop) and b-ark-chrome (Chrome extension). Here's how to choose."
 >
-  <Hero label="Hero" icon="b-oss" title="Which backup tool is right for you?">b-oss offers two ways to back up your blipfoto journal. Here's how to choose.</Hero>
+  <Hero label="Hero" icon="b-oss" title="Which backup tool is right for you?">b-oss offers two ways to back up your Blipfoto journal. Here's how to choose.</Hero>
 
   <section class="block" data-screen-label="Quick guide">
     <p class="section-eyebrow">Quick guide</p>
@@ -108,12 +109,12 @@ import FeatureItem from '../components/FeatureItem.astro';
           </tr>
           <tr>
             <td>How backup triggers</td>
-            <td>When you publish a blip, or when you visit a blipfoto page after a gap</td>
-            <td>On a timer — runs in the background whether or not you visit blipfoto</td>
+            <td>When you publish a blip, or when you visit a Blipfoto page after a gap</td>
+            <td>On a timer — runs in the background whether or not you visit Blipfoto</td>
           </tr>
           <tr>
             <td>If you post from phone or tablet</td>
-            <td>Backup triggers next time you open blipfoto in the browser on that machine</td>
+            <td>Backup triggers next time you open Blipfoto in the browser on that machine</td>
             <td>&#10003; Timer fires regardless of how or where you post</td>
           </tr>
           <tr>
@@ -153,9 +154,9 @@ import FeatureItem from '../components/FeatureItem.astro';
         </div>
       </div>
       <p class="summary">
-        b-ark-chrome is a Chrome extension that backs up your blipfoto journal automatically. It
+        b-ark-chrome is a Chrome extension that backs up your Blipfoto journal automatically. It
         captures new blips the moment you publish them and checks for any gaps each time you
-        visit blipfoto — no installer, no timer to configure.
+        visit Blipfoto — no installer, no timer to configure.
       </p>
       <ul class="feature-list">
         <FeatureItem><strong>Backup on publish.</strong> Captures new blips within seconds of posting
@@ -166,17 +167,15 @@ import FeatureItem from '../components/FeatureItem.astro';
             no security warnings.</FeatureItem>
         <FeatureItem><strong>Silent updates.</strong> Chrome keeps it up to date automatically.</FeatureItem>
       </ul>
-      <div class="btn-row">
-        <a
-          class="btn primary"
-          aria-disabled="true"
-          style="opacity: 0.45; pointer-events: none; cursor: default"
-          >Coming soon to the Chrome Web Store</a
-        >
+      <div class="store-badges">
+        <StoreBadge product="b-ark-chrome" store="chrome" />
       </div>
     </div>
-    <div class="shot placeholder" aria-label="b-ark-chrome screenshot placeholder">
-      <span class="label">screenshot coming soon</span>
+    <div class="shot">
+      <img
+        src="assets/guide-chrome/status-chip.png"
+        alt="Blipfoto in a browser, with the b-ark-chrome backup progress chip beside the logo."
+      />
     </div>
   </section>
 

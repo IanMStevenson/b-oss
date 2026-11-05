@@ -2064,6 +2064,23 @@ a.store-badge:hover {
 .tri-link .store-badge {
   margin-bottom: 12px;
 }
+/* Inside an app-card: spacing only. The scroll margin keeps a linked card's heading clear of the
+   sticky top bar (b-ark-versions#b-ark-chrome). */
+.app-card {
+  scroll-margin-top: 72px;
+}
+.app-card .store-badges {
+  margin: 4px 0 16px;
+}
+/* Left-aligned here, so pull back exactly the artwork's clear space (41/250 of its 83px height). */
+.app-card .store-badge-play img {
+  margin-left: -13.6px;
+  margin-right: -13.6px;
+}
+.app-card .phone-shots {
+  margin: 0;
+  gap: 12px;
+}
 .tri-link-soon,
 .tri-link-soon:hover {
   cursor: default;
