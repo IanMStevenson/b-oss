@@ -1,17 +1,10 @@
 ---
 import Layout from '../layouts/Layout.astro';
 import Hero from '../components/Hero.astro';
+import FeatureItem from '../components/FeatureItem.astro';
 import PhoneShots from '../components/PhoneShots.astro';
 import StoreBadge from '../components/StoreBadge.astro';
-
-const features = [
-  { title: 'Browse', text: 'Recent, Following, Popular, Milestones, New Blippers and Nearby, plus search and a map of blips.' },
-  { title: 'Post', text: 'Take or choose a photo and publish, even on a poor connection.' },
-  { title: 'Join in', text: 'Star, favourite, comment, reply and follow.' },
-  { title: 'Stay in touch', text: 'Optional notifications for new comments and activity, and a daily reminder to post.' },
-  { title: 'Your accounts', text: 'Sign in with more than one Blipfoto account and switch instantly.' },
-  { title: 'In control', text: "Hide members you don't want to see, and report anything that breaks the rules." },
-];
+import { STORES } from '../stores';
 ---
 
 <Layout
@@ -21,13 +14,35 @@ const features = [
 >
   <Hero label="b-mobile hero" icon="b-mobile" title="b-mobile for Blipfoto">Browse, post and get notified on your Blipfoto journal, from your Android phone.</Hero>
 
-  <div class="hero-actions" data-screen-label="Get it">
-    <StoreBadge product="b-mobile" store="play" label="b-mobile" />
-    <a class="btn" href="b-mobile-guide">Read the user guide</a>
-  </div>
-  <p class="hero-note">Free to use. No ads. No in-app purchases.</p>
+  <section class="block" data-screen-label="Introduction">
+    <p class="section-eyebrow">Introduction</p>
+    <div class="prose" style="margin-top: 18px">
+      <p>
+        b-mobile is a Blipfoto app for Android. It is an open-source project, part of b-oss and
+        led by Ian Stevenson, and is published on the Google Play Store on behalf of the
+        development team by Salient Point Consulting Ltd. It is built on Blipfoto's public API
+        and works with your existing Blipfoto account.
+      </p>
+    </div>
+
+    <ul class="feature-list" style="margin-top: 28px; max-width: 720px">
+      <FeatureItem><strong>Browse.</strong> Recent, Following, Popular, Milestones, New Blippers and
+          Nearby, plus search and a map of blips.</FeatureItem>
+      <FeatureItem><strong>Post.</strong> Take or choose a photo and publish, even on a poor connection:
+          uploads queue and retry on their own.</FeatureItem>
+      <FeatureItem><strong>Join in.</strong> Star, favourite, comment, reply and follow.</FeatureItem>
+      <FeatureItem><strong>Stay in touch.</strong> Optional notifications for new comments and activity,
+          and a daily reminder to post.</FeatureItem>
+      <FeatureItem><strong>Your accounts.</strong> Sign in with more than one Blipfoto account and
+          switch instantly.</FeatureItem>
+      <FeatureItem><strong>In control.</strong> Hide members you don't want to see, and report anything
+          that breaks the rules.</FeatureItem>
+    </ul>
+
+  </section>
 
   <section class="block" data-screen-label="Screenshots">
+    <p class="section-eyebrow">Screenshots</p>
     <PhoneShots
       shots={[
         { name: 'browse', alt: 'b-mobile Browse screen: a grid of recent photos with tabs for Recent, Following, Me, Popular and Milestones.', caption: 'Browse' },
@@ -37,57 +52,72 @@ const features = [
     />
   </section>
 
-  <section class="block" data-screen-label="What it does">
-    <p class="section-eyebrow">What it does</p>
-    <ul class="feature-grid">
-      {features.map((f) => (
-        <li>
-          <h3>{f.title}</h3>
-          <p>{f.text}</p>
-        </li>
-      ))}
-    </ul>
-  </section>
-
   <section class="block" data-screen-label="Good to know">
     <p class="section-eyebrow">Good to know</p>
-    <div class="note-grid">
-      <div class="note-card">
-        <h3>Extra images and full-size photos</h3>
-        <p>
-          Blipfoto doesn't let apps like b-mobile show extra images or full-size originals, so
-          b-mobile can't show or save them. You can still download the standard-size photo of
-          your own entries.
-        </p>
-        <p>
-          Blipfoto's own way to use it on a phone is to add a link to the Blipfoto website to your
-          phone's home screen. For now that is still the only way to upload and view extra images.
-        </p>
-      </div>
-      <div class="note-card">
-        <h3>Your account</h3>
-        <p>
-          b-mobile works with your existing Blipfoto account, whatever kind it is. Any paid
-          Blipfoto features are separate from this app.
-        </p>
-      </div>
+    <div class="prose" style="margin-top: 18px">
+      <p>
+        <strong>Free.</strong> b-mobile is completely free to use, with no ads and no in-app
+        purchases. It works with your existing Blipfoto account, whatever kind it is; any paid
+        Blipfoto features are separate from this app.
+      </p>
+      <p>
+        <strong>Extra images and full-size photos.</strong> Blipfoto doesn't let apps like
+        b-mobile show extra images or full-size originals, so b-mobile can't show or save them.
+        You can still download the standard-size photo of your own entries. Blipfoto's own way to
+        use it on a phone is to add a link to the Blipfoto website to your phone's home screen.
+        For now that is still the only way to upload and view extra images.
+      </p>
     </div>
   </section>
 
-  <section class="block" data-screen-label="About">
-    <p class="section-eyebrow">About this app</p>
-    <div class="prose" style="margin-top: 18px">
-      <p>
-        b-mobile is open source, part of b-oss and led by Ian Stevenson. It is built on
-        Blipfoto's public API and published on Google Play by Salient Point Consulting Ltd on
-        behalf of the development team.
-      </p>
-      <p>
-        <a href="b-mobile-privacy">Privacy policy</a> ·
-        <a href="b-mobile-data-deletion">Delete your data</a> ·
-        <a href="https://github.com/IanMStevenson/b-oss">Source code on GitHub</a> ·
-        <a href="contact">Contact</a>
-      </p>
+  <section class="block" id="download" data-screen-label="Get it">
+    <p class="section-eyebrow">Get it</p>
+    <div class="tri-links">
+      <a class="tri-link" href={STORES['b-mobile'].play.url} data-link="play-store">
+        <StoreBadge product="b-mobile" store="play" bare />
+        <h3>Google Play</h3>
+        <p>Install b-mobile on your Android phone.</p>
+      </a>
+
+      <a class="tri-link" href="b-mobile-guide" data-link="user-guide">
+        <span class="ico" aria-hidden="true">
+          <svg width="32" height="32" viewBox="0 0 32 32" fill="none">
+            <path
+              d="M6 5h12a4 4 0 0 1 4 4v18l-5-3-5 3-5-3-5 3V7a2 2 0 0 1 2-2Z"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linejoin="round"
+            />
+            <path
+              d="M10 11h10M10 16h10M10 21h6"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+            />
+          </svg>
+        </span>
+        <h3>User Guide</h3>
+        <p>Install, sign in, browse and post: everything you'll need.</p>
+      </a>
+
+      <a class="tri-link" href="https://github.com/IanMStevenson/b-oss" data-link="open-source">
+        <span class="ico" aria-hidden="true">
+          <svg width="32" height="32" viewBox="0 0 32 32" fill="none">
+            <path
+              d="M16 3a13 13 0 0 0-4.1 25.3c.65.12.89-.28.89-.63 0-.31-.01-1.13-.02-2.22-3.62.79-4.39-1.74-4.39-1.74-.59-1.51-1.45-1.91-1.45-1.91-1.18-.81.09-.8.09-.8 1.31.09 2 1.34 2 1.34 1.16 1.99 3.05 1.42 3.79 1.08.12-.84.45-1.42.83-1.74-2.89-.33-5.93-1.45-5.93-6.43 0-1.42.5-2.58 1.34-3.49-.13-.33-.58-1.66.13-3.45 0 0 1.09-.35 3.58 1.33a12.4 12.4 0 0 1 6.52 0c2.49-1.68 3.58-1.33 3.58-1.33.71 1.79.26 3.12.13 3.45.83.91 1.34 2.07 1.34 3.49 0 4.99-3.05 6.09-5.95 6.41.47.4.88 1.19.88 2.4 0 1.73-.02 3.13-.02 3.55 0 .35.24.76.9.63A13 13 0 0 0 16 3Z"
+              fill="currentColor"
+            />
+          </svg>
+        </span>
+        <h3>Open Source</h3>
+        <p>Read the code on GitHub. Issues and pull requests welcome.</p>
+      </a>
     </div>
+
+    <p style="margin-top: 24px">
+      <a href="b-mobile-privacy">Privacy policy</a> ·
+      <a href="b-mobile-data-deletion">Delete your data</a> ·
+      <a href="contact">Contact</a>
+    </p>
   </section>
 </Layout>
