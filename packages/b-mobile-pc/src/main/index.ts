@@ -45,6 +45,7 @@ import {
 } from './missing-web.js';
 import { ErrorLog, parseErrorEntry, type LogFs } from './error-log.js';
 import { isTrustedEvent } from './safe-ipc.js';
+import { PROXY_SOURCE, proxyStatusEntry, proxyThrownEntry } from './proxy-failure.js';
 import { createRejectionReporter, describeRejection } from './unhandled.js';
 import { APP_USER_MODEL_ID } from './app-id.js';
 import { openAuthWindow } from './auth-window.js';
@@ -150,6 +151,14 @@ async function cspForDocuments(): Promise<string> {
   return cspHeader;
 }
 
+// Failed API calls go to the app log with source "api-proxy" (b-oss#728), capped so an outage that
+// fails every poll cannot flood it. Set once the log exists.
+let proxyLog: ((message: string) => void) | null = null;
+const proxyGate = new MissingLogGate(200, 60_000);
+const logProxyFailure = (message: string): void => {
+  if (proxyLog && proxyGate.shouldLog(message, Date.now(), true)) proxyLog(message);
+};
+
 async function proxyApi(request: Request, target: string): Promise<Response> {
   const init: RequestInit & { duplex?: 'half' } = {
     method: request.method,
@@ -161,12 +170,15 @@ async function proxyApi(request: Request, target: string): Promise<Response> {
   }
   try {
     const upstream = await net.fetch(target, init);
+    const failure = proxyStatusEntry(request.method, target, upstream.status);
+    if (failure) logProxyFailure(failure.message);
     return new Response(upstream.body, {
       status: upstream.status,
       statusText: upstream.statusText,
       headers: sanitiseResponseHeaders(upstream.headers),
     });
-  } catch {
+  } catch (err) {
+    logProxyFailure(proxyThrownEntry(request.method, target, err).message);
     return new Response('Could not reach the Blipfoto API', { status: 502 });
   }
 }
@@ -433,6 +445,7 @@ if (!app.requestSingleInstanceLock()) {
       await openFolder(logDir);
     };
     const errorLog = new ErrorLog(logFs, (name) => join(logDir, name));
+    proxyLog = (message) => void errorLog.write({ source: PROXY_SOURCE, message });
     shellLog = (message) => void errorLog.write({ source: 'shell', message });
     openLogFolderFromPage = openLogFolder;
     reportRejection = createRejectionReporter((entry) => void errorLog.write(entry));
