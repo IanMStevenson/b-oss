@@ -146,15 +146,26 @@ img {
 
 /* ---------- Hero ---------- */
 .hero {
-  padding: 44px 0 28px;
-  text-align: center;
+  padding: 40px 0 28px;
+}
+/* Logo left of the text. On narrow screens it stays beside the heading only, so the lead keeps the
+   full width. */
+.hero-with-icon {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  column-gap: 22px;
+  align-items: center;
 }
 .hero-icon {
-  width: 64px;
-  height: 64px;
-  border-radius: 14px;
-  margin: 0 auto 14px;
+  grid-row: 1 / span 2;
+  width: 80px;
+  height: 80px;
+  border-radius: 16px;
   display: block;
+}
+.hero-with-icon h1,
+.hero-with-icon .lead {
+  grid-column: 2;
 }
 .hero h1 {
   margin: 0 0 8px;
@@ -164,11 +175,29 @@ img {
   line-height: 1.1;
 }
 .hero .lead {
-  margin: 0 auto;
-  max-width: 620px;
+  margin: 0;
+  max-width: 760px;
   font-size: 16px;
   color: var(--muted);
   line-height: 1.5;
+}
+@media (max-width: 640px) {
+  .hero-with-icon {
+    column-gap: 14px;
+  }
+  .hero-icon {
+    grid-row: 1;
+    width: 52px;
+    height: 52px;
+    border-radius: 12px;
+  }
+  .hero-with-icon h1 {
+    margin: 0;
+  }
+  .hero-with-icon .lead {
+    grid-column: 1 / -1;
+    margin-top: 12px;
+  }
 }
 
 /* ---------- Section ---------- */
@@ -2080,6 +2109,25 @@ a.store-badge:hover {
 .app-card .phone-shots {
   margin: 0;
   gap: 12px;
+}
+/* Homepage sections: full-width tinted bands in place of divider lines. */
+.bands > .app-card,
+.bands > section.block {
+  padding: 52px 0;
+  border-top: none;
+}
+.band-tint {
+  background: var(--green-100);
+  box-shadow: 0 0 0 100vmax var(--green-100);
+  clip-path: inset(0 -100vmax);
+}
+/* A CtaBand that sits directly on a tinted band: the band supplies the background. */
+.bands > .band-tint > .cta-band {
+  margin: 0;
+  padding: 36px 0;
+  background: none;
+  border: none;
+  border-radius: 0;
 }
 .tri-link-soon,
 .tri-link-soon:hover {

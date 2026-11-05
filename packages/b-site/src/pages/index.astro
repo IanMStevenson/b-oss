@@ -11,8 +11,9 @@ import StoreBadge from '../components/StoreBadge.astro';
   description="Free, open-source tools for blipfoto: b-mobile to browse and post, b-ark and b-ark-chrome to keep your own copy of your blips, and an unofficial status page."
   nav="home"
 >
-  <Hero label="Hero" icon="b-oss" title="Free tools for blipfoto.">Post from your phone, keep your own copy of your blips, and check whether blipfoto is working. Open source.</Hero>
+  <Hero label="Hero" icon="b-oss" title="b-oss - free tools for blipfoto">Apps to browse and post from your phone and to keep your own copy of your blips, plus a page that shows whether blipfoto is working. Free and open source.</Hero>
 
+  <div class="bands">
   <section class="app-card" data-screen-label="App: b-mobile">
     <div class="app-card-meta">
       <div class="app-card-head">
@@ -44,7 +45,7 @@ import StoreBadge from '../components/StoreBadge.astro';
     />
   </section>
 
-  <section class="app-card" data-screen-label="App: b-ark">
+  <section class="app-card band-tint" data-screen-label="App: b-ark">
     <div class="app-card-meta">
       <div class="app-card-head">
         <img src="assets/b-oss-icon.png" alt="" />
@@ -100,10 +101,12 @@ import StoreBadge from '../components/StoreBadge.astro';
     </div>
   </section>
 
-  <CtaBand href="status" label="See the status">
-    <strong>Is blipfoto working?</strong> b-status checks every 15 minutes and shows the history.
-    Unofficial; not run by blipfoto.
-  </CtaBand>
+  <section class="band-tint" data-screen-label="b-status">
+    <CtaBand href="status" label="See the status">
+      <strong>Is blipfoto working?</strong> b-status checks every 15 minutes and shows the history.
+      Unofficial; not run by blipfoto.
+    </CtaBand>
+  </section>
 
   <section class="block" data-screen-label="For developers">
     <p class="section-eyebrow">For developers</p>
@@ -115,6 +118,11 @@ import StoreBadge from '../components/StoreBadge.astro';
       </p>
     </div>
   </section>
+  </div>
 
   <CtaBand />
+
+  <div class="btn-row">
+    <a class="btn" href="privacy">b-oss privacy policies</a>
+  </div>
 </Layout>
