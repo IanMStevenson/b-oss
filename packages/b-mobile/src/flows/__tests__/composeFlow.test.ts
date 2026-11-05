@@ -72,6 +72,15 @@ describe('submitDraft', () => {
     expect(photoToFileSource).toHaveBeenCalled();
   });
 
+  it('sends the date only when it has changed', async () => {
+    await submitDraft({ ...draft, editLevel: 1, originalDate: '2026-01-01' });
+    await submitDraft({ ...draft, editLevel: 1, originalDate: '2025-12-31' });
+    await submitDraft({ ...draft, editLevel: 2, originalDate: '2025-12-31' });
+    expect(updateEntry).toHaveBeenNthCalledWith(1, expect.objectContaining({ date: undefined }));
+    expect(updateEntry).toHaveBeenNthCalledWith(2, expect.objectContaining({ date: '2026-01-01' }));
+    expect(updateEntry).toHaveBeenNthCalledWith(3, expect.objectContaining({ date: undefined }));
+  });
+
   it('sends the selected thumbnail with a replacement photo, and drops it without one', async () => {
     const thumbnailCrop = { x: 0.1, y: 0.2, w: 0.3 };
     await submitDraft({ ...draft, editLevel: 1, thumbnailCrop });
