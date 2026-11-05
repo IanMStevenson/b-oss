@@ -7,10 +7,12 @@ import { AppProvider, useApp } from './context/AppContext.js';
 import { useContainerWidth } from './hooks/useContainerWidth.js';
 import { TopBar } from './components/TopBar.js';
 import { Sidebar } from './components/Sidebar.js';
+import { StartupTaskBanner } from './components/StartupTaskBanner.js';
 import { ToastHost } from './components/ToastHost.js';
 import { ChooseFolderScreen } from './components/screens/ChooseFolderScreen.js';
 import { FirstOpenScreen } from './components/screens/FirstOpenScreen.js';
 import { OAuthSuccessScreen } from './components/screens/OAuthSuccessScreen.js';
+import { StaleBackupBanner } from './components/StaleBackupBanner.js';
 import { HomeScreen } from './components/screens/HomeScreen.js';
 import { EmptyAccountScreen } from './components/screens/EmptyAccountScreen.js';
 import { SettingsPanel } from './components/screens/SettingsPanel.js';
@@ -62,6 +64,8 @@ function AppRoot() {
     >
       <TopBar />
 
+      {bootStage === 'ready' && <StartupTaskBanner />}
+
       {bootStage === 'loading' && (
         <div
           style={{
@@ -95,6 +99,7 @@ function AppRoot() {
         <div style={{ flex: 1, display: 'flex', overflow: 'hidden' }}>
           {panel === null && <Sidebar compact={compact} />}
           <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+            <StaleBackupBanner />
             {renderMainArea()}
           </div>
         </div>

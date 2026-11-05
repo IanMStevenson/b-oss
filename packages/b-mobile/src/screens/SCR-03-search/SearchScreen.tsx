@@ -145,6 +145,13 @@ function EntriesTab({
       hasMore={resource.hasMore}
       onLoadMore={resource.loadMore}
       onRefresh={resource.refresh}
+      lastPageIndex={resource.lastPageIndex}
+      navSource={{
+        label: 'Search Results',
+        detail: `Search "${trimmed}"`,
+        fetchPage: (pageIndex) => fetchSearchEntriesPage(trimmed, pageIndex),
+        pageSize: PAGE_SIZE,
+      }}
     />
   );
 }

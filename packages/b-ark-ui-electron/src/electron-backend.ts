@@ -10,6 +10,7 @@ import type {
   LogEntry,
   MainEvent,
   SharedSettingsPartial,
+  StartupTaskInfo,
 } from './backend.js';
 
 declare global {
@@ -27,6 +28,8 @@ declare global {
       cancelBackup(id: string): Promise<void>;
       dismissOutstanding(id: string): Promise<void>;
       retryOutstanding(id: string): Promise<void>;
+      dismissStaleBackupNotice(): Promise<void>;
+      disableStaleBackupAlert(): Promise<void>;
       openViewer(id: string): Promise<void>;
       getViewerUrl(id: string): Promise<string>;
       pickFolder(): Promise<string | null>;
@@ -37,6 +40,9 @@ declare global {
       getStore(): Promise<AppStore>;
       getAccountAvatar(id: string): Promise<string | null>;
       getBootState(): Promise<BootState>;
+      getStartupTask(): Promise<StartupTaskInfo | null>;
+      enableStartupTask(): Promise<StartupTaskInfo | null>;
+      openStartupSettings(): Promise<void>;
       getLogs(): Promise<LogEntry[]>;
       exportLogsCsv(filters: LogCsvFilters): Promise<string | null>;
       on(channel: 'main-event', handler: (event: MainEvent) => void): () => void;
@@ -58,6 +64,8 @@ export class ElectronBackend implements BackendContext {
   cancelBackup = (id: string) => window.api.cancelBackup(id);
   dismissOutstanding = (id: string) => window.api.dismissOutstanding(id);
   retryOutstanding = (id: string) => window.api.retryOutstanding(id);
+  dismissStaleBackupNotice = () => window.api.dismissStaleBackupNotice();
+  disableStaleBackupAlert = () => window.api.disableStaleBackupAlert();
   openViewer = (id: string) => window.api.openViewer(id);
   getViewerUrl = (id: string) => window.api.getViewerUrl(id);
   pickFolder = () => window.api.pickFolder();
@@ -69,6 +77,9 @@ export class ElectronBackend implements BackendContext {
   getStore = () => window.api.getStore();
   getAccountAvatar = (id: string) => window.api.getAccountAvatar(id);
   getBootState = () => window.api.getBootState();
+  getStartupTask = () => window.api.getStartupTask();
+  enableStartupTask = () => window.api.enableStartupTask();
+  openStartupSettings = () => window.api.openStartupSettings();
   getLogs = () => window.api.getLogs();
   exportLogsCsv = (filters: LogCsvFilters) => window.api.exportLogsCsv(filters);
   subscribe = (handler: (event: MainEvent) => void) => window.api.on('main-event', handler);

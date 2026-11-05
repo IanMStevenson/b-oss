@@ -20,6 +20,33 @@ new release on next launch via electron-updater (which reads
 `latest.yml` from the GitHub Releases feed) and prompt the user to
 update.
 
+## Microsoft Store (MSIX)
+
+Tracked in [b-oss#805](https://github.com/IanMStevenson/b-oss/issues/805). The Store build is separate from the GitHub
+installer route above: it is an unsigned MSIX (the Store signs it), and it skips electron-updater
+(`process.windowsStore`), because the Store delivers updates.
+
+1. Do the usual release steps above (changelog, version bump, audit) for the version to submit.
+2. Run the **Build MSIX (Microsoft Store)** workflow from the Actions tab (workflow_dispatch). Enter the
+   three Identity values from Partner Center (Product identity): Package/Identity/Name, Publisher, and
+   PublisherDisplayName. They must match exactly or the upload is rejected.
+3. Download the `b-ark-msix` artifact and upload the `.appx` in a Partner Center submission.
+
+**Start at sign-in in the Store build** (driven by the Scheduled backups setting). MSIX ignores the registry Run key, so the manifest declares a
+`windows.startupTask` (`TaskId` `BArkStartup`, from `packages/b-ark/msix/startup-task-extension.xml`). In
+a Store install the main process (`start-at-sign-in.ts`) reads and changes the task through the WinRT
+StartupTask API in a small native Node-API add-on (`packages/b-ark/native/win-startup`, Rust, Windows x64;
+built by `build.mjs` in both MSIX workflows and packed unpacked by `electron-builder.store.json`). The
+manifest starts the task disabled; the app enables it only while Scheduled backups is on. If the task is
+not enabled while Scheduled is on, the app shows a red banner with one action: **Allow b-ark to start when
+you sign in** (task merely `Disabled`) or **Open Windows Startup settings** (`DisabledByUser`,
+`DisabledByPolicy`, or unreadable; an app cannot re-enable a task the user switched off). The NSIS
+installer keeps the registry route. The Windows-touching code is unverified until tested on a real install
+(sideload steps are in the PR that added it).
+
+Local equivalent (Windows only; AppX can't be built under Wine):
+`npm run dist:store --workspace=packages/b-ark -- --config.appx.identityName=... --config.appx.publisher=... --config.appx.publisherDisplayName=...`
+
 ## Components and the common checklist
 
 Each distributable component has its own release process; this file is the b-ark one and holds

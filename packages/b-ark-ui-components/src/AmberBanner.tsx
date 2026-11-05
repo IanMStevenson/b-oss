@@ -16,6 +16,7 @@ const ACTION_LABEL: Record<ReasonAction, string> = {
   dismiss: 'Dismiss',
   backup_now: 'Retry',
   status: 'Check Blipfoto Status',
+  dont_show_again: "Don't show again",
 };
 
 /**

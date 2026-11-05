@@ -259,7 +259,6 @@ export function ProfileSection() {
                   style={{
                     width: 72,
                     height: 72,
-                    borderRadius: '50%',
                     objectFit: 'cover',
                     margin: '12px 0',
                   }}

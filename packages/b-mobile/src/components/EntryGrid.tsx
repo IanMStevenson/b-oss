@@ -22,7 +22,7 @@
 // which shows its own "you've hidden this member" state with Unhide, since opening a hidden
 // member's entry deliberately is allowed.
 
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { IonRefresher, IonRefresherContent } from '@ionic/react';
 import { PointerRefresh } from './PointerRefresh.js';
 import type { RefresherEventDetail } from '@ionic/core';
@@ -34,6 +34,7 @@ import { useHiddenMembers } from '../state/hiddenMembersStore.js';
 import { useAppNavigate } from '../app/routes/useAppNavigate.js';
 import { useDevicePrefsStore } from '../state/devicePrefsStore.js';
 import { resumeClear, resumeGet, resumeSet } from '../data/resumeCache.js';
+import { useSourceNavStore, type NavSource } from '../state/sourceNavStore.js';
 
 const HIDDEN_THUMBNAIL = '__hidden__';
 
@@ -87,6 +88,13 @@ interface EntryGridProps {
    * a user's Entries); `'journal'` (the journal name) on every mixed feed — which is the default,
    * so a new grid gets the less cluttered caption unless it opts in (b-oss#259). */
   overlayContent?: ThumbnailOverlayContent;
+  /** Marks this as a source list (browse, search, tag, Faves): opening an entry from it offers the
+   * bottom bar that steps through this list, and this grid appearing clears any earlier one
+   * (b-oss#819). Omit for a single journal's grid, where journal navigation does the same job. */
+  navSource?: NavSource;
+  /** `resource.lastPageIndex`: the API page the last loaded entry came from, so the navigation bar
+   * fetches exactly the next page rather than guessing it from a count. Pair with `navSource`. */
+  lastPageIndex?: number;
 }
 
 export function EntryGrid({
@@ -102,6 +110,8 @@ export function EntryGrid({
   resumeKey,
   showCalendar = false,
   overlayContent = 'journal',
+  navSource,
+  lastPageIndex = 0,
 }: EntryGridProps) {
   const hiddenMembers = useHiddenMembers();
   const navigate = useAppNavigate();
@@ -110,6 +120,22 @@ export function EntryGrid({
   const showZoomBar = useDevicePrefsStore((s) => s.showZoomBar);
   const showPagination = useDevicePrefsStore((s) => s.showPagination);
   const thumbnailMargins = useDevicePrefsStore((s) => s.thumbnailMargins);
+  const showSourceNavBar = useDevicePrefsStore((s) => s.showSourceNavBar);
+
+  // A source-list grid appearing (including when Back rebuilds it) clears any earlier bar.
+  const isSource = navSource !== undefined;
+  useEffect(() => {
+    if (isSource) useSourceNavStore.getState().clear();
+  }, [isSource]);
+
+  function handleSelect(entryId: string): void {
+    if (navSource && showSourceNavBar) {
+      useSourceNavStore
+        .getState()
+        .begin(navSource, entries, entriesOffset ?? 0, lastPageIndex, hasMore, entryId);
+    }
+    onSelectEntry(entryId);
+  }
 
   // The remembered page only makes sense inside the window of entries we're showing — a mismatch
   // (the data expired but this didn't, say) would sit on "Loading…" — so otherwise start at 0.
@@ -179,7 +205,7 @@ export function EntryGrid({
         <ThumbnailGrid
           entries={displayEntries}
           selectedEntryId={null}
-          onSelectEntry={onSelectEntry}
+          onSelectEntry={handleSelect}
           sizePercent={sizePercent}
           onSizeChange={setSizePercent}
           baseTileSize={profile().grid.baseTilePx}

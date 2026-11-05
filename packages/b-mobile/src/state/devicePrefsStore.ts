@@ -50,6 +50,7 @@ interface DevicePrefsState extends PersistedShape {
   setSeenFirstRunExplainer: (value: boolean) => void;
   setShowZoomBar: (value: boolean) => void;
   setShowPagination: (value: boolean) => void;
+  setShowSourceNavBar: (value: boolean) => void;
   setThumbnailMargins: (value: PersistedShape['thumbnailMargins']) => void;
   setThumbnailZoomPercent: (value: number) => void;
   setPhotoFit: (value: PersistedShape['photoFit']) => void;
@@ -152,6 +153,7 @@ export const useDevicePrefsStore = create<DevicePrefsState>((set, get) => {
     setSeenFirstRunExplainer: (value) => change({ seenFirstRunExplainer: value }),
     setShowZoomBar: (value) => change({ showZoomBar: value }),
     setShowPagination: (value) => change({ showPagination: value }),
+    setShowSourceNavBar: (value) => change({ showSourceNavBar: value }),
     setThumbnailMargins: (value) => change({ thumbnailMargins: value }),
     setThumbnailZoomPercent: (value) => change({ thumbnailZoomPercent: value }),
     setPhotoFit: (value) => change({ photoFit: value }),

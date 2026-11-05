@@ -31,12 +31,10 @@ export interface LegacyV1Account {
 export interface LegacyV1Shape {
   accounts?: LegacyV1Account[];
   ui?: { thumbnailSizePercent?: number; accountOrder?: string[] };
-  app?: { startWithWindows?: boolean };
 }
 
 export interface V1MigrationResult {
   canonicalFolder: string;
-  startWithWindows: boolean;
   tokens: Record<string, string>;
   status: Record<string, AccountStatus>;
   portableSettings: BArkSettings;
@@ -50,7 +48,6 @@ export interface V1MigrationResult {
 export function migrateV1Shape(legacy: LegacyV1Shape): V1MigrationResult {
   const legacyAccounts = legacy.accounts ?? [];
   const legacyUi = legacy.ui ?? {};
-  const legacyApp = legacy.app ?? {};
 
   // Pick the canonical backup folder = first account's non-empty backup_folder.
   // Other accounts' folder values are intentionally dropped.
@@ -104,7 +101,6 @@ export function migrateV1Shape(legacy: LegacyV1Shape): V1MigrationResult {
 
   return {
     canonicalFolder,
-    startWithWindows: legacyApp.startWithWindows ?? true,
     tokens,
     status,
     portableSettings,

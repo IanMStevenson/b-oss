@@ -52,6 +52,7 @@ import { useHiddenMembers } from '../../state/hiddenMembersStore.js';
 import { useAccountsStore } from '../../state/accountsStore.js';
 import { useNotificationCountsStore } from '../../state/notificationCountsStore.js';
 import { openUrl } from '../../platform/browser.js';
+import { useRefreshOnResume } from '../../hooks/useRefreshOnResume.js';
 import { InboxRow, RowThumb } from '../../components/InboxRow.js';
 import type { BlipNotification } from '@b-oss/b-api';
 import { PointerRefresh } from '../../components/PointerRefresh.js';
@@ -112,21 +113,35 @@ export function NotificationsInboxScreen() {
     load();
   }, [load]);
 
-  function refreshInbox(): Promise<void> {
-    return fetchRecentNotifications(latestIdRef.current ?? undefined).then(
-      (fresh) => {
-        if (fresh.length > 0) {
-          latestIdRef.current = fresh[0].notification_id_str;
-          setItems((prev) => [...fresh, ...prev]);
-          setStatus('loaded');
-        }
-      },
-      () => undefined,
-    );
-  }
+  // Incremental fetch of anything newer than the top row. Shared by pull-to-refresh and by the
+  // app resuming (b-oss#821), which also flags the arriving rows as new (a pull leaves marking as it
+  // was on first open). The fetch is what marks them read server-side, so the local badge is
+  // cleared again here.
+  const fetchNewer = useCallback(
+    (markNew: boolean): Promise<void> => {
+      return fetchRecentNotifications(latestIdRef.current ?? undefined).then(
+        (fresh) => {
+          if (fresh.length > 0) {
+            latestIdRef.current = fresh[0].notification_id_str;
+            if (markNew) for (const n of fresh) newIdsRef.current?.add(n.notification_id_str);
+            clearNotifications();
+            setItems((prev) => [...fresh, ...prev]);
+            setStatus('loaded');
+          }
+        },
+        () => {},
+      );
+    },
+    [clearNotifications],
+  );
+
+  useRefreshOnResume(() => {
+    // Only a list already on screen; a loading/error state has its own load() path.
+    if (status === 'loaded' || status === 'empty') void fetchNewer(true);
+  });
 
   function handleRefresh(event: CustomEvent<RefresherEventDetail>): void {
-    void refreshInbox().then(() => event.detail.complete());
+    void fetchNewer(false).then(() => event.detail.complete());
   }
 
   function handleTap(notification: BlipNotification): void {
@@ -170,7 +185,7 @@ export function NotificationsInboxScreen() {
             <IonRefresher slot="fixed" onIonRefresh={handleRefresh}>
               <IonRefresherContent />
             </IonRefresher>
-            <PointerRefresh onRefresh={() => void refreshInbox()} />
+            <PointerRefresh onRefresh={() => void fetchNewer(false)} />
             {visibleItems.map((notification) => (
               <InboxRow
                 key={notification.notification_id_str}

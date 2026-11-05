@@ -3,7 +3,7 @@
 // @vitest-environment jsdom
 
 import { describe, it, expect, afterEach, beforeEach, vi } from 'vitest';
-import { render, screen, cleanup, waitFor } from '@testing-library/react';
+import { render, screen, cleanup, waitFor, act } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
 import { ProfileScreen } from '../ProfileScreen.js';
@@ -113,6 +113,39 @@ describe('ProfileScreen', () => {
     vi.mocked(fetchUserProfile).mockResolvedValue(aliceProfile);
     await userEvent.click(screen.getByText('Try again'));
     expect(await screen.findByText("Alice's journal")).toBeDefined();
+  });
+
+  it('opens the profile picture full size on tap and closes on tap (b-oss#825)', async () => {
+    const { fetchUserProfile } = await import('../../../data/users.js');
+    vi.mocked(fetchUserProfile).mockResolvedValue(aliceProfile);
+    renderScreen('alice');
+    await userEvent.click(
+      await screen.findByRole('button', { name: "View alice's profile picture" }),
+    );
+    const dialog = screen.getByRole('dialog', { name: "alice's profile picture" });
+    await userEvent.click(dialog);
+    expect(screen.queryByRole('dialog', { name: "alice's profile picture" })).toBeNull();
+  });
+
+  it('closes the profile picture on the Android Back button (b-oss#825)', async () => {
+    const { fetchUserProfile } = await import('../../../data/users.js');
+    vi.mocked(fetchUserProfile).mockResolvedValue(aliceProfile);
+    renderScreen('alice');
+    await userEvent.click(
+      await screen.findByRole('button', { name: "View alice's profile picture" }),
+    );
+    const handlers: Array<(next: () => void) => void> = [];
+    const next = vi.fn();
+    act(() => {
+      document.dispatchEvent(
+        new CustomEvent('ionBackButton', {
+          detail: { register: (_p: number, h: (n: () => void) => void) => handlers.push(h) },
+        }),
+      );
+      handlers.forEach((h) => h(next));
+    });
+    expect(screen.queryByRole('dialog', { name: "alice's profile picture" })).toBeNull();
+    expect(next).not.toHaveBeenCalled();
   });
 
   it("renders another member's profile with a Follow button", async () => {

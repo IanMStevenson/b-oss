@@ -55,6 +55,7 @@ import { useAccountsStore, useActiveAccount } from '../../state/accountsStore.js
 import { resumeClear, resumeGet, resumeSet } from '../../data/resumeCache.js';
 import { useHiddenMembersStore, useIsHidden } from '../../state/hiddenMembersStore.js';
 import { CachedImage } from '../../components/CachedImage.js';
+import { AvatarViewer } from '../../components/AvatarViewer.js';
 import { UserBadges } from '../../components/UserBadges.js';
 import { EntryGrid } from '../../components/EntryGrid.js';
 import { PeopleList } from '../../components/PeopleList.js';
@@ -96,8 +97,12 @@ function GridTab({
   pageSize = PAGE_SIZE,
   resumeKey,
   showCalendar,
+  navLabel,
 }: {
   fetchPage: (pageIndex: number) => Promise<Page<EntryIndex>>;
+  /** Marks the grid as a source list for the bottom navigation bar, with this caption (b-oss#819).
+   * Omitted for the Entries tab, a journal, where journal navigation does the same job. */
+  navLabel?: string;
   /** fetchPage is a fresh closure every render, so its own identity can't drive
    * usePagedResource's refetch — pass whatever value actually determines what it fetches
    * (effectiveUsername here) so switching accounts on /me, or navigating between two different
@@ -152,6 +157,10 @@ function GridTab({
         resumeKey={resumeKey}
         showCalendar={showCalendar}
         overlayContent={showCalendar ? 'date-title' : 'journal'}
+        lastPageIndex={resource.lastPageIndex}
+        navSource={
+          navLabel ? { label: navLabel, detail: navLabel, fetchPage, pageSize } : undefined
+        }
       />
     </div>
   );
@@ -162,6 +171,7 @@ export function ProfileScreen({ username }: ProfileScreenProps) {
   const { report, reportDialog } = useReport();
   const { share, shareDialog } = useShareLink();
   const { showUpgradePrompt } = useOverlay();
+  const [showAvatar, setShowAvatar] = useState(false);
   const signInPrompt = useSignInPrompt();
   const activeAccount = useActiveAccount();
   const isOwn = username === undefined || username === activeAccount?.username;
@@ -306,11 +316,25 @@ export function ProfileScreen({ username }: ProfileScreenProps) {
                 padding: '12px 16px 8px',
               }}
             >
-              <CachedImage
-                src={state.data.user.avatar_url}
-                alt=""
-                style={{ width: 48, height: 48, borderRadius: '50%', flex: 'none' }}
-              />
+              <button
+                type="button"
+                aria-label={`View ${state.data.user.username}'s profile picture`}
+                onClick={() => setShowAvatar(true)}
+                style={{ background: 'none', border: 'none', padding: 0, flex: 'none' }}
+              >
+                <CachedImage
+                  src={state.data.user.avatar_url}
+                  alt=""
+                  style={{ width: 48, height: 48, display: 'block' }}
+                />
+              </button>
+              {showAvatar && (
+                <AvatarViewer
+                  src={state.data.user.avatar_url}
+                  label={`${state.data.user.username}'s profile picture`}
+                  onDismiss={() => setShowAvatar(false)}
+                />
+              )}
               <div style={{ flex: 1, minWidth: 0 }}>
                 <h2
                   style={{
@@ -543,6 +567,7 @@ export function ProfileScreen({ username }: ProfileScreenProps) {
                     fetchPage={(pageIndex) => fetchFavoriteEntriesFor(effectiveUsername, pageIndex)}
                     pageSize={JOURNAL_PAGE_SIZE}
                     resumeKey={`${resumeScope}:faves`}
+                    navLabel={effectiveUsername ? `${effectiveUsername} Faves` : 'Faves'}
                     refetchKey={effectiveUsername}
                     onSelectEntry={(id) => navigate.push(`/entry/${id}`)}
                   />

@@ -13,6 +13,11 @@ export const UPDATE_FEED_URL =
   'https://github.com/IanMStevenson/b-oss/releases/download/b-ark-latest';
 
 export function setupAutoUpdater(): void {
+  // A Microsoft Store (MSIX) install is updated by the Store; electron-updater can't replace it.
+  if (process.windowsStore) {
+    log.info('Microsoft Store install — updates are handled by the Store, skipping update check.');
+    return;
+  }
   if (!store.get('app').autoUpdateEnabled) {
     log.info('Auto-update disabled by user setting — skipping update check.');
     return;

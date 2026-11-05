@@ -34,6 +34,7 @@ import {
   getAppStore,
   getBackupFolder,
   getPortableSettings,
+  setStaleBackupNotice,
   savePortableSettings,
   bindBackupFolder,
   store as userDataStore,
@@ -51,6 +52,12 @@ import { startServer, stopServer, getServerPort } from './http-server.js';
 import { BackupScheduler, computeNextRun } from './scheduler.js';
 import { writeBViewFiles } from './b-view-files.js';
 import { toCsv } from './log-csv.js';
+import {
+  applyStartAtSignIn,
+  enableStartupTask,
+  getStartupTaskInfo,
+  openStartupSettings,
+} from './start-at-sign-in.js';
 import { rebuildTrayMenu, refreshTrayIcon } from './tray.js';
 import { showBackupFailedNotification } from './notifications.js';
 import { completedStatus, withOutstanding } from './rag-reasons.js';
@@ -69,6 +76,16 @@ function delay(ms: number): Promise<void> {
 }
 
 const activeEngines = new Map<string, BackupEngine>();
+
+export function isBackupRunning(): boolean {
+  return activeEngines.size > 0;
+}
+
+/** Set by registerIpcHandlers: flips Scheduled the same way the Settings toggle does (tray menu). */
+let setScheduledImpl: ((enabled: boolean) => Promise<void>) | null = null;
+export function setScheduledEnabled(enabled: boolean): Promise<void> {
+  return setScheduledImpl?.(enabled) ?? Promise.resolve();
+}
 
 // Shared in-flight promise map: manual and scheduled callers awaiting the
 // same id resolve from the same promise rather than racing or skipping.
@@ -515,6 +532,17 @@ export function registerIpcHandlers(
     void shell.openExternal(`http://localhost:${port}/`);
   });
 
+  ipcMain.handle('dismissStaleBackupNotice', () => {
+    setStaleBackupNotice(null);
+    emitStoreChanged();
+  });
+
+  ipcMain.handle('disableStaleBackupAlert', () => {
+    userDataStore.set('app', { ...userDataStore.get('app'), staleAlertEnabled: false });
+    setStaleBackupNotice(null);
+    emitStoreChanged();
+  });
+
   ipcMain.handle('getViewerUrl', async (_event, id: string): Promise<string> => {
     const account = getAccount(id);
     if (!account?.backup_folder) return '';
@@ -551,6 +579,9 @@ export function registerIpcHandlers(
         blockedRoots: getBlockedRoots(),
       });
       const { existing } = await bindBackupFolder(folder);
+      // The folder may bring its own Scheduled value; keep sign-in behaviour in step.
+      await applyScheduledToSignIn();
+      rebuildTrayMenu();
       scheduler.rearm();
       emitStoreChanged();
       return { folder, existingSettings: existing };
@@ -564,9 +595,31 @@ export function registerIpcHandlers(
       blockedRoots: getBlockedRoots(),
     });
     await bindBackupFolder(validated);
+    await applyScheduledToSignIn();
+    rebuildTrayMenu();
     scheduler.rearm();
     emitStoreChanged();
   });
+
+  // Scheduled is the master setting: it also decides start-at-sign-in.
+  async function applyScheduledToSignIn(): Promise<void> {
+    await applyStartAtSignIn(getPortableSettings().schedule.enabled);
+  }
+
+  setScheduledImpl = async (enabled) => {
+    const current = getPortableSettings();
+    await savePortableSettings({ ...current, schedule: { ...current.schedule, enabled } });
+    await applyScheduledToSignIn();
+    rebuildTrayMenu();
+    scheduler.rearm();
+    emitStoreChanged();
+  };
+
+  ipcMain.handle('getStartupTask', () =>
+    getStartupTaskInfo(getPortableSettings().schedule.enabled),
+  );
+  ipcMain.handle('enableStartupTask', () => enableStartupTask());
+  ipcMain.handle('openStartupSettings', () => openStartupSettings());
 
   ipcMain.handle('getBootState', (): BootState => {
     const folder = getBackupFolder();
@@ -595,14 +648,8 @@ export function registerIpcHandlers(
       };
       await savePortableSettings(next);
 
-      if (partial.startWithWindows !== undefined) {
-        userDataStore.set('app', {
-          ...userDataStore.get('app'),
-          startWithWindows: partial.startWithWindows,
-        });
-        if (app.isPackaged) {
-          app.setLoginItemSettings({ openAtLogin: partial.startWithWindows });
-        }
+      if (next.schedule.enabled !== current.schedule.enabled) {
+        await applyScheduledToSignIn();
         rebuildTrayMenu();
       }
 
@@ -613,6 +660,19 @@ export function registerIpcHandlers(
         });
         // Takes effect at next launch — the updater's check fires once during
         // setupAutoUpdater() on startup, so we don't toggle anything live.
+      }
+
+      if (partial.staleAlertEnabled !== undefined) {
+        userDataStore.set('app', {
+          ...userDataStore.get('app'),
+          staleAlertEnabled: partial.staleAlertEnabled,
+        });
+      }
+      if (partial.staleAlertIntervals !== undefined) {
+        userDataStore.set('app', {
+          ...userDataStore.get('app'),
+          staleAlertIntervals: partial.staleAlertIntervals,
+        });
       }
 
       scheduler.rearm();

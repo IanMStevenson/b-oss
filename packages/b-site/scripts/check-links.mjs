@@ -19,7 +19,8 @@ for (const page of pages) {
   for (const [, attr, url] of html.matchAll(/\s(href|src)="([^"]*)"/g)) {
     if (/^([a-z][a-z0-9+.-]*:|\/\/|\/)/i.test(url) || url === '') continue; // external or root-absolute
     const [path, fragment] = url.split('#');
-    const target = path || page;
+    // Links are extensionless (`b-ark`, `./`); dist holds `b-ark.html` and `index.html`.
+    const target = !path ? page : path === './' ? 'index.html' : /\.[a-z0-9]+$/i.test(path) ? path : `${path}.html`;
     if (!existsSync(join(dist, target))) {
       problems.push(`${page}: ${attr}="${url}" -> missing ${target}`);
     } else if (fragment && target.endsWith('.html') && !ids.get(target)?.has(fragment))
