@@ -12,7 +12,7 @@ Run `node scripts/check-store-listing.mjs packages/b-mobile-pc/store/listing.md`
 edit: it reads the fenced blocks under the headings below and fails if a limit is exceeded. Keep each
 field's text in the first fenced block under its heading.
 
-**DRAFT.** Everything marked `IAN TO CONFIRM` is a question for Ian; the checker fails the final run
+**DRAFT.** All content questions are answered; the screenshot and the MSIX build are outstanding. A marker `IAN TO CONFIRM` would flag any new question; the checker fails the final run
 (`STORE_LISTING_FINAL=1`) while any marker remains in the description or certification notes.
 
 ---
@@ -64,6 +64,7 @@ Join in
 Stay in touch
 - Optional Windows notifications for new comments and activity. b-mobile checks Blipfoto every few minutes and tells you when something new arrives, even with the window closed.
 - When notifications are on, b-mobile starts with Windows and waits quietly in the system tray. Closing the window hides it; use Exit in the tray menu to quit.
+- A daily reminder to post, at a time you choose.
 - Open Blipfoto links in the app, if you want to.
 
 Your accounts
@@ -86,7 +87,7 @@ Good to know
 b-mobile is a free, open-source project led by Ian Stevenson. It is independent and unofficial: it is not made, endorsed or supported by Blipfoto. It uses Blipfoto's public programming interface, and your use of Blipfoto is governed by Blipfoto's terms of service. You need a Blipfoto account to use it. Updates come through the Microsoft Store.
 ```
 
-Claims checked against `packages/b-mobile/docs/BEHAVIOUR.md`, `PLATFORM-MATRIX.md` (desktop: webcam capture, pick-only location, polling every 5 minutes) and `packages/b-mobile-pc/README.md`. The Android description's "daily reminder to post" is left out because it is not checked for the desktop build. IAN TO CONFIRM: that the reminder is not offered on desktop, and that nothing else from the Android list is missing. Remove the markers before pasting.
+Claims checked against `packages/b-mobile/docs/BEHAVIOUR.md`, `PLATFORM-MATRIX.md` (desktop: webcam capture, pick-only location, polling every 5 minutes) and `packages/b-mobile-pc/README.md`. The daily reminder to post is included because Ian says it is implemented on desktop and will be in the release before it is published (2026-11-06); re-check once it has merged. Remove the markers before pasting.
 
 ### Product features (up to 20, each up to 200 characters; one per line, no bullets: the Store adds them)
 
@@ -95,7 +96,7 @@ The b-mobile Blipfoto app on your Windows PC: browse, search and explore entries
 Post entries from a photo on your PC or your webcam, with title, description, tags and location
 Star, favourite, comment and reply, and follow other Blippers
 Sign in with several Blipfoto accounts and switch instantly
-Optional Windows notifications for new comments and activity, from the system tray
+Optional Windows notifications for new comments and activity, plus a daily reminder to post
 Starts with Windows when notifications are on; closing the window keeps it in the tray
 Read-only or read-write sign-in, your choice
 Hide members and report entries, comments and members
@@ -122,9 +123,9 @@ No other sign-in, purchase, advertising or network service is involved: the app 
 ### Category and ratings (suggestions; confirm against the Partner Center dropdowns)
 
 - Category: **Photo & video** (Ian, 2026-11-06, as for b-ark; the b-ark section above says Productivity, which was only a suggestion).
-- Age rating: complete the IARC questionnaire honestly. Unlike b-ark this app **lets users post and read user-generated content** (photos, comments, profiles) and interact with other users (comments, follows), and shows content from other members. Answer the user-generated-content and user-interaction questions the form's wording requires, including that users can report and hide members. Expect a rating above the lowest tier; let the questionnaire decide. IAN TO CONFIRM: Blipfoto's own age floor, and whether the Android Play answers (Content rating) should be copied for consistency.
-- Pricing: free. Markets: all. IAN TO CONFIRM (the Android app is free in all markets).
-- Support contact / website: `b-oss@salientpoint.co.uk` (the address on the Android listing); website `https://b-oss.dev/b-mobile` (Ian: `b-oss.dev` or that page). IAN TO CONFIRM which one goes in the Website field.
+- Age rating: complete the IARC questionnaire honestly. Unlike b-ark this app **lets users post and read user-generated content** (photos, comments, profiles) and interact with other users (comments, follows), and shows content from other members. Answer the user-generated-content and user-interaction questions the form's wording requires, including that users can report and hide members. Expect a rating above the lowest tier; let the questionnaire decide. Ian (2026-11-06): use the same answers as the Play content rating.
+- Pricing: free. Markets: all (Ian, 2026-11-06).
+- Support contact / website: `b-oss@salientpoint.co.uk` (the address on the Android listing); website `https://b-oss.dev/b-mobile` (Ian, 2026-11-06).
 
 ### Privacy policy URL (its own field, not part of the description)
 
@@ -138,15 +139,11 @@ The shared b-mobile policy now has a "b-mobile on Windows" section (token in Win
 
 Uploaded in Partner Center, from `screenshots/`: PNG, 1366x768 or larger (up to 3840x2160), up to 10 per listing, 4 recommended. These must be of the real app showing real photos and thumbnails.
 
-None taken yet. Planned set (the Android set was `01-browse`, `02-entry`, `03-menu`, `04-map`, from the demo account `bmobiledemo`):
+Ian will take the screenshot on Windows via Mutagen (2026-11-06); for this first submission one is enough:
 
-| File                  | Shows                                          |
-| --------------------- | ---------------------------------------------- |
-| `1-browse.png`        | A feed grid in the desktop layout              |
-| `2-entry.png`         | An entry with comments                         |
-| `3-map.png`           | The map                                        |
-| `4-post.png`          | The post screen (photo, title, tags, location) |
-| `5-notifications.png` | Settings > Notifications, tray                 |
+| File           | Shows                                          |
+| -------------- | ---------------------------------------------- |
+| `1-browse.png` | A feed grid in the desktop layout, real photos |
 
 ### Still needed
 
