@@ -50,10 +50,11 @@ const SOURCE_URL = 'https://b-oss.dev/';
 // This app's own policy (what b-mobile and its push service handle), as given in the Play listing.
 const APP_PRIVACY_URL = 'https://b-oss.dev/b-mobile-privacy.html';
 
-export type HelpInfoSection = 'icon-guide' | 'safety-privacy' | 'licences';
+export type HelpInfoSection = 'icon-guide' | 'keyboard' | 'safety-privacy' | 'licences';
 
 const SECTION_TITLES: Record<HelpInfoSection, string> = {
   'icon-guide': 'Icon guide',
+  keyboard: 'Keyboard guide',
   'safety-privacy': 'Safety & privacy',
   licences: 'Open source licences',
 };
@@ -81,6 +82,7 @@ function SectionScreen({ section }: { section: HelpInfoSection }) {
       </IonHeader>
       <IonContent className="ion-padding form-column">
         {section === 'icon-guide' && <IconGuide />}
+        {section === 'keyboard' && <KeyboardGuide />}
         {section === 'safety-privacy' && <SafetyPrivacy />}
         {section === 'licences' && <Licences />}
       </IonContent>
@@ -126,6 +128,50 @@ function IconRow({ id, label }: { id: string; label: string }) {
       />
       <span>{label}</span>
     </div>
+  );
+}
+
+const KEYBOARD_KEYS: Array<[string, string]> = [
+  ['Tab / Shift+Tab', 'Move between buttons, links and photos'],
+  ['Enter / Space', 'Open the highlighted item'],
+  ['Up / Down, Page Up / Page Down', 'Scroll the page'],
+  ['Home / End', 'Jump to the top / bottom of the page'],
+  ['Left / Right', 'Previous / next page of a photo grid'],
+  ['Ctrl+Left / Ctrl+Right', 'On an entry opened from a list: next / previous in that list'],
+  ['Backspace', 'Go back, when a back arrow is showing'],
+];
+
+const EDITOR_KEYS: Array<[string, string]> = [
+  ['Ctrl+B', 'Bold'],
+  ['Ctrl+I', 'Italic'],
+  ['Ctrl+U', 'Underline'],
+  ['Ctrl+S', 'Strikethrough'],
+  ['Ctrl+L', 'Link'],
+];
+
+function KeyRows({ rows }: { rows: Array<[string, string]> }) {
+  return (
+    <>
+      {rows.map(([keys, what]) => (
+        <div key={keys} style={{ display: 'flex', gap: 12, padding: '6px 0' }}>
+          <kbd style={{ flex: '0 0 45%', fontFamily: 'inherit', fontWeight: 600 }}>{keys}</kbd>
+          <span>{what}</span>
+        </div>
+      ))}
+    </>
+  );
+}
+
+function KeyboardGuide() {
+  return (
+    <>
+      <p>With a physical keyboard:</p>
+      <KeyRows rows={KEYBOARD_KEYS} />
+      <p>
+        <strong>When writing (entry description, comments)</strong>
+      </p>
+      <KeyRows rows={EDITOR_KEYS} />
+    </>
   );
 }
 
@@ -404,6 +450,11 @@ function HelpInfoHub() {
             label="Icon guide"
             kind="push"
             onClick={() => navigate.push('/help/icon-guide')}
+          />
+          <NavRow
+            label="Keyboard guide"
+            kind="push"
+            onClick={() => navigate.push('/help/keyboard')}
           />
           <NavRow
             label="Safety & privacy"

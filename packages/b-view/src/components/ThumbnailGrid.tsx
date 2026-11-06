@@ -437,6 +437,7 @@ export function ThumbnailGrid({
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       if (isEditableTarget(e.target)) return;
+      if (e.ctrlKey || e.altKey || e.metaKey) return;
       if (e.key === 'ArrowLeft') prevBtnRef.current?.click();
       if (e.key === 'ArrowRight') nextBtnRef.current?.click();
     };
@@ -534,7 +535,9 @@ export function ThumbnailGrid({
     enabled: keyboardWheelZoom && onSizeChange !== undefined,
     target: containerRef,
     onZoom: (command) =>
-      onSizeChange?.(command === 'reset' ? 100 : stepZoom(sizePercent, command === 'in' ? 1 : -1, limits)),
+      onSizeChange?.(
+        command === 'reset' ? 100 : stepZoom(sizePercent, command === 'in' ? 1 : -1, limits),
+      ),
   });
 
   // Track the top-left entry date for the internal calendar and external callback. A negative or

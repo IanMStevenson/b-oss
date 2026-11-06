@@ -9,9 +9,10 @@
 // came from, with Hide / Turn off in Settings and a close (X) at the top right. The region carries `data-no-swipe` so b-view's page swipe, which
 // would otherwise move through the journal, ignores touches that start here.
 
-import { useRef, useState, type TouchEvent } from 'react';
+import { useEffect, useRef, useState, type TouchEvent } from 'react';
 import { IonButton, IonModal, IonSpinner } from '@ionic/react';
 import { ChevronLeft, ChevronRight, X } from 'lucide-react';
+import { isTypingTarget } from '../app/keyboardScroll.js';
 import { useAppNavigate } from '../app/routes/useAppNavigate.js';
 import { useDevicePrefsStore } from '../state/devicePrefsStore.js';
 import { sourceNavReach, useSourceNavStore } from '../state/sourceNavStore.js';
@@ -26,8 +27,28 @@ export function SourceNavBar() {
   const [sheetOpen, setSheetOpen] = useState(false);
   const touchStart = useRef<{ x: number; y: number } | null>(null);
 
-  if (!anchor) return null;
-  const reach = sourceNavReach(anchor);
+  const reach = anchor ? sourceNavReach(anchor) : null;
+  const canFurther = !!reach?.further && !loading;
+  const canBack = !!reach?.back && !loading;
+
+  // Ctrl+Left = the left arrow (further along), Ctrl+Right = the right arrow (back). Plain arrows
+  // stay with the grid's paging, and word-jumping in a text field is left alone.
+  useEffect(() => {
+    if (!anchor) return;
+    function onKey(e: KeyboardEvent): void {
+      if (!e.ctrlKey || e.altKey || e.metaKey || e.shiftKey || e.defaultPrevented) return;
+      if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return;
+      if (isTypingTarget(e)) return;
+      e.preventDefault();
+      if (e.key === 'ArrowLeft' && canFurther) void go(1);
+      if (e.key === 'ArrowRight' && canBack) void go(-1);
+    }
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- go() only reads the store and navigate
+  }, [anchor, canFurther, canBack]);
+
+  if (!anchor || !reach) return null;
 
   async function go(direction: 1 | -1): Promise<void> {
     const id = await useSourceNavStore.getState().step(direction);
@@ -48,8 +69,8 @@ export function SourceNavBar() {
     const dy = t.clientY - start.y;
     if (Math.abs(dx) < SWIPE_THRESHOLD_PX || Math.abs(dx) < Math.abs(dy)) return;
     // Swipe left = the right arrow (back); swipe right = the left arrow (further).
-    if (dx < 0 && reach.back) void go(-1);
-    if (dx > 0 && reach.further) void go(1);
+    if (dx < 0 && canBack) void go(-1);
+    if (dx > 0 && canFurther) void go(1);
   }
 
   return (
@@ -65,7 +86,7 @@ export function SourceNavBar() {
           type="button"
           className="source-nav-arrow"
           aria-label="Next in list"
-          disabled={!reach.further || loading}
+          disabled={!canFurther}
           onClick={() => void go(1)}
         >
           <ChevronLeft size={26} />
@@ -83,7 +104,7 @@ export function SourceNavBar() {
           type="button"
           className="source-nav-arrow"
           aria-label="Previous in list"
-          disabled={!reach.back || loading}
+          disabled={!canBack}
           onClick={() => void go(-1)}
         >
           <ChevronRight size={26} />
