@@ -820,14 +820,6 @@ section.block:first-of-type {
   }
 }
 
-/* Seven nav items on the smallest phones. */
-@media (max-width: 350px) {
-  .nav a {
-    padding: 8px 3px;
-    font-size: 12px;
-  }
-}
-
 /* ---------- Phone screenshots (b-mobile) ---------- */
 .phone-shots {
   list-style: none;
@@ -2059,6 +2051,17 @@ p.st-sub {
   }
   .hw-toc {
     position: static;
+  }
+}
+
+/* The smallest phones: seven nav items, and guide tables, still have to fit. */
+@media (max-width: 350px) {
+  .nav a {
+    padding: 8px 3px;
+    font-size: 12px;
+  }
+  .prose table td:first-child {
+    white-space: normal;
   }
 }
 
