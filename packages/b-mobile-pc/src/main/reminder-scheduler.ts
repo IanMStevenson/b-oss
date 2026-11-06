@@ -7,15 +7,14 @@
 // publish); we keep it in a small file so a start at login can arm the timers before the page has
 // loaded. Pure apart from the injected clock, timers, file and toast, so it is unit-tested.
 //
-// Behaviour matches mobile: one toast at the chosen local time each day, none for a day the account
-// already published on, and no catch-up for a time that passed while the app was not running.
+// Behaviour: one toast at the chosen local time each day, none for a day the account already
+// published on. A time that passed while the app was off or the machine asleep is caught up when it
+// comes back, the same day only (never a day late); each day's toast is remembered so it shows once.
 
 import type { ReminderTime } from '../shared/reminders.js';
 
 /** setTimeout's longest delay is 2^31-1 ms; a day is far below it, this is only a guard. */
 const MAX_DELAY_MS = 2 ** 31 - 1;
-/** A timer may fire a little early; due times within this of now count as due. */
-const EARLY_SLACK_MS = 1_000;
 
 /** Local calendar day as YYYY-MM-DD. */
 export function localDay(date: Date): string {
@@ -49,11 +48,30 @@ export function nextOccurrence(time: ReminderTime, from: Date, skipDay: string |
 interface Entry extends ReminderTime {
   /** A day (YYYY-MM-DD) the account already published on: no reminder on or before it. */
   skipDay: string | null;
+  /** The last day (YYYY-MM-DD) the toast was shown, or set up too late to be due: once per day. */
+  shownDay: string | null;
 }
 
-interface Runtime {
-  /** After a toast fires, count from just past it, so an early timer cannot fire the same one twice. */
-  notBefore: number;
+/** The latest day that is already dealt with (YYYY-MM-DD strings compare in date order). */
+function doneDay(entry: Entry): string | null {
+  if (entry.skipDay === null) return entry.shownDay;
+  if (entry.shownDay === null) return entry.skipDay;
+  return entry.skipDay > entry.shownDay ? entry.skipDay : entry.shownDay;
+}
+
+/** Today's time has come and today is not yet dealt with: the toast is due now (or was, while off). */
+function isDue(entry: Entry, now: Date): boolean {
+  const today = localDay(now);
+  const done = doneDay(entry);
+  if (done !== null && done >= today) return false;
+  const todayAt = new Date(
+    now.getFullYear(),
+    now.getMonth(),
+    now.getDate(),
+    entry.hour,
+    entry.minute,
+  );
+  return todayAt.getTime() <= now.getTime();
 }
 
 export interface ReminderDeps {
@@ -75,7 +93,12 @@ function parseFile(text: string | null): Record<string, Entry> {
     if (typeof raw !== 'object' || raw === null) return {};
     const out: Record<string, Entry> = {};
     for (const [id, value] of Object.entries(raw as Record<string, unknown>)) {
-      const v = value as { hour?: unknown; minute?: unknown; skipDay?: unknown } | null;
+      const v = value as {
+        hour?: unknown;
+        minute?: unknown;
+        skipDay?: unknown;
+        shownDay?: unknown;
+      } | null;
       if (
         v &&
         Number.isInteger(v.hour) &&
@@ -89,6 +112,7 @@ function parseFile(text: string | null): Record<string, Entry> {
           hour: v.hour as number,
           minute: v.minute as number,
           skipDay: typeof v.skipDay === 'string' ? v.skipDay : null,
+          shownDay: typeof v.shownDay === 'string' ? v.shownDay : null,
         };
       }
     }
@@ -100,7 +124,6 @@ function parseFile(text: string | null): Record<string, Entry> {
 
 export class ReminderScheduler {
   private entries: Record<string, Entry> = {};
-  private readonly runtime = new Map<string, Runtime>();
   private timer: unknown = null;
   private changeListener: ((active: boolean) => void) | null = null;
   private writes: Promise<void> = Promise.resolve();
@@ -136,18 +159,20 @@ export class ReminderScheduler {
    */
   configure(reminders: readonly { accountId: string; time: ReminderTime }[]): void {
     const before = this.hasReminders();
+    const now = this.deps.now();
     const next: Record<string, Entry> = {};
     for (const { accountId, time } of reminders) {
       const old = this.entries[accountId];
-      const same = old && old.hour === time.hour && old.minute === time.minute;
-      next[accountId] = {
-        hour: time.hour,
-        minute: time.minute,
-        skipDay: same ? old.skipDay : null,
-      };
-      if (!same) this.runtime.delete(accountId);
+      if (old && old.hour === time.hour && old.minute === time.minute) {
+        next[accountId] = old;
+        continue;
+      }
+      // New or re-timed: a time that has already passed today is not owed (switching a 20:00
+      // reminder on at 21:00 must not fire at once); only a later day's time counts.
+      const entry: Entry = { hour: time.hour, minute: time.minute, skipDay: null, shownDay: null };
+      if (isDue(entry, now)) entry.shownDay = localDay(now);
+      next[accountId] = entry;
     }
-    for (const id of Object.keys(this.entries)) if (!(id in next)) this.runtime.delete(id);
     this.entries = next;
     this.changed(before);
   }
@@ -180,12 +205,6 @@ export class ReminderScheduler {
       });
   }
 
-  private due(id: string, from: Date): Date {
-    const entry = this.entries[id];
-    const notBefore = this.runtime.get(id)?.notBefore ?? 0;
-    return nextOccurrence(entry, new Date(Math.max(from.getTime(), notBefore)), entry.skipDay);
-  }
-
   private disarm(): void {
     if (this.timer !== null) this.deps.clearTimer(this.timer);
     this.timer = null;
@@ -196,24 +215,26 @@ export class ReminderScheduler {
     const ids = Object.keys(this.entries);
     if (ids.length === 0) return;
     const now = this.deps.now();
-    const next = Math.min(...ids.map((id) => this.due(id, now).getTime()));
+    const next = Math.min(
+      ...ids.map((id) => {
+        const entry = this.entries[id];
+        // Due now (the time passed while we were off or asleep): at once, once.
+        if (isDue(entry, now)) return now.getTime();
+        return nextOccurrence(entry, now, doneDay(entry)).getTime();
+      }),
+    );
     const delay = Math.min(Math.max(next - now.getTime(), 0), MAX_DELAY_MS);
     this.timer = this.deps.setTimer(() => void this.fire(), delay);
   }
 
   private async fire(): Promise<void> {
     this.timer = null;
-    const nowMs = this.deps.now().getTime();
-    const dueIds: string[] = [];
-    for (const id of Object.keys(this.entries)) {
-      // From just before now, so a timer that fired a moment early still finds its own time.
-      const due = this.due(id, new Date(nowMs - EARLY_SLACK_MS));
-      if (due.getTime() <= nowMs + EARLY_SLACK_MS) {
-        this.runtime.set(id, { notBefore: due.getTime() + EARLY_SLACK_MS + 1 });
-        dueIds.push(id);
-      }
-    }
-    // Re-armed before the toasts so a slow or failing one cannot stop tomorrow's.
+    const now = this.deps.now();
+    const dueIds = Object.keys(this.entries).filter((id) => isDue(this.entries[id], now));
+    // Marked and re-armed before the toasts, so a slow or failing one neither repeats nor stops
+    // tomorrow's.
+    for (const id of dueIds) this.entries[id].shownDay = localDay(now);
+    if (dueIds.length > 0) this.persist();
     this.arm();
     for (const id of dueIds) {
       try {

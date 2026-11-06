@@ -58,8 +58,9 @@ hidden in the tray: `src/main/reminder-scheduler.ts` holds the per-account time,
 next due reminder and shows the toast (`reminderText`, same words as Android). The web app sends the full
 set whenever it changes (`reminders.configure`, from `flows/reminderSync.ts`) and calls `skipToday` after a
 publish or edit; a click raises the window and the page opens a new entry for that account. State is in
-`userData/reminder-state.json` so a start at login arms the timer before the page loads. No catch-up for a
-time that passed while the app was off, and timers are re-armed on resume from sleep. A reminder on counts
+`userData/reminder-state.json` so a start at login arms the timer before the page loads. A time that passed
+while the app was off or the PC asleep is shown when it is back, the same day only, once (the last shown
+day is kept in the state file); timers are re-armed on resume from sleep. A reminder on counts
 like a watched account for staying in the tray and for starting at sign-in (the login item, or the Store
 startup task from b-oss#884), so turning one on with polling off keeps the app running.
 

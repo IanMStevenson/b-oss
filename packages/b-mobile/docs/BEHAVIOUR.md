@@ -243,7 +243,7 @@ reminders,details,profile,notifications}`; the old `/settings/{general,journal,a
   account if possible and opens `/compose`. On the desktop shell the shell's main process runs the
   clock (`flows/reminderSync.ts` sends it the reminders that are on; b-oss#894): one toast at the chosen
   local time while the app is running (window hidden in the tray is fine), none for a day already
-  published on, no catch-up for a time that passed while the app was not running.
+  published on, a time that passed while the app was off or the PC asleep is shown when it is back, the same day only.
 
 ## Errors and network (`data/errors.ts`, `data/client.ts`)
 

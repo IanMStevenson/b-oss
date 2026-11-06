@@ -102,13 +102,14 @@ describe('ReminderScheduler', () => {
     expect(h.shown).toEqual(['ian', 'ian']);
   });
 
-  it('does not show twice when the timer fires a moment early', async () => {
+  it('does not show when the timer fires a moment early, then shows at the time', async () => {
     const h = harness();
     await h.scheduler.start();
     h.scheduler.configure([{ accountId: 'ian', time: { hour: 20, minute: 0 } }]);
-    await h.advanceTo('2026-11-06T19:59:59.500'.replace('.500', ''));
-    // Force the timer to run 0.5 s before the time.
     h.setNow('2026-11-06T19:59:59');
+    h.live()[0].due = 0; // force the live timer to run one second early
+    await h.advanceTo('2026-11-06T19:59:59');
+    expect(h.shown).toEqual([]);
     await h.advanceTo('2026-11-06T20:00:00');
     expect(h.shown).toEqual(['ian']);
   });
@@ -211,6 +212,71 @@ describe('ReminderScheduler', () => {
     h.scheduler.resync();
     expect(h.live()).toHaveLength(1);
     expect(h.live()[0].due - at('2026-11-06T19:59:30').getTime()).toBe(30_000);
+  });
+});
+
+describe('ReminderScheduler catch-up (same day only)', () => {
+  const saved = (extra: Record<string, unknown> = {}) =>
+    JSON.stringify({
+      version: 1,
+      reminders: { ian: { hour: 20, minute: 0, skipDay: null, shownDay: '2026-11-05', ...extra } },
+    });
+
+  it('shows at start when the time passed while the app was off, the same day', async () => {
+    const h = harness(saved(), '2026-11-06T21:30:00');
+    await h.scheduler.start();
+    await h.advanceTo('2026-11-06T21:30:00');
+    expect(h.shown).toEqual(['ian']);
+  });
+
+  it('shows once only: not again on a second start the same day, but again the next day', async () => {
+    const h = harness(saved(), '2026-11-06T21:30:00');
+    await h.scheduler.start();
+    await h.advanceTo('2026-11-06T21:30:00');
+    const file = h.writes.at(-1) ?? '';
+    const again = harness(file, '2026-11-06T22:30:00');
+    await again.scheduler.start();
+    await again.advanceTo('2026-11-06T22:30:00');
+    expect(again.shown).toEqual([]);
+    await again.advanceTo('2026-11-07T20:00:00');
+    expect(again.shown).toEqual(['ian']);
+  });
+
+  it('shows after waking from sleep past the time', async () => {
+    const h = harness();
+    await h.scheduler.start();
+    h.scheduler.configure([{ accountId: 'ian', time: { hour: 20, minute: 0 } }]);
+    h.setNow('2026-11-06T22:00:00');
+    h.scheduler.resync();
+    await h.advanceTo('2026-11-06T22:00:00');
+    expect(h.shown).toEqual(['ian']);
+  });
+
+  it('does not catch up a day already published on', async () => {
+    const h = harness(saved({ skipDay: '2026-11-06' }), '2026-11-06T21:30:00');
+    await h.scheduler.start();
+    await h.advanceTo('2026-11-06T21:30:00');
+    expect(h.shown).toEqual([]);
+  });
+
+  it('does not catch up a day that has gone', async () => {
+    // Last shown on the 5th, app off all of the 6th, back on the 7th before the time.
+    const h = harness(saved(), '2026-11-07T09:00:00');
+    await h.scheduler.start();
+    await h.advanceTo('2026-11-07T09:00:00');
+    expect(h.shown).toEqual([]);
+    await h.advanceTo('2026-11-07T20:00:00');
+    expect(h.shown).toEqual(['ian']);
+  });
+
+  it('does not fire at once for a reminder switched on after its time today', async () => {
+    const h = harness(null, '2026-11-06T21:00:00');
+    await h.scheduler.start();
+    h.scheduler.configure([{ accountId: 'ian', time: { hour: 20, minute: 0 } }]);
+    await h.advanceTo('2026-11-06T21:00:00');
+    expect(h.shown).toEqual([]);
+    await h.advanceTo('2026-11-07T20:00:00');
+    expect(h.shown).toEqual(['ian']);
   });
 });
 
