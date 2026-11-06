@@ -134,7 +134,8 @@ function IconRow({ id, label }: { id: string; label: string }) {
 const KEYBOARD_KEYS: Array<[string, string]> = [
   ['Tab / Shift+Tab', 'Move between buttons, links and photos'],
   ['Enter / Space', 'Open the highlighted item'],
-  ['Up / Down, Page Up / Page Down', 'Scroll the page'],
+  ['Up / Down', 'Scroll the page'],
+  ['Page Up / Page Down', 'Scroll by a page at a time'],
   ['Home / End', 'Jump to the top / bottom of the page'],
   ['Left / Right', 'Previous / next: grid pages and journal entries'],
   ['Ctrl+Left / Ctrl+Right', 'On an entry opened from a list: next / previous in that list'],
