@@ -10,7 +10,7 @@ import { createServer, type Server } from 'node:http';
 import type { ToShow } from './notify-poller.js';
 import { TEST_BODY, TEST_TITLE, type Presenter } from './notify-shell.js';
 import type { TestNotifyResult } from '../shared/notify.js';
-import { notificationText } from './notify-text.js';
+import { notificationText, reminderText } from './notify-text.js';
 
 export interface RecordedNotification {
   title: string;
@@ -34,6 +34,12 @@ export class RecordingPresenter implements Presenter {
     this.shown.push({ title: TEST_TITLE, body: TEST_BODY, payload: null, count: 0 });
     this.clicks.push(onClick);
     return Promise.resolve({ ok: true, detail: 'Recorded by the test presenter.' });
+  }
+
+  showReminder(accountId: string, onClick: () => void): Promise<void> {
+    this.shown.push({ ...reminderText(accountId), payload: null, count: 0 });
+    this.clicks.push(onClick);
+    return Promise.resolve();
   }
 
   /** What a user's click on the nth notification does. False if there is no such notification. */

@@ -12,7 +12,7 @@ import { join } from 'node:path';
 import { app, dialog, Menu, nativeImage, Notification, Tray, type BrowserWindow } from 'electron';
 import { CHANNELS } from '../shared/bridge.js';
 import type { NotifyPayload, TestNotifyResult } from '../shared/notify.js';
-import { notificationText } from './notify-text.js';
+import { notificationText, reminderText } from './notify-text.js';
 import type { ToShow } from './notify-poller.js';
 import { safeSend } from './safe-ipc.js';
 import { TapQueue } from './tap-queue.js';
@@ -31,6 +31,8 @@ export interface Presenter {
   show(item: ToShow, onClick: () => void): Promise<void>;
   /** The "Send a test notification" toast: no payload, no API. Reports what the OS did. */
   showTest(onClick: () => void): Promise<TestNotifyResult>;
+  /** The daily reminder toast (b-oss#894). Rejects when it could not be shown. */
+  showReminder(accountId: string, onClick: () => void): Promise<void>;
   /** Close any toast still held, so nothing outlives the quit. */
   dispose?(): void;
 }
@@ -110,6 +112,11 @@ export function createElectronPresenter(log: (message: string) => void): Present
       if (!result.ok) throw new Error(result.detail);
     },
     showTest: (onClick) => present(TEST_TITLE, TEST_BODY, 'test', onClick),
+    async showReminder(accountId, onClick) {
+      const { title, body } = reminderText(accountId);
+      const result = await present(title, body, 'reminder', onClick);
+      if (!result.ok) throw new Error(result.detail);
+    },
     dispose() {
       for (const n of live) n.close();
       live.clear();
@@ -121,6 +128,7 @@ export class NotifyShell {
   private tray: Tray | null = null;
   private quitting = false;
   private readonly taps = new TapQueue();
+  private readonly reminderTaps = new TapQueue<string>();
 
   constructor(
     private readonly getWindow: () => BrowserWindow | null,
@@ -163,6 +171,23 @@ export class NotifyShell {
     return result;
   };
 
+  /** The scheduler's `show`: the daily reminder toast. A click raises the window and tells the page,
+   * which switches to that account and opens a new entry. */
+  showReminder = async (accountId: string): Promise<void> => {
+    await this.presenter.showReminder(accountId, () => {
+      this.log('reminder clicked');
+      this.reveal();
+      this.reminderTaps.tap(
+        accountId,
+        (id) => void safeSend(this.getWindow(), CHANNELS.reminderTapped, id),
+      );
+    });
+  };
+
+  reminderTappedReady(): void {
+    this.reminderTaps.ready((id) => void safeSend(this.getWindow(), CHANNELS.reminderTapped, id));
+  }
+
   private clicked(payload: NotifyPayload): void {
     this.log(`notification clicked: ${payload.kind}`);
     this.reveal();
@@ -177,6 +202,7 @@ export class NotifyShell {
   /** Call when the page is (re)loading: it has no listener until it asks again. */
   pageReset(): void {
     this.taps.reset();
+    this.reminderTaps.reset();
   }
 
   reveal(): void {

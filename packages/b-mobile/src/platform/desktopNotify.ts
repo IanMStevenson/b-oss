@@ -56,3 +56,14 @@ export async function checkDesktopNotificationsNow(): Promise<DesktopNotifyStatu
 export async function sendDesktopTestNotification(): Promise<DesktopTestNotifyResult | null> {
   return (await desktopBridge()?.notify.sendTest()) ?? null;
 }
+
+/** The reminders that are on, sent in full to the shell, which runs the daily clock (b-oss#894).
+ * Resolves false when there is no shell to tell (not the desktop, or one too old to remind). */
+export async function configureDesktopReminders(
+  reminders: { accountId: string; hour: number; minute: number }[],
+): Promise<boolean> {
+  const bridge = desktopBridge()?.reminders;
+  if (!bridge) return false;
+  await bridge.configure(reminders);
+  return true;
+}

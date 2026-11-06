@@ -67,6 +67,13 @@ export interface DesktopBridge {
     onReceived(handler: (payload: DesktopNotifyPayload) => void): () => void;
     onTapped(handler: (payload: DesktopNotifyPayload) => void): () => void;
   };
+  /** The daily reminder (b-oss#894): the shell runs the clock, so it fires with the window hidden.
+   * Absent on a shell older than this member. */
+  readonly reminders?: {
+    configure(reminders: { accountId: string; hour: number; minute: number }[]): Promise<void>;
+    skipToday(accountId: string): Promise<void>;
+    onTapped(handler: (accountId: string) => void): () => void;
+  };
   /** The shell's own build (b-oss#696). Absent on a shell older than this member, which the app
    * reads as a mismatch. */
   readonly shell?: {

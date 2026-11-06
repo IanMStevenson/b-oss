@@ -51,6 +51,19 @@ shell for it. Code: `src/main/missing-web.ts` (pure, unit-tested).
 b-mobile holds a matching copy of the bridge types in its platform layer, because it must not depend on
 this package.
 
+## Daily reminder (b-oss#894)
+
+The Settings → Reminders toggle works on desktop through the main process, because the window may be
+hidden in the tray: `src/main/reminder-scheduler.ts` holds the per-account time, arms one timer for the
+next due reminder and shows the toast (`reminderText`, same words as Android). The web app sends the full
+set whenever it changes (`reminders.configure`, from `flows/reminderSync.ts`) and calls `skipToday` after a
+publish or edit; a click raises the window and the page opens a new entry for that account. State is in
+`userData/reminder-state.json` so a start at login arms the timer before the page loads. A time that passed
+while the app was off or the PC asleep is shown when it is back, the same day only, once (the last shown
+day is kept in the state file); timers are re-armed on resume from sleep. A reminder on counts
+like a watched account for staying in the tray and for starting at sign-in (the login item, or the Store
+startup task from b-oss#884), so turning one on with polling off keeps the app running.
+
 ## Desktop notifications
 
 Decisions are on b-oss#610. The main process polls Blipfoto's unread **counts** (`messages/totals/unread`

@@ -25,6 +25,10 @@ export const CHANNELS = {
   notifyStatus: 'notify:status',
   notifyCheckNow: 'notify:check-now',
   notifyTest: 'notify:test',
+  reminderConfigure: 'reminder:configure',
+  reminderSkipToday: 'reminder:skip-today',
+  reminderTapped: 'reminder:tapped',
+  reminderTappedReady: 'reminder:tapped-ready',
   shellInfo: 'shell:info',
   pickPhoto: 'photo:pick',
 } as const;
@@ -65,6 +69,18 @@ export interface DesktopBridge {
     /** The user clicked a notification; the window has already been brought to the front. A click
      * that happened before anyone listened is delivered to the first listener. */
     onTapped(handler: (payload: NotifyPayload) => void): () => void;
+  };
+  /** The daily reminder (b-oss#894). The main process runs the clock, so it fires with the window
+   * hidden in the tray; the web app owns the setting and calls these as it changes. */
+  readonly reminders: {
+    /** The full set of reminders that are on, at start-up and whenever it changes (an account whose
+     * time is unchanged keeps its "published today" skip). */
+    configure(reminders: { accountId: string; hour: number; minute: number }[]): Promise<void>;
+    /** The account published today: no reminder until tomorrow's time. */
+    skipToday(accountId: string): Promise<void>;
+    /** The user clicked a reminder; the window has already been brought to the front. A click that
+     * happened before anyone listened is delivered to the first listener. */
+    onTapped(handler: (accountId: string) => void): () => void;
   };
   /** The shell's own identity (b-oss#696). The web app compares `build` with its `__APP_VERSION__`
    * at start-up: they differ when files were replaced under a running shell. An older shell has no
