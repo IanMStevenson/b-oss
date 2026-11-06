@@ -26,8 +26,8 @@ and say why in the PR. No page-local styling (`style="..."`) for anything that c
 3. **Screenshots** (`section.block`, eyebrow "Screenshots"): `PhoneShots`.
 4. **Good to know** (`section.block`, eyebrow "Good to know"): plain facts a reader should have before
    installing.
-5. **Get it** (`section.block#download`, eyebrow "Get it"): **tri-link cards**. On `b-ark`, one card per
-   product side by side: store badge, name, one line, and a "User guide" link inside the card.
+5. **Get it** (`section.block#download`, eyebrow "Get it"): one `div.tri-link` card per store or product,
+   side by side: store badge, name, one line. Each product card carries its own "User guide" link.
 6. **CtaBand**: "Contact us with feedback, suggestions and bugs." Every product page has it.
 7. **Privacy buttons**: a centred `.btn-row` of plain buttons under the band, no heading, labels that say what
    they are ("b-mobile privacy policy", "Delete your b-mobile data").
@@ -121,7 +121,3 @@ Narrow screens: layouts collapse at 820px, 720px, 640px, 520px and 420px; check 
 
 Infrastructure that stays easy to reach: contact form, privacy policies, b-status, and the repo
 (for co-developers).
-
-## Open questions
-
-- `b-mobile` "Get it": keep the user guide as its own card, or move it out like `b-ark`.
