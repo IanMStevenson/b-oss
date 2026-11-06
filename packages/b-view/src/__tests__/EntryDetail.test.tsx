@@ -44,6 +44,46 @@ function loadedState(entry: BlipEntry): EntryState {
   return { status: 'loaded', data: entry };
 }
 
+describe('EntryDetail Backspace', () => {
+  const show = (onClose?: () => void) =>
+    render(
+      <EntryDetail
+        entryState={loadedState(makeEntry())}
+        prevEntryId={null}
+        nextEntryId={null}
+        onNavigate={() => {}}
+        onClose={onClose}
+      />,
+    );
+
+  it('goes back to the grid when the host gave onClose', () => {
+    const onClose = vi.fn();
+    show(onClose);
+    fireEvent.keyDown(window, { key: 'Backspace' });
+    expect(onClose).toHaveBeenCalledTimes(1);
+  });
+
+  it('does nothing in a text field, with a modifier, or when a host handler took the key', () => {
+    const onClose = vi.fn();
+    show(onClose);
+    const input = document.body.appendChild(document.createElement('input'));
+    fireEvent.keyDown(input, { key: 'Backspace' });
+    fireEvent.keyDown(window, { key: 'Backspace', ctrlKey: true });
+    const taken = new KeyboardEvent('keydown', { key: 'Backspace', cancelable: true });
+    taken.preventDefault();
+    window.dispatchEvent(taken);
+    expect(onClose).not.toHaveBeenCalled();
+    input.remove();
+  });
+
+  it('is inert without onClose (b-mobile handles Back itself)', () => {
+    show();
+    const e = new KeyboardEvent('keydown', { key: 'Backspace', cancelable: true });
+    window.dispatchEvent(e);
+    expect(e.defaultPrevented).toBe(false);
+  });
+});
+
 describe('EntryDetail', () => {
   it('renders the description as separate paragraphs via BBCodeText, not raw HTML', () => {
     const { container } = render(

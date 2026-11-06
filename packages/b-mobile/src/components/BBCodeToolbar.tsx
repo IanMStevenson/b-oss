@@ -14,6 +14,7 @@
 // conditional on context — SCR-11 (entry description) shows it, SCR-15 (comments) doesn't, per
 // each screen's own `tags` prop. This module doesn't decide that; callers do.
 
+import { useEffect } from 'react';
 import { BBCODE_TAGS } from '@b-oss/b-view';
 
 export type BBCodeTag = (typeof BBCODE_TAGS)[number];
@@ -53,13 +54,31 @@ interface BBCodeToolbarProps {
   onChange: (value: string) => void;
 }
 
+const SHORTCUT_TAGS: Record<string, BBCodeTag> = { b: 'b', i: 'i', u: 'u', s: 's', l: 'url' };
+
 export function BBCodeToolbar({ tags, textareaRef, onChange }: BBCodeToolbarProps) {
+  // Ctrl+B / I / U / S (strikethrough) / L (link) in the text box, for the tags this screen offers.
+  useEffect(() => {
+    function onKey(e: KeyboardEvent): void {
+      if (!e.ctrlKey || e.altKey || e.metaKey || e.shiftKey) return;
+      const ta = textareaRef.current;
+      if (!ta || e.target !== ta) return;
+      const tag = SHORTCUT_TAGS[e.key.toLowerCase()];
+      if (!tag || !tags.includes(tag)) return;
+      e.preventDefault();
+      wrapSelection(ta, tag, onChange);
+    }
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [tags, textareaRef, onChange]);
+
   return (
     <div style={{ display: 'flex', gap: 4, marginBottom: 8, flexWrap: 'wrap' }}>
       {tags.map((tag) => (
         <button
           key={tag}
           type="button"
+          tabIndex={-1}
           aria-label={`Insert ${TAG_LABELS[tag]} formatting`}
           onClick={() => {
             if (textareaRef.current) wrapSelection(textareaRef.current, tag, onChange);

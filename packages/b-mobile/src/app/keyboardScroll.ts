@@ -74,11 +74,41 @@ export function scrollTarget(
   }
 }
 
-export function handleScrollKey(e: KeyboardEvent): void {
-  if (e.defaultPrevented || e.altKey || e.ctrlKey || e.metaKey || e.shiftKey) return;
+/** True when the key came from a control that uses the keys itself (a text field, slider, map…). */
+export function isTypingTarget(e: KeyboardEvent): boolean {
   const path = typeof e.composedPath === 'function' ? e.composedPath() : [];
   const origin = (path[0] ?? e.target) as Element | null;
-  if (origin instanceof Element && origin.closest(OWN_KEYS_SELECTOR)) return;
+  return origin instanceof Element && origin.closest(OWN_KEYS_SELECTOR) !== null;
+}
+
+/** The back control of the page the user is looking at, if it is actually showing. */
+export function visibleBackButton(root: ParentNode = document): HTMLElement | null {
+  const pages = Array.from(root.querySelectorAll<HTMLElement>('.ion-page')).filter(
+    (el) => !el.closest('.ion-page-hidden') && el.querySelector('ion-content'),
+  );
+  const page = pages[pages.length - 1];
+  const btn = page?.querySelector<HTMLElement>('ion-back-button');
+  if (!btn || btn.hidden || btn.classList.contains('ion-hide')) return null;
+  return btn.getClientRects().length > 0 ? btn : null;
+}
+
+/** Backspace = Back, when a back control is showing (as the browser's own Backspace used to). */
+export function handleBackKey(e: KeyboardEvent): void {
+  if (e.key !== 'Backspace' || e.defaultPrevented) return;
+  if (e.altKey || e.ctrlKey || e.metaKey || e.shiftKey) return;
+  if (isTypingTarget(e)) return;
+  // An open sheet/dialog owns the keyboard; the page beneath it isn't what Back would close.
+  if (document.querySelector('ion-modal:not(.overlay-hidden), ion-popover:not(.overlay-hidden)'))
+    return;
+  const btn = visibleBackButton();
+  if (!btn) return;
+  e.preventDefault();
+  btn.click();
+}
+
+export function handleScrollKey(e: KeyboardEvent): void {
+  if (e.defaultPrevented || e.altKey || e.ctrlKey || e.metaKey || e.shiftKey) return;
+  if (isTypingTarget(e)) return;
   const content = visibleContent();
   if (!content) return;
   void content.getScrollElement().then((el) => {
@@ -94,5 +124,9 @@ export function handleScrollKey(e: KeyboardEvent): void {
 
 export function installKeyboardScroll(): () => void {
   window.addEventListener('keydown', handleScrollKey);
-  return () => window.removeEventListener('keydown', handleScrollKey);
+  window.addEventListener('keydown', handleBackKey);
+  return () => {
+    window.removeEventListener('keydown', handleScrollKey);
+    window.removeEventListener('keydown', handleBackKey);
+  };
 }

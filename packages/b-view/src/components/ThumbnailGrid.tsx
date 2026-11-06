@@ -437,6 +437,7 @@ export function ThumbnailGrid({
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       if (isEditableTarget(e.target)) return;
+      if (e.ctrlKey || e.altKey || e.metaKey) return;
       if (e.key === 'ArrowLeft') prevBtnRef.current?.click();
       if (e.key === 'ArrowRight') nextBtnRef.current?.click();
     };

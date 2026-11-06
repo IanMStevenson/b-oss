@@ -5,7 +5,7 @@
 // b-oss#668: keys scroll the visible page's content; Left/Right and form fields are left alone.
 
 import { afterEach, describe, expect, it } from 'vitest';
-import { handleScrollKey, scrollTarget, visibleContent } from '../keyboardScroll.js';
+import { handleBackKey, handleScrollKey, scrollTarget, visibleContent } from '../keyboardScroll.js';
 
 describe('scrollTarget', () => {
   // A 500px viewport over 2000px of content.
@@ -84,5 +84,54 @@ describe('handleScrollKey', () => {
     expect(press('End', document.body, { ctrlKey: true }).defaultPrevented).toBe(false);
     await flush();
     expect(shown.scrollTop).toBe(0);
+  });
+});
+
+describe('handleBackKey (b-oss#874)', () => {
+  afterEach(() => {
+    document.body.innerHTML = '';
+  });
+  const press = (init: KeyboardEventInit = {}) => {
+    const e = new KeyboardEvent('keydown', {
+      key: 'Backspace',
+      cancelable: true,
+      bubbles: true,
+      ...init,
+    });
+    document.body.dispatchEvent(e);
+    handleBackKey(e);
+    return e;
+  };
+  function page(extra = '', hidden = false): { clicks: () => number } {
+    document.body.innerHTML = `<div class="ion-page${hidden ? ' ion-page-hidden' : ''}"><ion-back-button></ion-back-button><ion-content></ion-content></div>${extra}`;
+    const btn = document.querySelector('ion-back-button') as HTMLElement;
+    let n = 0;
+    btn.addEventListener('click', () => n++);
+    // jsdom has no layout; pretend the button is showing.
+    btn.getClientRects = () => [{}] as unknown as DOMRectList;
+    return { clicks: () => n };
+  }
+
+  it('clicks the visible back button', () => {
+    const p = page();
+    expect(press().defaultPrevented).toBe(true);
+    expect(p.clicks()).toBe(1);
+  });
+  it('does nothing on a hidden page, in a text field, with a modifier, or under an open modal', () => {
+    let p = page('', true);
+    press();
+    expect(p.clicks()).toBe(0);
+    p = page('<ion-modal></ion-modal>');
+    press();
+    expect(p.clicks()).toBe(0);
+    p = page();
+    press({ ctrlKey: true });
+    expect(p.clicks()).toBe(0);
+    document.body.insertAdjacentHTML('beforeend', '<input id="i">');
+    const input = document.getElementById('i') as HTMLElement;
+    const e = new KeyboardEvent('keydown', { key: 'Backspace', cancelable: true, bubbles: true });
+    input.dispatchEvent(e);
+    handleBackKey(e);
+    expect(p.clicks()).toBe(0);
   });
 });

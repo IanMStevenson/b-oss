@@ -23,6 +23,25 @@ function setup(props: Partial<React.ComponentProps<typeof Lightbox>> = {}) {
   return { onClose, onNavigate };
 }
 
+describe('Lightbox keys', () => {
+  it('Backspace closes; Escape and modified Backspace do not', () => {
+    const { onClose } = setup();
+    fireEvent.keyDown(window, { key: 'Escape' });
+    fireEvent.keyDown(window, { key: 'Backspace', ctrlKey: true });
+    expect(onClose).not.toHaveBeenCalled();
+    fireEvent.keyDown(window, { key: 'Backspace' });
+    expect(onClose).toHaveBeenCalledTimes(1);
+  });
+
+  it('Backspace in a text field is left alone', () => {
+    const { onClose } = setup();
+    const input = document.body.appendChild(document.createElement('input'));
+    fireEvent.keyDown(input, { key: 'Backspace' });
+    expect(onClose).not.toHaveBeenCalled();
+    input.remove();
+  });
+});
+
 describe('Lightbox top bar', () => {
   it('shows title, journal name and date', () => {
     setup({ title: 'Harbour wall', journalTitle: "Alice's journal", date: '2nd Oct 2026' });

@@ -50,6 +50,7 @@ describe('HelpInfoScreen hub — works with no account signed in (SCR-29 is not 
       'Help',
       'About',
       'Icon guide',
+      'Keyboard guide',
       'Safety & privacy',
       'Blipfoto status (unofficial)',
       'Blipfoto terms & legal',
