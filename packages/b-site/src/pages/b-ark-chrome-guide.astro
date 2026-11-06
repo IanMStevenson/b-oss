@@ -36,9 +36,9 @@ import Hero from '../components/Hero.astro';
     <div class="prose">
       <h2 id="install">1. Install from the Chrome Web Store</h2>
       <p>
-        b-ark-chrome installs in one click from the Chrome Web Store — no installer, no
-        security warnings, and Chrome keeps it up to date automatically. It works in
-        <strong>Chrome or Edge</strong> on Windows, Mac and Linux.
+        b-ark-chrome installs in one click from the Chrome Web Store, and your browser keeps it up
+        to date automatically. It works in <strong>Chrome or Edge</strong> on Windows, Mac
+        and Linux.
       </p>
       <ol>
         <li>Open the <a href="https://chromewebstore.google.com/detail/b-ark-chrome/apcmndghbieclompadigikblmlafccpe">b-ark-chrome listing on the Chrome Web Store</a>.</li>
@@ -56,9 +56,9 @@ import Hero from '../components/Hero.astro';
       <h2 id="open">2. Open the backup page</h2>
       <p>
         Click the <strong>b-ark-chrome icon</strong> in your toolbar to open the backup
-        page. This is the single tab where you choose a folder, connect your account, and
-        watch backups run. b-ark-chrome keeps one canonical backup tab — clicking the icon
-        again brings you back to it rather than opening a duplicate.
+        page. This is the one tab where you connect your account, choose a folder and
+        watch backups run. Clicking the icon again brings you back to it rather than
+        opening a second one.
       </p>
       <figure>
         <img src="assets/guide-chrome/backup-page.png" alt="The b-ark-chrome backup page" />
@@ -68,89 +68,82 @@ import Hero from '../components/Hero.astro';
       <h2 id="connect">3. Connect your blipfoto account</h2>
       <p>
         b-ark-chrome backs up a <strong>single blipfoto account</strong>. To connect it,
-        you authorise read-only access to your journal.
+        you give it read-only access to your journal.
       </p>
       <figure>
         <img src="assets/guide-chrome/connect-account.png" alt="Connecting your blipfoto account" />
         <figcaption>Connecting your blipfoto account</figcaption>
       </figure>
       <ol>
-        <li>Click <strong>"Connect account"</strong> (or <strong>"Sign in"</strong>).</li>
+        <li>Click <strong>"Sign in to blipfoto"</strong>.</li>
         <li>
           A blipfoto authorisation page opens. Log in if needed and approve
           <strong>read</strong> access.
         </li>
         <li>
-          You are returned to the backup page, which now shows your journal title,
-          username, and entry count.
+          You are returned to the backup page, which asks you to choose a folder
+          (next step).
         </li>
       </ol>
       <blockquote>
         <p>
-          <strong>Your token stays on your machine.</strong> The access token b-ark-chrome
-          receives is encrypted at rest in your browser and used only to talk to blipfoto.
-          It is never sent anywhere else. See <a href="#privacy">Privacy</a> below.
+          <strong>Your token stays on your machine.</strong> b-ark-chrome keeps your sign-in
+          in your browser, encrypted, and uses it only to talk to blipfoto. See <a href="#privacy">Privacy</a> below.
         </p>
       </blockquote>
 
       <h2 id="choose-folder">4. Choose a backup folder</h2>
       <p>
-        The first thing b-ark-chrome asks you to do is pick a folder on your computer where
-        it will store your backup files and its portable settings. It uses your browser's
-        <strong>File System Access API</strong>, so your files are written straight to a
-        folder you choose — nothing is uploaded anywhere.
+        After you sign in, b-ark-chrome asks you to pick a folder on your computer for your
+        backup. Files are saved straight into it — nothing is uploaded anywhere.
       </p>
       <figure>
         <img src="assets/guide-chrome/choose-folder.png" alt="Choosing a backup folder" />
         <figcaption>Choosing a backup folder</figcaption>
       </figure>
       <ol>
-        <li>Click <strong>"Choose folder…"</strong>.</li>
+        <li>Click <strong>"Choose backup folder"</strong>.</li>
         <li>Select an existing empty folder, or create a new one, then confirm.</li>
         <li>
-          When the browser asks, click <strong>"Edit files"</strong> /
-          <strong>"Allow"</strong> to grant b-ark-chrome permission to save into that
-          folder.
+          When the browser asks, allow b-ark-chrome to save files in that folder.
         </li>
       </ol>
       <blockquote>
         <p>
-          <strong>Re-granting permission:</strong> for your security, the browser may ask
-          you to confirm folder access again after you restart the browser. If the backup
-          page shows <strong>"access needed"</strong>, just click
-          <strong>"Grant"</strong> and approve — your folder choice is remembered, so you
-          never have to pick it again.
+          <strong>Re-granting permission:</strong> the browser may ask you to confirm folder
+          access again after a restart. If the backup page says folder access needs
+          renewing, click <strong>"Grant folder access"</strong> and approve. Your folder
+          choice is remembered.
         </p>
       </blockquote>
       <p>
-        If a <code>b-ark-settings.json</code> file already exists in the folder you choose
-        (for example, you are setting up on another machine and pointed at the same
-        cloud-synced folder), b-ark-chrome loads your previous settings automatically.
+        If the folder already holds a backup made by b-ark-chrome (for example on another
+        computer), your earlier settings are picked up automatically. Don't point
+        b-ark-chrome and b-ark at the same folder.
       </p>
 
       <h2 id="first-backup">5. Run your first backup</h2>
       <p>
-        Click <strong>"Back up now"</strong> on the backup page to start immediately.
-        After the first run, b-ark-chrome keeps your archive up to date automatically using
-        two event-based triggers (both configurable in <a href="#settings">Settings</a>):
+        Click <strong>"Back up now"</strong> on the backup page. After that,
+        b-ark-chrome keeps your archive up to date by itself (both options can be switched
+        in <a href="#settings">Settings</a>):
       </p>
       <ul>
         <li>
           <strong>Backup on visit.</strong> Each time you open a blipfoto page,
-          b-ark-chrome checks whether a backup is due (on a Daily or Weekly cadence you
-          choose) and, if so, runs one silently in the background.
+          b-ark-chrome checks whether a backup is due (daily or weekly, as you choose) and,
+          if so, runs one quietly in the background.
         </li>
         <li>
           <strong>Backup on publish.</strong> When you publish or save an entry on
-          blipfoto, b-ark-chrome captures it within seconds.
+          blipfoto, b-ark-chrome backs it up straight away.
         </li>
       </ul>
       <blockquote>
         <p>
-          <strong>When backups run.</strong> Backups are triggered when you visit blipfoto
-          or publish, or when you press "Back up now" — there is no background timer. If you
-          post from a phone or tablet, the backup runs the next time you open blipfoto in
-          this browser.
+          <strong>When backups run.</strong> Backups start when you visit blipfoto, publish, or press
+          "Back up now". If you post from a phone, the backup happens the next time you open
+          blipfoto in this browser.
         </p>
       </blockquote>
       <figure>
@@ -178,7 +171,7 @@ import Hero from '../components/Hero.astro';
           <tr>
             <td>REDO</td>
             <td>
-              Re-downloading your most recent entries in case captions or comments have changed.
+              Re-downloading your most recent entries in case they have changed.
             </td>
           </tr>
           <tr>
@@ -190,16 +183,17 @@ import Hero from '../components/Hero.astro';
 
       <p>
         If blipfoto's rate limit is reached mid-backup, b-ark-chrome pauses and counts
-        down automatically before resuming. No action needed.
+        down, then carries on. Your journal thumbnails appear on the backup page as it
+        goes. If a notice appears afterwards, it says what happened and offers buttons such
+        as <strong>Retry</strong>, <strong>Sign in</strong> or <strong>Dismiss</strong>.
       </p>
-      <p>Your journal thumbnails appear on the backup page.</p>
 
       <h2 id="chip">6. The status chip</h2>
       <p>
         On blipfoto pages, b-ark-chrome shows a small, draggable
         <strong>status chip</strong>. Its colour tells you the health of your backup at a
-        glance (green = up to date, amber = working or due, red = needs attention), and it
-        shows live progress while a backup is running.
+        glance (green = up to date, amber = incomplete or paused, red = needs attention), and it
+        shows progress while a backup is running.
       </p>
       <figure>
         <img src="assets/guide-chrome/status-chip.png" alt="The b-ark-chrome status chip" />
@@ -208,93 +202,29 @@ import Hero from '../components/Hero.astro';
       <ul>
         <li><strong>Drag</strong> the chip anywhere on the page; it remembers its position.</li>
         <li>
-          <strong>Hover</strong> for a tooltip with your last backup time and any error
-          detail.
+          <strong>Hover</strong> to see when you were last backed up, or what needs
+          fixing.
         </li>
         <li>
-          You can <strong>hide</strong> the chip in Settings, or show your blipfoto
-          <strong>avatar</strong> on it instead of the b-ark logo. Backups still run when
-          the chip is hidden.
+          <strong>Double-click</strong> it to open the backup page.
+        </li>
+        <li>
+          You can hide the chip, or show your blipfoto avatar on it, in
+          <a href="#settings">Settings</a>. Backups still run when it is hidden.
         </li>
       </ul>
 
-      <h2 id="settings">7. Settings reference</h2>
+      <h2 id="settings">7. Settings</h2>
       <p>
-        Open settings from the <strong>gear icon</strong> on the backup page. The settings
-        panel shows the following, in order:
+        Click the <strong>gear icon</strong> ("Open settings") on the backup page. Here you
+        can change the backup folder, switch backup on visit and backup on publish on or
+        off, hide the chip, sign in again, or sign out. The <strong>log</strong> icon
+        beside it shows what b-ark-chrome has been doing.
       </p>
       <figure>
         <img src="assets/guide-chrome/settings-panel.png" alt="b-ark-chrome settings panel" />
         <figcaption>The settings panel</figcaption>
       </figure>
-
-      <table>
-        <thead>
-          <tr>
-            <th style="width: 26%">Setting</th>
-            <th>What it does</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr>
-            <td>Backup folder</td>
-            <td>
-              Shows where your backups are stored. Click <strong>"Change"</strong> to pick
-              a different folder. A permission indicator shows whether access is granted;
-              if not, click <strong>"Grant"</strong> to re-approve.
-            </td>
-          </tr>
-          <tr>
-            <td>Show chip</td>
-            <td>
-              Show or hide the floating status chip on blipfoto pages. Backups still run in
-              the background when it is off.
-            </td>
-          </tr>
-          <tr>
-            <td>Show avatar on chip</td>
-            <td>Replace the b-ark logo on the chip with your blipfoto profile photo.</td>
-          </tr>
-          <tr>
-            <td>Backup on visit</td>
-            <td>
-              When enabled, each blipfoto page visit checks whether a backup is due and
-              starts one silently if it is. Choose how often a backup becomes due with the
-              <strong>Daily / Weekly</strong> dropdown.
-            </td>
-          </tr>
-          <tr>
-            <td>Backup on publish</td>
-            <td>Start a backup immediately when you publish or save an entry on blipfoto.</td>
-          </tr>
-          <tr>
-            <td>Gap check</td>
-            <td>
-              How many days back b-ark-chrome looks on each run to catch entries it may
-              have missed previously. Default: 30 days.
-            </td>
-          </tr>
-          <tr>
-            <td>Redo</td>
-            <td>
-              How many of your most-recent entries b-ark-chrome re-downloads on every run,
-              to pick up any edits to captions, titles, or comments. Default: 7 entries.
-            </td>
-          </tr>
-          <tr>
-            <td>Account</td>
-            <td>
-              Shows your connected blipfoto username. <strong>"Reauthorise"</strong> renews
-              access (with a <strong>"Sign in fresh"</strong> option to use a different
-              blipfoto identity); <strong>"Sign out"</strong> disconnects the account.
-            </td>
-          </tr>
-          <tr>
-            <td>Version</td>
-            <td>The installed b-ark-chrome version, shown at the foot of the panel.</td>
-          </tr>
-        </tbody>
-      </table>
 
       <h2 id="b-view">8. Browsing your journal with b-view</h2>
       <p>
