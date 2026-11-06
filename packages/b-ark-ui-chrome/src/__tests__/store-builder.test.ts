@@ -111,6 +111,17 @@ describe('buildBackupConfig', () => {
     expect(config.metadata_write_interval).toBe(5);
     expect(config.app_version).toBe('1.2.3');
   });
+
+  it('defaults the API delay to 250 ms (as b-ark) when none is stored', () => {
+    const config = buildBackupConfig({
+      token,
+      settings: {},
+      appVersion: '1.2.3',
+      journalTitle: 't',
+      avatarUrl: '',
+    });
+    expect(config.api_delay_ms).toBe(250);
+  });
 });
 
 describe('describeBackupError', () => {

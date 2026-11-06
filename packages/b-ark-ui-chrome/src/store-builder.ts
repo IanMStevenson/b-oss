@@ -10,6 +10,9 @@ import type { ChromeStatus } from './status-storage.js';
 import type { StoredToken } from './token-storage.js';
 
 /** Account settings as persisted under `b_ark_settings` in chrome.storage.local. */
+/** Pause between Blipfoto requests when none is stored; matches b-ark's default (b-oss#891). */
+export const DEFAULT_API_DELAY_MS = 250;
+
 export interface ChromeSettings {
   journal_title: string;
   avatar_url: string;
@@ -126,7 +129,7 @@ export function buildAppStore({
           ),
           gap_check_days: settings.gap_check_days ?? 30,
           redo_count: settings.redo_count ?? 7,
-          api_delay_ms: settings.api_delay_ms ?? 0,
+          api_delay_ms: settings.api_delay_ms ?? DEFAULT_API_DELAY_MS,
           last_backup_at: status.last_backup_at ?? null,
           last_entry_date: lastEntryDate,
           total_archived: archived,
@@ -177,7 +180,7 @@ export function buildBackupConfig({
     backup_folder: '',
     redo_count: settings.redo_count ?? 7,
     gap_check_days: settings.gap_check_days ?? 30,
-    api_delay_ms: settings.api_delay_ms ?? 0,
+    api_delay_ms: settings.api_delay_ms ?? DEFAULT_API_DELAY_MS,
     metadata_write_interval: 5,
     app_version: appVersion,
     enable_web_scrape: settings.enable_web_scrape ?? false,

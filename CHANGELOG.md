@@ -5,6 +5,10 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Changed
+
+- b-ark-chrome: backups now pause 250 ms between Blipfoto requests, as b-ark does, instead of none.
+
 ## [b-mobile 1.3.0] - 2026-11-05
 
 ### Added
