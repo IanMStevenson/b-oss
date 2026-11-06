@@ -9,7 +9,7 @@ import StoreBadge from '../components/StoreBadge.astro';
   title="Which backup tool? · b-oss"
   description="b-oss offers two ways to back up your Blipfoto journal — b-ark (Windows desktop) and b-ark-chrome (Chrome extension). Here's how to choose."
 >
-  <Hero label="Hero" icon="b-oss" title="Which backup tool is right for you?">b-ark runs on a timer on your PC. b-ark-chrome backs up as you post, in your browser.</Hero>
+  <Hero label="Hero" icon="b-oss" title="Which backup tool is right for you?">b-ark runs on a timer on your PC. b-ark-chrome backs up when you visit Blipfoto in your browser.</Hero>
 
   <div class="bands">
   <section class="block band-tint" data-screen-label="Quick guide">
@@ -20,8 +20,8 @@ import StoreBadge from '../components/StoreBadge.astro';
       </p>
       <p>
         <strong>Choose b-ark-chrome if</strong> you're on Windows, Mac or Linux and post from your
-        computer. It backs up as you post, and when you next visit Blipfoto in Chrome or Edge, for one
-        account.
+        computer. It backs up when you visit Blipfoto in Chrome or Edge, with optional backup on
+        publish, for one account.
       </p>
     </div>
   </section>
@@ -94,7 +94,7 @@ import StoreBadge from '../components/StoreBadge.astro';
           <tr>
             <td>How backup triggers</td>
             <td data-label="b-ark">On a timer — runs in the background whether or not you visit Blipfoto</td>
-            <td data-label="b-ark-chrome">When you publish a blip, or when you visit a Blipfoto page after a gap</td>
+            <td data-label="b-ark-chrome">When you visit a Blipfoto page after a gap, or when you publish a blip if backup on publish is on</td>
           </tr>
           <tr>
             <td>If you post from phone or tablet</td>
@@ -104,7 +104,7 @@ import StoreBadge from '../components/StoreBadge.astro';
           <tr>
             <td>Backup on publish</td>
             <td data-label="b-ark">Not available</td>
-            <td data-label="b-ark-chrome">&#10003; Captures new blips within seconds of posting from your computer</td>
+            <td data-label="b-ark-chrome">&#10003; Optional, off by default: captures new blips within seconds of posting from your computer</td>
           </tr>
           <tr>
             <td>Mac / Linux support</td>
