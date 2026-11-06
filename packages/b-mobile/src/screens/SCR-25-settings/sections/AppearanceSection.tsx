@@ -114,6 +114,7 @@ export function AppearanceSection() {
         options={[
           { value: 'full-width', label: 'Full width' },
           { value: 'capped', label: 'Fit to screen' },
+          { value: 'compact', label: 'Compact' },
         ]}
         onChange={setPhotoFit}
       />
