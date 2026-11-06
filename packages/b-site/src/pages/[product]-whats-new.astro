@@ -1,0 +1,47 @@
+---
+// One "What's new" page per product, from the root CHANGELOG.md (see src/changelog.ts). A product with no
+// tagged entries gets no page, so b-mobile-pc appears once CHANGELOG.md has a "b-mobile-pc:" entry.
+import changelog from '../../../../CHANGELOG.md?raw';
+import Layout from '../layouts/Layout.astro';
+import Hero from '../components/Hero.astro';
+import CtaBand from '../components/CtaBand.astro';
+import type { NavKey } from '../components/Header.astro';
+import { PRODUCTS, entryHtml, longDate, releasesFor, type Product } from '../changelog';
+
+export function getStaticPaths() {
+  return PRODUCTS.filter((product) => releasesFor(changelog, product).length > 0).map((product) => ({
+    params: { product },
+  }));
+}
+
+const product = Astro.params.product as Product;
+const releases = releasesFor(changelog, product);
+const nav: NavKey = product.startsWith('b-mobile') ? 'b-mobile' : 'b-ark';
+---
+
+<Layout
+  title={`What's new in ${product} · b-oss`}
+  description={`The changes in each release of ${product}, newest first.`}
+  nav={nav}
+>
+  <Hero label="What's new hero" icon={product} title={`What's new in ${product}`}>The changes in each release, newest first.</Hero>
+
+  <div class="bands">
+    {
+      releases.map((r, i) => (
+        <section class:list={['block', { 'band-tint': i % 2 === 0 }]} data-screen-label={r.version}>
+          <div class="prose">
+            <h2>{r.version} · {longDate(r.date)}</h2>
+            <ul>
+              {r.entries.map((e) => (
+                <li set:html={entryHtml(e)} />
+              ))}
+            </ul>
+          </div>
+        </section>
+      ))
+    }
+  </div>
+
+  <CtaBand />
+</Layout>
