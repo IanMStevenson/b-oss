@@ -377,6 +377,9 @@ section.block:first-of-type {
   gap: 10px;
   flex-wrap: wrap;
 }
+.btn-row-center {
+  justify-content: center;
+}
 
 /* ---------- App page: three big links ---------- */
 .tri-links {
@@ -426,6 +429,11 @@ section.block:first-of-type {
   font-size: 18px;
   font-weight: 600;
   letter-spacing: -0.01em;
+}
+.tri-link-more {
+  margin-top: 12px;
+  font-size: 14px;
+  font-weight: 500;
 }
 .tri-link p {
   margin: 0;
@@ -749,6 +757,16 @@ section.block:first-of-type {
   color: var(--ink-2);
 }
 
+/* ---------- Two columns of text (collapses on narrow screens) ---------- */
+.two-col {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 28px 44px;
+  margin-bottom: 20px;
+}
+.two-col h3 {
+  margin-top: 0;
+}
 /* ---------- Responsive ---------- */
 @media (max-width: 820px) {
   .hero {
@@ -764,6 +782,9 @@ section.block:first-of-type {
   }
   .tri-link {
     flex: 0 0 100%;
+  }
+  .two-col {
+    grid-template-columns: 1fr;
   }
   .cta-band {
     flex-direction: column;
@@ -2093,11 +2114,7 @@ a.store-badge:hover {
 .tri-link .store-badge {
   margin-bottom: 12px;
 }
-/* Inside an app-card: spacing only. The scroll margin keeps a linked card's heading clear of the
-   sticky top bar (b-ark-versions#b-ark-chrome). */
-.app-card {
-  scroll-margin-top: 72px;
-}
+/* Inside an app-card: spacing only. */
 .app-card .store-badges {
   margin: 4px 0 16px;
 }
@@ -2129,8 +2146,35 @@ a.store-badge:hover {
   border: none;
   border-radius: 0;
 }
-.tri-link-soon,
-.tri-link-soon:hover {
+/* Badges in a card row: one slot height, so headings line up whichever badge a card has. */
+.tri-link .store-badges {
+  min-height: 58px;
+  margin-bottom: 12px;
+  justify-content: center;
+}
+.tri-link .store-badges .store-badge {
+  margin-bottom: 0;
+}
+/* The comparison table on a phone: smaller badges and a wrapping first column keep it close to the
+   screen width. */
+@media (max-width: 640px) {
+  .prose .compare-table td:first-child {
+    white-space: normal;
+  }
+  .compare-table .store-badge-chrome,
+  .compare-table .store-badge-chrome img {
+    height: 42px;
+  }
+  .compare-table .store-badge-soon {
+    height: 36px;
+    min-width: 116px;
+    padding: 0 8px;
+    font-size: 11px;
+  }
+}
+/* A card that isn't itself a link: the links are inside it. */
+div.tri-link,
+div.tri-link:hover {
   cursor: default;
   background: #fff;
   box-shadow: none;

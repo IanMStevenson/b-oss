@@ -43,112 +43,51 @@ import StoreBadge from '../components/StoreBadge.astro';
 
   <section class="block" data-screen-label="b-ark or b-ark-chrome">
     <p class="section-eyebrow">b-ark or b-ark-chrome</p>
-    <div
-      class="prose"
-      style="
-        margin-top: 18px;
-        display: grid;
-        grid-template-columns: 1fr 1fr;
-        gap: 28px 44px;
-      "
-    >
+    <div class="prose two-col">
       <div>
-        <h3 style="margin-top: 0">Choose b-ark-chrome if…</h3>
-        <p>
-          you're on Mac or Linux, you usually post from your computer, or you want the
-          simplest possible setup — one click from the Chrome Web Store, and silent automatic
-          updates.
-        </p>
-      </div>
-      <div>
-        <h3 style="margin-top: 0">Choose b-ark if…</h3>
+        <h3>Choose b-ark if…</h3>
         <p>
           you regularly post from your phone or tablet and want your backup to happen on a
           timer, automatically, regardless of whether you open a browser. As long as your
           Windows PC is running, b-ark will keep your archive up to date.
         </p>
       </div>
+      <div>
+        <h3>Choose b-ark-chrome if…</h3>
+        <p>
+          you're on Mac or Linux, you usually post from your computer, or you want the
+          simplest possible setup — one click from the Chrome Web Store, and silent automatic
+          updates.
+        </p>
+      </div>
     </div>
-    <p style="margin-top: 18px">
-      <a href="b-ark-versions">Compare in detail →</a>
-    </p>
+    <div class="btn-row btn-row-center">
+      <a class="btn primary" href="b-ark-versions">Compare in detail →</a>
+    </div>
   </section>
 
   <section class="block" id="download" data-screen-label="Get it">
     <p class="section-eyebrow">Get it</p>
-
-    <p id="get-b-ark" class="section-eyebrow" style="margin-top: 8px; color: var(--ink-2)">
-      b-ark · Windows desktop
-    </p>
     <div class="tri-links">
-      <div class="tri-link tri-link-soon" data-link="microsoft-store">
-        <StoreBadge product="b-ark" store="microsoft" bare />
-        <h3>Microsoft Store</h3>
-        <p>Coming soon. Install b-ark and keep it up to date.</p>
+      <div class="tri-link" id="get-b-ark" data-link="microsoft-store">
+        <div class="store-badges"><StoreBadge product="b-ark" store="microsoft" /></div>
+        <h3>b-ark</h3>
+        <p>Windows desktop app. Backs up on a timer, wherever you post from.</p>
+        <a class="tri-link-more" href="b-ark-guide" data-link="user-guide">User guide →</a>
       </div>
 
-      <a class="tri-link" href="b-ark-guide" data-link="user-guide">
-        <span class="ico" aria-hidden="true">
-          <svg width="32" height="32" viewBox="0 0 32 32" fill="none">
-            <path
-              d="M6 5h12a4 4 0 0 1 4 4v18l-5-3-5 3-5-3-5 3V7a2 2 0 0 1 2-2Z"
-              stroke="currentColor"
-              stroke-width="2"
-              stroke-linejoin="round"
-            />
-            <path
-              d="M10 11h10M10 16h10M10 21h6"
-              stroke="currentColor"
-              stroke-width="2"
-              stroke-linecap="round"
-            />
-          </svg>
-        </span>
-        <h3>User Guide</h3>
-        <p>Setup, scheduling, restoring: everything you'll need.</p>
-      </a>
-    </div>
-
-    <p id="get-b-ark-chrome" class="section-eyebrow" style="margin-top: 24px; color: var(--ink-2)">
-      b-ark-chrome · browser extension
-    </p>
-    <div class="tri-links">
-      <a
-        class="tri-link"
-        href="https://chromewebstore.google.com/detail/b-ark-chrome/apcmndghbieclompadigikblmlafccpe"
-        data-link="web-store"
-      >
-        <StoreBadge product="b-ark-chrome" store="chrome" bare />
-        <h3>Chrome Web Store</h3>
-        <p>Install b-ark-chrome from the Chrome Web Store.</p>
-      </a>
-
-      <a class="tri-link" href="b-ark-chrome-guide" data-link="chrome-user-guide">
-        <span class="ico" aria-hidden="true">
-          <svg width="32" height="32" viewBox="0 0 32 32" fill="none">
-            <path
-              d="M6 5h12a4 4 0 0 1 4 4v18l-5-3-5 3-5-3-5 3V7a2 2 0 0 1 2-2Z"
-              stroke="currentColor"
-              stroke-width="2"
-              stroke-linejoin="round"
-            />
-            <path
-              d="M10 11h10M10 16h10M10 21h6"
-              stroke="currentColor"
-              stroke-width="2"
-              stroke-linecap="round"
-            />
-          </svg>
-        </span>
-        <h3>User Guide</h3>
-        <p>Install, connect, and back up from your browser.</p>
-      </a>
+      <div class="tri-link" id="get-b-ark-chrome" data-link="web-store">
+        <div class="store-badges"><StoreBadge product="b-ark-chrome" store="chrome" /></div>
+        <h3>b-ark-chrome</h3>
+        <p>Browser extension for Chrome or Edge, on Windows, Mac or Linux.</p>
+        <a class="tri-link-more" href="b-ark-chrome-guide" data-link="chrome-user-guide">User guide →</a>
+      </div>
     </div>
   </section>
 
   <CtaBand />
 
-  <div class="btn-row">
+  <div class="btn-row btn-row-center">
     <a class="btn" href="b-ark-privacy">b-ark privacy policy</a>
     <a class="btn" href="b-ark-chrome-privacy">b-ark-chrome privacy policy</a>
   </div>

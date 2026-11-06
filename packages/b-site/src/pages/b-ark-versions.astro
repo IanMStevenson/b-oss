@@ -2,7 +2,6 @@
 import Layout from '../layouts/Layout.astro';
 import Hero from '../components/Hero.astro';
 import CtaBand from '../components/CtaBand.astro';
-import FeatureItem from '../components/FeatureItem.astro';
 import StoreBadge from '../components/StoreBadge.astro';
 ---
 
@@ -80,7 +79,7 @@ import StoreBadge from '../components/StoreBadge.astro';
   <section class="block" data-screen-label="Comparison table">
     <p class="section-eyebrow">Detailed Comparison</p>
     <div class="prose" style="margin-top: 18px; overflow-x: auto">
-      <table>
+      <table class="compare-table">
         <thead>
           <tr>
             <th></th>
@@ -134,80 +133,13 @@ import StoreBadge from '../components/StoreBadge.astro';
             <td>Full — gap-check and redo run on every trigger</td>
             <td>Full — gap-check and redo run on schedule</td>
           </tr>
+          <tr>
+            <td>Get it</td>
+            <td><StoreBadge product="b-ark-chrome" store="chrome" /></td>
+            <td><StoreBadge product="b-ark" store="microsoft" /></td>
+          </tr>
         </tbody>
       </table>
-    </div>
-  </section>
-
-  <section id="b-ark-chrome" class="app-card" data-screen-label="App: b-ark-chrome">
-    <div class="app-card-meta">
-      <div class="app-card-head">
-        <img src="assets/b-oss-icon.png" alt="" />
-        <div>
-          <h2>b-ark-chrome : Backup &amp; Archive</h2>
-          <div class="tagline">
-            Back up your blips via the Chrome extension — Windows, Mac and Linux.
-          </div>
-        </div>
-      </div>
-      <p class="summary">
-        b-ark-chrome is a Chrome extension that backs up your blipfoto journal automatically. It
-        captures new blips the moment you publish them and checks for any gaps each time you
-        visit blipfoto — no installer, no timer to configure.
-      </p>
-      <ul class="feature-list">
-        <FeatureItem><strong>Backup on publish.</strong> Captures new blips within seconds of posting
-            from your computer.</FeatureItem>
-        <FeatureItem><strong>Cross-platform.</strong> Works on Windows, Mac and Linux wherever Chrome or
-            Edge runs.</FeatureItem>
-        <FeatureItem><strong>Simple setup.</strong> One click from the Chrome Web Store.</FeatureItem>
-        <FeatureItem><strong>Silent updates.</strong> Chrome keeps it up to date automatically.</FeatureItem>
-      </ul>
-      <div class="store-badges">
-        <StoreBadge product="b-ark-chrome" store="chrome" />
-      </div>
-      <div class="btn-row">
-        <a class="btn" href="b-ark">Learn more →</a>
-      </div>
-    </div>
-    <div class="shot">
-      <img
-        src="assets/guide-chrome/status-chip.png"
-        alt="A browser showing blipfoto, with the b-ark-chrome backup progress chip beside the logo."
-      />
-    </div>
-  </section>
-
-  <section class="app-card" data-screen-label="App: b-ark">
-    <div class="app-card-meta">
-      <div class="app-card-head">
-        <img src="assets/b-oss-icon.png" alt="" />
-        <div>
-          <h2>b-ark : Backup &amp; Archive</h2>
-          <div class="tagline">Archive your blips on your own device (Windows).</div>
-        </div>
-      </div>
-      <p class="summary">
-        b-ark makes a local copy of every blip you've ever posted (images, text and metadata) on
-        your own machine, automatically keeping it up to date. Browse offline, publish to the
-        web, or hand over to AI tools to explore and create new formats.
-      </p>
-      <ul class="feature-list">
-        <FeatureItem><strong>Backup.</strong> A local copy of every blip, updated automatically.</FeatureItem>
-        <FeatureItem><strong>View.</strong> Browse your archive offline in the built-in viewer.</FeatureItem>
-        <FeatureItem><strong>Publish.</strong> Copy the backup folder to any web host to publish.</FeatureItem>
-        <FeatureItem><strong>AI-ready.</strong> README.md for AI tools: Use AI to build photobooks,
-            slideshows, statistics, custom sites.</FeatureItem>
-      </ul>
-      <div class="btn-row">
-        <a class="btn primary" href="b-ark">Learn more →</a>
-      </div>
-    </div>
-    <div class="shot" aria-label="b-ark screenshot">
-      <img
-        src="assets/b-ark-screenshot.png"
-        alt="The b-ark app showing an account with archived photos."
-      />
     </div>
   </section>
 
