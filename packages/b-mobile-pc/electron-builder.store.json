@@ -14,6 +14,7 @@
     "identityName": "REPLACE-WITH-IDENTITY-NAME",
     "publisher": "CN=REPLACE_WITH_PARTNER_CENTER_PUBLISHER_ID",
     "publisherDisplayName": "REPLACE_WITH_PUBLISHER_DISPLAY_NAME",
+    "displayName": "b-mobile for Blipfoto",
     "applicationId": "bmobile",
     "customExtensionsPath": "msix/startup-task-extension.xml",
     "backgroundColor": "#1f4d3a"

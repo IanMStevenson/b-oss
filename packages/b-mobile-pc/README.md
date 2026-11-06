@@ -194,10 +194,15 @@ NSIS installer and portable exe above stay as dev/test builds.
 - Config: `electron-builder.store.json` (extends `electron-builder.json`; target `appx`). The identity
   values in it are placeholders, supplied at build time from Partner Center (Product identity):
   Package/Identity/Name, Publisher, PublisherDisplayName. They must match exactly or the upload is rejected.
+  The package's display name is fixed in the config (`appx.displayName`, `b-mobile for Blipfoto`) and must equal
+  the name reserved in Partner Center; it differs from `productName` (`b-mobile`), which names the exe.
 - Build: run the **Build b-mobile-pc MSIX (Microsoft Store)** workflow (Actions, manual) and enter the three
   values; download the `b-mobile-pc-msix` artifact and upload the `.appx` in a Partner Center submission.
   Locally, on Windows only (AppX can't be built under Wine):
   `npm run build -w @b-oss/b-mobile && npm run dist:store -w @b-oss/b-mobile-pc -- --config.appx.identityName=... --config.appx.publisher=... --config.appx.publisherDisplayName=...`
+- Version: the package version here (it becomes the MSIX version, `x.y.z.0`) tracks b-mobile for Android in
+  its first two digits (a test enforces it), so bump both together at a release; the app's Help & info shows
+  b-mobile's version, and the Store listing should agree with it.
 - Logos: `build/appx/*.png`, regenerated from `build/icon.png` by `scripts/make-appx-assets.mjs`
   (without them electron-builder ships its sample Electron images).
 - Store listing text: b-oss#880.
