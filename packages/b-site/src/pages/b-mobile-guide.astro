@@ -46,9 +46,9 @@ import PhoneShots from '../components/PhoneShots.astro';
 
       <h2 id="sign-in">2. Signing in</h2>
       <p>
-        Open the menu (the three lines at the top left) and choose <strong>Accounts</strong>, then
-        <strong>Add account</strong>, or tap <strong>Sign in</strong> if you aren't signed in. You
-        sign in on Blipfoto's own sign-in page.
+        Open the menu (the three lines at the top left) and tap <strong>Sign in</strong> at the
+        top. To add another account later, go to <strong>Settings → Accounts</strong> and choose
+        <strong>Add account</strong>. You sign in on Blipfoto's own sign-in page.
       </p>
       <p>You choose what the app is allowed to do:</p>
       <ul>
@@ -71,27 +71,33 @@ import PhoneShots from '../components/PhoneShots.astro';
 
       <h2 id="menu">3. Finding your way around</h2>
       <p>
-        Everything is reached from the menu, opened with the button at the top left. The app
-        opens on Browse.
+        Most things are reached from the menu, opened with the button at the top left. The app
+        opens on Browse. Tap <strong>b-mobile</strong> in the header at any time to go back to
+        Browse.
       </p>
       <PhoneShots
-        shots={[{ name: 'menu', alt: 'The b-mobile menu listing New entry, Browse, Search, Map, My profile, Notifications, Comments, Settings, Help and about, Accounts and Hidden members.', caption: 'The menu' }]}
+        shots={[{ name: 'menu', alt: 'The b-mobile menu, with your account at the top, then the main screens, and Settings and Help at the bottom.', caption: 'The menu' }]}
       />
       <ul>
-        <li><strong>New entry</strong> to post (read-write accounts only).</li>
-        <li><strong>Browse</strong>, <strong>Search</strong> and <strong>Map</strong>.</li>
         <li>
-          <strong>My profile</strong>, <strong>Notifications</strong> and
-          <strong>Comments</strong>, with a count of what's unread.
+          <strong>Your account</strong> at the top (your picture and username). Tap it to open
+          your profile. If you aren't signed in it says <strong>Sign in</strong>.
         </li>
         <li>
-          <strong>Settings</strong>, <strong>Help &amp; about</strong>, <strong>Accounts</strong>
-          and <strong>Hidden members</strong>.
+          <strong>Comments</strong> and <strong>Notifications</strong>, with a count of what's
+          unread, and <strong>New entry</strong> to post (read-write accounts only).
+        </li>
+        <li><strong>Browse</strong>, <strong>Map</strong> and <strong>Search</strong>.</li>
+        <li>
+          <strong>Settings</strong> and <strong>Help</strong> side by side at the bottom. The app
+          version is shown beneath them.
         </li>
       </ul>
       <p>
-        The Android Back button goes back one screen. On Browse it does nothing, so you can't
-        leave the app by accident. An open menu closes first.
+        Screens you reach from the menu show the menu button. Screens you open from inside
+        another screen, and Settings and Help, show a back arrow instead. The Android Back button
+        goes back one screen too. On Browse it does nothing, so you can't leave the app by
+        accident. An open menu closes first.
       </p>
 
       <h2 id="browse">4. Browsing, searching and the map</h2>
@@ -116,6 +122,11 @@ import PhoneShots from '../components/PhoneShots.astro';
       <p>
         <strong>Search</strong> finds entries or people; results update as you type. Tags on an
         entry open a grid of every entry with that tag.
+      </p>
+      <p>
+        When you open an entry from a grid or search results, a bar at the bottom lets you step
+        through that list with the arrows or by swiping it. Tap its caption to hide it. It is
+        off unless you turn it on in <strong>Settings → Appearance</strong>.
       </p>
       <PhoneShots
         shots={[{ name: 'map', alt: 'The map showing pins where blips were taken.', caption: 'Map' }]}
@@ -143,7 +154,10 @@ import PhoneShots from '../components/PhoneShots.astro';
           typing is kept while you look around the app. You can edit or delete a comment where
           Blipfoto allows it.
         </li>
-        <li><strong>Follow</strong> the author from the author block.</li>
+        <li>
+          <strong>Follow</strong> the author from the author block. Tap a profile picture to see
+          it full size.
+        </li>
         <li>
           Use the arrows to go to the previous or next entry, the calendar to jump to a date, and
           the history button to see the same day in other years (these need you to be signed in).
@@ -179,17 +193,16 @@ import PhoneShots from '../components/PhoneShots.astro';
           taken, or today.
         </li>
         <li>
-          Tap <strong>Publish</strong>. It is only available when the day is free: Blipfoto
+          Tap <strong>Publish</strong> and wait. It is only available when the day is free: Blipfoto
           allows one entry per day, so the app tells you if you already have one for that date,
           or if the date is in the future or too far back.
         </li>
       </ol>
       <p>
-        Publishing doesn't wait for the upload. The photo goes into a queue, and the
-        <strong>Uploads</strong> screen shows each item as Waiting, Uploading, Uploaded or
-        Failed. On a poor connection b-mobile retries by itself, several times with longer gaps, and
-        picks up where it left off if the app is closed and reopened. If an item does fail, it shows why, and you can
-        <strong>Retry</strong> it or <strong>Remove</strong> it.
+        The photo is sent straight away, so don't leave the app until it finishes. When it has
+        gone, you'll see a completion screen with <strong>View entry</strong> and
+        <strong>Add another</strong>. If it fails, the entry stays as you left it, with the
+        reason, and you can tap <strong>Retry</strong>.
       </p>
       <p>
         If you go back with unsaved changes the app asks whether to discard the entry.
@@ -198,10 +211,9 @@ import PhoneShots from '../components/PhoneShots.astro';
       <h2 id="edit">7. Editing and deleting your entries</h2>
       <p>
         Open one of your own entries (read-write accounts only) and choose <strong>Edit</strong>.
-        You can change the title, description, tags and location, and replace the photo. The date
-        can't be changed. Saving returns you to the entry, which shows your changes with "Saving
-        your changes…" until they have gone through. If a save fails, the entry shows what it was
-        before and says so, and you can find the attempt in <strong>Uploads</strong>.
+        You can change the title, description, tags and location, and replace the photo. Tap
+        <strong>Save</strong> and wait; don't leave the app until it finishes. If a save fails,
+        your changes stay on the screen and you can tap <strong>Retry</strong>.
       </p>
       <p>
         <strong>Delete entry</strong> is on the same screen, and asks you to confirm first.
@@ -214,7 +226,7 @@ import PhoneShots from '../components/PhoneShots.astro';
       </p>
       <p>
         You can also get <strong>phone notifications</strong>, which you choose per account in
-        <strong>Settings → Notifications</strong>: one for new comments and one for new
+        <strong>Settings → Notification settings</strong>: one for new comments and one for new
         notifications. They are optional and off until you turn them on. Android will ask for
         permission, and for a read-write account the app asks you to sign in once more to allow
         it. A notification tells you how many new items there are (for example, "2 new
@@ -223,15 +235,15 @@ import PhoneShots from '../components/PhoneShots.astro';
         Tapping it opens the right inbox on the right account.
       </p>
       <p>
-        <strong>Daily reminder</strong>: in <strong>Settings → General</strong> you can ask for a
+        <strong>Daily reminder</strong>: in <strong>Settings → Reminders</strong> you can ask for a
         reminder at a time you choose, for each read-write account. It is skipped on days you
         have already posted or edited an entry.
       </p>
 
       <h2 id="accounts">9. Using more than one account</h2>
       <p>
-        <strong>Accounts</strong> lists every account you have signed in with, with its mode
-        (read-only or read-write) and whether notifications are on. Tap one to switch to it;
+        <strong>Settings → Accounts</strong> lists every account you have signed in with, with its
+        mode (read-only or read-write) and whether notifications are on. Tap one to switch to it;
         switching is instant. With two or more accounts, an account button appears at the top of
         the screen for quick switching.
       </p>
@@ -242,7 +254,7 @@ import PhoneShots from '../components/PhoneShots.astro';
         <li>
           Use an account's menu to switch between read-only and read-write, or to
           <strong>Disconnect</strong> it, which signs it out of the app and cancels its
-          notifications and queued uploads.
+          notifications.
         </li>
         <li>
           By default the app asks which account to use before a star, favourite or comment, when
@@ -255,24 +267,24 @@ import PhoneShots from '../components/PhoneShots.astro';
         <strong>Hide user</strong> removes a member from what you see: their entries show as a
         grey "hidden user" tile, their comments disappear, and they have no pin on the map. The
         list is kept on your phone only, shared by all your accounts, and never sent anywhere.
-        Manage it from <strong>Hidden members</strong> in the menu, where you can unhide anyone.
+        Manage it from <strong>Settings → Hidden members</strong>, where you can unhide anyone.
       </p>
       <p>
         <strong>Report</strong> is on entries, comments and profiles. With a read-write account
         you choose at least one reason, add a note if you like, and send it from the app. With a
-        read-only or signed-out account the app explains that reporting needs read-write access.
-        After reporting, it offers to hide the member.
+        read-only or signed-out account the app explains that reporting needs read-write access,
+        and can take you to Blipfoto's support form instead. After reporting, it offers to hide the member.
       </p>
 
       <h2 id="settings">11. Settings</h2>
       <p>
-        <strong>Settings</strong> has two parts. The first is your Blipfoto account settings
-        (General, Journal, Profile, Notifications and, for protected journals, Refused
-        followers). They are saved with <strong>Save</strong> and <strong>Cancel</strong> and need
-        you to be signed in. The second is settings for the app on this phone: accounts, the
-        daily reminder, how account pictures look, whether blipfoto.com links open inside the
-        app, and how Browse looks (zoom bar, pagination, margins and photo size). Phone settings
-        take effect straight away.
+        Open <strong>Settings</strong> from the bottom of the menu. The first group is for the
+        app on this phone, and takes effect straight away: <strong>Appearance</strong>,
+        <strong>Reminders</strong>, <strong>Accounts</strong> and <strong>Hidden members</strong>.
+        The second group is your Blipfoto account settings: <strong>Details &amp; journal</strong>,
+        <strong>Profile</strong>, <strong>Notification settings</strong> and, for protected
+        journals, <strong>Refused followers</strong>. These need you to be signed in, and are
+        saved with <strong>Save</strong> and <strong>Cancel</strong>.
       </p>
 
       <h2 id="limits">12. What the app can't do</h2>
@@ -290,9 +302,8 @@ import PhoneShots from '../components/PhoneShots.astro';
           minutes (longer if your phone is saving battery).
         </li>
         <li>
-          <strong>No offline mode.</strong> If a screen can't load, it shows the problem and a
-          <strong>Retry</strong> button. Uploads you've queued are the exception: they wait for
-          the connection and carry on.
+          <strong>No offline mode.</strong> If a screen can't load, it says whether you seem to be
+          offline or Blipfoto can't be reached, and offers a <strong>Try again</strong> button.
         </li>
       </ul>
 
