@@ -383,7 +383,7 @@ export function registerIpcHandlers(
         hour: 2,
         interval: 'daily',
       },
-      gap_check_days: template?.gap_check_days ?? 31,
+      gap_check_days: template?.gap_check_days ?? 30,
       redo_count: template?.redo_count ?? 7,
       api_delay_ms: template?.api_delay_ms ?? 250,
       last_backup_at: null,

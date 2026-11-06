@@ -66,6 +66,17 @@ describe('PortableSettingsManager', () => {
     expect(d.schedule.interval).toBe('daily');
   });
 
+  it('defaults() uses a 30-day gap check and a 250 ms API delay (b-oss#886)', () => {
+    const d = PortableSettingsManager.defaults();
+    expect(d.gap_check_days).toBe(30);
+    expect(d.api_delay_ms).toBe(250);
+  });
+
+  it('validate() keeps a stored gap_check_days of 31 (existing files are not rewritten)', () => {
+    const stored = { ...PortableSettingsManager.defaults(), gap_check_days: 31 };
+    expect(PortableSettingsManager.validate(stored).gap_check_days).toBe(31);
+  });
+
   it('validate() throws on missing schema_version', () => {
     expect(() => PortableSettingsManager.validate({ accounts: [] })).toThrow(/schema_version/);
   });

@@ -9,6 +9,10 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 - b-ark: a new "Warn if scheduled backups stop" setting, part of Scheduled backups. If b-ark opens and the last backup was a long time ago (3 backup intervals by default, never under 3 days), a notice says so, with Dismiss and "Don't show again". A computer that was off is normal; the notice is only a prompt to check.
 
+### Changed
+
+- b-ark: the Gap check setting now defaults to 30 days for new installs, matching b-ark-chrome (it was 31). Existing settings keep the value they already have.
+
 ## [b-mobile 1.3.0] - 2026-11-05
 
 ### Added
