@@ -24,7 +24,7 @@ import Hero from '../components/Hero.astro';
         <li><a href="#choose-folder">Choose a backup folder</a></li>
         <li><a href="#add-account">Add your Blipfoto account</a></li>
         <li><a href="#first-backup">Run your first backup</a></li>
-        <li><a href="#settings">Settings reference</a></li>
+        <li><a href="#settings">Settings</a></li>
         <li><a href="#b-view">Browsing your journal with b-view</a></li>
         <li><a href="#ai">Using your backup with AI</a></li>
         <li><a href="#keyboard">Keyboard</a></li>
@@ -168,91 +168,16 @@ import Hero from '../components/Hero.astro';
         rather not be told.
       </p>
 
-      <h2 id="settings">5. Settings reference</h2>
+      <h2 id="settings">5. Settings</h2>
       <p>
-        Open the settings panel by clicking the <strong>gear icon</strong> in the toolbar, or by
-        clicking <strong>"Review settings"</strong> after connecting an account.
+        Click the <strong>gear icon</strong> in the toolbar (or <strong>"Review settings"</strong>
+        after connecting an account). Settings control where your backup lives, when b-ark backs
+        up by itself, and how your journal looks. You can change them at any time.
       </p>
       <figure>
         <img src="assets/guide/settings-panel.png" alt="Settings panel" />
         <figcaption>Settings panel</figcaption>
       </figure>
-
-      <table>
-        <thead>
-          <tr>
-            <th style="width: 22%">Setting</th>
-            <th>What it does</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr>
-            <td>Folder</td>
-            <td>
-              Shows where your backups are stored (read-only). Click
-              <strong>"Move folder…"</strong> to point b-ark at a new location. Only the
-              settings file moves; existing backup files stay where they are.
-            </td>
-          </tr>
-          <tr>
-            <td>Scheduled backups</td>
-            <td>
-              Turns automated backups on or off, and sets the start date, time of day, and
-              interval (Daily / Weekly / Monthly). The schedule is shared across all accounts.
-              Turning it on also makes b-ark start with Windows, quietly in the system tray (its
-              tray menu item is <strong>"Enable scheduled backups"</strong>). With it off,
-              closing the window exits b-ark.
-            </td>
-          </tr>
-          <tr>
-            <td>Warn if scheduled backups stop</td>
-            <td>
-              Shows the notice described above when b-ark opens after a long gap. Applies to this
-              computer only.
-            </td>
-          </tr>
-          <tr>
-            <td>Delay</td>
-            <td>
-              A pause (in milliseconds) that b-ark inserts between each call to the Blipfoto API
-              during a backup. Increasing this makes backups slower but gentler on your network
-              during working hours. Default: 0.
-            </td>
-          </tr>
-          <tr>
-            <td>Gap check</td>
-            <td>
-              How many days back b-ark looks on each run to catch entries it may have missed
-              previously. Useful after a period offline or an interrupted backup.
-            </td>
-          </tr>
-          <tr>
-            <td>Redo</td>
-            <td>
-              How many of your most-recent entries b-ark re-downloads on every run, to pick up
-              any edits to captions, titles, or comments since the last backup.
-            </td>
-          </tr>
-          <tr>
-            <td>Full-resolution &amp; extra images</td>
-            <td>
-              Also saves original-size and extra images. Each journal needs its own sign-in to the
-              Blipfoto website, which b-ark keeps on your computer only.
-            </td>
-          </tr>
-          <tr>
-            <td>Show journal info overlay</td>
-            <td>Shows or hides each thumbnail's date and title in the grid.</td>
-          </tr>
-          <tr>
-            <td>Check for updates automatically</td>
-            <td>
-              Only for older copies of b-ark that were not installed from the Microsoft Store.
-              Store copies are updated by the Store.
-            </td>
-          </tr>
-        </tbody>
-      </table>
 
       <h2 id="b-view">6. Browsing your journal with b-view</h2>
       <p>
