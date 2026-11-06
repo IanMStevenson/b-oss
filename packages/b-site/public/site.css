@@ -2223,3 +2223,28 @@ div.tri-link:hover {
   box-shadow: none;
   transform: none;
 }
+/* Settings reference: a .compare-table with long labels that wrap and columns that line up between
+   tables. Three columns when an area has no "When you'd change it". */
+.settings-table {
+  table-layout: fixed;
+}
+.prose .settings-table td:first-child {
+  white-space: normal;
+}
+.settings-table th:nth-child(1) {
+  width: 20%;
+}
+.settings-table th:nth-child(2) {
+  width: 36%;
+}
+.settings-table th:nth-child(3) {
+  width: 16%;
+}
+.settings-table th:nth-child(2):nth-last-child(2) {
+  width: 64%;
+}
+/* Clear the sticky header when a contents link jumps here. */
+.settings-table tr[id],
+.prose h3[id] {
+  scroll-margin-top: 96px;
+}

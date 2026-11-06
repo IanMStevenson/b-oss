@@ -69,6 +69,12 @@ starting tinted under the white hero. On the homepage contact is a band too; pro
 Hero, a contents list (`.toc`), then numbered steps (`<ol>`) with lightbox screenshots
 (`PhoneShots` for b-mobile) and tables. Pass `lightbox` to `Layout`.
 
+### Settings reference (settings-reference)
+
+Hero, a contents list (`.toc`), then one band per product in a `.bands` wrapper: an `h2`, a line on how to
+open Settings, and an `h3` and `.settings-table` per area. Ends with `CtaBand`. Rows come from the data at
+the top of the page. Each has an `id`, so another page can link to one setting.
+
 ### Utility pages (about, contact, privacy, data deletion)
 
 Hero and one or two `prose` blocks. About keeps its eyebrow labels. Contact has the form; the privacy pages are plain prose.
@@ -94,6 +100,7 @@ Its own styling, every class prefixed `st-`; see [`status-page.md`](status-page.
 | Tri-link card | `.tri-links` > `.tri-link` | Icon (or store badge), `h3`, one-line `p`. Three per row, centred; a row with fewer cards centres. Either the whole card is the link (`a.tri-link`), or it is a `div.tri-link` with links inside. |
 | App card | `.app-card` | Product block on the homepage. |
 | Store badge | `StoreBadge.astro`, `src/stores.ts` | Official badge artwork, unmodified, linking to a live listing; a black, plain-text "coming soon" box when not live. Two forms: `bare` inside a tri-link card (the card is the link), or linked by itself in a `.store-badges` row inside an app-card. |
+| Settings table | `table.compare-table.settings-table` | One row per setting: setting, what it does, default, and "When you'd change it" (left out where a whole area doesn't need it). Stacks on narrow screens like the comparison table. |
 | Tinted band | `.bands`, `.band-tint` | Homepage and product-page sections: full-width tint from design tokens, no markup outside the page column. A `CtaBand` directly inside drops its own box. |
 | Button | `.btn`, `.btn.primary`, `.btn-row`, `.btn-row-center` | One primary action per block. A store badge counts as the primary action, so "Learn more" beside one is a plain `.btn`, even while the badge says "coming soon". |
 | Band | `CtaBand.astro` | One line and one button. With no props it is the contact band, the last thing before the footer. Slot text plus `href` and `label` point it elsewhere (b-status on the homepage). |
