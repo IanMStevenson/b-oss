@@ -56,8 +56,9 @@ export interface DevicePrefValues {
    * Browse/Tag-entries/Search/Profile's own grid. */
   thumbnailZoomPercent: number;
   /** Entry page photo: 'full-width' (default, Blipfoto's behaviour — fills the column however tall,
-   * so a portrait scrolls) or 'capped' (height-limited so the whole picture fits on screen). */
-  photoFit: 'full-width' | 'capped';
+   * so a portrait scrolls) 'capped' (height-limited so the whole picture fits on screen) or
+   * 'compact' (as capped, and leaves room for the title line too). */
+  photoFit: 'full-width' | 'capped' | 'compact';
   /** What represents an account in the header indicator and account switcher: its Blipfoto
    * profile picture (default; falls back to the icon when it has none) or the generic user icon. */
   accountAvatarStyle: 'picture' | 'icon';

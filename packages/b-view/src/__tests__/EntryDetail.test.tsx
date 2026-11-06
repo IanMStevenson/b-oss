@@ -189,6 +189,8 @@ describe('EntryDetail', () => {
         expect(img()!.className).not.toContain(styles.photoCapped);
         rerender(<EntryDetail {...props} photoFit="capped" />);
         expect(img()!.className).toContain(styles.photoCapped);
+        rerender(<EntryDetail {...props} photoFit="compact" />);
+        expect(img()!.className).toContain(styles.photoCapped);
       });
     });
   });

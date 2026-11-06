@@ -216,7 +216,7 @@ export const STRINGS = {
   'SCR-25.browsing.pagination.caption': 'Page numbers below the grid. Swiping still changes page.',
   'SCR-25.browsing.photo_size': 'Photo size',
   'SCR-25.browsing.photo_size.caption':
-    'Full width may need scrolling. Fit to screen shows the whole photo.',
+    'Full width may need scrolling. Fit to screen shows the whole photo. Compact also leaves room for the title.',
   'SCR-25.browsing.photo.title': 'Entry photo',
   'SCR-25.browsing.zoom_bar': 'Show zoom/navigation bar',
   'SCR-25.browsing.zoom_bar.caption':
