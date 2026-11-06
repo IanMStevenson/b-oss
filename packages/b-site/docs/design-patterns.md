@@ -66,10 +66,9 @@ starting tinted under the white hero. On the homepage contact is a band too; pro
 
 ### What's new pages (`[product]-whats-new.astro`)
 
-One page per product from the root `CHANGELOG.md`, read at build time: Hero "What's new in <product>", then a
-band per release (no eyebrows), then the contact card. Only entries tagged for that product appear; `internal:`,
-other packages and untagged entries don't. A product with no tagged entries has no page or link, which is how
-b-mobile-pc waits for its first release. Not in the footer or top nav.
+One page per product from `release-notes/<product>.md`, read at build time: Hero "What's new in <product>",
+then a band per release (no eyebrows), then the contact card. A product with no notes has no page or link, which
+is how b-mobile-pc waits for its first release. Not in the footer or top nav.
 
 ### Guide pages (b-ark-guide, b-ark-chrome-guide, b-mobile-guide)
 

@@ -5,10 +5,7 @@ import CtaBand from '../components/CtaBand.astro';
 import FeatureItem from '../components/FeatureItem.astro';
 import PhoneShots from '../components/PhoneShots.astro';
 import StoreBadge from '../components/StoreBadge.astro';
-import changelog from '../../../../CHANGELOG.md?raw';
-import { releasesFor } from '../changelog';
-
-const hasPcChanges = releasesFor(changelog, 'b-mobile-pc').length > 0;
+import { notesFor } from '../release-notes';
 ---
 
 <Layout
@@ -83,8 +80,8 @@ const hasPcChanges = releasesFor(changelog, 'b-mobile-pc').length > 0;
         <h3>Google Play</h3>
         <p>Install b-mobile on your Android phone.</p>
         <div class="tri-link-more">
-          <a href="b-mobile-guide" data-link="user-guide">User guide</a> ·
-          <a href="b-mobile-whats-new" data-link="whats-new">What's new</a>
+          <a href="b-mobile-guide" data-link="user-guide">User guide</a>
+          {notesFor('b-mobile').length > 0 && <Fragment> · <a href="b-mobile-whats-new" data-link="whats-new">What's new</a></Fragment>}
         </div>
       </div>
 
@@ -94,7 +91,7 @@ const hasPcChanges = releasesFor(changelog, 'b-mobile-pc').length > 0;
         <p>Coming soon. The same app for Windows.</p>
         <div class="tri-link-more">
           <a href="b-mobile-guide" data-link="windows-user-guide">User guide</a>
-          {hasPcChanges && <Fragment> · <a href="b-mobile-pc-whats-new" data-link="pc-whats-new">What's new</a></Fragment>}
+          {notesFor('b-mobile-pc').length > 0 && <Fragment> · <a href="b-mobile-pc-whats-new" data-link="pc-whats-new">What's new</a></Fragment>}
         </div>
       </div>
     </div>
