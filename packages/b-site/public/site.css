@@ -820,6 +820,14 @@ section.block:first-of-type {
   }
 }
 
+/* Seven nav items on the smallest phones. */
+@media (max-width: 350px) {
+  .nav a {
+    padding: 8px 3px;
+    font-size: 12px;
+  }
+}
+
 /* ---------- Phone screenshots (b-mobile) ---------- */
 .phone-shots {
   list-style: none;
@@ -2155,21 +2163,41 @@ a.store-badge:hover {
 .tri-link .store-badges .store-badge {
   margin-bottom: 0;
 }
-/* The comparison table on a phone: smaller badges and a wrapping first column keep it close to the
-   screen width. */
-@media (max-width: 640px) {
+/* The comparison table on narrow screens: each row stacks, feature name first, then each product
+   with its name above, so nothing needs sideways scrolling. */
+@media (max-width: 720px) {
+  .compare-table thead {
+    display: none;
+  }
+  .compare-table,
+  .compare-table tbody,
+  .compare-table tr,
+  .compare-table td {
+    display: block;
+    width: 100%;
+  }
+  .compare-table tr {
+    padding: 6px 0;
+    border-bottom: 1px solid var(--line-2);
+  }
+  .compare-table tr:last-child {
+    border-bottom: none;
+  }
+  .prose .compare-table td,
+  .prose .compare-table tr:last-child td {
+    padding: 4px 14px;
+    border-bottom: none;
+  }
   .prose .compare-table td:first-child {
     white-space: normal;
+    font-weight: 600;
   }
-  .compare-table .store-badge-chrome,
-  .compare-table .store-badge-chrome img {
-    height: 42px;
-  }
-  .compare-table .store-badge-soon {
-    height: 36px;
-    min-width: 116px;
-    padding: 0 8px;
-    font-size: 11px;
+  .compare-table td[data-label]::before {
+    content: attr(data-label);
+    display: block;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--muted);
   }
 }
 /* A card that isn't itself a link: the links are inside it. */

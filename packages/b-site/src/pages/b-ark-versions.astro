@@ -15,14 +15,14 @@ import StoreBadge from '../components/StoreBadge.astro';
     <p class="section-eyebrow">Quick guide</p>
     <div class="prose" style="margin-top: 18px; max-width: 720px">
       <p>
-        <strong>Choose b-ark-chrome if</strong> you're on Mac or Linux, you usually post from
-        your computer, or you want the simplest possible setup — one click from the Chrome Web
-        Store, and silent automatic updates.
-      </p>
-      <p>
         <strong>Choose b-ark if</strong> you regularly post from your phone or tablet and want
         your backup to happen on a timer, automatically, regardless of whether you open a
         browser. As long as your Windows PC is running, b-ark will keep your archive up to date.
+      </p>
+      <p>
+        <strong>Choose b-ark-chrome if</strong> you're on Mac or Linux, you usually post from
+        your computer, or you want the simplest possible setup — one click from the Chrome Web
+        Store, and silent automatic updates.
       </p>
     </div>
   </section>
@@ -83,60 +83,60 @@ import StoreBadge from '../components/StoreBadge.astro';
         <thead>
           <tr>
             <th></th>
-            <th>b-ark-chrome</th>
             <th>b-ark</th>
+            <th>b-ark-chrome</th>
           </tr>
         </thead>
         <tbody>
           <tr>
             <td>Platform</td>
-            <td>Chrome or Edge on Windows, Mac or Linux</td>
-            <td>Windows only</td>
+            <td data-label="b-ark">Windows only</td>
+            <td data-label="b-ark-chrome">Chrome or Edge on Windows, Mac or Linux</td>
           </tr>
           <tr>
             <td>Installation</td>
-            <td>One click from the Chrome Web Store</td>
-            <td>From the Microsoft Store (coming soon)</td>
+            <td data-label="b-ark">From the Microsoft Store (coming soon)</td>
+            <td data-label="b-ark-chrome">One click from the Chrome Web Store</td>
           </tr>
           <tr>
             <td>Updates</td>
-            <td>Silent and automatic via Chrome</td>
-            <td>Automatic via the Microsoft Store</td>
+            <td data-label="b-ark">Automatic via the Microsoft Store</td>
+            <td data-label="b-ark-chrome">Silent and automatic via Chrome</td>
           </tr>
           <tr>
             <td>How backup triggers</td>
-            <td>When you publish a blip, or when you visit a blipfoto page after a gap</td>
-            <td>On a timer — runs in the background whether or not you visit blipfoto</td>
+            <td data-label="b-ark">On a timer — runs in the background whether or not you visit blipfoto</td>
+            <td data-label="b-ark-chrome">When you publish a blip, or when you visit a blipfoto page after a gap</td>
           </tr>
           <tr>
             <td>If you post from phone or tablet</td>
-            <td>Backup triggers next time you open blipfoto in the browser on that machine</td>
-            <td>&#10003; Timer fires regardless of how or where you post</td>
+            <td data-label="b-ark">&#10003; Timer fires regardless of how or where you post</td>
+            <td data-label="b-ark-chrome">Backup triggers next time you open blipfoto in the browser on that machine</td>
           </tr>
           <tr>
             <td>Backup on publish</td>
-            <td>&#10003; Captures new blips within seconds of posting from your computer</td>
-            <td>Not available</td>
+            <td data-label="b-ark">Not available</td>
+            <td data-label="b-ark-chrome">&#10003; Captures new blips within seconds of posting from your computer</td>
           </tr>
           <tr>
             <td>Mac / Linux support</td>
-            <td>&#10003;</td>
-            <td>&#10007;</td>
+            <td data-label="b-ark">&#10007;</td>
+            <td data-label="b-ark-chrome">&#10003;</td>
           </tr>
           <tr>
             <td>Number of accounts</td>
-            <td>Single account</td>
-            <td>Multiple accounts</td>
+            <td data-label="b-ark">Multiple accounts</td>
+            <td data-label="b-ark-chrome">Single account</td>
           </tr>
           <tr>
             <td>Backup completeness</td>
-            <td>Full — gap-check and redo run on every trigger</td>
-            <td>Full — gap-check and redo run on schedule</td>
+            <td data-label="b-ark">Full — gap-check and redo run on schedule</td>
+            <td data-label="b-ark-chrome">Full — gap-check and redo run on every trigger</td>
           </tr>
           <tr>
             <td>Get it</td>
-            <td><StoreBadge product="b-ark-chrome" store="chrome" /></td>
-            <td><StoreBadge product="b-ark" store="microsoft" /></td>
+            <td data-label="b-ark"><StoreBadge product="b-ark" store="microsoft" /></td>
+            <td data-label="b-ark-chrome"><StoreBadge product="b-ark-chrome" store="chrome" /></td>
           </tr>
         </tbody>
       </table>
