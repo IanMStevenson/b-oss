@@ -308,6 +308,10 @@ section.block:first-of-type {
   aspect-ratio: 16 / 10;
   position: relative;
 }
+.shot-center {
+  max-width: 520px;
+  margin: 28px auto 0;
+}
 .shot img {
   width: 100%;
   height: 100%;
@@ -2140,11 +2144,17 @@ a.store-badge:hover {
   margin: 0;
   gap: 12px;
 }
-/* Homepage sections: full-width tinted bands in place of divider lines. */
+/* Homepage and product-page sections: full-width tinted bands in place of divider lines. */
 .bands > .app-card,
 .bands > section.block {
   padding: 52px 0;
   border-top: none;
+}
+.bands + .cta-band {
+  margin-top: 40px;
+}
+.band-tint .prose table {
+  background: #fff;
 }
 .band-tint {
   background: var(--green-100);

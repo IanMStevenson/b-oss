@@ -14,9 +14,9 @@ import StoreBadge from '../components/StoreBadge.astro';
 >
   <Hero label="b-mobile hero" icon="b-mobile" title="b-mobile - the unofficial blipfoto app">Browse, post and join in from your Android phone. Free, with no ads.</Hero>
 
-  <section class="block" data-screen-label="Introduction">
-    <p class="section-eyebrow">Introduction</p>
-    <div class="prose" style="margin-top: 18px">
+  <div class="bands">
+  <section class="block band-tint" data-screen-label="Introduction">
+    <div class="prose">
       <p>
         b-mobile is a Blipfoto app for Android. It is an open-source project, part of b-oss and
         led by Ian Stevenson, and is published on the Google Play Store on behalf of the
@@ -41,23 +41,25 @@ import StoreBadge from '../components/StoreBadge.astro';
   </section>
 
   <section class="block" data-screen-label="Screenshots">
-    <p class="section-eyebrow">Screenshots</p>
     <PhoneShots
       shots={[
-        { name: 'browse', alt: 'b-mobile Browse screen: a grid of recent photos with tabs for Recent, Following, Me, Popular and Milestones.', caption: 'Browse' },
-        { name: 'entry', alt: 'An entry in b-mobile: the photo, its title and description, star and favourite buttons and the camera details.', caption: 'An entry' },
-        { name: 'map', alt: 'The b-mobile map with pins marking where blips were taken across the UK and Europe.', caption: 'Map' },
+        { name: 'browse', alt: 'b-mobile Browse screen: a grid of recent photos with tabs for Recent, Following, Me, Popular and Milestones.' },
+        { name: 'entry', alt: 'An entry in b-mobile: the photo, its title and description, star and favourite buttons and the camera details.' },
+        { name: 'map', alt: 'The b-mobile map with pins marking where blips were taken across the UK and Europe.' },
       ]}
     />
   </section>
 
-  <section class="block" data-screen-label="Good to know">
-    <p class="section-eyebrow">Good to know</p>
-    <div class="prose" style="margin-top: 18px">
+  <section class="block band-tint" data-screen-label="Good to know">
+    <div class="prose">
       <p>
         <strong>Free.</strong> b-mobile is completely free to use, with no ads and no in-app
         purchases. It works with your existing Blipfoto account, whatever kind it is; any paid
         Blipfoto features are separate from this app.
+      </p>
+      <p>
+        On mobile, blipfoto's recommended method for accessing blipfoto is to add a link to it on your
+        home screen.
       </p>
       <p>
         <strong>Only the app</strong> can switch accounts seamlessly, send real notifications, and
@@ -71,7 +73,6 @@ import StoreBadge from '../components/StoreBadge.astro';
   </section>
 
   <section class="block" id="download" data-screen-label="Get it">
-    <p class="section-eyebrow">Get it</p>
     <div class="tri-links">
       <div class="tri-link" data-link="play-store">
         <div class="store-badges"><StoreBadge product="b-mobile" store="play" /></div>
@@ -88,6 +89,7 @@ import StoreBadge from '../components/StoreBadge.astro';
       </div>
     </div>
   </section>
+  </div>
 
   <CtaBand />
 

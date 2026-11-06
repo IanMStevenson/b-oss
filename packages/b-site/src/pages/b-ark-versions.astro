@@ -11,9 +11,9 @@ import StoreBadge from '../components/StoreBadge.astro';
 >
   <Hero label="Hero" icon="b-oss" title="Which backup tool is right for you?">b-ark runs on a timer on your PC. b-ark-chrome backs up as you post, in your browser.</Hero>
 
-  <section class="block" data-screen-label="Quick guide">
-    <p class="section-eyebrow">Quick guide</p>
-    <div class="prose" style="margin-top: 18px; max-width: 720px">
+  <div class="bands">
+  <section class="block band-tint" data-screen-label="Quick guide">
+    <div class="prose" style="max-width: 720px">
       <p>
         <strong>Choose b-ark if</strong> you're on a Windows PC and post from anywhere, including your
         phone or tablet. It backs up on a timer, as long as your PC is on, and handles several accounts.
@@ -75,9 +75,8 @@ import StoreBadge from '../components/StoreBadge.astro';
     </div>
   </section>
 
-  <section class="block" data-screen-label="Comparison table">
-    <p class="section-eyebrow">Detailed Comparison</p>
-    <div class="prose" style="margin-top: 18px; overflow-x: auto">
+  <section class="block band-tint" data-screen-label="Comparison table">
+    <div class="prose" style="overflow-x: auto">
       <table class="compare-table">
         <thead>
           <tr>
@@ -131,6 +130,7 @@ import StoreBadge from '../components/StoreBadge.astro';
       </table>
     </div>
   </section>
+  </div>
 
   <CtaBand />
 </Layout>

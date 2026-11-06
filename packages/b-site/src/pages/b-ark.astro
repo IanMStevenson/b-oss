@@ -13,9 +13,9 @@ import StoreBadge from '../components/StoreBadge.astro';
 >
   <Hero label="b-ark hero" icon="b-ark" title="b-ark - backup for blipfoto">Backup apps for your PC or Chrome browser. Keep your own copy of every blip.</Hero>
 
-  <section class="block" data-screen-label="Introduction">
-    <p class="section-eyebrow">Introduction</p>
-    <div class="prose" style="margin-top: 18px">
+  <div class="bands">
+  <section class="block band-tint" data-screen-label="Introduction">
+    <div class="prose">
       <p>
         b-ark makes a local copy of every blip you've ever posted (images, text and metadata) on
         your own machine, automatically keeping it up to date. Browse offline, publish to the
@@ -30,19 +30,18 @@ import StoreBadge from '../components/StoreBadge.astro';
       <FeatureItem><strong>AI-ready.</strong> README.md for AI tools: Use AI to build photobooks,
           slideshows, statistics, custom sites.</FeatureItem>
     </ul>
+
+    <div class="shot-center">
+      <div class="shot">
+        <img
+          src="assets/b-ark-screenshot.png"
+          alt="The b-ark app showing an account with archived photos."
+        />
+      </div>
+    </div>
   </section>
 
-  <div style="max-width: 520px; margin: 0 auto 48px">
-    <div class="shot">
-      <img
-        src="assets/b-ark-screenshot.png"
-        alt="The b-ark app showing an account with archived photos."
-      />
-    </div>
-  </div>
-
   <section class="block" data-screen-label="b-ark or b-ark-chrome">
-    <p class="section-eyebrow">b-ark or b-ark-chrome</p>
     <div class="two-col">
       <div>
         <h3>Choose b-ark if…</h3>
@@ -66,8 +65,7 @@ import StoreBadge from '../components/StoreBadge.astro';
     </div>
   </section>
 
-  <section class="block" id="download" data-screen-label="Get it">
-    <p class="section-eyebrow">Get it</p>
+  <section class="block band-tint" id="download" data-screen-label="Get it">
     <div class="tri-links">
       <div class="tri-link" id="get-b-ark" data-link="microsoft-store">
         <div class="store-badges"><StoreBadge product="b-ark" store="microsoft" /></div>
@@ -84,6 +82,7 @@ import StoreBadge from '../components/StoreBadge.astro';
       </div>
     </div>
   </section>
+  </div>
 
   <CtaBand />
 
