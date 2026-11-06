@@ -10,11 +10,11 @@ import FeatureItem from '../components/FeatureItem.astro';
   description="TypeScript client for the Blipfoto v4 REST API. Part of the b-oss open source project."
   nav="b-api"
 >
-  <Hero label="b-api hero" icon="b-api" title="b-api">TypeScript client for the Blipfoto v4 REST API.</Hero>
+  <Hero label="b-api hero" icon="b-api" title="b-api - a blipfoto API client for developers">A TypeScript library for the whole blipfoto v4 REST API, for building your own tools.</Hero>
 
-  <section class="block" data-screen-label="Introduction">
-    <p class="section-eyebrow">Introduction</p>
-    <div class="prose" style="margin-top: 18px">
+  <div class="bands">
+  <section class="block band-tint" data-screen-label="Introduction">
+    <div class="prose">
       <p>
         b-api is the HTTP client that b-ark is built on. It covers the full Blipfoto v4 REST
         API: reading and writing journal entries, comments, social features, OAuth
@@ -37,16 +37,15 @@ import FeatureItem from '../components/FeatureItem.astro';
       <FeatureItem><strong>Error-safe.</strong> Typed <code>BlipfotoError</code> and
           <code>NetworkError</code> with helpers for rate limits and token expiry.</FeatureItem>
     </ul>
+
+    <div class="shot-center">
+      <div class="shot">
+        <img src="assets/b-api-screenshot.png" alt="The b-api sample code." />
+      </div>
+    </div>
   </section>
 
-  <div style="max-width: 520px; margin: 0 auto 48px">
-    <div class="shot">
-      <img src="assets/b-api-screenshot.png" alt="The b-api sample code." />
-    </div>
-  </div>
-
   <section class="block" data-screen-label="Get b-api">
-    <p class="section-eyebrow">Get b-api</p>
     <div class="tri-links">
       <a class="tri-link" href="https://github.com/IanMStevenson/b-oss" data-link="open-source">
         <span class="ico" aria-hidden="true">
@@ -87,6 +86,7 @@ import FeatureItem from '../components/FeatureItem.astro';
       </a>
     </div>
   </section>
+  </div>
 
   <CtaBand />
 </Layout>

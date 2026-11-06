@@ -1,4 +1,15 @@
+---
+// A full-width band with one line of text and one button. Defaults to the contact band; pass `href`,
+// `label` and slot text to point it somewhere else.
+interface Props {
+  href?: string;
+  label?: string;
+}
+
+const { href = 'contact', label = 'Get in touch' } = Astro.props;
+---
+
 <div class="cta-band">
-  <p>Contact us with feedback, suggestions and bugs.</p>
-  <a class="btn primary" href="contact">Get in touch</a>
+  <p><slot>Contact us with feedback, suggestions and bugs.</slot></p>
+  <a class="btn primary" href={href}>{label}</a>
 </div>

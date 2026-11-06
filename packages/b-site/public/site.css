@@ -146,15 +146,26 @@ img {
 
 /* ---------- Hero ---------- */
 .hero {
-  padding: 44px 0 28px;
-  text-align: center;
+  padding: 40px 0 28px;
+}
+/* Logo left of the text. On narrow screens it stays beside the heading only, so the lead keeps the
+   full width. */
+.hero-with-icon {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  column-gap: 22px;
+  align-items: center;
 }
 .hero-icon {
-  width: 64px;
-  height: 64px;
-  border-radius: 14px;
-  margin: 0 auto 14px;
+  grid-row: 1 / span 2;
+  width: 80px;
+  height: 80px;
+  border-radius: 16px;
   display: block;
+}
+.hero-with-icon h1,
+.hero-with-icon .lead {
+  grid-column: 2;
 }
 .hero h1 {
   margin: 0 0 8px;
@@ -164,11 +175,29 @@ img {
   line-height: 1.1;
 }
 .hero .lead {
-  margin: 0 auto;
-  max-width: 620px;
+  margin: 0;
+  max-width: 760px;
   font-size: 16px;
   color: var(--muted);
   line-height: 1.5;
+}
+@media (max-width: 640px) {
+  .hero-with-icon {
+    column-gap: 14px;
+  }
+  .hero-icon {
+    grid-row: 1;
+    width: 52px;
+    height: 52px;
+    border-radius: 12px;
+  }
+  .hero-with-icon h1 {
+    margin: 0;
+  }
+  .hero-with-icon .lead {
+    grid-column: 1 / -1;
+    margin-top: 12px;
+  }
 }
 
 /* ---------- Section ---------- */
@@ -279,6 +308,10 @@ section.block:first-of-type {
   aspect-ratio: 16 / 10;
   position: relative;
 }
+.shot-center {
+  max-width: 520px;
+  margin: 28px auto 0;
+}
 .shot img {
   width: 100%;
   height: 100%;
@@ -348,6 +381,9 @@ section.block:first-of-type {
   gap: 10px;
   flex-wrap: wrap;
 }
+.btn-row-center {
+  justify-content: center;
+}
 
 /* ---------- App page: three big links ---------- */
 .tri-links {
@@ -397,6 +433,11 @@ section.block:first-of-type {
   font-size: 18px;
   font-weight: 600;
   letter-spacing: -0.01em;
+}
+.tri-link-more {
+  margin-top: 12px;
+  font-size: 14px;
+  font-weight: 500;
 }
 .tri-link p {
   margin: 0;
@@ -720,6 +761,18 @@ section.block:first-of-type {
   color: var(--ink-2);
 }
 
+/* ---------- Two columns of text (collapses on narrow screens) ---------- */
+.two-col {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 28px 44px;
+  margin-bottom: 20px;
+}
+.two-col h3 {
+  margin: 0 0 12px;
+  font-size: 18px;
+  font-weight: 600;
+}
 /* ---------- Responsive ---------- */
 @media (max-width: 820px) {
   .hero {
@@ -735,6 +788,9 @@ section.block:first-of-type {
   }
   .tri-link {
     flex: 0 0 100%;
+  }
+  .two-col {
+    grid-template-columns: 1fr;
   }
   .cta-band {
     flex-direction: column;
@@ -2004,6 +2060,17 @@ p.st-sub {
   }
 }
 
+/* The smallest phones: seven nav items, and guide tables, still have to fit. */
+@media (max-width: 350px) {
+  .nav a {
+    padding: 8px 3px;
+    font-size: 12px;
+  }
+  .prose table td:first-child {
+    white-space: normal;
+  }
+}
+
 /* ---------- Store badges ---------- */
 /* Every badge is the same visual size. Google's PNG carries its own clear space, so it is drawn
    larger and pulled back with negative margins; the artwork itself is never altered. */
@@ -2015,25 +2082,25 @@ p.st-sub {
 }
 .store-badge {
   display: inline-block;
-  height: 56px;
+  height: 48px;
   line-height: 0;
   overflow: visible;
 }
 .store-badge img {
   display: block;
-  height: 56px;
+  height: 48px;
   width: auto;
   max-width: none; /* the global img cap would squash the badge and distort it */
 }
 .store-badge-play img {
-  height: 83px;
-  margin: -13px -18px;
+  height: 71px;
+  margin: -11.5px -15.5px;
 }
 /* Chrome's badge is white and pale, so it is shown a little larger than the others (resize only,
    proportions kept) and in Google's own bordered variant, to give it comparable weight. */
 .store-badge-chrome,
 .store-badge-chrome img {
-  height: 68px;
+  height: 58px;
 }
 a.store-badge {
   transition: transform 160ms cubic-bezier(0.22, 0.61, 0.36, 1);
@@ -2048,15 +2115,15 @@ a.store-badge:hover {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  height: 56px;
-  min-width: 185px;
-  padding: 0 18px;
+  height: 48px;
+  min-width: 160px;
+  padding: 0 14px;
   box-sizing: border-box;
   border: 1px solid #8a8a8a;
   border-radius: 8px;
   background: #000;
   color: #fff;
-  font-size: 15px;
+  font-size: 13px;
   font-weight: 600;
   line-height: 1.25;
   text-align: center;
@@ -2064,8 +2131,93 @@ a.store-badge:hover {
 .tri-link .store-badge {
   margin-bottom: 12px;
 }
-.tri-link-soon,
-.tri-link-soon:hover {
+/* Inside an app-card: spacing only. */
+.app-card .store-badges {
+  margin: 4px 0 16px;
+}
+/* Left-aligned here, so pull back exactly the artwork's clear space (41/250 of its 71px height). */
+.app-card .store-badge-play img {
+  margin-left: -11.6px;
+  margin-right: -11.6px;
+}
+.app-card .phone-shots {
+  margin: 0;
+  gap: 12px;
+}
+/* Homepage and product-page sections: full-width tinted bands in place of divider lines. */
+.bands > .app-card,
+.bands > section.block {
+  padding: 52px 0;
+  border-top: none;
+}
+.bands + .cta-band {
+  margin-top: 40px;
+}
+.band-tint .prose table {
+  background: #fff;
+}
+.band-tint {
+  background: var(--green-100);
+  box-shadow: 0 0 0 100vmax var(--green-100);
+  clip-path: inset(0 -100vmax);
+}
+/* A CtaBand that is a band of its own: no box of its own. */
+.bands > section > .cta-band {
+  margin: 0;
+  padding: 36px 0;
+  background: none;
+  border: none;
+  border-radius: 0;
+}
+/* Badges in a card row: one slot height, so headings line up whichever badge a card has. */
+.tri-link .store-badges {
+  min-height: 58px;
+  margin-bottom: 12px;
+  justify-content: center;
+}
+.tri-link .store-badges .store-badge {
+  margin-bottom: 0;
+}
+/* The comparison table on narrow screens: each row stacks, feature name first, then each product
+   with its name above, so nothing needs sideways scrolling. */
+@media (max-width: 720px) {
+  .compare-table thead {
+    display: none;
+  }
+  .compare-table,
+  .compare-table tbody,
+  .compare-table tr,
+  .compare-table td {
+    display: block;
+    width: 100%;
+  }
+  .compare-table tr {
+    padding: 6px 0;
+    border-bottom: 1px solid var(--line-2);
+  }
+  .compare-table tr:last-child {
+    border-bottom: none;
+  }
+  .prose .compare-table td,
+  .prose .compare-table tr:last-child td {
+    padding: 4px 14px;
+    border-bottom: none;
+  }
+  .prose .compare-table td:first-child {
+    white-space: normal;
+    font-weight: 600;
+  }
+  .compare-table td[data-label]::before {
+    content: attr(data-label);
+    display: block;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--muted);
+  }
+}
+/* A card that isn't itself a link: the links are inside it. */
+div.tri-link,
+div.tri-link:hover {
   cursor: default;
   background: #fff;
   box-shadow: none;
