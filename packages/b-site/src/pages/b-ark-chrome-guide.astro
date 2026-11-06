@@ -26,11 +26,11 @@ import Hero from '../components/Hero.astro';
         <li><a href="#choose-folder">Choose a backup folder</a></li>
         <li><a href="#first-backup">Run your first backup</a></li>
         <li><a href="#chip">The status chip</a></li>
-        <li><a href="#settings">Settings reference</a></li>
+        <li><a href="#settings">Settings</a></li>
         <li><a href="#b-view">Browsing your journal with b-view</a></li>
+        <li><a href="#keyboard">Keyboard</a></li>
         <li><a href="#ai">Using your backup with AI</a></li>
         <li><a href="#privacy">Privacy</a></li>
-        <li><a href="#keyboard">Keyboard</a></li>
       </ol>
     </nav>
 
@@ -284,7 +284,51 @@ import Hero from '../components/Hero.astro';
         static web host and browse to the URL — b-view does the rest. No setup required.
       </p>
 
-      <h2 id="ai">9. Using your backup with AI</h2>
+      <h2 id="keyboard">9. Keyboard</h2>
+      <p>
+        You can get around your backed-up journal on the backup page using the keyboard.
+        The keys do nothing while you are typing in a box, such as the search box.
+      </p>
+      <table>
+        <thead>
+          <tr>
+            <th>Key</th>
+            <th>What it does</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Left / Right arrow</td>
+            <td>In the thumbnail grid, go to the previous or next page.</td>
+          </tr>
+          <tr>
+            <td>Left / Right arrow</td>
+            <td>On an entry, go to the older or newer entry.</td>
+          </tr>
+          <tr>
+            <td>Left / Right arrow</td>
+            <td>With a photo enlarged, show the previous or next photo.</td>
+          </tr>
+          <tr>
+            <td>Ctrl and + / &minus; / 0</td>
+            <td>Make the thumbnails bigger, smaller, or back to normal. With a photo enlarged, zoom the photo instead. Ctrl and the mouse wheel does the same.</td>
+          </tr>
+          <tr>
+            <td>Backspace</td>
+            <td>On an entry, go back to the grid. With a photo enlarged, close it.</td>
+          </tr>
+          <tr>
+            <td>Esc</td>
+            <td>Close the date picker or an open menu.</td>
+          </tr>
+          <tr>
+            <td>Tab, Enter</td>
+            <td>Move between thumbnails and buttons (a ring shows where you are) and open or press the one you are on.</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <h2 id="ai">10. Using your backup with AI</h2>
       <p>
         Your backup folder contains a <code>README.md</code> file. It explains your
         journal's data format and gives guidance on using the backup with AI assistants:
@@ -378,7 +422,7 @@ import Hero from '../components/Hero.astro';
         <li><em>"What cameras have I used over the years?"</em></li>
       </ul>
 
-      <h2 id="privacy">10. Privacy</h2>
+      <h2 id="privacy">11. Privacy</h2>
       <p>
         b-ark-chrome backs up your journal to a folder <strong>you</strong> choose, on your
         own machine. Your Blipfoto access token is encrypted at rest in your browser and
@@ -389,50 +433,6 @@ import Hero from '../components/Hero.astro';
         For the full details of what data the extension handles and where it is stored, see
         the <a href="b-ark-chrome-privacy">b-ark-chrome privacy policy</a>.
       </p>
-
-      <h2 id="keyboard">11. Keyboard</h2>
-      <p>
-        You can get around your backed-up journal on the backup page using the keyboard.
-        The keys do nothing while you are typing in a box, such as the search box.
-      </p>
-      <table>
-        <thead>
-          <tr>
-            <th>Key</th>
-            <th>What it does</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr>
-            <td>Left / Right arrow</td>
-            <td>In the thumbnail grid, go to the previous or next page.</td>
-          </tr>
-          <tr>
-            <td>Left / Right arrow</td>
-            <td>On an entry, go to the older or newer entry.</td>
-          </tr>
-          <tr>
-            <td>Left / Right arrow</td>
-            <td>With a photo enlarged, show the previous or next photo.</td>
-          </tr>
-          <tr>
-            <td>Ctrl and + / &minus; / 0</td>
-            <td>Make the thumbnails bigger, smaller, or back to normal. With a photo enlarged, zoom the photo instead. Ctrl and the mouse wheel does the same.</td>
-          </tr>
-          <tr>
-            <td>Backspace</td>
-            <td>On an entry, go back to the grid. With a photo enlarged, close it.</td>
-          </tr>
-          <tr>
-            <td>Esc</td>
-            <td>Close the date picker or an open menu.</td>
-          </tr>
-          <tr>
-            <td>Tab, Enter</td>
-            <td>Move between thumbnails and buttons (a ring shows where you are) and open or press the one you are on.</td>
-          </tr>
-        </tbody>
-      </table>
     </div>
 
     <p style="margin-top: 40px">
