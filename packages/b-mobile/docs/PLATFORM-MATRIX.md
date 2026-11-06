@@ -57,6 +57,6 @@ on top as overrides.
 | `prefs.navPinned` | `"auto"` | `"auto"` |
 | `grid.baseTilePx` | `86` | `156` |
 | `grid.widthDerivedMinZoom` | `true` | `false` |
-| `keyboardWheelZoom` | `false` | `true` |
+| `keyboardWheelZoom` | `true` | `true` |
 | `locationControlLabel` | `"My location"` | `"Show current location"` |
 | `nav.split` | `"off"` | `"auto"` |

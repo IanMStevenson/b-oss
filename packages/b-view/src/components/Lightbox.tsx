@@ -5,6 +5,7 @@ import { useEffect, useCallback, useLayoutEffect, useMemo, useRef, useState } fr
 import { X, ChevronLeft, ChevronRight } from 'lucide-react';
 import { TransformWrapper, TransformComponent } from 'react-zoom-pan-pinch';
 import type { ReactZoomPanPinchRef } from 'react-zoom-pan-pinch';
+import { isEditableTarget } from '../isEditableTarget.js';
 import { useKeyWheelZoom } from '../useKeyWheelZoom.js';
 import { useSwipeNav } from '../useSwipeNav.js';
 import { fitContain } from '../lightboxFit.js';
@@ -62,7 +63,14 @@ export function Lightbox({
 
   const handleKey = useCallback(
     (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose();
+      // Backspace closes (Esc is left to the system). Not while typing or with a modifier, and
+      // not if a host handler already took the key.
+      if (e.key === 'Backspace' && !e.defaultPrevented && !e.ctrlKey && !e.altKey && !e.metaKey) {
+        if (isEditableTarget(e.target)) return;
+        e.preventDefault();
+        onClose();
+        return;
+      }
       if (e.key === 'ArrowLeft') goPrev?.();
       if (e.key === 'ArrowRight') goNext?.();
     },

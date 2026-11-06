@@ -226,6 +226,7 @@ export function HomeScreen({ account, compact }: HomeScreenProps) {
             nextEntryId={nextEntryId}
             onNavigate={(id) => dispatch({ type: 'entry:select', entryId: id })}
             onClose={() => dispatch({ type: 'entry:select', entryId: null })}
+            keyboardZoom
             baseUrl={viewerUrl ?? undefined}
             entries={entries}
           />
@@ -260,6 +261,7 @@ export function HomeScreen({ account, compact }: HomeScreenProps) {
               selectedEntryId={selectedEntryId}
               onSelectEntry={(id) => dispatch({ type: 'entry:select', entryId: id })}
               sizePercent={thumbnailSizePercent}
+              keyboardWheelZoom
               onSizeChange={(pct) => dispatch({ type: 'thumbnail:resize', percent: pct })}
               showInfoOverlay={showInfoOverlay}
               onShowInfoOverlayChange={(v) => {
