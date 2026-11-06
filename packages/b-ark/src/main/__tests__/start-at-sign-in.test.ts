@@ -320,13 +320,12 @@ describe('createStartAtSignInService', () => {
 describe('packaging config', () => {
   const config = JSON.parse(
     readFileSync(new URL('../../../electron-builder.store.json', import.meta.url), 'utf8'),
-  ) as { files: string[]; asarUnpack: string[]; appx: unknown };
+  ) as { extraResources: unknown[]; appx: unknown };
   const base = JSON.parse(
     readFileSync(new URL('../../../electron-builder.json', import.meta.url), 'utf8'),
   ) as { files: string[]; asarUnpack?: string[] };
-  it('packs and unpacks the add-on in the Store config only', () => {
-    expect(config.files).toContain('native/win-startup/dist/*.node');
-    expect(config.asarUnpack).toContain('native/win-startup/dist/*.node');
+  it('copies the add-on beside the app in the Store config only', () => {
+    expect(JSON.stringify(config.extraResources)).toContain('b-win-startup/dist/win-startup.node');
     expect(JSON.stringify(base)).not.toContain('win-startup');
   });
   it('the manifest task id matches the add-on call', () => {

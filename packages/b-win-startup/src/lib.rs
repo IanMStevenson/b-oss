@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (C) 2026 Ian Stevenson
 
-//! Node-API add-on that reads and changes the Microsoft Store startup task declared in b-ark's
+//! Node-API add-on that reads and changes the Microsoft Store startup task declared in an app's
 //! MSIX manifest (Windows.ApplicationModel.StartupTask). It is loaded into the Electron main
 //! process, which has the package identity the API needs. Every call runs on the libuv thread
 //! pool and returns a Promise, so the main process never blocks.

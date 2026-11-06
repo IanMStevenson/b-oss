@@ -38,8 +38,8 @@ jobs:
           VITE_BLIPFOTO_CLIENT_ID: ${{ vars.VITE_BLIPFOTO_CLIENT_ID }}
           VITE_GEOAPIFY_KEY: ${{ secrets.VITE_GEOAPIFY_KEY }}
         run: npm run build -w @b-oss/b-mobile
-      - name: Build the start-at-sign-in add-on (b-ark's Rust crate, Windows x64)
-        run: node packages/b-ark/native/win-startup/build.mjs
+      - name: Build the start-at-sign-in add-on (the shared Rust crate, Windows x64)
+        run: node packages/b-win-startup/build.mjs
       - name: Build MSIX
         env:
           RELEASE: '1'

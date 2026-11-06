@@ -8,7 +8,7 @@
     { "from": "../b-mobile/dist/", "to": "web/" },
     { "from": "build/tray/", "to": "tray/" },
     { "from": "build/icon.png", "to": "tray/app-icon.png" },
-    { "from": "../b-ark/native/win-startup/dist/win-startup.node", "to": "native/win-startup.node" }
+    { "from": "../b-win-startup/dist/win-startup.node", "to": "native/win-startup.node" }
   ],
   "appx": {
     "identityName": "REPLACE-WITH-IDENTITY-NAME",

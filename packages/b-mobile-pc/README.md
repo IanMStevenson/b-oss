@@ -194,7 +194,7 @@ NSIS installer and portable exe above stay as dev/test builds.
 - **Start at sign-in** (b-oss#884): an MSIX app ignores the login-item registry key, so the Store build
   declares a `windows.startupTask` (`TaskId` `BMobilePcStartup`, `msix/startup-task-extension.xml`) and
   `src/main/store-startup.ts` enables it while notifications are on and disables it when they are off,
-  through b-ark's native add-on (`packages/b-ark/native/win-startup`, which the workflow builds and
+  through the shared native add-on (`packages/b-win-startup`, which the workflow builds and
   `electron-builder.store.json` copies to `resources/native/`). The manifest starts the task disabled. A task
   the user switched off in Windows Settings > Apps > Startup cannot be re-enabled by the app. Unlike the
   NSIS build, the task passes no `--hidden`, so a Store login start shows the window (b-ark behaves the same).

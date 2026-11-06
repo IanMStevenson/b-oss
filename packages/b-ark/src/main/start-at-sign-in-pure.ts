@@ -119,7 +119,7 @@ export function createLoginItemStartAtSignIn(deps: LoginItemDeps): StartAtSignIn
 
 // ---- Microsoft Store startup task (native add-on) ----
 
-/** The native add-on's surface (packages/b-ark/native/win-startup); each resolves to a StartupTaskState name. */
+/** The native add-on's surface (packages/b-win-startup); each resolves to a StartupTaskState name. */
 export interface StartupTaskAddon {
   getState: (taskId: string) => Promise<string>;
   enable: (taskId: string) => Promise<string>;
