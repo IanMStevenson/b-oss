@@ -4,11 +4,18 @@
     "target": [{ "target": "appx", "arch": ["x64"] }],
     "icon": "build/icon.png"
   },
+  "extraResources": [
+    { "from": "../b-mobile/dist/", "to": "web/" },
+    { "from": "build/tray/", "to": "tray/" },
+    { "from": "build/icon.png", "to": "tray/app-icon.png" },
+    { "from": "../b-ark/native/win-startup/dist/win-startup.node", "to": "native/win-startup.node" }
+  ],
   "appx": {
     "identityName": "REPLACE-WITH-IDENTITY-NAME",
     "publisher": "CN=REPLACE_WITH_PARTNER_CENTER_PUBLISHER_ID",
     "publisherDisplayName": "REPLACE_WITH_PUBLISHER_DISPLAY_NAME",
     "applicationId": "bmobile",
+    "customExtensionsPath": "msix/startup-task-extension.xml",
     "backgroundColor": "#1f4d3a"
   },
   "publish": null
