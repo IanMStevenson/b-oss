@@ -87,14 +87,14 @@ const products: Product[] = [
           {
             id: 'b-ark-full-resolution',
             label: 'Full-resolution & extra images',
-            does: "Also fetches original-size and hi-res images, and an entry's extra images, from the Blipfoto website. Each journal needs its own website sign-in, stored encrypted on this computer. Nothing is uploaded.",
+            does: "Also fetches original-size and hi-res images, and an entry's extra images, from the Blipfoto website. Each journal needs its own website sign-in, stored encrypted on this computer. Nothing is uploaded. Original images need a Blipfoto subscription.",
             def: 'Off',
             when: 'Turn it on if you want your backup to hold these images as well as the standard ones.',
           },
           {
             id: 'b-ark-always-hires',
             label: 'Always download hires images too',
-            does: "Part of Full-resolution & extra images. Saves a hi-res copy even when the original is available. Without it, a hi-res image is still fetched whenever the original isn't.",
+            does: "Part of Full-resolution & extra images. Saves a hi-res copy even when the original is available. Without it, a hi-res image is still fetched whenever the original isn't, so this only makes a difference with a Blipfoto subscription.",
             def: 'Off',
             when: "Most people can leave it off, as it's a redundant extra copy.",
           },
@@ -202,14 +202,14 @@ const products: Product[] = [
           {
             id: 'b-ark-chrome-originals',
             label: 'Fetch original uploaded image and extras if available',
-            does: 'During a backup, loads each entry page on Blipfoto to download the original image and any extra images. You need to be signed in to Blipfoto in this browser. Turning it on asks whether to re-process existing entries: Yes, re-process now, or No, new entries only.',
+            does: 'During a backup, loads each entry page on Blipfoto to download the original image and any extra images. You need to be signed in to Blipfoto in this browser, and original images need a Blipfoto subscription. Turning it on asks whether to re-process existing entries: Yes, re-process now, or No, new entries only.',
             def: 'Off',
             when: 'Turn it on if you want your backup to hold these images as well as the standard ones.',
           },
           {
             id: 'b-ark-chrome-always-hires',
             label: 'Always download hires images too',
-            does: "Part of the setting above. Saves a hi-res copy even when the original is available. Without it, a hi-res image is still fetched whenever the original isn't.",
+            does: "Part of the setting above. Saves a hi-res copy even when the original is available. Without it, a hi-res image is still fetched whenever the original isn't, so this only makes a difference with a Blipfoto subscription.",
             def: 'Off',
             when: "Most people can leave it off, as it's a redundant extra copy.",
           },
