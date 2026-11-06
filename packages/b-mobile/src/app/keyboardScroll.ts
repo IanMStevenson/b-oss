@@ -97,6 +97,9 @@ export function handleBackKey(e: KeyboardEvent): void {
   if (e.key !== 'Backspace' || e.defaultPrevented) return;
   if (e.altKey || e.ctrlKey || e.metaKey || e.shiftKey) return;
   if (isTypingTarget(e)) return;
+  // An open sheet/dialog owns the keyboard; the page beneath it isn't what Back would close.
+  if (document.querySelector('ion-modal:not(.overlay-hidden), ion-popover:not(.overlay-hidden)'))
+    return;
   const btn = visibleBackButton();
   if (!btn) return;
   e.preventDefault();

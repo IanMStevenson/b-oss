@@ -535,9 +535,7 @@ export function ThumbnailGrid({
     enabled: keyboardWheelZoom && onSizeChange !== undefined,
     target: containerRef,
     onZoom: (command) =>
-      onSizeChange?.(
-        command === 'reset' ? 100 : stepZoom(sizePercent, command === 'in' ? 1 : -1, limits),
-      ),
+      onSizeChange?.(command === 'reset' ? 100 : stepZoom(sizePercent, command === 'in' ? 1 : -1, limits)),
   });
 
   // Track the top-left entry date for the internal calendar and external callback. A negative or

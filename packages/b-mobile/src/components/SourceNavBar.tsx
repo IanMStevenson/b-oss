@@ -25,6 +25,7 @@ export function SourceNavBar() {
   const navigate = useAppNavigate();
   const setShowSourceNavBar = useDevicePrefsStore((s) => s.setShowSourceNavBar);
   const [sheetOpen, setSheetOpen] = useState(false);
+  const barRef = useRef<HTMLDivElement>(null);
   const touchStart = useRef<{ x: number; y: number } | null>(null);
 
   const reach = anchor ? sourceNavReach(anchor) : null;
@@ -39,6 +40,8 @@ export function SourceNavBar() {
       if (!e.ctrlKey || e.altKey || e.metaKey || e.shiftKey || e.defaultPrevented) return;
       if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return;
       if (isTypingTarget(e)) return;
+      // The entry page stays mounted under a page pushed on top of it; only the one in view acts.
+      if (barRef.current?.closest('.ion-page-hidden')) return;
       e.preventDefault();
       if (e.key === 'ArrowLeft' && canFurther) void go(1);
       if (e.key === 'ArrowRight' && canBack) void go(-1);
@@ -76,6 +79,7 @@ export function SourceNavBar() {
   return (
     <>
       <div
+        ref={barRef}
         className="source-nav-bar"
         data-no-swipe
         data-testid="source-nav-bar"
