@@ -26,11 +26,12 @@ Tracked in [b-oss#805](https://github.com/IanMStevenson/b-oss/issues/805). The S
 installer route above: it is an unsigned MSIX (the Store signs it), and it skips electron-updater
 (`process.windowsStore`), because the Store delivers updates.
 
-1. Do the usual release steps above (changelog, version bump, audit) for the version to submit.
+1. Do the usual release steps above (changelog, release note, version bump, audit) for the version to submit.
 2. Run the **Build MSIX (Microsoft Store)** workflow from the Actions tab (workflow_dispatch). Enter the
    three Identity values from Partner Center (Product identity): Package/Identity/Name, Publisher, and
    PublisherDisplayName. They must match exactly or the upload is rejected.
-3. Download the `b-ark-msix` artifact and upload the `.appx` in a Partner Center submission.
+3. Download the `b-ark-msix` artifact and upload the `.appx` in a Partner Center submission. Paste the release
+   note into "What's new in this version".
 
 **Start at sign-in in the Store build** (driven by the Scheduled backups setting). MSIX ignores the registry Run key, so the manifest declares a
 `windows.startupTask` (`TaskId` `BArkStartup`, from `packages/b-ark/msix/startup-task-extension.xml`). In
@@ -65,17 +66,22 @@ and b-api version independently.
 
 Every release, whatever the component:
 
-1. **Changelog.** Move `[Unreleased]` into a dated section; user-facing entries only.
-2. **Version.** Bump every file that carries the version (listed per component) in one commit.
-3. **Generated data is current.** Anything committed that is derived from dependencies or config
+1. **Changelog.** Move `[Unreleased]` into a dated section. `CHANGELOG.md` is the internal technical
+   record and is never published.
+2. **Release note.** Write it once in `packages/b-site/release-notes/<product>.md`: a `## <version> - <YYYY-MM-DD>`
+   heading, newest first, then 500 characters or fewer in plain words, saying what the user will see. The
+   site's What's new pages are built from it. Paste the same text into each channel: Play Console, Chrome
+   Web Store, Microsoft Store "What's new", and the GitHub release body (b-ark).
+3. **Version.** Bump every file that carries the version (listed per component) in one commit.
+4. **Generated data is current.** Anything committed that is derived from dependencies or config
    must be regenerated and checked now, not per PR. Today that is only b-mobile's open-source
    licence lists (`npm run licences:generate`, then `npm run licences:check`, in `packages/b-mobile`);
    b-ark, b-ark-chrome and b-api have none.
-4. **Release build.** Build with `RELEASE=1` so the in-app version is bare, from a clean tree.
-5. **Smoke test the artifact** on a clean machine or profile, including signing in to Blipfoto.
-6. **Publish** by the component's own route, then tag and finish the release notes. (b-mobile
+5. **Release build.** Build with `RELEASE=1` so the in-app version is bare, from a clean tree.
+6. **Smoke test the artifact** on a clean machine or profile, including signing in to Blipfoto.
+7. **Publish** by the component's own route, then tag and finish the release notes. (b-mobile
    tags first: its tag starts the build.)
-7. **Audit.** `npm audit --omit=dev --audit-level=high` must be clean (the b-ark workflow runs it);
+8. **Audit.** `npm audit --omit=dev --audit-level=high` must be clean (the b-ark workflow runs it);
    anything tolerated is recorded as a dismissed Dependabot alert with a reason.
 
 ## Invariants (read once, internalise)
@@ -153,9 +159,9 @@ target version and today's date, e.g. `## [0.1.1] - 2026-06-15`.
 Leave a fresh empty `[Unreleased]` section above it for the next
 cycle. Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
-The CHANGELOG entry feeds into the release notes you'll paste into
-GitHub at step 6, so keep it user-facing — features, fixes, breaking
-changes — not internal refactors or test churn.
+`CHANGELOG.md` is the internal technical record and is never published. Write the user-facing
+release note separately in `packages/b-site/release-notes/<product>.md` (500 characters
+max, plain words); you'll paste it into GitHub at step 6.
 
 ### 3. Local dry-run installer
 
@@ -236,14 +242,14 @@ attached. Click _Edit_ and:
 '.assets[] | select(.name | endswith(".exe")) | .digest'`. No manual
    hashing needed; GitHub generates this itself for every uploaded
    asset.
-3. Write release notes — paste the relevant section from
-   [CHANGELOG.md](CHANGELOG.md) as the body, then add the SHA-256 and
+3. Write release notes — paste the release note from
+   `packages/b-site/release-notes/<product>.md` as the body, then add the SHA-256 and
    limitations footer. Template:
 
    ```
    <one-line headline of what changed>
 
-   <CHANGELOG section for this version: Added / Changed / Fixed>
+   <release note for this version, unchanged>
 
    **Known limitations**: Windows x64 only; Mac build not yet shipped; unsigned installer.
 
