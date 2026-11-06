@@ -38,7 +38,7 @@ jobs:
       - run: npm run build --workspace=packages/b-ark-ui-components
       - run: npm run build --workspace=packages/b-ark-ui-electron
       - name: Build the start-at-sign-in add-on (Rust, Windows x64)
-        run: node packages/b-ark/native/win-startup/build.mjs
+        run: node packages/b-win-startup/build.mjs
       - name: Build MSIX
         env:
           RELEASE: '1'

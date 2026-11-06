@@ -3,8 +3,8 @@
 
 // Start at sign-in in a Microsoft Store (MSIX) install (b-oss#884). An MSIX app ignores the login-item
 // registry key, so notifications-on is carried by a manifest startup task (msix/startup-task-extension.xml)
-// that only the WinRT API can read and change. That API is b-ark's native add-on
-// (packages/b-ark/native/win-startup, taskId passed in), packed beside the app by
+// that only the WinRT API can read and change. That API is the shared native add-on
+// (packages/b-win-startup, taskId passed in), packed beside the app by
 // electron-builder.store.json. Pure: the add-on is injected, so this runs in tests on any OS.
 
 /** Must match TaskId in msix/startup-task-extension.xml. */

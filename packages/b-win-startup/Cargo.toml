@@ -1,10 +1,10 @@
 [package]
-name = "b_ark_win_startup"
+name = "b_win_startup"
 version = "0.1.0"
 edition = "2021"
 publish = false
 license = "GPL-3.0-or-later"
-description = "Node-API add-on: read and change b-ark's Microsoft Store startup task (Windows x64 only)"
+description = "Node-API add-on: read and change an app's Microsoft Store startup task (Windows x64 only)"
 
 [lib]
 crate-type = ["cdylib"]

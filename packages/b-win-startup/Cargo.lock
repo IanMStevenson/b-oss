@@ -12,7 +12,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "b_ark_win_startup"
+name = "b_win_startup"
 version = "0.1.0"
 dependencies = [
  "napi",

@@ -20,15 +20,9 @@ import {
 /** Only a Microsoft Store install uses the startup task. */
 export const isStoreBuild = (): boolean => process.windowsStore === true;
 
-/** Where electron-builder.store.json unpacks the add-on (a .node cannot be loaded from inside the asar). */
+/** Where electron-builder.store.json copies the add-on (packages/b-win-startup), outside the asar. */
 function addonPath(): string {
-  return join(
-    app.getAppPath().replace(/app\.asar$/, 'app.asar.unpacked'),
-    'native',
-    'win-startup',
-    'dist',
-    'win-startup.node',
-  );
+  return join(process.resourcesPath, 'native', 'win-startup.node');
 }
 
 let service: StartAtSignInService | null = null;

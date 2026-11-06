@@ -289,7 +289,7 @@ function setLoginItem(wanted: boolean, log: (message: string) => void): void {
   }
 }
 
-/** The Store build's start at sign-in: the manifest startup task, through b-ark's native add-on that
+/** The Store build's start at sign-in: the manifest startup task, through the shared native add-on (packages/b-win-startup) that
  * electron-builder.store.json copies to resources/native/. Loaded on first use. */
 let storeAddon: ReturnType<typeof loadStartupAddon> | undefined;
 function setStoreStartupTask(wanted: boolean, log: (message: string) => void): void {
