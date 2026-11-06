@@ -40,6 +40,7 @@ import {
   bindBackupFolder,
   store as userDataStore,
 } from './store.js';
+import { snoozeUntil } from './store-notice.js';
 import { ElectronPlatformIO } from './platform-io.js';
 import {
   loadRunSession,
@@ -549,8 +550,11 @@ export function registerIpcHandlers(
     emitStoreChanged();
   });
 
-  ipcMain.handle('disableStoreNotice', () => {
-    userDataStore.set('app', { ...userDataStore.get('app'), storeNoticeDisabled: true });
+  ipcMain.handle('snoozeStoreNotice', () => {
+    userDataStore.set('app', {
+      ...userDataStore.get('app'),
+      storeNoticeSnoozedUntil: snoozeUntil(new Date()),
+    });
     emitStoreChanged();
   });
 

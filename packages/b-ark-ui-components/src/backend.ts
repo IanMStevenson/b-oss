@@ -88,8 +88,8 @@ export interface UserDataStore {
     autoUpdateEnabled: boolean;
     staleAlertEnabled?: boolean;
     staleAlertIntervals?: number;
-    /** 'Don't show again' on the move-to-the-Microsoft-Store notice. */
-    storeNoticeDisabled?: boolean;
+    /** 'Remind me later' on the Microsoft Store notice: hidden until this ISO time. */
+    storeNoticeSnoozedUntil?: string;
   };
   tokens: Record<string, string>;
   status: Record<string, AccountStatus>;
@@ -265,8 +265,8 @@ export interface BackendContext {
   disableStaleBackupAlert?(): Promise<void>;
   /** Hide the Microsoft Store notice for this session. Electron only. */
   dismissStoreNotice?(): Promise<void>;
-  /** Hide the Microsoft Store notice for good ('Don't show again'). Electron only. */
-  disableStoreNotice?(): Promise<void>;
+  /** Hide the Microsoft Store notice for 14 days ('Remind me later'). Electron only. */
+  snoozeStoreNotice?(): Promise<void>;
 
   openViewer(accountId: string): Promise<void>;
   getViewerUrl(accountId: string): Promise<string>;

@@ -54,8 +54,8 @@ export function ensureAppDefaults(): void {
     ...(current?.staleAlertIntervals !== undefined
       ? { staleAlertIntervals: current.staleAlertIntervals }
       : {}),
-    ...(current?.storeNoticeDisabled !== undefined
-      ? { storeNoticeDisabled: current.storeNoticeDisabled }
+    ...(current?.storeNoticeSnoozedUntil !== undefined
+      ? { storeNoticeSnoozedUntil: current.storeNoticeSnoozedUntil }
       : {}),
   };
   store.set('app', merged);
@@ -387,7 +387,8 @@ export function getAppStore(): AppStore {
     storeMigrationNotice: isStoreNoticeOffered({
       windowsStore: process.windowsStore === true,
       platform: process.platform,
-      disabled: store.get('app').storeNoticeDisabled === true,
+      snoozedUntil: store.get('app').storeNoticeSnoozedUntil,
+      now: new Date(),
       dismissed: storeNoticeDismissed,
     }),
   };

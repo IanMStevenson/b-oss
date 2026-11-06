@@ -31,7 +31,7 @@ declare global {
       dismissStaleBackupNotice(): Promise<void>;
       disableStaleBackupAlert(): Promise<void>;
       dismissStoreNotice(): Promise<void>;
-      disableStoreNotice(): Promise<void>;
+      snoozeStoreNotice(): Promise<void>;
       openViewer(id: string): Promise<void>;
       getViewerUrl(id: string): Promise<string>;
       pickFolder(): Promise<string | null>;
@@ -69,7 +69,7 @@ export class ElectronBackend implements BackendContext {
   dismissStaleBackupNotice = () => window.api.dismissStaleBackupNotice();
   disableStaleBackupAlert = () => window.api.disableStaleBackupAlert();
   dismissStoreNotice = () => window.api.dismissStoreNotice();
-  disableStoreNotice = () => window.api.disableStoreNotice();
+  snoozeStoreNotice = () => window.api.snoozeStoreNotice();
   openViewer = (id: string) => window.api.openViewer(id);
   getViewerUrl = (id: string) => window.api.getViewerUrl(id);
   pickFolder = () => window.api.pickFolder();

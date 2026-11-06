@@ -6,7 +6,7 @@ import { STORE_HOW_IT_WORKS_URL, STORE_NOTICE_TEXT, STORE_URL } from './storeNot
 
 interface Props {
   onDismiss: () => void;
-  onDisable: () => void;
+  onSnooze: () => void;
 }
 
 const secondary = {
@@ -29,9 +29,9 @@ const secondary = {
 /**
  * Launch notice for GitHub-installer users: b-ark is on the Microsoft Store. Links open through a
  * plain new-window request, which b-ark's window-open handler hands to the OS browser.
- * Tab order: Get from the Store, How it works, Dismiss, Don't show again.
+ * Tab order: Get from the Store, How it works, Dismiss (until next launch), Remind me later (14 days).
  */
-export function StoreNoticeBanner({ onDismiss, onDisable }: Props) {
+export function StoreNoticeBanner({ onDismiss, onSnooze }: Props) {
   function open(url: string): void {
     window.open(url, '_blank', 'noopener,noreferrer');
   }
@@ -81,8 +81,8 @@ export function StoreNoticeBanner({ onDismiss, onDisable }: Props) {
           <button type="button" onClick={onDismiss} style={secondary}>
             Dismiss
           </button>
-          <button type="button" onClick={onDisable} style={secondary}>
-            Don&apos;t show again
+          <button type="button" onClick={onSnooze} style={secondary}>
+            Remind me later
           </button>
         </div>
       </div>

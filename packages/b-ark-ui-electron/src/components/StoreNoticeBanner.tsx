@@ -15,7 +15,7 @@ export function StoreNoticeBanner() {
   return (
     <StoreNoticeBannerView
       onDismiss={() => void backend.dismissStoreNotice?.()}
-      onDisable={() => void backend.disableStoreNotice?.()}
+      onSnooze={() => void backend.snoozeStoreNotice?.()}
     />
   );
 }
