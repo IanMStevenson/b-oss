@@ -14,7 +14,7 @@ and say why in the PR. No page-local styling (`style="..."`) for anything that c
 `b-mobile` is the exemplar: build new product pages like it. Follow-ups, not current work:
 
 - **`b-ark`:** 4 ticks rather than 6; one `.shot` in an inline-styled wrapper rather than `PhoneShots`; a
-  comparison section in place of "Good to know"; inline-styled "Get it" row labels.
+  comparison section in place of "Good to know".
 - **`b-api`:** the same inline-styled `.shot` wrapper; no "Good to know"; its section says "Get b-api"
   rather than "Get it"; no privacy buttons, as it is a code library, not an app.
 
@@ -26,10 +26,10 @@ and say why in the PR. No page-local styling (`style="..."`) for anything that c
 3. **Screenshots** (`section.block`, eyebrow "Screenshots"): `PhoneShots`.
 4. **Good to know** (`section.block`, eyebrow "Good to know"): plain facts a reader should have before
    installing.
-5. **Get it** (`section.block#download`, eyebrow "Get it"): rows of **tri-link cards** (see below), one
-   row per product, each with a small eyebrow label ("b-ark · Windows desktop").
+5. **Get it** (`section.block#download`, eyebrow "Get it"): **tri-link cards**. On `b-ark`, one card per
+   product side by side: store badge, name, one line, and a "User guide" link inside the card.
 6. **CtaBand**: "Contact us with feedback, suggestions and bugs." Every product page has it.
-7. **Privacy buttons**: a `.btn-row` of plain buttons under the band, no heading, labels that say what
+7. **Privacy buttons**: a centred `.btn-row` of plain buttons under the band, no heading, labels that say what
    they are ("b-mobile privacy policy", "Delete your b-mobile data").
 
 The "Get it" cards are the page's calls to action and come last apart from the band and privacy buttons. Nothing about getting the
@@ -41,7 +41,8 @@ Product pages' "Get it" rows hold store cards and the user guide. The source-cod
 
 `b-ark` is the family page for b-ark and b-ark-chrome: it holds their comparison and a "Get it" row for
 each. b-ark-chrome has no page of its own, so its "Learn more" links go to `b-ark`. `b-ark-versions` is
-the detailed comparison, linked from `b-ark`.
+the detailed comparison, linked by a button from `b-ark`; its table ends in a row of store badges, with no
+app-cards.
 
 ### Homepage
 
@@ -85,13 +86,14 @@ Its own styling, every class prefixed `st-`; see [`status-page.md`](status-page.
 | Eyebrow | `.section-eyebrow` | Small uppercase label that opens a `section.block`. |
 | Prose | `.prose` | Running text; links underlined. |
 | Feature ticks | `.feature-list` + `FeatureItem` | 3 to 6 short points. |
+| Two columns | `.two-col` | Side-by-side text that stacks on narrow screens. |
 | Screenshot | `.shot` | One framed image, cropped to 16:10. |
 | Phone shots | `PhoneShots.astro` | Row of captioned phone screenshots (centred). |
-| Tri-link card | `.tri-links` > `.tri-link` | Icon (or store badge), `h3`, one-line `p`. Three per row, centred; a row with fewer cards centres. The whole card is the link. |
-| App card | `.app-card` | Product block on the homepage and `b-ark-versions`. |
+| Tri-link card | `.tri-links` > `.tri-link` | Icon (or store badge), `h3`, one-line `p`. Three per row, centred; a row with fewer cards centres. Either the whole card is the link (`a.tri-link`), or it is a `div.tri-link` with links inside. |
+| App card | `.app-card` | Product block on the homepage. |
 | Store badge | `StoreBadge.astro`, `src/stores.ts` | Official badge artwork, unmodified, linking to a live listing; a black, plain-text "coming soon" box when not live. Two forms: `bare` inside a tri-link card (the card is the link), or linked by itself in a `.store-badges` row inside an app-card. |
 | Tinted band | `.bands`, `.band-tint` | Homepage sections: full-width tint from design tokens, no markup outside the page column. A `CtaBand` directly inside drops its own box. |
-| Button | `.btn`, `.btn.primary` | One primary action per block. A store badge counts as the primary action, so "Learn more" beside one is a plain `.btn`, even while the badge says "coming soon". |
+| Button | `.btn`, `.btn.primary`, `.btn-row`, `.btn-row-center` | One primary action per block. A store badge counts as the primary action, so "Learn more" beside one is a plain `.btn`, even while the badge says "coming soon". |
 | Band | `CtaBand.astro` | One line and one button. With no props it is the contact band, the last thing before the footer. Slot text plus `href` and `label` point it elsewhere (b-status on the homepage). |
 | Header, footer | `Header.astro`, `Footer.astro` | Nav and footer links are defined once, there. Nav: Home, b-ark, b-mobile, b-api, Status, About, Contact. Footer: About, Status, Privacy, GitHub, Contact. |
 
@@ -119,3 +121,7 @@ Narrow screens: layouts collapse at 820px, 720px, 640px, 520px and 420px; check 
 
 Infrastructure that stays easy to reach: contact form, privacy policies, b-status, and the repo
 (for co-developers).
+
+## Open questions
+
+- `b-mobile` "Get it": keep the user guide as its own card, or move it out like `b-ark`.
