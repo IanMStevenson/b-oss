@@ -136,7 +136,7 @@ const KEYBOARD_KEYS: Array<[string, string]> = [
   ['Enter / Space', 'Open the highlighted item'],
   ['Up / Down, Page Up / Page Down', 'Scroll the page'],
   ['Home / End', 'Jump to the top / bottom of the page'],
-  ['Left / Right', 'Previous / next page of a photo grid'],
+  ['Left / Right', 'Previous / next: grid pages and journal entries'],
   ['Ctrl+Left / Ctrl+Right', 'On an entry opened from a list: next / previous in that list'],
   ['Backspace', 'Go back, when a back arrow is showing'],
 ];
