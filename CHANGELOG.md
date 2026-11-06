@@ -32,7 +32,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Changed
 
-- b-ark: updated to Electron 45.
+- internal: b-ark updated to Electron 45.
 - b-ark: **Scheduled backups** is now the one setting for background backups. Turning it on also makes b-ark start with Windows (the separate "Start with Windows" setting is gone; the tray item is now "Enable scheduled backups"). With it off, closing the window exits b-ark, asking first if a backup is running; with it on, the tray's Exit asks before disabling scheduled backups.
 
 ## [b-mobile 1.2.2] - 2026-11-03
@@ -93,7 +93,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 - b-mobile: the Map screen and location picker use a new raster base map.
 - b-mobile: "Select thumbnail" replaces the old crop wording.
-- b-mobile: refuses a non-`https://` push service URL (build-time check in the release workflow, and
+- internal: b-mobile refuses a non-`https://` push service URL (build-time check in the release workflow, and
   a clear error on the first request).
 - b-status and b-push Workers: plain `http://` requests are refused (GET/HEAD redirect to https, anything else gets 403) instead of being served.
 - b-mobile: the app asks for the new media-location permission, used only to read the location
@@ -126,19 +126,19 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   share one backup-to-viewer adapter.
 - b-visual: shared design tokens and visual style guide, used by b-view and b-mobile.
 - b-ark-chrome: back up Original and Extra images alongside the standard entry images,
-  with a lightbox viewer (b-view `Lightbox`/`EntryDetail`) for browsing them.
+  with a lightbox viewer for browsing them.
 - b-ark, b-ark-chrome: an amber notice banner explains why a journal is amber, with Sign in,
   Retry and Dismiss actions where they apply.
 
 ### Changed
 
-- b-ark: updates are read from a permanent `b-ark-latest` release, so another package's release can
+- internal: b-ark updates are read from a permanent `b-ark-latest` release, so another package's release can
   no longer hide an update; the download link on the website always points at the current installer.
 
 ### Fixed
 
 - backup-engine: improved missing-image detection and re-fetch logic.
-- b-ark-chrome: thumbnail display during an in-progress backup.
+- b-ark-chrome: fixed thumbnail display during a backup in progress.
 - backup-engine: entries that fail to download are retried, recorded in `journal.json` and fetched
   again on later runs, and a journal whose entry count exceeds what is archived is reconciled
   against its full listing, so entries skipped by an earlier backup are filled in without
@@ -190,15 +190,15 @@ Consulting Ltd. Free, no ads, open source.
 
 ### Changed
 
-- Faster backups on both platforms.
-- Backups now process newest posts first, running repair/redo passes last — so recent
+- b-ark, b-ark-chrome: faster backups.
+- b-ark, b-ark-chrome: backups now process newest posts first, running repair/redo passes last — so recent
   entries are available sooner during a backup.
 
 ### Fixed
 
-- File renames during atomic writes could fail on some systems; the rename
+- internal: file renames during atomic writes could fail on some systems; the rename
   step is now reliable.
-- b-ark: the "open in browser" web viewer no longer 404s on launch — its local
+- internal: b-ark's "open in browser" web viewer no longer 404s on launch — its local
   server now falls back to `index.html` for the root URL and other
   client-routed paths, instead of only serving exact file matches.
 
@@ -206,7 +206,7 @@ Consulting Ltd. Free, no ads, open source.
 
 ### Added
 
-- Authentication error banner — surfaces OAuth / token failures directly in the app
+- b-ark: authentication error banner — surfaces OAuth / token failures directly in the app
 
 ### Changed
 
@@ -216,8 +216,8 @@ Consulting Ltd. Free, no ads, open source.
 
 ### Fixed
 
-- Silent backup failures now surface an error instead of failing quietly
-- Windows failed-backup notifications fixed
+- b-ark: silent backup failures now surface an error instead of failing quietly
+- b-ark: Windows failed-backup notifications fixed
 
 ## [0.9.0] - 2026-05-29
 

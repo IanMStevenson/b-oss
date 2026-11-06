@@ -1,0 +1,483 @@
+---
+import Layout from '../layouts/Layout.astro';
+import Hero from '../components/Hero.astro';
+import CtaBand from '../components/CtaBand.astro';
+
+interface Row {
+  id: string;
+  label: string;
+  does: string;
+  def: string;
+  when?: string;
+}
+interface Area {
+  id: string;
+  title: string;
+  note?: string;
+  rows: Row[];
+}
+interface Product {
+  id: string;
+  name: string;
+  intro: string;
+  areas: Area[];
+}
+
+const BLIPFOTO_DEFAULT = 'Your Blipfoto setting';
+
+const products: Product[] = [
+  {
+    id: 'b-ark',
+    name: 'b-ark',
+    intro:
+      'Open Settings from the gear icon in the toolbar. Most settings are saved in your backup folder, so they follow it to another computer and apply to every journal.',
+    areas: [
+      {
+        id: 'b-ark-folder-schedule',
+        title: 'Folder and schedule',
+        rows: [
+          {
+            id: 'b-ark-folder',
+            label: 'Folder',
+            does: "Where your backups and settings are kept. There's one folder for all your accounts, with a subfolder for each. Move folder points b-ark at a new place, but your existing backup files don't move with it.",
+            def: 'Chosen when you first open b-ark',
+            when: 'Change it when your backups need to live on another drive, and move the files across yourself.',
+          },
+          {
+            id: 'b-ark-scheduled-backups',
+            label: 'Scheduled backups',
+            does: 'Backs up every journal in turn, from the date and time you set, then daily, weekly or monthly. While this is on, b-ark starts with Windows.',
+            def: 'On, daily at 02:00',
+            when: "Pick a time when your computer is usually on. Turn it off if you'd rather start every backup yourself.",
+          },
+          {
+            id: 'b-ark-warn-backups-stop',
+            label: 'Warn if scheduled backups stop',
+            does: "When b-ark opens, warns you if the last backup was a long time ago, counted in missed backups and never less than 3 days. It only works while Scheduled backups is on.",
+            def: 'On, after 3 missed days',
+            when: 'Raise the count, or turn it off, if your computer is often off for days at a time.',
+          },
+        ],
+      },
+      {
+        id: 'b-ark-fetches',
+        title: 'What each backup fetches',
+        rows: [
+          {
+            id: 'b-ark-delay',
+            label: 'Delay',
+            does: 'A pause between each request to Blipfoto during a backup, in milliseconds. A longer pause means a slower backup.',
+            def: '250 ms',
+            when: "Raise it if backups slow your internet connection while you're working.",
+          },
+          {
+            id: 'b-ark-gap-check',
+            label: 'Gap check',
+            does: "Each backup looks back this many days and fetches any entries it doesn't have yet.",
+            def: '31 days',
+            when: 'Raise it if you often add entries for dates further back than a month.',
+          },
+          {
+            id: 'b-ark-redo',
+            label: 'Redo',
+            does: 'Each backup downloads this many of your latest entries again, in case captions or comments have changed.',
+            def: '7 entries',
+            when: 'Raise it if your older entries often get new comments you want to keep.',
+          },
+          {
+            id: 'b-ark-full-resolution',
+            label: 'Full-resolution & extra images',
+            does: "Also fetches original-size and hi-res images, and an entry's extra images, from the Blipfoto website. Each journal needs its own website sign-in, stored encrypted on this computer. Nothing is uploaded. Original images need a Blipfoto subscription.",
+            def: 'Off',
+            when: 'Turn it on if you want your backup to hold these images as well as the standard ones.',
+          },
+          {
+            id: 'b-ark-always-hires',
+            label: 'Always download hires images too',
+            does: "Part of Full-resolution & extra images. Saves a hi-res copy even when the original is available. Without it, a hi-res image is still fetched whenever the original isn't, so this only makes a difference with a Blipfoto subscription.",
+            def: 'Off',
+            when: "Most people can leave it off, as it's a redundant extra copy.",
+          },
+        ],
+      },
+      {
+        id: 'b-ark-display-accounts',
+        title: 'Display, updates and accounts',
+        rows: [
+          {
+            id: 'b-ark-info-overlay',
+            label: 'Show journal info overlay',
+            does: 'Shows the date and title at the bottom of each thumbnail in the grid.',
+            def: 'On',
+            when: 'Turn it off if you only want to see the photos.',
+          },
+          {
+            id: 'b-ark-check-updates',
+            label: 'Check for updates automatically',
+            does: 'Only affects older copies downloaded from GitHub, which check for a new version at startup. Copies from the Microsoft Store are updated by the Store.',
+            def: 'On',
+            when: "On an older GitHub download, turn it off if you'd rather update by hand. The change applies next time b-ark opens.",
+          },
+          {
+            id: 'b-ark-accounts',
+            label: 'Accounts',
+            does: 'Add another account, sign one in again with Reauthorise (Force new sign-in starts from scratch), or Remove one along with its settings. Removing an account keeps its backup files.',
+            def: 'None until you add one',
+            when: 'Reauthorise when b-ark says an account needs signing in again.',
+          },
+        ],
+      },
+    ],
+  },
+  {
+    id: 'b-ark-chrome',
+    name: 'b-ark-chrome',
+    intro: 'Open Settings from the gear icon on the backup page.',
+    areas: [
+      {
+        id: 'b-ark-chrome-folder-chip',
+        title: 'Folder and chip',
+        rows: [
+          {
+            id: 'b-ark-chrome-folder',
+            label: 'Backup folder',
+            does: 'Where your backups are kept. Change picks another folder. If your browser needs permission again, it shows Access needed, and Grant restores it.',
+            def: 'Chosen when you set up b-ark-chrome',
+            when: 'Change it when your backups need to live somewhere else.',
+          },
+          {
+            id: 'b-ark-chrome-show-chip',
+            label: 'Show chip',
+            does: 'Shows the floating b-ark status indicator on Blipfoto pages. Backups still run with it hidden.',
+            def: 'On',
+            when: "Turn it off if it gets in the way while you're on Blipfoto.",
+          },
+          {
+            id: 'b-ark-chrome-avatar',
+            label: 'Show avatar on chip',
+            does: 'Replaces the b-ark logo on the chip with your Blipfoto profile photo.',
+            def: 'Off',
+            when: "Turn it on if you'd like to see your own photo there.",
+          },
+        ],
+      },
+      {
+        id: 'b-ark-chrome-when',
+        title: 'When backups start',
+        rows: [
+          {
+            id: 'b-ark-chrome-backup-on-visit',
+            label: 'Backup on visit',
+            does: 'Each time you open a Blipfoto page, checks whether a backup is due and, if so, starts one in the background.',
+            def: 'On, weekly',
+            when: 'Choose Daily if you post most days. Turn it off to start every backup yourself.',
+          },
+          {
+            id: 'b-ark-chrome-backup-on-publish',
+            label: 'Backup on publish',
+            does: 'Starts a backup as soon as you publish or save an entry on Blipfoto in this browser.',
+            def: 'Off',
+            when: 'Turn it on to back up each entry as soon as you post it from this computer.',
+          },
+        ],
+      },
+      {
+        id: 'b-ark-chrome-fetches',
+        title: 'What each backup fetches',
+        rows: [
+          {
+            id: 'b-ark-chrome-gap-check',
+            label: 'Gap check',
+            does: "Each backup looks back this many days and fetches any entries it doesn't have yet.",
+            def: '30 days',
+            when: 'Raise it if you often add entries for dates further back than a month.',
+          },
+          {
+            id: 'b-ark-chrome-redo',
+            label: 'Redo',
+            does: 'Each backup downloads this many of your latest entries again, in case captions or comments have changed.',
+            def: '7 entries',
+            when: 'Raise it if your older entries often get new comments you want to keep.',
+          },
+          {
+            id: 'b-ark-chrome-originals',
+            label: 'Fetch original uploaded image and extras if available',
+            does: 'During a backup, loads each entry page on Blipfoto to download the original image and any extra images. You need to be signed in to Blipfoto in this browser, and original images need a Blipfoto subscription. Turning it on asks whether to re-process existing entries: Yes, re-process now, or No, new entries only.',
+            def: 'Off',
+            when: 'Turn it on if you want your backup to hold these images as well as the standard ones.',
+          },
+          {
+            id: 'b-ark-chrome-always-hires',
+            label: 'Always download hires images too',
+            does: "Part of the setting above. Saves a hi-res copy even when the original is available. Without it, a hi-res image is still fetched whenever the original isn't, so this only makes a difference with a Blipfoto subscription.",
+            def: 'Off',
+            when: "Most people can leave it off, as it's a redundant extra copy.",
+          },
+        ],
+      },
+      {
+        id: 'b-ark-chrome-account',
+        title: 'Account',
+        rows: [
+          {
+            id: 'b-ark-chrome-account-row',
+            label: 'Account',
+            does: "Reauthorise signs your account in again, and Sign in fresh starts the sign-in from scratch. Sign out removes the account and b-ark-chrome's settings from this browser.",
+            def: 'Set when you sign in',
+            when: 'Reauthorise when b-ark-chrome says your account needs signing in again.',
+          },
+        ],
+      },
+    ],
+  },
+  {
+    id: 'b-mobile',
+    name: 'b-mobile, on Android and Windows',
+    intro:
+      'Open Settings from the menu. The Windows app has the same settings, and differences are noted where they matter.',
+    areas: [
+      {
+        id: 'b-mobile-appearance',
+        title: 'Appearance',
+        note: 'These apply straight away, on this device only.',
+        rows: [
+          {
+            id: 'b-mobile-theme',
+            label: 'Theme',
+            does: "System follows your device's dark theme setting, choosing Light or Dark. Mid is a softer dark grey.",
+            def: 'System',
+            when: "Choose another if you don't want b-mobile to follow your device.",
+          },
+          {
+            id: 'b-mobile-account-picture',
+            label: 'Account picture',
+            does: 'How each account is shown in the switcher and header. It appears once you have two or more accounts.',
+            def: 'Profile picture',
+            when: "Choose Icon if you'd rather see a plain icon.",
+          },
+          {
+            id: 'b-mobile-zoom-bar',
+            label: 'Show zoom/navigation bar',
+            does: 'The row above the thumbnails. Pinch and swipe still work without it.',
+            def: 'On',
+            when: 'Turn it off to leave more room for photos.',
+          },
+          {
+            id: 'b-mobile-pagination',
+            label: 'Show pagination',
+            does: 'Page numbers below the grid. Swiping still changes page without them.',
+            def: 'On',
+            when: 'Turn it off to leave more room for photos.',
+          },
+          {
+            id: 'b-mobile-grid-navigation',
+            label: 'Grid View Navigation Bar',
+            does: "When you open an entry from a grid, adds a second navigation bar for that grid. Tap its caption to hide it.",
+            def: 'Off',
+            when: 'Turn it on to step through search results or new entries from people you follow, without going back to the grid each time.',
+          },
+          {
+            id: 'b-mobile-margins',
+            label: 'Margins',
+            does: 'The space between thumbnails. Narrow tightens the gaps. None removes them, and zoom sets how many fit per row.',
+            def: 'None on Android, Normal on Windows',
+            when: 'Choose more space if the grid feels too tightly packed, or less to fit more in.',
+          },
+          {
+            id: 'b-mobile-photo-size',
+            label: 'Photo size',
+            does: "How an entry's photo fits the screen. Full width fills the column, so a tall photo scrolls. Fit to screen shows the whole photo at once.",
+            def: 'Full width on Android, Fit to screen on Windows',
+            when: "Choose Fit to screen if you'd rather not scroll past portrait photos.",
+          },
+          {
+            id: 'b-mobile-open-links',
+            label: 'Open blipfoto.com links in this app',
+            does: 'Android only. Blipfoto links you tap in other apps open in b-mobile instead of your browser.',
+            def: 'Off',
+            when: 'Turn it on if you mostly use b-mobile for Blipfoto.',
+          },
+        ],
+      },
+      {
+        id: 'b-mobile-reminders',
+        title: 'Reminders',
+        rows: [
+          {
+            id: 'b-mobile-daily-reminder',
+            label: 'Daily reminder',
+            does: "A notification each day at the time you choose, on the quarter hour, set separately for each read-write account. Publishing or editing an entry in this app skips that day. An entry posted on the website doesn't.",
+            def: 'Off. 20:00 when turned on',
+            when: "Turn it on if you'd like a nudge to post.",
+          },
+        ],
+      },
+      {
+        id: 'b-mobile-accounts-hidden',
+        title: 'Accounts and Hidden members',
+        rows: [
+          {
+            id: 'b-mobile-account-mode',
+            label: 'Switch to read-only, Switch to read-write',
+            does: "In each account's menu. Read-write can post, comment and react. Read-only can browse but not change anything. Switching to read-write needs one more sign-in.",
+            def: 'Read-write, chosen at sign-in',
+            when: 'Choose read-only if you only want to browse with this account.',
+          },
+          {
+            id: 'b-mobile-disconnect-delete',
+            label: 'Disconnect account, Delete account',
+            does: "In each account's menu. Disconnect signs the account out of b-mobile and stops its notifications and reminder. Delete explains what happens, then opens your settings on blipfoto.com.",
+            def: 'None',
+            when: 'Disconnect when you no longer want the account in b-mobile. Delete only if you want to close your Blipfoto account.',
+          },
+          {
+            id: 'b-mobile-confirm-account',
+            label: 'Confirm account before star, favourite or comment',
+            does: 'Asks which account to act as before each of these, instead of using whichever is active. It appears once you have two or more accounts.',
+            def: 'On',
+            when: "Turn it off if you're happy to act as the active account every time.",
+          },
+          {
+            id: 'b-mobile-hidden-members',
+            label: 'Hidden members',
+            does: "The people you've hidden, across all your accounts. The list stays on this device and is never sent anywhere.",
+            def: 'Empty',
+            when: 'Use Unhide to see someone again.',
+          },
+        ],
+      },
+      {
+        id: 'b-mobile-notifications',
+        title: 'Notification settings',
+        note: "Set for each account. On Android, turning the first one on for a read-write account needs one more sign-in. On Windows, while either is on, b-mobile starts when you sign in to the computer and stays in the system tray, checking every 5 minutes. Use Exit in the tray icon's menu to stop it. Windows also has Check now and Send a test notification.",
+        rows: [
+          {
+            id: 'b-mobile-new-comments',
+            label: 'New comments',
+            does: "A notification when this account has a new comment.",
+            def: 'Off, unless you chose notifications when signing in',
+            when: 'Turn it on to hear about comments without opening the app.',
+          },
+          {
+            id: 'b-mobile-new-notifications',
+            label: 'New notifications',
+            does: 'A notification when this account has other new activity. Only the types turned on under Blipfoto notification settings can appear.',
+            def: 'Off, unless you chose notifications when signing in',
+            when: 'Turn it on to hear about stars, favourites and the like without opening the app.',
+          },
+        ],
+      },
+      {
+        id: 'b-mobile-blipfoto-account',
+        title: 'Blipfoto account settings',
+        note: 'These are saved to your Blipfoto account, so they also apply on the website, and each account has its own. A read-only account can see them but not change them.',
+        rows: [
+          { id: 'b-mobile-real-name', label: 'Real name', does: 'Your real name on Blipfoto.', def: BLIPFOTO_DEFAULT },
+          { id: 'b-mobile-country', label: 'Country', does: 'Your country on Blipfoto.', def: BLIPFOTO_DEFAULT },
+          { id: 'b-mobile-language', label: 'Language', does: 'Your language on Blipfoto.', def: BLIPFOTO_DEFAULT },
+          {
+            id: 'b-mobile-find-by-name',
+            label: 'Let people find me by my real name',
+            does: 'Whether people can find you by searching for your real name.',
+            def: BLIPFOTO_DEFAULT,
+          },
+          { id: 'b-mobile-journal-title', label: 'Journal title', does: 'The title of your journal.', def: BLIPFOTO_DEFAULT },
+          {
+            id: 'b-mobile-protected-journal',
+            label: 'Protected journal',
+            does: 'People must ask to follow you, and you can refuse or remove followers.',
+            def: BLIPFOTO_DEFAULT,
+          },
+          { id: 'b-mobile-allow-comments', label: 'Allow comments', does: 'Whether people can comment on your journal.', def: BLIPFOTO_DEFAULT },
+          {
+            id: 'b-mobile-refused-followers',
+            label: 'Refused followers',
+            does: "People who can't see your journal, with Allow to let them back in. It appears when your journal is protected.",
+            def: BLIPFOTO_DEFAULT,
+          },
+          {
+            id: 'b-mobile-profile-picture',
+            label: 'Profile picture',
+            does: 'Change or delete your picture. A new one needs an edge of at least 300 pixels.',
+            def: BLIPFOTO_DEFAULT,
+          },
+          { id: 'b-mobile-biography', label: 'Edit biography', does: 'The biography on your profile.', def: BLIPFOTO_DEFAULT },
+          { id: 'b-mobile-username', label: 'Username', does: 'Your Blipfoto username.', def: BLIPFOTO_DEFAULT },
+          {
+            id: 'b-mobile-feed-types',
+            label: 'Blipfoto notification settings',
+            does: 'Activity from people you follow, Favourites, Stars, Publishing milestones, Follower milestones and Awards. These apply to both the website and b-mobile, and only items turned on here can appear as app notifications.',
+            def: BLIPFOTO_DEFAULT,
+          },
+        ],
+      },
+    ],
+  },
+];
+---
+
+<Layout
+  title="Settings reference · b-oss"
+  description="What each setting in b-ark, b-ark-chrome and b-mobile does, its default, and when you'd change it."
+>
+  <Hero label="Hero" title="Settings reference">What each setting does, what it starts as, and when you'd change it.</Hero>
+
+  <section class="block" style="border-top: none; padding-top: 0" data-screen-label="Contents">
+    <nav class="toc" aria-label="Contents">
+      <p class="toc-title">Contents</p>
+      <ol>
+        {products.flatMap((product) =>
+          product.areas.map((area) => (
+            <li><a href={`#${area.id}`}>{product.id}: {area.title}</a></li>
+          )),
+        )}
+      </ol>
+    </nav>
+  </section>
+
+  <div class="bands">
+    {products.map((product, index) => (
+      <section
+        class:list={['block', { 'band-tint': index % 2 === 0 }]}
+        id={product.id}
+        data-screen-label={product.id}
+      >
+        <div class="prose">
+          <h2>{product.name}</h2>
+          <p>{product.intro}</p>
+          {product.areas.map((area) => {
+            const hasWhen = area.rows.some((row) => row.when);
+            return (
+              <>
+                <h3 id={area.id}>{area.title}</h3>
+                {area.note && <p>{area.note}</p>}
+                <table class="compare-table settings-table">
+                  <thead>
+                    <tr>
+                      <th>Setting</th>
+                      <th>What it does</th>
+                      <th>Default</th>
+                      {hasWhen && <th>When you'd change it</th>}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {area.rows.map((row) => (
+                      <tr id={row.id}>
+                        <td>{row.label}</td>
+                        <td>{row.does}</td>
+                        <td data-label="Default">{row.def}</td>
+                        {row.when && <td data-label="When you'd change it">{row.when}</td>}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </>
+            );
+          })}
+        </div>
+      </section>
+    ))}
+  </div>
+
+  <CtaBand />
+</Layout>

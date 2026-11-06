@@ -5,7 +5,7 @@ import Hero from '../components/Hero.astro';
 
 <Layout
   title="b-ark User Guide · b-oss"
-  description="Install, set up, and get the most out of b-ark — the b-oss backup app for blipfoto."
+  description="Install, set up, and get the most out of b-ark — the b-oss backup app for Blipfoto."
   nav="b-ark"
   narrow
   lightbox
@@ -22,10 +22,11 @@ import Hero from '../components/Hero.astro';
       <ol>
         <li><a href="#installation">Install from the Microsoft Store</a></li>
         <li><a href="#choose-folder">Choose a backup folder</a></li>
-        <li><a href="#add-account">Add your blipfoto account</a></li>
+        <li><a href="#add-account">Add your Blipfoto account</a></li>
         <li><a href="#first-backup">Run your first backup</a></li>
-        <li><a href="#settings">Settings reference</a></li>
+        <li><a href="#settings">Settings</a></li>
         <li><a href="#b-view">Browsing your journal with b-view</a></li>
+        <li><a href="#keyboard">Keyboard</a></li>
         <li><a href="#ai">Using your backup with AI</a></li>
       </ol>
     </nav>
@@ -62,7 +63,7 @@ import Hero from '../components/Hero.astro';
         setting up on a new machine), b-ark will load your previous settings automatically.
       </p>
 
-      <h2 id="add-account">3. Add your blipfoto account</h2>
+      <h2 id="add-account">3. Add your Blipfoto account</h2>
       <p>After choosing a folder, b-ark shows the welcome screen.</p>
       <figure>
         <img src="assets/guide/welcome.png" alt="Welcome screen" />
@@ -71,7 +72,7 @@ import Hero from '../components/Hero.astro';
       <ol>
         <li>Click <strong>"+ Add account"</strong>.</li>
         <li>
-          Your default browser opens to the blipfoto authorisation page. Log in and approve
+          Your default browser opens to the Blipfoto authorisation page. Log in and approve
           access.
         </li>
         <li>
@@ -86,15 +87,15 @@ import Hero from '../components/Hero.astro';
       </figure>
 
       <h3>Adding a second account</h3>
-      <p>If you manage more than one blipfoto journal, you can add multiple accounts:</p>
+      <p>If you manage more than one Blipfoto journal, you can add multiple accounts:</p>
       <ul>
         <li>
           Once you're in the main view, click <strong>"+ Add account…"</strong> at the bottom of
           the left-hand sidebar.
         </li>
         <li>
-          If you need to sign in to blipfoto with a <em>different</em> browser identity (for
-          example, you are already logged in to blipfoto in your browser as one user), click the
+          If you need to sign in to Blipfoto with a <em>different</em> browser identity (for
+          example, you are already logged in to Blipfoto in your browser as one user), click the
           small <strong>dropdown arrow</strong> next to the button and choose
           <strong>"Force new sign-in…"</strong>. This opens a fresh sign-in window inside b-ark
           so you don't have to log out of your browser first.
@@ -113,7 +114,7 @@ import Hero from '../components/Hero.astro';
       </p>
       <p>
         <strong>Your first backup may take hours</strong> if you have thousands of blips. The
-        blipfoto API which we use to access your blips has a rate limit which means we can only
+        Blipfoto API which we use to access your blips has a rate limit which means we can only
         retrieve about 450 images in a 15 minute period. When the rate limit is reached, b-ark
         pauses and counts down automatically before resuming. No action needed.
       </p>
@@ -152,78 +153,31 @@ import Hero from '../components/Hero.astro';
         </tbody>
       </table>
 
-      <p>
-        If blipfoto's rate limit is reached mid-backup, b-ark pauses and counts down
-        automatically before resuming. No action needed.
-      </p>
       <p>Your journal thumbnails appear in the main view.</p>
 
-      <h2 id="settings">5. Settings reference</h2>
+      <h3>If a backup stops</h3>
       <p>
-        Open the settings panel by clicking the <strong>gear icon</strong> in the toolbar, or by
-        clicking <strong>"Review settings"</strong> after connecting an account.
+        If a backup can't finish, a notice says why. It tells you whether you seem to be offline
+        or Blipfoto isn't answering. Click <strong>"Retry"</strong> to try again. For the
+        Blipfoto case there is also a link to the unofficial Blipfoto status page.
+      </p>
+      <p>
+        If you use scheduled backups and b-ark opens after a long gap since the last backup, a
+        notice tells you and starts a catch-up backup. A computer that was switched off is
+        normal. Click <strong>"Dismiss"</strong>, or <strong>"Don't show again"</strong> if you'd
+        rather not be told.
+      </p>
+
+      <h2 id="settings">5. Settings</h2>
+      <p>
+        Click the <strong>gear icon</strong> in the toolbar (or <strong>"Review settings"</strong>
+        after connecting an account). Settings control where your backup lives, when b-ark backs
+        up by itself, and how your journal looks. You can change them at any time.
       </p>
       <figure>
         <img src="assets/guide/settings-panel.png" alt="Settings panel" />
         <figcaption>Settings panel</figcaption>
       </figure>
-
-      <table>
-        <thead>
-          <tr>
-            <th style="width: 22%">Setting</th>
-            <th>What it does</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr>
-            <td>Folder</td>
-            <td>
-              Shows where your backups are stored (read-only). Click
-              <strong>"Move folder…"</strong> to point b-ark at a new location. Only the
-              settings file moves; existing backup files stay where they are.
-            </td>
-          </tr>
-          <tr>
-            <td>Scheduled backups</td>
-            <td>
-              Enable or disable automated backups, and set the start date, time of day, and
-              interval (Daily / Weekly / Monthly). This schedule is shared across all accounts.
-              Turning it on means b-ark starts with Windows, opening silently to the system
-              tray. With it off, closing the window exits b-ark.
-            </td>
-          </tr>
-          <tr>
-            <td>Delay</td>
-            <td>
-              A pause (in milliseconds) that b-ark inserts between each call to the blipfoto API
-              during a backup. Increasing this makes backups slower but gentler on your network
-              during working hours. Default: 0.
-            </td>
-          </tr>
-          <tr>
-            <td>Gap check</td>
-            <td>
-              How many days back b-ark looks on each run to catch entries it may have missed
-              previously. Useful after a period offline or an interrupted backup.
-            </td>
-          </tr>
-          <tr>
-            <td>Redo</td>
-            <td>
-              How many of your most-recent entries b-ark re-downloads on every run, to pick up
-              any edits to captions, titles, or comments since the last backup.
-            </td>
-          </tr>
-          <tr>
-            <td>Check for updates automatically</td>
-            <td>
-              For older copies of b-ark installed from this website: checks for a newer release each time it
-              starts. Copies from the Microsoft Store are updated by the Store.
-            </td>
-          </tr>
-        </tbody>
-      </table>
 
       <h2 id="b-view">6. Browsing your journal with b-view</h2>
       <p>
@@ -304,7 +258,48 @@ import Hero from '../components/Hero.astro';
         required.
       </p>
 
-      <h2 id="ai">7. Using your backup with AI</h2>
+      <h2 id="keyboard">7. Keyboard</h2>
+      <p>You can find your way round b-ark and your journal with a keyboard.</p>
+      <table>
+        <thead>
+          <tr>
+            <th style="width: 35%">Key</th>
+            <th>What it does</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Tab / Shift+Tab</td>
+            <td>Move between buttons and photos. The photo you are on is outlined.</td>
+          </tr>
+          <tr>
+            <td>Enter / Space</td>
+            <td>Open the photo or button you are on.</td>
+          </tr>
+          <tr>
+            <td>Left / Right</td>
+            <td>Previous or next page of photos, or previous or next entry.</td>
+          </tr>
+          <tr>
+            <td>Backspace</td>
+            <td>Go back to the photo grid from an entry, or close a full-screen photo.</td>
+          </tr>
+          <tr>
+            <td>Ctrl + / Ctrl −</td>
+            <td>Zoom the photo grid, or a full-screen photo, in or out.</td>
+          </tr>
+          <tr>
+            <td>Ctrl+0</td>
+            <td>Reset the zoom.</td>
+          </tr>
+          <tr>
+            <td>Esc</td>
+            <td>Close an open menu or date picker.</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <h2 id="ai">8. Using your backup with AI</h2>
       <p>
         Each account's backup folder contains a <code>README.md</code> file. It explains your
         journal's data format and gives guidance on using the backup with AI assistants: Claude,
