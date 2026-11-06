@@ -522,6 +522,11 @@ section.block:first-of-type {
   line-height: 1.65;
   color: var(--ink-2);
 }
+.prose-center {
+  max-width: 680px;
+  margin: 0 auto;
+  text-align: center;
+}
 .prose p {
   margin: 0 0 16px;
 }
