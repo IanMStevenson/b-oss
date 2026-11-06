@@ -24,7 +24,10 @@ export const STORES = {
     microsoft: { state: 'soon' },
   },
   'b-ark': {
-    microsoft: { state: 'soon' },
+    microsoft: {
+      state: 'live',
+      url: 'https://apps.microsoft.com/detail/9P736ZD76DC5',
+    },
   },
   'b-ark-chrome': {
     chrome: {

@@ -1,5 +1,6 @@
 ---
 import Layout from '../layouts/Layout.astro';
+import { STORES } from '../stores';
 import Hero from '../components/Hero.astro';
 ---
 
@@ -34,8 +35,8 @@ import Hero from '../components/Hero.astro';
     <div class="prose">
       <h2 id="installation">1. Install from the Microsoft Store</h2>
       <p>
-        b-ark is coming soon to the Microsoft Store. Install it like any other Store app, then open
-        it.
+        Open the <a href={STORES['b-ark'].microsoft.url}>b-ark listing on the Microsoft Store</a>, choose
+        <strong>Install</strong>, then open b-ark.
       </p>
 
       <h2 id="choose-folder">2. Choose a backup folder</h2>

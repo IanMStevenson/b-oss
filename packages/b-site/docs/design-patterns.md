@@ -105,7 +105,7 @@ Its own styling, every class prefixed `st-`; see [`status-page.md`](status-page.
 | Phone shots | `PhoneShots.astro` | Row of phone screenshots (centred). Captions are optional. |
 | Tri-link card | `.tri-links` > `.tri-link` | Icon (or store badge), `h3`, one-line `p`. Three per row, centred; a row with fewer cards centres. Either the whole card is the link (`a.tri-link`), or it is a `div.tri-link` with links inside. |
 | App card | `.app-card` | Product block on the homepage. |
-| Store badge | `StoreBadge.astro`, `src/stores.ts` | Official badge artwork, unmodified, linking to a live listing; a black, plain-text "coming soon" box when not live. Two forms: `bare` inside a tri-link card (the card is the link), or linked by itself in a `.store-badges` row inside an app-card. |
+| Store badge | `StoreBadge.astro`, `src/stores.ts` | The store's own badge, unmodified and resized only, linking to a live listing. Google's and Chrome's are in `public/assets/stores/`; Microsoft's is Microsoft's own image, loaded from `get.microsoft.com`. A store not yet live shows a black, plain-text "coming soon" box. Two forms: `bare` inside a tri-link card that is itself the link, or linked by itself in a `.store-badges` row. |
 | Settings table | `table.compare-table.settings-table` | One row per setting: setting, what it does, default, and "When you'd change it" (left out where a whole area doesn't need it). Stacks on narrow screens like the comparison table. |
 | Tinted band | `.bands`, `.band-tint` | Homepage and product-page sections: full-width tint from design tokens, no markup outside the page column. A `CtaBand` directly inside drops its own box. |
 | Button | `.btn`, `.btn.primary`, `.btn-row`, `.btn-row-center` | One primary action per block. A store badge counts as the primary action, so "Learn more" beside one is a plain `.btn`, even while the badge says "coming soon". |
@@ -130,7 +130,7 @@ Narrow screens: layouts collapse at 820px, 720px, 640px, 520px and 420px; check 
 | Product | What it is | Stores |
 |---|---|---|
 | b-mobile | The Blipfoto app for Android; b-mobile-pc is the same product for Windows, same features as far as the platform allows | Google Play; Microsoft Store (coming) |
-| b-ark | Backup and archive, Windows desktop app | Microsoft Store (coming), the only route. Legacy installers stay on GitHub, not linked from the site |
+| b-ark | Backup and archive, Windows desktop app | Microsoft Store, the only route. Legacy installers stay on GitHub, not linked from the site |
 | b-ark-chrome | Backup and archive as a Chrome extension. A different but related product to b-ark (different features), not a second form of the same one | Chrome Web Store |
 | b-status | The unofficial Blipfoto status page | none; lives on the site |
 | b-api | TypeScript client for the Blipfoto API, for developers | none; GitHub |
