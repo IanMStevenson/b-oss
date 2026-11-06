@@ -11,6 +11,11 @@ export interface NotificationText {
   body: string;
 }
 
+/** The daily reminder toast. Mobile's wording, so the two platforms read the same. */
+export function reminderText(accountId: string): NotificationText {
+  return { title: 'Post your daily blip', body: `${accountId} hasn't published an entry today.` };
+}
+
 export function notificationText(payload: NotifyPayload, count: number): NotificationText {
   if (payload.kind === 'reauth-required') {
     return {

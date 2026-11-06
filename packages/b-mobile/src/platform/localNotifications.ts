@@ -21,6 +21,10 @@
 // handles every subsequent day natively with no app involvement — satisfying FLW-18's "fires
 // reliably without requiring the app to have been opened that day" on its own.
 //
+// On the desktop shell the main process runs the clock instead (b-oss#894): the shell is sent the
+// stored reminders by flows/reminderSync.ts, and skip-today and tap go through its `reminders` bridge,
+// so flows/reminderFlow.ts is unchanged.
+//
 // Web has no real implementation of scheduled notifications (the plugin's web fallback exists
 // but can't survive a page reload, let alone actually fire while the tab is closed) — every
 // export here is a silent no-op off native, which is honest given reminders (no fire-time network
@@ -28,6 +32,7 @@
 
 import { LocalNotifications } from '@capacitor/local-notifications';
 import { isCapacitorNative } from './platformKind.js';
+import { desktopBridge } from './desktop.js';
 
 export interface ReminderTime {
   hour: number;
@@ -81,6 +86,14 @@ async function scheduleAt(
   time: ReminderTime,
   skipToday: boolean,
 ): Promise<boolean> {
+  // Desktop: the shell runs the clock and is sent the stored settings by flows/reminderSync.ts
+  // (b-oss#894), so there is nothing to schedule here and a toast needs no permission prompt. A shell
+  // too old to have reminders cannot remind: say so rather than store one that will never fire.
+  const desktop = desktopBridge();
+  if (desktop) {
+    if (!desktop.reminders) throw new Error('This b-mobile desktop shell cannot show reminders.');
+    return true;
+  }
   if (!isCapacitorNative()) return true;
   const granted = await ensureNotificationPermission();
   if (!granted) return false;
@@ -119,13 +132,19 @@ export async function rescheduleReminderSkippingToday(
   accountId: string,
   time: ReminderTime,
 ): Promise<void> {
+  const desktop = desktopBridge();
+  if (desktop) {
+    await desktop.reminders?.skipToday(accountId);
+    return;
+  }
   if (!isCapacitorNative()) return;
   await LocalNotifications.cancel({ notifications: [{ id: reminderIdFor(accountId) }] });
   await scheduleAt(accountId, time, true);
 }
 
 export async function cancelReminder(accountId: string): Promise<void> {
-  if (!isCapacitorNative()) return;
+  // Desktop: the stored setting is already off; flows/reminderSync.ts tells the shell.
+  if (desktopBridge() || !isCapacitorNative()) return;
   await LocalNotifications.cancel({ notifications: [{ id: reminderIdFor(accountId) }] });
 }
 
@@ -133,6 +152,8 @@ export async function cancelReminder(accountId: string): Promise<void> {
  * `scheduleAt` attaches above. Returns a no-op unsubscribe on web, same convention as
  * platform/browser.ts's onBrowserFinished / platform/deepLinks.ts's onAppUrlOpen. */
 export function onReminderTapped(handler: (accountId: string) => void): () => void {
+  const desktop = desktopBridge();
+  if (desktop) return desktop.reminders?.onTapped(handler) ?? (() => {});
   if (!isCapacitorNative()) return () => {};
   let handle: { remove: () => void } | undefined;
   void LocalNotifications.addListener('localNotificationActionPerformed', (action) => {

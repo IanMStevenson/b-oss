@@ -13,6 +13,7 @@ import {
   ipcMain,
   net,
   Notification,
+  powerMonitor,
   protocol,
   safeStorage,
   screen,
@@ -26,6 +27,7 @@ import { fetchUnreadTotals } from '@b-oss/b-notify-core';
 import { CHANNELS } from '../shared/bridge.js';
 import { resolveShellBuild } from '../shared/shell-build.js';
 import { appTokenKey, parseNotifySettings } from '../shared/notify.js';
+import { parseReminderAccountId, parseReminderConfigs } from '../shared/reminders.js';
 import { allowPermission } from './permissions.js';
 import {
   APP_ORIGIN,
@@ -58,6 +60,7 @@ import {
 } from './notify-shell.js';
 import { createQuitSequence } from './quit-sequence.js';
 import { NotifyPoller, POLL_INTERVAL_MS } from './notify-poller.js';
+import { ReminderScheduler } from './reminder-scheduler.js';
 import { RecordingPresenter, serveRecordingPresenter } from './notify-test-presenter.js';
 import { SecureStore, type SecretCrypto } from './secure-store.js';
 import { pickPhotoForAccount } from './photo-folder.js';
@@ -545,10 +548,12 @@ if (!app.requestSingleInstanceLock()) {
       serveRecordingPresenter(recording, testNotifyPort);
       presenter = recording;
     }
+    let reminders: ReminderScheduler | null = null;
     const shell = new NotifyShell(
       () => mainWindow,
       presenter,
-      () => notifyPoller?.watchedCount() ?? 0,
+      // Notifications by polling and the daily reminder both keep the app in the tray.
+      () => (notifyPoller?.watchedCount() ?? 0) + (reminders?.count() ?? 0),
       () => void openLogFolder(),
       notifyLog,
     );
@@ -575,18 +580,36 @@ if (!app.requestSingleInstanceLock()) {
       intervalMs: (testMode && Number(process.env.BMPC_TEST_POLL_INTERVAL_MS)) || POLL_INTERVAL_MS,
     });
     notifyPoller = poller;
+    // The daily reminder (b-oss#894): the clock runs here so it fires with the window hidden.
+    const reminderFile = atomicFile(join(app.getPath('userData'), 'reminder-state.json'));
+    const scheduler = new ReminderScheduler({
+      readFile: () => reminderFile.read(),
+      writeFile: (contents) => reminderFile.write(contents),
+      now: () => new Date(),
+      setTimer: (fn, ms) => setTimeout(fn, ms),
+      clearTimer: (handle) => clearTimeout(handle as NodeJS.Timeout),
+      show: shell.showReminder,
+      log: notifyLog,
+    });
+    reminders = scheduler;
+    // Timers do not tick while the machine sleeps, so work the next time out again on resume.
+    powerMonitor.on('resume', () => scheduler.resync());
     // Quit (b-oss#710): dispose what the app started, then force the process to end if Electron
     // has not within a grace period (on Windows the tray vanished but the process lingered).
     app.on(
       'before-quit',
       createQuitSequence({
-        disposers: [() => poller.stop(), () => shell.dispose()],
+        disposers: [() => poller.stop(), () => scheduler.stop(), () => shell.dispose()],
         forceExit: () => app.exit(0),
         log: notifyLog,
         setTimer: (fn, ms) => setTimeout(fn, ms),
       }),
     );
-    poller.onActiveChange((active) => shell.setActive(active));
+    // The tray and login item stay on while either feature needs them.
+    const refreshActive = (): void =>
+      shell.setActive(poller.hasAccounts() || scheduler.hasReminders());
+    poller.onActiveChange(refreshActive);
+    scheduler.onActiveChange(refreshActive);
     handle(CHANNELS.notifyConfigure, (settings) =>
       poller.configure(parseNotifySettings(settings).accounts),
     );
@@ -594,9 +617,19 @@ if (!app.requestSingleInstanceLock()) {
     handle(CHANNELS.notifyCheckNow, () => poller.checkNow());
     handle(CHANNELS.notifyTest, () => shell.showTest());
     handle(CHANNELS.notifyTappedReady, () => shell.tappedReady());
+    handle(CHANNELS.reminderConfigure, (reminders) =>
+      scheduler.configure(parseReminderConfigs(reminders)),
+    );
+    handle(CHANNELS.reminderSkipToday, (accountId) =>
+      scheduler.skipToday(parseReminderAccountId(accountId)),
+    );
+    handle(CHANNELS.reminderTappedReady, () => shell.reminderTappedReady());
     await poller.start();
+    await scheduler.start();
+    // A reminder alone (no polled account) also needs the tray and login item at launch.
+    if (!poller.hasAccounts() && scheduler.hasReminders()) refreshActive();
 
-    await createWindow(!(startedHidden() && poller.hasAccounts()));
+    await createWindow(!(startedHidden() && (poller.hasAccounts() || scheduler.hasReminders())));
   });
 
   app.on('window-all-closed', () => app.quit());

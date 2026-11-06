@@ -9,13 +9,13 @@ import type { NotifyPayload } from '../shared/notify.js';
 
 const MAX_PENDING = 8;
 
-export class TapQueue {
-  private pending: NotifyPayload[] = [];
+export class TapQueue<T = NotifyPayload> {
+  private pending: T[] = [];
 
   constructor(private listening = false) {}
 
   /** Sends now if a listener is attached, otherwise holds it (newest kept if it overflows). */
-  tap(payload: NotifyPayload, send: (payload: NotifyPayload) => void): void {
+  tap(payload: T, send: (payload: T) => void): void {
     if (this.listening) {
       send(payload);
       return;
@@ -25,7 +25,7 @@ export class TapQueue {
   }
 
   /** The web app has a listener now: deliver anything held, in order. */
-  ready(send: (payload: NotifyPayload) => void): void {
+  ready(send: (payload: T) => void): void {
     this.listening = true;
     for (const payload of this.pending.splice(0)) send(payload);
   }

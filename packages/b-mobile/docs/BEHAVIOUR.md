@@ -240,7 +240,10 @@ reminders,details,profile,notifications}`; the old `/settings/{general,journal,a
   composer open) and a menu with Delete (if allowed), Report, Hide this member.
 - Daily reminder: local notification per read-write account (on/off + time). A publish or edit
   through the app skips today. Cancelled on removal or switch to read-only. Tap switches to that
-  account if possible and opens `/compose`.
+  account if possible and opens `/compose`. On the desktop shell the shell's main process runs the
+  clock (`flows/reminderSync.ts` sends it the reminders that are on; b-oss#894): one toast at the chosen
+  local time while the app is running (window hidden in the tray is fine), none for a day already
+  published on, no catch-up for a time that passed while the app was not running.
 
 ## Errors and network (`data/errors.ts`, `data/client.ts`)
 
@@ -273,6 +276,7 @@ reminders,details,profile,notifications}`; the old `/settings/{general,journal,a
 ## Deliberate changes from the desktop work that reach Android
 
 Recorded so they are not mistaken for defects (b-oss#781, review b-oss#768).
+
 - **Keyboard scrolling** (`app/keyboardScroll.ts`): input-driven, not platform-gated, on purpose. A
   tablet with a hardware keyboard behaves like a PC with one: arrows, PageUp/PageDown, Home and End
   scroll the page. Controls that use those keys themselves (inputs, sliders, maps, Ionic overlays)

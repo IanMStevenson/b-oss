@@ -60,6 +60,7 @@ import {
   onDesktopNotificationTapped,
 } from '../platform/desktopNotify.js';
 import { startPollingSync, usesPolling } from '../flows/pollingNotifications.js';
+import { startReminderSync } from '../flows/reminderSync.js';
 import { applyFontScale } from '../platform/accessibility.js';
 import { onAppStateChange } from '../platform/appState.js';
 import { onAppUrlOpen, getLaunchUrl } from '../platform/deepLinks.js';
@@ -500,9 +501,12 @@ export function AppShell() {
     });
     // Desktop: keep the shell's poller watching exactly the accounts with notifications on.
     const offPollingSync = usesPolling() ? startPollingSync(accountsHydrated) : () => {};
+    // Desktop: the shell runs the daily reminder's clock, so it is told which reminders are on.
+    const offReminderSync = usesPolling() ? startReminderSync() : () => {};
     return () => {
       offAppState();
       offPollingSync();
+      offReminderSync();
     };
   }, []);
 

@@ -10,12 +10,12 @@ import {
 } from '../shared/bridge.js';
 import type { NotifyPayload, NotifyStatus, TestNotifyResult } from '../shared/notify.js';
 
-function subscribe(
+function subscribe<T = NotifyPayload>(
   channel: string,
-  handler: (payload: NotifyPayload) => void,
+  handler: (payload: T) => void,
   onFirst?: () => void,
 ): () => void {
-  const listener = (_event: IpcRendererEvent, payload: NotifyPayload): void => handler(payload);
+  const listener = (_event: IpcRendererEvent, payload: T): void => handler(payload);
   ipcRenderer.on(channel, listener);
   onFirst?.();
   return () => ipcRenderer.removeListener(channel, listener);
@@ -41,6 +41,16 @@ const bridge: DesktopBridge = {
     onTapped: (handler) =>
       subscribe(CHANNELS.notifyTapped, handler, () => {
         void ipcRenderer.invoke(CHANNELS.notifyTappedReady);
+      }),
+  },
+  reminders: {
+    configure: (reminders) =>
+      ipcRenderer.invoke(CHANNELS.reminderConfigure, reminders) as Promise<void>,
+    skipToday: (accountId) =>
+      ipcRenderer.invoke(CHANNELS.reminderSkipToday, accountId) as Promise<void>,
+    onTapped: (handler) =>
+      subscribe(CHANNELS.reminderTapped, handler, () => {
+        void ipcRenderer.invoke(CHANNELS.reminderTappedReady);
       }),
   },
   shell: {
