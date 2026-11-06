@@ -172,6 +172,34 @@ recreated by every build; that is fine here because the relay's root is the whol
 rooted at `win-unpacked/` itself would halt with "root deletion".) Start-with-login is **not** registered
 from a dev folder (see "Dev-loop hazards" below), so test notifications with the Setup-installed copy.
 
+## Microsoft Store (MSIX) (b-oss#612)
+
+The release route is the Microsoft Store only (decision on b-oss#612, 2026-11-05): the Store signs the
+package and delivers updates, so there is no code-signing certificate and no `electron-updater`. The
+NSIS installer and portable exe above stay as dev/test builds.
+
+- Config: `electron-builder.store.json` (extends `electron-builder.json`; target `appx`). The identity
+  values in it are placeholders, supplied at build time from Partner Center (Product identity):
+  Package/Identity/Name, Publisher, PublisherDisplayName. They must match exactly or the upload is rejected.
+- Build: run the **Build b-mobile-pc MSIX (Microsoft Store)** workflow (Actions, manual) and enter the three
+  values; download the `b-mobile-pc-msix` artifact and upload the `.appx` in a Partner Center submission.
+  Locally, on Windows only (AppX can't be built under Wine):
+  `npm run build -w @b-oss/b-mobile && npm run dist:store -w @b-oss/b-mobile-pc -- --config.appx.identityName=... --config.appx.publisher=... --config.appx.publisherDisplayName=...`
+- Logos: `build/appx/*.png`, regenerated from `build/icon.png` by `scripts/make-appx-assets.mjs`
+  (without them electron-builder ships its sample Electron images).
+- Store listing text: b-oss#880.
+- **Not yet verified on a real install:** the build has not been run (needs Windows). Things to check on the
+  first sideloaded/Store install: sign-in window, `safeStorage` (DPAPI) available with the plaintext
+  fallback refused, notifications.
+- **Start at sign-in** (b-oss#884): an MSIX app ignores the login-item registry key, so the Store build
+  declares a `windows.startupTask` (`TaskId` `BMobilePcStartup`, `msix/startup-task-extension.xml`) and
+  `src/main/store-startup.ts` enables it while notifications are on and disables it when they are off,
+  through b-ark's native add-on (`packages/b-ark/native/win-startup`, which the workflow builds and
+  `electron-builder.store.json` copies to `resources/native/`). The manifest starts the task disabled. A task
+  the user switched off in Windows Settings > Apps > Startup cannot be re-enabled by the app. Unlike the
+  NSIS build, the task passes no `--hidden`, so a Store login start shows the window (b-ark behaves the same).
+  Unverified until tested on a real install.
+
 ## Dev-loop hazards (b-oss#696)
 
 On 2026-10-31 a day of confusing results came from `resources\app.asar` staying at the previous day's

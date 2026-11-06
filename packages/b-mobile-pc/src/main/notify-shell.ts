@@ -7,6 +7,7 @@
 // unit tests. The tray is copied in small from b-ark's rather than shared: two consumers.
 
 import { existsSync } from 'node:fs';
+import { createRequire } from 'node:module';
 import { join } from 'node:path';
 import { app, dialog, Menu, nativeImage, Notification, Tray, type BrowserWindow } from 'electron';
 import { CHANNELS } from '../shared/bridge.js';
@@ -17,6 +18,7 @@ import { safeSend } from './safe-ipc.js';
 import { TapQueue } from './tap-queue.js';
 import { appIconPath, trayIconPath } from './tray-icon.js';
 import { decideLoginItem, isDevFolder } from './login-item-policy.js';
+import { applyStartupTask, loadStartupAddon } from './store-startup.js';
 import { loginItemWanted, requestExit, shouldHideOnClose } from './tray-policy.js';
 
 /** Argument added to the login item so a start at login goes straight to the tray. */
@@ -260,6 +262,12 @@ export class NotifyShell {
  * it would launch bare Electron, so it is left alone; so is a packaged exe in a dev folder
  * (login-item-policy.ts, b-oss#696). */
 function setLoginItem(wanted: boolean, log: (message: string) => void): void {
+  // A Store (MSIX) install ignores the login-item registry key; its startup task is the only route
+  // (b-oss#884).
+  if (process.windowsStore === true) {
+    setStoreStartupTask(wanted, log);
+    return;
+  }
   const decision = decideLoginItem({
     wanted,
     packaged: app.isPackaged,
@@ -279,4 +287,19 @@ function setLoginItem(wanted: boolean, log: (message: string) => void): void {
   } catch (err) {
     log(`login item: failed to set: ${err instanceof Error ? err.message : 'error'}`);
   }
+}
+
+/** The Store build's start at sign-in: the manifest startup task, through b-ark's native add-on that
+ * electron-builder.store.json copies to resources/native/. Loaded on first use. */
+let storeAddon: ReturnType<typeof loadStartupAddon> | undefined;
+function setStoreStartupTask(wanted: boolean, log: (message: string) => void): void {
+  const onError = (message: string, err: unknown): void =>
+    log(`${message}: ${err instanceof Error ? err.message : String(err)}`);
+  storeAddon ??= loadStartupAddon(
+    () => createRequire(__filename)(join(process.resourcesPath, 'native', 'win-startup.node')),
+    onError,
+  );
+  void applyStartupTask(storeAddon, wanted, onError).then((state) =>
+    log(`startup task: wanted=${wanted} state=${state}`),
+  );
 }

@@ -1,0 +1,3 @@
+<desktop:Extension Category="windows.startupTask" Executable="app\b-mobile.exe" EntryPoint="Windows.FullTrustApplication">
+  <desktop:StartupTask TaskId="BMobilePcStartup" Enabled="false" DisplayName="b-mobile" />
+</desktop:Extension>
