@@ -872,6 +872,7 @@ function BackupPageRoot() {
             selectedEntryId={selectedEntryId}
             onSelectEntry={(id) => dispatch({ type: 'entry:select', entryId: id })}
             sizePercent={thumbnailSizePercent}
+            keyboardWheelZoom
             onSizeChange={(pct) => {
               dispatch({ type: 'thumbnail:resize', percent: pct });
               void backend.updateSettings({ thumbnailSizePercent: pct });
@@ -900,6 +901,7 @@ function BackupPageRoot() {
             nextEntryId={nextEntryId}
             onNavigate={(id) => dispatch({ type: 'entry:select', entryId: id })}
             onClose={() => dispatch({ type: 'entry:select', entryId: null })}
+            keyboardZoom
             resolveAsset={resolveAsset}
             entries={entries}
           />

@@ -123,7 +123,8 @@ export const PROFILES: Record<ProfileKind, Profile> = {
     kind: 'handheld',
     prefs: HANDHELD_PREFS,
     grid: { baseTilePx: HANDHELD_BASE_TILE_PX, widthDerivedMinZoom: true },
-    keyboardWheelZoom: false,
+    // A phone or tablet can have a keyboard; with none, the keys and Ctrl+wheel never occur.
+    keyboardWheelZoom: true,
     locationControlLabel: 'My location',
     nav: { split: 'off' },
   },

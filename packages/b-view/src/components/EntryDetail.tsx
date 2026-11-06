@@ -54,7 +54,11 @@ interface EntryDetailProps {
   prevEntryId: string | null;
   nextEntryId: string | null;
   onNavigate: (entryId: string) => void;
+  /** Back to the grid. When given, a "Back to grid" button shows and Backspace does the same. A
+   * host with its own Back (b-mobile) leaves this out and handles Backspace itself. */
   onClose?: () => void;
+  /** Ctrl +/-/0 zoom the full-screen photo (off by default, so a browser keeps its page zoom). */
+  keyboardZoom?: boolean;
   baseUrl?: string;
   resolveAsset?: ResolveAsset;
   /** Drops the host's cached copy of an image the browser failed to draw, so the one automatic
@@ -264,6 +268,7 @@ export function EntryDetail({
   nextEntryId,
   onNavigate,
   onClose,
+  keyboardZoom = false,
   baseUrl,
   resolveAsset,
   invalidateAsset,
@@ -369,12 +374,24 @@ export function EntryDetail({
       // Only handle entry navigation keys when lightbox is closed
       if (lightboxIndex !== null) return;
       if (isEditableTarget(e.target)) return; // arrows move the caret while typing
+      if (
+        e.key === 'Backspace' &&
+        onClose &&
+        !e.defaultPrevented &&
+        !e.ctrlKey &&
+        !e.altKey &&
+        !e.metaKey
+      ) {
+        e.preventDefault();
+        onClose();
+        return;
+      }
       if (e.key === 'ArrowLeft' && prevEntryId) onNavigate(prevEntryId);
       if (e.key === 'ArrowRight' && nextEntryId) onNavigate(nextEntryId);
     };
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
-  }, [prevEntryId, nextEntryId, onNavigate, lightboxIndex]);
+  }, [prevEntryId, nextEntryId, onNavigate, onClose, lightboxIndex]);
 
   useEffect(() => {
     if (!resolveAsset || !imagePath) {
@@ -754,6 +771,7 @@ export function EntryDetail({
           index={lightboxIndex}
           onClose={() => setLightboxIndex(null)}
           onNavigate={setLightboxIndex}
+          keyboardZoom={keyboardZoom}
           title={entryState.data.title}
           journalTitle={entryState.data.journal_title}
           date={formatLongDate(entryState.data.date)}

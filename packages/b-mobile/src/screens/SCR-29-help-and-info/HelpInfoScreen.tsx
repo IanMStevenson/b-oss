@@ -140,6 +140,8 @@ const KEYBOARD_KEYS: Array<[string, string]> = [
   ['Left / Right', 'Previous / next: grid pages and journal entries'],
   ['Ctrl+Left / Ctrl+Right', 'On an entry opened from a list: next / previous in that list'],
   ['Backspace', 'Go back, when a back arrow is showing'],
+  ['Ctrl + / Ctrl −', 'Zoom the photo grid or a full-screen photo in / out'],
+  ['Ctrl+0', 'Reset the zoom'],
 ];
 
 const EDITOR_KEYS: Array<[string, string]> = [

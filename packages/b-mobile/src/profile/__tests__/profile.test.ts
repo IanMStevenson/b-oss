@@ -42,11 +42,11 @@ describe('profile', () => {
     expect(PROFILES.handheld.grid).toEqual({ baseTilePx: 86, widthDerivedMinZoom: true });
   });
 
-  it('handheld grid has no keyboard/wheel zoom (touch pinch is the zoom)', () => {
-    expect(PROFILES.handheld.keyboardWheelZoom).toBe(false);
+  it('handheld grid has keyboard/wheel zoom too (a tablet or phone can have a keyboard)', () => {
+    expect(PROFILES.handheld.keyboardWheelZoom).toBe(true);
   });
 
-  it('desktop differs from handheld only in the browse defaults, the PC tile and keyboard zoom (b-oss#635)', () => {
+  it('desktop differs from handheld only in the browse defaults, and the PC tile (b-oss#635)', () => {
     expect(PROFILES.desktop.prefs).toEqual({
       ...PROFILES.handheld.prefs,
       thumbnailMargins: 'normal',
