@@ -56,8 +56,10 @@ export interface ComposeDraft {
   title: string;
   tags: string;
   description: string;
-  /** 'YYYY-MM-DD'. SCR-13 never changes this (no date field on that screen). */
+  /** 'YYYY-MM-DD'. */
   date: string;
+  /** SCR-13 only: the entry's date as loaded; `date` is sent on save only when it differs. */
+  originalDate?: string;
   location: ComposeLocation | null;
   displayLocation: boolean;
   /** SCR-10 only, members-only — proportional square crop of the untouched photo. */

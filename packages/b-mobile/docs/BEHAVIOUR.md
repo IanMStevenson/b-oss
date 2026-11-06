@@ -76,7 +76,7 @@ Known Blipfoto API limits: [AppLimitations.md](AppLimitations.md). Paths are rel
   double-tap → `/photo`. Calendar and ±1-year history need a signed-in account.
 - **Photo**: b-view Lightbox, zoom/pan, retry on image error. **New entry**: Take / Choose photo, or a shared photo.
 - **Compose details**, **Location picker**: see Compose. **Edit entry**: title, description, tags,
-  location, replace photo, Delete entry; no date field; Save sends the change and waits
+  date (same picker as a new entry; taken days are greyed out; sent only if changed), location, replace photo, Delete entry; Save sends the change and waits
   ("Saving your changes… Please don't leave the app until the upload completes."), then returns to
   the entry. If it fails, the form stays with the edits intact, the error shown and the button
   reading Retry (b-oss#730).
