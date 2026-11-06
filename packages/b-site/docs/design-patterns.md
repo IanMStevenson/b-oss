@@ -38,7 +38,7 @@ The "Get it" cards are the page's calls to action and come last apart from the b
 product is above the fold except the page's own navigation. This is for product pages only; the
 homepage is the showcase and carries store badges in its app-cards.
 
-Product pages' "Get it" rows hold store cards and the user guide. The source-code card appears only on
+Product pages' "Get it" cards hold the store badge, then "User guide · What's new" on one line. The source-code card appears only on
 `b-api`; elsewhere open source is at most a mention.
 
 `b-ark` is the family page for b-ark and b-ark-chrome: it holds their comparison and a "Get it" row for
@@ -63,6 +63,13 @@ A showcase of what's here, in this order:
 
 Items 2 to 5 sit in a `.bands` wrapper: no divider lines, and strict alternation of `.band-tint` and white,
 starting tinted under the white hero. On the homepage contact is a band too; product pages keep the contact card.
+
+### What's new pages (`[product]-whats-new.astro`)
+
+One page per product from the root `CHANGELOG.md`, read at build time: Hero "What's new in <product>", then a
+band per release (no eyebrows), then the contact card. Only entries tagged for that product appear; `internal:`,
+other packages and untagged entries don't. A product with no tagged entries has no page or link, which is how
+b-mobile-pc waits for its first release. Not in the footer or top nav.
 
 ### Guide pages (b-ark-guide, b-ark-chrome-guide, b-mobile-guide)
 
