@@ -21,7 +21,7 @@ Product pages have **no eyebrow labels**. Sections sit in a `.bands` wrapper, al
 white, starting tinted under the white hero.
 
 1. **Hero** (`Hero.astro`): the b-oss icon on the left, `h1` as "name - what it is" ("b-ark - backup for
-   blipfoto"), and a one-line lead (on desktop) that says what the thing does for a non-technical reader,
+   Blipfoto"), and a one-line lead (on desktop) that says what the thing does for a non-technical reader,
    never what is on the page.
 2. **Introduction** (`section.block`): a short `prose` paragraph and a
    `feature-list` of ticks, each a bold lead word and one sentence (`FeatureItem`).
@@ -104,9 +104,10 @@ Narrow screens: layouts collapse at 820px, 720px, 640px, 520px and 420px; check 
 
 ## Content conventions
 
-- Aimed at non-technical readers who know blipfoto. Short sentences, no jargon, no history.
-- Names are lowercase and hyphenated: b-ark, b-mobile, b-oss. So is "blipfoto", always; avoid
-  starting a sentence with it. Older copy still says "Blipfoto" until a separate site-wide sweep.
+- Aimed at non-technical readers who know Blipfoto. Short sentences, no jargon, no history.
+- Product names are lowercase and hyphenated: b-ark, b-mobile, b-oss. "Blipfoto" is always
+  capitalised (the status page and guides are being brought in line separately). `scripts/check-case.mjs` fails
+  the build on lowercase "blipfoto" in a page's rendered text; URLs and code are ignored.
 - Don't promise what isn't live. A store that isn't live shows "coming soon"; flipping it live is a
   one-line change in `src/stores.ts`.
 - Existing URLs never change (they are linked from the stores and the apps). See the README.
@@ -115,11 +116,11 @@ Narrow screens: layouts collapse at 820px, 720px, 640px, 520px and 420px; check 
 
 | Product | What it is | Stores |
 |---|---|---|
-| b-mobile | The blipfoto app for Android; b-mobile-pc is the same product for Windows, same features as far as the platform allows | Google Play; Microsoft Store (coming) |
+| b-mobile | The Blipfoto app for Android; b-mobile-pc is the same product for Windows, same features as far as the platform allows | Google Play; Microsoft Store (coming) |
 | b-ark | Backup and archive, Windows desktop app | Microsoft Store (coming), the only route. Legacy installers stay on GitHub, not linked from the site |
 | b-ark-chrome | Backup and archive as a Chrome extension. A different but related product to b-ark (different features), not a second form of the same one | Chrome Web Store |
-| b-status | The unofficial blipfoto status page | none; lives on the site |
-| b-api | TypeScript client for the blipfoto API, for developers | none; GitHub |
+| b-status | The unofficial Blipfoto status page | none; lives on the site |
+| b-api | TypeScript client for the Blipfoto API, for developers | none; GitHub |
 
 Infrastructure that stays easy to reach: contact form, privacy policies, b-status, and the repo
 (for co-developers).
