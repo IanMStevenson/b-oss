@@ -87,10 +87,10 @@
 }
 
 /* Keyboard focus (Tab): a white band inside an accent band, drawn as an overlay above the photo so
-   it reads on light and dark images alike. */
+   it reads on light and dark images alike. Entirely inside the tile, so it is never clipped by the
+   grid's edge or hidden by a neighbour when the margins are off. */
 .thumb:focus-visible {
-  outline: 3px solid var(--accent);
-  outline-offset: 1px;
+  outline: none;
   z-index: 1;
 }
 
@@ -99,7 +99,7 @@
   position: absolute;
   inset: 0;
   border: 4px solid #fff;
-  box-shadow: inset 0 0 0 3px var(--accent);
+  box-shadow: inset 0 0 0 4px var(--accent);
   z-index: 2;
   pointer-events: none;
 }
