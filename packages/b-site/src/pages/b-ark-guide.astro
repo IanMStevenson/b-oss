@@ -152,11 +152,20 @@ import Hero from '../components/Hero.astro';
         </tbody>
       </table>
 
-      <p>
-        If blipfoto's rate limit is reached mid-backup, b-ark pauses and counts down
-        automatically before resuming. No action needed.
-      </p>
       <p>Your journal thumbnails appear in the main view.</p>
+
+      <h3>If a backup stops</h3>
+      <p>
+        If a backup can't finish, a notice says why. It tells you whether you seem to be offline
+        or blipfoto isn't answering. Click <strong>"Retry"</strong> to try again. For the
+        blipfoto case there is also a link to the unofficial blipfoto status page.
+      </p>
+      <p>
+        If you use scheduled backups and b-ark opens after a long gap since the last backup, a
+        notice tells you and starts a catch-up backup. A computer that was switched off is
+        normal. Click <strong>"Dismiss"</strong>, or <strong>"Don't show again"</strong> if you'd
+        rather not be told.
+      </p>
 
       <h2 id="settings">5. Settings reference</h2>
       <p>
@@ -187,10 +196,18 @@ import Hero from '../components/Hero.astro';
           <tr>
             <td>Scheduled backups</td>
             <td>
-              Enable or disable automated backups, and set the start date, time of day, and
-              interval (Daily / Weekly / Monthly). This schedule is shared across all accounts.
-              Turning it on means b-ark starts with Windows, opening silently to the system
-              tray. With it off, closing the window exits b-ark.
+              Turns automated backups on or off, and sets the start date, time of day, and
+              interval (Daily / Weekly / Monthly). The schedule is shared across all accounts.
+              Turning it on also makes b-ark start with Windows, quietly in the system tray (its
+              tray menu item is <strong>"Enable scheduled backups"</strong>). With it off,
+              closing the window exits b-ark.
+            </td>
+          </tr>
+          <tr>
+            <td>Warn if scheduled backups stop</td>
+            <td>
+              Shows the notice described above when b-ark opens after a long gap. Applies to this
+              computer only.
             </td>
           </tr>
           <tr>
@@ -216,10 +233,21 @@ import Hero from '../components/Hero.astro';
             </td>
           </tr>
           <tr>
+            <td>Full-resolution &amp; extra images</td>
+            <td>
+              Also saves original-size and extra images. Each journal needs its own sign-in to the
+              blipfoto website, which b-ark keeps on your computer only.
+            </td>
+          </tr>
+          <tr>
+            <td>Show journal info overlay</td>
+            <td>Shows or hides each thumbnail's date and title in the grid.</td>
+          </tr>
+          <tr>
             <td>Check for updates automatically</td>
             <td>
-              For older copies of b-ark installed from this website: checks for a newer release each time it
-              starts. Copies from the Microsoft Store are updated by the Store.
+              Only for older copies of b-ark that were not installed from the Microsoft Store.
+              Store copies are updated by the Store.
             </td>
           </tr>
         </tbody>
