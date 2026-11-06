@@ -5,8 +5,8 @@ import StatusDisclaimer from '../components/StatusDisclaimer.astro';
 ---
 
 <Layout
-  title="Blipfoto status (unofficial) · b-oss"
-  description="An independent, unofficial check of whether the Blipfoto website and API are working, with history. Not run by Blipfoto."
+  title="Unofficial blipfoto status · b-oss"
+  description="An independent, unofficial check of whether the blipfoto website and API are working, with history. Not run by blipfoto."
   nav="status"
 >
   <a slot="top" class="skip-link" href="#uptime">Skip the charts and go to the uptime table and incident list</a>
@@ -16,14 +16,14 @@ import StatusDisclaimer from '../components/StatusDisclaimer.astro';
   <div class="status-page">
     <section class="st-banner st-banner-loading" aria-labelledby="st-now-title" data-now>
       <noscript>
-        <h1 id="st-now-title">Blipfoto status</h1>
+        <h1 id="st-now-title">The status of blipfoto</h1>
         <p class="st-loading">This page needs JavaScript to show live status.</p>
       </noscript>
     </section>
 
     <p class="st-elsewhere">
-      For more information see the official <a href={BLIPFOTO_FACEBOOK_PAGE} target="_blank" rel="noopener">Blipfoto Facebook page</a>,
-      or <a href={BLIPFOTO_FRIENDS_GROUP} target="_blank" rel="noopener">Blipfoto Friends</a>.
+      For more information see the official <a href={BLIPFOTO_FACEBOOK_PAGE} target="_blank" rel="noopener">blipfoto Facebook page</a>,
+      or <a href={BLIPFOTO_FRIENDS_GROUP} target="_blank" rel="noopener">blipfoto Friends</a>.
     </p>
 
     <section class="st-section" aria-labelledby="st-48-title">
@@ -100,8 +100,8 @@ import StatusDisclaimer from '../components/StatusDisclaimer.astro';
           <button type="submit" class="st-btn st-btn-primary st-btn-wide" data-submit aria-describedby="st-share-why" disabled>Share</button>
           <span id="st-share-why" class="st-sr">Share is available once you have answered both questions above.</span>
           <p class="st-share-note">
-            Reports stay on this page and are not sent to Blipfoto.
-            <a href={BLIPFOTO_SUPPORT_REQUEST} target="_blank" rel="noopener">Contact Blipfoto Support</a>
+            Reports stay on this page and are not sent to blipfoto.
+            <a href={BLIPFOTO_SUPPORT_REQUEST} target="_blank" rel="noopener">Contact blipfoto Support</a>
           </p>
           <div class="st-turnstile" data-turnstile>Anti-bot check (Cloudflare Turnstile)</div>
           <p class="st-privacy"><a href="privacy">Privacy</a></p>
@@ -113,9 +113,9 @@ import StatusDisclaimer from '../components/StatusDisclaimer.astro';
         <div class="st-thanks" data-thanks role="dialog" aria-modal="true" aria-labelledby="st-thanks-title" hidden>
           <div class="st-thanks-card">
             <h3 id="st-thanks-title" tabindex="-1">Thanks, your report is in</h3>
-            <p>It can take a minute or two to appear on this page. To get it fixed, tell Blipfoto Support.</p>
+            <p>It can take a minute or two to appear on this page. To get it fixed, tell blipfoto Support.</p>
             <div class="st-thanks-actions">
-              <a class="st-btn st-btn-primary" href={BLIPFOTO_SUPPORT_REQUEST} target="_blank" rel="noopener">Contact Blipfoto Support ↗</a>
+              <a class="st-btn st-btn-primary" href={BLIPFOTO_SUPPORT_REQUEST} target="_blank" rel="noopener">Contact blipfoto Support ↗</a>
               <button type="button" class="st-btn" data-done>Done</button>
             </div>
           </div>

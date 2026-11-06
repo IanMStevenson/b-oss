@@ -18,8 +18,8 @@ const sections = [
 ---
 
 <Layout
-  title="How the Blipfoto status page works (unofficial) · b-oss"
-  description="What the unofficial Blipfoto status page checks, how often, and how to read it."
+  title="How the blipfoto status page works (unofficial) · b-oss"
+  description="What the unofficial blipfoto status page checks, how often, and how to read it."
   nav="status"
 >
   <StatusDisclaimer slot="below-header" />
@@ -42,7 +42,7 @@ const sections = [
         <section id="what" aria-labelledby="hw-what">
           <h2 id="hw-what">What we check</h2>
           <p>
-            Two parts of Blipfoto, separately, because they can fail separately. Each check is a simple,
+            Two parts of blipfoto, separately, because they can fail separately. Each check is a simple,
             read-only request; we don’t log in.
           </p>
           <ul>
@@ -62,7 +62,7 @@ const sections = [
             retry a few seconds later, and only a second failure counts.
           </p>
           <p>
-            All checks run from one place, outside Blipfoto’s network. A fault that only affects some
+            All checks run from one place, outside blipfoto’s network. A fault that only affects some
             places, or only your own connection, may not show here.
           </p>
         </section>
@@ -87,7 +87,7 @@ const sections = [
             <dd>Our last check failed, and so did the retry. An <strong>incident</strong> is a period spent not working.</dd>
             <dt><span class="st-badge st-badge-unknown"><span aria-hidden="true">?</span> Unknown</span></dt>
             <dd>
-              We have no recent data. That’s on our side, not necessarily Blipfoto’s, and it counts as
+              We have no recent data. That’s on our side, not necessarily blipfoto’s, and it counts as
               neither working nor not working.
             </dd>
           </dl>
@@ -120,8 +120,8 @@ const sections = [
             checks don’t see, such as one feature failing or a fault that only affects some people.
           </p>
           <div class="hw-callout" role="note">
-            <strong>Reports stay on this page.</strong> They are not sent to Blipfoto and we can’t fix
-            Blipfoto. To get something fixed, <a href={BLIPFOTO_SUPPORT_REQUEST}>contact Blipfoto Support</a>.
+            <strong>Reports stay on this page.</strong> They are not sent to blipfoto and we can’t fix
+            blipfoto. To get something fixed, <a href={BLIPFOTO_SUPPORT_REQUEST}>contact blipfoto Support</a>.
           </div>
         </section>
 

@@ -132,7 +132,7 @@ export function renderLanes(
           : seg.failed?.includes('photo')
             ? 'Photos not loading affects both the website and the API.'
             : undefined
-        : 'A gap in our monitoring, not necessarily downtime at Blipfoto.';
+        : 'A gap in our monitoring, not necessarily downtime at blipfoto.';
       const rect = s('rect', {
         x: b.x,
         y: 4,

@@ -69,6 +69,8 @@ b-mobile builds link there, so that address stays up **permanently** as redirect
 - `stubs/redirects.mjs` lists the old pages (frozen: never add new pages) and where each goes on
   `https://b-oss.dev`. `astro.stubs.config.mjs` turns the list into tiny meta-refresh pages
   (`npm run build:stubs` -> `dist-stubs/`).
+- `scripts/check-case.mjs` runs first in `npm run build` and fails it if "Blipfoto" is capitalised anywhere in `src`
+  (the site always writes "blipfoto"; b-oss#861). Identifiers such as `BlipfotoError` are not matched.
 - `check-stubs` fails the build if a stub points at a page that no longer exists, so a page can't be
   renamed or removed without a decision about its old URL.
 - The `deploy-stubs` job publishes `dist-stubs/` to GitHub Pages. It needs repo variable

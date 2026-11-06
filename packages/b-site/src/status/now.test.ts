@@ -25,13 +25,13 @@ const rows = (n: Parameters<typeof makeFixture>[0], failed = false) =>
 
 describe('banner headline', () => {
   it('all working: just the headline, the rows say the rest', () => {
-    expect(text('all-good')).toEqual({ kind: 'up', title: 'Blipfoto is working', body: '' });
+    expect(text('all-good')).toEqual({ kind: 'up', title: 'Currently, blipfoto is working', body: '' });
   });
 
   it('API not working: the banner stays green (the website is fine) and the words say what to expect', () => {
     const api = text('api-down');
     expect(api.kind).toBe('up');
-    expect(api.title).toBe('Blipfoto is working, but apps may not connect');
+    expect(api.title).toBe('Currently, blipfoto is working, but apps may not connect');
     expect(api.body).toMatch(
       /^The website is fine\. The API that apps use isn’t responding\. Not working since about \d\d:\d\d\.$/,
     );
@@ -47,7 +47,7 @@ describe('banner headline', () => {
   it('both not working: red, one cause, photos', () => {
     const t = text('both-down');
     expect(t.kind).toBe('down');
-    expect(t.title).toBe('Blipfoto isn’t working');
+    expect(t.title).toBe('Currently, blipfoto isn’t working');
     expect(t.body).toMatch(/^Photos aren’t loading, which affects both the website and the API\./);
   });
 
@@ -55,14 +55,14 @@ describe('banner headline', () => {
     for (const n of ['unknown', 'stale'] as const) {
       expect(text(n)).toEqual({
         kind: 'unknown',
-        title: 'We can’t tell if Blipfoto is working',
+        title: 'We can’t tell if blipfoto is working',
         body: REASON_NO_REPORT,
       });
     }
     const failed = text('all-good', true);
     expect(failed).toEqual({
       kind: 'unknown',
-      title: 'We can’t tell if Blipfoto is working',
+      title: 'We can’t tell if blipfoto is working',
       body: REASON_NO_REACH,
     });
     expect(REASON_NO_REPORT).toBe('Our checks haven’t reported recently.');

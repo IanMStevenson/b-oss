@@ -6,7 +6,7 @@
   "description": "The b-oss project website (static Astro site) \u2014 see README.md.",
   "scripts": {
     "dev": "astro dev",
-    "build": "astro build",
+    "build": "node scripts/check-case.mjs && astro build",
     "preview": "astro preview",
     "typecheck": "astro check",
     "build:stubs": "astro build --config astro.stubs.config.mjs",

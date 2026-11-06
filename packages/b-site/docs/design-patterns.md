@@ -105,8 +105,9 @@ Narrow screens: layouts collapse at 820px, 720px, 640px, 520px and 420px; check 
 ## Content conventions
 
 - Aimed at non-technical readers who know blipfoto. Short sentences, no jargon, no history.
-- Names are lowercase and hyphenated: b-ark, b-mobile, b-oss. So is "blipfoto", always; avoid
-  starting a sentence with it. Older copy still says "Blipfoto" until a separate site-wide sweep.
+- Names are lowercase and hyphenated: b-ark, b-mobile, b-oss. So is "blipfoto", always, even
+  in "blipfoto Support"; never start a sentence or heading with it (reword). `scripts/check-case.mjs` fails the
+  build on a capitalised "Blipfoto" in `src`.
 - Don't promise what isn't live. A store that isn't live shows "coming soon"; flipping it live is a
   one-line change in `src/stores.ts`.
 - Existing URLs never change (they are linked from the stores and the apps). See the README.

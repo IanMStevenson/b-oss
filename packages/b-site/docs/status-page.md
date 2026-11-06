@@ -1,6 +1,6 @@
 # Status page: design record
 
-The unofficial Blipfoto status page (`status.html`) and its explanation page (`how-this-works.html`).
+The unofficial blipfoto status page (`status.html`) and its explanation page (`how-this-works.html`).
 Why it exists and how it is built: b-oss#476 and `packages/b-status/ARCHITECTURE.md` (the monitor),
 `packages/b-site/README.md` (the page's code). This file records the **design decisions** reached in
 review, so they survive after the mockups are gone. Where this file and the code disagree, fix one of
@@ -10,7 +10,7 @@ them.
 
 - Answer "is it just me?" in two seconds, plainly, with no jargon.
 - Say each thing once. One "Unofficial" notice at the top; one line at the report form saying reports
-  stay on this page (not sent to Blipfoto), with the support link; the fuller explanation lives on
+  stay on this page (not sent to blipfoto), with the support link; the fuller explanation lives on
   How this works and the privacy policy. No repeated disclaimers, no restating subtitles.
 - Honest about what we don't know. Unknown is never counted as working or not working. User reports
   are never presented as verified and never change uptime.
@@ -21,7 +21,7 @@ them.
 - **Website** and **API** are the two monitored parts. Banner rows read "Website" and "API / apps";
   everywhere else "Website" and "API".
 - **Working / Not working / Unknown** is a part's state now. Not "Up/Down" and not "available".
-  Unknown means no recent data (our monitor's problem, not necessarily Blipfoto's).
+  Unknown means no recent data (our monitor's problem, not necessarily blipfoto's).
 - **Downtime** is time spent not working; an **incident** is one recorded period of not working.
   "Problem" is used only in the invitation "Seeing a problem?". **No data** is a stretch we couldn't check.
 - **User report** is what a visitor submits (always "not verified"). **Share** is the action only.
@@ -32,11 +32,11 @@ them.
   service (Working green, Not working red, Unknown plain grey). The **outer banner takes the colour of
   the Website row**: the website affects everyone; the API affects far fewer people and the fallback is
   "use the website". So the API alone not working is a **green** banner with a red API row and the
-  headline "Blipfoto is working, but apps may not connect". No amber banner.
-- Headlines: "Blipfoto is working", "The website isn't working" ("Apps should still connect."),
-  "Blipfoto is working, but apps may not connect", "Blipfoto isn't working" (photos failing take both
+  headline "Currently, blipfoto is working, but apps may not connect". No amber banner.
+- Headlines: "Currently, blipfoto is working", "The website isn't working" ("Apps should still connect."),
+  "Currently, blipfoto is working, but apps may not connect", "Currently, blipfoto isn't working" (photos failing take both
   parts down, and the line says so).
-- **One can't-tell state** (plain grey, "We can't tell if Blipfoto is working", both rows Unknown)
+- **One can't-tell state** (plain grey, "We can't tell if blipfoto is working", both rows Unknown)
   covers "no recent data from the monitor / snapshot older than two intervals" and "couldn't reach the
   status service" (with the last data kept below, dated); the reason line differs by cause.
 - Footer line: "Last checked N minutes ago", a plain circular-arrow Refresh icon button (no circle, with a
@@ -75,7 +75,7 @@ them.
 - **Report form:** a single centred column. Required: what you're using (The website / An app) and
   what's happening (It's offline / It's not working right); optional chips (Login, Uploads, Slow,
   Unreliable); Share button, then the Turnstile box centred under it, then one "reports stay on this
-  page, not sent to Blipfoto" line with the support link and a small "Privacy" link to the site
+  page, not sent to blipfoto" line with the support link and a small "Privacy" link to the site
   policy. No free text, no personal details are asked for.
 - Support links are the two constants in `src/blipfoto-links.ts`.
 

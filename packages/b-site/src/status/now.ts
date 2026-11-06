@@ -45,7 +45,7 @@ export interface Text {
   kind: Kind;
 }
 
-const CANT_TELL = 'We can’t tell if Blipfoto is working';
+const CANT_TELL = 'We can’t tell if blipfoto is working';
 /** The one reason line per cause of "can't tell". */
 export const REASON_NO_REPORT = 'Our checks haven’t reported recently.';
 export const REASON_NO_REACH = 'We couldn’t reach the status service. Refresh to try again.';
@@ -65,11 +65,11 @@ export function headline(
   };
   switch (overall) {
     case 'working':
-      return { kind: 'up', title: 'Blipfoto is working', body: '' };
+      return { kind: 'up', title: 'Currently, blipfoto is working', body: '' };
     case 'api-down':
       return {
         kind: 'up',
-        title: 'Blipfoto is working, but apps may not connect',
+        title: 'Currently, blipfoto is working, but apps may not connect',
         body: `The website is fine. The API that apps use isn’t responding.${since('api')}`,
       };
     case 'api-unknown':
@@ -93,11 +93,11 @@ export function headline(
     case 'photos':
       return {
         kind: 'down',
-        title: 'Blipfoto isn’t working',
+        title: 'Currently, blipfoto isn’t working',
         body: `Photos aren’t loading, which affects both the website and the API.${since('site')}`,
       };
     case 'both-down':
-      return { kind: 'down', title: 'Blipfoto isn’t working', body: since('site').trim() };
+      return { kind: 'down', title: 'Currently, blipfoto isn’t working', body: since('site').trim() };
     case 'site-unknown':
       return { kind: 'unknown', title: 'We can’t tell if the website is working', body: '' };
     case 'cant-tell':
@@ -149,7 +149,7 @@ export function renderNow(
   const rows = rowStates(snap, now, failedToLoad);
   const t = headline(snap, now, overallOf(snap, now), failedToLoad);
   return [
-    // The headline IS the page's h1: the answer to "is Blipfoto working?".
+    // The headline IS the page's h1: the answer to "is blipfoto working?".
     h(
       'div',
       { class: `st-banner-main st-banner-main-${t.kind}` },

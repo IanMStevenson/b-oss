@@ -146,7 +146,7 @@ function renderAll(): void {
         h(
           'div',
           {},
-          h('h1', { id: 'st-now-title' }, 'Blipfoto status'),
+          h('h1', { id: 'st-now-title' }, 'The status of blipfoto'),
           h('p', { class: 'st-loading' }, 'Loading…'),
         ),
         footer(),
