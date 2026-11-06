@@ -38,7 +38,9 @@ for v in http_proxy https_proxy HTTP_PROXY HTTPS_PROXY no_proxy; do
   [ -n "${!v:-}" ] && proxy_args+=(-e "$v=${!v}")
 done
 
+# git isn't usable inside the container, so hand it the commit count for the version (b-oss#875).
 docker run --rm --network host "${proxy_args[@]}" \
+  -e "BOSS_COMMIT_COUNT=$(git rev-list --count HEAD)" \
   -v "$(pwd)":/project \
   -v "$HOME/.cache/electron":/root/.cache/electron \
   -v "$HOME/.cache/electron-builder":/root/.cache/electron-builder \

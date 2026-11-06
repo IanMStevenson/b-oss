@@ -45,7 +45,9 @@ if [[ ! -f .env.local ]]; then
   echo "unset, and the installer's OAuth sign-in will silently fail. See .env.example." >&2
 fi
 
+# git isn't usable inside the container, so hand it the commit count for the version (b-oss#875).
 docker run --rm \
+  -e "BOSS_COMMIT_COUNT=$(git rev-list --count HEAD)" \
   -v "$(pwd)":/project \
   -w /project \
   electronuserland/builder:wine \

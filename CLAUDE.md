@@ -128,8 +128,9 @@ and the repoint command for "make that worktree available via Mutagen."
   **When Ian asks for a b-mobile-pc build "on Mutagen", he means this unpacked folder**, not the
   `dist/` + `electron.cmd` loop: run `packages/b-mobile-pc/scripts/build-win-docker.sh` in the feeding
   worktree (it also makes the installers, which stay out of the relay), flush the relay, and give him the
-  version. Inside Docker git is unavailable, so the commit-count digit reads `0`
-  (e.g. `1.2.1.0.40`, not `1.2.1.600.40`); that is expected.
+  version. b-mobile shows its own package version (e.g. `1.3.0`) plus the suffix, not the root's.
+  Git is unavailable inside Docker, so the script passes the host's commit count in as
+  `BOSS_COMMIT_COUNT` (b-oss#875) and the digit matches a local build.
 
 ## b-mobile-pc dev loop (Windows): quit before a build lands
 
