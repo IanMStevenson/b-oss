@@ -1,21 +1,18 @@
 ---
-// One "What's new" page per product, from the root CHANGELOG.md (see src/changelog.ts). A product with no
-// tagged entries gets no page, so b-mobile-pc appears once CHANGELOG.md has a "b-mobile-pc:" entry.
-import changelog from '../../../../CHANGELOG.md?raw';
+// One "What's new" page per product, from release-notes/<product>.md (see src/release-notes.ts). A product
+// with no notes gets no page, so b-mobile-pc appears once its file has one.
 import Layout from '../layouts/Layout.astro';
 import Hero from '../components/Hero.astro';
 import CtaBand from '../components/CtaBand.astro';
 import type { NavKey } from '../components/Header.astro';
-import { PRODUCTS, entryHtml, longDate, releasesFor, type Product } from '../changelog';
+import { PRODUCTS, longDate, notesFor, type Product } from '../release-notes';
 
 export function getStaticPaths() {
-  return PRODUCTS.filter((product) => releasesFor(changelog, product).length > 0).map((product) => ({
-    params: { product },
-  }));
+  return PRODUCTS.filter((product) => notesFor(product).length > 0).map((product) => ({ params: { product } }));
 }
 
 const product = Astro.params.product as Product;
-const releases = releasesFor(changelog, product);
+const releases = notesFor(product);
 const nav: NavKey = product.startsWith('b-mobile') ? 'b-mobile' : 'b-ark';
 ---
 
@@ -32,11 +29,9 @@ const nav: NavKey = product.startsWith('b-mobile') ? 'b-mobile' : 'b-ark';
         <section class:list={['block', { 'band-tint': i % 2 === 0 }]} data-screen-label={r.version}>
           <div class="prose">
             <h2>{r.version} · {longDate(r.date)}</h2>
-            <ul>
-              {r.entries.map((e) => (
-                <li set:html={entryHtml(e)} />
-              ))}
-            </ul>
+            {r.paragraphs.map((p) => (
+              <p>{p}</p>
+            ))}
           </div>
         </section>
       ))

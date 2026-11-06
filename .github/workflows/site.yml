@@ -14,13 +14,11 @@ on:
     branches: [main]
     paths:
       - 'packages/b-site/**'
-      - 'CHANGELOG.md'
       - '.github/workflows/site.yml'
   pull_request:
     branches: [main, integration/b-site-relaunch]
     paths:
       - 'packages/b-site/**'
-      - 'CHANGELOG.md'
       - '.github/workflows/site.yml'
   workflow_dispatch:
 

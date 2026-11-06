@@ -55,8 +55,7 @@ the commit you intend to ship. Last run for real: 1.0.0 (2026-10-21).
 
 1. **Changelog.** Move the b-mobile (and b-push, if it changed) entries under `[Unreleased]` in the
    root `CHANGELOG.md` into a section headed `## [b-mobile <version>] - <date>` (user-facing only;
-   b-ark's sections are bare version numbers, so the prefix keeps them apart). Entries tagged `b-mobile:`
-   appear on the website's "What's new" page; tag anything too technical `internal:` to keep it off.
+   b-ark's sections are bare version numbers, so the prefix keeps them apart).
 2. **Version.** Set `version` in `packages/b-mobile/package.json` **and** the `packages/b-mobile`
    entry in `package-lock.json` (it becomes `versionName`; `versionCode` is automatic, see above).
    b-mobile versions independently of b-ark.

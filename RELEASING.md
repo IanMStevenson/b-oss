@@ -152,10 +152,6 @@ target version and today's date, e.g. `## [0.1.1] - 2026-06-15`.
 Leave a fresh empty `[Unreleased]` section above it for the next
 cycle. Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
-Entries also appear on the website's "What's new" pages, under the products they are tagged with
-(`b-ark:`, `b-ark-chrome:`, `b-ark, b-ark-chrome:`). Tag anything too technical for users `internal:`
-and it stays off the site.
-
 The CHANGELOG entry feeds into the release notes you'll paste into
 GitHub at step 6, so keep it user-facing — features, fixes, breaking
 changes — not internal refactors or test churn.

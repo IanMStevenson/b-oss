@@ -4,6 +4,7 @@ import Hero from '../components/Hero.astro';
 import CtaBand from '../components/CtaBand.astro';
 import FeatureItem from '../components/FeatureItem.astro';
 import StoreBadge from '../components/StoreBadge.astro';
+import { notesFor } from '../release-notes';
 ---
 
 <Layout
@@ -72,8 +73,8 @@ import StoreBadge from '../components/StoreBadge.astro';
         <h3>b-ark</h3>
         <p>Windows desktop app. Backs up on a timer, wherever you post from.</p>
         <div class="tri-link-more">
-          <a href="b-ark-guide" data-link="user-guide">User guide</a> ·
-          <a href="b-ark-whats-new" data-link="whats-new">What's new</a>
+          <a href="b-ark-guide" data-link="user-guide">User guide</a>
+          {notesFor('b-ark').length > 0 && <Fragment> · <a href="b-ark-whats-new" data-link="whats-new">What's new</a></Fragment>}
         </div>
       </div>
 
@@ -82,8 +83,8 @@ import StoreBadge from '../components/StoreBadge.astro';
         <h3>b-ark-chrome</h3>
         <p>Browser extension for Chrome or Edge, on Windows, Mac or Linux.</p>
         <div class="tri-link-more">
-          <a href="b-ark-chrome-guide" data-link="chrome-user-guide">User guide</a> ·
-          <a href="b-ark-chrome-whats-new" data-link="chrome-whats-new">What's new</a>
+          <a href="b-ark-chrome-guide" data-link="chrome-user-guide">User guide</a>
+          {notesFor('b-ark-chrome').length > 0 && <Fragment> · <a href="b-ark-chrome-whats-new" data-link="chrome-whats-new">What's new</a></Fragment>}
         </div>
       </div>
     </div>

@@ -19,6 +19,8 @@ src/layouts/Layout.astro   <head>, header, footer and <main> wrapper for every p
 src/components/            Header (nav), Footer, Hero, CtaBand, FeatureItem, PhoneShots
 src/pages/*.astro          one file per page; page body only, wrapped in <Layout>
 public/                    copied verbatim: site.css, site.js, assets/
+release-notes/<product>.md the "What's new" pages: "## <version> - <YYYY-MM-DD>", then a note of up to
+                           500 characters, newest first. A malformed file fails the build.
 ```
 
 - **Change the header, nav or footer once** in `Header.astro` / `Footer.astro`. A new page needs
@@ -52,8 +54,7 @@ the repo root:
 - Build command: `npm ci --ignore-scripts --workspace @b-oss/b-site && npm run build -w @b-oss/b-site`
 - Deploy command: `npx wrangler deploy --config packages/b-site/wrangler.jsonc`
 - Build variable: `NODE_VERSION=24` (Astro 7 needs Node >= 22.23.4)
-- Build watch paths (Settings -> Build): include `packages/b-site/*` and `CHANGELOG.md` (the "What's new"
-  pages are built from it), nothing else. This is a busy
+- Build watch paths (Settings -> Build): include `packages/b-site/*`, nothing else. This is a busy
   monorepo; without it every merge to `main` would build and version an unchanged site.
 - Do not make the Cloudflare build a required status check: PRs that skip it would never report one.
   `site.yml` and `ci` cover site changes.
