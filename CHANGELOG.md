@@ -7,6 +7,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- b-ark: GitHub-installer builds show a launch notice that b-ark is now on the Microsoft Store, with a button to get it, a "How it works" link, Dismiss and "Don't show again". The Store build never shows it.
 - b-ark: a new "Warn if scheduled backups stop" setting, part of Scheduled backups. If b-ark opens and the last backup was a long time ago (3 backup intervals by default, never under 3 days), a notice says so, with Dismiss and "Don't show again". A computer that was off is normal; the notice is only a prompt to check.
 
 ### Changed

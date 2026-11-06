@@ -35,6 +35,7 @@ import {
   getBackupFolder,
   getPortableSettings,
   setStaleBackupNotice,
+  dismissStoreNoticeForSession,
   savePortableSettings,
   bindBackupFolder,
   store as userDataStore,
@@ -540,6 +541,16 @@ export function registerIpcHandlers(
   ipcMain.handle('disableStaleBackupAlert', () => {
     userDataStore.set('app', { ...userDataStore.get('app'), staleAlertEnabled: false });
     setStaleBackupNotice(null);
+    emitStoreChanged();
+  });
+
+  ipcMain.handle('dismissStoreNotice', () => {
+    dismissStoreNoticeForSession();
+    emitStoreChanged();
+  });
+
+  ipcMain.handle('disableStoreNotice', () => {
+    userDataStore.set('app', { ...userDataStore.get('app'), storeNoticeDisabled: true });
     emitStoreChanged();
   });
 
