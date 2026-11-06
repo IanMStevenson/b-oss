@@ -13,20 +13,22 @@ and say why in the PR. No page-local styling (`style="..."`) for anything that c
 
 `b-mobile` is the exemplar: build new product pages like it. Follow-ups, not current work:
 
-- **`b-ark`:** 4 ticks rather than 6; one `.shot` in an inline-styled wrapper rather than `PhoneShots`; a
-  comparison section in place of "Good to know".
-- **`b-api`:** the same inline-styled `.shot` wrapper; no "Good to know"; its section says "Get b-api"
-  rather than "Get it"; no privacy buttons, as it is a code library, not an app.
+- **`b-ark`:** 4 ticks rather than 6; one `.shot` rather than `PhoneShots`; a comparison section in place of
+  the plain facts.
+- **`b-api`:** one `.shot`; no plain facts; no privacy buttons, as it is a code library, not an app.
+
+Product pages have **no eyebrow labels**. Sections sit in a `.bands` wrapper, alternating `.band-tint` and
+white, starting tinted under the white hero.
 
 1. **Hero** (`Hero.astro`): the b-oss icon on the left, `h1` as "name - what it is" ("b-ark - backup for
    blipfoto"), and a one-line lead (on desktop) that says what the thing does for a non-technical reader,
    never what is on the page.
-2. **Introduction** (`section.block`, eyebrow "Introduction"): a short `prose` paragraph and a
+2. **Introduction** (`section.block`): a short `prose` paragraph and a
    `feature-list` of ticks, each a bold lead word and one sentence (`FeatureItem`).
-3. **Screenshots** (`section.block`, eyebrow "Screenshots"): `PhoneShots`.
-4. **Good to know** (`section.block`, eyebrow "Good to know"): plain facts a reader should have before
+3. **Screenshots** (`section.block`): `PhoneShots`, without captions.
+4. **Good to know** (`section.block`): plain facts a reader should have before
    installing.
-5. **Get it** (`section.block#download`, eyebrow "Get it"): one `div.tri-link` card per store or product,
+5. **Get it** (`section.block#download`): one `div.tri-link` card per store or product,
    side by side: store badge, name, one line. Each product card carries its own "User guide" link.
 6. **CtaBand**: "Contact us with feedback, suggestions and bugs." Every product page has it.
 7. **Privacy buttons**: a centred `.btn-row` of plain buttons under the band, no heading, labels that say what
@@ -60,7 +62,7 @@ A showcase of what's here, in this order:
 5. **CtaBand** for contact, as its own white band. Privacy is reached from the footer.
 
 Items 2 to 5 sit in a `.bands` wrapper: no divider lines, and strict alternation of `.band-tint` and white,
-starting tinted under the white hero. This is the homepage only; other pages keep the thin dividers and the contact card.
+starting tinted under the white hero. On the homepage contact is a band too; product pages keep the contact card.
 
 ### Guide pages (b-ark-guide, b-ark-chrome-guide, b-mobile-guide)
 
@@ -69,7 +71,7 @@ Hero, a contents list (`.toc`), then numbered steps (`<ol>`) with lightbox scree
 
 ### Utility pages (about, contact, privacy, data deletion)
 
-Hero and one or two `prose` blocks. Contact has the form; the privacy pages are plain prose.
+Hero and one or two `prose` blocks. About keeps its eyebrow labels. Contact has the form; the privacy pages are plain prose.
 
 `how-this-works` belongs with the status page and uses its own `hw-` classes.
 
@@ -83,16 +85,16 @@ Its own styling, every class prefixed `st-`; see [`status-page.md`](status-page.
 | Piece | Where | Use |
 |---|---|---|
 | Hero | `components/Hero.astro` | Top of every page except Status and How this works. Text left-aligned. Icon optional, on the homepage, product pages, about and the compare page: the `icon` prop is its alt text, and the image is always the b-oss icon. It sits left of the text, and beside the heading only on narrow screens. |
-| Eyebrow | `.section-eyebrow` | Small uppercase label that opens a `section.block`. |
+| Eyebrow | `.section-eyebrow` | Small uppercase label that opens a `section.block`. Used on About and guides, not on product pages. |
 | Prose | `.prose` | Running text; links underlined. |
 | Feature ticks | `.feature-list` + `FeatureItem` | 3 to 6 short points. |
 | Two columns | `.two-col` | Side-by-side text that stacks on narrow screens. |
-| Screenshot | `.shot` | One framed image, cropped to 16:10. |
-| Phone shots | `PhoneShots.astro` | Row of captioned phone screenshots (centred). |
+| Screenshot | `.shot`, `.shot-center` | One framed image, cropped to 16:10; `.shot-center` centres it at up to 520px. |
+| Phone shots | `PhoneShots.astro` | Row of phone screenshots (centred). Captions are optional. |
 | Tri-link card | `.tri-links` > `.tri-link` | Icon (or store badge), `h3`, one-line `p`. Three per row, centred; a row with fewer cards centres. Either the whole card is the link (`a.tri-link`), or it is a `div.tri-link` with links inside. |
 | App card | `.app-card` | Product block on the homepage. |
 | Store badge | `StoreBadge.astro`, `src/stores.ts` | Official badge artwork, unmodified, linking to a live listing; a black, plain-text "coming soon" box when not live. Two forms: `bare` inside a tri-link card (the card is the link), or linked by itself in a `.store-badges` row inside an app-card. |
-| Tinted band | `.bands`, `.band-tint` | Homepage sections: full-width tint from design tokens, no markup outside the page column. A `CtaBand` directly inside drops its own box. |
+| Tinted band | `.bands`, `.band-tint` | Homepage and product-page sections: full-width tint from design tokens, no markup outside the page column. A `CtaBand` directly inside drops its own box. |
 | Button | `.btn`, `.btn.primary`, `.btn-row`, `.btn-row-center` | One primary action per block. A store badge counts as the primary action, so "Learn more" beside one is a plain `.btn`, even while the badge says "coming soon". |
 | Band | `CtaBand.astro` | One line and one button. With no props it is the contact band, the last thing before the footer. Slot text plus `href` and `label` point it elsewhere (b-status on the homepage). |
 | Header, footer | `Header.astro`, `Footer.astro` | Nav and footer links are defined once, there. Nav: Home, b-ark, b-mobile, b-api, Status, About, Contact. Footer: About, Status, Privacy, GitHub, Contact. |
