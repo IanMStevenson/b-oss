@@ -1,9 +1,9 @@
 # Code owners. The main-protection ruleset requires code-owner review, so a PR touching a path
-# below cannot merge without approval from that owner.
+# below cannot merge without approval from that owner. Any other file can be merged without it.
 #
-# CODEOWNERS and .github/ (workflows, actions) are listed so the protection itself, and anything
-# that runs with repo secrets or publishes, can't be changed without the owner. Repo-wide review
-# of what else belongs here is tracked in a separate issue.
+# What is listed: the protection itself, anything that runs with secrets or publishes, anything that
+# deploys from main (the Workers and the website), the supply chain, and the store-facing text.
+# Decided in b-oss#498.
 
 /.github/ @IanMStevenson
 
@@ -14,3 +14,28 @@
 # docs/ was the old GitHub Pages source (the site now lives in packages/b-site). Keep it owner-only
 # so nothing is quietly published from it or recreated by accident.
 /docs/ @IanMStevenson
+
+# Deployed services. b-push and b-status are Cloudflare Workers deployed by hand from main, with
+# secrets and D1 databases behind them; review of a change here is the gate.
+/packages/b-push/ @IanMStevenson
+/packages/b-status/ @IanMStevenson
+
+# Store listings, graphics and the data-safety answers: what each store shows users.
+/packages/*/store/ @IanMStevenson
+/packages/b-mobile/docs/play-data-safety.md @IanMStevenson
+
+# Supply chain: dependencies and what npm is allowed to fetch.
+/package.json @IanMStevenson
+/package-lock.json @IanMStevenson
+/.npmrc @IanMStevenson
+
+# Release process, release builds and the CI scoping that decides what gets checked.
+/scripts/ @IanMStevenson
+/RELEASING.md @IanMStevenson
+/packages/*/RELEASING.md @IanMStevenson
+/packages/b-mobile/docs/RELEASING-android.md @IanMStevenson
+
+# Licence, contributor terms and security policy.
+/LICENSE @IanMStevenson
+/CLA.md @IanMStevenson
+/SECURITY.md @IanMStevenson
