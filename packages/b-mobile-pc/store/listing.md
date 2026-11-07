@@ -12,7 +12,7 @@ Run `node scripts/check-store-listing.mjs packages/b-mobile-pc/store/listing.md`
 edit: it reads the fenced blocks under the headings below and fails if a limit is exceeded. Keep each
 field's text in the first fenced block under its heading.
 
-**DRAFT.** All content questions are answered; the screenshot and the MSIX build are outstanding. A marker `IAN TO CONFIRM` would flag any new question; the checker fails the final run
+**Submitted** (content entered and app uploaded in Partner Center; awaiting certification as of 2026-11-07). Text here is what was entered, with Ian's manual edits. A marker `IAN TO CONFIRM` would flag any new question; the checker fails the final run
 (`STORE_LISTING_FINAL=1`) while any marker remains in the description or certification notes.
 
 ---
@@ -40,7 +40,7 @@ Browse, post and get notified on your Blipfoto journal from your Windows PC, wit
 ### Description (plain text, up to 10,000 characters; no HTML, code or URLs)
 
 ```
-b-mobile is an app for Blipfoto, the photo journal where you post one picture a day. This is the Windows version of the b-mobile Android app: the same screens and the same way of working, in a window on your PC.
+b-mobile is an app for Blipfoto, the photo journal where you post one picture a day. This is the Windows version of the b-mobile app: the same screens and the same way of working as on a mobile device, in a window on your PC.
 
 b-mobile is completely free to use, with no ads and no in-app purchases. It works with your existing Blipfoto account, whatever kind it is; any paid Blipfoto features are between you and Blipfoto, and are separate from this app.
 
@@ -92,15 +92,12 @@ Claims checked against `packages/b-mobile/docs/BEHAVIOUR.md`, `PLATFORM-MATRIX.m
 ### Product features (up to 20, each up to 200 characters; one per line, no bullets: the Store adds them)
 
 ```
-The b-mobile Blipfoto app on your Windows PC: browse, search and explore entries on a map
+The b-mobile Blipfoto app on your Windows PC: browse, search and explore entries
 Post entries from a photo on your PC or your webcam, with title, description, tags and location
 Star, favourite, comment and reply, and follow other Blippers
 Sign in with several Blipfoto accounts and switch instantly
 Optional Windows notifications for new comments and activity, plus a daily reminder to post
-Starts with Windows when notifications are on; closing the window keeps it in the tray
-Read-only or read-write sign-in, your choice
 Hide members and report entries, comments and members
-Sign-in token protected with Windows secure storage; no ads, no analytics
 Free, open-source and independent of Blipfoto
 ```
 
@@ -139,7 +136,7 @@ The shared b-mobile policy now has a "b-mobile on Windows" section (token in Win
 
 Uploaded in Partner Center, from `screenshots/`: PNG, 1366x768 or larger (up to 3840x2160), up to 10 per listing, 4 recommended. These must be of the real app showing real photos and thumbnails.
 
-Ian will take the screenshot on Windows via Mutagen (2026-11-06); for this first submission one is enough:
+One screenshot for the first submission, taken by Ian on Windows (1409x878):
 
 | File           | Shows                                          |
 | -------------- | ---------------------------------------------- |
@@ -147,5 +144,5 @@ Ian will take the screenshot on Windows via Mutagen (2026-11-06); for this first
 
 ### Still needed
 
-- The MSIX target is being built in another session; the identity and the runFullTrust text above depend on it. The Store handles updates, so the in-app updater (b-oss#612) must be off in that build.
+- Done elsewhere: the MSIX build (another session). The Store handles updates, so the in-app updater (b-oss#612) must be off in the Store build.
 - Store logos (the Android 512 px icon is `packages/b-mobile/store/graphics/icon-512.png`); a trailer is optional.
