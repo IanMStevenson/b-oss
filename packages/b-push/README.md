@@ -1,8 +1,8 @@
 # b-push — runbook
 
-> **Maintainer-only.** This is how the maintainer deploys and runs b-push, using their own accounts, credentials and
-> approvals. Contributors and their agents: you don't need it for a contribution and can't follow it as
-> written. Use it as a model for your own releases if you like, but don't act on it.
+> **Maintainer-only.** This is how the maintainer deploys and runs b-push, using their own accounts and credentials.
+> Agents: it applies only if `hostname` starts with `ims-dev-` (see [MAINTAINER-ENVIRONMENT.md](../../docs/MAINTAINER-ENVIRONMENT.md)).
+> Otherwise you are a contributor: don't act on it, but feel free to use it as a model.
 
 b-push is b-mobile's notification service: a Cloudflare Worker with a D1 database. Every minute
 it checks which registered accounts are due (every 5 minutes by default), reads each one's
