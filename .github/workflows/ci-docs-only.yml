@@ -11,6 +11,9 @@ on:
     paths:
       - 'packages/b-site/**'
 
+permissions:
+  contents: read
+
 jobs:
   ci:
     runs-on: ubuntu-latest

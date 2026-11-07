@@ -7,12 +7,15 @@ name: Build MSIX sideload test (self-signed, NOT for the Store)
 on:
   workflow_dispatch:
 
+permissions:
+  contents: read
+
 jobs:
   build-msix-sideload:
     runs-on: windows-latest
     steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-node@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
         with:
           node-version: '22'
           cache: 'npm'
@@ -60,7 +63,7 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw 'signtool failed' }
           Copy-Item $appx.FullName sideload\b-ark-sideload-test.appx
           Remove-Item sideload\test.pfx
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: b-ark-msix-sideload-test
           path: |
