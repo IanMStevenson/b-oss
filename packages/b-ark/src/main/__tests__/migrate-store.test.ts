@@ -15,7 +15,6 @@ function makeAccount(over: Partial<LegacyV1Account> = {}): LegacyV1Account {
     schedule: { enabled: true, next_run: '2026-06-01T02:00:00.000Z', hour: 2, interval: 'daily' },
     gap_check_days: 31,
     redo_count: 7,
-    api_delay_ms: 0,
     last_backup_at: '2026-05-30T02:05:00.000Z',
     total_archived: 100,
     journal_entry_total: 100,
@@ -63,7 +62,6 @@ describe('migrateV1Shape (pure helper)', () => {
       },
     });
     // Shared knobs taken from this account
-    expect(result.portableSettings.api_delay_ms).toBe(0);
     expect(result.portableSettings.gap_check_days).toBe(31);
     expect(result.portableSettings.redo_count).toBe(7);
   });
@@ -119,7 +117,6 @@ describe('migrateV1Shape (pure helper)', () => {
         hour: 9,
         interval: 'weekly',
       },
-      api_delay_ms: 500,
       gap_check_days: 14,
       redo_count: 3,
     });
@@ -132,7 +129,6 @@ describe('migrateV1Shape (pure helper)', () => {
         hour: 3,
         interval: 'monthly',
       },
-      api_delay_ms: 0,
       gap_check_days: 90,
       redo_count: 20,
       backup_folder: 'C:/data',
@@ -140,7 +136,6 @@ describe('migrateV1Shape (pure helper)', () => {
     const result = migrateV1Shape({ accounts: [a, b] });
     expect(result.portableSettings.schedule.hour).toBe(9);
     expect(result.portableSettings.schedule.interval).toBe('weekly');
-    expect(result.portableSettings.api_delay_ms).toBe(500);
     expect(result.portableSettings.gap_check_days).toBe(14);
     expect(result.portableSettings.redo_count).toBe(3);
   });

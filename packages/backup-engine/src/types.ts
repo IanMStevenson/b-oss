@@ -176,7 +176,6 @@ export interface AccountBackupConfig {
   backup_folder: string;
   redo_count: number;
   gap_check_days: number;
-  api_delay_ms: number;
   metadata_write_interval: number;
   app_version: string;
   enable_web_scrape: boolean;

@@ -286,7 +286,6 @@ export function SettingsPanel() {
   const [nextRun, setNextRun] = useState(schedule.next_run.slice(0, 10));
   const [hour, setHour] = useState(schedule.hour);
   const [interval, setInterval] = useState(schedule.interval);
-  const [apiDelay, setApiDelay] = useState(firstAcct?.api_delay_ms ?? 250);
   const [gapCheck, setGapCheck] = useState(firstAcct?.gap_check_days ?? 30);
   const [redo, setRedo] = useState(firstAcct?.redo_count ?? 7);
   const [showInfoOverlay, setShowInfoOverlay] = useState(store?.ui.showInfoOverlay ?? true);
@@ -307,7 +306,6 @@ export function SettingsPanel() {
     setNextRun(a.schedule.next_run.slice(0, 10));
     setHour(a.schedule.hour);
     setInterval(a.schedule.interval);
-    setApiDelay(a.api_delay_ms);
     setGapCheck(a.gap_check_days);
     setRedo(a.redo_count);
     setShowInfoOverlay(store.ui.showInfoOverlay);
@@ -603,31 +601,6 @@ export function SettingsPanel() {
             </div>
           </SettingBlock>
 
-          <SettingBlock
-            label="Delay"
-            hint="Shared across all journals"
-            description="Pause between each entry fetch (useful to avoid bandwidth hogging during working hours). Default 0."
-          >
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <input
-                type="number"
-                value={apiDelay}
-                min={0}
-                onChange={(e) => setApiDelay(parseInt(e.target.value, 10) || 0)}
-                onFocus={() => setFocusedField('delay')}
-                onBlur={() => {
-                  setFocusedField(null);
-                  save({ api_delay_ms: apiDelay });
-                }}
-                style={{
-                  ...inputStyle,
-                  width: 80,
-                  ...(focusedField === 'delay' ? focusRingStyle(true) : {}),
-                }}
-              />
-              <span style={{ fontSize: 13, color: 'var(--muted)' }}>ms</span>
-            </div>
-          </SettingBlock>
 
           <SettingBlock
             label="Gap check"

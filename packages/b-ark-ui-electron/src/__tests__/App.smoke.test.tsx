@@ -30,7 +30,6 @@ function account(overrides: Partial<AccountConfig> = {}): AccountConfig {
     schedule: { enabled: false, next_run: '', hour: 3, interval: 'daily' },
     gap_check_days: 30,
     redo_count: 0,
-    api_delay_ms: 500,
     last_backup_at: null,
     total_archived: 0,
     journal_entry_total: 0,

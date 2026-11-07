@@ -20,7 +20,6 @@ export interface LegacyV1Account {
   schedule: PortableSchedule;
   gap_check_days: number;
   redo_count: number;
-  api_delay_ms: number;
   last_backup_at: string | null;
   total_archived: number;
   journal_entry_total: number;
@@ -58,7 +57,6 @@ export function migrateV1Shape(legacy: LegacyV1Shape): V1MigrationResult {
   const fallback = PortableSettingsManager.defaults();
   const first = legacyAccounts[0];
   const sharedSchedule: PortableSchedule = first?.schedule ?? fallback.schedule;
-  const apiDelay = first?.api_delay_ms ?? fallback.api_delay_ms;
   const gapCheck = first?.gap_check_days ?? fallback.gap_check_days;
   const redo = first?.redo_count ?? fallback.redo_count;
   const thumb = legacyUi.thumbnailSizePercent ?? fallback.ui.thumbnail_size_percent;
@@ -91,7 +89,6 @@ export function migrateV1Shape(legacy: LegacyV1Shape): V1MigrationResult {
     accounts: portableAccounts,
     account_order: accountOrder,
     schedule: sharedSchedule,
-    api_delay_ms: apiDelay,
     gap_check_days: gapCheck,
     redo_count: redo,
     enable_web_scrape: false,

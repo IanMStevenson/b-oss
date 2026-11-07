@@ -39,6 +39,12 @@ import type {
 const MAX_CONSECUTIVE_FAILURES = 3;
 const DEFAULT_LOG_TRIM_LINES = 5000;
 const FETCH_PAGE_SIZE = 100;
+/**
+ * Courtesy pause between network fetches, the same in every app (b-oss#920). Not a rate-limit
+ * guard: the API allows 450 requests per 15-minute window per token and the engine already waits
+ * out the window when it is hit (callWithRateLimitPause). This only avoids hammering the server.
+ */
+export const API_DELAY_MS = 100;
 // Pauses between in-run attempts at one entry that failed without a definite answer from the server.
 const DEFAULT_RETRY_BACKOFF_MS = [1000, 4000];
 
@@ -150,11 +156,14 @@ interface ArchiveView {
 export interface BackupEngineOptions {
   /** Pauses between in-run attempts at a failing entry; one retry per element. */
   retryBackoffMs?: number[];
+  /** Courtesy pause between fetches; defaults to API_DELAY_MS. Tests set it to 0. */
+  apiDelayMs?: number;
 }
 
 export class BackupEngine {
   private cancelled = false;
   private _sinceLastFlush = 0;
+  private readonly apiDelayMs: number;
 
   // Set for the duration of run(); used by appendLog and callWithRateLimitPause
   private runLogMgr: LogManager | null = null;
@@ -184,6 +193,7 @@ export class BackupEngine {
     options: BackupEngineOptions = {},
   ) {
     this.retryBackoffMs = options.retryBackoffMs ?? DEFAULT_RETRY_BACKOFF_MS;
+    this.apiDelayMs = options.apiDelayMs ?? API_DELAY_MS;
   }
 
   cancel(): void {
@@ -373,8 +383,8 @@ export class BackupEngine {
           total_archived: archived,
         });
 
-        if (this.config.api_delay_ms > 0) {
-          await sleep(this.config.api_delay_ms);
+        if (this.apiDelayMs > 0) {
+          await sleep(this.apiDelayMs);
         }
       }
 
@@ -559,8 +569,8 @@ export class BackupEngine {
           return;
         }
       }
-      if (this.config.api_delay_ms > 0) {
-        await sleep(this.config.api_delay_ms);
+      if (this.apiDelayMs > 0) {
+        await sleep(this.apiDelayMs);
       }
     }
   }
@@ -605,7 +615,7 @@ export class BackupEngine {
       }
       listed.push(...page.entries);
       if (page.page.more === 0) break;
-      if (this.config.api_delay_ms > 0) await sleep(this.config.api_delay_ms);
+      if (this.apiDelayMs > 0) await sleep(this.apiDelayMs);
     }
 
     const now = nowIso();
@@ -785,8 +795,8 @@ export class BackupEngine {
         total_archived: indexByDate.size,
         phase: 'new_posts',
       });
-      if (this.config.api_delay_ms > 0) {
-        await sleep(this.config.api_delay_ms);
+      if (this.apiDelayMs > 0) {
+        await sleep(this.apiDelayMs);
       }
     }
 
@@ -942,8 +952,8 @@ export class BackupEngine {
         total_archived: existing.entries.length,
         phase: 'redo',
       });
-      if (this.config.api_delay_ms > 0) {
-        await sleep(this.config.api_delay_ms);
+      if (this.apiDelayMs > 0) {
+        await sleep(this.apiDelayMs);
       }
     }
 
@@ -1101,8 +1111,8 @@ export class BackupEngine {
           total_archived: indexByDate.size,
           phase: 'image_repair',
         });
-        if (didNetworkWork && this.config.api_delay_ms > 0) {
-          await sleep(this.config.api_delay_ms);
+        if (didNetworkWork && this.apiDelayMs > 0) {
+          await sleep(this.apiDelayMs);
         }
       }
     }

@@ -35,7 +35,6 @@ describe('PortableSettingsManager', () => {
       ],
       account_order: ['a1', 'b2'],
       schedule: { enabled: true, next_run: '2026-06-01T02:00:00.000Z', hour: 2, interval: 'daily' },
-      api_delay_ms: 250,
       gap_check_days: 14,
       redo_count: 5,
       enable_web_scrape: true,
@@ -66,10 +65,9 @@ describe('PortableSettingsManager', () => {
     expect(d.schedule.interval).toBe('daily');
   });
 
-  it('defaults() uses a 30-day gap check and a 250 ms API delay (b-oss#886)', () => {
+  it('defaults() uses a 30-day gap check (b-oss#886)', () => {
     const d = PortableSettingsManager.defaults();
     expect(d.gap_check_days).toBe(30);
-    expect(d.api_delay_ms).toBe(250);
   });
 
   it('validate() keeps a stored gap_check_days of 31 (existing files are not rewritten)', () => {

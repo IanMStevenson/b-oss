@@ -98,7 +98,7 @@ describe('buildBackupConfig', () => {
   it('uses the live profile title/avatar and fixed metadata_write_interval', () => {
     const config = buildBackupConfig({
       token,
-      settings: { redo_count: 9, gap_check_days: 21, api_delay_ms: 250 },
+      settings: { redo_count: 9, gap_check_days: 21 },
       appVersion: '1.2.3',
       journalTitle: 'Fresh Title',
       avatarUrl: 'https://img/a.jpg',
@@ -107,7 +107,6 @@ describe('buildBackupConfig', () => {
     expect(config.avatar_url).toBe('https://img/a.jpg');
     expect(config.redo_count).toBe(9);
     expect(config.gap_check_days).toBe(21);
-    expect(config.api_delay_ms).toBe(250);
     expect(config.metadata_write_interval).toBe(5);
     expect(config.app_version).toBe('1.2.3');
   });
