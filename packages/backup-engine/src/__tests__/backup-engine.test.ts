@@ -10,7 +10,7 @@ import {
   type JournalEntriesResponse,
   type UserProfileResponse,
 } from '@b-oss/b-api';
-import { BackupEngine } from '../backup-engine.js';
+import { BackupEngine, type BackupEngineOptions } from '../backup-engine.js';
 import {
   countOutstanding,
   dismissUnfetchable,
@@ -104,7 +104,6 @@ function makeConfig(overrides: Partial<AccountBackupConfig> = {}): AccountBackup
     backup_folder: '/backups',
     redo_count: 7,
     gap_check_days: 31,
-    api_delay_ms: 0,
     metadata_write_interval: 1,
     app_version: '0.1.0',
     enable_web_scrape: false,
@@ -118,8 +117,12 @@ function makeEngine(
   io: MockPlatformIO,
   client: BlipfotoClient,
   onEvent: (event: BackupEvent) => void,
+  options: BackupEngineOptions = {},
 ): BackupEngine {
-  return new BackupEngine(config, io, client, onEvent, new LogManager(io, config.backup_folder));
+  return new BackupEngine(config, io, client, onEvent, new LogManager(io, config.backup_folder), {
+    apiDelayMs: 0,
+    ...options,
+  });
 }
 
 function makeEntryStub(idStr: string, date: string) {
@@ -1467,7 +1470,7 @@ describe('BackupEngine — image_repair_complete (b-oss#85)', () => {
     expect(bEntry.images.web_scraped).toBe(true);
   });
 
-  it('only applies api_delay_ms to entries the repair pass actually did network work for', async () => {
+  it('only applies the API delay to entries the repair pass actually did network work for', async () => {
     const io = new MockPlatformIO();
     const client = makeClient();
 
@@ -1540,10 +1543,11 @@ describe('BackupEngine — image_repair_complete (b-oss#85)', () => {
     const setTimeoutSpy = vi.spyOn(global, 'setTimeout');
 
     await makeEngine(
-      makeConfig({ redo_count: 0, enable_web_scrape: true, api_delay_ms: 1 }),
+      makeConfig({ redo_count: 0, enable_web_scrape: true }),
       io,
       client,
       () => {},
+      { apiDelayMs: 1 },
     ).run();
 
     // Exactly 2 calls (A1's repair, B1's scrape) — not 3, which is what the bug produced by

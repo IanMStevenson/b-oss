@@ -93,6 +93,6 @@ these should either:
 
 ## Rate limits
 
-The Blipfoto API allows 200 requests per 15-minute window per access token. Integration test suites
+The Blipfoto API allows 450 requests per 15-minute window per access token. Integration test suites
 should check `client.rateLimitInfo.remaining` between test groups and pause if needed to avoid
 exhausting the limit mid-suite.

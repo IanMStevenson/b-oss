@@ -52,7 +52,6 @@ export class PortableSettingsManager {
         hour: 2,
         interval: 'daily',
       },
-      api_delay_ms: 250,
       gap_check_days: 30,
       redo_count: 7,
       enable_web_scrape: false,
