@@ -9,6 +9,7 @@
 import type { ErrorEntry } from './error-log.js';
 
 export const PROXY_SOURCE = 'api-proxy';
+export const SITE_PROXY_SOURCE = 'site-proxy';
 
 /** The request path with no query, fragment or credentials; "(unparseable url)" if it is not a URL. */
 export function safePath(target: string): string {
@@ -20,9 +21,14 @@ export function safePath(target: string): string {
 }
 
 /** The log entry for a call that threw (network failure before any response). */
-export function proxyThrownEntry(method: string, target: string, err: unknown): ErrorEntry {
+export function proxyThrownEntry(
+  method: string,
+  target: string,
+  err: unknown,
+  source: string = PROXY_SOURCE,
+): ErrorEntry {
   const detail = err instanceof Error ? `${err.name}: ${err.message}` : String(err);
-  return { source: PROXY_SOURCE, message: `${method} ${safePath(target)} failed: ${detail}` };
+  return { source, message: `${method} ${safePath(target)} failed: ${detail}` };
 }
 
 /** The log entry for a server error (5xx) the API itself returned, or null for anything else. */
@@ -30,10 +36,11 @@ export function proxyStatusEntry(
   method: string,
   target: string,
   status: number,
+  source: string = PROXY_SOURCE,
 ): ErrorEntry | null {
   if (status < 500) return null;
   return {
-    source: PROXY_SOURCE,
+    source,
     message: `${method} ${safePath(target)} answered ${status}`,
   };
 }

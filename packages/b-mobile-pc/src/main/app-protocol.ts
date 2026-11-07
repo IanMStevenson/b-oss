@@ -14,9 +14,12 @@ export const APP_HOST = 'b-mobile';
 export const APP_ORIGIN = `${APP_SCHEME}://${APP_HOST}`;
 export const API_PREFIX = '/api/blipfoto/';
 export const DEFAULT_API_ORIGIN = 'https://api.blipfoto.com';
+export const SITE_PREFIX = '/site/blipfoto/';
+export const DEFAULT_SITE_ORIGIN = 'https://www.blipfoto.com';
 
 export type AppRequestPlan =
   | { kind: 'api'; target: string }
+  | { kind: 'site'; target: string }
   | { kind: 'static'; file: string; spaFallback: boolean }
   | { kind: 'reject'; status: 400 | 403 };
 
@@ -25,6 +28,7 @@ export function planAppRequest(
   rawUrl: string,
   distDir: string,
   apiOrigin: string = DEFAULT_API_ORIGIN,
+  siteOrigin: string = DEFAULT_SITE_ORIGIN,
 ): AppRequestPlan {
   let url: URL;
   try {
@@ -51,6 +55,17 @@ export function planAppRequest(
     const target = new URL(`${apiOrigin}/${url.pathname.slice(API_PREFIX.length)}${url.search}`);
     if (target.origin !== new URL(apiOrigin).origin) return { kind: 'reject', status: 403 };
     return { kind: 'api', target: target.toString() };
+  }
+
+  if (pathname.startsWith(SITE_PREFIX)) {
+    // Public website pages, read-only: same fixed-host rules as the API route, and no dot-dot
+    // segment even after decoding.
+    if (pathname.split('/').includes('..') || pathname.includes('\\')) {
+      return { kind: 'reject', status: 403 };
+    }
+    const target = new URL(`${siteOrigin}/${url.pathname.slice(SITE_PREFIX.length)}${url.search}`);
+    if (target.origin !== new URL(siteOrigin).origin) return { kind: 'reject', status: 403 };
+    return { kind: 'site', target: target.toString() };
   }
 
   const root = resolve(distDir);
@@ -166,4 +181,12 @@ export function isTrustedSender(frameUrl: string | undefined): boolean {
   } catch {
     return false;
   }
+}
+
+/** The site route hands the renderer page text only: a text/* (or XHTML) response passes, anything
+ * else (an image, a download) is refused. */
+export function isTextContentType(contentType: string | null): boolean {
+  if (!contentType) return false;
+  const type = contentType.split(';')[0]?.trim().toLowerCase() ?? '';
+  return type.startsWith('text/') || type === 'application/xhtml+xml';
 }
