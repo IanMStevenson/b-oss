@@ -79,10 +79,10 @@ jobs:
           for v in IDENTITY_NAME PUBLISHER PUBLISHER_DISPLAY_NAME; do
             if [ -z "${!v}" ]; then echo "::error::Environment variable MSIX_$v is not set"; exit 1; fi
           done
-          npm run dist:store --workspace=packages/b-mobile-pc --
-          "--config.appx.identityName=$IDENTITY_NAME"
-          "--config.appx.publisher=$PUBLISHER"
-          "--config.appx.publisherDisplayName=$PUBLISHER_DISPLAY_NAME"
+          npm run dist:store --workspace=packages/b-mobile-pc -- \
+            "--config.appx.identityName=$IDENTITY_NAME" \
+            "--config.appx.publisher=$PUBLISHER" \
+            "--config.appx.publisherDisplayName=$PUBLISHER_DISPLAY_NAME"
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: b-mobile-pc-msix
