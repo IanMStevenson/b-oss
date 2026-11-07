@@ -12,6 +12,7 @@ import {
   mapMacLoginItemStatus,
   mapStartupTaskStateName,
   selectStartAtSignIn,
+  startedByStartupTask,
   STARTUP_TASK_ID,
   type LoginItemDeps,
   type StartAtSignIn,
@@ -334,5 +335,28 @@ describe('packaging config', () => {
       'utf8',
     );
     expect(xml).toContain(`TaskId="${STARTUP_TASK_ID}"`);
+  });
+});
+
+describe('startedByStartupTask', () => {
+  const withKind = (kind: () => Promise<string>) => ({ ...fakeAddon('Enabled'), launchKind: kind });
+  it('is true only for a StartupTask activation', async () => {
+    expect(await startedByStartupTask(withKind(() => Promise.resolve('StartupTask')))).toBe(true);
+    expect(await startedByStartupTask(withKind(() => Promise.resolve('Launch')))).toBe(false);
+    expect(await startedByStartupTask(withKind(() => Promise.resolve('Unknown')))).toBe(false);
+  });
+  it('is false with no add-on or an add-on without launchKind', async () => {
+    expect(await startedByStartupTask(null)).toBe(false);
+    expect(await startedByStartupTask(fakeAddon('Enabled'))).toBe(false);
+  });
+  it('is false, and reported, when the call rejects', async () => {
+    const onError = vi.fn();
+    expect(
+      await startedByStartupTask(
+        withKind(() => Promise.reject(new Error('x'))),
+        onError,
+      ),
+    ).toBe(false);
+    expect(onError).toHaveBeenCalledOnce();
   });
 });

@@ -15,7 +15,9 @@ mod imp {
     use napi::bindgen_prelude::*;
     use napi_derive::napi;
     use windows::core::HSTRING;
-    use windows::ApplicationModel::{StartupTask, StartupTaskState};
+    use std::sync::OnceLock;
+    use windows::ApplicationModel::Activation::ActivationKind;
+    use windows::ApplicationModel::{AppInstance, StartupTask, StartupTaskState};
     use windows::Win32::System::WinRT::{RoInitialize, RO_INIT_MULTITHREADED};
 
     #[derive(Clone, Copy)]
@@ -57,6 +59,53 @@ mod imp {
         // Re-read: the first instance can be stale after a change.
         let task = StartupTask::GetAsync(&id)?.get()?;
         Ok(state_name(task.State()?).to_string())
+    }
+
+    /// Windows hands the activation arguments out once per process, so the first answer is kept.
+    static LAUNCH_KIND: OnceLock<String> = OnceLock::new();
+
+    fn kind_name(kind: ActivationKind) -> &'static str {
+        match kind {
+            ActivationKind::Launch => "Launch",
+            ActivationKind::StartupTask => "StartupTask",
+            ActivationKind::Protocol => "Protocol",
+            ActivationKind::File => "File",
+            _ => "Other",
+        }
+    }
+
+    fn read_launch_kind() -> String {
+        unsafe {
+            let _ = RoInitialize(RO_INIT_MULTITHREADED);
+        }
+        match AppInstance::GetActivatedEventArgs().and_then(|a| a.Kind()) {
+            Ok(kind) => kind_name(kind).to_string(),
+            // No activation arguments (not packaged, or already consumed): not a startup-task launch.
+            Err(_) => "Unknown".to_string(),
+        }
+    }
+
+    pub struct LaunchKindWork;
+
+    impl Task for LaunchKindWork {
+        type Output = String;
+        type JsValue = String;
+
+        fn compute(&mut self) -> Result<Self::Output> {
+            Ok(LAUNCH_KIND.get_or_init(read_launch_kind).clone())
+        }
+
+        fn resolve(&mut self, _env: Env, output: Self::Output) -> Result<Self::JsValue> {
+            Ok(output)
+        }
+    }
+
+    /// How this process was activated: StartupTask (Windows started it at sign-in), Launch (the user
+    /// did), Protocol, File, Other, or Unknown (no activation arguments available). Windows only
+    /// gives the arguments out once, so call this early; later calls return the first answer.
+    #[napi(ts_return_type = "Promise<string>")]
+    pub fn launch_kind() -> AsyncTask<LaunchKindWork> {
+        AsyncTask::new(LaunchKindWork)
     }
 
     pub struct StartupTaskWork {

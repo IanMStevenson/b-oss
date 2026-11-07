@@ -26,7 +26,7 @@ import {
   setStaleBackupNotice,
 } from './store.js';
 import { migrateFromV1IfNeeded } from './migrate-store.js';
-import { reconcileStartAtSignInOnLaunch } from './start-at-sign-in.js';
+import { reconcileStartAtSignInOnLaunch, startedAtSignIn } from './start-at-sign-in.js';
 import { isBackupRunning, setScheduledEnabled } from './ipc-handlers.js';
 import { electronExitDialogs } from './exit-dialogs.js';
 import { resolveTrayExit, resolveWindowClose } from './exit-policy.js';
@@ -88,7 +88,7 @@ const scheduler = new BackupScheduler(
   () => advanceSharedNextRun(),
 );
 
-function createWindow(): BrowserWindow {
+function createWindow(showOnReady = true): BrowserWindow {
   // Suppress the default File/Edit/View/Window menu bar on all platforms.
   // The macOS application menu (different beast) is left alone.
   if (process.platform !== 'darwin') {
@@ -142,7 +142,8 @@ function createWindow(): BrowserWindow {
   win.webContents.on('will-navigate', (event, url) => blockNonLocal(event, url));
   win.webContents.on('will-redirect', (event, url) => blockNonLocal(event, url));
 
-  win.once('ready-to-show', () => win.show());
+  // A start at sign-in stays in the tray (b-oss#885); the tray or a second launch shows the window.
+  if (showOnReady) win.once('ready-to-show', () => win.show());
 
   // Only a user closing the window gets here with isQuitting false: app.quit() (update install,
   // tray Exit, OS shutdown via before-quit) has already set it, so those closes pass straight
@@ -205,7 +206,7 @@ void app.whenReady().then(async () => {
   await loadPortableFromStoredFolder();
   await loadWebSessionStates();
 
-  mainWindow = createWindow();
+  mainWindow = createWindow(!(await startedAtSignIn()));
 
   let trayExitDialogOpen = false;
   createTray(() => mainWindow, store, {

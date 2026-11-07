@@ -124,6 +124,26 @@ export interface StartupTaskAddon {
   getState: (taskId: string) => Promise<string>;
   enable: (taskId: string) => Promise<string>;
   disable: (taskId: string) => Promise<string>;
+  /** How Windows activated the process; 'StartupTask' = started at sign-in. Absent in older builds. */
+  launchKind?: () => Promise<string>;
+}
+
+/**
+ * True when Windows started this process through the manifest startup task (b-oss#885). That launch
+ * passes no arguments, so the add-on asks Windows for the activation kind. Any failure (no add-on,
+ * an older add-on without `launchKind`, a rejected call) means "not a login start": the window shows.
+ */
+export async function startedByStartupTask(
+  addon: StartupTaskAddon | null,
+  onError: (message: string, err: unknown) => void = () => undefined,
+): Promise<boolean> {
+  if (!addon || typeof addon.launchKind !== 'function') return false;
+  try {
+    return (await addon.launchKind()) === 'StartupTask';
+  } catch (err) {
+    onError('Launch kind could not be read', err);
+    return false;
+  }
 }
 
 /** Windows.ApplicationModel.StartupTaskState names. */

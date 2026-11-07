@@ -10,6 +10,7 @@ import {
   createStartAtSignInService,
   loadStartupAddon,
   selectStartAtSignIn,
+  startedByStartupTask,
   type StartAtSignInService,
 } from './start-at-sign-in-pure.js';
 
@@ -70,3 +71,15 @@ export const getStartupTaskInfo = (scheduled: boolean): Promise<StartupTaskInfo 
 export const enableStartupTask = (): Promise<StartupTaskInfo | null> => getService().enable();
 
 export const openStartupSettings = (): Promise<void> => getService().openSettings();
+
+/** True when Windows started this Store install at sign-in (b-oss#885); the window then stays in the tray. */
+export const startedAtSignIn = (): Promise<boolean> =>
+  isStoreBuild()
+    ? startedByStartupTask(
+        loadStartupAddon(
+          () => createRequire(import.meta.url)(addonPath()) as unknown,
+          (message, err) => log.warn(message, err),
+        ),
+        (message, err) => log.warn(message, err),
+      )
+    : Promise.resolve(false);

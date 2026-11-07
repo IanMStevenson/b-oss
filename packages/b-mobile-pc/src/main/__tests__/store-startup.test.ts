@@ -4,7 +4,12 @@
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { describe, expect, it, vi } from 'vitest';
-import { applyStartupTask, loadStartupAddon, STARTUP_TASK_ID } from '../store-startup.js';
+import {
+  applyStartupTask,
+  loadStartupAddon,
+  startedByStartupTask,
+  STARTUP_TASK_ID,
+} from '../store-startup.js';
 
 const addon = () => ({
   getState: vi.fn(() => Promise.resolve('Disabled')),
@@ -51,5 +56,28 @@ describe('store startup task', () => {
       }, onError),
     ).toBeNull();
     expect(onError).toHaveBeenCalledTimes(2);
+  });
+});
+
+describe('startedByStartupTask', () => {
+  const withKind = (kind: () => Promise<string>) => ({ ...addon(), launchKind: kind });
+  it('is true only for a StartupTask activation', async () => {
+    expect(await startedByStartupTask(withKind(() => Promise.resolve('StartupTask')))).toBe(true);
+    expect(await startedByStartupTask(withKind(() => Promise.resolve('Launch')))).toBe(false);
+    expect(await startedByStartupTask(withKind(() => Promise.resolve('Unknown')))).toBe(false);
+  });
+  it('is false with no add-on or an add-on without launchKind', async () => {
+    expect(await startedByStartupTask(null)).toBe(false);
+    expect(await startedByStartupTask(addon())).toBe(false);
+  });
+  it('is false, and reported, when the call rejects', async () => {
+    const onError = vi.fn();
+    expect(
+      await startedByStartupTask(
+        withKind(() => Promise.reject(new Error('x'))),
+        onError,
+      ),
+    ).toBe(false);
+    expect(onError).toHaveBeenCalledOnce();
   });
 });
