@@ -137,7 +137,7 @@ export function AppearanceSection() {
       <SectionHeader>Links</SectionHeader>
       <ToggleRow
         label="Open blipfoto.com links in this app"
-        caption="When on, blipfoto.com links you tap in other apps open here instead of in your browser."
+        caption="When on, blipfoto.com links you tap in other apps open here instead of in your browser. On Android 12 or later you also approve the link once in Android's settings; turning this on takes you there."
         checked={openLinksInApp}
         onChange={onOpenLinksChange}
       />
