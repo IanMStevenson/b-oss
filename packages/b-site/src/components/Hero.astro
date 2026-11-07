@@ -10,7 +10,7 @@ interface Props {
 const { title, label, icon } = Astro.props;
 ---
 
-<section class="hero" data-screen-label={label}>
+<section class:list={['hero', { 'hero-with-icon': icon }]} data-screen-label={label}>
   {icon && <img class="hero-icon" src="assets/b-oss-icon-large.png" alt={icon} />}
   <h1>{title}</h1>
   <p class="lead"><slot /></p>

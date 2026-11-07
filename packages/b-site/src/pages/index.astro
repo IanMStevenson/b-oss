@@ -1,24 +1,49 @@
 ---
 import Layout from '../layouts/Layout.astro';
 import Hero from '../components/Hero.astro';
-import FeatureItem from '../components/FeatureItem.astro';
+import CtaBand from '../components/CtaBand.astro';
+import PhoneShots from '../components/PhoneShots.astro';
+import StoreBadge from '../components/StoreBadge.astro';
 ---
 
 <Layout
-  title="b-oss - open-source tools for Blipfoto users"
-  description="b-oss makes small, focused desktop tools. Currently home to b-ark, a local backup app for blipfoto."
+  title="b-oss - free tools for Blipfoto"
+  description="Free, open-source tools for Blipfoto: b-mobile to browse and post, b-ark and b-ark-chrome to keep your own copy of your blips, and an unofficial status page."
   nav="home"
 >
-  <Hero label="Hero" icon="b-oss" title="Open source tools for blipfoto.">Free to download, use, modify or build on.</Hero>
+  <Hero label="Hero" icon="b-oss" title="b-oss - free tools for Blipfoto">Post from your phone, back up your blips and check if Blipfoto is working. Free and open source.</Hero>
 
-  <section class="block" data-screen-label="About b-oss">
-    <p class="section-eyebrow">About</p>
-    <div class="prose" style="margin-top: 18px">
-      <p>
-        <b>b-oss</b> is a set of open-source tools for Blipfoto users. Free software anyone can use and
-        contribute to. <a href="about">More about b-oss &rarr;</a>
+  <div class="bands">
+  <section class="app-card band-tint" data-screen-label="App: b-mobile">
+    <div class="app-card-meta">
+      <div class="app-card-head">
+        <img src="assets/b-oss-icon.png" alt="" />
+        <div>
+          <h2>b-mobile</h2>
+          <div class="tagline">The Blipfoto app: browse, post and get notified.</div>
+        </div>
+      </div>
+      <p class="summary">
+        Browse everything, post a blip from your camera or gallery, join in with stars, favourites
+        and comments, and choose whether to be notified. Free, with no ads.<!-- Restore when b-mobile on PC is approved on the Microsoft Store (b-oss#912): On Android now; the same app is coming to Windows. -->
       </p>
+      <div class="store-badges">
+        <StoreBadge product="b-mobile" store="play" />
+        {/* Restore when b-mobile on PC is approved on the Microsoft Store (b-oss#912):
+        <StoreBadge product="b-mobile-windows" store="microsoft" label="b-mobile" />
+        */}
+      </div>
+      <div class="btn-row">
+        <a class="btn" href="b-mobile">Learn more →</a>
+      </div>
     </div>
+    <PhoneShots
+      shots={[
+        { name: 'browse', alt: 'b-mobile Browse screen: a grid of recent photos with tabs for Recent, Following, Me, Popular and Milestones.' },
+        { name: 'entry', alt: 'An entry in b-mobile: the photo, its title and description, star and favourite buttons and the camera details.' },
+        { name: 'map', alt: 'The b-mobile map with pins marking where blips were taken across the UK and Europe.' },
+      ]}
+    />
   </section>
 
   <section class="app-card" data-screen-label="App: b-ark">
@@ -26,27 +51,22 @@ import FeatureItem from '../components/FeatureItem.astro';
       <div class="app-card-head">
         <img src="assets/b-oss-icon.png" alt="" />
         <div>
-          <h2>b-ark : Backup & Archive</h2>
-          <div class="tagline">Archive your blips on your own device (Windows).</div>
+          <h2>b-ark</h2>
+          <div class="tagline">Backup on your PC: a Windows desktop app.</div>
         </div>
       </div>
       <p class="summary">
-        b-ark makes a local copy of every blip you've ever posted (images, text and metadata) on
-        your own machine, automatically keeping it up to date. Browse offline, publish to the
-        web, or hand over to AI tools to explore and create new formats.
+        Keeps your own copy of your blips on a timer, even when you post from your phone, as long as
+        your PC is on. Browse them offline, or publish them to the web.
       </p>
-      <ul class="feature-list">
-        <FeatureItem><strong>Backup.</strong> A local copy of every blip, updated automatically.</FeatureItem>
-        <FeatureItem><strong>View.</strong> Browse your archive offline in the built-in viewer.</FeatureItem>
-        <FeatureItem><strong>Publish.</strong> Copy the backup folder to any web host to publish.</FeatureItem>
-        <FeatureItem><strong>AI-ready.</strong> README.md for AI tools: Use AI to build photobooks,
-            slideshows, statistics, custom sites.</FeatureItem>
-      </ul>
+      <div class="store-badges">
+        <StoreBadge product="b-ark" store="microsoft" />
+      </div>
       <div class="btn-row">
-        <a class="btn primary" href="b-ark">Learn more →</a>
+        <a class="btn" href="b-ark">Learn more →</a>
       </div>
     </div>
-    <div class="shot" aria-label="b-ark screenshot">
+    <div class="shot">
       <img
         src="assets/b-ark-screenshot.png"
         alt="The b-ark app showing an account with archived photos."
@@ -54,58 +74,54 @@ import FeatureItem from '../components/FeatureItem.astro';
     </div>
   </section>
 
-  <section class="app-card" data-screen-label="App: b-mobile">
+  <section class="app-card band-tint" data-screen-label="App: b-ark-chrome">
     <div class="app-card-meta">
       <div class="app-card-head">
         <img src="assets/b-oss-icon.png" alt="" />
         <div>
-          <h2>b-mobile : Blipfoto for Android</h2>
-          <div class="tagline">Browse, post and get notified from your phone.</div>
+          <h2>b-ark-chrome</h2>
+          <div class="tagline">Backup in your browser: a Chrome extension for Windows, Mac and Linux.</div>
         </div>
       </div>
       <p class="summary">
-        A Blipfoto app for Android: browse everything, post a blip from your camera or gallery,
-        join in with stars, favourites and comments, and choose whether to be notified.
+        Keeps your own copy of your blips. It backs up whenever you visit Blipfoto, with optional backup on publish. No timer
+        to set.
       </p>
+      <div class="store-badges">
+        <StoreBadge product="b-ark-chrome" store="chrome" />
+      </div>
       <div class="btn-row">
-        <a class="btn primary" href="b-mobile">Learn more →</a>
+        <a class="btn" href="b-ark">Learn more →</a>
       </div>
     </div>
-  </section>
-
-  <section class="app-card" data-screen-label="App: b-api">
-    <div class="app-card-meta">
-      <div class="app-card-head">
-        <img src="assets/b-oss-icon.png" alt="" />
-        <div>
-          <h2>b-api</h2>
-          <div class="tagline">TypeScript client for the Blipfoto v4 REST API.</div>
-        </div>
-      </div>
-      <p class="summary">
-        b-api is the HTTP client that b-ark is built on. It covers the full Blipfoto v4 REST API
-        and it works in browsers, Node.js 18+, and Electron alike. Clone the b-oss repository
-        and import b-api directly into your TypeScript project.
-      </p>
-      <ul class="feature-list">
-        <FeatureItem><strong>TypeScript.</strong> Full types for every request, response, and error. No
-            guessing.</FeatureItem>
-        <FeatureItem><strong>Universal.</strong> No Node or Electron dependency. Works in browsers,
-            Node.js 18+ and Electron.</FeatureItem>
-        <FeatureItem><strong>Complete.</strong> Journals, entries, CRUD, comments, social, OAuth,
-            notifications, user settings.</FeatureItem>
-        <FeatureItem><strong>Error-safe.</strong> Typed <code>BlipfotoError</code> and
-            <code>NetworkError</code> with helpers for rate limits and token expiry.</FeatureItem>
-      </ul>
-      <div class="btn-row">
-        <a class="btn primary" href="b-api">Learn more →</a>
-      </div>
-    </div>
-    <div class="shot" aria-label="b-ark screenshot">
+    <div class="shot">
       <img
-        src="assets/b-api-screenshot.png"
-        alt="The b-ark app showing an account with archived photos."
+        src="assets/guide-chrome/status-chip.png"
+        alt="A browser showing Blipfoto, with the b-ark-chrome backup progress chip beside the logo."
       />
     </div>
   </section>
+
+  <section data-screen-label="b-status">
+    <CtaBand href="status" label="See the status">
+      <strong>Is Blipfoto working?</strong> b-status checks every 15 minutes and shows the history.
+      Unofficial; not run by Blipfoto.
+    </CtaBand>
+  </section>
+
+  <section class="block band-tint" data-screen-label="For developers">
+    <div class="prose">
+      <p>
+        <strong>b-oss is open source.</strong> If you're a developer, visit our
+        <a href="https://github.com/IanMStevenson/b-oss">GitHub repository</a>. Feel free to raise
+        issues or PRs. Building something of your own? Why not use <a href="b-api">b-api</a>, our free
+        and open TypeScript client for the Blipfoto API.
+      </p>
+    </div>
+  </section>
+
+  <section data-screen-label="Contact">
+    <CtaBand />
+  </section>
+  </div>
 </Layout>

@@ -5,7 +5,8 @@ interface Shot {
   /** File name in assets/b-mobile/, without extension. */
   name: string;
   alt: string;
-  caption: string;
+  /** Optional; omit where the picture speaks for itself. */
+  caption?: string;
 }
 
 interface Props {
@@ -27,7 +28,7 @@ const { shots } = Astro.props;
             height="1160"
             loading="lazy"
           />
-          <figcaption>{s.caption}</figcaption>
+          {s.caption && <figcaption>{s.caption}</figcaption>}
         </figure>
       </li>
     ))

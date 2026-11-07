@@ -1,0 +1,42 @@
+---
+// One "What's new" page per product, from release-notes/<product>.md (see src/release-notes.ts). A product
+// with no notes gets no page, so b-mobile-pc appears once its file has one.
+import Layout from '../layouts/Layout.astro';
+import Hero from '../components/Hero.astro';
+import CtaBand from '../components/CtaBand.astro';
+import type { NavKey } from '../components/Header.astro';
+import { PRODUCTS, longDate, notesFor, type Product } from '../release-notes';
+
+export function getStaticPaths() {
+  return PRODUCTS.filter((product) => notesFor(product).length > 0).map((product) => ({ params: { product } }));
+}
+
+const product = Astro.params.product as Product;
+const releases = notesFor(product);
+const nav: NavKey = product.startsWith('b-mobile') ? 'b-mobile' : 'b-ark';
+---
+
+<Layout
+  title={`What's new in ${product} · b-oss`}
+  description={`The changes in each release of ${product}, newest first.`}
+  nav={nav}
+>
+  <Hero label="What's new hero" icon={product} title={`What's new in ${product}`}>The changes in each release, newest first.</Hero>
+
+  <div class="bands">
+    {
+      releases.map((r, i) => (
+        <section class:list={['block', { 'band-tint': i % 2 === 0 }]} data-screen-label={r.version}>
+          <div class="prose">
+            <h2>{r.version} · {longDate(r.date)}</h2>
+            {r.paragraphs.map((p) => (
+              <p>{p}</p>
+            ))}
+          </div>
+        </section>
+      ))
+    }
+  </div>
+
+  <CtaBand />
+</Layout>

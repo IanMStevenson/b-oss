@@ -1,8 +1,11 @@
 ---
 import Layout from '../layouts/Layout.astro';
 import Hero from '../components/Hero.astro';
+import CtaBand from '../components/CtaBand.astro';
 import FeatureItem from '../components/FeatureItem.astro';
 import PhoneShots from '../components/PhoneShots.astro';
+import StoreBadge from '../components/StoreBadge.astro';
+import { notesFor } from '../release-notes';
 ---
 
 <Layout
@@ -10,11 +13,11 @@ import PhoneShots from '../components/PhoneShots.astro';
   description="b-mobile for Blipfoto: browse, post and get notified on your Blipfoto journal from your Android phone. Open source, from b-oss."
   nav="b-mobile"
 >
-  <Hero label="b-mobile hero" icon="b-mobile" title="b-mobile for Blipfoto">Browse, post and get notified on your Blipfoto journal, from your Android phone.</Hero>
+  <Hero label="b-mobile hero" icon="b-mobile" title="b-mobile - the unofficial Blipfoto app">Browse, post and join in from your Android phone. Free, with no ads.</Hero>
 
-  <section class="block" data-screen-label="Introduction">
-    <p class="section-eyebrow">Introduction</p>
-    <div class="prose" style="margin-top: 18px">
+  <div class="bands">
+  <section class="block band-tint" data-screen-label="Introduction">
+    <div class="prose">
       <p>
         b-mobile is a Blipfoto app for Android. It is an open-source project, part of b-oss and
         led by Ian Stevenson, and is published on the Google Play Store on behalf of the
@@ -26,8 +29,7 @@ import PhoneShots from '../components/PhoneShots.astro';
     <ul class="feature-list" style="margin-top: 28px; max-width: 720px">
       <FeatureItem><strong>Browse.</strong> Recent, Following, Popular, Milestones, New Blippers and
           Nearby, plus search and a map of blips.</FeatureItem>
-      <FeatureItem><strong>Post.</strong> Take or choose a photo and publish, even on a poor connection:
-          uploads queue and retry on their own.</FeatureItem>
+      <FeatureItem><strong>Post.</strong> Take or choose a photo and publish.</FeatureItem>
       <FeatureItem><strong>Join in.</strong> Star, favourite, comment, reply and follow.</FeatureItem>
       <FeatureItem><strong>Stay in touch.</strong> Optional notifications for new comments and activity,
           and a daily reminder to post.</FeatureItem>
@@ -37,44 +39,71 @@ import PhoneShots from '../components/PhoneShots.astro';
           that breaks the rules.</FeatureItem>
     </ul>
 
-    <div class="prose" style="margin-top: 28px">
+  </section>
+
+  <section class="block" data-screen-label="Screenshots">
+    <PhoneShots
+      shots={[
+        { name: 'browse', alt: 'b-mobile Browse screen: a grid of recent photos with tabs for Recent, Following, Me, Popular and Milestones.' },
+        { name: 'entry', alt: 'An entry in b-mobile: the photo, its title and description, star and favourite buttons and the camera details.' },
+        { name: 'map', alt: 'The b-mobile map with pins marking where blips were taken across the UK and Europe.' },
+      ]}
+    />
+  </section>
+
+  <section class="block band-tint" data-screen-label="Good to know">
+    <div class="prose">
       <p>
         <strong>Free.</strong> b-mobile is completely free to use, with no ads and no in-app
         purchases. It works with your existing Blipfoto account, whatever kind it is; any paid
         Blipfoto features are separate from this app.
       </p>
       <p>
-        <strong>Limitations.</strong> Images are shown at standard size. Extra images and
-        full-size (original) downloads are not available to apps using Blipfoto's API, so
-        b-mobile can't show or save them. You can download the display-size photo of your own
-        entries.
+        On mobile, Blipfoto's recommended method for accessing Blipfoto is to add a link to it on your
+        home screen.
+      </p>
+      <p>
+        <strong>Only the app</strong> can switch accounts seamlessly, send real notifications, and
+        navigate entries from the grid (rather than just within a journal).
+      </p>
+      <p>
+        <strong>Only the website</strong> can display and upload extras and allow you to download your
+        full-size originals.
       </p>
     </div>
   </section>
 
-  <section class="block" data-screen-label="Screenshots">
-    <p class="section-eyebrow">Screenshots</p>
-    <PhoneShots
-      shots={[
-        { name: 'browse', alt: 'b-mobile Browse screen: a grid of recent photos with tabs for Recent, Following, Me, Popular and Milestones.', caption: 'Browse' },
-        { name: 'entry', alt: 'An entry in b-mobile: the photo, its title and description, star and favourite buttons and the camera details.', caption: 'An entry' },
-        { name: 'map', alt: 'The b-mobile map with pins marking where blips were taken across the UK and Europe.', caption: 'Map' },
-      ]}
-    />
-  </section>
+  <section class="block" id="download" data-screen-label="Get it">
+    <div class="tri-links">
+      <div class="tri-link" data-link="play-store">
+        <div class="store-badges"><StoreBadge product="b-mobile" store="play" /></div>
+        <h3>Google Play</h3>
+        <p>Install b-mobile on your Android phone.</p>
+        <div class="tri-link-more">
+          <a href="b-mobile-guide" data-link="user-guide">User guide</a>
+          {notesFor('b-mobile').length > 0 && <Fragment> · <a href="b-mobile-whats-new" data-link="whats-new">What's new</a></Fragment>}
+        </div>
+      </div>
 
-  <section class="block" data-screen-label="Get it">
-    <p class="section-eyebrow">Get it</p>
-    <div class="prose" style="margin-top: 18px">
-      <p>b-mobile is not on Google Play yet. This page will link to it when it is.</p>
-      <p>
-        <a class="btn primary" href="b-mobile-guide">Read the user guide</a>
-      </p>
-      <p>
-        <a href="b-mobile-privacy">Privacy policy</a> ·
-        <a href="https://github.com/IanMStevenson/b-oss">Source code on GitHub</a> ·
-        <a href="contact">Contact</a>
-      </p>
+      {/* Restore when b-mobile on PC is approved on the Microsoft Store (b-oss#912):
+      <div class="tri-link" data-link="microsoft-store">
+        <div class="store-badges"><StoreBadge product="b-mobile-windows" store="microsoft" label="b-mobile" /></div>
+        <h3>Microsoft Store</h3>
+        <p>Coming soon. The same app for Windows.</p>
+        <div class="tri-link-more">
+          <a href="b-mobile-guide" data-link="windows-user-guide">User guide</a>
+          {notesFor('b-mobile-pc').length > 0 && <Fragment> · <a href="b-mobile-pc-whats-new" data-link="pc-whats-new">What's new</a></Fragment>}
+        </div>
+      </div>
+      */}
     </div>
   </section>
+  </div>
+
+  <CtaBand />
+
+  <div class="btn-row btn-row-center">
+    <a class="btn" href="b-mobile-privacy">b-mobile privacy policy</a>
+    <a class="btn" href="b-mobile-data-deletion">Delete your b-mobile data</a>
+  </div>
 </Layout>

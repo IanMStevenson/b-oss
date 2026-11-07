@@ -1,0 +1,62 @@
+---
+// One store badge. Live stores show the store's own badge artwork, unmodified (resized only), linked
+// to the listing. Stores not yet live show a "coming soon" box that is not a link.
+// Status comes from src/stores.ts; see the rules there. Google's and Chrome's badges are in
+// public/assets/stores/; Microsoft's is loaded from Microsoft.
+import { STORES, STORE_NAMES, type ProductKey, type StoreEntry, type StoreKey } from '../stores';
+
+interface Props {
+  product: ProductKey;
+  store: StoreKey;
+  /** The product's display name, used in the alt text ("Get b-mobile on Google Play"). */
+  label?: string;
+  /** Artwork only, no link: for use inside a card that is itself the link (alt text left empty). */
+  bare?: boolean;
+}
+
+const { product, store, bare = false } = Astro.props;
+const label = Astro.props.label ?? product;
+const entry = (STORES[product] as Partial<Record<StoreKey, StoreEntry>>)[store];
+if (!entry) throw new Error(`No ${store} entry for ${product} in src/stores.ts`);
+const storeName = STORE_NAMES[store];
+// Each live store needs its artwork here; a store without any fails the build.
+const ARTWORK: Partial<Record<StoreKey, { src: string; width: number; height: number; alt: string }>> = {
+  play: { src: 'assets/stores/google-play.png', width: 646, height: 250, alt: `Get ${label} on Google Play` },
+  chrome: {
+    src: 'assets/stores/chrome-web-store-border.png',
+    width: 496,
+    height: 150,
+    alt: `Get ${label}, available in the Chrome Web Store`,
+  },
+  microsoft: {
+    src: 'https://get.microsoft.com/images/en-us%20dark.svg',
+    width: 161,
+    height: 44,
+    alt: `Get ${label} from Microsoft`,
+  },
+};
+const art = ARTWORK[store];
+if (entry.state === 'live' && !art) throw new Error(`Add ${store}'s official badge to StoreBadge.astro before marking it live.`);
+---
+
+{
+  entry.state === 'live' && art ? (
+    bare ? (
+      <span class={`store-badge store-badge-${store}`}>
+        <img src={art.src} width={art.width} height={art.height} alt="" />
+      </span>
+    ) : (
+      <a class={`store-badge store-badge-${store}`} href={entry.url}>
+        <img src={art.src} width={art.width} height={art.height} alt={art.alt} />
+      </a>
+    )
+  ) : (
+    <span
+      class="store-badge store-badge-soon"
+      {...(bare ? { 'aria-hidden': 'true' } : { role: 'img', 'aria-label': `${label}: coming soon to ${storeName}` })}
+    >
+      <span>Coming soon to</span>
+      <span>Microsoft Store</span>
+    </span>
+  )
+}
