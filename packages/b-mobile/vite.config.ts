@@ -55,6 +55,12 @@ export default defineConfig({
     // factory (src/data/client.ts, Phase 2) is what actually points at `/api/blipfoto` when
     // running in a desktop browser.
     proxy: {
+      // Public blipfoto.com pages (an entry's extra photos, b-oss#941); platform/siteText.ts.
+      '/site/blipfoto': {
+        target: process.env.B_SITE_PROXY_TARGET ?? 'https://www.blipfoto.com',
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/site\/blipfoto/, ''),
+      },
       '/api/blipfoto': {
         // B_API_PROXY_TARGET points this at scripts/stub-api.mjs where the real API is unreachable.
         target: process.env.B_API_PROXY_TARGET ?? 'https://api.blipfoto.com',

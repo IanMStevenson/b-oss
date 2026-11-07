@@ -62,6 +62,7 @@ import {
 import type { RefresherEventDetail } from '@ionic/core';
 import { Flag, CornerUpLeft, EyeOff, Pencil, Trash2 } from 'lucide-react';
 import { AppHeader } from '../../components/AppHeader.js';
+import { useEntryStateWithExtras } from '../../data/entryExtras.js';
 import { EntryDetail, CommentComposer, ActionPill } from '@b-oss/b-view';
 import type { BlipComment, EntryState, ActionPillItem } from '@b-oss/b-view';
 import { useLiveEntry } from '../../data/useLiveEntry.js';
@@ -242,18 +243,19 @@ export function EntryDetailScreen({ entryId, initialReplyToCommentId }: EntryDet
   // favorited booleans, so the optimistic bump/rollback in `reaction` has to be projected into the
   // entry data here too, or the star/heart icons would flip state while their counts stayed stuck
   // at the last fetch until the next reload().
+  const entryWithExtras = useEntryStateWithExtras(entryId, entryState);
   const displayEntryState: EntryState = useMemo(() => {
-    if (entryState.status !== 'loaded') return entryState;
+    if (entryWithExtras.status !== 'loaded') return entryWithExtras;
     return {
-      ...entryState,
+      ...entryWithExtras,
       data: {
-        ...entryState.data,
-        stars_total: reaction?.starsTotal ?? entryState.data.stars_total,
-        favorites_total: reaction?.favoritesTotal ?? entryState.data.favorites_total,
-        comments: filterHiddenComments(entryState.data.comments, hiddenMembers),
+        ...entryWithExtras.data,
+        stars_total: reaction?.starsTotal ?? entryWithExtras.data.stars_total,
+        favorites_total: reaction?.favoritesTotal ?? entryWithExtras.data.favorites_total,
+        comments: filterHiddenComments(entryWithExtras.data.comments, hiddenMembers),
       },
     };
-  }, [entryState, hiddenMembers, reaction]);
+  }, [entryWithExtras, hiddenMembers, reaction]);
 
   // `entryState` itself is a fresh wrapper object on every call to useLiveEntry (every render),
   // even when nothing about the underlying resource changed — depending on it directly would
