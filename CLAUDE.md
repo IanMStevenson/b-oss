@@ -92,55 +92,12 @@ The Chrome extension is **single-account** and has no electron-store; it stores 
 - **FSA handle** — the granted `FileSystemDirectoryHandle` is persisted in IndexedDB
   (`b-ark-ui-chrome/src/fsa-persistence.ts`); permission is re-queried on each use.
 
-## Mutagen dev-loop (Windows)
+## Maintainer's environment (read only if it applies)
 
-Live Windows mirrors exist for local testing/debugging without a manual
-git-pull-and-refresh cycle - see
-`devutils/dev-vm-setup/mutagen-dev-loop-pattern.md` for the full pattern
-and the repoint command for "make that worktree available via Mutagen."
-
-- **b-ark** (debugging): local relay `b-ark-relay` → `~/live/b-ark-repo`
-  (the **whole monorepo**, not just `packages/b-ark` - `.vscode/launch.json`
-  needs the full workspace root) → Windows `D:\Dev\debugging\b-ark-build`.
-  Because the sync source is the repo root, `b-ark-relay` must be recreated
-  with `--ignore-vcs --ignore=node_modules/` (Windows keeps its own
-  `node_modules`; the other two relays sync a subfolder so don't need this).
-  The launch config runs `electron.cmd .` against the synced
-  `packages/b-ark/dist/`, so `npm run build` on the VM in the feeding
-  worktree is part of the loop. Full details + gotchas:
-  `devutils/dev-vm-setup/mutagen-dev-loop-pattern.md`.
-- **b-ark-chrome** (Chrome "Load unpacked"): local relay
-  `b-ark-chrome-relay` → `~/live/b-ark-chrome-dist` (built `dist/`, needs
-  `npm run dev` running in whichever worktree feeds it) → Windows
-  `D:\Dev\chrome-live\b-ark-chrome-build`.
-- **b-mobile-pc** (Windows testing of the desktop shell):
-  local relay `b-mobile-pc-relay` → `~/live/b-mobile-pc-repo` (the **whole monorepo**, created with
-  `--ignore-vcs --ignore=node_modules/ --ignore=e2e-out/` like b-ark's) → Windows
-  `D:\Dev\debugging\b-mobile-pc-build` through `b-mobile-pc-live` (Ian creates that session once). It
-  runs `electron.cmd` against the synced `packages/b-mobile-pc/dist`, which serves
-  `packages/b-mobile/dist`, so build **both** (`npm run build -w @b-oss/b-mobile -w @b-oss/b-mobile-pc`)
-  on the VM in the feeding worktree. Steps and the VS Code launch config:
-  `packages/b-mobile-pc/README.md`. The relay's source is whichever worktree was last pointed at it
-  (repoint with the terminate/create pair above).
-  The same relay also carries the packaged app's `dist-electron/win-unpacked/` (installers, `*.blockmap`,
-  `*.yml` and `linux-unpacked/` are ignored), so on Windows run
-  `packages\b-mobile-pc\dist-electron\win-unpacked\b-mobile.exe` from the synced folder: fast launch,
-  no unpacking, a few MB per rebuild. See `packages/b-mobile-pc/README.md`.
-  **When Ian asks for a b-mobile-pc build "on Mutagen", he means this unpacked folder**, not the
-  `dist/` + `electron.cmd` loop: run `packages/b-mobile-pc/scripts/build-win-docker.sh` in the feeding
-  worktree (it also makes the installers, which stay out of the relay), flush the relay, and give him the
-  version. b-mobile shows its own package version (e.g. `1.3.0`) plus the suffix, not the root's.
-  Git is unavailable inside Docker, so the script passes the host's commit count in as
-  `BOSS_COMMIT_COUNT` (b-oss#875) and the digit matches a local build.
-
-## b-mobile-pc dev loop (Windows): quit before a build lands
-
-Running `packages/b-mobile-pc/dist-electron/win-unpacked/b-mobile.exe` from the synced folder: quit the
-app completely first (tray icon > Exit; end any `b-mobile.exe` in Task Manager), check `mutagen sync list`
-for transition problems, `mutagen sync flush`, then launch. Do not turn notifications on in the synced
-folder (it would register that folder at login; the shell now refuses), test them with the Setup-installed
-copy. A banner "running older program files than its web files" means an old process is still running.
-Details: `packages/b-mobile-pc/README.md`, "Dev-loop hazards" (b-oss#696).
+The maintainer's own machines (Mutagen dev loops to Windows, the egress proxy, where credentials live) are
+described in [docs/MAINTAINER-ENVIRONMENT.md](docs/MAINTAINER-ENVIRONMENT.md). **Agents: assume you are
+NOT in that environment.** Run `hostname`; only if it starts with `ims-dev-` does that file apply to you.
+Otherwise ignore it and everything it refers to.
 
 ## Commands
 
@@ -189,12 +146,10 @@ export ANDROID_HOME=$HOME/Android/Sdk && npm run build -w @b-oss/b-mobile && (cd
 ```
 
 Takes ~2 min cold; produces an unsigned APK (`app-release-unsigned.apk`), nothing is uploaded. Gradle's JVM
-ignores `HTTP(S)_PROXY`, so on the dev VMs egress goes through the squid proxy set in
-`~/.gradle/gradle.properties` (`systemProp.http(s).proxyHost=localhost`, port `3128`) — if downloads hang or
-fail with connection errors, check that file first. Verified on ims-dev-o1 on 2026-10-08:
-`assembleRelease` passes; `lintRelease` currently fails on one error (`PermissionImpliesUnsupportedChromeOsHardware`:
-the CAMERA permission lacks a `<uses-feature android:name="android.hardware.camera" android:required="false"/>`),
-tracked on b-oss#330.
+ignores `HTTP(S)_PROXY`, so behind a proxy set `systemProp.http(s).proxyHost/proxyPort` in
+`~/.gradle/gradle.properties`. `lintRelease` currently fails on one error
+(`PermissionImpliesUnsupportedChromeOsHardware`: the CAMERA permission lacks a
+`<uses-feature android:name="android.hardware.camera" android:required="false"/>`), tracked on b-oss#330.
 
 ### Regenerating the b-mobile native Android licence list
 
@@ -241,7 +196,7 @@ no warning) but with an empty client ID, and the "Sign in to Blipfoto" button
 then does nothing at all - no console output anywhere (page, popup, or service
 worker), because `startOAuthFlow` treats a missing client ID as a silent,
 logged-to-storage-only error rather than throwing. Confirmed on 2026-09-05
-after exactly this happened on a fresh Mutagen-fed build. Copy or symlink
+after exactly this happened on a fresh build. Copy or symlink
 `.env.local` from the main checkout into any new worktree before relying on
 OAuth-related functionality there.
 
@@ -255,25 +210,9 @@ Blipfoto client ID and redirect; `google-services.json` must hold a client for b
 Details in `.env.example`. Release builds (the `b-mobile-v*` workflow) are unaffected.
 
 `google-services.json` is gitignored (`packages/b-mobile/android/.gitignore`) and a build without it
-succeeds but silently has no push notifications. On the dev VMs the canonical copy is
-`~/.config/b-mobile/google-services.json` (mode 600; it has clients for both package names). A new
-worktree needs it symlinked in:
-`ln -s ~/.config/b-mobile/google-services.json <worktree>/packages/b-mobile/android/app/google-services.json`.
-Likewise copy `.env.local` and `.env.android-debug.local` from the main checkout.
-
-## Building Gradle/Android on the egress-controlled dev VM
-
-Outbound traffic goes through a squid proxy (`localhost:3128`) with a per-domain rate limit
-(20 new connections/min). Two gotchas for `./gradlew` (b-mobile):
-
-- The JVM ignores `HTTP(S)_PROXY` env vars. Put `systemProp.http(s).proxyHost/proxyPort`
-  in `~/.gradle/gradle.properties`, and pass `JAVA_TOOL_OPTIONS="-Dhttps.proxyHost=localhost
--Dhttps.proxyPort=3128"` for the first run so the wrapper can download Gradle itself.
-- A `403 Forbidden` from `dl.google.com` is the rate limiter (`TCP_DENIED/403` in
-  `/var/log/squid/access.log`), not a blocked host. Gradle caches what it fetched, so retry
-  with `--max-workers=2` (a pause between attempts helps).
-- `npm ci` fails in Electron's postinstall (binary download blocked); use `--ignore-scripts`
-  for Android-only work.
+succeeds but silently has no push notifications. Put your own (from your Firebase project, with a client
+for each package name you build) at `packages/b-mobile/android/app/google-services.json`. A new worktree
+needs it, `.env.local` and `.env.android-debug.local` copied or symlinked in from the main checkout.
 
 ## Versioning
 
