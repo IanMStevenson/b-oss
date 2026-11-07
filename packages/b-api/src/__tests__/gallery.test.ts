@@ -2,7 +2,8 @@
 // Copyright (C) 2026 Ian Stevenson
 
 import { describe, it, expect } from 'vitest';
-import { extractGalleryItems } from '../backup-engine.js';
+import { extractGalleryItems } from '../gallery.js';
+import { LOGGED_OUT_ENTRY_PAGE } from './fixtures/logged-out-entry-page.js';
 
 const MARKER = 'blipfoto.data.gallery = ';
 
@@ -65,5 +66,18 @@ describe('extractGalleryItems', () => {
 
   it('returns null when the JSON is valid but has no items key', () => {
     expect(extractGalleryItems(pageWith('{"count":0}'))).toBeNull();
+  });
+});
+
+describe('extractGalleryItems on a logged-out entry page', () => {
+  it('reads all items from a trimmed public multi-photo entry page', () => {
+    const items = extractGalleryItems(LOGGED_OUT_ENTRY_PAGE);
+    expect(items).toHaveLength(5);
+    expect(items?.[0]?.item_id_str).toBe('3411114802393646647');
+    for (const item of items ?? []) {
+      expect(item.thumbnail_url).toMatch(/^https:\/\//);
+      expect(item.image_urls?.stdres).toMatch(/^https:\/\//);
+      expect(item.image_urls?.hires).toMatch(/^https:\/\//);
+    }
   });
 });
