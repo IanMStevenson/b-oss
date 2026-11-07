@@ -1,7 +1,7 @@
 # Probe findings (b-oss#482)
 
 What has been checked about the public site, API and image host, and what is still open. Findings
-are from plain anonymous requests made from a dev VM on 2026-10-23 (User-Agent
+are from plain anonymous requests made from a single Linux machine on 2026-10-23 (User-Agent
 `b-oss-status-monitor/0.1 (+https://b-oss.dev; unofficial independent status monitor)`), one
 request each, no credentials. The items under "Still to verify" are the remaining open points.
 

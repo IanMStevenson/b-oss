@@ -93,7 +93,7 @@ read) every **5 minutes**, with the account's single app token read from the sec
   stop while the app is closed and resume next start. Only the user's own close is intercepted: quits
   from `app.quit()`, an updater, or the OS ending the session still quit. No taskbar badges yet; if the
   app is fully quit, nothing polls. The decisions are small pure functions (`src/main/tray-policy.ts`).
-- Not covered by anything runnable on the dev VM: real Windows toasts (they need the installer's
+- Not covered by anything runnable on Linux: real Windows toasts (they need the installer's
   AppUserModelID, b-oss#612), the tray on Windows, login items, and the real keystore. The tray icon is
   read from `resources/tray-icon.png` when packaged; the installer work has to ship it.
 
@@ -106,7 +106,7 @@ npx electron packages/b-mobile-pc       # needs the Electron binary
 ```
 
 Environment (ignored in a packaged app): `BMPC_DIST` (web build directory), `BMPC_API_ORIGIN` (e.g. a
-stub API), `BMPC_AUTH_HOSTS`, `BMPC_AUTH_ALLOW_HTTP=1`, `BMPC_SHELL_VERSION` (the build id the shell reports). On the dev VM the Electron binary has to be
+stub API), `BMPC_AUTH_HOSTS`, `BMPC_AUTH_ALLOW_HTTP=1`, `BMPC_SHELL_VERSION` (the build id the shell reports). Where Electron's binary download is blocked (an egress-restricted Linux box) it has to be
 fetched by hand and the app run in Docker; see the e2e issue (b-oss#614).
 
 ## Windows exe
@@ -234,7 +234,7 @@ Routine for a new build to land on Windows:
 3. Launch. If the mismatch banner appears, an old process is still running: go back to step 1.
 4. Do not turn notifications on in the synced folder; test notifications with the Setup-installed copy.
 
-Real Windows behaviour (file locking, the tray, the login item) cannot be tested on the Linux dev VM; the
+Real Windows behaviour (file locking, the tray, the login item) cannot be tested on Linux; the
 e2e covers the mismatch banner and log line with a shell started with `BMPC_SHELL_VERSION` (a hook that
 is ignored in a packaged app), and the login-item rule is unit-tested as a pure function.
 

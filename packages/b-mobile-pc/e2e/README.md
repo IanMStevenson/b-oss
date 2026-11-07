@@ -73,5 +73,5 @@ Sub-pixel text (b-oss#676): the container renders with LCD anti-aliasing (a font
 - `scrot`/screen captures of Xvfb return stale frames. Use `page.screenshot()` over CDP (these tests do).
 - The test hooks live in `src/main/index.ts` behind `!app.isPackaged`: `BMPC_DIST`, `BMPC_API_ORIGIN`,
   `BMPC_AUTH_HOSTS`, `BMPC_AUTH_ALLOW_HTTP`, `BMPC_AUTH_ORIGIN`, `BMPC_TEST_PLAINTEXT_STORE`, `BMPC_TEST_POLL_INTERVAL_MS`, `BMPC_TEST_NOTIFY_PORT`.
-- On the dev VM the image CDN is blocked by the egress allowlist, so photos in the feed do not load;
+- On a network that restricts egress the image CDN may be blocked, so photos in the feed do not load;
   nothing here depends on them.

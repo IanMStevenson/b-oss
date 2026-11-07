@@ -532,7 +532,7 @@ and the tile key must be one a provider tolerates being public.
 
 **App identity:** `VITE_BLIPFOTO_CLIENT_ID` must be the distributed app registered on the
 project's own (Cyclops) Blipfoto account, redirect exactly `bmobile://oauth/`: its owner and name
-are what users see when authorising. Never build a release, or a build that leaves the dev box,
+are what users see when authorising. Never build a release, or a build that leaves your machine,
 with an identity from a test account (b-oss#371). The ID is baked in at build time, so changing it
 needs a rebuild, and tokens issued under the old identity stay tied to it: every account (and its
 b-push service token) must sign in again, and `VITE_DEV_TOKEN` must be re-issued for the new
@@ -585,7 +585,7 @@ run`) break the root `vitest.config.ts` `setupFiles` path, which resolves agains
   chunk output (`@ionic/react` is the known >500 KB chunk).
 - The manifest permission list in `android/` is deliberately redundant with what plugin manifests
   merge in, so the §17 table stays satisfied if a plugin changes.
-- No Android device or emulator is available on the dev VM. Compilation (`./gradlew
+- Where no Android device or emulator is available (a plain Linux box), Compilation (`./gradlew
 assembleDebug`), jsdom tests and a headless-browser pass (Playwright, see the `run-b-view`
   skill) do not verify on-device behaviour. Do not claim device behaviour is verified from them;
   see `docs/DECIDED_NOT_TO_TEST.md`.

@@ -84,6 +84,6 @@ NODE_USE_ENV_PROXY=1 MONITOR_CLIENT_ID=<client id> node packages/b-status/script
 node packages/b-status/scripts/correlate.mjs --report   # slow/failed local attempts next to the page's incidents
 ```
 
-The log defaults to `~/dev/tmp/b-status-correlate/probe.ndjson`. `NODE_USE_ENV_PROXY=1` is for the
-egress-controlled dev boxes. The photo check is off unless `--photo` is given (the CDN host is not on
-their allowlist). `--once` does a single run, to test.
+The log defaults to `~/dev/tmp/b-status-correlate/probe.ndjson`. `NODE_USE_ENV_PROXY=1` is for running
+behind an egress proxy. The photo check is off unless `--photo` is given (the CDN host may not be
+on an egress allowlist). `--once` does a single run, to test.
