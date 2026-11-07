@@ -84,7 +84,13 @@ export interface AccountStatus {
 export interface UserDataStore {
   schema_version: 2;
   backup_folder: string;
-  app: { autoUpdateEnabled: boolean; staleAlertEnabled?: boolean; staleAlertIntervals?: number };
+  app: {
+    autoUpdateEnabled: boolean;
+    staleAlertEnabled?: boolean;
+    staleAlertIntervals?: number;
+    /** 'Remind me later' on the Microsoft Store notice: hidden until this ISO time. */
+    storeNoticeSnoozedUntil?: string;
+  };
   tokens: Record<string, string>;
   status: Record<string, AccountStatus>;
   /**
@@ -161,6 +167,8 @@ export interface AppStore {
   };
   /** Set at launch when the previous backup was long ago; cleared on dismiss. Electron only. */
   staleBackupNotice?: StaleBackupNotice | null;
+  /** True when the move-to-the-Microsoft-Store notice should show (non-Store Windows build). Electron only. */
+  storeMigrationNotice?: boolean;
 }
 
 /** Data behind the "b-ark had not backed up for a while" notice; wording is the UI's. */
@@ -255,6 +263,10 @@ export interface BackendContext {
   dismissStaleBackupNotice?(): Promise<void>;
   /** Turn the stale-backup alert off for good ('Don't show again'). Electron only. */
   disableStaleBackupAlert?(): Promise<void>;
+  /** Hide the Microsoft Store notice for this session. Electron only. */
+  dismissStoreNotice?(): Promise<void>;
+  /** Hide the Microsoft Store notice for 14 days ('Remind me later'). Electron only. */
+  snoozeStoreNotice?(): Promise<void>;
 
   openViewer(accountId: string): Promise<void>;
   getViewerUrl(accountId: string): Promise<string>;

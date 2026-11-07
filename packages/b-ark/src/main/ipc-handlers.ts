@@ -35,10 +35,12 @@ import {
   getBackupFolder,
   getPortableSettings,
   setStaleBackupNotice,
+  dismissStoreNoticeForSession,
   savePortableSettings,
   bindBackupFolder,
   store as userDataStore,
 } from './store.js';
+import { snoozeUntil } from './store-notice.js';
 import { ElectronPlatformIO } from './platform-io.js';
 import {
   loadRunSession,
@@ -540,6 +542,19 @@ export function registerIpcHandlers(
   ipcMain.handle('disableStaleBackupAlert', () => {
     userDataStore.set('app', { ...userDataStore.get('app'), staleAlertEnabled: false });
     setStaleBackupNotice(null);
+    emitStoreChanged();
+  });
+
+  ipcMain.handle('dismissStoreNotice', () => {
+    dismissStoreNoticeForSession();
+    emitStoreChanged();
+  });
+
+  ipcMain.handle('snoozeStoreNotice', () => {
+    userDataStore.set('app', {
+      ...userDataStore.get('app'),
+      storeNoticeSnoozedUntil: snoozeUntil(new Date()),
+    });
     emitStoreChanged();
   });
 

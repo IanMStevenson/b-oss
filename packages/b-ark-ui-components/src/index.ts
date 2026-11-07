@@ -53,6 +53,13 @@ export type {
   StartupTaskWarning,
 } from './startupTask.js';
 export { describeStaleBackup } from './staleBackup.js';
+export {
+  STORE_URL,
+  STORE_HOW_IT_WORKS_URL,
+  STORE_NOTICE_TEXT,
+  shouldShowStoreNotice,
+} from './storeNotice.js';
+export { StoreNoticeBanner } from './StoreNoticeBanner.js';
 export { describeReasons } from './ragReasons.js';
 export type { DescribedReason, ReasonAction } from './ragReasons.js';
 export { ToastHost } from './ToastHost.js';
