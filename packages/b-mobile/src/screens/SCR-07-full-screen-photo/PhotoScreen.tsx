@@ -9,8 +9,8 @@
 // from the entry, not a separate call), not literally zero network activity. Refetching keeps this
 // screen deep-link-resilient (same entryId-prop pattern as SCR-06) instead of depending on router
 // location.state, which would break on a direct link/refresh. Zoom/pan and swipe-to-navigate come
-// from b-view's Lightbox (react-zoom-pan-pinch under the hood) — a single-image gallery here, so
-// its prev/next affordances stay hidden. Lightbox has no retry UI of its own for a broken image
+// from b-view's Lightbox (react-zoom-pan-pinch under the hood) — a gallery of the main photo plus any extras
+// (b-oss#941), whose arrows step through them and then on to the neighbouring entry. Lightbox has no retry UI of its own for a broken image
 // (§19's acceptance criterion needs one), so its onImageError callback drives this screen's own
 // retry state instead.
 
@@ -18,6 +18,7 @@ import { useEffect, useState } from 'react';
 import type { CSSProperties } from 'react';
 import { IonPage, IonContent, IonSpinner, IonText, IonButton } from '@ionic/react';
 import { Lightbox, formatLongDate } from '@b-oss/b-view';
+import { useEntryStateWithExtras } from '../../data/entryExtras.js';
 import { useLiveEntry } from '../../data/useLiveEntry.js';
 import { useAppNavigate, usePhotoOpenedFrom } from '../../app/routes/useAppNavigate.js';
 import { profile } from '../../profile/profile.js';
@@ -28,7 +29,8 @@ interface PhotoScreenProps {
 
 export function PhotoScreen({ entryId }: PhotoScreenProps) {
   const navigate = useAppNavigate();
-  const { entryState, reload, prevEntryId, nextEntryId } = useLiveEntry(entryId);
+  const { entryState: liveEntryState, reload, prevEntryId, nextEntryId } = useLiveEntry(entryId);
+  const entryState = useEntryStateWithExtras(entryId, liveEntryState);
   const [imageError, setImageError] = useState(false);
 
   // Lightbox has no retry UI of its own for a broken <img> — reset whenever the entry (or its
@@ -53,6 +55,21 @@ export function PhotoScreen({ entryId }: PhotoScreenProps) {
   }
 
   const entry = entryState.status === 'loaded' ? entryState.data : null;
+  // Main photo first, then any extras at standard resolution (b-oss#941).
+  const lightboxImages = imagePath
+    ? [
+        imagePath,
+        ...(entry?.images.extras ?? []).flatMap((e) => {
+          const path = e.image ?? e.thumbnail;
+          return path ? [path] : [];
+        }),
+      ]
+    : [];
+  const [lightboxIndex, setLightboxIndex] = useState(0);
+  useEffect(() => {
+    setLightboxIndex(0);
+  }, [entryId]);
+  const at = Math.min(lightboxIndex, Math.max(lightboxImages.length - 1, 0));
 
   return (
     <IonPage>
@@ -91,16 +108,27 @@ export function PhotoScreen({ entryId }: PhotoScreenProps) {
         {entryState.status === 'loaded' &&
           (imagePath && !imageError ? (
             <Lightbox
-              images={[imagePath]}
-              index={0}
+              images={lightboxImages}
+              index={at}
               onClose={close}
-              onNavigate={() => {}}
+              onNavigate={setLightboxIndex}
               title={entry?.title}
               journalTitle={entry?.journal_title}
               date={entry ? formatLongDate(entry.date) : undefined}
               entryNav={{
-                onPrevious: prevEntryId ? () => goTo(prevEntryId) : undefined,
-                onNext: nextEntryId ? () => goTo(nextEntryId) : undefined,
+                // Arrows step through this entry's photos first, then on to the neighbouring entry.
+                onPrevious:
+                  at > 0
+                    ? () => setLightboxIndex(at - 1)
+                    : prevEntryId
+                      ? () => goTo(prevEntryId)
+                      : undefined,
+                onNext:
+                  at < lightboxImages.length - 1
+                    ? () => setLightboxIndex(at + 1)
+                    : nextEntryId
+                      ? () => goTo(nextEntryId)
+                      : undefined,
               }}
               onImageError={() => setImageError(true)}
               keyboardZoom={profile().keyboardWheelZoom}
