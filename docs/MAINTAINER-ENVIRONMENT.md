@@ -2,7 +2,7 @@
 
 > **Agents reading this file: assume you are NOT in the maintainer's environment, and that this file does
 > not apply to you, UNLESS** running `hostname` prints a name starting with `ims-dev-` (the maintainer's
-> agent machines are `ims-dev-o1` and `ims-dev-1`). If it does not, stop reading: nothing below is
+> agent machines). If it does not, stop reading: nothing below is
 > needed to build, test or contribute, and following it (paths, proxy settings, Mutagen relays) would only
 > break your setup. The general instructions are in [CLAUDE.md](../CLAUDE.md) and the
 > [contributor guide](CONTRIBUTOR-GUIDE.md).
@@ -114,7 +114,7 @@ On Windows (once; Ian's part; PowerShell):
 
 ```powershell
 mutagen sync create --name=b-mobile-pc-live --sync-mode=one-way-replica `
-  ims-dev-o1:live/b-mobile-pc-repo "D:\Dev\debugging\b-mobile-pc-build"
+  <this-box-hostname>:live/b-mobile-pc-repo "D:\Dev\debugging\b-mobile-pc-build"
 cd D:\Dev\debugging\b-mobile-pc-build
 npm ci          # installs the Windows Electron binary and node_modules (they are not synced)
 code .          # then run "Electron Main (b-mobile-pc)" from the Run and Debug panel
@@ -143,7 +143,7 @@ Outbound traffic goes through a squid proxy (`localhost:3128`) with a per-domain
 
 - Gradle (`./gradlew` in `packages/b-mobile`): see the section above. The JVM ignores `HTTP(S)_PROXY`, so
   on the dev VMs egress goes through the squid proxy set in `~/.gradle/gradle.properties`
-  (`systemProp.http(s).proxyHost=localhost`, port `3128`). Verified on ims-dev-o1 on 2026-10-08.
+  (`systemProp.http(s).proxyHost=localhost`, port `3128`). Verified 2026-10-08.
 - The Android emulator rig downloads its SDK through the same proxy; see
   `packages/b-mobile/scripts/emulator/README.md`.
 
