@@ -7,6 +7,13 @@ Mac releases are blocked pending a Mac contributor — see
 
 ## Overview
 
+> **b-ark 1.0.7 (tag `b-ark-v1.0.7`) is the LAST b-ark release on GitHub.** From here on b-ark is released
+> through the Microsoft Store only (see "Microsoft Store (MSIX)" below). Do not tag a new `b-ark-v*` or publish
+> a b-ark release on GitHub: the sections below describing the tag-driven GitHub installer release are kept as
+> a record of how 1.0.7 and earlier were made. 1.0.7 carries a launch notice that points installed users to the
+> Store (b-oss#845); installs left on the GitHub build stay on 1.0.7. If you ever must ship another GitHub build,
+> push the tag alone: do not create a release for it in the web UI first, or the workflow cannot upload into it.
+
 Tag-driven. Pushing a `b-ark-v*` tag (e.g. `b-ark-v1.0.6`; releases before 1.0.6 were plain `v*`) fires
 [`.github/workflows/release-win.yml`](.github/workflows/release-win.yml),
 which builds the workspaces, packages the NSIS installer with
@@ -22,8 +29,8 @@ update.
 
 ## Microsoft Store (MSIX)
 
-Tracked in [b-oss#805](https://github.com/IanMStevenson/b-oss/issues/805). The Store build is separate from the GitHub
-installer route above: it is an unsigned MSIX (the Store signs it), and it skips electron-updater
+Tracked in [b-oss#805](https://github.com/IanMStevenson/b-oss/issues/805). The Store is now the only route for new b-ark releases (the GitHub installer route above ended with
+1.0.7). The Store build is separate from it: it is an unsigned MSIX (the Store signs it), and it skips electron-updater
 (`process.windowsStore`), because the Store delivers updates.
 
 1. Do the usual release steps above (changelog, release note, version bump, audit) for the version to submit.
