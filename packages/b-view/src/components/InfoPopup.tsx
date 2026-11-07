@@ -29,12 +29,12 @@ export function InfoPopup({ isOpen, onClose }: InfoPopupProps) {
           © {year} Ian Stevenson. Licensed under the GNU General Public License v3.
         </p>
         <a
-          href="https://github.com/ianstevenson/b-oss"
+          href="https://b-oss.dev"
           target="_blank"
           rel="noopener noreferrer"
           className={styles.link}
         >
-          github.com/ianstevenson/b-oss
+          b-oss.dev
         </a>
       </div>
     </div>

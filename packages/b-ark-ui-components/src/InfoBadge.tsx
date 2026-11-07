@@ -87,12 +87,12 @@ export function InfoBadge({
           </p>
           <p style={{ marginTop: 8, fontSize: 12 }}>
             <a
-              href="https://github.com/ianstevenson/b-oss"
+              href="https://b-oss.dev"
               target="_blank"
               rel="noreferrer"
               style={{ color: 'var(--green-700)' }}
             >
-              github.com/ianstevenson/b-oss
+              b-oss.dev
             </a>
           </p>
           <p style={{ marginTop: 6, fontSize: 12 }}>
