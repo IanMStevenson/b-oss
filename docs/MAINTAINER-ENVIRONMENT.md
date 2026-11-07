@@ -79,7 +79,7 @@ The one VM relay (`b-mobile-pc-relay`, below) ignores the installers, `*.blockma
 `packages/b-mobile-pc/scripts/build-win-docker.sh` on the VM only a few MB arrive. (`win-unpacked/` is
 recreated by every build; that is fine here because the relay's root is the whole repo, but a relay
 rooted at `win-unpacked/` itself would halt with "root deletion".) Start-with-login is **not** registered
-from a dev folder (see "Dev-loop hazards" below), so test notifications with the Setup-installed copy.
+from a dev folder (see "Dev-loop hazards" in `packages/b-mobile-pc/README.md`), so test notifications with the Setup-installed copy.
 
 ## b-mobile-pc: testing on Windows (Mutagen dev loop)
 
