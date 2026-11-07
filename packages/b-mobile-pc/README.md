@@ -166,25 +166,6 @@ sign-in client id, the map tile key). `scripts/env-check.mjs` runs first: it nam
 main: re-copy it (CLAUDE.md, "Local build credentials"). The packaged layout can be smoke-tested on Linux with `npx electron-builder --linux dir` and the
 e2e image (test hooks are ignored when packaged, so only the real API is reachable).
 
-### Fast loop on Windows: run the unpacked build from the synced folder
-
-Do not run the exes from a network share. The portable exe unpacks about 360 MB into `%TEMP%` on every
-launch, which is slow anywhere and much slower over Samba. A build's `win-unpacked/` folder is the
-same app already unpacked, and only about 4 MB of it changes between builds (`resources/app.asar` and
-`resources/web`; the rest is the Electron runtime). The dev-loop relay below already carries it, so run
-`b-mobile.exe` from the synced folder:
-
-```
-D:\Dev\debugging\b-mobile-pc-build\packages\b-mobile-pc\dist-electron\win-unpacked\b-mobile.exe
-```
-
-The one VM relay (`b-mobile-pc-relay`, below) ignores the installers, `*.blockmap`, `*.yml` and
-`linux-unpacked/` under `dist-electron/` but not `win-unpacked/`, so after
-`packages/b-mobile-pc/scripts/build-win-docker.sh` on the VM only a few MB arrive. (`win-unpacked/` is
-recreated by every build; that is fine here because the relay's root is the whole repo, but a relay
-rooted at `win-unpacked/` itself would halt with "root deletion".) Start-with-login is **not** registered
-from a dev folder (see "Dev-loop hazards" below), so test notifications with the Setup-installed copy.
-
 ## Microsoft Store (MSIX) (b-oss#612)
 
 The release route is the Microsoft Store only (decision on b-oss#612, 2026-11-05): the Store signs the
@@ -257,49 +238,9 @@ Real Windows behaviour (file locking, the tray, the login item) cannot be tested
 e2e covers the mismatch banner and log line with a shell started with `BMPC_SHELL_VERSION` (a hook that
 is ignored in a packaged app), and the login-item rule is unit-tested as a pure function.
 
-## Testing on Windows (Mutagen dev loop)
-
-**Exit the app from the tray before testing a new synced build.** Closing the window only hides it, so
-the old instance keeps running while its files are replaced underneath it, and its lazily loaded screens
-then fail to load. The app reloads itself once when that happens (`platform/staleSession.ts`, b-oss#678),
-but a clean start is what you want when testing.
-
-Same two-hop pattern as b-ark (`devutils/dev-vm-setup/mutagen-dev-loop-pattern.md`): a VM-only relay
-mirrors a worktree into a stable staging folder, and a cross-machine session mirrors that to Windows.
-
-On the VM (done; this is the part the agent can do):
-
-```bash
-# relay: b-mobile-pc-relay  ->  ~/live/b-mobile-pc-repo   (whole repo, so VS Code on Windows has the workspace)
-D=packages/b-mobile-pc/dist-electron
-mutagen sync terminate b-mobile-pc-relay
-mutagen sync create --name=b-mobile-pc-relay --sync-mode=one-way-replica \
-  --ignore-vcs --ignore=node_modules/ --ignore=e2e-out/ --ignore=/.git \
-  --ignore="/$D/*.exe" --ignore="/$D/*.blockmap" --ignore="/$D/*.yml" \
-  --ignore="/$D/linux-unpacked/" --ignore="/$D/.icon-ico/" \
-  <worktree> ~/live/b-mobile-pc-repo
-# build in the feeding worktree, then the change is on Windows within seconds
-npm run build -w @b-oss/b-mobile && npm run build -w @b-oss/b-mobile-pc
-```
-
-The `--ignore` flags matter for the same reason as b-ark's: Windows keeps its own `node_modules` (with
-the Windows Electron binary), and a one-way replica does not delete paths that were already copied
-before an ignore was added.
-
-On Windows (once; Ian's part; PowerShell):
-
-```powershell
-mutagen sync create --name=b-mobile-pc-live --sync-mode=one-way-replica `
-  ims-dev-o1:live/b-mobile-pc-repo "D:\Dev\debugging\b-mobile-pc-build"
-cd D:\Dev\debugging\b-mobile-pc-build
-npm ci          # installs the Windows Electron binary and node_modules (they are not synced)
-code .          # then run "Electron Main (b-mobile-pc)" from the Run and Debug panel
-```
-
-or without VS Code: `node_modules\.bin\electron.cmd packages\b-mobile-pc`. The shell serves
-`packages/b-mobile/dist`, so both builds above must have run on the VM. The sign-in client id comes
-from the `.env.local` that is copied into the worktree on the VM (see CLAUDE.md, "Local build
-credentials"); it is baked into b-mobile's build.
+The maintainer's Windows testing loop (Mutagen relay and synced folder) is in
+[docs/MAINTAINER-ENVIRONMENT.md](../../docs/MAINTAINER-ENVIRONMENT.md); it only applies on the maintainer's
+machines. To try the app on Windows yourself, build the Windows exe as described under "Windows exe".
 
 Not done yet: packaging and signing (b-oss#612), the web-app side of notifications (b-oss#610), the desktop side of
 b-mobile's platform layer (b-oss#608 phase 2).

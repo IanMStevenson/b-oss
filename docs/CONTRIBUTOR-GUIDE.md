@@ -113,7 +113,7 @@ adb install -r app/build/outputs/apk/debug/app-debug.apk
 
 Push notifications also need a Firebase `google-services.json`; without it the build still works, just
 silently without push. Ask your agent to walk you through this the first time, and see `CLAUDE.md` for
-the Gradle and proxy details.
+the build commands. If Gradle downloads fail behind a proxy, set the proxy in `~/.gradle/gradle.properties` (the JVM ignores `HTTP(S)_PROXY`).
 
 ## Part 2: More advanced setups
 
