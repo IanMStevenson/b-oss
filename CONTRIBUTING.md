@@ -1,5 +1,8 @@
 # Contributing to b-oss
 
+New here? The [contributor guide](docs/CONTRIBUTOR-GUIDE.md) takes you from a PC with Claude Code to a
+merged pull request, and explains how this project is run. This page is the short version.
+
 ## Getting started
 
 1. Clone the repo and run `nvm use && npm run setup`
