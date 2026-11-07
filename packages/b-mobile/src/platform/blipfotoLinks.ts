@@ -14,6 +14,8 @@ import { isCapacitorNative } from './platformKind.js';
 
 interface BlipfotoLinksPlugin {
   setEnabled(options: { enabled: boolean }): Promise<void>;
+  needsApproval(): Promise<{ needed: boolean }>;
+  openApprovalSettings(): Promise<void>;
 }
 
 const BlipfotoLinks = registerPlugin<BlipfotoLinksPlugin>('BlipfotoLinks');
@@ -21,4 +23,17 @@ const BlipfotoLinks = registerPlugin<BlipfotoLinksPlugin>('BlipfotoLinks');
 export async function setBlipfotoLinksEnabled(enabled: boolean): Promise<void> {
   if (!isCapacitorNative()) return;
   await BlipfotoLinks.setEnabled({ enabled });
+}
+
+/** Android 12+ only sends an https link to an app the user has approved for that domain (the
+ * filter is not autoVerify), so turning the toggle on needs a second step in system settings. */
+export async function blipfotoLinksNeedApproval(): Promise<boolean> {
+  if (!isCapacitorNative()) return false;
+  return (await BlipfotoLinks.needsApproval()).needed;
+}
+
+/** Opens this app's "Open by default" screen, where the user ticks www.blipfoto.com. */
+export async function openBlipfotoLinksApprovalSettings(): Promise<void> {
+  if (!isCapacitorNative()) return;
+  await BlipfotoLinks.openApprovalSettings();
 }

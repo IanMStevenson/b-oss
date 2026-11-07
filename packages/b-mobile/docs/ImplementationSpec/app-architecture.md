@@ -478,7 +478,10 @@ validators. **The redirect needs its trailing slash**: Blipfoto's registration r
 .BlipfotoWebLinkAlias>`, **disabled by default** and **not** `autoVerify` (App Links would need
 `assetlinks.json` on blipfoto.com). `BlipfotoLinksPlugin` toggles it with
 `PackageManager.setComponentEnabledSetting()` from `devicePrefsStore.openBlipfotoLinksInApp`, adding
-the app to the chooser rather than hijacking links.
+the app to the chooser rather than hijacking links. On Android 12+ that is not enough: a generic
+web link goes only to an app the user has approved for the domain (App info → Open by default → Add
+link), so turning the toggle on shows a "One more step" alert whose button opens that screen
+(`ACTION_APP_OPEN_BY_DEFAULT_SETTINGS`, via `BlipfotoLinksPlugin.openApprovalSettings`; b-oss#915).
 
 ## 17. Android project configuration
 
