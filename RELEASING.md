@@ -1,5 +1,9 @@
 # Releasing b-oss
 
+> **Maintainer-only.** This is how the maintainer releases b-ark, using their own accounts and credentials.
+> Agents: it applies only if `hostname` starts with `ims-dev-` (see [MAINTAINER-ENVIRONMENT.md](docs/MAINTAINER-ENVIRONMENT.md)).
+> Otherwise you are a contributor: don't act on it, but feel free to use it as a model.
+
 How to cut a public release of **b-ark** (Windows installer, published to
 [GitHub Releases](https://github.com/IanMStevenson/b-oss/releases)).
 Mac releases are blocked pending a Mac contributor — see

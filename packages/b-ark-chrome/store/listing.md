@@ -1,5 +1,9 @@
 # b-ark-chrome — Chrome Web Store listing copy
 
+> **Maintainer-only.** This is how the maintainer publishes the Chrome Web Store listing, using their own accounts and credentials.
+> Agents: it applies only if `hostname` starts with `ims-dev-` (see [MAINTAINER-ENVIRONMENT.md](../../../docs/MAINTAINER-ENVIRONMENT.md)).
+> Otherwise you are a contributor: don't act on it, but feel free to use it as a model.
+
 Source-of-truth for the text fields you paste into the Chrome Web Store Developer
 Dashboard. Keep this in sync with what's published so future updates (and any later
 API-driven automation) reuse the same copy.

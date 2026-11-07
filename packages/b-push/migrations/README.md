@@ -1,5 +1,9 @@
 # b-push D1 migrations
 
+> **Maintainer-only.** This is how the maintainer runs b-push database migrations, using their own accounts and credentials.
+> Agents: it applies only if `hostname` starts with `ims-dev-` (see [MAINTAINER-ENVIRONMENT.md](../../../docs/MAINTAINER-ENVIRONMENT.md)).
+> Otherwise you are a contributor: don't act on it, but feel free to use it as a model.
+
 `../src/schema.sql` is always the full current schema, for a fresh database (and the one the
 tests load); treat it as `0001`. The live D1 database already exists, so changes to it after
 that are the numbered files here. Ian runs each one by hand in the Cloudflare dashboard's D1

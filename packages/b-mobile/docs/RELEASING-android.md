@@ -1,5 +1,9 @@
 # Releasing b-mobile to Google Play
 
+> **Maintainer-only.** This is how the maintainer releases b-mobile to Google Play, using their own accounts and credentials.
+> Agents: it applies only if `hostname` starts with `ims-dev-` (see [MAINTAINER-ENVIRONMENT.md](../../../docs/MAINTAINER-ENVIRONMENT.md)).
+> Otherwise you are a contributor: don't act on it, but feel free to use it as a model.
+
 Release is manual. Publisher: Salient Point (Play developer account). Application ID
 `uk.co.salientpoint.bmobile` (permanent once first uploaded).
 

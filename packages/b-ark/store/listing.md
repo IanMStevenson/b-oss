@@ -1,5 +1,9 @@
 # b-ark — Microsoft Store content
 
+> **Maintainer-only.** This is how the maintainer publishes the Microsoft Store listing, using their own accounts and credentials.
+> Agents: it applies only if `hostname` starts with `ims-dev-` (see [MAINTAINER-ENVIRONMENT.md](../../../docs/MAINTAINER-ENVIRONMENT.md)).
+> Otherwise you are a contributor: don't act on it, but feel free to use it as a model.
+
 Source of truth for the text pasted into Partner Center, so what is published can be
 reproduced and updated. Tracked in
 [b-oss#805](https://github.com/IanMStevenson/b-oss/issues/805). Limits are the ones
