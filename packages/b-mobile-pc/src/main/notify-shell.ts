@@ -18,7 +18,7 @@ import { safeSend } from './safe-ipc.js';
 import { TapQueue } from './tap-queue.js';
 import { appIconPath, trayIconPath } from './tray-icon.js';
 import { decideLoginItem, isDevFolder } from './login-item-policy.js';
-import { applyStartupTask, loadStartupAddon } from './store-startup.js';
+import { applyStartupTask, loadStartupAddon, startedByStartupTask } from './store-startup.js';
 import { loginItemWanted, requestExit, shouldHideOnClose } from './tray-policy.js';
 
 /** Argument added to the login item so a start at login goes straight to the tray. */
@@ -318,13 +318,26 @@ function setLoginItem(wanted: boolean, log: (message: string) => void): void {
 /** The Store build's start at sign-in: the manifest startup task, through the shared native add-on (packages/b-win-startup) that
  * electron-builder.store.json copies to resources/native/. Loaded on first use. */
 let storeAddon: ReturnType<typeof loadStartupAddon> | undefined;
+function getStoreAddon(log: (message: string) => void): ReturnType<typeof loadStartupAddon> {
+  storeAddon ??= loadStartupAddon(
+    () => createRequire(__filename)(join(process.resourcesPath, 'native', 'win-startup.node')),
+    (message, err) => log(`${message}: ${err instanceof Error ? err.message : String(err)}`),
+  );
+  return storeAddon;
+}
+
+/** True when Windows started this Store install through the startup task (b-oss#885): no argument marks it. */
+export function startedAtSignInByStore(log: (message: string) => void): Promise<boolean> {
+  if (process.windowsStore !== true) return Promise.resolve(false);
+  return startedByStartupTask(getStoreAddon(log), (message, err) =>
+    log(`${message}: ${err instanceof Error ? err.message : String(err)}`),
+  );
+}
+
 function setStoreStartupTask(wanted: boolean, log: (message: string) => void): void {
   const onError = (message: string, err: unknown): void =>
     log(`${message}: ${err instanceof Error ? err.message : String(err)}`);
-  storeAddon ??= loadStartupAddon(
-    () => createRequire(__filename)(join(process.resourcesPath, 'native', 'win-startup.node')),
-    onError,
-  );
+  storeAddon = getStoreAddon(log);
   void applyStartupTask(storeAddon, wanted, onError).then((state) =>
     log(`startup task: wanted=${wanted} state=${state}`),
   );

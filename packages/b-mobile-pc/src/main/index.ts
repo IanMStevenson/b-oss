@@ -56,6 +56,7 @@ import {
   createElectronPresenter,
   NotifyShell,
   type Presenter,
+  startedAtSignInByStore,
   startedHidden,
 } from './notify-shell.js';
 import { createQuitSequence } from './quit-sequence.js';
@@ -629,7 +630,10 @@ if (!app.requestSingleInstanceLock()) {
     // A reminder alone (no polled account) also needs the tray and login item at launch.
     if (!poller.hasAccounts() && scheduler.hasReminders()) refreshActive();
 
-    await createWindow(!(startedHidden() && (poller.hasAccounts() || scheduler.hasReminders())));
+    // NSIS start at login passes --hidden; the Store startup task passes nothing (b-oss#885), so ask Windows.
+    const loginStart = startedHidden() || (await startedAtSignInByStore(notifyLog));
+    notifyLog(`login start: ${loginStart}`);
+    await createWindow(!(loginStart && (poller.hasAccounts() || scheduler.hasReminders())));
   });
 
   app.on('window-all-closed', () => app.quit());

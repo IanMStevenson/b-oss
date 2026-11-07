@@ -11,3 +11,8 @@ holds nothing app-specific.
   (`extraResources`); the app loads it from `process.resourcesPath`. Nothing imports this package as JS.
 - API: `getState(taskId)`, `enable(taskId)`, `disable(taskId)`, each resolving to the StartupTaskState name.
   `enable` acts only from `Disabled`; `disable` only from `Enabled`.
+- `launchKind()` resolves to how the process was activated: `StartupTask` (Windows started it at sign-in),
+  `Launch` (the user did), `Protocol`, `File`, `Other` or `Unknown`
+  ([b-oss#885](https://github.com/IanMStevenson/b-oss/issues/885)). A startup-task launch passes no arguments, so
+  this is the only way to tell. Windows hands the activation arguments out once, so the add-on keeps the first
+  answer; call it early.
