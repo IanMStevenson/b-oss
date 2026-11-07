@@ -1,12 +1,13 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (C) 2026 Ian Stevenson
 
-const GALLERY_MARKER = 'blipfoto.data.gallery = ';
+export const GALLERY_MARKER = 'blipfoto.data.gallery = ';
 
 export interface GalleryImageUrls {
   stdres?: string;
   hires?: string;
-  original?: string;
+  /** Absent, or `null` on logged-out pages despite what a signed-in page carries. */
+  original?: string | null;
 }
 
 export interface GalleryItem {
