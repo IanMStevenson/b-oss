@@ -3,10 +3,17 @@
 // @vitest-environment jsdom
 
 import { describe, it, expect, afterEach, beforeEach, vi } from 'vitest';
-import { render, screen, cleanup } from '@testing-library/react';
+import { render, screen, cleanup, waitFor } from '@testing-library/react';
 import { AppearanceSection } from '../sections/AppearanceSection.js';
 import { useAccountsStore } from '../../../state/accountsStore.js';
 import { useDevicePrefsStore } from '../../../state/devicePrefsStore.js';
+
+const approval = vi.hoisted(() => ({ needed: true, open: vi.fn() }));
+vi.mock('../../../platform/blipfotoLinks.js', () => ({
+  setBlipfotoLinksEnabled: vi.fn().mockResolvedValue(undefined),
+  blipfotoLinksNeedApproval: () => Promise.resolve(approval.needed),
+  openBlipfotoLinksApprovalSettings: approval.open,
+}));
 
 vi.mock('../../../platform/prefs.js', () => ({
   getPref: vi.fn().mockResolvedValue(null),
@@ -176,6 +183,50 @@ describe('AppearanceSection — links', () => {
     useAccountsStore.setState({ accounts: [], activeAccountId: null, hydrated: true });
     render(<AppearanceSection />);
     flip(screen.getByLabelText('Open blipfoto.com links in this app'), true);
+    expect(useDevicePrefsStore.getState().openBlipfotoLinksInApp).toBe(true);
+  });
+});
+
+describe('AppearanceSection — link approval prompt (b-oss#915)', () => {
+  it('after turning the toggle on, offers to open the system Open-by-default screen', async () => {
+    approval.needed = true;
+    approval.open.mockClear();
+    render(<AppearanceSection />);
+    flip(screen.getByLabelText('Open blipfoto.com links in this app'), true);
+    await waitFor(() => expect(document.querySelector('ion-alert')).not.toBeNull());
+    expect(document.querySelector('ion-alert')?.getAttribute('header')).toBe('One more step');
+  });
+
+  async function openPrompt() {
+    document.querySelectorAll('ion-alert').forEach((el) => el.remove());
+    approval.needed = true;
+    render(<AppearanceSection />);
+    flip(screen.getByLabelText('Open blipfoto.com links in this app'), true);
+    await waitFor(() => expect(document.querySelector('ion-alert')).not.toBeNull());
+    return document.querySelector('ion-alert')!;
+  }
+  const dismiss = (alert: Element, role: string) =>
+    alert.dispatchEvent(new CustomEvent('didDismiss', { bubbles: true, detail: { role } }));
+
+  it('turns the toggle back off when the prompt is declined', async () => {
+    const alert = await openPrompt();
+    dismiss(alert, 'cancel');
+    await waitFor(() => expect(useDevicePrefsStore.getState().openBlipfotoLinksInApp).toBe(false));
+  });
+
+  it('keeps the toggle on when the user goes on to the settings screen', async () => {
+    const alert = await openPrompt();
+    dismiss(alert, 'confirm');
+    await new Promise((r) => setTimeout(r, 20));
+    expect(useDevicePrefsStore.getState().openBlipfotoLinksInApp).toBe(true);
+  });
+
+  it('shows no prompt where the platform needs no approval', async () => {
+    approval.needed = false;
+    render(<AppearanceSection />);
+    flip(screen.getByLabelText('Open blipfoto.com links in this app'), true);
+    await new Promise((r) => setTimeout(r, 20));
+    expect(document.querySelector('ion-alert[is-open="true"]')).toBeNull();
     expect(useDevicePrefsStore.getState().openBlipfotoLinksInApp).toBe(true);
   });
 });

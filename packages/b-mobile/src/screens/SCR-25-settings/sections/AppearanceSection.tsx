@@ -9,7 +9,12 @@
 // globals.css) so they read as a choice rather than as tab navigation. The account picture row only
 // matters with two or more accounts stored, so it is hidden below that.
 
-import { IonList } from '@ionic/react';
+import { useState } from 'react';
+import { IonAlert, IonList } from '@ionic/react';
+import {
+  blipfotoLinksNeedApproval,
+  openBlipfotoLinksApprovalSettings,
+} from '../../../platform/blipfotoLinks.js';
 import { useDevicePrefsStore } from '../../../state/devicePrefsStore.js';
 import { useAccountsStore } from '../../../state/accountsStore.js';
 import { t } from '../../../strings/index.js';
@@ -28,6 +33,15 @@ export function AppearanceSection() {
   const accountCount = useAccountsStore((s) => s.accounts.length);
   const openLinksInApp = useDevicePrefsStore((s) => s.openBlipfotoLinksInApp);
   const setOpenLinksInApp = useDevicePrefsStore((s) => s.setOpenBlipfotoLinksInApp);
+  const [approvalPrompt, setApprovalPrompt] = useState(false);
+  const onOpenLinksChange = (value: boolean) => {
+    setOpenLinksInApp(value);
+    if (value) {
+      void blipfotoLinksNeedApproval()
+        .then((needed) => setApprovalPrompt(needed))
+        .catch(() => {});
+    }
+  };
   const showZoomBar = useDevicePrefsStore((s) => s.showZoomBar);
   const setShowZoomBar = useDevicePrefsStore((s) => s.setShowZoomBar);
   const showPagination = useDevicePrefsStore((s) => s.showPagination);
@@ -123,9 +137,34 @@ export function AppearanceSection() {
       <SectionHeader>Links</SectionHeader>
       <ToggleRow
         label="Open blipfoto.com links in this app"
-        caption="When on, blipfoto.com links you tap in other apps open here instead of in your browser."
+        caption="When on, blipfoto.com links you tap in other apps open here instead of in your browser. On Android 12 or later you also approve the link once in Android's settings; turning this on takes you there, and declining switches it back off."
         checked={openLinksInApp}
-        onChange={setOpenLinksInApp}
+        onChange={onOpenLinksChange}
+      />
+      <IonAlert
+        isOpen={approvalPrompt}
+        header="One more step"
+        message={
+          'Android also needs you to approve the link. On the next screen choose "Add link", tick www.blipfoto.com, then come back.'
+        }
+        onDidDismiss={(e) => {
+          // A second dismiss event (the wrapper closing an already-closed alert) carries no role.
+          if (!approvalPrompt) return;
+          setApprovalPrompt(false);
+          // Declining the approval step leaves the feature not working, so the toggle goes back to
+          // showing that rather than claiming it is on.
+          if (e.detail.role !== 'confirm') setOpenLinksInApp(false);
+        }}
+        buttons={[
+          { text: 'Not now', role: 'cancel' },
+          {
+            text: 'Open settings',
+            role: 'confirm',
+            handler: () => {
+              void openBlipfotoLinksApprovalSettings().catch(() => {});
+            },
+          },
+        ]}
       />
     </IonList>
   );
