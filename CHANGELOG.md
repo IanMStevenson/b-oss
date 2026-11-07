@@ -5,6 +5,10 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Changed
+
+- CI: a `b-ark-v*` tag builds the b-ark Store MSIX and the b-ark-chrome zip from one Environment (`release-b-ark.yml`). The GitHub installer, Mac test and sideload workflows are removed (b-oss#945).
+
 ## [b-mobile 1.3.0] - 2026-11-05
 
 ### Added

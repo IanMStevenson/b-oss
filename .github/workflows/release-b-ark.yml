@@ -1,0 +1,127 @@
+name: Release b-ark family (Store MSIX + Chrome zip)
+
+# One b-ark-v* tag builds both b-ark artifacts, each as a job using the same Environment,
+# `b-ark-release` (limited to b-ark-v* tags), which holds the shared client IDs and the Partner
+# Center values once: the b-ark Microsoft Store MSIX (Windows, unsigned: the Store re-signs it) and
+# the b-ark-chrome Web Store zip (Linux). Both are attached to the run as artifacts; uploading to
+# the Microsoft Store and the Chrome Web Store stays manual. There is no manual dispatch.
+# Environment secrets: BLIPFOTO_CLIENT_ID, VITE_CHROME_CLIENT_ID. Environment variables:
+# MSIX_IDENTITY_NAME, MSIX_PUBLISHER, MSIX_PUBLISHER_DISPLAY_NAME. See RELEASING.md, b-oss#945.
+on:
+  push:
+    tags: ['b-ark-v*']
+
+permissions:
+  contents: read
+
+jobs:
+  build-msix:
+    runs-on: windows-latest
+    environment: b-ark-release
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          fetch-depth: 0
+      - name: Tag must match the version and come from main
+        shell: bash
+        run: |
+          tag="${GITHUB_REF_NAME#b-ark-v}"
+          version="${tag%%-*}" # b-ark-v1.2.3-rc1 is version 1.2.3
+          for f in packages/b-ark/package.json packages/b-ark-chrome/package.json packages/b-ark-chrome/manifest.json; do
+            pkg=$(node -p "require('./$f').version")
+            if [ "$version" != "$pkg" ]; then
+              echo "::error::tag $GITHUB_REF_NAME is for $version but $f is $pkg"
+              exit 1
+            fi
+          done
+          git fetch --no-tags origin main
+          if ! git merge-base --is-ancestor "$GITHUB_SHA" origin/main; then
+            echo "::error::tagged commit is not on main"
+            exit 1
+          fi
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
+        with:
+          node-version: '22'
+          cache: 'npm'
+      - name: Generate release version metadata
+        env:
+          RELEASE: '1'
+        run: npm run version:bump
+      - run: npm ci
+      - run: npm audit --omit=dev --audit-level=high
+      - run: npm run build --workspace=packages/b-api
+      - run: npm run build --workspace=packages/backup-engine
+      - run: npm run build --workspace=packages/b-view-backup
+      - run: npm run build --workspace=packages/b-ark-ui-components
+      - run: npm run build --workspace=packages/b-ark-ui-electron
+      - name: Build the start-at-sign-in add-on (Rust, Windows x64)
+        run: node packages/b-win-startup/build.mjs
+      - name: Build MSIX
+        env:
+          RELEASE: '1'
+          MAIN_VITE_BLIPFOTO_CLIENT_ID: ${{ secrets.BLIPFOTO_CLIENT_ID }}
+          IDENTITY_NAME: ${{ vars.MSIX_IDENTITY_NAME }}
+          PUBLISHER: ${{ vars.MSIX_PUBLISHER }}
+          PUBLISHER_DISPLAY_NAME: ${{ vars.MSIX_PUBLISHER_DISPLAY_NAME }}
+        shell: bash
+        run: |
+          for v in MAIN_VITE_BLIPFOTO_CLIENT_ID IDENTITY_NAME PUBLISHER PUBLISHER_DISPLAY_NAME; do
+            if [ -z "${!v}" ]; then echo "::error::Environment value for $v is not set"; exit 1; fi
+          done
+          npm run dist:store --workspace=packages/b-ark -- \
+            "--config.appx.identityName=$IDENTITY_NAME" \
+            "--config.appx.publisher=$PUBLISHER" \
+            "--config.appx.publisherDisplayName=$PUBLISHER_DISPLAY_NAME"
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: b-ark-msix
+          path: |
+            packages/b-ark/dist-electron/*.appx
+            packages/b-ark/dist-electron/*.msix
+          if-no-files-found: error
+
+  build-chrome:
+    runs-on: ubuntu-latest
+    environment: b-ark-release
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          fetch-depth: 0
+      - name: Tag must match the version and come from main
+        shell: bash
+        run: |
+          tag="${GITHUB_REF_NAME#b-ark-v}"
+          version="${tag%%-*}" # b-ark-v1.2.3-rc1 is version 1.2.3
+          for f in packages/b-ark/package.json packages/b-ark-chrome/package.json packages/b-ark-chrome/manifest.json; do
+            pkg=$(node -p "require('./$f').version")
+            if [ "$version" != "$pkg" ]; then
+              echo "::error::tag $GITHUB_REF_NAME is for $version but $f is $pkg"
+              exit 1
+            fi
+          done
+          git fetch --no-tags origin main
+          if ! git merge-base --is-ancestor "$GITHUB_SHA" origin/main; then
+            echo "::error::tagged commit is not on main"
+            exit 1
+          fi
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
+        with:
+          node-version: '22'
+          cache: 'npm'
+      - run: npm ci
+      - run: npm audit --omit=dev --audit-level=high
+      - name: Build settings (gitignored file the extension build needs)
+        env:
+          CHROME_CLIENT_ID: ${{ secrets.VITE_CHROME_CLIENT_ID }}
+        run: |
+          if [ -z "$CHROME_CLIENT_ID" ]; then echo "::error::Environment value for CHROME_CLIENT_ID is not set"; exit 1; fi
+          echo "VITE_CHROME_CLIENT_ID=$CHROME_CLIENT_ID" > .env.local
+      - name: Build and package the extension
+        env:
+          RELEASE: '1'
+        run: npm run dist --workspace=@b-oss/b-ark-chrome
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: b-ark-chrome-zip
+          path: packages/b-ark-chrome/b-ark-chrome-*.zip
+          if-no-files-found: error

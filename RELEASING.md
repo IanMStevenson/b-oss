@@ -4,27 +4,27 @@
 > Agents: it applies only if `hostname` starts with `ims-dev-` (see [MAINTAINER-ENVIRONMENT.md](docs/MAINTAINER-ENVIRONMENT.md)).
 > Otherwise you are a contributor: don't act on it, but feel free to use it as a model.
 
-How to cut a public release of **b-ark** (Windows installer, published to
-[GitHub Releases](https://github.com/IanMStevenson/b-oss/releases)).
-Mac releases are blocked pending a Mac contributor — see
-[CONTRIBUTING.md](CONTRIBUTING.md#mac-build).
+How to cut a public release of **b-ark** (Microsoft Store MSIX) and **b-ark-chrome** (Chrome Web Store zip),
+which one `b-ark-v*` tag builds together. GitHub installer releases ended at 1.0.7 and there is no Mac build
+(see [CONTRIBUTING.md](CONTRIBUTING.md#mac-build)).
 
 ## Overview
 
 > **b-ark 1.0.7 (tag `b-ark-v1.0.7`) is the LAST b-ark release on GitHub.** From here on b-ark is released
-> through the Microsoft Store only (see "Microsoft Store (MSIX)" below). Do not tag a new `b-ark-v*` or publish
-> a b-ark release on GitHub: the sections below describing the tag-driven GitHub installer release are kept as
-> a record of how 1.0.7 and earlier were made. 1.0.7 carries a launch notice that points installed users to the
-> Store (b-oss#845); installs left on the GitHub build stay on 1.0.7. If you ever must ship another GitHub build,
-> push the tag alone: do not create a release for it in the web UI first, or the workflow cannot upload into it.
+> through the Microsoft Store only (see "Microsoft Store (MSIX)" below). Installs left on the GitHub build stay on
+> 1.0.7. The sections from "Cutting a release" step 3 onward that describe the GitHub installer release
+> (draft release, SHA-256, `b-ark-latest`) are kept as a record of how 1.0.7 and earlier were made; the workflow
+> that did it has been removed.
 
-Tag-driven. Pushing a `b-ark-v*` tag (e.g. `b-ark-v1.0.6`; releases before 1.0.6 were plain `v*`) fires
-[`.github/workflows/release-win.yml`](.github/workflows/release-win.yml),
-which builds the workspaces, packages the NSIS installer with
-[electron-builder](packages/b-ark/electron-builder.json), and uploads
-`b-ark Setup <version>.exe`, `b-ark Setup <version>.exe.blockmap`, and
-`latest.yml` to a draft release on GitHub. You then finalise that draft
-manually (notes, SHA-256, latest-release tick) and publish.
+Tag-driven. Pushing a `b-ark-v*` tag (e.g. `b-ark-v1.0.8`) fires
+[`.github/workflows/release-b-ark.yml`](.github/workflows/release-b-ark.yml) ([b-oss#945](https://github.com/IanMStevenson/b-oss/issues/945)),
+which has two jobs that use one GitHub Environment, `b-ark-release`: the b-ark Store MSIX (Windows) and the
+b-ark-chrome zip (Linux). Both are attached to the run as artifacts; uploads to the Microsoft Store and the
+Chrome Web Store are manual. Each job first checks that the tag matches the version in
+`packages/b-ark/package.json`, `packages/b-ark-chrome/package.json` and `packages/b-ark-chrome/manifest.json`
+(`b-ark-v1.2.3-rc1` counts as 1.2.3) and that the tagged commit is on `main`. There is no manual dispatch.
+
+The text below about existing installs updating via electron-updater applies to the old GitHub builds only.
 
 Once published, existing b-ark installs at older versions detect the
 new release on next launch via electron-updater (which reads
@@ -38,11 +38,14 @@ Tracked in [b-oss#805](https://github.com/IanMStevenson/b-oss/issues/805). The S
 (`process.windowsStore`), because the Store delivers updates.
 
 1. Do the usual release steps above (changelog, release note, version bump, audit) for the version to submit.
-2. Run the **Build MSIX (Microsoft Store)** workflow from the Actions tab (workflow_dispatch). Enter the
-   three Identity values from Partner Center (Product identity): Package/Identity/Name, Publisher, and
-   PublisherDisplayName. They must match exactly or the upload is rejected.
+2. Tag the release commit (on `main`) `b-ark-v<version>` and push the tag (see step 5 below). The
+   **Release b-ark family** workflow runs, waiting for nothing but the Environment's tag rule. The three Identity
+   values from Partner Center (Product identity) are the Environment variables `MSIX_IDENTITY_NAME`,
+   `MSIX_PUBLISHER` and `MSIX_PUBLISHER_DISPLAY_NAME`; they must match exactly or the upload is rejected, and
+   the build fails if any is empty.
 3. Download the `b-ark-msix` artifact and upload the `.appx` in a Partner Center submission. Paste the release
-   note into "What's new in this version".
+   note into "What's new in this version". The same run's `b-ark-chrome-zip` artifact is the Web Store upload;
+   see [packages/b-ark-chrome/RELEASING.md](packages/b-ark-chrome/RELEASING.md).
 
 **Start at sign-in in the Store build** (driven by the Scheduled backups setting). MSIX ignores the registry Run key, so the manifest declares a
 `windows.startupTask` (`TaskId` `BArkStartup`, from `packages/b-ark/msix/startup-task-extension.xml`). In
@@ -66,8 +69,8 @@ the checklist the others follow ([b-oss#444](https://github.com/IanMStevenson/b-
 
 | Component    | How it is released                                                                                           | Process                                                                                    |
 | ------------ | ------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------ |
-| b-ark        | Windows installer on GitHub Releases (Mac blocked)                                                           | This file                                                                                  |
-| b-ark-chrome | Zip uploaded to the Chrome Web Store                                                                         | [packages/b-ark-chrome/RELEASING.md](packages/b-ark-chrome/RELEASING.md)                   |
+| b-ark        | Microsoft Store only: MSIX built in CI from a `b-ark-v*` tag, uploaded by hand                               | This file                                                                                  |
+| b-ark-chrome | Zip built in CI from the same `b-ark-v*` tag, uploaded to the Chrome Web Store by hand                       | [packages/b-ark-chrome/RELEASING.md](packages/b-ark-chrome/RELEASING.md)                   |
 | b-mobile     | Built and signed in CI from a gated tag; AAB uploaded to Google Play by hand                                 | [packages/b-mobile/docs/RELEASING-android.md](packages/b-mobile/docs/RELEASING-android.md) |
 | b-mobile-pc  | Microsoft Store only, via the MSIX workflow ([b-oss#612](https://github.com/IanMStevenson/b-oss/issues/612)) | [packages/b-mobile-pc/README.md](packages/b-mobile-pc/README.md)                           |
 | b-api        | Source only: consumers pull it from the repo                                                                 | [packages/b-api/RELEASING.md](packages/b-api/RELEASING.md)                                 |
@@ -129,22 +132,24 @@ Every release, whatever the component:
 
 ## Prerequisites (once per repo)
 
-- Secret `BLIPFOTO_CLIENT_ID` set in
-  [repo Actions secrets](https://github.com/IanMStevenson/b-oss/settings/secrets/actions).
-  Surfaced to the b-ark build step as `MAIN_VITE_BLIPFOTO_CLIENT_ID`
-  (the `MAIN_VITE_` prefix is required by electron-vite v5 for the
-  main process).
-- Repo Settings → Actions → General → Workflow permissions =
-  **Read and write** (so `GITHUB_TOKEN` can create releases).
-- Branch protection on `main` requires changes via PR with passing CI.
-  An admin bypass exists for release fixes; prefer a PR for non-urgent
-  changes.
-- Code-signing secrets (`WIN_CSC_LINK`, `WIN_CSC_KEY_PASSWORD`):
-  intentionally unset for now — installer ships unsigned, SmartScreen
-  warns on first download. See [kick-off/TODO.md](kick-off/TODO.md) for
-  the signing follow-up.
+- GitHub Environment `b-ark-release`, with a deployment tag policy limiting it to `b-ark-v*`, plus a tag
+  ruleset for `b-ark-v*` (as for `b-mobile-v*`). It holds:
+  - secrets `BLIPFOTO_CLIENT_ID` (b-ark's client ID; surfaced to the build as `MAIN_VITE_BLIPFOTO_CLIENT_ID`,
+    the `MAIN_VITE_` prefix being required by electron-vite v5 for the main process) and
+    `VITE_CHROME_CLIENT_ID` (b-ark-chrome's; written to a repo-root `.env.local` in the Chrome job);
+  - variables `MSIX_IDENTITY_NAME`, `MSIX_PUBLISHER`, `MSIX_PUBLISHER_DISPLAY_NAME`.
+
+  Both client IDs ship inside the built apps, so the Environment limits who can start a build rather than
+  hiding them. A job fails with a named error if any value is empty.
+
+- Branch protection on `main` requires changes via PR with passing CI and code-owner review.
+- Code-signing secrets (`WIN_CSC_LINK`, `WIN_CSC_KEY_PASSWORD`) were never set: the old GitHub installer
+  shipped unsigned; the Store signs the MSIX.
 
 ## Cutting a release
+
+Steps 1, 2 and 4 apply to every release. Step 3 (local installer), step 6 and the sections after it describe
+the GitHub installer route that ended at 1.0.7. Step 5 is how a Store release starts.
 
 ### 1. Pre-flight on a clean working tree
 
@@ -234,13 +239,14 @@ git push origin b-ark-v0.1.1
 ```
 
 In VS Code: Command Palette → **Git: Push Tags** (the default sync
-button does not push tags). The workflow fires within a few seconds —
+button does not push tags). The **Release b-ark family** workflow fires within a few seconds —
 watch at https://github.com/IanMStevenson/b-oss/actions, expect 5–10
-minutes.
+minutes. The tag must match all three version files and be on `main`, so tag after the release commit is
+merged.
 
-### 6. Finalise the draft release
+### 6. Finalise the draft release (GitHub installer route, ended at 1.0.7)
 
-When the workflow finishes, a draft appears at
+When the workflow finished, a draft appeared at
 https://github.com/IanMStevenson/b-oss/releases with three assets
 attached. Click _Edit_ and:
 

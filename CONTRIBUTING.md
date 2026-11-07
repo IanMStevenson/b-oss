@@ -17,28 +17,12 @@ See [ARCHITECTURE.md](ARCHITECTURE.md) for the package structure and design prin
 
 ## Mac build
 
-Mac builds require a macOS runner — this cannot be cross-compiled. The Mac GitHub Actions
-workflow (`.github/workflows/release-mac.yml`) is run manually (**Actions → Release (Mac) →
-Run workflow**, selecting the branch to build). It can be triggered from a feature branch
-without merging, because the dispatch button only needs the workflow file present on the
-default branch.
-
-It is currently an **unsigned test build**: it produces a universal (Apple Silicon + Intel)
-DMG and publishes it to its **own separate pre-release tag** (`v1.0.0-mac-test.<run>`),
-marked _Pre-release_ so it never appears as _Latest_ and never touches the real `v1.0.0`
-release. `package.json` stays at `1.0.0`. Because it is unsigned, testers must bypass
-Gatekeeper (right-click → **Open**, or `xattr -dr com.apple.quarantine
-/Applications/b-ark.app`) and macOS auto-update does not apply.
-
-Two follow-ups graduate this to production:
-
-1. **Fold into the normal release cycle** — trigger the Mac job on the same `v*` tag as
-   Windows so both platforms attach to one versioned release (each platform's auto-updater
-   reads its own `latest*.yml`).
-2. **Sign + notarize** — a Mac contributor with an Apple Developer Program membership
-   supplies a Developer ID certificate (`CSC_LINK` / `CSC_KEY_PASSWORD`) and notarization
-   secrets (`APPLE_ID` / `APPLE_APP_SPECIFIC_PASSWORD` / `APPLE_TEAM_ID`), then drop
-   `CSC_IDENTITY_AUTO_DISCOVERY` from the workflow.
+Mac builds require a macOS runner — this cannot be cross-compiled — and there is currently no Mac
+workflow or release: the earlier unsigned test workflow was removed ([b-oss#945](https://github.com/IanMStevenson/b-oss/issues/945)).
+A Mac contributor would need to add a workflow that builds a universal (Apple Silicon + Intel) DMG with
+electron-builder and signs and notarizes it (a Developer ID certificate, `CSC_LINK` / `CSC_KEY_PASSWORD`, and
+`APPLE_ID` / `APPLE_APP_SPECIFIC_PASSWORD` / `APPLE_TEAM_ID`), using a GitHub Environment for the secrets as
+the other release workflows do. `scripts/make-icns.sh` (macOS only) generates the `.icns` icon.
 
 ## Code style
 

@@ -48,7 +48,7 @@ describe('affectedPackages', () => {
   it.each([
     'README.md',
     'assets/icons/icon.ico',
-    '.github/workflows/release-win.yml',
+    '.github/workflows/release-android.yml',
     '.claude/settings.json',
   ])('ignores inert file %s', (file) => {
     expect(affected(file)).toEqual([]);
