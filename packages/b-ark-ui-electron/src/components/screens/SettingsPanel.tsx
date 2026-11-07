@@ -601,7 +601,6 @@ export function SettingsPanel() {
             </div>
           </SettingBlock>
 
-
           <SettingBlock
             label="Gap check"
             hint="Shared across all journals"

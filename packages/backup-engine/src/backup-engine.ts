@@ -999,7 +999,7 @@ export class BackupEngine {
         const imageAbs = joinPath(journalFolder, JournalIndex.entryImagePath(entryIdx.date));
         const imagePresent = await this.io.fileExists(imageAbs);
         // Only entries that actually hit the network (a repair fetch or a scrape) pay the
-        // api_delay_ms courtesy pause — the plain existence/JSON checks below are local disk
+        // API_DELAY_MS courtesy pause — the plain existence/JSON checks below are local disk
         // reads with nothing to be polite to the API about. Losing this distinction during
         // the image_repair/full_image_repair merge meant every entry paid the delay
         // regardless, turning a courtesy pause for real requests into ~6,800 sleeps on a
