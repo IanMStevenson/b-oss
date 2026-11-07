@@ -27,7 +27,11 @@ Upload to Play is manual: download the signed bundle from the run and drop it in
    branches cannot trigger a release. Only approve runs for tags you created from a commit on
    `main` (the workflow also checks this).
 3. **Environment variables:** `VITE_BLIPFOTO_CLIENT_ID`, `VITE_OAUTH_REDIRECT_URI`
-   (`bmobile://oauth/`), `VITE_NOTIFY_SERVICE_URL`, `UPLOAD_KEY_ALIAS`.
+   (`bmobile://oauth/`), `VITE_NOTIFY_SERVICE_URL`, `UPLOAD_KEY_ALIAS`, and the three Partner Center values
+   for b-mobile-pc's Store build: `MSIX_IDENTITY_NAME`, `MSIX_PUBLISHER`, `MSIX_PUBLISHER_DISPLAY_NAME`.
+   The same `b-mobile-v*` tag also builds b-mobile-pc's Microsoft Store MSIX
+   (`build-msix-b-mobile-pc.yml`, b-oss#944) from this Environment, so the shared keys live here once. The
+   Environment's name predates that; it is kept because GitHub cannot rename an Environment.
 4. **Environment secrets:** `VITE_NOTIFY_REGISTRATION_SECRET`, `VITE_GEOAPIFY_KEY`,
    `VITE_MAPTILER_KEY` (the satellite layer, b-oss#741; the release pre-flight fails without it),
    `GOOGLE_SERVICES_JSON` (the file's contents; not secret, but gitignored), and the key itself:

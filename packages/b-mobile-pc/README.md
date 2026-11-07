@@ -177,8 +177,11 @@ NSIS installer and portable exe above stay as dev/test builds.
   Package/Identity/Name, Publisher, PublisherDisplayName. They must match exactly or the upload is rejected.
   The package's display name is fixed in the config (`appx.displayName`, `b-mobile for Blipfoto`) and must equal
   the name reserved in Partner Center; it differs from `productName` (`b-mobile`), which names the exe.
-- Build: run the **Build b-mobile-pc MSIX (Microsoft Store)** workflow (Actions, manual) and enter the three
-  values; download the `b-mobile-pc-msix` artifact and upload the `.appx` in a Partner Center submission.
+- Build: the `b-mobile-v*` tag that builds the Android bundle also runs the **Build b-mobile-pc MSIX
+  (Microsoft Store)** workflow (b-oss#944). It uses the `b-mobile-play-release` Environment (approval needed,
+  tags only), which holds the shared keys and the three Partner Center values as the variables
+  `MSIX_IDENTITY_NAME`, `MSIX_PUBLISHER` and `MSIX_PUBLISHER_DISPLAY_NAME`; the build fails if any value is
+  missing. Download the `b-mobile-pc-msix` artifact and upload the `.appx` in a Partner Center submission.
   Locally, on Windows only (AppX can't be built under Wine):
   `npm run build -w @b-oss/b-mobile && npm run dist:store -w @b-oss/b-mobile-pc -- --config.appx.identityName=... --config.appx.publisher=... --config.appx.publisherDisplayName=...`
 - Version: the package version here (it becomes the MSIX version, `x.y.z.0`) tracks b-mobile for Android in

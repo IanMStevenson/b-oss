@@ -4,18 +4,17 @@ name: Build b-mobile-pc MSIX (Microsoft Store)
 # artifact. The Store re-signs it, so no certificate is involved. Identity values come from
 # Partner Center (Product identity); the defaults are placeholders that give a package you can
 # inspect but not submit. See packages/b-mobile-pc/README.md (Microsoft Store) and b-oss#612.
+# Builds b-mobile-pc's unsigned MSIX for Microsoft Store submission from a b-mobile-v* tag, the same
+# tag that builds the Android bundle (release-android.yml): b-mobile and b-mobile-pc release together
+# and share one Environment, `b-mobile-play-release` (the name predates this workflow), which holds
+# the shared keys once. Not automatic: the Environment needs Ian's approval before this job starts,
+# and only b-mobile-v* tags may deploy to it. The Store re-signs the package, so no certificate is
+# involved. The MSIX is attached to the run as an artifact; upload it in Partner Center by hand.
+# Partner Center identity values are Environment variables (MSIX_IDENTITY_NAME, MSIX_PUBLISHER,
+# MSIX_PUBLISHER_DISPLAY_NAME). See packages/b-mobile-pc/README.md (Microsoft Store), b-oss#612, b-oss#938, b-oss#944.
 on:
-  workflow_dispatch:
-    inputs:
-      identity_name:
-        description: 'Partner Center Package/Identity/Name'
-        default: 'REPLACE-WITH-IDENTITY-NAME'
-      publisher:
-        description: 'Partner Center Package/Identity/Publisher (CN=...)'
-        default: 'CN=REPLACE_WITH_PARTNER_CENTER_PUBLISHER_ID'
-      publisher_display_name:
-        description: 'Partner Center Package/Properties/PublisherDisplayName'
-        default: 'REPLACE_WITH_PUBLISHER_DISPLAY_NAME'
+  push:
+    tags: ['b-mobile-v*']
 
 permissions:
   contents: read
@@ -23,8 +22,27 @@ permissions:
 jobs:
   build-msix:
     runs-on: windows-latest
+    environment: b-mobile-play-release
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          fetch-depth: 0
+      - name: Tag must match the version and come from main
+        shell: bash
+        run: |
+          tag="${GITHUB_REF_NAME#b-mobile-v}"
+          version="${tag%%-*}" # b-mobile-v1.2.3-rc1 is version 1.2.3
+          pkg=$(node -p "require('./packages/b-mobile-pc/package.json').version")
+          # b-mobile-pc tracks b-mobile in major.minor only (its patch can differ; a test enforces this).
+          if [ "${version%.*}" != "${pkg%.*}" ]; then
+            echo "::error::tag $GITHUB_REF_NAME is for $version but packages/b-mobile-pc/package.json is $pkg (major.minor must match)"
+            exit 1
+          fi
+          git fetch --no-tags origin main
+          if ! git merge-base --is-ancestor "$GITHUB_SHA" origin/main; then
+            echo "::error::tagged commit is not on main"
+            exit 1
+          fi
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
         with:
           node-version: '22'
@@ -38,23 +56,33 @@ jobs:
       - name: Build b-mobile's web build (the app's content)
         env:
           RELEASE: '1'
-          VITE_BLIPFOTO_CLIENT_ID: ${{ vars.VITE_BLIPFOTO_CLIENT_ID }}
-          VITE_GEOAPIFY_KEY: ${{ secrets.VITE_GEOAPIFY_KEY }}
-        run: npm run build -w @b-oss/b-mobile
+          BLIPFOTO_CLIENT_ID: ${{ vars.VITE_BLIPFOTO_CLIENT_ID }}
+          GEOAPIFY_KEY: ${{ secrets.VITE_GEOAPIFY_KEY }}
+          MAPTILER_KEY: ${{ secrets.VITE_MAPTILER_KEY }}
+        shell: bash
+        run: |
+          for v in BLIPFOTO_CLIENT_ID GEOAPIFY_KEY MAPTILER_KEY; do
+            if [ -z "${!v}" ]; then echo "::error::Environment value for $v is not set"; exit 1; fi
+          done
+          export VITE_BLIPFOTO_CLIENT_ID="$BLIPFOTO_CLIENT_ID" VITE_GEOAPIFY_KEY="$GEOAPIFY_KEY" VITE_MAPTILER_KEY="$MAPTILER_KEY"
+          npm run build -w @b-oss/b-mobile
       - name: Build the start-at-sign-in add-on (the shared Rust crate, Windows x64)
         run: node packages/b-win-startup/build.mjs
       - name: Build MSIX
         env:
           RELEASE: '1'
-          IDENTITY_NAME: ${{ inputs.identity_name || 'REPLACE-WITH-IDENTITY-NAME' }}
-          PUBLISHER: ${{ inputs.publisher || 'CN=REPLACE_WITH_PARTNER_CENTER_PUBLISHER_ID' }}
-          PUBLISHER_DISPLAY_NAME: ${{ inputs.publisher_display_name || 'REPLACE_WITH_PUBLISHER_DISPLAY_NAME' }}
+          IDENTITY_NAME: ${{ vars.MSIX_IDENTITY_NAME }}
+          PUBLISHER: ${{ vars.MSIX_PUBLISHER }}
+          PUBLISHER_DISPLAY_NAME: ${{ vars.MSIX_PUBLISHER_DISPLAY_NAME }}
         shell: bash
-        run: >
-          npm run dist:store --workspace=packages/b-mobile-pc --
-          "--config.appx.identityName=$IDENTITY_NAME"
-          "--config.appx.publisher=$PUBLISHER"
-          "--config.appx.publisherDisplayName=$PUBLISHER_DISPLAY_NAME"
+        run: |
+          for v in IDENTITY_NAME PUBLISHER PUBLISHER_DISPLAY_NAME; do
+            if [ -z "${!v}" ]; then echo "::error::Environment variable MSIX_$v is not set"; exit 1; fi
+          done
+          npm run dist:store --workspace=packages/b-mobile-pc -- \
+            "--config.appx.identityName=$IDENTITY_NAME" \
+            "--config.appx.publisher=$PUBLISHER" \
+            "--config.appx.publisherDisplayName=$PUBLISHER_DISPLAY_NAME"
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: b-mobile-pc-msix
