@@ -260,7 +260,6 @@ function composeAccountConfig(p: PortableAccount): AccountConfig {
     access_token: token,
     backup_folder: getBackupFolder(),
     schedule: settings.schedule,
-    api_delay_ms: settings.api_delay_ms,
     gap_check_days: settings.gap_check_days,
     redo_count: settings.redo_count,
     last_backup_at: status.last_backup_at,
@@ -318,7 +317,6 @@ export async function saveAccount(account: AccountConfig): Promise<void> {
     accounts: nextAccounts,
     account_order: nextOrder,
     schedule: account.schedule,
-    api_delay_ms: account.api_delay_ms,
     gap_check_days: account.gap_check_days,
     redo_count: account.redo_count,
   };

@@ -25,7 +25,6 @@ export interface BArkSettings {
   accounts: PortableAccount[];
   account_order: string[];
   schedule: PortableSchedule;
-  api_delay_ms: number;
   gap_check_days: number;
   redo_count: number;
   /**
@@ -118,7 +117,6 @@ export interface AccountConfig {
   };
   gap_check_days: number;
   redo_count: number;
-  api_delay_ms: number;
   last_backup_at: string | null;
   /** Date (YYYY-MM-DD) of the newest archived journal entry, if known. */
   last_entry_date?: string | null;
@@ -225,7 +223,6 @@ export type MainEvent =
 
 export interface SharedSettingsPartial {
   schedule?: PortableSchedule;
-  api_delay_ms?: number;
   gap_check_days?: number;
   redo_count?: number;
   thumbnailSizePercent?: number;

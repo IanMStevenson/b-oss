@@ -185,7 +185,6 @@ export function registerIpcHandlers(
             backup_folder: account.backup_folder,
             redo_count: account.redo_count,
             gap_check_days: account.gap_check_days,
-            api_delay_ms: account.api_delay_ms,
             metadata_write_interval: 0,
             app_version: __APP_VERSION__,
             enable_web_scrape: signedIn,
@@ -387,7 +386,6 @@ export function registerIpcHandlers(
       },
       gap_check_days: template?.gap_check_days ?? 30,
       redo_count: template?.redo_count ?? 7,
-      api_delay_ms: template?.api_delay_ms ?? 250,
       last_backup_at: null,
       total_archived: 0,
       journal_entry_total: profile.details?.entry_total ?? 0,
@@ -651,7 +649,6 @@ export function registerIpcHandlers(
       const next = {
         ...current,
         schedule: partial.schedule ?? current.schedule,
-        api_delay_ms: partial.api_delay_ms ?? current.api_delay_ms,
         gap_check_days: partial.gap_check_days ?? current.gap_check_days,
         redo_count: partial.redo_count ?? current.redo_count,
         enable_web_scrape: partial.enableWebScrape ?? current.enable_web_scrape,

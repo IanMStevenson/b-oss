@@ -604,9 +604,6 @@ export class BrowserBackend implements BackendContext {
     if (partial.showInfoOverlay !== undefined) {
       patch.showInfoOverlay = partial.showInfoOverlay;
     }
-    if (partial.api_delay_ms !== undefined) {
-      patch.api_delay_ms = partial.api_delay_ms;
-    }
     if (partial.gap_check_days !== undefined) {
       patch.gap_check_days = partial.gap_check_days;
     }

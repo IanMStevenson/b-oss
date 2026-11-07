@@ -16,7 +16,6 @@ export interface ChromeSettings {
   account_added_at: string | null;
   period: 'daily' | 'weekly';
   schedule_enabled: boolean;
-  api_delay_ms: number;
   gap_check_days: number;
   redo_count: number;
   thumbnailSizePercent: number;
@@ -126,7 +125,6 @@ export function buildAppStore({
           ),
           gap_check_days: settings.gap_check_days ?? 30,
           redo_count: settings.redo_count ?? 7,
-          api_delay_ms: settings.api_delay_ms ?? 0,
           last_backup_at: status.last_backup_at ?? null,
           last_entry_date: lastEntryDate,
           total_archived: archived,
@@ -177,7 +175,6 @@ export function buildBackupConfig({
     backup_folder: '',
     redo_count: settings.redo_count ?? 7,
     gap_check_days: settings.gap_check_days ?? 30,
-    api_delay_ms: settings.api_delay_ms ?? 0,
     metadata_write_interval: 5,
     app_version: appVersion,
     enable_web_scrape: settings.enable_web_scrape ?? false,

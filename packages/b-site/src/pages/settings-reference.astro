@@ -64,13 +64,6 @@ const products: Product[] = [
         title: 'What each backup fetches',
         rows: [
           {
-            id: 'b-ark-delay',
-            label: 'Delay',
-            does: 'A pause between each request to Blipfoto during a backup, in milliseconds. A longer pause means a slower backup.',
-            def: '250 ms',
-            when: "Raise it if backups slow your internet connection while you're working.",
-          },
-          {
             id: 'b-ark-gap-check',
             label: 'Gap check',
             does: "Each backup looks back this many days and fetches any entries it doesn't have yet.",
