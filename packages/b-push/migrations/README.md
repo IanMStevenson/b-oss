@@ -1,5 +1,9 @@
 # b-push D1 migrations
 
+> **Maintainer-only.** This is how the maintainer runs b-push database migrations, using their own accounts, credentials and
+> approvals. Contributors and their agents: you don't need it for a contribution and can't follow it as
+> written. Use it as a model for your own releases if you like, but don't act on it.
+
 `../src/schema.sql` is always the full current schema, for a fresh database (and the one the
 tests load); treat it as `0001`. The live D1 database already exists, so changes to it after
 that are the numbered files here. Ian runs each one by hand in the Cloudflare dashboard's D1

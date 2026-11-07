@@ -99,6 +99,9 @@ described in [docs/MAINTAINER-ENVIRONMENT.md](docs/MAINTAINER-ENVIRONMENT.md). *
 NOT in that environment.** Run `hostname`; only if it starts with `ims-dev-` does that file apply to you.
 Otherwise ignore it and everything it refers to.
 
+The release, deploy and store-listing docs (`RELEASING*.md`, `store/*.md`, the b-push and b-status runbooks) are
+likewise maintainer-only and say so at the top: do not act on them for a contribution.
+
 ## Commands
 
 ```bash

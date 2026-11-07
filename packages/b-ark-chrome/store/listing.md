@@ -1,5 +1,9 @@
 # b-ark-chrome — Chrome Web Store listing copy
 
+> **Maintainer-only.** This is how the maintainer publishes the Chrome Web Store listing, using their own accounts, credentials and
+> approvals. Contributors and their agents: you don't need it for a contribution and can't follow it as
+> written. Use it as a model for your own releases if you like, but don't act on it.
+
 Source-of-truth for the text fields you paste into the Chrome Web Store Developer
 Dashboard. Keep this in sync with what's published so future updates (and any later
 API-driven automation) reuse the same copy.

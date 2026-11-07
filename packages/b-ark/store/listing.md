@@ -1,5 +1,9 @@
 # b-ark — Microsoft Store content
 
+> **Maintainer-only.** This is how the maintainer publishes the Microsoft Store listing, using their own accounts, credentials and
+> approvals. Contributors and their agents: you don't need it for a contribution and can't follow it as
+> written. Use it as a model for your own releases if you like, but don't act on it.
+
 Source of truth for the text pasted into Partner Center, so what is published can be
 reproduced and updated. Tracked in
 [b-oss#805](https://github.com/IanMStevenson/b-oss/issues/805). Limits are the ones

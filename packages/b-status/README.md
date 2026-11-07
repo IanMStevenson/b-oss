@@ -1,5 +1,9 @@
 # b-status
 
+> **Maintainer-only.** This is how the maintainer deploys and runs b-status, using their own accounts, credentials and
+> approvals. Contributors and their agents: you don't need it for a contribution and can't follow it as
+> written. Use it as a model for your own releases if you like, but don't act on it.
+
 The monitor behind the unofficial Blipfoto status page: a Cloudflare Worker (a cron every 15
 minutes, plus `GET /v1/status` and `POST /v1/shares`) and a D1 database. How it works:
 [ARCHITECTURE.md](ARCHITECTURE.md). Why, and the history: b-oss#476. The page it feeds:

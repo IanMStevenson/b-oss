@@ -1,5 +1,9 @@
 # b-mobile for Blipfoto: Google Play listing copy
 
+> **Maintainer-only.** This is how the maintainer publishes the Google Play listing, using their own accounts, credentials and
+> approvals. Contributors and their agents: you don't need it for a contribution and can't follow it as
+> written. Use it as a model for your own releases if you like, but don't act on it.
+
 Source of truth for the text fields in the Play Console (b-oss#364). Keep in sync with what is
 published. Image assets are listed at the end; they are uploaded in the Console, not hosted.
 Matches the privacy policy (`docs/b-mobile-privacy.html`), the data deletion page
