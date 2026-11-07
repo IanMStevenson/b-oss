@@ -16,7 +16,7 @@ on:
       - 'packages/b-site/**'
       - '.github/workflows/site.yml'
   pull_request:
-    branches: [main, integration/b-site-relaunch]
+    branches: [main]
     paths:
       - 'packages/b-site/**'
       - '.github/workflows/site.yml'
