@@ -80,7 +80,7 @@ Two practical limits to know about:
 | **ESLint** (`npm run lint`)          | Zero warnings allowed. It also enforces the package boundaries (for example, only `b-mobile`'s `src/platform/` may import Capacitor). |
 | **Vitest** (`npm test`)              | Unit tests across the packages. `npm run test:watch` while you work.                                                                  |
 | **Prettier** (`npm run format`)      | Formatting. A pre-commit hook (husky + lint-staged) runs on staged files.                                                             |
-| **Vite / electron-vite**             | Dev servers and builds. `npm run dev` starts b-ark.                                                                                   |
+| **Vite / electron-vite**             | Dev servers and builds. `npm run dev --workspace=packages/b-ark` starts b-ark; each app package has its own `dev`.                    |
 | **Electron**                         | The desktop apps (`b-ark`, `b-mobile-pc`).                                                                                            |
 | **Chrome** (load unpacked)           | Test `b-ark-chrome`: build it, then load its `dist/` from `chrome://extensions`.                                                      |
 | **Capacitor + Android SDK**          | `b-mobile` on a phone or emulator. Only needed for `b-mobile` native work.                                                            |
