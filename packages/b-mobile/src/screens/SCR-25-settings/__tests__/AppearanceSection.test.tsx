@@ -197,6 +197,30 @@ describe('AppearanceSection — link approval prompt (b-oss#915)', () => {
     expect(document.querySelector('ion-alert')?.getAttribute('header')).toBe('One more step');
   });
 
+  async function openPrompt() {
+    document.querySelectorAll('ion-alert').forEach((el) => el.remove());
+    approval.needed = true;
+    render(<AppearanceSection />);
+    flip(screen.getByLabelText('Open blipfoto.com links in this app'), true);
+    await waitFor(() => expect(document.querySelector('ion-alert')).not.toBeNull());
+    return document.querySelector('ion-alert')!;
+  }
+  const dismiss = (alert: Element, role: string) =>
+    alert.dispatchEvent(new CustomEvent('didDismiss', { bubbles: true, detail: { role } }));
+
+  it('turns the toggle back off when the prompt is declined', async () => {
+    const alert = await openPrompt();
+    dismiss(alert, 'cancel');
+    await waitFor(() => expect(useDevicePrefsStore.getState().openBlipfotoLinksInApp).toBe(false));
+  });
+
+  it('keeps the toggle on when the user goes on to the settings screen', async () => {
+    const alert = await openPrompt();
+    dismiss(alert, 'confirm');
+    await new Promise((r) => setTimeout(r, 20));
+    expect(useDevicePrefsStore.getState().openBlipfotoLinksInApp).toBe(true);
+  });
+
   it('shows no prompt where the platform needs no approval', async () => {
     approval.needed = false;
     render(<AppearanceSection />);

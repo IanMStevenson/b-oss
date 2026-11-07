@@ -481,7 +481,7 @@ validators. **The redirect needs its trailing slash**: Blipfoto's registration r
 the app to the chooser rather than hijacking links. On Android 12+ that is not enough: a generic
 web link goes only to an app the user has approved for the domain (App info → Open by default → Add
 link), so turning the toggle on shows a "One more step" alert whose button opens that screen
-(`ACTION_APP_OPEN_BY_DEFAULT_SETTINGS`, via `BlipfotoLinksPlugin.openApprovalSettings`; b-oss#915).
+(`ACTION_APP_OPEN_BY_DEFAULT_SETTINGS`, via `BlipfotoLinksPlugin.openApprovalSettings`; b-oss#915). Declining the alert (Not now, or tapping outside) turns the toggle back off, so it never shows a feature as on that is not working.
 
 ## 17. Android project configuration
 

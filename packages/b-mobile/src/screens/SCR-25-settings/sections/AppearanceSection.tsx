@@ -137,7 +137,7 @@ export function AppearanceSection() {
       <SectionHeader>Links</SectionHeader>
       <ToggleRow
         label="Open blipfoto.com links in this app"
-        caption="When on, blipfoto.com links you tap in other apps open here instead of in your browser. On Android 12 or later you also approve the link once in Android's settings; turning this on takes you there."
+        caption="When on, blipfoto.com links you tap in other apps open here instead of in your browser. On Android 12 or later you also approve the link once in Android's settings; turning this on takes you there, and declining switches it back off."
         checked={openLinksInApp}
         onChange={onOpenLinksChange}
       />
@@ -147,11 +147,19 @@ export function AppearanceSection() {
         message={
           'Android also needs you to approve the link. On the next screen choose "Add link", tick www.blipfoto.com, then come back.'
         }
-        onDidDismiss={() => setApprovalPrompt(false)}
+        onDidDismiss={(e) => {
+          // A second dismiss event (the wrapper closing an already-closed alert) carries no role.
+          if (!approvalPrompt) return;
+          setApprovalPrompt(false);
+          // Declining the approval step leaves the feature not working, so the toggle goes back to
+          // showing that rather than claiming it is on.
+          if (e.detail.role !== 'confirm') setOpenLinksInApp(false);
+        }}
         buttons={[
           { text: 'Not now', role: 'cancel' },
           {
             text: 'Open settings',
+            role: 'confirm',
             handler: () => {
               void openBlipfotoLinksApprovalSettings().catch(() => {});
             },
