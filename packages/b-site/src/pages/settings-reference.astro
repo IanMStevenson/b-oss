@@ -67,7 +67,7 @@ const products: Product[] = [
             id: 'b-ark-gap-check',
             label: 'Gap check',
             does: "Each backup looks back this many days and fetches any entries it doesn't have yet.",
-            def: '31 days',
+            def: '30 days',
             when: 'Raise it if you often add entries for dates further back than a month.',
           },
           {
@@ -279,7 +279,7 @@ const products: Product[] = [
           {
             id: 'b-mobile-photo-size',
             label: 'Photo size',
-            does: "How an entry's photo fits the screen. Full width fills the column, so a tall photo scrolls. Fit to screen shows the whole photo at once.",
+            does: "How an entry's photo fits the screen. Full width fills the column, so a tall photo scrolls. Fit to screen shows the whole photo at once. Compact does the same and also leaves room for the title line.",
             def: 'Full width on Android, Fit to screen on Windows',
             when: "Choose Fit to screen if you'd rather not scroll past portrait photos.",
           },
