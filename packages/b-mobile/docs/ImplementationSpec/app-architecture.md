@@ -585,7 +585,7 @@ run`) break the root `vitest.config.ts` `setupFiles` path, which resolves agains
   chunk output (`@ionic/react` is the known >500 KB chunk).
 - The manifest permission list in `android/` is deliberately redundant with what plugin manifests
   merge in, so the §17 table stays satisfied if a plugin changes.
-- Where no Android device or emulator is available (a plain Linux box), Compilation (`./gradlew
+- Where no Android device or emulator is available (a plain Linux box), compilation (`./gradlew
 assembleDebug`), jsdom tests and a headless-browser pass (Playwright, see the `run-b-view`
   skill) do not verify on-device behaviour. Do not claim device behaviour is verified from them;
   see `docs/DECIDED_NOT_TO_TEST.md`.
