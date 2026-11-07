@@ -1,12 +1,15 @@
 # Contributing to b-oss
 
+New here? The [contributor guide](docs/CONTRIBUTOR-GUIDE.md) takes you from a PC with Claude Code to a
+merged pull request, and explains how this project is run. This page is the short version.
+
 ## Getting started
 
 1. Clone the repo and run `nvm use && npm run setup`
 2. Copy `.env.example` to `.env.local` and set `VITE_BLIPFOTO_CLIENT_ID` to your Blipfoto client ID
    (Register a **distributed app** at https://www.blipfoto.com/developer/apps,
    redirect URI: `b-ark://oauth/callback` — no client secret needed)
-3. Run `npm run dev` to start b-ark in development mode
+3. Run `npm run dev --workspace=packages/b-ark` to start b-ark in development mode
 
 ## Architecture
 

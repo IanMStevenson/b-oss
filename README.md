@@ -27,6 +27,8 @@ nvm use
 npm run setup
 ```
 
+New to the project? See the [contributor guide](docs/CONTRIBUTOR-GUIDE.md).
+
 ## License
 
 GPLv3 — see [LICENSE](LICENSE)
