@@ -5,25 +5,26 @@ import Hero from '../components/Hero.astro';
 
 <Layout
   title="Privacy Policy · b-mobile for Blipfoto · b-oss"
-  description="Privacy policy for b-mobile for Blipfoto — the Android app for browsing and posting to your Blipfoto journal."
+  description="Privacy policy for b-mobile for Blipfoto — the Android and Windows app for browsing and posting to your Blipfoto journal."
   narrow
 >
-  <Hero label="Privacy hero" title="Privacy Policy — b-mobile for Blipfoto">b-mobile for Blipfoto is an Android app for browsing, posting to and getting notifications
-      from your Blipfoto journal. This policy explains what data the app handles, where it goes,
-      and how to have it removed.</Hero>
+  <Hero label="Privacy hero" title="Privacy Policy — b-mobile for Blipfoto">b-mobile for Blipfoto is an Android and Windows app for browsing, posting to and getting
+      notifications from your Blipfoto journal. This policy explains what data the app handles,
+      where it goes, and how to have it removed. Where the Windows app differs, see
+      <a href="#windows">b-mobile on Windows</a>.</Hero>
 
   <section
     class="block"
     style="border-top: none; padding-top: 0"
     data-screen-label="Privacy body"
   >
-    <p><em>Last updated: 2 November 2026</em></p>
+    <p><em>Last updated: 6 November 2026</em></p>
 
     <h2>Who is responsible</h2>
     <p>
       b-mobile for Blipfoto is an open-source project, part of b-oss and led by Ian Stevenson.
-      It is published on the Google Play Store on behalf of the development team by Salient
-      Point Consulting Ltd. It is an independent app built on Blipfoto's public API, and is not
+      It is published on the Google Play Store (Android) and the Microsoft Store (Windows) on
+      behalf of the development team by Salient Point Consulting Ltd. It is an independent app built on Blipfoto's public API, and is not
       affiliated with or endorsed by Blipfoto. Questions about this policy can be sent to
       <a href="mailto:info@b-oss.dev">info@b-oss.dev</a> or through the
       <a href="contact">contact page</a>, whose form is delivered by
@@ -193,6 +194,56 @@ import Hero from '../components/Hero.astro';
       or share your data. Apart from the optional notification service above, the app has no
       server of its own.
     </p>
+
+    <h2 id="windows">b-mobile on Windows</h2>
+    <p>
+      The Windows app is the same app in a desktop window. Everything above applies to it except
+      where this section says otherwise. Android-specific wording (the Keystore, Google Play,
+      Android's picker, Firebase push) means the Windows equivalent below, or nothing.
+    </p>
+    <ul>
+      <li>
+        <strong>Sign-in token.</strong> Your Blipfoto access tokens are encrypted with Windows'
+        own credential protection and stored in the app's data folder
+        (<code>%APPDATA%\b-mobile</code>). The app refuses to store a token unencrypted. They are
+        never shown or logged. Uninstalling the app does not necessarily remove that folder;
+        delete it to remove the data.
+      </li>
+      <li>
+        <strong>Log.</strong> The app keeps a log file in that folder for troubleshooting, with
+        tokens and personal details removed. It stays on your PC and is not sent anywhere. The
+        tray menu has an Open log folder item.
+      </li>
+      <li>
+        <strong>Notifications.</strong> The Windows app does not use b-push, Firebase or Google.
+        If you turn notifications on, the app itself asks Blipfoto every few minutes how many
+        unread comments and notifications you have (counts only, never their content) and shows
+        a Windows notification when a count rises. Nothing is stored by the developer. This
+        needs the app to be running; turning notifications on makes it start with Windows and
+        stay in the system tray when you close the window. The tray menu's Exit stops it.
+      </li>
+      <li>
+        <strong>Camera.</strong> If you choose to take a photo with your webcam, the app uses it
+        only while you are doing that, and the picture stays on your PC until you post it.
+      </li>
+      <li>
+        <strong>Location.</strong> You can choose a place on the map. If you ask for your current
+        location, Windows may supply it, under your Windows location settings; it is used as
+        described under Your location above.
+      </li>
+      <li>
+        <strong>Photos.</strong> You choose photos with a normal Windows file dialog, which shares
+        only the ones you pick. Photos you save from your own entries go where you choose.
+      </li>
+      <li>
+        <strong>Maps.</strong> As above: Geoapify, or MapTiler for satellite view, receive your IP
+        address and the map area you view.
+      </li>
+      <li>
+        <strong>Updates.</strong> The Microsoft Store delivers updates. The Store collects its own
+        data under Microsoft's policies; the app does not send it anything.
+      </li>
+    </ul>
 
     <h2>Children</h2>
     <p>
