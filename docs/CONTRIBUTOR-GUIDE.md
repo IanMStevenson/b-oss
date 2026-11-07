@@ -3,8 +3,11 @@
 How to explore, build, run, test and contribute to b-oss. It is written for two readers:
 
 - **Someone who just wants their own version running or a change upstream**, with nothing but a PC and
-  [Claude Code](https://claude.com/claude-code). You do not need to be a developer; most of b-oss was
-  written with Claude Code, and this guide assumes you will do the same. Start at [Part 1](#part-1-the-basic-setup).
+  an AI coding agent such as [Claude Code](https://claude.com/claude-code). You do not need to be a
+  developer. Most of b-oss was written with Claude Code, so this guide uses it in its examples, but
+  nothing here depends on it: another agent (Codex, Copilot, Cursor, Gemini CLI and so on) works, and so
+  does writing the code by hand in any editor. Where the guide says "ask Claude Code", read "ask your
+  tool, or do it yourself". Start at [Part 1](#part-1-the-basic-setup).
 - **A seasoned developer** who wants to know how this project is set up and run. Skip to
   [Part 5](#part-5-how-this-project-is-run) and [Part 6](#part-6-contributing).
 
@@ -17,7 +20,7 @@ You need three things: Git, Node.js, and Claude Code. Everything else is optiona
 
 1. **Git** — [git-scm.com/downloads](https://git-scm.com/downloads).
 2. **Node.js 20** (see `.nvmrc`) — [nodejs.org](https://nodejs.org/), or `nvm` ([nvm-windows](https://github.com/coreybutler/nvm-windows) on Windows).
-3. **Claude Code** — [install instructions](https://docs.claude.com/en/docs/claude-code/setup). It needs a Claude subscription or API key.
+3. **An agent** (optional but recommended) — this guide uses **Claude Code**: [install instructions](https://docs.claude.com/en/docs/claude-code/setup). It needs a Claude subscription or API key.
 4. **A GitHub account**, if you want to contribute. Fork the repo first (button at the top right of the repository page).
 
 Then, in a terminal:
@@ -27,14 +30,16 @@ git clone https://github.com/<your-username>/b-oss.git
 cd b-oss
 nvm use          # picks Node 20; skip if you installed Node 20 directly
 npm run setup    # installs dependencies, creates .env.local, typechecks, builds the viewer
-claude           # start Claude Code in the repo
+claude           # start Claude Code in the repo (or open the repo in your editor or other tool)
 ```
 
-Claude Code reads `CLAUDE.md` automatically, so it already knows the layout and the rules. Good first prompts:
+Claude Code reads `CLAUDE.md` automatically, so it already knows the layout and the rules (other tools can be pointed at it; many read `AGENTS.md`, and it's fine to paste `CLAUDE.md` in). Good first prompts:
 
 - "Give me a tour of this repo and what each package does."
 - "Build and run b-ark in development mode and tell me what I should see."
 - "Run the tests and explain anything that fails."
+
+Read [Keep the agent safe](#keep-the-agent-safe-and-keep-yourself-safe) below before you start giving it commands to run.
 
 ### What you can do without any Blipfoto credentials
 
@@ -50,6 +55,65 @@ b-oss is developed mostly on Linux and the Windows desktop app is built from Lin
 plain npm and should work in a normal Windows terminal, but if something odd happens in the setup step,
 [WSL](#part-2-more-advanced-setups) is the smoother path, and Claude Code will help you either way. Tell it
 exactly what failed.
+
+### Keep the agent safe (and keep yourself safe)
+
+An agent that can run commands can also delete files, install software and read anything your account
+can read. Pick one of these before you let it loose:
+
+- **Careful permissions.** Leave the agent in its default mode, where it asks before running commands or
+  editing files, and read what it asks. This is slower, and it only protects you if you actually read
+  the prompts.
+- **An isolated environment.** Run it on a machine or VM that holds nothing you would mind losing: no
+  personal files, no password manager, no saved browser sign-ins, no credentials beyond the ones this
+  project needs. Then you can let it work without asking each time.
+
+The maintainer uses the second approach: a separate, isolated Linux machine, reached over the network,
+with nothing personal on it and nothing it can harm. That is what allows Claude Code to run freely there
+in its "YOLO" mode (permission prompts off). Do not turn that mode on for the PC you also use for banking
+and email.
+
+Either way: never paste real tokens or passwords into a prompt, never commit `.env.local`, and read a
+diff before it goes into a pull request.
+
+## Part 1b: Running what you build
+
+Builds run on your own devices. Each app has its own route; all of them need your own Blipfoto app
+registration in `.env.local` (see above) to sign in.
+
+| App                                          | How to run your build                 | Command / notes                                                                                                                                                                                                                                                                                                                        |
+| -------------------------------------------- | ------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **b-ark** (desktop)                          | In development, or as a Windows build | `npm run dev --workspace=packages/b-ark` for development. For an installer: `npm run dist:win --workspace=packages/b-ark` on Windows (the exe is written to `packages/b-ark/dist-electron/`). From Linux, `./scripts/build-win-docker.sh` builds it in Docker with no Wine on the host; see [RELEASING.md](../RELEASING.md) section 3. |
+| **b-mobile-pc** (desktop shell for b-mobile) | Same idea                             | `npm run dist:win --workspace=packages/b-mobile-pc` on Windows, after building b-mobile (`npm run build -w @b-oss/b-mobile`); from Linux, `packages/b-mobile-pc/scripts/build-win-docker.sh`. Details: [its README](../packages/b-mobile-pc/README.md).                                                                                |
+| **b-ark-chrome** (extension)                 | Load unpacked                         | `npm run build --workspace=@b-oss/b-ark-chrome`, then in Chrome or Edge open `chrome://extensions`, switch on **Developer mode**, choose **Load unpacked**, and pick `packages/b-ark-chrome/dist`. After a rebuild press the reload button on the extension.                                                                           |
+| **b-mobile** (Android)                       | Install over adb                      | Needs the Android SDK, a debug build and a phone with USB or wireless debugging on. See below.                                                                                                                                                                                                                                         |
+
+**Unlocking the device.** Your own builds are not signed by a trusted publisher, and the devices know it:
+
+- **Windows.** Windows SmartScreen warns about an unrecognised app: choose **More info**, then **Run
+  anyway**. If Smart App Control or an organisation policy blocks it outright, you'll need to turn that
+  off in Windows Security (**App & browser control**); this lowers protection for every app, so prefer a
+  machine or VM you are happy to do that on.
+- **Chrome.** Loading unpacked needs **Developer mode** on the extensions page. Chrome may remind you at
+  each start that you're running developer-mode extensions.
+- **Android.** Turn on **Developer options** (Settings, About phone, tap **Build number** seven times),
+  then **USB debugging** (or **Wireless debugging**). Your phone asks you to approve the computer the
+  first time. The Android Developer docs cover [adb](https://developer.android.com/tools/adb) pairing.
+
+**b-mobile on a phone, in outline.** The debug build installs beside the Play Store app with its own
+data, so it can't clobber the real one. It reads its own Blipfoto client ID from
+`.env.android-debug.local` (see `.env.example`).
+
+```bash
+npm run build:android-debug -w @b-oss/b-mobile
+cd packages/b-mobile && npx cap sync android
+cd android && ./gradlew assembleDebug
+adb install -r app/build/outputs/apk/debug/app-debug.apk
+```
+
+Push notifications also need a Firebase `google-services.json`; without it the build still works, just
+silently without push. Ask your agent to walk you through this the first time, and see `CLAUDE.md` for
+the Gradle and proxy details.
 
 ## Part 2: More advanced setups
 
@@ -146,9 +210,11 @@ For readers who want the working method behind the repo.
 - **Scoped CI.** Pull requests run typecheck, lint and tests only for the packages a change can affect,
   plus their dependents (`scripts/ci-scope.mjs`). Root config changes run everything. You can run the
   same scoped task locally:
+
   ```bash
   node scripts/ci-scope.mjs run test --packages b-api,b-push
   ```
+
 - **What CI does not cover.** The `b-mobile-pc` end-to-end suite, the Android emulator rig and the Android
   build are run locally by the maintainer; `CLAUDE.md` has the commands.
 - **Independent review.** A fresh agent session reviews each PR before the maintainer looks at it, and
