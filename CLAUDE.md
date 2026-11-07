@@ -6,7 +6,8 @@ b-oss is a monorepo of Blipfoto backup tools. b-ark is the Electron desktop app.
 b-ark-chrome is the Chrome-extension sibling (single-account, folder-based backup via
 the File System Access API). b-view is the shared journal-viewer component kit, and
 b-view-backup is the backup-folder data layer plus the standalone viewer SPA built on it.
-b-mobile is the Capacitor (Android) app for browsing and posting to Blipfoto, b-push is its
+b-mobile is the Capacitor (Android) app for browsing and posting to Blipfoto, b-mobile-pc is the
+Electron shell that runs b-mobile's web build as a Windows desktop app, b-push is its
 Cloudflare Worker notification service, b-status is the Cloudflare Worker monitor behind the unofficial
 Blipfoto status page (hosted in b-site), and b-visual holds the shared design tokens and style
 guide. All names are lowercase and hyphenated.
@@ -25,8 +26,11 @@ packages/b-ark              Electron shell only. Implements PlatformIO (Electron
 packages/b-ark-ui-chrome    No Electron deps. Browser React shell (BackupPage) + BrowserBackend (wraps chrome.*) implementing BackendContext, BrowserPlatformIO (File System Access), and the mountChip content-script. Exports the Chrome platform primitives for the shell to reuse.
 packages/b-ark-chrome       Chrome extension shell only — service worker (sw.ts), OAuth capture, content scripts. Should consume BrowserBackend/BrowserPlatformIO and the platform primitives from b-ark-ui-chrome.
 packages/b-mobile           Capacitor/Ionic Android app. Depends on b-api, b-view, b-visual only (no backup-engine). All `@capacitor/*` imports live in src/platform/**; the rest of the app uses those wrappers.
+packages/b-win-startup      Rust Node-API add-on (Windows x64 only) that reads/changes an MSIX startup task (start at sign-in in the Store builds). No JS deps; consumed as build output (`dist/win-startup.node`, copied by electron-builder.store.json) by b-ark and b-mobile-pc, never imported. Built by `build.mjs`; the MSIX workflows run it.
+packages/b-mobile-pc        Electron main process + preload that package b-mobile's web build as a desktop app (epic b-oss#605). Serves the build on a private app:// origin and proxies the Blipfoto API on it; keeps secrets in the OS keystore; runs the sign-in window; polls for unread counts and shows OS notifications (b-oss#610, via b-notify-core). Consumes b-mobile/dist as build output (no source dependency); never imports @capacitor/*.
 packages/b-site             The b-oss project website (static Astro site, GitHub Pages). Shared Layout/Header/Footer; pages keep their `.html` URLs. No dependency on other packages.
-packages/b-push             Cloudflare Worker + D1 notification service for b-mobile. Depends on b-api only. Design in packages/b-push/ARCHITECTURE.md; deployed manually, see packages/b-push/README.md.
+packages/b-notify-core      No Node, Electron or Capacitor deps. The notification-polling rule shared with the desktop shell: unread-totals fetch (messages/totals/unread, counts only) + the pure count-diff rule. Depends on b-api only. Used by the desktop shell (b-mobile-pc) and b-push, so the rule has one copy.
+packages/b-push             Cloudflare Worker + D1 notification service for b-mobile. Depends on b-api and b-notify-core only. Design in packages/b-push/ARCHITECTURE.md; deployed manually, see packages/b-push/README.md.
 packages/b-status           Cloudflare Worker + D1 monitor behind the unofficial Blipfoto status page (probes the public website, a photo and the API every 15 minutes; takes visitor reports). Depends on no other package. Design in packages/b-status/ARCHITECTURE.md; operating it (deploy, secrets, logs) in packages/b-status/README.md; deployed manually.
 ```
 
@@ -40,13 +44,13 @@ The Chrome side mirrors the Electron split: `b-ark-chrome` is to `b-ark-ui-chrom
 
 ## Architecture rules (never violate these)
 
-- b-api, backup-engine, b-view, b-view-backup, b-visual, b-ark-ui-components, b-ark-ui-electron, b-ark-ui-chrome, b-mobile, b-push, b-status must NEVER import from 'electron'
-- b-api, backup-engine, b-view, b-view-backup, b-visual, b-ark-ui-components, b-ark-ui-electron, b-mobile, b-push, b-status must NEVER reference 'chrome'/`chrome.*` — Chrome APIs live only in b-ark-ui-chrome and b-ark-chrome
-- Every package except b-mobile (b-api, backup-engine, b-view, b-view-backup, b-visual, b-ark-ui-*, b-ark, b-ark-chrome, b-push, b-status) must NEVER import `@capacitor/*` — Capacitor APIs are for b-mobile only, and within b-mobile only `src/platform/**` may import them (enforced by ESLint). b-view's components take host behaviour (e.g. link-click handling) as injectable props/callbacks instead, so they stay usable from a Capacitor host without depending on it
-- b-push must NEVER depend on b-mobile, and no package may depend on b-mobile or b-push. b-push runs on Cloudflare Workers: no Node-only APIs.
+- b-api, backup-engine, b-view, b-view-backup, b-visual, b-ark-ui-components, b-ark-ui-electron, b-ark-ui-chrome, b-mobile, b-notify-core, b-push, b-status must NEVER import from 'electron' (only b-ark and b-mobile-pc, the Electron shells, may)
+- b-api, backup-engine, b-view, b-view-backup, b-visual, b-ark-ui-components, b-ark-ui-electron, b-mobile, b-notify-core, b-push, b-status must NEVER reference 'chrome'/`chrome.*` — Chrome APIs live only in b-ark-ui-chrome and b-ark-chrome
+- Every package except b-mobile (b-api, backup-engine, b-view, b-view-backup, b-visual, b-ark-ui-*, b-ark, b-ark-chrome, b-mobile-pc, b-notify-core, b-push, b-status) must NEVER import `@capacitor/*` — Capacitor APIs are for b-mobile only, and within b-mobile only `src/platform/**` may import them (enforced by ESLint). b-view's components take host behaviour (e.g. link-click handling) as injectable props/callbacks instead, so they stay usable from a Capacitor host without depending on it
+- b-push must NEVER depend on b-mobile, and no package may depend on b-mobile or b-push. (b-mobile-pc packages b-mobile's built `dist/` as a file, not as a package dependency, so it does not break this.) b-push runs on Cloudflare Workers: no Node-only APIs.
 - b-status depends on no other package and no package may depend on it (b-site copies the snapshot types by hand). b-status runs on Cloudflare Workers: no Node-only APIs. It reads only public Blipfoto pages and the API with the monitor's own app id; never user credentials or user data.
 - b-ark-ui components must NEVER call window.api directly — use useBackend() hook only
-- Access tokens: handled in main process only (Electron), never sent to renderer via IPC. On Chrome, tokens are AES-GCM encrypted at rest and handed straight to BackupEngine — never broadcast over chrome.runtime messages
+- Access tokens: in b-ark, handled in main process only (Electron), never sent to renderer via IPC. (b-mobile and b-mobile-pc work differently: the web app holds the token, as it does in Android's WebView, and the shell only stores it at rest in the OS keystore and runs the sign-in window; the token is never logged or put in prefs.) On Chrome, tokens are AES-GCM encrypted at rest and handed straight to BackupEngine — never broadcast over chrome.runtime messages
 - All Blipfoto \_id fields: always use the \_str string variant, store as string
 - Atomic file writes: write to `path + '.tmp'` then rename to final path (Electron). The Chrome
   `BrowserPlatformIO` relies instead on the File System Access API's own write semantics —
@@ -109,6 +113,34 @@ and the repoint command for "make that worktree available via Mutagen."
   `b-ark-chrome-relay` → `~/live/b-ark-chrome-dist` (built `dist/`, needs
   `npm run dev` running in whichever worktree feeds it) → Windows
   `D:\Dev\chrome-live\b-ark-chrome-build`.
+- **b-mobile-pc** (Windows testing of the desktop shell):
+  local relay `b-mobile-pc-relay` → `~/live/b-mobile-pc-repo` (the **whole monorepo**, created with
+  `--ignore-vcs --ignore=node_modules/ --ignore=e2e-out/` like b-ark's) → Windows
+  `D:\Dev\debugging\b-mobile-pc-build` through `b-mobile-pc-live` (Ian creates that session once). It
+  runs `electron.cmd` against the synced `packages/b-mobile-pc/dist`, which serves
+  `packages/b-mobile/dist`, so build **both** (`npm run build -w @b-oss/b-mobile -w @b-oss/b-mobile-pc`)
+  on the VM in the feeding worktree. Steps and the VS Code launch config:
+  `packages/b-mobile-pc/README.md`. The relay's source is whichever worktree was last pointed at it
+  (repoint with the terminate/create pair above).
+  The same relay also carries the packaged app's `dist-electron/win-unpacked/` (installers, `*.blockmap`,
+  `*.yml` and `linux-unpacked/` are ignored), so on Windows run
+  `packages\b-mobile-pc\dist-electron\win-unpacked\b-mobile.exe` from the synced folder: fast launch,
+  no unpacking, a few MB per rebuild. See `packages/b-mobile-pc/README.md`.
+  **When Ian asks for a b-mobile-pc build "on Mutagen", he means this unpacked folder**, not the
+  `dist/` + `electron.cmd` loop: run `packages/b-mobile-pc/scripts/build-win-docker.sh` in the feeding
+  worktree (it also makes the installers, which stay out of the relay), flush the relay, and give him the
+  version. b-mobile shows its own package version (e.g. `1.3.0`) plus the suffix, not the root's.
+  Git is unavailable inside Docker, so the script passes the host's commit count in as
+  `BOSS_COMMIT_COUNT` (b-oss#875) and the digit matches a local build.
+
+## b-mobile-pc dev loop (Windows): quit before a build lands
+
+Running `packages/b-mobile-pc/dist-electron/win-unpacked/b-mobile.exe` from the synced folder: quit the
+app completely first (tray icon > Exit; end any `b-mobile.exe` in Task Manager), check `mutagen sync list`
+for transition problems, `mutagen sync flush`, then launch. Do not turn notifications on in the synced
+folder (it would register that folder at login; the shell now refuses), test them with the Setup-installed
+copy. A banner "running older program files than its web files" means an old process is still running.
+Details: `packages/b-mobile-pc/README.md`, "Dev-loop hazards" (b-oss#696).
 
 ## Commands
 
@@ -126,6 +158,26 @@ CI (PRs and pushes to `main`) runs typecheck, lint and test only for the package
 affect (changed packages plus their dependents), planned by `scripts/ci-scope.mjs`; root config
 changes run everything. Run the same scoped task locally with
 `node scripts/ci-scope.mjs run <typecheck|lint|test> --packages b-status,b-push`.
+
+CI does not run the b-mobile-pc e2e suite or the Android emulator rig below; run them locally when a
+change touches the desktop shell or b-mobile's native/WebView behaviour.
+
+### Test harnesses (b-mobile, b-mobile-pc; local only)
+
+```bash
+npm run e2e -w @b-oss/b-mobile-pc   # real Electron shell in Docker + virtual display, stub API; Linux + Docker
+packages/b-mobile/scripts/emulator/emu.sh setup && packages/b-mobile/scripts/emulator/emu.sh start   # headless Android emulator
+node packages/b-mobile/scripts/emulator/run-checks.mjs --main <old.apk> --integ <new.apk> --sender <sender.apk> --out <dir>
+node packages/b-mobile/scripts/flow-runner.mjs <outDir> [baseUrl] [flow,...]   # scripted flows vs scripts/stub-api.mjs; diff two runs with scripts/flow-diff.mjs
+node packages/b-mobile/scripts/compare-shots.mjs --a <dirA> --b <dirB> --out <outDir>   # screenshot diff of two worktrees' builds
+```
+
+Emulator rig: needs `/dev/kvm`, the Android SDK and ~2 GB first download (setup ~20 min through the proxy);
+cold boot ~75 s, a full check run ~3 min, ~4.3 GB RAM for one emulator at a time. It catches update-over-data,
+deep links, share intents, Back and resume on the real WebView; FCM push and real-account flows stay manual.
+Setup, the check list and limits: `packages/b-mobile/scripts/emulator/README.md`. e2e details (several runs at
+once, variants): `packages/b-mobile-pc/e2e/README.md`. `flow-runner.mjs` and `compare-shots.mjs` need
+`playwright-core` and an `npm ci`'d worktree; their header comments give the stub and dev-server setup.
 
 ### Local Android build + lint check (b-mobile; no CI)
 
@@ -170,6 +222,16 @@ non-Apache licence needs a matching entry/file in `scripts/native-licences.mjs`.
 `electron.vite.config.ts` set `envDir` there — see `.env.example` for the full
 list and where to register each app). `.env.local` is gitignored, so it only
 exists wherever someone manually put it.
+
+**Keep `.env.local` in step with `.env.example`.** `.env.local` is gitignored, so a copy made into a worktree
+goes stale when `.env.example` gains a key on main (found 2026-10-31: no `VITE_GEOAPIFY_KEY`, so the map said
+"unavailable"). To see what a worktree lacks:
+`diff <(grep -oE '^[A-Z0-9_]+=' .env.example | sort -u) <(grep -oE '^[A-Z0-9_]+=' .env.local | sort -u)`. The
+b-mobile-pc Windows build script (`packages/b-mobile-pc/scripts/build-win-docker.sh`) runs
+`packages/b-mobile-pc/scripts/env-check.mjs`, which does that comparison for you: it names (never prints values
+of) every key `.env.local` lacks, notes the ones marked `# optional` in `.env.example`, and stops the build for
+the rest unless `BMPC_ALLOW_MISSING_ENV=1`. The e2e `run.sh` runs it warn-only. Mark a new key `# optional`
+in `.env.example` if a build can do without it.
 
 **Worktree gotcha:** `git worktree add` only populates tracked files from the
 checked-out branch — gitignored files like `.env.local` are not copied into a

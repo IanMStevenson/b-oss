@@ -60,7 +60,8 @@ Known Blipfoto API limits: [AppLimitations.md](AppLimitations.md). Paths are rel
 - **Search**: Entries and People tabs, debounced. **Tag entries**: one paged grid. **Map**
   (Leaflet raster tiles, lazy; a top-right button switches to a satellite view with labels and back — Map and location picker; it opens on the road map each time): one page per debounced viewport; `?entry=` opens its popup
   (only that pin); tapping a popup opens the entry; zoom buttons and a my-location button (a blue
-  dot). Location picker: tap to place a draggable pin.
+  dot). Known Mercator limit: a pin beyond about ±85.05° latitude is drawn on the map's top or
+  bottom edge, with its true coordinates in the detail. Location picker: tap to place a draggable pin.
 - **Entry**: b-view `EntryDetail` plus app slots. Prev/next replaces the route. Journal prev/next
   treats entries as a timeline, oldest left and newest right: the left arrow (and ←) goes to the
   older entry, the right arrow to the newer, and a swipe is mirrored like a page turn (swipe left =
@@ -75,7 +76,7 @@ Known Blipfoto API limits: [AppLimitations.md](AppLimitations.md). Paths are rel
   double-tap → `/photo`. Calendar and ±1-year history need a signed-in account.
 - **Photo**: b-view Lightbox, zoom/pan, retry on image error. **New entry**: Take / Choose photo, or a shared photo.
 - **Compose details**, **Location picker**: see Compose. **Edit entry**: title, description, tags,
-  location, replace photo, Delete entry; no date field; Save sends the change and waits
+  date (same picker as a new entry; taken days are greyed out; sent only if changed), location, replace photo, Delete entry; Save sends the change and waits
   ("Saving your changes… Please don't leave the app until the upload completes."), then returns to
   the entry. If it fails, the form stays with the edits intact, the error shown and the button
   reading Retry (b-oss#730).
@@ -225,13 +226,24 @@ reminders,details,profile,notifications}`; the old `/settings/{general,journal,a
   switch to that account, open `/comments` or `/notifications`; unknown or needs-reauth account →
   `/accounts`; `reauth-required` → `/accounts?reauth=<id>`. Unread counts are memory only,
   refreshed on launch, account switch and push, and zeroed on opening an inbox.
+- Desktop shell (`capabilities().notifications.mechanism === 'polling'`, b-oss#610): the same two
+  per-account switches, but a setting only: no permission prompt, no read round, no b-push, no
+  second token. The shell polls every 5 minutes with the account's app token and shows an OS
+  notification on every rise, focused or not (`flows/pollingNotifications.ts` keeps the shell's
+  watched set in step with the accounts store; `hasServiceToken` means "notifications on" there).
+  Same payloads and tap routing; a dead token shows one "sign in again" notification and
+  `reauth-required` forces out the **app** token. Settings explains the tray: while notifications
+  are on the shell starts with the user's login and the window's close button hides to the tray. No launch backstop check on desktop.
 - Inboxes: the API marks items read when fetched (comments: all of them), so "new" rows come from
   the first response only; pull-to-refresh fetches newer items only, and so does the app resuming while the inbox is open (b-oss#821; resumed arrivals are marked new). Notification tap → entry,
   profile, follow requests, or external link. Comment rows: Reply (opens the entry with the reply
   composer open) and a menu with Delete (if allowed), Report, Hide this member.
 - Daily reminder: local notification per read-write account (on/off + time). A publish or edit
   through the app skips today. Cancelled on removal or switch to read-only. Tap switches to that
-  account if possible and opens `/compose`.
+  account if possible and opens `/compose`. On the desktop shell the shell's main process runs the
+  clock (`flows/reminderSync.ts` sends it the reminders that are on; b-oss#894): one toast at the chosen
+  local time while the app is running (window hidden in the tray is fine), none for a day already
+  published on, a time that passed while the app was off or the PC asleep is shown when it is back, the same day only.
 
 ## Errors and network (`data/errors.ts`, `data/client.ts`)
 
@@ -260,6 +272,19 @@ reminders,details,profile,notifications}`; the old `/settings/{general,journal,a
 - Deep links (`flows/deepLinkResolver.ts`): `bmobile://entry/<id>`, `bmobile://user/<name>`; and
   blipfoto.com entry, profile and follow-request URLs only when "Open blipfoto.com links in this
   app" is on (default off).
+
+## Deliberate changes from the desktop work that reach Android
+
+Recorded so they are not mistaken for defects (b-oss#781, review b-oss#768).
+
+- **Keyboard scrolling** (`app/keyboardScroll.ts`): input-driven, not platform-gated, on purpose. A
+  tablet with a hardware keyboard behaves like a PC with one: arrows, PageUp/PageDown, Home and End
+  scroll the page. Controls that use those keys themselves (inputs, sliders, maps, Ionic overlays)
+  are excluded. New for hardware-keyboard Android users; not a regression.
+- **Fonts** (`b-visual` `fonts.css`): Roboto 600 and 700 now ship on all platforms, so headings use
+  real bold instead of synthesised bold. Expect heading-weight differences in screenshot
+  comparisons; not a defect unless something else is wrong.
+- **Wording**: the location prompt in Browse says "device settings", not "phone settings".
 
 ## ID index
 

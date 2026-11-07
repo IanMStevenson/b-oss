@@ -10,6 +10,7 @@ import {
   createStartAtSignInService,
   loadStartupAddon,
   selectStartAtSignIn,
+  startedByStartupTask,
   type StartAtSignInService,
 } from './start-at-sign-in-pure.js';
 
@@ -20,15 +21,9 @@ import {
 /** Only a Microsoft Store install uses the startup task. */
 export const isStoreBuild = (): boolean => process.windowsStore === true;
 
-/** Where electron-builder.store.json unpacks the add-on (a .node cannot be loaded from inside the asar). */
+/** Where electron-builder.store.json copies the add-on (packages/b-win-startup), outside the asar. */
 function addonPath(): string {
-  return join(
-    app.getAppPath().replace(/app\.asar$/, 'app.asar.unpacked'),
-    'native',
-    'win-startup',
-    'dist',
-    'win-startup.node',
-  );
+  return join(process.resourcesPath, 'native', 'win-startup.node');
 }
 
 let service: StartAtSignInService | null = null;
@@ -76,3 +71,15 @@ export const getStartupTaskInfo = (scheduled: boolean): Promise<StartupTaskInfo 
 export const enableStartupTask = (): Promise<StartupTaskInfo | null> => getService().enable();
 
 export const openStartupSettings = (): Promise<void> => getService().openSettings();
+
+/** True when Windows started this Store install at sign-in (b-oss#885); the window then stays in the tray. */
+export const startedAtSignIn = (): Promise<boolean> =>
+  isStoreBuild()
+    ? startedByStartupTask(
+        loadStartupAddon(
+          () => createRequire(import.meta.url)(addonPath()) as unknown,
+          (message, err) => log.warn(message, err),
+        ),
+        (message, err) => log.warn(message, err),
+      )
+    : Promise.resolve(false);

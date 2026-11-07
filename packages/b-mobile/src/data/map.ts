@@ -27,6 +27,73 @@ export interface MapEntry {
   thumbnailUrl: string;
 }
 
+function clamp(v: number, lo: number, hi: number): number {
+  return Math.min(hi, Math.max(lo, v));
+}
+
+function wrapLon(lon: number): number {
+  // Into [-180, 180); +180 itself is kept as 180 by the caller where it is the east edge.
+  return ((((lon + 180) % 360) + 360) % 360) - 180;
+}
+
+/**
+ * The query ranges for a viewport's raw bounds (b-oss#669). The API rejects longitudes outside
+ * [-180, 180] (`form.min_lon_invalid`), but a wide viewport zoomed far out shows more than one copy
+ * of the world, so MapLibre reports a west edge below -180 or an east edge above 180. A span of 360
+ * or more is the whole world; otherwise both edges are wrapped into range, and a view that crosses
+ * the antimeridian (west greater than east once wrapped) becomes two ranges, one each side of it.
+ * Latitude is clamped to [-90, 90]. In-range bounds come back unchanged, as a single range.
+ */
+export function normaliseBounds(b: MapBounds): MapBounds[] {
+  const minLat = clamp(b.minLat, -90, 90);
+  const maxLat = clamp(b.maxLat, -90, 90);
+  if (b.maxLon - b.minLon >= 360) return [{ minLat, maxLat, minLon: -180, maxLon: 180 }];
+  if (b.minLon >= -180 && b.maxLon <= 180) {
+    return [{ minLat, maxLat, minLon: b.minLon, maxLon: b.maxLon }];
+  }
+  const west = wrapLon(b.minLon);
+  const east = wrapLon(b.maxLon);
+  if (west <= east) return [{ minLat, maxLat, minLon: west, maxLon: east }];
+  return [
+    { minLat, maxLat, minLon: west, maxLon: 180 },
+    { minLat, maxLat, minLon: -180, maxLon: east },
+  ];
+}
+
+/** The widest longitude span sent in one request (b-oss#697). A phone-sized viewport at the default
+ * zoom spans about 140 degrees and is sent as it always was; a wide window spans 300 or more. Hypothesis,
+ * not confirmed against the live API: a request that large returns no pins when the map is first opened,
+ * although the same area zoomed in does. Wider ranges are cut into strips of at most this span and the
+ * results merged; if a build shows pins still missing, the cause is elsewhere and this can go. */
+export const MAX_REQUEST_LON_SPAN = 180;
+
+/** Cuts any range wider than MAX_REQUEST_LON_SPAN into equal strips; narrower ranges are untouched. */
+export function splitWideRanges(ranges: MapBounds[]): MapBounds[] {
+  return ranges.flatMap((r) => {
+    const span = r.maxLon - r.minLon;
+    if (span <= MAX_REQUEST_LON_SPAN) return [r];
+    const parts = Math.ceil(span / MAX_REQUEST_LON_SPAN);
+    const step = span / parts;
+    return Array.from({ length: parts }, (_, i) => ({
+      ...r,
+      minLon: i === 0 ? r.minLon : r.minLon + step * i,
+      maxLon: i === parts - 1 ? r.maxLon : r.minLon + step * (i + 1),
+    }));
+  });
+}
+
+/** Only a non-finite coordinate cannot be drawn. A pin beyond Web Mercator's latitude limit
+ * (about 85.05 degrees) is kept: the map draws it on its top or bottom edge, and its true
+ * coordinates show in the detail. */
+function isPlottable(lat: number, lon: number): boolean {
+  return Number.isFinite(lat) && Number.isFinite(lon);
+}
+
+/** The ranges one viewport is sent as: normalised, then cut into strips. */
+export function requestRanges(bounds: MapBounds): MapBounds[] {
+  return splitWideRanges(normaliseBounds(bounds));
+}
+
 // One page's worth of markers per query, generous enough for a typical viewport without
 // pagination — consistent with §13's "no clustering for v1" stance.
 const MAX_MARKERS = 100;
@@ -35,26 +102,32 @@ const MAX_MARKERS = 100;
 // anonymous token if the active account's own is rate-limited (client.ts's
 // withRateLimitFallback doc comment has the full reasoning).
 export async function fetchEntriesInBounds(bounds: MapBounds): Promise<MapEntry[]> {
+  const ranges = requestRanges(bounds);
   return withRateLimitFallback(async (client) => {
-    const res = await client.searchEntries({
-      location_type: 'bounding_box',
-      min_lat: bounds.minLat,
-      max_lat: bounds.maxLat,
-      min_lon: bounds.minLon,
-      max_lon: bounds.maxLon,
-      pageSize: MAX_MARKERS,
-    });
     const markers: MapEntry[] = [];
-    for (const entry of res.entries) {
-      if (!entry.location) continue;
-      markers.push({
-        entry_id: entry.entry_id_str,
-        title: entry.title,
-        username: entry.username,
-        lat: entry.location.lat,
-        lon: entry.location.lon,
-        thumbnailUrl: entry.thumbnail_url,
+    const seen = new Set<string>();
+    for (const range of ranges) {
+      const res = await client.searchEntries({
+        location_type: 'bounding_box',
+        min_lat: range.minLat,
+        max_lat: range.maxLat,
+        min_lon: range.minLon,
+        max_lon: range.maxLon,
+        pageSize: MAX_MARKERS,
       });
+      for (const entry of res.entries) {
+        if (!entry.location || seen.has(entry.entry_id_str)) continue;
+        if (!isPlottable(entry.location.lat, entry.location.lon)) continue;
+        seen.add(entry.entry_id_str);
+        markers.push({
+          entry_id: entry.entry_id_str,
+          title: entry.title,
+          username: entry.username,
+          lat: entry.location.lat,
+          lon: entry.location.lon,
+          thumbnailUrl: entry.thumbnail_url,
+        });
+      }
     }
     return markers;
   });

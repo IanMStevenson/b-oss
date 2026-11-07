@@ -6,7 +6,7 @@ when a count rises. It never writes to Blipfoto. Deploying, secrets, logs and fr
 in the runbook, [README.md](README.md); schema changes are in
 [migrations/README.md](migrations/README.md).
 
-It lives in b-oss as a peer package to b-mobile and depends only on `@b-oss/b-api` (no Node-only
+It lives in b-oss as a peer package to b-mobile and depends only on `@b-oss/b-api` and `@b-oss/b-notify-core` (no Node-only
 APIs; it runs on Workers). Deploys are manual. Sized for 2–20 registrations, with room to grow: the
 per-run request budget (below) decides how many are polled, and the poll log reports when it runs
 out (see the runbook's free-tier table).

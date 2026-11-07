@@ -55,6 +55,7 @@ import { openUrl } from '../../platform/browser.js';
 import { useRefreshOnResume } from '../../hooks/useRefreshOnResume.js';
 import { InboxRow, RowThumb } from '../../components/InboxRow.js';
 import type { BlipNotification } from '@b-oss/b-api';
+import { PointerRefresh } from '../../components/PointerRefresh.js';
 
 type Status = 'loading' | 'loaded' | 'empty' | 'error';
 
@@ -184,6 +185,7 @@ export function NotificationsInboxScreen() {
             <IonRefresher slot="fixed" onIonRefresh={handleRefresh}>
               <IonRefresherContent />
             </IonRefresher>
+            <PointerRefresh onRefresh={() => void fetchNewer(false)} />
             {visibleItems.map((notification) => (
               <InboxRow
                 key={notification.notification_id_str}

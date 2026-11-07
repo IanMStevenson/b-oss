@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (C) 2026 Ian Stevenson
 
+import { isEditableTarget } from '../isEditableTarget.js';
 import { useEffect, useRef, useState, useCallback, type ReactNode } from 'react';
 import {
   ArrowLeft,
@@ -53,7 +54,11 @@ interface EntryDetailProps {
   prevEntryId: string | null;
   nextEntryId: string | null;
   onNavigate: (entryId: string) => void;
+  /** Back to the grid. When given, a "Back to grid" button shows and Backspace does the same. A
+   * host with its own Back (b-mobile) leaves this out and handles Backspace itself. */
   onClose?: () => void;
+  /** Ctrl +/-/0 zoom the full-screen photo (off by default, so a browser keeps its page zoom). */
+  keyboardZoom?: boolean;
   baseUrl?: string;
   resolveAsset?: ResolveAsset;
   /** Drops the host's cached copy of an image the browser failed to draw, so the one automatic
@@ -90,8 +95,10 @@ interface EntryDetailProps {
   /** How the photo sizes against the screen. `full-width` (default) is blipfoto.com's own
    * behaviour: always the column width, however tall — a portrait photo runs past the bottom of
    * the screen and you scroll. `capped` limits the height so the whole picture fits without
-   * scrolling, at the cost of a narrower photo. */
-  photoFit?: 'full-width' | 'capped';
+   * scrolling, at the cost of a narrower photo. `compact` also leaves room for the title line, so
+   * the top bar, photo and title all show at the top of the page. Both measure this component's
+   * own visible height (not the window's), so the host's header is allowed for. */
+  photoFit?: 'full-width' | 'capped' | 'compact';
   /** Per-comment slot (e.g. reply/delete) — the host decides ownership, this component doesn't. */
   renderCommentActions?: (comment: BlipComment) => ReactNode;
   /** Per-comment: return a node to show an inline editor *in place of* that comment (its body and
@@ -263,6 +270,7 @@ export function EntryDetail({
   nextEntryId,
   onNavigate,
   onClose,
+  keyboardZoom = false,
   baseUrl,
   resolveAsset,
   invalidateAsset,
@@ -367,12 +375,25 @@ export function EntryDetail({
     const handler = (e: KeyboardEvent) => {
       // Only handle entry navigation keys when lightbox is closed
       if (lightboxIndex !== null) return;
+      if (isEditableTarget(e.target)) return; // arrows move the caret while typing
+      if (
+        e.key === 'Backspace' &&
+        onClose &&
+        !e.defaultPrevented &&
+        !e.ctrlKey &&
+        !e.altKey &&
+        !e.metaKey
+      ) {
+        e.preventDefault();
+        onClose();
+        return;
+      }
       if (e.key === 'ArrowLeft' && prevEntryId) onNavigate(prevEntryId);
       if (e.key === 'ArrowRight' && nextEntryId) onNavigate(nextEntryId);
     };
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
-  }, [prevEntryId, nextEntryId, onNavigate, lightboxIndex]);
+  }, [prevEntryId, nextEntryId, onNavigate, onClose, lightboxIndex]);
 
   useEffect(() => {
     if (!resolveAsset || !imagePath) {
@@ -404,6 +425,36 @@ export function EntryDetail({
 
   const imageSrc = resolveAsset ? asyncImageSrc : syncImageSrc;
 
+  // The photo's height cap for 'capped'/'compact': what's visible in this scroll area, less the
+  // top bar (and, for compact, the title line under the photo) and the photo frame's own mat.
+  const wrapperRef = useRef<HTMLDivElement>(null);
+  const topBarRef = useRef<HTMLDivElement>(null);
+  const titleRef = useRef<HTMLHeadingElement>(null);
+  useEffect(() => {
+    const wrapper = wrapperRef.current;
+    if (!wrapper || photoFit === 'full-width') return;
+    const MAT_PX = 12; // photoFrame: 5px padding + 1px border, both sides
+    const apply = () => {
+      let used = (topBarRef.current?.offsetHeight ?? 0) + MAT_PX;
+      if (photoFit === 'compact') {
+        const title = titleRef.current;
+        const inner = title?.closest('[data-meta-inner]');
+        if (title && inner) {
+          used += parseFloat(getComputedStyle(inner).paddingTop) || 0;
+          used += title.offsetHeight + (parseFloat(getComputedStyle(title).marginBottom) || 0);
+        }
+      }
+      wrapper.style.setProperty('--photo-max-h', `${Math.max(120, wrapper.clientHeight - used)}px`);
+    };
+    apply();
+    if (typeof ResizeObserver === 'undefined') return;
+    const ro = new ResizeObserver(apply);
+    ro.observe(wrapper);
+    if (topBarRef.current) ro.observe(topBarRef.current);
+    if (titleRef.current) ro.observe(titleRef.current);
+    return () => ro.disconnect();
+  }, [photoFit, entryState]);
+
   if (entryState.status === 'idle') return null;
 
   if (entryState.status === 'loading') {
@@ -427,12 +478,13 @@ export function EntryDetail({
 
   return (
     <div
+      ref={wrapperRef}
       className={styles.wrapper}
       onTouchStart={pageSwipe.onTouchStart}
       onTouchEnd={pageSwipe.onTouchEnd}
     >
       {/* Top bar: the host's identity block (if any) opposite the nav strip */}
-      <div className={`${styles.column} ${styles.topBar}`}>
+      <div ref={topBarRef} className={`${styles.column} ${styles.topBar}`}>
         <div className={styles.topLeft}>
           {onClose && (
             <button className={styles.navBtn} onClick={onClose} aria-label="Back to grid">
@@ -470,7 +522,7 @@ export function EntryDetail({
                 <img
                   src={imageSrc}
                   alt={entry.title}
-                  className={`${styles.photo} ${photoFit === 'capped' ? styles.photoCapped : ''}`}
+                  className={`${styles.photo} ${photoFit !== 'full-width' ? styles.photoCapped : ''}`}
                   onError={() => {
                     // The browser couldn't draw it (e.g. a corrupt cached copy): drop that copy
                     // and try once more from scratch, rather than leaving a broken photo up.
@@ -500,10 +552,10 @@ export function EntryDetail({
           EXIF, actions) and comments — so the order is Blipfoto's when narrow (main, side,
           comments) and two columns when wide (main + comments left, side right). */}
       <div className={styles.metaScroll}>
-        <div className={styles.metaInner}>
+        <div className={styles.metaInner} data-meta-inner>
           <div className={styles.metaGrid}>
             <div className={styles.metaMain}>
-              {entry.title && <h2 className={styles.entryTitle}>{entry.title}</h2>}
+              {entry.title && <h2 ref={titleRef} className={styles.entryTitle}>{entry.title}</h2>}
               {entry.description && (
                 <BBCodeText
                   source={entry.description}
@@ -752,6 +804,7 @@ export function EntryDetail({
           index={lightboxIndex}
           onClose={() => setLightboxIndex(null)}
           onNavigate={setLightboxIndex}
+          keyboardZoom={keyboardZoom}
           title={entryState.data.title}
           journalTitle={entryState.data.journal_title}
           date={formatLongDate(entryState.data.date)}

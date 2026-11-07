@@ -28,6 +28,7 @@ import {
 } from '@ionic/react';
 import { AppHeader } from '../../components/AppHeader.js';
 import { CachedImage } from '../../components/CachedImage.js';
+import { DateField } from '../../components/DateField.js';
 import { DescriptionField, TextField, ToggleRow } from '../../components/ComposeForm.js';
 import { useAppNavigate } from '../../app/routes/useAppNavigate.js';
 import { useComposeDraftStore } from '../../state/composeDraftStore.js';
@@ -109,6 +110,7 @@ export function EditEntryScreen({ entryId }: EditEntryScreenProps) {
           tags: loaded.entry.tags.join(', '),
           description: loaded.entry.description,
           date: loaded.entry.date,
+          originalDate: loaded.entry.date,
           location: loaded.entry.location ?? null,
           displayLocation: loaded.entry.location != null,
           thumbnailCrop: null,
@@ -325,6 +327,8 @@ export function EditEntryScreen({ entryId }: EditEntryScreenProps) {
                 value={draft.description}
                 onChange={(description) => patchDraft({ description })}
               />
+
+              <DateField value={draft.date} onChange={(date) => patchDraft({ date })} />
             </>
           )}
 

@@ -8,14 +8,14 @@
 // only a failure or timeout means offline. On web (vite dev) the browser's own flag is used instead,
 // since a cross-origin probe from the page would be blocked by CORS and misreport as offline.
 
-import { Capacitor } from '@capacitor/core';
 import { platformFetch } from './http.js';
+import { isCapacitorNative } from './platformKind.js';
 
 export const CONNECTIVITY_PROBE_URL = 'https://1.1.1.1/dns-query?name=cloudflare.com&type=A';
 export const CONNECTIVITY_TIMEOUT_MS = 4000;
 
 export async function isOnline(): Promise<boolean> {
-  if (!Capacitor.isNativePlatform()) return navigator.onLine;
+  if (!isCapacitorNative()) return navigator.onLine;
   let timer: ReturnType<typeof setTimeout> | undefined;
   try {
     await Promise.race([

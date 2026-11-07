@@ -50,6 +50,24 @@ export interface StatusOptions {
 
 let STATUS_URL = DEFAULT_URL;
 
+/** Diagnostics for b-oss#832: the last events and fetches, kept in memory (no network, no storage).
+ * On a stuck page, run `copy(__statusLog)` in the console. */
+const LOG_MAX = 150;
+const statusLog: string[] = [];
+(window as unknown as { __statusLog: string[] }).__statusLog = statusLog;
+function dlog(what: string, extra: Record<string, unknown> = {}): void {
+  statusLog.push(
+    `${new Date().toISOString()} ${what} ${JSON.stringify({
+      hidden: document.hidden,
+      busy,
+      lastFetchAgoS: lastFetchAt === null ? null : Math.round((Date.now() - lastFetchAt) / 1000),
+      snapGen: snap ? new Date(snap.generated_at).toISOString() : null,
+      ...extra,
+    })}`,
+  );
+  if (statusLog.length > LOG_MAX) statusLog.shift();
+}
+
 const $ = <T extends HTMLElement>(sel: string): T => {
   const el = document.querySelector<T>(sel);
   if (!el) throw new Error(`status page: missing ${sel}`);
@@ -182,6 +200,7 @@ function renderCharts(): void {
 async function load(manual: boolean): Promise<void> {
   if (busy) return;
   const wait = manual ? nextAllowedFetch(Date.now(), lastFetchAt) : null;
+  dlog('load', { manual, floorBlocked: wait !== null });
   if (wait !== null) {
     note = 'Just refreshed';
     renderAll();
@@ -193,15 +212,28 @@ async function load(manual: boolean): Promise<void> {
   const mine = new AbortController();
   inflight = mine;
   const giveUp = setTimeout(() => mine.abort(), FETCH_TIMEOUT_MS);
+  const startedAt = Date.now();
   try {
     const res = await fetch(STATUS_URL, { credentials: 'omit', signal: mine.signal });
+    const entry = performance.getEntriesByName(STATUS_URL).at(-1) as
+      PerformanceResourceTiming | undefined;
+    dlog('response', {
+      status: res.status,
+      tookMs: Date.now() - startedAt,
+      dateHeader: res.headers.get('date'),
+      age: res.headers.get('age'),
+      fromCache: entry ? entry.transferSize === 0 : null,
+      abandoned: inflight !== mine,
+    });
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const next = (await res.json()) as StatusSnapshot;
     if (next.version !== 1) throw new Error('unknown snapshot version');
     if (manual && snap && snapshotUnchanged(snap, next)) note = 'No change yet';
+    dlog('parsed', { generated: new Date(next.generated_at).toISOString() });
     snap = next;
     failedToLoad = false;
-  } catch {
+  } catch (e) {
+    dlog('fetch-failed', { error: String(e), abandoned: inflight !== mine });
     failedToLoad = true;
   }
   clearTimeout(giveUp);
@@ -220,6 +252,7 @@ function scheduleFetch(): void {
   if (fixtureMode || document.hidden) return;
   const jitter = Math.random() * REFETCH_JITTER_MS;
   const at = nextAutoFetchAt(snap, lastFetchAt, failures, jitter);
+  dlog('schedule', { inS: Math.round(Math.max(0, at - Date.now()) / 1000) });
   fetchTimer = setTimeout(() => void load(false), Math.max(0, at - Date.now()));
 }
 
@@ -235,7 +268,8 @@ function pageAsleep(now: number): boolean {
 /** The tab came back (visible, restored from the back-forward cache, focused, or online again). A
  * fetch that was in flight when the tab froze may never settle, so abandon it; then fetch at once
  * if the data is old, ignoring the manual-refresh floor (a person is looking at the page). */
-function wake(): void {
+function wake(event = '?'): void {
+  dlog('wake', { event });
   if (fixtureMode || document.hidden) return;
   const now = Date.now();
   const old = failedToLoad || !snap || pageAsleep(now) || isStale(snap, now);
@@ -250,6 +284,7 @@ function wake(): void {
 
 /** Visible: redraw every TICK_MS and keep the fetch armed. Hidden: both timers off. */
 function syncVisibility(): void {
+  dlog('visibility', { state: document.visibilityState });
   clearInterval(tickTimer);
   clearTimeout(fetchTimer);
   if (fixtureMode || document.hidden) return;
@@ -258,7 +293,7 @@ function syncVisibility(): void {
   }, TICK_MS);
   if (snap || failedToLoad) renderAll();
   scheduleFetch();
-  wake();
+  wake('visibilitychange');
 }
 
 export function start(opts: StatusOptions): void {
@@ -285,9 +320,11 @@ export function start(opts: StatusOptions): void {
   mobileQuery.addEventListener('change', renderCharts);
 
   document.addEventListener('visibilitychange', syncVisibility);
-  window.addEventListener('pageshow', wake);
-  window.addEventListener('focus', wake);
-  window.addEventListener('online', wake);
+  window.addEventListener('pageshow', (e) => wake(`pageshow persisted=${e.persisted}`));
+  window.addEventListener('focus', () => wake('focus'));
+  window.addEventListener('online', () => wake('online'));
+  document.addEventListener('freeze', () => dlog('freeze'));
+  document.addEventListener('resume', () => dlog('resume'));
 
   void (async () => {
     if (opts.loadFixtures) {

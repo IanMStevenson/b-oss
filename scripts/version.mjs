@@ -11,6 +11,9 @@ const pkg = JSON.parse(readFileSync(resolve(repoRoot, 'package.json'), 'utf8'));
 const baseVersion = pkg.version;
 
 function getCommitCount() {
+  // A Docker build can't run git, so its host script passes the count in (b-oss#875).
+  const given = process.env.BOSS_COMMIT_COUNT;
+  if (given && /^\d+$/.test(given)) return parseInt(given, 10);
   try {
     const out = execFileSync('git', ['rev-list', '--count', 'HEAD'], {
       cwd: repoRoot,

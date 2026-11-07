@@ -34,6 +34,7 @@ import { useIsHidden } from '../../state/hiddenMembersStore.js';
 import { UserRow } from '../../components/UserRow.js';
 import type { BlipUser } from '@b-oss/b-api';
 import { LoadFailed } from '../../components/LoadFailed.js';
+import { PointerRefresh } from '../../components/PointerRefresh.js';
 
 function RefusedRow({
   user,
@@ -125,6 +126,7 @@ export function RefusedFollowersScreen() {
             <IonRefresher slot="fixed" onIonRefresh={handleRefresh}>
               <IonRefresherContent />
             </IonRefresher>
+            <PointerRefresh onRefresh={resource.refresh} />
             {resource.items.map((user) => (
               <RefusedRow
                 key={user.username}

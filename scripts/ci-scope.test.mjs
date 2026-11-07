@@ -65,6 +65,7 @@ describe('typecheckSteps', () => {
       [
         '--build',
         'packages/b-api',
+        'packages/b-notify-core',
         'packages/backup-engine',
         'packages/b-ark-ui-components',
         'packages/b-ark-ui-electron',
@@ -75,6 +76,8 @@ describe('typecheckSteps', () => {
       ['-p', 'packages/b-view', '--noEmit'],
       ['-p', 'packages/b-view-backup', '--noEmit'],
       ['-p', 'packages/b-ark-chrome', '--noEmit'],
+      ['-p', 'packages/b-mobile-pc', '--noEmit'],
+      ['-p', 'packages/b-mobile-pc/e2e', '--noEmit'],
       ['-p', 'packages/b-mobile', '--noEmit'],
       ['-p', 'packages/b-mobile/tsconfig.node.json', '--noEmit'],
       ['-p', 'packages/b-push', '--noEmit'],
@@ -84,7 +87,7 @@ describe('typecheckSteps', () => {
 
   it('builds only the upstream packages a scoped package needs', () => {
     expect(typecheckSteps(['b-push'], graph)).toEqual([
-      ['--build', 'packages/b-api'],
+      ['--build', 'packages/b-api', 'packages/b-notify-core'],
       ['-p', 'packages/b-push', '--noEmit'],
     ]);
     expect(typecheckSteps(['b-status'], graph)).toEqual([['-p', 'packages/b-status', '--noEmit']]);

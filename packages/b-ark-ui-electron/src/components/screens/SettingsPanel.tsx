@@ -286,8 +286,8 @@ export function SettingsPanel() {
   const [nextRun, setNextRun] = useState(schedule.next_run.slice(0, 10));
   const [hour, setHour] = useState(schedule.hour);
   const [interval, setInterval] = useState(schedule.interval);
-  const [apiDelay, setApiDelay] = useState(firstAcct?.api_delay_ms ?? 0);
-  const [gapCheck, setGapCheck] = useState(firstAcct?.gap_check_days ?? 31);
+  const [apiDelay, setApiDelay] = useState(firstAcct?.api_delay_ms ?? 250);
+  const [gapCheck, setGapCheck] = useState(firstAcct?.gap_check_days ?? 30);
   const [redo, setRedo] = useState(firstAcct?.redo_count ?? 7);
   const [showInfoOverlay, setShowInfoOverlay] = useState(store?.ui.showInfoOverlay ?? true);
   const [autoUpdateEnabled, setAutoUpdateEnabled] = useState(store?.app.autoUpdateEnabled ?? true);

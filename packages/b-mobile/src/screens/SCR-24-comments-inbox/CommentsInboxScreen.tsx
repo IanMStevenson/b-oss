@@ -48,6 +48,7 @@ import { openUrl } from '../../platform/browser.js';
 import { InboxRow, RowThumb } from '../../components/InboxRow.js';
 import { useReport } from '../../flows/useReport.js';
 import type { BlipComment } from '@b-oss/b-api';
+import { PointerRefresh } from '../../components/PointerRefresh.js';
 
 type Status = 'loading' | 'loaded' | 'empty' | 'error';
 
@@ -195,6 +196,7 @@ export function CommentsInboxScreen() {
             <IonRefresher slot="fixed" onIonRefresh={handleRefresh}>
               <IonRefresherContent />
             </IonRefresher>
+            <PointerRefresh onRefresh={() => void fetchNewer(false)} />
             {visibleItems.map((comment) => (
               <InboxRow
                 key={comment.comment_id_str}

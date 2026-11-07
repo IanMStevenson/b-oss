@@ -1,7 +1,5 @@
 {
   "extends": "./electron-builder.json",
-  "files": ["dist/**/*", "package.json", "native/win-startup/dist/*.node"],
-  "asarUnpack": ["native/win-startup/dist/*.node"],
   "win": {
     "target": [
       {
@@ -25,5 +23,19 @@
     "customExtensionsPath": "msix/startup-task-extension.xml",
     "backgroundColor": "#1f4d3a"
   },
-  "publish": null
+  "publish": null,
+  "extraResources": [
+    {
+      "from": "resources/",
+      "to": "resources/"
+    },
+    {
+      "from": "../b-view-backup/dist-app/",
+      "to": "b-view/"
+    },
+    {
+      "from": "../b-win-startup/dist/win-startup.node",
+      "to": "native/win-startup.node"
+    }
+  ]
 }

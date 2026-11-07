@@ -45,8 +45,8 @@ describe('fonts', () => {
     expect(css).toMatch(/@import\s+'\.\/fonts\.css'/);
   });
 
-  it('bundles exactly Roboto Light/Regular/Medium (latin + latin-ext), nothing external', () => {
-    for (const weight of [300, 400, 500]) {
+  it('bundles exactly Roboto Light/Regular/Medium/SemiBold/Bold (latin + latin-ext), nothing external', () => {
+    for (const weight of [300, 400, 500, 600, 700]) {
       expect(fontsCss).toContain(`@fontsource/roboto/latin-${weight}.css`);
       expect(fontsCss).toContain(`@fontsource/roboto/latin-ext-${weight}.css`);
     }
@@ -56,5 +56,68 @@ describe('fonts', () => {
   it('--font-sans leads with Roboto and keeps a system fallback', () => {
     expect(tokens.fontSans.startsWith("'Roboto'")).toBe(true);
     expect(tokens.fontSans).toMatch(/sans-serif$/);
+  });
+});
+
+describe('density tokens', () => {
+  /** The declarations inside a block whose selector is exactly `selector`. */
+  function block(selector: string): Map<string, string> {
+    const re = new RegExp(`${selector.replace(/[[\]'.]/g, '\\$&')}\\s*\\{([^}]*)\\}`, 'g');
+    const found = new Map<string, string>();
+    for (const m of css.matchAll(re)) {
+      for (const d of m[1].matchAll(/(--[\w-]+):\s*([^;]+);/g)) found.set(d[1], d[2].trim());
+    }
+    return found;
+  }
+  const all = block(':root');
+  const touch = new Map(
+    [...all].filter(([k]) => /^--(control|segment|field|row|list-row|tile)-/.test(k)),
+  );
+  // The density tokens only: the maximum-width tokens (below) also have a fine-pointer block.
+  const fine = new Map(
+    [...block(":root[data-pointer='fine']")].filter(([k]) =>
+      /^--(control|segment|field|row|list-row|tile)-/.test(k),
+    ),
+  );
+
+  // The touch values are what the app shipped with before density existed; touch devices must not
+  // move (b-oss#637).
+  it('the touch values are the original sizes', () => {
+    expect(Object.fromEntries(touch)).toEqual({
+      '--control-height': '40px',
+      '--control-padding-x': '20px',
+      '--control-padding-x-small': '16px',
+      '--control-font-size': '0.9375rem',
+      '--control-font-size-small': '0.875rem',
+      '--segment-button-height': '34px',
+      '--field-height': '48px',
+      '--field-padding': '12px',
+      '--row-height': '56px',
+      '--list-row-height': '64px',
+      '--tile-height': '128px',
+    });
+  });
+
+  it('every touch token has a compact value, and compact is never larger', () => {
+    expect([...fine.keys()].sort()).toEqual([...touch.keys()].sort());
+    for (const [name, compact] of fine) {
+      const unit = /[a-z]+$/.exec(compact)?.[0];
+      expect(unit).toBe(/[a-z]+$/.exec(touch.get(name) ?? '')?.[0]);
+      expect(parseFloat(compact)).toBeLessThanOrEqual(parseFloat(touch.get(name) ?? '0'));
+    }
+  });
+});
+
+describe('maximum width tokens (b-oss#671)', () => {
+  it('are unbounded by default, so touch devices and narrow windows keep full-width layouts', () => {
+    expect(cssValue('--action-max-width')).toBe('none');
+    expect(cssValue('--content-max-width')).toBe('none');
+  });
+
+  it('are capped only for a mouse on a wide window', () => {
+    const gated =
+      /@media \(min-width: 900px\)\s*\{\s*:root\[data-pointer='fine'\]\s*\{([^}]*)\}/.exec(css);
+    expect(gated?.[1]).toMatch(/--action-max-width:\s*320px;/);
+    expect(gated?.[1]).toMatch(/--content-max-width:\s*720px;/);
   });
 });

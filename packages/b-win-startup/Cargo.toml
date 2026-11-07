@@ -1,0 +1,23 @@
+[package]
+name = "b_win_startup"
+version = "0.1.0"
+edition = "2021"
+publish = false
+license = "GPL-3.0-or-later"
+description = "Node-API add-on: read and change an app's Microsoft Store startup task (Windows x64 only)"
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+napi = { version = "2", default-features = false, features = ["napi4"] }
+napi-derive = "2"
+windows = { version = "0.61", features = ["ApplicationModel", "ApplicationModel_Activation", "Foundation", "Win32_System_WinRT"] }
+
+[build-dependencies]
+napi-build = "2"
+
+[profile.release]
+lto = true
+opt-level = "s"
+strip = true

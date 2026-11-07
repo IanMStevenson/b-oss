@@ -78,7 +78,7 @@ function SectionScreen({ section }: { section: SettingsSection }) {
           accountIndicator={section !== 'appearance'}
         />
       </IonHeader>
-      <IonContent>
+      <IonContent className="form-column">
         {section === 'details' && <DetailsSection />}
         {section === 'profile' && <ProfileSection />}
         {section === 'notifications' && <NotificationsSection />}
@@ -114,7 +114,7 @@ function SettingsHub() {
           accountIndicator
         />
       </IonHeader>
-      <IonContent>
+      <IonContent className="form-column">
         {/* App settings: device-local, never round-trip to Blipfoto's server — how b-mobile
             itself behaves on this phone, not the account. Accounts and Hidden members have no
             menu entry any more (b-oss#733); this is where they live. */}

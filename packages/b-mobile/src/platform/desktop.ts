@@ -1,0 +1,101 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+// Copyright (C) 2026 Ian Stevenson
+
+// The desktop shell (packages/b-mobile-pc, an Electron main process) exposes `window.bMobileDesktop`
+// from its preload; its presence is how the app knows it is hosted on desktop rather than by
+// Capacitor or in a plain browser. This is a copy of the contract in
+// packages/b-mobile-pc/src/shared/bridge.ts: b-mobile must not depend on that package, so keep the
+// two in step (the shell's e2e tests exercise the real round trip). Only platform/** reads it.
+
+/** Same shape as b-mobile's PushPayload (platform/push.ts), so tap routing is shared. */
+export type DesktopNotifyPayload =
+  | { kind: 'activity'; stream: 'comments' | 'notifications'; accountId: string }
+  | { kind: 'reauth-required'; accountId: string };
+
+export interface DesktopNotifySettings {
+  accounts: { accountId: string; streams: { comments: boolean; notifications: boolean } }[];
+}
+
+/** Copy of the shell's CheckResult / AccountStatus / NotifyStatus / TestNotifyResult
+ * (b-mobile-pc src/shared/notify.ts). */
+export interface DesktopCheckResult {
+  kind: 'baseline' | 'ok' | 'offline' | 'sign-in-needed' | 'rate-limited' | 'no-token' | 'error';
+  text: string;
+  newItems?: number;
+}
+
+export interface DesktopAccountStatus {
+  accountId: string;
+  lastCheckedAt: number | null;
+  nextCheckAt: number | null;
+  checking: boolean;
+  result: DesktopCheckResult | null;
+}
+
+export interface DesktopNotifyStatus {
+  accounts: DesktopAccountStatus[];
+}
+
+export interface DesktopTestNotifyResult {
+  ok: boolean;
+  detail: string;
+}
+
+/** A photo chosen in the shell's file dialog (b-oss#739). */
+export interface DesktopPickedPhoto {
+  name: string;
+  mimeType: string;
+  modifiedMs: number;
+  bytes: Uint8Array;
+}
+
+export interface DesktopBridge {
+  readonly version: 1;
+  readonly secure: {
+    get(key: string): Promise<string | null>;
+    set(key: string, value: string): Promise<void>;
+    remove(key: string): Promise<void>;
+  };
+  /** Opens the sign-in page in a clean, throwaway window and resolves with the redirect URL it
+   * captured once navigation reaches `redirectPrefix`. Rejects with Error('cancelled') if closed. */
+  openAuth(url: string, redirectPrefix: string): Promise<string>;
+  readonly notify: {
+    configure(settings: DesktopNotifySettings): Promise<void>;
+    status(): Promise<DesktopNotifyStatus>;
+    checkNow(): Promise<DesktopNotifyStatus>;
+    sendTest(): Promise<DesktopTestNotifyResult>;
+    onReceived(handler: (payload: DesktopNotifyPayload) => void): () => void;
+    onTapped(handler: (payload: DesktopNotifyPayload) => void): () => void;
+  };
+  /** The daily reminder (b-oss#894): the shell runs the clock, so it fires with the window hidden.
+   * Absent on a shell older than this member. */
+  readonly reminders?: {
+    configure(reminders: { accountId: string; hour: number; minute: number }[]): Promise<void>;
+    skipToday(accountId: string): Promise<void>;
+    onTapped(handler: (accountId: string) => void): () => void;
+  };
+  /** The shell's own build (b-oss#696). Absent on a shell older than this member, which the app
+   * reads as a mismatch. */
+  readonly shell?: {
+    info(): Promise<{ build: string }>;
+  };
+  /** The shell's file dialog, opened in the folder last used for this account (b-oss#739). Absent
+   * on a shell older than this member. Resolves null when cancelled. */
+  pickPhoto?(accountId: string): Promise<DesktopPickedPhoto | null>;
+  /** The error log and the error screen's actions (b-oss#639); see platform/diagnostics.ts. */
+  readonly diagnostics: {
+    logError(entry: { source: string; message: string; stack?: string }): Promise<void>;
+    openLogFolder(): Promise<void>;
+    copyText(text: string): Promise<void>;
+  };
+}
+
+const BRIDGE_GLOBAL = 'bMobileDesktop';
+
+/** The desktop shell's bridge, or undefined anywhere else (Android, iOS, a browser, a test). */
+export function desktopBridge(): DesktopBridge | undefined {
+  if (typeof window === 'undefined') return undefined;
+  const bridge = (window as unknown as Record<string, unknown>)[BRIDGE_GLOBAL];
+  if (typeof bridge !== 'object' || bridge === null) return undefined;
+  return (bridge as { version?: unknown }).version === 1 ? (bridge as DesktopBridge) : undefined;
+}

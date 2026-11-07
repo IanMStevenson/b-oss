@@ -12,6 +12,7 @@ import {
   mapMacLoginItemStatus,
   mapStartupTaskStateName,
   selectStartAtSignIn,
+  startedByStartupTask,
   STARTUP_TASK_ID,
   type LoginItemDeps,
   type StartAtSignIn,
@@ -320,13 +321,12 @@ describe('createStartAtSignInService', () => {
 describe('packaging config', () => {
   const config = JSON.parse(
     readFileSync(new URL('../../../electron-builder.store.json', import.meta.url), 'utf8'),
-  ) as { files: string[]; asarUnpack: string[]; appx: unknown };
+  ) as { extraResources: unknown[]; appx: unknown };
   const base = JSON.parse(
     readFileSync(new URL('../../../electron-builder.json', import.meta.url), 'utf8'),
   ) as { files: string[]; asarUnpack?: string[] };
-  it('packs and unpacks the add-on in the Store config only', () => {
-    expect(config.files).toContain('native/win-startup/dist/*.node');
-    expect(config.asarUnpack).toContain('native/win-startup/dist/*.node');
+  it('copies the add-on beside the app in the Store config only', () => {
+    expect(JSON.stringify(config.extraResources)).toContain('b-win-startup/dist/win-startup.node');
     expect(JSON.stringify(base)).not.toContain('win-startup');
   });
   it('the manifest task id matches the add-on call', () => {
@@ -335,5 +335,28 @@ describe('packaging config', () => {
       'utf8',
     );
     expect(xml).toContain(`TaskId="${STARTUP_TASK_ID}"`);
+  });
+});
+
+describe('startedByStartupTask', () => {
+  const withKind = (kind: () => Promise<string>) => ({ ...fakeAddon('Enabled'), launchKind: kind });
+  it('is true only for a StartupTask activation', async () => {
+    expect(await startedByStartupTask(withKind(() => Promise.resolve('StartupTask')))).toBe(true);
+    expect(await startedByStartupTask(withKind(() => Promise.resolve('Launch')))).toBe(false);
+    expect(await startedByStartupTask(withKind(() => Promise.resolve('Unknown')))).toBe(false);
+  });
+  it('is false with no add-on or an add-on without launchKind', async () => {
+    expect(await startedByStartupTask(null)).toBe(false);
+    expect(await startedByStartupTask(fakeAddon('Enabled'))).toBe(false);
+  });
+  it('is false, and reported, when the call rejects', async () => {
+    const onError = vi.fn();
+    expect(
+      await startedByStartupTask(
+        withKind(() => Promise.reject(new Error('x'))),
+        onError,
+      ),
+    ).toBe(false);
+    expect(onError).toHaveBeenCalledOnce();
   });
 });

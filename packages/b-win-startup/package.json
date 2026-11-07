@@ -1,0 +1,7 @@
+{
+  "name": "@b-oss/b-win-startup",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Node-API add-on (Rust, Windows x64) for an MSIX app's start-at-sign-in startup task; shared by b-ark and b-mobile-pc",
+  "license": "GPL-3.0-or-later"
+}

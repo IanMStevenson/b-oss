@@ -20,6 +20,11 @@
 // per-stream choices live in the registrations table instead.
 
 import { BlipfotoClient, BlipfotoError } from '@b-oss/b-api';
+import {
+  fetchUnreadTotals as fetchUnreadTotalsCore,
+  TokenInvalidError,
+  type UnreadTotals,
+} from '@b-oss/b-notify-core';
 
 export class ReadTokenInvalidError extends Error {
   constructor() {
@@ -52,27 +57,18 @@ export function isBearerUnrecognised(err: unknown): boolean {
   return err instanceof BlipfotoError && err.code === 52;
 }
 
-export interface UnreadTotals {
-  comments: number;
-  notifications: number;
-}
+export type { UnreadTotals };
 
-/** The one call the 1-minute activity poll makes per due registration — side-effect-free, per
- * the doc: "Only `messages/totals/unread` is side-effect-free." Never call
- * `messages/notifications/unread/Total` instead — it reports the notification count under both
- * keys (notification-service.md, "Polling design"). */
+/** The one call the 1-minute activity poll makes per due registration. The call itself (and the
+ * rule that it must stay side-effect-free: never `messages/notifications/unread/Total`, which
+ * reports the notification count under both keys) lives in @b-oss/b-notify-core, shared with the
+ * desktop shell. This wrapper only maps its TokenInvalidError (50/51) to this service's
+ * ReadTokenInvalidError; a code 52 passes through as a plain BlipfotoError, as before. */
 export async function fetchUnreadTotals(readToken: string): Promise<UnreadTotals> {
-  const client = new BlipfotoClient(readToken);
   try {
-    const result = await client.getUnreadTotals({
-      returnComments: true,
-      returnNotifications: true,
-    });
-    return { comments: result.comments ?? 0, notifications: result.notifications ?? 0 };
+    return await fetchUnreadTotalsCore(readToken);
   } catch (err) {
-    if (isReadTokenRejected(err)) {
-      throw new ReadTokenInvalidError();
-    }
+    if (err instanceof TokenInvalidError) throw new ReadTokenInvalidError();
     throw err;
   }
 }

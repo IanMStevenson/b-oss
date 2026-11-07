@@ -27,18 +27,31 @@ module.exports = [
       // Enforce architecture boundaries
       'no-restricted-imports': ['error', {
         patterns: [
-          { group: ['electron'], message: 'Only packages/b-ark may import from electron.' },
+          { group: ['electron'], message: 'Only packages/b-ark and packages/b-mobile-pc may import from electron.' },
           { group: ['@capacitor/*'], message: 'Only packages/b-mobile/src/platform/** may import from @capacitor/*.' },
+          { group: ['**/platform/platformKind', '**/platform/platformKind.js'], message: 'Only packages/b-mobile/src/platform/** and src/profile/** may import platformKind — screens and flows use capabilities() / profile() (b-oss#633).' },
+          { group: ['**/platform/desktop', '**/platform/desktop.js'], message: 'Only packages/b-mobile/src/platform/** may import platform/desktop (the desktop bridge) — screens and flows use capabilities() / profile() (b-oss#633).' },
           { group: ['react-router', 'react-router-dom'], message: 'Only packages/b-mobile/src/app/routes/** may import react-router — screens use useAppNavigate() instead (app-architecture.md §5).' }
         ]
       }],
     },
   },
   {
-    // packages/b-ark is the Electron shell — it may import from electron.
-    files: ['packages/b-ark/**/*.{ts,tsx}'],
+    // packages/b-ark and packages/b-mobile-pc are the Electron shells — they may import from electron.
+    files: ['packages/b-ark/**/*.{ts,tsx}', 'packages/b-mobile-pc/**/*.{ts,tsx}'],
     rules: {
       'no-restricted-imports': 'off',
+    },
+  },
+  {
+    // b-mobile-pc may use electron, but like every package except b-mobile it never imports Capacitor.
+    files: ['packages/b-mobile-pc/**/*.{ts,tsx}'],
+    rules: {
+      'no-restricted-imports': ['error', {
+        patterns: [
+          { group: ['@capacitor/*'], message: 'Only packages/b-mobile/src/platform/** may import from @capacitor/*.' }
+        ]
+      }],
     },
   },
   {
@@ -54,6 +67,19 @@ module.exports = [
     },
   },
   {
+    // profile/ is the other place allowed to know the platform (b-oss#633): same rules as the base
+    // block, minus the platformKind restriction.
+    files: ['packages/b-mobile/src/profile/**/*.{ts,tsx}'],
+    rules: {
+      'no-restricted-imports': ['error', {
+        patterns: [
+          { group: ['@capacitor/*'], message: 'Only packages/b-mobile/src/platform/** may import from @capacitor/*.' },
+          { group: ['react-router', 'react-router-dom'], message: 'Only packages/b-mobile/src/app/routes/** may import react-router.' }
+        ]
+      }],
+    },
+  },
+  {
     // react-router is confined to the route table (app-architecture.md §5) so an eventual
     // Ionic 9 / React Router 6 migration touches one directory instead of every screen.
     // AppShell.tsx is the one exception outside routes/: it sets up IonReactRouter itself,
@@ -62,6 +88,8 @@ module.exports = [
     rules: {
       'no-restricted-imports': ['error', {
         patterns: [
+          { group: ['**/platform/platformKind', '**/platform/platformKind.js'], message: 'Only packages/b-mobile/src/platform/** and src/profile/** may import platformKind — screens and flows use capabilities() / profile() (b-oss#633).' },
+          { group: ['**/platform/desktop', '**/platform/desktop.js'], message: 'Only packages/b-mobile/src/platform/** may import platform/desktop (the desktop bridge) — screens and flows use capabilities() / profile() (b-oss#633).' },
           { group: ['@capacitor/*'], message: 'Only packages/b-mobile/src/platform/** may import from @capacitor/*.' }
         ]
       }],
@@ -77,6 +105,19 @@ module.exports = [
         patterns: [
           { group: ['@capacitor/*'], message: 'Only packages/b-mobile/src/platform/** may import from @capacitor/*.' }
         ]
+      }],
+    },
+  },
+  {
+    // One place knows which platform hosts the app (b-oss#608): platform/platformKind.ts. Everything
+    // else asks it, via isCapacitorNative() or a capability, rather than Capacitor.isNativePlatform().
+    files: ['packages/b-mobile/src/platform/**/*.{ts,tsx}'],
+    ignores: ['packages/b-mobile/src/platform/platformKind.ts'],
+    rules: {
+      'no-restricted-properties': ['error', {
+        object: 'Capacitor',
+        property: 'isNativePlatform',
+        message: 'Ask platform/platformKind.ts (isCapacitorNative() / platformKind()) instead of calling Capacitor.isNativePlatform() directly.'
       }],
     },
   },

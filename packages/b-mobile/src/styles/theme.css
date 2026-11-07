@@ -51,31 +51,31 @@
 ion-button:not(.in-buttons) {
   --border-radius: 999px;
   --box-shadow: none;
-  --padding-start: 20px;
-  --padding-end: 20px;
+  --padding-start: var(--control-padding-x);
+  --padding-end: var(--control-padding-x);
   --padding-top: 0;
   --padding-bottom: 0;
-  min-height: 40px;
+  min-height: var(--control-height);
   font-weight: 600;
 }
 
 ion-button:not(.in-buttons)::part(native) {
   text-transform: none;
   letter-spacing: 0;
-  font-size: 0.9375rem;
-  min-height: 40px;
+  font-size: var(--control-font-size);
+  min-height: var(--control-height);
 }
 
 /* `size="small"` stays compact, but never under the 40px touch target. */
 ion-button.button-small:not(.in-buttons) {
-  --padding-start: 16px;
-  --padding-end: 16px;
+  --padding-start: var(--control-padding-x-small);
+  --padding-end: var(--control-padding-x-small);
   height: auto;
-  min-height: 40px;
+  min-height: var(--control-height);
 }
 
 ion-button.button-small:not(.in-buttons)::part(native) {
-  font-size: 0.875rem;
+  font-size: var(--control-font-size-small);
 }
 
 ion-button.button-has-icon-only:not(.in-buttons) {

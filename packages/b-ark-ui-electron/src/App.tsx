@@ -13,6 +13,7 @@ import { ChooseFolderScreen } from './components/screens/ChooseFolderScreen.js';
 import { FirstOpenScreen } from './components/screens/FirstOpenScreen.js';
 import { OAuthSuccessScreen } from './components/screens/OAuthSuccessScreen.js';
 import { StaleBackupBanner } from './components/StaleBackupBanner.js';
+import { StoreNoticeBanner } from './components/StoreNoticeBanner.js';
 import { HomeScreen } from './components/screens/HomeScreen.js';
 import { EmptyAccountScreen } from './components/screens/EmptyAccountScreen.js';
 import { SettingsPanel } from './components/screens/SettingsPanel.js';
@@ -100,6 +101,7 @@ function AppRoot() {
           {panel === null && <Sidebar compact={compact} />}
           <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
             <StaleBackupBanner />
+            <StoreNoticeBanner />
             {renderMainArea()}
           </div>
         </div>

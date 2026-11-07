@@ -112,7 +112,7 @@ ion-segment.settings-pill-segment {
   padding: 3px;
   margin: 0 16px 4px;
   width: calc(100% - 32px);
-  min-height: 40px;
+  min-height: var(--control-height);
 }
 
 ion-segment.settings-pill-segment ion-segment-button {
@@ -120,7 +120,7 @@ ion-segment.settings-pill-segment ion-segment-button {
   --color-checked: var(--on-accent);
   --indicator-color: var(--accent);
   --border-radius: 999px;
-  min-height: 34px;
+  min-height: var(--segment-button-height);
 }
 
 /* The md indicator is a 2px underline by default; stretch it into a filled pill behind the label. */
@@ -526,6 +526,28 @@ ion-item.nav-item-current::after {
   bottom: 0;
 }
 
+/* The pin button at the top of the navigation menu (desktop, wide window; b-oss#638). */
+/* Full width, label right-justified with the icon to its right and room around both (b-oss#698).
+   Plain layout only: no transform, will-change, filter or opacity, which would put the control on its
+   own layer and blur it under display scaling (b-oss#676). */
+ion-button.nav-pin {
+  display: block;
+  width: calc(100% - 16px);
+  margin: 8px 8px 0;
+}
+ion-button.nav-pin::part(native) {
+  padding-inline: 20px 16px;
+}
+/* The label and icon sit in Ionic's inner flex span (centred, and not styleable from here): an auto
+   margin on the label takes all the free space, which right-justifies both, and the icon's margin
+   spaces the two. */
+ion-button.nav-pin > .nav-pin-label {
+  margin-inline-start: auto;
+}
+ion-button.nav-pin > svg[slot='end'] {
+  margin-inline-start: 14px;
+}
+
 /* Source-list navigation bar (b-oss#819): the entry screen's bottom bar that steps through the grid
    the entry was opened from. The header's green and depth; the footer's bottom padding clears the
    system navigation area, which is painted the same green while the bar shows. */
@@ -542,6 +564,11 @@ ion-footer.source-nav-footer::before {
   display: flex;
   align-items: stretch;
   height: 48px;
+  /* Never wider than the entry content column (b-view's EntryDetail: --entry-column 960px plus a
+     16px gutter each side), centred; the footer's green still fills the window (b-oss#849). A phone
+     is narrower than this, so it is unaffected. */
+  max-width: calc(960px + 2 * 16px);
+  margin-inline: auto;
   background: var(--brand-fill);
   color: var(--on-brand-fill);
 }

@@ -32,13 +32,18 @@ import { refreshAccountAvatar } from './avatarFlow.js';
 import { runOAuthRound, OAuthCancelledError } from './oauthRound.js';
 import type { OAuthResult } from './oauthRound.js';
 import { AccountMismatchError, sameUsername } from './accountMismatch.js';
-import { isNativePlatform } from '../platform/appState.js';
+import { capabilities } from '../platform/capabilities.js';
 import { cancelReminderForAccount } from './reminderFlow.js';
 import {
   ensurePushPermission,
   registerAccountForPush,
   deregisterAccountFromPush,
 } from './pushFlow.js';
+import {
+  disablePollingNotifications,
+  enablePollingNotifications,
+  usesPolling,
+} from './pollingNotifications.js';
 
 export { OAuthCancelledError, AccountMismatchError };
 
@@ -74,7 +79,10 @@ async function storeAppToken(result: OAuthResult): Promise<StoredAccount> {
  * one of them, so the clean in-app browser is forced; with a single account the system browser is
  * fine (and saves typing a password). The owner check in runRoundForAccount() applies either way. */
 export function tokenChangeUsesEmbedded(account?: StoredAccount): boolean {
-  if (!isNativePlatform()) return false;
+  const { auth } = capabilities();
+  if (!auth.embeddedAvailable) return false;
+  // Where the system browser is not an option (desktop), embedded is the only way.
+  if (!auth.userCanChooseBrowser) return true;
   // b-oss#375: an account that signed in through the in-app browser stays there.
   if (account?.usesInAppBrowser) return true;
   return useAccountsStore.getState().accounts.length > 1;
@@ -217,6 +225,13 @@ async function registerNotificationsAfterSignIn(
   embedded: { useEmbedded: boolean | undefined },
   hooks: SignInHooks,
 ): Promise<void> {
+  if (usesPolling()) {
+    // Desktop (b-oss#610): no second round, no registration; it is only a setting.
+    if (choice.notifications) {
+      enablePollingNotifications(account.id, choice.pushStreams ?? ALL_PUSH_STREAMS);
+    }
+    return;
+  }
   if (choice.notifications && (await ensurePushPermission())) {
     if (account.appTokenScope === 'read') {
       // Read-only + notifications: the same token serves both — no second round.
@@ -352,6 +367,13 @@ export async function changeAccountMode(
   if (!refreshed) return;
   const finalAppScope = refreshed.appTokenScope;
   const streams = target.pushStreams ?? pushStreamsOf(refreshed);
+
+  if (usesPolling()) {
+    // Desktop (b-oss#610): notifications are a setting on the account's one app token.
+    if (target.notifications) enablePollingNotifications(accountId, streams);
+    else disablePollingNotifications(accountId);
+    return;
+  }
 
   if (target.notifications && !refreshed.hasServiceToken && (await ensurePushPermission())) {
     if (finalAppScope === 'read') {
@@ -517,7 +539,8 @@ export async function reauthorizeAccount(
  * Read-write: one cheap call; a rejection marks it dead (as b-push's report would), anything else
  * (offline) leaves it for the service to judge later. */
 async function settleServiceTokenAfterAppDeath(account: StoredAccount): Promise<void> {
-  if (!account.hasServiceToken) return;
+  // Desktop has no service token; its notifications setting survives a dead app token as it is.
+  if (usesPolling() || !account.hasServiceToken) return;
   if (account.lastAppTokenScope === 'read') {
     handleForcedLogout(account.id, 'service');
     return;

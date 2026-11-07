@@ -104,7 +104,10 @@ export const STRINGS = {
     'This needs one more sign-in step, to authorize posting, reacting, commenting and following.',
   'FLW22.upgrade_to_readwrite.button': 'Continue',
   'FLW22.upgrade_to_readwrite.title': 'Switch {username} to read-write?',
+  'GENERIC.crash.copied': 'Copied',
+  'GENERIC.crash.copy_button': 'Copy details',
   'GENERIC.crash.body': 'The app hit an unexpected problem. Reloading usually fixes it.',
+  'GENERIC.crash.open_log_button': 'Open log folder',
   'GENERIC.crash.reload_button': 'Reload',
   'GENERIC.crash.title': 'Something went wrong',
   'GENERIC.error.list_load': "Couldn't load this. Check your connection and try again.",
@@ -213,7 +216,7 @@ export const STRINGS = {
   'SCR-25.browsing.pagination.caption': 'Page numbers below the grid. Swiping still changes page.',
   'SCR-25.browsing.photo_size': 'Photo size',
   'SCR-25.browsing.photo_size.caption':
-    'Full width may need scrolling. Fit to screen shows the whole photo.',
+    'Full width may need scrolling. Fit to screen shows the whole photo. Compact also leaves room for the title.',
   'SCR-25.browsing.photo.title': 'Entry photo',
   'SCR-25.browsing.zoom_bar': 'Show zoom/navigation bar',
   'SCR-25.browsing.zoom_bar.caption':
@@ -227,6 +230,8 @@ export const STRINGS = {
   'SCR-25.feed_type.feed_publish_milestone': 'Publishing milestones',
   'SCR-25.notifications.app.caption': 'Notifications from b-mobile on this device',
   'SCR-25.notifications.app.title': 'b-mobile notifications',
+  'SCR-25.notifications.desktop.caption':
+    "While notifications are on, b-mobile starts when you sign in to this computer and keeps running in the system tray when you close its window, checking for new activity every 5 minutes. Use Exit in the tray icon's menu to stop it; notifications stay on and resume next time b-mobile starts.",
   'SCR-25.notifications.feed_hint.all':
     'Your Blipfoto feed has every notification type turned off, so this app will never have any notifications to tell you about.',
   'SCR-25.notifications.feed_hint.some':

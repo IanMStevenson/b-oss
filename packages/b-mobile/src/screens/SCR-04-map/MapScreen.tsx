@@ -38,7 +38,7 @@ import { AppHeader } from '../../components/AppHeader.js';
 import { getTileLayerConfig, getSatelliteLayerConfig } from '../../platform/mapTiles.js';
 import { LoadFailedBanner } from '../../components/LoadFailedBanner.js';
 import { createLeafletMap, MAP_FAILED_MESSAGE } from '../../components/leafletMap.js';
-import { getCurrentPosition } from '../../platform/geolocation.js';
+import { getCurrentPosition, LocationUnavailableError } from '../../platform/geolocation.js';
 import { resolveImage } from '../../platform/imageCache.js';
 import { fetchEntriesInBounds } from '../../data/map.js';
 import type { MapBounds, MapEntry } from '../../data/map.js';
@@ -48,6 +48,7 @@ import { resumeGet, resumeSet } from '../../data/resumeCache.js';
 import { useHiddenMembers } from '../../state/hiddenMembersStore.js';
 import { useAppNavigate } from '../../app/routes/useAppNavigate.js';
 import { errorMessageOf } from '../../data/errors.js';
+import { locationControlAvailable } from '../../platform/capabilities.js';
 
 interface MapScreenProps {
   /** From the `?entry=<id>` query param (app-architecture.md §5's route table) — AppRoutes.tsx
@@ -309,7 +310,9 @@ export function MapScreen({ focusedEntryId }: MapScreenProps) {
       (err: unknown) => {
         if (id !== requestIdRef.current) return;
         // Non-blocking per SCR-04: the map (and its already-shown markers, if any) stay usable;
-        // the next pan/zoom tries again on its own, no explicit retry action.
+        // the next pan/zoom tries again on its own, and "Try again" re-requests the same area.
+        // Never the API's own text above the map (b-oss#669): a fixed message, the detail logged.
+        console.warn('[map] entries request failed', errorMessageOf(err, 'unknown error'));
         setEntriesStatus('error');
         setEntriesError(errorMessageOf(err, 'Could not load entries.'));
         setEntriesErrorIsTransport(err instanceof NetworkError);
@@ -344,8 +347,10 @@ export function MapScreen({ focusedEntryId }: MapScreenProps) {
           keyboard: false,
         }).addTo(map);
       }
-    } catch {
-      setLocationMessage('Location access was refused.');
+    } catch (err) {
+      setLocationMessage(
+        err instanceof LocationUnavailableError ? err.message : 'Location access was refused.',
+      );
     }
   }
 
@@ -362,14 +367,16 @@ export function MapScreen({ focusedEntryId }: MapScreenProps) {
         ) : (
           <div style={{ position: 'relative', height: '100%' }}>
             <div ref={containerRef} style={{ position: 'absolute', inset: 0 }} />
-            <button
-              type="button"
-              className="map-locate"
-              onClick={() => void handleMyLocation()}
-              aria-label="My location"
-            >
-              <LocateFixed size={22} aria-hidden="true" />
-            </button>
+            {locationControlAvailable() && (
+              <button
+                type="button"
+                className="map-locate"
+                onClick={() => void handleMyLocation()}
+                aria-label="My location"
+              >
+                <LocateFixed size={22} aria-hidden="true" />
+              </button>
+            )}
             {mapFailed && (
               <LoadFailedBanner
                 transport={false}

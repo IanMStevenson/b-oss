@@ -19,7 +19,9 @@ normally happen together.
 ## Cutting a release
 
 1. **Changelog.** Move `[Unreleased]` into a dated section in the root `CHANGELOG.md`
-   (user-facing entries; shared with b-ark).
+   (shared with b-ark). This is the internal technical record, never published. Write the user-facing
+   note once in `packages/b-site/release-notes/b-ark-chrome.md`: `## <version> - <YYYY-MM-DD>`, newest
+   first, then 500 characters or fewer in plain words, saying what the user will see.
 2. **Version.** Bump the root `package.json`, `packages/b-ark-chrome/package.json` and the
    `version` in `packages/b-ark-chrome/manifest.json` together. The Web Store rejects an upload
    whose manifest version is not higher than the published one. Step 4 of the root
@@ -41,6 +43,7 @@ normally happen together.
    `entries/YYYY/…` files appear. Sign-in is the part a bad build breaks quietly.
 6. **Publish.**
    - Dashboard → the b-ark-chrome item → Package → upload the zip.
+   - Paste that same release note into the Web Store's release notes, wherever the dashboard takes them.
    - If the listing text, permissions or screenshots changed, update them from
      [store/listing.md](store/listing.md) (the source of truth for the dashboard text fields;
      screenshots and the promo tile are in `store/`). Permission changes need a fresh justification

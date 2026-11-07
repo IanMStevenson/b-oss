@@ -56,10 +56,14 @@ export async function submitDraft(draft: ComposeDraft): Promise<string> {
             : undefined,
           gmt_offset: gmtOffsetMinutes(),
         }
-      : // SCR-13 has no date field — the draft's `date` is carried only for display, never sent.
+      : // The date is sent only when changed (and only for a fully editable entry).
         // A thumbnail selection only means something alongside a replacement photo.
         {
           ...commonFields,
+          date:
+            !tagsAndLocationOnly && draft.originalDate && draft.date !== draft.originalDate
+              ? draft.date
+              : undefined,
           thumbnail_crop:
             photo && draft.thumbnailCrop ? thumbnailCropToField(draft.thumbnailCrop) : undefined,
         };

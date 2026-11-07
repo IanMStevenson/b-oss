@@ -13,6 +13,7 @@ import type {
 } from '@b-oss/b-ark-ui-electron';
 import { PortableSettingsManager } from './portable-settings.js';
 import { decryptSecret } from './secret-store.js';
+import { isStoreNoticeOffered } from './store-notice.js';
 import { effectiveStatus } from './rag-reasons.js';
 import { deserializeCookies, sessionValidUntilMs, type WebCookie } from './web-session-pure.js';
 
@@ -52,6 +53,9 @@ export function ensureAppDefaults(): void {
       : {}),
     ...(current?.staleAlertIntervals !== undefined
       ? { staleAlertIntervals: current.staleAlertIntervals }
+      : {}),
+    ...(current?.storeNoticeSnoozedUntil !== undefined
+      ? { storeNoticeSnoozedUntil: current.storeNoticeSnoozedUntil }
       : {}),
   };
   store.set('app', merged);
@@ -364,6 +368,12 @@ export function setStaleBackupNotice(notice: StaleBackupNotice | null): void {
   staleBackupNotice = notice;
 }
 
+let storeNoticeDismissed = false;
+
+export function dismissStoreNoticeForSession(): void {
+  storeNoticeDismissed = true;
+}
+
 export function getAppStore(): AppStore {
   return {
     accounts: getAccounts(),
@@ -374,6 +384,13 @@ export function getAppStore(): AppStore {
     },
     app: store.get('app'),
     staleBackupNotice,
+    storeMigrationNotice: isStoreNoticeOffered({
+      windowsStore: process.windowsStore === true,
+      platform: process.platform,
+      snoozedUntil: store.get('app').storeNoticeSnoozedUntil,
+      now: new Date(),
+      dismissed: storeNoticeDismissed,
+    }),
   };
 }
 

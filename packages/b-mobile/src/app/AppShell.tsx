@@ -6,6 +6,7 @@
 // Milestones, New Blippers, Nearby) are in-screen state, not routes.
 
 import { useEffect, useRef } from 'react';
+import { installKeyboardScroll } from './keyboardScroll.js';
 import {
   IonApp,
   IonMenu,
@@ -16,7 +17,10 @@ import {
   IonLabel,
   IonBadge,
   IonMenuToggle,
+  IonSplitPane,
+  IonButton,
 } from '@ionic/react';
+import { PanelLeftClose, PanelLeftOpen } from 'lucide-react';
 import { IonReactRouter } from '@ionic/react-router';
 import {
   Bell,
@@ -29,10 +33,9 @@ import {
   Search,
   Settings,
 } from 'lucide-react';
-import type { ReactNode } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import type { NavigateFunction } from 'react-router-dom';
-import type { CSSProperties, RefObject } from 'react';
+import type { CSSProperties, ReactNode, RefObject } from 'react';
 import { AccountRowBody } from '../components/AccountRowBody.js';
 import { OverlayProvider, OverlayHost } from './OverlayProvider.js';
 import { renderAppRoutes } from './routes/AppRoutes.js';
@@ -52,12 +55,21 @@ import {
   handleDeviceTokenRotated,
   routeForPushTap,
 } from '../flows/pushFlow.js';
+import {
+  onDesktopNotificationReceived,
+  onDesktopNotificationTapped,
+} from '../platform/desktopNotify.js';
+import { startPollingSync, usesPolling } from '../flows/pollingNotifications.js';
+import { startReminderSync } from '../flows/reminderSync.js';
 import { applyFontScale } from '../platform/accessibility.js';
 import { onAppStateChange } from '../platform/appState.js';
 import { onAppUrlOpen, getLaunchUrl } from '../platform/deepLinks.js';
 import { resolveDeepLink, routeDeepLink } from '../flows/deepLinkResolver.js';
 import { isBackSwallowedAt, BROWSE_BACK_PRIORITY } from './hardwareBack.js';
 import { checkForSharedImage, onShareReceived } from '../platform/shareIntent.js';
+import { ShellBuildNotice } from '../components/ShellBuildNotice.js';
+import { profile } from '../profile/profile.js';
+import { useNavPane } from './navPane.js';
 
 const MAIN_CONTENT_ID = 'main-content';
 
@@ -203,6 +215,7 @@ function NavMenu() {
   const notificationsCount = useNotificationCountsStore((s) => s.notifications);
   const commentsCount = useNotificationCountsStore((s) => s.comments);
   const { pathname } = useLocation();
+  const pane = useNavPane(pathname);
   // swipeGesture off: a swipe from the left screen edge was opening this menu by accident (and
   // competing with the in-page swipe navigation). The menu opens from the header button only.
   return (
@@ -211,6 +224,26 @@ function NavMenu() {
         {/* Flex column filling the drawer so the version footer sits at the bottom of the screen
             (IonContent's own bottom padding keeps it clear of the gesture bar). */}
         <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100%' }}>
+          {pane.enabled && pane.wide && (
+            // Only where a pin means something: a desktop-profile window wide enough to hold the
+            // menu beside the page. Pressing it forces the menu open or collapsed, and is remembered.
+            <IonButton
+              fill="clear"
+              size="small"
+              className="nav-pin"
+              onClick={pane.togglePin}
+              aria-pressed={pane.open}
+            >
+              <span className="nav-pin-label">
+                {pane.open ? 'Collapse menu' : 'Keep menu open'}
+              </span>
+              {pane.open ? (
+                <PanelLeftClose size={16} aria-hidden="true" slot="end" />
+              ) : (
+                <PanelLeftOpen size={16} aria-hidden="true" slot="end" />
+              )}
+            </IonButton>
+          )}
           <IonList lines="none" style={{ padding: 0 }}>
             {activeAccount ? (
               <NavAccountBlock currentPath={pathname} />
@@ -285,14 +318,19 @@ function NavMenu() {
 function PushListener() {
   const navigate = useLatestNavigate();
   useEffect(() => {
-    const offReceived = onPushReceived((payload) => {
+    // The desktop shell delivers the same payloads from its own poller (b-oss#610); only the
+    // source differs. Its tokens: the dead credential is the account's one app token.
+    const polling = usesPolling();
+    const subscribeReceived = polling ? onDesktopNotificationReceived : onPushReceived;
+    const subscribeTapped = polling ? onDesktopNotificationTapped : onPushTapped;
+    const offReceived = subscribeReceived((payload) => {
       if (payload.kind === 'reauth-required') {
         // FLW-16 step 7: "receiving it (tap or not) feeds FLW-02's... handling immediately" —
         // this is the tap-independent half, for when the push arrives while the app is in the
         // foreground. The tap-independent case while the app *isn't* running is covered by the
         // next launch's backstop check (runLaunchBackstopCheck) instead, since there is no
         // custom background message handler (§11's deliberate choice — see platform/push.ts).
-        handleForcedLogout(payload.accountId, 'service');
+        handleForcedLogout(payload.accountId, polling ? 'app' : 'service');
         return;
       }
       // A push carries no per-stream detail beyond which one moved (§11) — refreshing both
@@ -300,7 +338,7 @@ function PushListener() {
       // since `messages/totals/unread` is one call for both counts already.
       void useNotificationCountsStore.getState().refresh();
     });
-    const offTapped = onPushTapped((payload) => {
+    const offTapped = subscribeTapped((payload) => {
       void routeForPushTap(payload).then((route) => navigate.current(route));
     });
     const offTokenChanged = onPushTokenChanged((token) => {
@@ -397,8 +435,23 @@ function BrowseBackGuard() {
   return null;
 }
 
+// The menu beside the page on a wide window (b-oss#638). Only mounted where the profile has it
+// (desktop); the handheld tree below is exactly what it was, so nothing changes on Android or web.
+function NavSplitPane({ children }: { children: ReactNode }) {
+  const { pathname } = useLocation();
+  const pane = useNavPane(pathname);
+  return (
+    <IonSplitPane contentId={MAIN_CONTENT_ID} when={pane.open}>
+      <NavMenu />
+      {children}
+    </IonSplitPane>
+  );
+}
+
 export function AppShell() {
   const activeAccountId = useAccountsStore((s) => s.activeAccountId);
+
+  useEffect(() => installKeyboardScroll(), []);
 
   useEffect(() => {
     void applyFontScale();
@@ -443,9 +496,18 @@ export function AppShell() {
     // Returning from system settings is not assumed to have succeeded — re-run the
     // same backstop check on every resume, not only at launch, since the OS permission (or the
     // service's registration health) may have changed while the app was backgrounded.
-    return onAppStateChange((isActive) => {
+    const offAppState = onAppStateChange((isActive) => {
       if (isActive) void runLaunchBackstopCheck();
     });
+    // Desktop: keep the shell's poller watching exactly the accounts with notifications on.
+    const offPollingSync = usesPolling() ? startPollingSync(accountsHydrated) : () => {};
+    // Desktop: the shell runs the daily reminder's clock, so it is told which reminders are on.
+    const offReminderSync = usesPolling() ? startReminderSync() : () => {};
+    return () => {
+      offAppState();
+      offPollingSync();
+      offReminderSync();
+    };
   }, []);
 
   // Notification-count badges are per-account (a server figure for whichever account is
@@ -459,19 +521,23 @@ export function AppShell() {
     }
   }, [activeAccountId]);
 
+  const splitPane = profile().nav.split === 'auto';
+  const outlet = <IonRouterOutlet id={MAIN_CONTENT_ID}>{renderAppRoutes()}</IonRouterOutlet>;
+
   return (
     <IonApp>
       <OverlayProvider>
         <IonReactRouter>
-          <NavMenu />
+          {!splitPane && <NavMenu />}
           <ReminderTapListener />
           <BrowseBackGuard />
           <PushListener />
           <DeepLinkListener />
           <OverlayHost />
-          <IonRouterOutlet id={MAIN_CONTENT_ID}>{renderAppRoutes()}</IonRouterOutlet>
+          {splitPane ? <NavSplitPane>{outlet}</NavSplitPane> : outlet}
         </IonReactRouter>
       </OverlayProvider>
+      <ShellBuildNotice />
       <div className="system-nav-strip" aria-hidden="true" />
     </IonApp>
   );

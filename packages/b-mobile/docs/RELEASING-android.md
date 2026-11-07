@@ -54,8 +54,11 @@ The b-mobile instance of the common checklist in the repo-root
 the commit you intend to ship. Last run for real: 1.0.0 (2026-10-21).
 
 1. **Changelog.** Move the b-mobile (and b-push, if it changed) entries under `[Unreleased]` in the
-   root `CHANGELOG.md` into a section headed `## [b-mobile <version>] - <date>` (user-facing only;
-   b-ark's sections are bare version numbers, so the prefix keeps them apart).
+   root `CHANGELOG.md` into a section headed `## [b-mobile <version>] - <date>` (b-ark's sections are
+   bare version numbers, so the prefix keeps them apart). This is the internal technical record, never
+   published. Write the user-facing note once in `packages/b-site/release-notes/b-mobile.md`:
+   `## <version> - <YYYY-MM-DD>`, newest first, then 500 characters or fewer in plain words, saying what
+   the user will see.
 2. **Version.** Set `version` in `packages/b-mobile/package.json` **and** the `packages/b-mobile`
    entry in `package-lock.json` (it becomes `versionName`; `versionCode` is automatic, see above).
    b-mobile versions independently of b-ark.
@@ -82,7 +85,8 @@ the commit you intend to ship. Last run for real: 1.0.0 (2026-10-21).
    Sign-in and push registration are what a misconfigured build breaks (a wrong client ID or
    missing `google-services.json` in the Environment).
 7. **Publish.** Upload the signed bundle in Play Console and promote it following Play's own track
-   order (internal, then closed/production as applicable). Attach the release notes.
+   order (internal, then closed/production as applicable). Paste that same release note into Play
+   Console's "What's new".
    Once the app is live on Google Play, replace "not on Google Play yet" on the Pages site
    (`docs/b-mobile.html`, a docs PR to `main`) with the Play link, and add the link to the
    listing/website fields if needed.

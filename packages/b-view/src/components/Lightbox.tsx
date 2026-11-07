@@ -4,6 +4,9 @@
 import { useEffect, useCallback, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { X, ChevronLeft, ChevronRight } from 'lucide-react';
 import { TransformWrapper, TransformComponent } from 'react-zoom-pan-pinch';
+import type { ReactZoomPanPinchRef } from 'react-zoom-pan-pinch';
+import { isEditableTarget } from '../isEditableTarget.js';
+import { useKeyWheelZoom } from '../useKeyWheelZoom.js';
 import { useSwipeNav } from '../useSwipeNav.js';
 import { fitContain } from '../lightboxFit.js';
 import type { Size } from '../lightboxFit.js';
@@ -26,6 +29,9 @@ interface LightboxProps {
    * prop is present the arrows and arrow keys/swipes use it instead of stepping `index`; a missing
    * handler disables that arrow. */
   entryNav?: { onPrevious?: () => void; onNext?: () => void };
+  /** Ctrl +/-/0 zoom and reset the photo (the library already zooms on the wheel), cancelling the
+   * browser's page zoom. For a host with a keyboard whose page zoom is disabled; off by default. */
+  keyboardZoom?: boolean;
 }
 
 export function Lightbox({
@@ -38,6 +44,7 @@ export function Lightbox({
   journalTitle,
   date,
   entryNav,
+  keyboardZoom = false,
 }: LightboxProps) {
   const goPrev = useMemo(
     () => (entryNav ? entryNav.onPrevious : index > 0 ? () => onNavigate(index - 1) : undefined),
@@ -56,7 +63,14 @@ export function Lightbox({
 
   const handleKey = useCallback(
     (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose();
+      // Backspace closes (Esc is left to the system). Not while typing or with a modifier, and
+      // not if a host handler already took the key.
+      if (e.key === 'Backspace' && !e.defaultPrevented && !e.ctrlKey && !e.altKey && !e.metaKey) {
+        if (isEditableTarget(e.target)) return;
+        e.preventDefault();
+        onClose();
+        return;
+      }
       if (e.key === 'ArrowLeft') goPrev?.();
       if (e.key === 'ArrowRight') goNext?.();
     },
@@ -78,6 +92,17 @@ export function Lightbox({
   // a narrow band and then zoomed only inside it. With the content exactly the fitted size, the
   // zoom library's pan bounds are the image's own edges.
   const stageRef = useRef<HTMLDivElement>(null);
+  const transformRef = useRef<ReactZoomPanPinchRef>(null);
+  useKeyWheelZoom({
+    enabled: keyboardZoom,
+    target: stageRef,
+    wheel: false,
+    onZoom: (command) => {
+      if (command === 'in') void transformRef.current?.zoomIn();
+      else if (command === 'out') void transformRef.current?.zoomOut();
+      else void transformRef.current?.resetTransform();
+    },
+  });
   const [stage, setStage] = useState<Size>({ width: 0, height: 0 });
   const [natural, setNatural] = useState<Size | null>(null);
 
@@ -151,6 +176,7 @@ export function Lightbox({
       <div className={styles.stage} ref={stageRef}>
         {/* Keyed by image and stage size so a rotation/resize or a new photo re-centres at fit. */}
         <TransformWrapper
+          ref={transformRef}
           key={`${images[index]}|${Math.round(stage.width)}x${Math.round(stage.height)}`}
           doubleClick={{ mode: 'toggle' }}
           centerOnInit

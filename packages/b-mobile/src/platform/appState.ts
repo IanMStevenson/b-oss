@@ -8,19 +8,15 @@
 // as it now stands (BEHAVIOUR.md, Notifications).
 // TODO(Phase 2+): implement against @capacitor/network, @capacitor/device.
 
-import { Capacitor } from '@capacitor/core';
 import { App } from '@capacitor/app';
-
-export function isNativePlatform(): boolean {
-  return Capacitor.isNativePlatform();
-}
+import { isCapacitorNative } from './platformKind.js';
 
 /** Fires on every foreground/background transition — `isActive` is `true` on resume, `false` on
  * backgrounding. Never fires for the initial launch state (only for later transitions), so a
  * caller that already runs its own launch-time check doesn't need to guard against a duplicate
  * first call. No-op off native, same stance every other platform/*.ts module takes. */
 export function onAppStateChange(handler: (isActive: boolean) => void): () => void {
-  if (!Capacitor.isNativePlatform()) return () => {};
+  if (!isCapacitorNative()) return () => {};
   let handle: { remove: () => void } | undefined;
   void App.addListener('appStateChange', (state) => handler(state.isActive)).then((h) => {
     handle = h;

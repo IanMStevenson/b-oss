@@ -29,6 +29,7 @@ import { useCanWrite, useActiveAccount, useAccountsStore } from '../../../state/
 import { useAppNavigate } from '../../../app/routes/useAppNavigate.js';
 import { takePhoto, pickPhoto, CameraPermissionDeniedError } from '../../../platform/camera.js';
 import type { PickedPhoto } from '../../../platform/camera.js';
+import { capabilities } from '../../../platform/capabilities.js';
 import { validatePickedPhoto } from '../../../data/photoValidation.js';
 import { PhotoCropper } from '../../../components/PhotoCropper.js';
 import { cropToJpegBlob } from '../../../data/imageCrop.js';
@@ -130,7 +131,7 @@ export function ProfileSection() {
     setAvatarError(null);
     setAvatarBusy(source);
     try {
-      const photo = source === 'camera' ? await takePhoto() : await pickPhoto();
+      const photo = source === 'camera' ? await takePhoto() : await pickPhoto(activeAccount?.id);
       if (!photo) {
         setAvatarBusy(null);
         return;
@@ -270,12 +271,15 @@ export function ProfileSection() {
             </IonItem>
             {canWrite && (
               <>
-                <ActionRow
-                  label="Take photo"
-                  busy={avatarBusy === 'camera'}
-                  disabled={avatarBusy !== null}
-                  onClick={() => void pickAvatarPhoto('camera')}
-                />
+                {capabilities().media.capture === 'camera' &&
+                  capabilities().media.source === 'system' && (
+                    <ActionRow
+                      label="Take photo"
+                      busy={avatarBusy === 'camera'}
+                      disabled={avatarBusy !== null}
+                      onClick={() => void pickAvatarPhoto('camera')}
+                    />
+                  )}
                 <ActionRow
                   label="Choose from device"
                   busy={avatarBusy === 'gallery'}
