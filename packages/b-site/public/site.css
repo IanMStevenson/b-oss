@@ -765,6 +765,12 @@ section.block:first-of-type {
 .footer a:hover {
   color: var(--ink-2);
 }
+/* Build time: for the owner only, deliberately faint. */
+.built-at {
+  margin-top: 10px;
+  font-size: 11px;
+  opacity: 0.45;
+}
 
 /* ---------- Two columns of text (collapses on narrow screens) ---------- */
 .two-col {

@@ -1,6 +1,11 @@
+---
+// Build time (UTC), stamped when the site is built. For the owner to tell that a deploy has landed.
+const builtAt = new Date().toISOString().slice(0, 16).replace('T', ' ') + ' UTC';
+---
 <footer class="footer">
   <div class="page footer-inner">
     <div>&copy; b-oss : open-source tools for Blipfoto users</div>
     <div><a href="about">About</a> · <a href="status">Status</a> · <a href="privacy">Privacy</a> · <a href="https://github.com/IanMStevenson/b-oss">GitHub</a> · <a href="contact">Contact</a></div>
   </div>
+  <div class="page built-at">Updated {builtAt}</div>
 </footer>
