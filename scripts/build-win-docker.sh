@@ -45,10 +45,21 @@ if [[ ! -f .env.local ]]; then
   echo "unset, and the installer's OAuth sign-in will silently fail. See .env.example." >&2
 fi
 
+# Dev VMs reach the internet only through the egress proxy: share the host network and pass its
+# settings in (same as packages/b-mobile-pc/scripts/build-win-docker.sh), or Electron's download
+# inside the container fails.
+mkdir -p "$HOME/.cache/electron" "$HOME/.cache/electron-builder"
+proxy_args=()
+for v in http_proxy https_proxy HTTP_PROXY HTTPS_PROXY no_proxy; do
+  [ -n "${!v:-}" ] && proxy_args+=(-e "$v=${!v}")
+done
+
 # git isn't usable inside the container, so hand it the commit count for the version (b-oss#875).
-docker run --rm \
+docker run --rm --network host "${proxy_args[@]}" \
   -e "BOSS_COMMIT_COUNT=$(git rev-list --count HEAD)" \
   -v "$(pwd)":/project \
+  -v "$HOME/.cache/electron":/root/.cache/electron \
+  -v "$HOME/.cache/electron-builder":/root/.cache/electron-builder \
   -w /project \
   electronuserland/builder:wine \
   bash -c "npm run build --workspace=packages/b-view-backup && cd packages/b-ark && ${RELEASE_PREFIX}npm run dist:win"

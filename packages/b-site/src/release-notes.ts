@@ -1,3 +1,4 @@
+/// <reference types="astro/client" />
 // The site's "What's new" pages read packages/b-site/release-notes/<product>.md at build time. Each file is,
 // newest first, a heading "## <version> - <YYYY-MM-DD>" then one plain-words note of 500 characters or fewer.
 // A malformed file fails the build. A product with no file or no notes has no page and no link.
