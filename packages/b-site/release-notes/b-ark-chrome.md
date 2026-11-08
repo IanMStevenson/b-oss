@@ -1,3 +1,8 @@
+## 1.0.9 - 2026-11-08
+
+Zooming in the photo viewer is smoother and more predictable: sensible zoom steps, drag only when zoomed in, and no jump at fit size.
+Backups now pause a fixed 100 ms between fetches.
+
 ## 1.0.6 - 2026-10-23
 
 • A notice now explains why a journal needs attention, with Sign in, Retry and Dismiss buttons where they apply.
