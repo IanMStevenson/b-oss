@@ -2,6 +2,7 @@
 // Copyright (C) 2026 Ian Stevenson
 
 import { useEffect, useCallback, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { X, ChevronLeft, ChevronRight } from 'lucide-react';
 import { TransformWrapper, TransformComponent } from 'react-zoom-pan-pinch';
 import type { ReactZoomPanPinchRef } from 'react-zoom-pan-pinch';
@@ -125,7 +126,12 @@ export function Lightbox({
   const fitted = natural ? fitContain(natural, stage) : { width: 0, height: 0 };
   const hasHeader = Boolean(title || journalTitle || date);
 
-  return (
+  // Portalled to <body>: the backdrop is position:fixed, but a fixed element is positioned against
+  // the nearest ancestor with layout containment or a transform, not the window. Hosts have such
+  // ancestors (EntryDetail's own container-type wrapper, which also scrolls; Ionic's ion-page and
+  // split-pane), which left the overlay inside a scrolled, offset box with its top bar off-screen
+  // (b-oss#953). React events still bubble through the portal to the host tree.
+  return createPortal(
     <div
       className={styles.backdrop}
       onTouchStart={swipe.onTouchStart}
@@ -218,6 +224,7 @@ export function Lightbox({
           {index + 1} / {images.length}
         </div>
       )}
-    </div>
+    </div>,
+    document.body,
   );
 }
