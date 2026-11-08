@@ -78,6 +78,31 @@ the checklist the others follow ([b-oss#444](https://github.com/IanMStevenson/b-
 b-ark and b-ark-chrome share a version number and a CHANGELOG section (1.0.5 shipped both). b-mobile
 and b-api version independently.
 
+### Which tags does a change need?
+
+One tag releases a whole family (b-oss#944, b-oss#945): `b-mobile-v*` builds the Android bundle and the
+b-mobile-pc Store MSIX, `b-ark-v*` builds the b-ark Store MSIX and the b-ark-chrome zip. Whether a change
+needs a family's tag follows the package dependencies:
+
+| Changed package                                | b-mobile family                 | b-ark family                          |
+| ---------------------------------------------- | ------------------------------- | ------------------------------------- |
+| `b-api`                                        | yes                             | yes                                   |
+| `b-view`, `b-visual`                           | yes (b-mobile)                  | yes (via b-view-backup, b-ark-chrome) |
+| `backup-engine`, `b-view-backup`, `b-ark-ui-*` | no                              | yes                                   |
+| `b-notify-core`                                | yes (b-mobile-pc)               | no                                    |
+| `b-mobile`, `b-mobile-pc`                      | yes                             | no                                    |
+| `b-ark`, `b-ark-chrome`                        | no                              | yes                                   |
+| `b-win-startup` (shared native add-on)         | yes (b-mobile-pc)               | yes (b-ark)                           |
+| `b-push`, `b-status`, `b-site`                 | no tag: they deploy from `main` | no tag                                |
+
+The table is a summary; the script is the authority, because it follows the real imports. For each family
+it diffs `HEAD` against that family's latest tag and prints whether a release is needed and what it builds:
+
+```bash
+git fetch --tags && node scripts/release-impact.mjs                      # each family since its last tag
+node scripts/release-impact.mjs --files packages/b-api/src/client.ts   # what a given change would need
+```
+
 Every release, whatever the component:
 
 1. **Changelog.** Move `[Unreleased]` into a dated section. `CHANGELOG.md` is the internal technical
