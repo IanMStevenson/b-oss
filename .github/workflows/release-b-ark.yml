@@ -129,6 +129,10 @@ jobs:
         run: |
           if [ -z "$CHROME_CLIENT_ID" ]; then echo "::error::Environment value for CHROME_CLIENT_ID is not set"; exit 1; fi
           echo "VITE_CHROME_CLIENT_ID=$CHROME_CLIENT_ID" > .env.local
+      # b-ark-chrome resolves b-api and backup-engine from their built dist/ (the rehearsal's
+      # Chrome job failed with "failed to resolve import @b-oss/b-api"), so build them first.
+      - run: npm run build --workspace=packages/b-api
+      - run: npm run build --workspace=packages/backup-engine
       - name: Build and package the extension
         env:
           RELEASE: '1'
