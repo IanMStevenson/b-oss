@@ -1,6 +1,6 @@
 {
   "name": "@b-oss/b-mobile-pc",
-  "version": "1.4.1",
+  "version": "1.5.0",
   "private": true,
   "description": "b-mobile on desktop: an Electron shell that packages b-mobile's web build",
   "author": {

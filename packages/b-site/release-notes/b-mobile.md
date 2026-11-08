@@ -1,4 +1,4 @@
-## 1.4.0 - 2026-11-08
+## 1.5.0 - 2026-11-08
 
 New: an entry's extra photos now show under the photo and in full screen. You can change an entry's date when editing, there is a Compact photo size, and a keyboard works throughout.
 
