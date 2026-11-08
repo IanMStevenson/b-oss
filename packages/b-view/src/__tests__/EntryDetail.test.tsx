@@ -610,16 +610,16 @@ describe('EntryDetail', () => {
     });
 
     it('does not also navigate the entry underneath while the lightbox is open', async () => {
-      const { container, onNavigate } = renderWithNav();
+      const { onNavigate } = renderWithNav();
       fireEvent.click(screen.getByLabelText('View photo full-screen'));
-      await waitFor(() => expect(container.querySelector('[role="dialog"]')).not.toBeNull());
-      swipe(container.querySelector('[role="dialog"]')!, 120);
+      await waitFor(() => expect(document.querySelector('[role="dialog"]')).not.toBeNull());
+      swipe(document.querySelector('[role="dialog"]')!, 120);
       expect(onNavigate).not.toHaveBeenCalled();
     });
   });
 
   it('the fullscreen button (not a photo tap) opens the lightbox for the main photo', async () => {
-    const { container } = render(
+    render(
       <EntryDetail
         entryState={loadedState(makeEntry())}
         prevEntryId={null}
@@ -627,10 +627,10 @@ describe('EntryDetail', () => {
         onNavigate={() => {}}
       />,
     );
-    expect(container.querySelector('[role="dialog"]')).toBeNull();
+    expect(document.querySelector('[role="dialog"]')).toBeNull();
     fireEvent.click(screen.getByLabelText('View photo full-screen'));
     await waitFor(() => {
-      expect(container.querySelector('[role="dialog"]')).not.toBeNull();
+      expect(document.querySelector('[role="dialog"]')).not.toBeNull();
     });
   });
 

@@ -87,3 +87,17 @@ describe('Lightbox top bar', () => {
     expect(onPrevious).toHaveBeenCalled();
   });
 });
+
+describe('Lightbox placement (b-oss#953)', () => {
+  it('renders under <body>, not inside a host ancestor that would contain its fixed backdrop', () => {
+    const host = document.body.appendChild(document.createElement('div'));
+    host.style.cssText = 'contain: layout; overflow-y: auto;';
+    render(<Lightbox images={['a.jpg']} index={0} onClose={vi.fn()} onNavigate={vi.fn()} />, {
+      container: host,
+    });
+    const dialog = screen.getByRole('dialog');
+    expect(host.contains(dialog)).toBe(false);
+    expect(dialog.parentElement).toBe(document.body);
+    host.remove();
+  });
+});

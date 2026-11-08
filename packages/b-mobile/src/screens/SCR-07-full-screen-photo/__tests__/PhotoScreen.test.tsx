@@ -75,8 +75,8 @@ describe('PhotoScreen', () => {
       nextEntryId: null,
       ...reactionFields,
     });
-    const { container } = renderScreen();
-    const img = await screen.findByRole('dialog').then(() => container.querySelector('img'));
+    renderScreen();
+    const img = await screen.findByRole('dialog').then(() => document.querySelector('img'));
     expect(img?.getAttribute('src')).toBe('https://example.com/photo.jpg');
     expect(screen.queryByText(/original/i)).toBeNull();
   });
@@ -102,11 +102,11 @@ describe('PhotoScreen', () => {
       nextEntryId: null,
       ...reactionFields,
     });
-    const { container } = renderScreen();
+    renderScreen();
     await screen.findByRole('dialog');
     // The dialog can be up a beat before its <img> is, so wait for the image itself.
-    await waitFor(() => expect(container.querySelector('img')).not.toBeNull());
-    container.querySelector('img')!.dispatchEvent(new Event('error'));
+    await waitFor(() => expect(document.querySelector('img')).not.toBeNull());
+    document.querySelector('img')!.dispatchEvent(new Event('error'));
     expect(await screen.findByText(/couldn't be loaded/)).toBeDefined();
     const retryButton = screen.getByText('Retry');
     expect(retryButton).toBeDefined();
@@ -114,7 +114,7 @@ describe('PhotoScreen', () => {
     retryButton.click();
     // The dialog is already on screen, so wait for the retried image itself, not the dialog.
     await waitFor(() =>
-      expect(container.querySelector('img')?.getAttribute('src')).toBe(
+      expect(document.querySelector('img')?.getAttribute('src')).toBe(
         'https://example.com/photo.jpg',
       ),
     );
