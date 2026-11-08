@@ -120,12 +120,12 @@ describe('PhotoScreen', () => {
     );
   });
 
-  it('shows title, journal name and date, and arrows for the adjacent entries (disabled when none)', async () => {
+  it('shows title, journal name and date, and no arrows for a single image even with neighbouring entries (b-oss#955)', async () => {
     const { fetchEntry } = await import('../../../data/entries.js');
     vi.mocked(fetchEntry).mockResolvedValue({
       entry: baseEntry,
       prevEntryId: '0',
-      nextEntryId: null,
+      nextEntryId: '2',
       ...reactionFields,
     });
     renderScreen();
@@ -133,7 +133,37 @@ describe('PhotoScreen', () => {
     expect(screen.getByText('A day out')).toBeDefined();
     expect(screen.getByText(/Alice's journal/)).toBeDefined();
     expect(screen.getByText(/1st Jan 2026/)).toBeDefined();
+    expect(screen.queryByLabelText('Previous image')).toBeNull();
+    expect(screen.queryByLabelText('Next image')).toBeNull();
+  });
+
+  it("opens on the photo in router state and steps only through this entry's photos (b-oss#955)", async () => {
+    const { fetchEntry } = await import('../../../data/entries.js');
+    vi.mocked(fetchEntry).mockResolvedValue({
+      entry: {
+        ...baseEntry,
+        images: {
+          image: 'https://example.com/photo.jpg',
+          extras: [
+            { item_id: 'e1', image: 'https://example.com/x1.jpg' },
+            { item_id: 'e2', image: 'https://example.com/x2.jpg' },
+          ],
+        },
+      },
+      prevEntryId: '0',
+      nextEntryId: '2',
+      ...reactionFields,
+    });
+    render(
+      <MemoryRouter initialEntries={[{ pathname: '/entry/1/photo', state: { photoIndex: 1 } }]}>
+        <PhotoScreen entryId="1" />
+      </MemoryRouter>,
+    );
+    await screen.findByRole('dialog');
+    expect(document.querySelector('img')?.getAttribute('src')).toBe('https://example.com/x1.jpg');
     expect(screen.getByLabelText<HTMLButtonElement>('Previous image').disabled).toBe(false);
+    await userEvent.click(screen.getByLabelText('Next image'));
+    expect(document.querySelector('img')?.getAttribute('src')).toBe('https://example.com/x2.jpg');
     expect(screen.getByLabelText<HTMLButtonElement>('Next image').disabled).toBe(true);
   });
 

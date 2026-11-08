@@ -5,10 +5,10 @@
 // description/comment rendering goes through BBCodeText rather than dangerouslySetInnerHTML,
 // closing the §14 conflict that used to rule it out here) with this screen's own reactions/
 // commentComposer/entryActions/renderCommentActions slots and a few small b-view callback props
-// (onLinkClick, onFullscreen, onTagClick, onLocationClick) added alongside those slots for the
+// (onLinkClick, onOpenPhoto, onTagClick, onLocationClick) added alongside those slots for the
 // same reason: EntryDetail itself has no host-platform opinions, so anything that needs one is
 // host-injected. b-view's own fullscreen button opens an internal Lightbox overlay by default;
-// onFullscreen redirects it to SCR-07 instead, which stays a real, separately-routed screen (deep-
+// onOpenPhoto redirects it (the fullscreen button and every extra's thumbnail) to SCR-07 instead, which stays a real, separately-routed screen (deep-
 // link resilient, back-navigable). The trigger is the dedicated fullscreen button (or a
 // double-tap; BEHAVIOUR.md, Screens), not a single photo tap.
 //
@@ -610,7 +610,9 @@ export function EntryDetailScreen({ entryId, initialReplyToCommentId }: EntryDet
               resolveAsset={resolveImage}
               invalidateAsset={invalidateImage}
               onLinkClick={(href) => void openUrl(href)}
-              onFullscreen={() => navigate.push(`/entry/${entryId}/photo`, { photoFrom: entryId })}
+              onOpenPhoto={(photoIndex) =>
+                navigate.push(`/entry/${entryId}/photo`, { photoFrom: entryId, photoIndex })
+              }
               onPhotoDoubleTap={() =>
                 navigate.push(`/entry/${entryId}/photo`, { photoFrom: entryId })
               }

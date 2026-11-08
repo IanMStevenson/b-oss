@@ -77,7 +77,7 @@ Known Blipfoto API limits: [AppLimitations.md](AppLimitations.md). Paths are rel
   after the entry loads, its extras are read from the public entry page (`data/entryExtras.ts`, b-api's
   `fetchEntryExtras`, page text via `platform/siteText.ts`) and shown as thumbnails; cached for the session,
   nothing and no error when there are none or the fetch fails (retried next open). Standard resolution only.
-- **Photo**: b-view Lightbox, zoom/pan, retry on image error. Opens on the main photo, with any extras after it (standard resolution); the arrows step through them, then on to the neighbouring entry. **New entry**: Take / Choose photo, or a shared photo.
+- **Photo**: b-view Lightbox, zoom/pan, retry on image error. Opens on the main photo, with any extras after it (standard resolution); the arrows, keys and swipes step through them only and never move to another entry (hidden for a single image). The main photo's fullscreen button, a double-tap and every extra's thumbnail all open this same screen, on the tapped photo. **New entry**: Take / Choose photo, or a shared photo.
 - **Compose details**, **Location picker**: see Compose. **Edit entry**: title, description, tags,
   date (same picker as a new entry; taken days are greyed out; sent only if changed), location, replace photo, Delete entry; Save sends the change and waits
   ("Saving your changes… Please don't leave the app until the upload completes."), then returns to

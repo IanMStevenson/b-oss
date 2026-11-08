@@ -50,3 +50,11 @@ export function usePhotoOpenedFrom(): string | undefined {
   const from = (state as { photoFrom?: unknown }).photoFrom;
   return typeof from === 'string' ? from : undefined;
 }
+
+/** The photo to open the full-screen lightbox on (router state `photoIndex`: 0 = main, 1+ = extras). */
+export function usePhotoStartIndex(): number {
+  const state: unknown = useLocation().state;
+  if (typeof state !== 'object' || state === null) return 0;
+  const i = (state as { photoIndex?: unknown }).photoIndex;
+  return typeof i === 'number' && Number.isInteger(i) && i >= 0 ? i : 0;
+}
