@@ -81,7 +81,7 @@ jobs:
             "--config.appx.identityName=$IDENTITY_NAME" \
             "--config.appx.publisher=$PUBLISHER" \
             "--config.appx.publisherDisplayName=$PUBLISHER_DISPLAY_NAME"
-      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
           name: b-ark-msix
           path: |
@@ -137,7 +137,7 @@ jobs:
         env:
           RELEASE: '1'
         run: npm run dist --workspace=@b-oss/b-ark-chrome
-      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
           name: b-ark-chrome-zip
           path: packages/b-ark-chrome/b-ark-chrome-*.zip
