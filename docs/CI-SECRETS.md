@@ -86,7 +86,7 @@ The exact names are fixed when #945 merges; update this table then.
 | Name | Kind | Read by | Notes |
 | --- | --- | --- | --- |
 | `BLIPFOTO_CLIENT_ID` | secret | `build-msix.yml`, `build-msix-sideload.yml`, `release-mac.yml`, `release-win.yml` | **Being removed** in #945; it moves to `b-ark-release`. Ships in the app. |
-| `PROJECT_TOKEN` | secret | `add-to-project.yml` | Adds issues to the IS-Dev board. Never ships. Its kind (classic or fine-grained token, or another credential) is **unconfirmed**. |
+| `PROJECT_TOKEN` | secret | `add-to-project.yml` | Adds issues to the IS-Dev board. Never ships. A personal access token used for repository automation; it should stay narrowly scoped to the project board, with an expiry date. |
 | `PAGES_DEPLOY` | variable | `site.yml` | A flag (`true` enables the Pages deploy), not a secret. |
 | `WIN_CSC_LINK`, `WIN_CSC_KEY_PASSWORD` | secrets | `release-win.yml` | Intentionally unset (the installer ships unsigned). |
 | `GITHUB_TOKEN` | automatic | `cla.yml`, `release-mac.yml`, `release-win.yml` | Issued per run; permissions are set in each workflow. |
