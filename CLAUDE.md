@@ -92,6 +92,12 @@ The Chrome extension is **single-account** and has no electron-store; it stores 
 - **FSA handle** — the granted `FileSystemDirectoryHandle` is persisted in IndexedDB
   (`b-ark-ui-chrome/src/fsa-persistence.ts`); permission is re-queried on each use.
 
+## CI and secrets
+
+How `main` is protected, which Environment each release tag uses, and where every CI secret and variable lives
+(and whether it ships in the built app) is in [docs/CI-SECRETS.md](docs/CI-SECRETS.md) (maintainer-only; same
+hostname test as below). Never add a repo-level secret, and never copy a secret into a second Environment.
+
 ## Maintainer's environment (read only if it applies)
 
 The maintainer's own machines (Mutagen dev loops to Windows, the egress proxy, where credentials live) are
