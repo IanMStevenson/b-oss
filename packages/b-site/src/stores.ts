@@ -21,7 +21,10 @@ export const STORES = {
     },
   },
   'b-mobile-windows': {
-    microsoft: { state: 'soon' },
+    microsoft: {
+      state: 'live',
+      url: 'https://apps.microsoft.com/detail/9NZHJ2SVPVHN',
+    },
   },
   'b-ark': {
     microsoft: {
