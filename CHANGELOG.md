@@ -5,8 +5,12 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [1.0.9] - 2026-11-08
+
 ### Changed
 
+- b-ark, b-ark-chrome: the photo viewer (lightbox) zooms more predictably: a sensible keyboard zoom step, panning only when zoomed in, no jump at fit size, and zooming out at fit does nothing (b-oss#953, b-oss#956).
+- b-ark, b-ark-chrome: one fixed 100 ms pause between API fetches. The b-ark Delay setting is removed, and an old `api_delay_ms` in a settings file is ignored (b-oss#920).
 - CI: a `b-ark-v*` tag builds the b-ark Store MSIX and the b-ark-chrome zip from one Environment (`release-b-ark.yml`). The GitHub installer, Mac test and sideload workflows are removed (b-oss#945).
 
 ## [b-mobile 1.3.0] - 2026-11-05

@@ -1,3 +1,8 @@
+## 1.0.9 - 2026-11-08
+
+Scrolling and zooming in the photo viewer is smoother and more predictable: zoom steps are sensible, you can only drag the photo when zoomed in, and nothing jumps at fit size.
+The Delay setting is gone; b-ark now pauses a fixed 100 ms between fetches.
+
 ## 1.0.7 - 2026-11-03
 
 Now available from the Microsoft Store, which keeps b-ark up to date for you.
