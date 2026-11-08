@@ -22,10 +22,10 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - b-mobile: keyboard support: Ctrl+arrows on the grid-navigation bar, Backspace for back, a focus ring on grids, editor shortcuts, and a keyboard guide.
 - b-mobile: a Compact photo size, and Fit to screen now allows for the top bar.
 - b-mobile: the full-screen photo zooms by a sensible keyboard step and pans only when zoomed.
-- b-mobile-pc: first release. b-mobile as a Windows desktop app (Microsoft Store): tray-resident with OS notifications polled from the PC, daily reminder, start at sign-in, webcam photo capture, a thumbnail picker, a desktop error log, and layouts for a mouse and wide windows.
 
 ### Changed
 
+- b-mobile-pc 1.4.1: Store update after the live 1.4.0. An entry's extra photos show in the entry view and one full-screen gallery (the shell now proxies blipfoto.com entry pages on `/site/blipfoto/`); the full-screen photo is drawn above the app's layout so it can't be clipped, with a sensible keyboard zoom step; and it starts hidden when launched by the Store's start-at-sign-in task.
 - b-mobile: turning on "Open blipfoto.com links in this app" sends you to Android's Open by default settings; declining the approval turns the toggle back off, and the help text mentions the Android 12+ approval.
 - b-mobile: the full-screen photo is drawn above the app's own layout so it can't be clipped.
 
