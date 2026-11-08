@@ -78,6 +78,26 @@ the checklist the others follow ([b-oss#444](https://github.com/IanMStevenson/b-
 b-ark and b-ark-chrome share a version number and a CHANGELOG section (1.0.5 shipped both). b-mobile
 and b-api version independently.
 
+Every release, whatever the component:
+
+1. **Changelog.** Move `[Unreleased]` into a dated section. `CHANGELOG.md` is the internal technical
+   record and is never published.
+2. **Release note.** Write it once in `packages/b-site/release-notes/<product>.md`: a `## <version> - <YYYY-MM-DD>`
+   heading, newest first, then 500 characters or fewer in plain words, saying what the user will see. The
+   site's What's new pages are built from it. Paste the same text into each channel: Play Console, Chrome
+   Web Store, Microsoft Store "What's new", and the GitHub release body (b-ark).
+3. **Version.** Bump every file that carries the version (listed per component) in one commit.
+4. **Generated data is current.** Anything committed that is derived from dependencies or config
+   must be regenerated and checked now, not per PR. Today that is only b-mobile's open-source
+   licence lists (`npm run licences:generate`, then `npm run licences:check`, in `packages/b-mobile`);
+   b-ark, b-ark-chrome and b-api have none.
+5. **Release build.** Build with `RELEASE=1` so the in-app version is bare, from a clean tree.
+6. **Smoke test the artifact** on a clean machine or profile, including signing in to Blipfoto.
+7. **Publish** by the component's own route, then tag and finish the release notes. (b-mobile
+   tags first: its tag starts the build.)
+8. **Audit.** `npm audit --omit=dev --audit-level=high` must be clean (the b-ark workflow runs it);
+   anything tolerated is recorded as a dismissed Dependabot alert with a reason.
+
 ### Which tags does a change need?
 
 One tag releases a whole family (b-oss#944, b-oss#945): `b-mobile-v*` builds the Android bundle and the
@@ -103,25 +123,38 @@ git fetch --tags && node scripts/release-impact.mjs                      # each 
 node scripts/release-impact.mjs --files packages/b-api/src/client.ts   # what a given change would need
 ```
 
-Every release, whatever the component:
+## Preparing a release PR (agents)
 
-1. **Changelog.** Move `[Unreleased]` into a dated section. `CHANGELOG.md` is the internal technical
-   record and is never published.
-2. **Release note.** Write it once in `packages/b-site/release-notes/<product>.md`: a `## <version> - <YYYY-MM-DD>`
-   heading, newest first, then 500 characters or fewer in plain words, saying what the user will see. The
-   site's What's new pages are built from it. Paste the same text into each channel: Play Console, Chrome
-   Web Store, Microsoft Store "What's new", and the GitHub release body (b-ark).
-3. **Version.** Bump every file that carries the version (listed per component) in one commit.
-4. **Generated data is current.** Anything committed that is derived from dependencies or config
-   must be regenerated and checked now, not per PR. Today that is only b-mobile's open-source
-   licence lists (`npm run licences:generate`, then `npm run licences:check`, in `packages/b-mobile`);
-   b-ark, b-ark-chrome and b-api have none.
-5. **Release build.** Build with `RELEASE=1` so the in-app version is bare, from a clean tree.
-6. **Smoke test the artifact** on a clean machine or profile, including signing in to Blipfoto.
-7. **Publish** by the component's own route, then tag and finish the release notes. (b-mobile
-   tags first: its tag starts the build.)
-8. **Audit.** `npm audit --omit=dev --audit-level=high` must be clean (the b-ark workflow runs it);
-   anything tolerated is recorded as a dismissed Dependabot alert with a reason.
+The release PR is prepared by an agent (version numbers, changelog, release note) and merged by Ian, who
+then creates the tag. The agent works through this list and puts anything it cannot do in the PR body for
+Ian. The family is `b-mobile` (b-mobile + b-mobile-pc, tag `b-mobile-v*`) or `b-ark` (b-ark + b-ark-chrome,
+tag `b-ark-v*`); see "Which tags does a change need?" above.
+
+1. **Scope.** `git fetch --tags && node scripts/release-impact.mjs` says whether the family needs a release
+   and gives the baseline tag. Read `git log <last tag>..origin/main` for what changed.
+2. **Do:**
+   - Bump every version file in one commit: b-mobile family, `packages/b-mobile/package.json` and
+     `packages/b-mobile-pc/package.json` (same major.minor); b-ark family, root `package.json`,
+     `packages/b-ark/package.json`, `packages/b-ark-chrome/package.json` and
+     `packages/b-ark-chrome/manifest.json`.
+   - Move `[Unreleased]` in `CHANGELOG.md` into a dated section: `## [b-mobile <version>] - <date>` or
+     `## [<version>] - <date>`.
+   - Write the release note, `## <version> - <date>` then 500 characters or fewer in plain words, in
+     `packages/b-site/release-notes/<product>.md` (b-mobile and b-ark; add b-mobile-pc and b-ark-chrome
+     when they are being published).
+   - b-mobile family only: `npm run licences:generate -w packages/b-mobile` and commit the result.
+3. **Check mechanically:** `node scripts/release-check.mjs <family> <version>` must show no FAIL. It checks
+   the version files, the release note and its length, the changelog section, the licence lists (b-mobile),
+   the b-ark store listing limits and `npm audit`. A WARN (no note for b-mobile-pc or b-ark-chrome) is fine
+   if that product is not being published this time.
+4. **Check by judgement.** From `git diff <last tag>..origin/main`, list the changes a user would notice and
+   for each say whether these still match the app, proposing the edit in the same PR: the settings
+   reference (`packages/b-site/src/pages/settings-reference.astro`), the product's user guide
+   (`b-mobile-guide`, `b-ark-guide`, `b-ark-chrome-guide`), and the store listing text in
+   `packages/*/store/listing.md`. Put the result, including "nothing needed", in the PR body.
+5. **Remind Ian**, in the PR body: smoke-test the built artefact on a clean machine including signing in;
+   paste the release note into each store's "What's new"; approve the tag run and upload the artefacts by
+   hand.
 
 ## Invariants (read once, internalise)
 
