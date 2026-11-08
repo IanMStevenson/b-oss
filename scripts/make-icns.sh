@@ -8,7 +8,7 @@
 # the 1024x1024 master PNG so the result is deterministic and doesn't depend on the
 # partial set of @2x sources committed in icon.iconset/.
 #
-# Run from CI (release-mac.yml) or locally on a Mac before `electron-builder --mac`.
+# Run locally on a Mac before `electron-builder --mac`.
 
 set -euo pipefail
 
