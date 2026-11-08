@@ -47,7 +47,16 @@ jobs:
         env:
           RELEASE: '1'
         run: npm run version:bump
-      - run: npm ci
+      # The Electron binary comes from github.com, which returned 504 during the b-oss#967
+      # rehearsal: retry the install a few times before failing.
+      - name: npm ci (with retries)
+        shell: bash
+        run: |
+          for i in 1 2 3 4; do
+            npm ci && exit 0
+            echo "::warning::npm ci failed (attempt $i), retrying"; sleep $((i * 20))
+          done
+          exit 1
       - run: npm audit --omit=dev --audit-level=high
       - run: npm run build --workspace=packages/b-api
       - run: npm run build --workspace=packages/backup-engine
@@ -108,7 +117,11 @@ jobs:
         with:
           node-version: '22'
           cache: 'npm'
+      # Nothing in this job runs Electron: skip its ~100 MB binary download from github.com
+      # (it returned 504 during the b-oss#967 rehearsal). The root postinstall honours this.
       - run: npm ci
+        env:
+          ELECTRON_SKIP_BINARY_DOWNLOAD: '1'
       - run: npm audit --omit=dev --audit-level=high
       - name: Build settings (gitignored file the extension build needs)
         env:

@@ -47,7 +47,11 @@ jobs:
           distribution: temurin
           java-version: '21'
 
+      # Nothing in this job runs Electron: skip its ~100 MB binary download from github.com
+      # (it returned 504 during the b-oss#967 rehearsal). The root postinstall honours this.
       - run: npm ci
+        env:
+          ELECTRON_SKIP_BINARY_DOWNLOAD: '1'
 
       - name: Build settings (gitignored files the app build needs)
         env:
