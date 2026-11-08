@@ -19,6 +19,13 @@ export function zoomKeyCommand(e: {
   return null;
 }
 
+/** Scale increment for one Ctrl +/- press: a quarter of the current scale (1 → 1.25 → 1.56 …), so
+ * steps feel even at every level. The zoom library's own default is an absolute 0.7, which makes the
+ * first step from fit (1 → 1.7) far too big. */
+export function keyZoomStep(scale: number): number {
+  return Math.max(scale, 1) * 0.25;
+}
+
 interface Options {
   enabled: boolean;
   /** Ctrl+wheel is listened for on this element. */

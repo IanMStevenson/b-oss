@@ -7,12 +7,14 @@
 import { describe, it, expect, afterEach, beforeAll, vi } from 'vitest';
 import { render, cleanup } from '@testing-library/react';
 import { ThumbnailGrid } from '../components/ThumbnailGrid.js';
-import { zoomKeyCommand } from '../useKeyWheelZoom.js';
+import { zoomKeyCommand, keyZoomStep } from '../useKeyWheelZoom.js';
 import { stepZoom, zoomLimits } from '../zoomLimits.js';
 import type { EntryIndex } from '../types.js';
 
 class MeasuredResizeObserver {
-  constructor(private readonly cb: (e: { contentRect: { width: number; height: number } }[]) => void) {}
+  constructor(
+    private readonly cb: (e: { contentRect: { width: number; height: number } }[]) => void,
+  ) {}
   observe() {
     this.cb([{ contentRect: { width: 1200, height: 800 } }]);
   }
@@ -86,11 +88,18 @@ describe('ThumbnailGrid keyboardWheelZoom', () => {
   it('Ctrl+wheel up zooms in, down zooms out, and the wheel event is cancelled', () => {
     const { onSizeChange, container } = setup(true);
     const grid = container.firstElementChild!;
-    const up = new WheelEvent('wheel', { ctrlKey: true, deltaY: -100, bubbles: true, cancelable: true });
+    const up = new WheelEvent('wheel', {
+      ctrlKey: true,
+      deltaY: -100,
+      bubbles: true,
+      cancelable: true,
+    });
     grid.dispatchEvent(up);
     expect(up.defaultPrevented).toBe(true);
     expect(onSizeChange).toHaveBeenLastCalledWith(110);
-    grid.dispatchEvent(new WheelEvent('wheel', { ctrlKey: true, deltaY: 100, bubbles: true, cancelable: true }));
+    grid.dispatchEvent(
+      new WheelEvent('wheel', { ctrlKey: true, deltaY: 100, bubbles: true, cancelable: true }),
+    );
     expect(onSizeChange).toHaveBeenLastCalledWith(96);
   });
 
@@ -118,7 +127,12 @@ describe('ThumbnailGrid keyboardWheelZoom', () => {
     const { onSizeChange, container } = setup(undefined);
     const plus = key('+');
     window.dispatchEvent(plus);
-    const wheel = new WheelEvent('wheel', { ctrlKey: true, deltaY: -100, bubbles: true, cancelable: true });
+    const wheel = new WheelEvent('wheel', {
+      ctrlKey: true,
+      deltaY: -100,
+      bubbles: true,
+      cancelable: true,
+    });
     container.firstElementChild!.dispatchEvent(wheel);
     expect(plus.defaultPrevented).toBe(false);
     expect(wheel.defaultPrevented).toBe(false);
@@ -146,3 +160,12 @@ describe('ThumbnailGrid keyboardWheelZoom', () => {
   });
 });
 
+describe('keyZoomStep (b-oss#956)', () => {
+  it('is a quarter step from fit, not the library default of 0.7', () => {
+    expect(keyZoomStep(1)).toBe(0.25);
+  });
+  it('grows with the scale so steps stay even, and never drops below the fit step', () => {
+    expect(keyZoomStep(4)).toBe(1);
+    expect(keyZoomStep(0.5)).toBe(0.25);
+  });
+});
