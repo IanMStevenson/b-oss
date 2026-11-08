@@ -26,10 +26,6 @@ interface LightboxProps {
   title?: string;
   journalTitle?: string;
   date?: string;
-  /** Host-driven previous/next (e.g. the adjacent *entries*, when `images` is one photo). When this
-   * prop is present the arrows and arrow keys/swipes use it instead of stepping `index`; a missing
-   * handler disables that arrow. */
-  entryNav?: { onPrevious?: () => void; onNext?: () => void };
   /** Ctrl +/-/0 zoom and reset the photo (the library already zooms on the wheel), cancelling the
    * browser's page zoom. For a host with a keyboard whose page zoom is disabled; off by default. */
   keyboardZoom?: boolean;
@@ -44,23 +40,17 @@ export function Lightbox({
   title,
   journalTitle,
   date,
-  entryNav,
   keyboardZoom = false,
 }: LightboxProps) {
   const goPrev = useMemo(
-    () => (entryNav ? entryNav.onPrevious : index > 0 ? () => onNavigate(index - 1) : undefined),
-    [entryNav, index, onNavigate],
+    () => (index > 0 ? () => onNavigate(index - 1) : undefined),
+    [index, onNavigate],
   );
   const goNext = useMemo(
-    () =>
-      entryNav
-        ? entryNav.onNext
-        : index < images.length - 1
-          ? () => onNavigate(index + 1)
-          : undefined,
-    [entryNav, index, images.length, onNavigate],
+    () => (index < images.length - 1 ? () => onNavigate(index + 1) : undefined),
+    [index, images.length, onNavigate],
   );
-  const showArrows = entryNav !== undefined || images.length > 1;
+  const showArrows = images.length > 1;
 
   const handleKey = useCallback(
     (e: KeyboardEvent) => {
