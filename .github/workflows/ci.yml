@@ -85,7 +85,21 @@ jobs:
         with:
           node-version: '22'
           cache: 'npm'
-      - run: npm ci
+      # The Electron binary comes from github.com, which returned 504/502 repeatedly in b-oss#967.
+      # Cache it (so one good download serves later runs) and retry the install.
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~\AppData\Local\electron\Cache
+          key: electron-win32-${{ hashFiles('package-lock.json') }}
+          restore-keys: electron-win32-
+      - name: npm ci (with retries)
+        shell: bash
+        run: |
+          for i in 1 2 3 4; do
+            npm ci && exit 0
+            echo "::warning::npm ci failed (attempt $i), retrying"; sleep $((i * 20))
+          done
+          exit 1
         env:
           ELECTRON_SKIP_BINARY_DOWNLOAD: ${{ contains(format(',{0},', needs.plan.outputs.packages), ',b-ark,') && '0' || '1' }}
       - run: node scripts/ci-scope.mjs run test --packages "$PACKAGES"
