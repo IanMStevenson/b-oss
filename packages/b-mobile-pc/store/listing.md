@@ -85,7 +85,7 @@ Privacy
 - Photos and text go straight between your PC and Blipfoto.
 
 Good to know
-- Images are shown at standard size. Extra images and full-size (original) downloads are not available to apps using Blipfoto's programming interface, so b-mobile cannot show or save them.
+- Images are shown at standard size. An entry's extra images are shown too. Full-size (original) downloads and adding extra images are not available to apps using Blipfoto's programming interface, so b-mobile cannot save or add them.
 - Notifications on the PC are checked every few minutes while b-mobile is running (it can run from the tray); if you exit it, they stop until you start it again.
 
 b-mobile is a free, open-source project led by Ian Stevenson. It is independent and unofficial: it is not made, endorsed or supported by Blipfoto. It uses Blipfoto's public programming interface, and your use of Blipfoto is governed by Blipfoto's terms of service. You need a Blipfoto account to use it. Updates come through the Microsoft Store.
