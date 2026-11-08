@@ -187,6 +187,9 @@ export function Lightbox({
           // Content smaller than the stage (always, at fit) stays centred however it is zoomed
           // out or wheeled, instead of snapping to the stage's corner.
           centerZoomedOut
+          // No overshoot below minScale: by default a wheel/pinch zoom-out at fit dips to ~0.6x
+          // and animates back, which reads as the image shrinking then growing (b-oss#956).
+          disablePadding
           panning={{ disabled: !zoomed }}
           onTransform={(ref) => setZoomed(ref.state.scale > 1.001)}
           // A wheel notch (deltaY 100) multiplies the scale by about 1.65; the library's default
