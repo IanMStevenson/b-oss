@@ -7,7 +7,7 @@ import { X, ChevronLeft, ChevronRight } from 'lucide-react';
 import { TransformWrapper, TransformComponent } from 'react-zoom-pan-pinch';
 import type { ReactZoomPanPinchRef } from 'react-zoom-pan-pinch';
 import { isEditableTarget } from '../isEditableTarget.js';
-import { useKeyWheelZoom } from '../useKeyWheelZoom.js';
+import { useKeyWheelZoom, keyZoomStep } from '../useKeyWheelZoom.js';
 import { useSwipeNav } from '../useSwipeNav.js';
 import { fitContain } from '../lightboxFit.js';
 import type { Size } from '../lightboxFit.js';
@@ -89,11 +89,19 @@ export function Lightbox({
     target: stageRef,
     wheel: false,
     onZoom: (command) => {
-      if (command === 'in') void transformRef.current?.zoomIn();
-      else if (command === 'out') void transformRef.current?.zoomOut();
-      else void transformRef.current?.resetTransform();
+      const api = transformRef.current;
+      if (!api) return;
+      const scale = api.instance.state.scale;
+      if (command === 'in') void api.zoomIn(keyZoomStep(scale));
+      // At fit there is nothing to zoom out to: do nothing rather than re-run the library's
+      // zoom-to-point, which re-aligns the content and makes the image jump (b-oss#956).
+      else if (command === 'out') {
+        if (scale > 1) void api.zoomOut(keyZoomStep(scale));
+      } else void api.resetTransform();
     },
   });
+  // Dragging pans only while zoomed in; at fit the image stays put (b-oss#956).
+  const [zoomed, setZoomed] = useState(false);
   const [stage, setStage] = useState<Size>({ width: 0, height: 0 });
   const [natural, setNatural] = useState<Size | null>(null);
 
@@ -176,6 +184,14 @@ export function Lightbox({
           key={`${images[index]}|${Math.round(stage.width)}x${Math.round(stage.height)}`}
           doubleClick={{ mode: 'toggle' }}
           centerOnInit
+          // Content smaller than the stage (always, at fit) stays centred however it is zoomed
+          // out or wheeled, instead of snapping to the stage's corner.
+          centerZoomedOut
+          panning={{ disabled: !zoomed }}
+          onTransform={(ref) => setZoomed(ref.state.scale > 1.001)}
+          // A wheel notch (deltaY 100) multiplies the scale by about 1.65; the library's default
+          // 0.015 is about 4.5 per notch, which jumps straight to a deep zoom.
+          wheel={{ step: 0.005 }}
           minScale={1}
           maxScale={8}
         >
