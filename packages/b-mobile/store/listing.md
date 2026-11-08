@@ -60,7 +60,7 @@ PRIVACY
 • Optional notifications service under your own control
 
 GOOD TO KNOW
-• Images are shown at standard size. Extra images and full-size (original) downloads are not available to apps using Blipfoto's API, so b-mobile can't show or save them. You can download the display-size photo of your own entries.
+• Images are shown at standard size. An entry's extra images are shown too. Full-size (original) downloads and adding extra images are not available to apps using Blipfoto's API, so b-mobile can't save or add them. You can download the display-size photo of your own entries.
 
 b-mobile is an open-source project led by Ian Stevenson, published on Google Play on behalf of the development team by Salient Point Consulting Ltd. It is an independent app built on Blipfoto's public API, and is not affiliated with or endorsed by Blipfoto. Use of Blipfoto is governed by Blipfoto's terms of service.
 

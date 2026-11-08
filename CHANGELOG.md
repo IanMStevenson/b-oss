@@ -13,6 +13,22 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - b-ark, b-ark-chrome: one fixed 100 ms pause between API fetches. The b-ark Delay setting is removed, and an old `api_delay_ms` in a settings file is ignored (b-oss#920).
 - CI: a `b-ark-v*` tag builds the b-ark Store MSIX and the b-ark-chrome zip from one Environment (`release-b-ark.yml`). The GitHub installer, Mac test and sideload workflows are removed (b-oss#945).
 
+## [b-mobile 1.5.0] - 2026-11-08
+
+### Added
+
+- b-mobile: an entry's extra photos show as thumbnails in the entry view and in one full-screen gallery, at standard size, read from the public entry page. The gallery stays within the entry; it no longer moves on to adjacent entries.
+- b-mobile: change an entry's date in the entry editor.
+- b-mobile: keyboard support: Ctrl+arrows on the grid-navigation bar, Backspace for back, a focus ring on grids, editor shortcuts, and a keyboard guide.
+- b-mobile: a Compact photo size, and Fit to screen now allows for the top bar.
+- b-mobile: the full-screen photo zooms by a sensible keyboard step and pans only when zoomed.
+
+### Changed
+
+- b-mobile-pc 1.5.0: Store update after the live 1.4.0. An entry's extra photos show in the entry view and one full-screen gallery (the shell now proxies blipfoto.com entry pages on `/site/blipfoto/`); the full-screen photo is drawn above the app's layout so it can't be clipped, with a sensible keyboard zoom step; and it starts hidden when launched by the Store's start-at-sign-in task.
+- b-mobile: turning on "Open blipfoto.com links in this app" sends you to Android's Open by default settings; declining the approval turns the toggle back off, and the help text mentions the Android 12+ approval.
+- b-mobile: the full-screen photo is drawn above the app's own layout so it can't be clipped.
+
 ## [b-mobile 1.3.0] - 2026-11-05
 
 ### Added

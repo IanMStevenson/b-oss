@@ -1,3 +1,7 @@
+## 1.5.0 - 2026-11-08
+
+New: an entry's extra photos now show under the photo and in full screen. You can change an entry's date when editing, there is a Compact photo size, and a keyboard works throughout.
+
 ## 1.3.0 - 2026-11-05
 
 New: a bottom bar to step through the grid you opened an entry from, and tap a profile picture to see it full size. Notifications and comments now refresh when you return to the app, and the publish confirmation thumbnail is centred.

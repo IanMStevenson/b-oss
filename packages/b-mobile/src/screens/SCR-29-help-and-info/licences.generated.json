@@ -197,536 +197,543 @@
       "texts": [7]
     },
     {
+      "name": "@isaacs/nonrecursive-glob-match",
+      "version": "1.1.0",
+      "license": "BlueOak-1.0.0",
+      "repository": null,
+      "texts": [8]
+    },
+    {
       "name": "@lit/react",
       "version": "1.0.8",
       "license": "BSD-3-Clause",
       "repository": "https://github.com/lit/lit",
-      "texts": [8]
+      "texts": [9]
     },
     {
       "name": "@mapbox/jsonlint-lines-primitives",
       "version": "2.0.3",
       "license": "MIT",
       "repository": "https://github.com/mapbox/jsonlint",
-      "texts": [9]
+      "texts": [10]
     },
     {
       "name": "@mapbox/point-geometry",
       "version": "1.1.0",
       "license": "ISC",
       "repository": "git@github.com:mapbox/point-geometry",
-      "texts": [10]
+      "texts": [11]
     },
     {
       "name": "@mapbox/tiny-sdf",
       "version": "2.3.0",
       "license": "BSD-2-Clause",
       "repository": "https://github.com/mapbox/tiny-sdf",
-      "texts": [11]
+      "texts": [12]
     },
     {
       "name": "@mapbox/unitbezier",
       "version": "1.0.0",
       "license": "BSD-2-Clause",
       "repository": "git@github.com:mapbox/unitbezier",
-      "texts": [12]
+      "texts": [13]
     },
     {
       "name": "@mapbox/vector-tile",
       "version": "3.0.0",
       "license": "BSD-3-Clause",
       "repository": "https://github.com/mapbox/vector-tile-js",
-      "texts": [13]
+      "texts": [14]
     },
     {
       "name": "@maplibre/geojson-vt",
       "version": "6.3.0",
       "license": "ISC",
       "repository": "https://github.com/maplibre/geojson-vt",
-      "texts": [14]
+      "texts": [15]
     },
     {
       "name": "@maplibre/maplibre-gl-style-spec",
       "version": "26.4.4",
       "license": "ISC",
       "repository": "https://github.com/maplibre/maplibre-style-spec",
-      "texts": [15]
+      "texts": [16]
     },
     {
       "name": "@maplibre/mlt",
       "version": "1.3.0",
       "license": "(MIT OR Apache-2.0)",
       "repository": "https://github.com/maplibre/maplibre-tile-spec",
-      "texts": [16]
+      "texts": [17]
     },
     {
       "name": "@maplibre/vt-pbf",
       "version": "4.3.3",
       "license": "MIT",
       "repository": "https://github.com/maplibre/vt-pbf",
-      "texts": [17]
+      "texts": [18]
     },
     {
       "name": "@remix-run/router",
       "version": "1.23.4",
       "license": "MIT",
       "repository": "https://github.com/remix-run/react-router",
-      "texts": [18]
+      "texts": [19]
     },
     {
       "name": "@stencil/core",
       "version": "4.45.2",
       "license": "MIT",
       "repository": "https://github.com/stenciljs/core",
-      "texts": [19]
+      "texts": [20]
     },
     {
       "name": "@stencil/react-output-target",
       "version": "1.6.5",
       "license": "MIT",
       "repository": "https://github.com/stenciljs/output-targets",
-      "texts": [20]
+      "texts": [21]
     },
     {
       "name": "@ts-morph/common",
       "version": "0.29.0",
       "license": "MIT",
       "repository": "https://github.com/dsherret/ts-morph",
-      "texts": [21]
+      "texts": [22]
     },
     {
       "name": "balanced-match",
       "version": "4.0.4",
       "license": "MIT",
       "repository": "https://github.com/juliangruber/balanced-match",
-      "texts": [22]
+      "texts": [23]
     },
     {
       "name": "bidi-js",
       "version": "1.1.0",
       "license": "MIT",
       "repository": "https://github.com/lojjic/bidi-js",
-      "texts": [23]
+      "texts": [24]
     },
     {
       "name": "brace-expansion",
       "version": "5.0.12",
       "license": "MIT",
       "repository": "https://github.com/juliangruber/brace-expansion",
-      "texts": [24]
+      "texts": [25]
     },
     {
       "name": "code-block-writer",
       "version": "13.0.3",
       "license": "MIT",
       "repository": "https://github.com/dsherret/code-block-writer",
-      "texts": [25]
+      "texts": [26]
     },
     {
       "name": "csstype",
       "version": "3.2.3",
       "license": "MIT",
       "repository": "https://github.com/frenic/csstype",
-      "texts": [26]
+      "texts": [27]
     },
     {
       "name": "dom-serializer",
       "version": "2.0.0",
       "license": "MIT",
       "repository": "https://github.com/cheeriojs/dom-serializer",
-      "texts": [27]
+      "texts": [28]
     },
     {
       "name": "domelementtype",
       "version": "2.3.0",
       "license": "BSD-2-Clause",
       "repository": "https://github.com/fb55/domelementtype",
-      "texts": [28]
+      "texts": [29]
     },
     {
       "name": "domhandler",
       "version": "5.0.3",
       "license": "BSD-2-Clause",
       "repository": "https://github.com/fb55/domhandler",
-      "texts": [28]
+      "texts": [29]
     },
     {
       "name": "domutils",
       "version": "3.2.2",
       "license": "BSD-2-Clause",
       "repository": "https://github.com/fb55/domutils",
-      "texts": [28]
+      "texts": [29]
     },
     {
       "name": "earcut",
       "version": "3.2.4",
       "license": "ISC",
       "repository": "https://github.com/mapbox/earcut",
-      "texts": [29]
+      "texts": [30]
     },
     {
       "name": "entities",
       "version": "4.5.0",
       "license": "BSD-2-Clause",
       "repository": "https://github.com/fb55/entities",
-      "texts": [28]
+      "texts": [29]
     },
     {
       "name": "entities",
       "version": "7.0.1",
       "license": "BSD-2-Clause",
       "repository": "https://github.com/fb55/entities",
-      "texts": [28]
+      "texts": [29]
     },
     {
       "name": "fdir",
       "version": "6.5.0",
       "license": "MIT",
       "repository": "https://github.com/thecodrr/fdir",
-      "texts": [30]
+      "texts": [31]
     },
     {
       "name": "gl-matrix",
       "version": "3.4.4",
       "license": "MIT",
       "repository": "https://github.com/toji/gl-matrix",
-      "texts": [31]
+      "texts": [32]
     },
     {
       "name": "html-dom-parser",
       "version": "5.1.8",
       "license": "MIT",
       "repository": "https://github.com/remarkablemark/html-dom-parser",
-      "texts": [32]
+      "texts": [33]
     },
     {
       "name": "html-react-parser",
       "version": "5.2.17",
       "license": "MIT",
       "repository": "https://github.com/remarkablemark/html-react-parser",
-      "texts": [33]
+      "texts": [34]
     },
     {
       "name": "htmlparser2",
       "version": "10.1.0",
       "license": "MIT",
       "repository": "https://github.com/fb55/htmlparser2",
-      "texts": [34]
+      "texts": [35]
     },
     {
       "name": "inline-style-parser",
       "version": "0.2.7",
       "license": "MIT",
       "repository": "https://github.com/remarkablemark/inline-style-parser",
-      "texts": [35]
+      "texts": [36]
     },
     {
       "name": "ionicons",
       "version": "8.1.0",
       "license": "MIT",
       "repository": "https://github.com/ionic-team/ionicons",
-      "texts": [36]
+      "texts": [37]
     },
     {
       "name": "json-stringify-pretty-compact",
       "version": "4.0.0",
       "license": "MIT",
       "repository": "https://github.com/lydell/json-stringify-pretty-compact",
-      "texts": [37]
+      "texts": [38]
     },
     {
       "name": "kdbush",
       "version": "4.1.0",
       "license": "ISC",
       "repository": "https://github.com/mourner/kdbush",
-      "texts": [38]
+      "texts": [39]
     },
     {
       "name": "leaflet",
       "version": "1.9.4",
       "license": "BSD-2-Clause",
       "repository": "https://github.com/Leaflet/Leaflet",
-      "texts": [39]
+      "texts": [40]
     },
     {
       "name": "lucide-react",
       "version": "1.66.0",
       "license": "ISC",
       "repository": "https://github.com/lucide-icons/lucide",
-      "texts": [40]
+      "texts": [41]
     },
     {
       "name": "maplibre-gl",
       "version": "6.16.0",
       "license": "BSD-3-Clause",
       "repository": "https://github.com/maplibre/maplibre-gl-js",
-      "texts": [41]
+      "texts": [42]
     },
     {
       "name": "minimatch",
-      "version": "10.2.6",
+      "version": "11.0.5",
       "license": "BlueOak-1.0.0",
       "repository": "git@github.com:isaacs/minimatch",
-      "texts": [42]
+      "texts": [43]
     },
     {
       "name": "minimist",
       "version": "1.2.8",
       "license": "MIT",
       "repository": "https://github.com/minimistjs/minimist",
-      "texts": [43]
+      "texts": [44]
     },
     {
       "name": "murmurhash-js",
       "version": "1.0.0",
       "license": "MIT",
       "repository": "https://github.com/mikolalysenko/murmurhash-js",
-      "texts": [44]
+      "texts": [45]
     },
     {
       "name": "normalize-wheel",
       "version": "1.0.1",
       "license": "BSD-3-Clause",
       "repository": null,
-      "texts": [45]
+      "texts": [46]
     },
     {
       "name": "orderedmap",
       "version": "2.1.1",
       "license": "MIT",
       "repository": "https://github.com/marijnh/orderedmap",
-      "texts": [46]
+      "texts": [47]
     },
     {
       "name": "path-browserify",
       "version": "1.0.1",
       "license": "MIT",
       "repository": "https://github.com/browserify/path-browserify",
-      "texts": [47]
+      "texts": [48]
     },
     {
       "name": "pbf",
       "version": "5.1.2",
       "license": "BSD-3-Clause",
       "repository": "ssh://git@github.com/mapbox/pbf",
-      "texts": [48]
+      "texts": [49]
     },
     {
       "name": "picomatch",
       "version": "4.0.7",
       "license": "MIT",
       "repository": "https://github.com/micromatch/picomatch",
-      "texts": [49]
+      "texts": [50]
     },
     {
       "name": "potpack",
       "version": "2.1.0",
       "license": "ISC",
       "repository": "https://github.com/mapbox/potpack",
-      "texts": [50]
+      "texts": [51]
     },
     {
       "name": "prosemirror-commands",
       "version": "1.7.2",
       "license": "MIT",
       "repository": "https://code.haverbeke.berlin/prosemirror/prosemirror-commands",
-      "texts": [51]
+      "texts": [52]
     },
     {
       "name": "prosemirror-history",
       "version": "1.5.1",
       "license": "MIT",
       "repository": "https://code.haverbeke.berlin/prosemirror/prosemirror-history",
-      "texts": [51]
+      "texts": [52]
     },
     {
       "name": "prosemirror-keymap",
       "version": "1.2.3",
       "license": "MIT",
       "repository": "https://github.com/prosemirror/prosemirror-keymap",
-      "texts": [51]
+      "texts": [52]
     },
     {
       "name": "prosemirror-model",
       "version": "1.25.12",
       "license": "MIT",
       "repository": "https://code.haverbeke.berlin/prosemirror/prosemirror-model",
-      "texts": [51]
+      "texts": [52]
     },
     {
       "name": "prosemirror-state",
       "version": "1.4.4",
       "license": "MIT",
       "repository": "https://github.com/prosemirror/prosemirror-state",
-      "texts": [51]
+      "texts": [52]
     },
     {
       "name": "prosemirror-transform",
       "version": "1.12.2",
       "license": "MIT",
       "repository": "https://code.haverbeke.berlin/prosemirror/prosemirror-transform",
-      "texts": [51]
+      "texts": [52]
     },
     {
       "name": "prosemirror-view",
       "version": "1.42.9",
       "license": "MIT",
       "repository": "https://code.haverbeke.berlin/prosemirror/prosemirror-view",
-      "texts": [51]
+      "texts": [52]
     },
     {
       "name": "protocol-buffers-schema",
       "version": "3.6.1",
       "license": "MIT",
       "repository": "https://github.com/mafintosh/protocol-buffers-schema",
-      "texts": [52]
+      "texts": [53]
     },
     {
       "name": "quickselect",
       "version": "3.0.0",
       "license": "ISC",
       "repository": "https://github.com/mourner/quickselect",
-      "texts": [53]
+      "texts": [54]
     },
     {
       "name": "react",
       "version": "19.3.1",
       "license": "MIT",
       "repository": "https://github.com/react/react",
-      "texts": [54]
+      "texts": [55]
     },
     {
       "name": "react-dom",
       "version": "19.3.1",
       "license": "MIT",
       "repository": "https://github.com/react/react",
-      "texts": [54]
+      "texts": [55]
     },
     {
       "name": "react-easy-crop",
       "version": "6.2.4",
       "license": "MIT",
       "repository": "https://github.com/ValentinH/react-easy-crop",
-      "texts": [55]
+      "texts": [56]
     },
     {
       "name": "react-property",
       "version": "2.0.2",
       "license": "MIT",
       "repository": "https://github.com/remarkablemark/react-dom-core",
-      "texts": [56]
+      "texts": [57]
     },
     {
       "name": "react-router",
       "version": "6.30.6",
       "license": "MIT",
       "repository": "https://github.com/remix-run/react-router",
-      "texts": [18]
+      "texts": [19]
     },
     {
       "name": "react-router-dom",
       "version": "6.30.6",
       "license": "MIT",
       "repository": "https://github.com/remix-run/react-router",
-      "texts": [18]
+      "texts": [19]
     },
     {
       "name": "react-style-stringify",
       "version": "1.2.0",
       "license": "MIT",
       "repository": "https://github.com/arkarlov/react-style-stringify",
-      "texts": [57]
+      "texts": [58]
     },
     {
       "name": "react-zoom-pan-pinch",
       "version": "4.2.0",
       "license": "MIT",
       "repository": "https://github.com/BetterTyped/react-zoom-pan-pinch",
-      "texts": [58]
+      "texts": [59]
     },
     {
       "name": "require-from-string",
       "version": "2.0.2",
       "license": "MIT",
       "repository": "https://github.com/floatdrop/require-from-string",
-      "texts": [59]
+      "texts": [60]
     },
     {
       "name": "resolve-protobuf-schema",
       "version": "2.1.0",
       "license": "MIT",
       "repository": "https://github.com/mafintosh/resolve-protobuf-schema",
-      "texts": [52]
+      "texts": [53]
     },
     {
       "name": "rope-sequence",
       "version": "1.3.4",
       "license": "MIT",
       "repository": "https://github.com/marijnh/rope-sequence",
-      "texts": [60]
+      "texts": [61]
     },
     {
       "name": "scheduler",
       "version": "0.28.0",
       "license": "MIT",
       "repository": "https://github.com/react/react",
-      "texts": [54]
+      "texts": [55]
     },
     {
       "name": "style-to-js",
       "version": "1.1.21",
       "license": "MIT",
       "repository": "https://github.com/remarkablemark/style-to-js",
-      "texts": [61]
+      "texts": [62]
     },
     {
       "name": "style-to-object",
       "version": "1.0.14",
       "license": "MIT",
       "repository": "https://github.com/remarkablemark/style-to-object",
-      "texts": [62]
+      "texts": [63]
     },
     {
       "name": "tinyglobby",
       "version": "0.2.17",
       "license": "MIT",
       "repository": "https://github.com/SuperchupuDev/tinyglobby",
-      "texts": [63]
+      "texts": [64]
     },
     {
       "name": "tinyqueue",
       "version": "3.0.0",
       "license": "ISC",
       "repository": "https://github.com/mourner/tinyqueue",
-      "texts": [64]
+      "texts": [65]
     },
     {
       "name": "ts-morph",
       "version": "28.0.0",
       "license": "MIT",
       "repository": "https://github.com/dsherret/ts-morph",
-      "texts": [21]
+      "texts": [22]
     },
     {
       "name": "tslib",
       "version": "2.8.1",
       "license": "0BSD",
       "repository": "https://github.com/Microsoft/tslib",
-      "texts": [65]
+      "texts": [66]
     },
     {
       "name": "w3c-keyname",
       "version": "2.2.8",
       "license": "MIT",
       "repository": "https://github.com/marijnh/w3c-keyname",
-      "texts": [46]
+      "texts": [47]
     },
     {
       "name": "zustand",
       "version": "5.0.16",
       "license": "MIT",
       "repository": "https://github.com/pmndrs/zustand",
-      "texts": [66]
+      "texts": [67]
     }
   ],
   "texts": [
@@ -738,6 +745,7 @@
     "MIT License\n\nCopyright (c) Emotion team and other contributors\n\nPermission is hereby granted, free of charge, to any person obtaining a copy\nof this software and associated documentation files (the \"Software\"), to deal\nin the Software without restriction, including without limitation the rights\nto use, copy, modify, merge, publish, distribute, sublicense, and/or sell\ncopies of the Software, and to permit persons to whom the Software is\nfurnished to do so, subject to the following conditions:\n\nThe above copyright notice and this permission notice shall be included in all\ncopies or substantial portions of the Software.\n\nTHE SOFTWARE IS PROVIDED \"AS IS\", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR\nIMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,\nFITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE\nAUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER\nLIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,\nOUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE\nSOFTWARE.",
     "Copyright 2011 The Roboto Project Authors (https://github.com/googlefonts/roboto-classic) Roboto-Italic[wdth,wght].ttf: Copyright 2011 The Roboto Project Authors (https://github.com/googlefonts/roboto-classic)\n\nThis Font Software is licensed under the SIL Open Font License, Version 1.1.\nThis license is copied below, and is also available with a FAQ at:\nhttp://scripts.sil.org/OFL\n\n\n-----------------------------------------------------------\nSIL OPEN FONT LICENSE Version 1.1 - 26 February 2007\n-----------------------------------------------------------\n\nPREAMBLE\nThe goals of the Open Font License (OFL) are to stimulate worldwide\ndevelopment of collaborative font projects, to support the font creation\nefforts of academic and linguistic communities, and to provide a free and\nopen framework in which fonts may be shared and improved in partnership\nwith others.\n\nThe OFL allows the licensed fonts to be used, studied, modified and\nredistributed freely as long as they are not sold by themselves. The\nfonts, including any derivative works, can be bundled, embedded,\nredistributed and/or sold with any software provided that any reserved\nnames are not used by derivative works. The fonts and derivatives,\nhowever, cannot be released under any other type of license. The\nrequirement for fonts to remain under this license does not apply\nto any document created using the fonts or their derivatives.\n\nDEFINITIONS\n\"Font Software\" refers to the set of files released by the Copyright\nHolder(s) under this license and clearly marked as such. This may\ninclude source files, build scripts and documentation.\n\n\"Reserved Font Name\" refers to any names specified as such after the\ncopyright statement(s).\n\n\"Original Version\" refers to the collection of Font Software components as\ndistributed by the Copyright Holder(s).\n\n\"Modified Version\" refers to any derivative made by adding to, deleting,\nor substituting -- in part or in whole -- any of the components of the\nOriginal Version, by changing formats or by porting the Font Software to a\nnew environment.\n\n\"Author\" refers to any designer, engineer, programmer, technical\nwriter or other person who contributed to the Font Software.\n\nPERMISSION & CONDITIONS\nPermission is hereby granted, free of charge, to any person obtaining\na copy of the Font Software, to use, study, copy, merge, embed, modify,\nredistribute, and sell modified and unmodified copies of the Font\nSoftware, subject to the following conditions:\n\n1) Neither the Font Software nor any of its individual components,\nin Original or Modified Versions, may be sold by itself.\n\n2) Original or Modified Versions of the Font Software may be bundled,\nredistributed and/or sold with any software, provided that each copy\ncontains the above copyright notice and this license. These can be\nincluded either as stand-alone text files, human-readable headers or\nin the appropriate machine-readable metadata fields within text or\nbinary files as long as those fields can be easily viewed by the user.\n\n3) No Modified Version of the Font Software may use the Reserved Font\nName(s) unless explicit written permission is granted by the corresponding\nCopyright Holder. This restriction only applies to the primary font name as\npresented to the users.\n\n4) The name(s) of the Copyright Holder(s) or the Author(s) of the Font\nSoftware shall not be used to promote, endorse or advertise any\nModified Version, except to acknowledge the contribution(s) of the\nCopyright Holder(s) and the Author(s) or with their explicit written\npermission.\n\n5) The Font Software, modified or unmodified, in part or in whole,\nmust be distributed entirely under this license, and must not be\ndistributed under any other license. The requirement for fonts to\nremain under this license does not apply to any document created\nusing the Font Software.\n\nTERMINATION\nThis license becomes null and void if any of the above conditions are\nnot met.\n\nDISCLAIMER\nTHE FONT SOFTWARE IS PROVIDED \"AS IS\", WITHOUT WARRANTY OF ANY KIND,\nEXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO ANY WARRANTIES OF\nMERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT\nOF COPYRIGHT, PATENT, TRADEMARK, OR OTHER RIGHT. IN NO EVENT SHALL THE\nCOPYRIGHT HOLDER BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,\nINCLUDING ANY GENERAL, SPECIAL, INDIRECT, INCIDENTAL, OR CONSEQUENTIAL\nDAMAGES, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING\nFROM, OUT OF THE USE OR INABILITY TO USE THE FONT SOFTWARE OR FROM\nOTHER DEALINGS IN THE FONT SOFTWARE.",
     "Copyright 2015-present Drifty Co.\nhttp://drifty.com/\n\nMIT License\n\nPermission is hereby granted, free of charge, to any person obtaining\na copy of this software and associated documentation files (the\n\"Software\"), to deal in the Software without restriction, including\nwithout limitation the rights to use, copy, modify, merge, publish,\ndistribute, sublicense, and/or sell copies of the Software, and to\npermit persons to whom the Software is furnished to do so, subject to\nthe following conditions:\n\nThe above copyright notice and this permission notice shall be\nincluded in all copies or substantial portions of the Software.\n\nTHE SOFTWARE IS PROVIDED \"AS IS\", WITHOUT WARRANTY OF ANY KIND,\nEXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF\nMERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND\nNONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE\nLIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION\nOF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION\nWITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.",
+    "# Blue Oak Model License\n\nVersion 1.0.0\n\n## Purpose\n\nThis license gives everyone as much permission to work with\nthis software as possible, while protecting contributors\nfrom liability.\n\n## Acceptance\n\nIn order to receive this license, you must agree to its\nrules.  The rules of this license are both obligations\nunder that agreement and conditions to your license.\nYou must not do anything with this software that triggers\na rule that you cannot or will not follow.\n\n## Copyright\n\nEach contributor licenses you to do everything with this\nsoftware that would otherwise infringe that contributor's\ncopyright in it.\n\n## Notices\n\nYou must ensure that everyone who gets a copy of\nany part of this software from you, with or without\nchanges, also gets the text of this license or a link to\n<https://blueoakcouncil.org/license/1.0.0>.\n\n## Excuse\n\nIf anyone notifies you in writing that you have not\ncomplied with [Notices](#notices), you can keep your\nlicense by taking all practical steps to comply within 30\ndays after the notice.  If you do not do so, your license\nends immediately.\n\n## Patent\n\nEach contributor licenses you to do everything with this\nsoftware that would otherwise infringe any patent claims\nthey can license or become able to license.\n\n## Reliability\n\nNo contributor can revoke this license.\n\n## No Liability\n\n***As far as the law allows, this software comes as is,\nwithout any warranty or condition, and no contributor\nwill be liable to anyone for any damages related to this\nsoftware or this license, under any kind of legal claim.***",
     "BSD 3-Clause License\n\nCopyright (c) 2017 Google LLC. All rights reserved.\n\nRedistribution and use in source and binary forms, with or without\nmodification, are permitted provided that the following conditions are met:\n\n1. Redistributions of source code must retain the above copyright notice, this\n   list of conditions and the following disclaimer.\n\n2. Redistributions in binary form must reproduce the above copyright notice,\n   this list of conditions and the following disclaimer in the documentation\n   and/or other materials provided with the distribution.\n\n3. Neither the name of the copyright holder nor the names of its\n   contributors may be used to endorse or promote products derived from\n   this software without specific prior written permission.\n\nTHIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS \"AS IS\"\nAND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE\nIMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE\nDISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE\nFOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL\nDAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR\nSERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER\nCAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,\nOR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE\nOF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.",
     "MIT License\n\nCopyright (c) 2012 Zachary Carter\n\nPermission is hereby granted, free of charge, to any person obtaining a copy\nof this software and associated documentation files (the \"Software\"), to deal\nin the Software without restriction, including without limitation the rights\nto use, copy, modify, merge, publish, distribute, sublicense, and/or sell\ncopies of the Software, and to permit persons to whom the Software is\nfurnished to do so, subject to the following conditions:\n\nThe above copyright notice and this permission notice shall be included in all\ncopies or substantial portions of the Software.\n\nTHE SOFTWARE IS PROVIDED \"AS IS\", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR\nIMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,\nFITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE\nAUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER\nLIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,\nOUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE\nSOFTWARE.",
     "Copyright (c) 2024, Mapbox\n\nPermission to use, copy, modify, and/or distribute this software for any\npurpose with or without fee is hereby granted, provided that the above\ncopyright notice and this permission notice appear in all copies.\n\nTHE SOFTWARE IS PROVIDED \"AS IS\" AND THE AUTHOR DISCLAIMS ALL WARRANTIES\nWITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF\nMERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR\nANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES\nWHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN\nACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF\nOR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.",
