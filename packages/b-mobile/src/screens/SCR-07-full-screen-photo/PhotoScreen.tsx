@@ -9,8 +9,11 @@
 // from the entry, not a separate call), not literally zero network activity. Refetching keeps this
 // screen deep-link-resilient (same entryId-prop pattern as SCR-06) instead of depending on router
 // location.state, which would break on a direct link/refresh. Zoom/pan and swipe-to-navigate come
-// from b-view's Lightbox (react-zoom-pan-pinch under the hood) — a single-image gallery here, so
-// its prev/next affordances stay hidden. Lightbox has no retry UI of its own for a broken image
+// from b-view's Lightbox (react-zoom-pan-pinch under the hood) — a gallery of the main photo plus any extras
+// (b-oss#941). It never moves to another entry (b-oss#955): arrows, keys and swipes only step through
+// this entry's photos, and arrows are hidden for a single image. It is the one lightbox: SCR-06's
+// fullscreen button, double-tap and every extra's thumbnail all push here, with the tapped photo's index in
+// router state (`photoIndex`). Lightbox has no retry UI of its own for a broken image
 // (§19's acceptance criterion needs one), so its onImageError callback drives this screen's own
 // retry state instead.
 
@@ -18,8 +21,13 @@ import { useEffect, useState } from 'react';
 import type { CSSProperties } from 'react';
 import { IonPage, IonContent, IonSpinner, IonText, IonButton } from '@ionic/react';
 import { Lightbox, formatLongDate } from '@b-oss/b-view';
+import { useEntryStateWithExtras } from '../../data/entryExtras.js';
 import { useLiveEntry } from '../../data/useLiveEntry.js';
-import { useAppNavigate, usePhotoOpenedFrom } from '../../app/routes/useAppNavigate.js';
+import {
+  useAppNavigate,
+  usePhotoOpenedFrom,
+  usePhotoStartIndex,
+} from '../../app/routes/useAppNavigate.js';
 import { profile } from '../../profile/profile.js';
 
 interface PhotoScreenProps {
@@ -28,7 +36,8 @@ interface PhotoScreenProps {
 
 export function PhotoScreen({ entryId }: PhotoScreenProps) {
   const navigate = useAppNavigate();
-  const { entryState, reload, prevEntryId, nextEntryId } = useLiveEntry(entryId);
+  const { entryState: liveEntryState, reload } = useLiveEntry(entryId);
+  const entryState = useEntryStateWithExtras(entryId, liveEntryState);
   const [imageError, setImageError] = useState(false);
 
   // Lightbox has no retry UI of its own for a broken <img> — reset whenever the entry (or its
@@ -39,8 +48,8 @@ export function PhotoScreen({ entryId }: PhotoScreenProps) {
   }, [imagePath]);
 
   // The entry screen that pushed this one marks itself in the router state, so Close can pop back
-  // to it instead of stacking a second copy. After swiping to another entry's photo the id no
-  // longer matches, and Close replaces with that entry instead.
+  // to it instead of stacking a second copy. On a deep link there is no such mark, and Close
+  // replaces with the entry instead.
   const openedFrom = usePhotoOpenedFrom();
 
   function close(): void {
@@ -48,11 +57,23 @@ export function PhotoScreen({ entryId }: PhotoScreenProps) {
     else navigate.replace(`/entry/${entryId}`);
   }
 
-  function goTo(id: string): void {
-    navigate.replace(`/entry/${id}/photo`, { photoFrom: openedFrom });
-  }
-
   const entry = entryState.status === 'loaded' ? entryState.data : null;
+  // Main photo first, then any extras at standard resolution (b-oss#941).
+  const lightboxImages = imagePath
+    ? [
+        imagePath,
+        ...(entry?.images.extras ?? []).flatMap((e) => {
+          const path = e.image ?? e.thumbnail;
+          return path ? [path] : [];
+        }),
+      ]
+    : [];
+  const startIndex = usePhotoStartIndex();
+  const [lightboxIndex, setLightboxIndex] = useState(startIndex);
+  useEffect(() => {
+    setLightboxIndex(startIndex);
+  }, [entryId, startIndex]);
+  const at = Math.min(lightboxIndex, Math.max(lightboxImages.length - 1, 0));
 
   return (
     <IonPage>
@@ -91,17 +112,13 @@ export function PhotoScreen({ entryId }: PhotoScreenProps) {
         {entryState.status === 'loaded' &&
           (imagePath && !imageError ? (
             <Lightbox
-              images={[imagePath]}
-              index={0}
+              images={lightboxImages}
+              index={at}
               onClose={close}
-              onNavigate={() => {}}
+              onNavigate={setLightboxIndex}
               title={entry?.title}
               journalTitle={entry?.journal_title}
               date={entry ? formatLongDate(entry.date) : undefined}
-              entryNav={{
-                onPrevious: prevEntryId ? () => goTo(prevEntryId) : undefined,
-                onNext: nextEntryId ? () => goTo(nextEntryId) : undefined,
-              }}
               onImageError={() => setImageError(true)}
               keyboardZoom={profile().keyboardWheelZoom}
             />

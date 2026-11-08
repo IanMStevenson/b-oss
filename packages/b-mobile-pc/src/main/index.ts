@@ -36,6 +36,8 @@ import {
   buildCsp,
   mimeFor,
   planAppRequest,
+  isTextContentType,
+  DEFAULT_SITE_ORIGIN,
   sanitiseRequestHeaders,
   sanitiseResponseHeaders,
 } from './app-protocol.js';
@@ -47,7 +49,7 @@ import {
 } from './missing-web.js';
 import { ErrorLog, parseErrorEntry, type LogFs } from './error-log.js';
 import { isTrustedEvent } from './safe-ipc.js';
-import { PROXY_SOURCE, proxyStatusEntry, proxyThrownEntry } from './proxy-failure.js';
+import { PROXY_SOURCE, SITE_PROXY_SOURCE, proxyStatusEntry, proxyThrownEntry } from './proxy-failure.js';
 import { createRejectionReporter, describeRejection } from './unhandled.js';
 import { APP_USER_MODEL_ID } from './app-id.js';
 import { openAuthWindow } from './auth-window.js';
@@ -74,6 +76,7 @@ const testMode = !app.isPackaged;
 // Windows shows toast notifications only for an app whose AppUserModelID matches its Start Menu
 // shortcut, so set it before any window or notification exists (b-oss#674).
 if (process.platform === 'win32') app.setAppUserModelId(APP_USER_MODEL_ID);
+const siteOrigin = (testMode && process.env.BMPC_SITE_ORIGIN) || DEFAULT_SITE_ORIGIN;
 const apiOrigin = (testMode && process.env.BMPC_API_ORIGIN) || DEFAULT_API_ORIGIN;
 const authHosts = (testMode && process.env.BMPC_AUTH_HOSTS?.split(',')) || [...DEFAULT_AUTH_HOSTS];
 const authAllowHttp = testMode && process.env.BMPC_AUTH_ALLOW_HTTP === '1';
@@ -157,10 +160,10 @@ async function cspForDocuments(): Promise<string> {
 
 // Failed API calls go to the app log with source "api-proxy" (b-oss#728), capped so an outage that
 // fails every poll cannot flood it. Set once the log exists.
-let proxyLog: ((message: string) => void) | null = null;
+let proxyLog: ((message: string, source: string) => void) | null = null;
 const proxyGate = new MissingLogGate(200, 60_000);
-const logProxyFailure = (message: string): void => {
-  if (proxyLog && proxyGate.shouldLog(message, Date.now(), true)) proxyLog(message);
+const logProxyFailure = (message: string, source: string = PROXY_SOURCE): void => {
+  if (proxyLog && proxyGate.shouldLog(message, Date.now(), true)) proxyLog(message, source);
 };
 
 async function proxyApi(request: Request, target: string): Promise<Response> {
@@ -184,6 +187,35 @@ async function proxyApi(request: Request, target: string): Promise<Response> {
   } catch (err) {
     logProxyFailure(proxyThrownEntry(request.method, target, err).message);
     return new Response('Could not reach the Blipfoto API', { status: 502 });
+  }
+}
+
+// Public website pages (b-oss#942): GET only, text only, no cookies in or out, and redirects are not
+// followed, so a redirect cannot move the fetch to another host.
+async function proxySite(request: Request, target: string): Promise<Response> {
+  if (request.method !== 'GET') return new Response('Method not allowed', { status: 405 });
+  const fail = (message: string): void => logProxyFailure(message, SITE_PROXY_SOURCE);
+  try {
+    const upstream = await net.fetch(target, {
+      method: 'GET',
+      headers: sanitiseRequestHeaders(request.headers),
+      redirect: 'manual',
+      credentials: 'omit',
+    });
+    const failure = proxyStatusEntry('GET', target, upstream.status, SITE_PROXY_SOURCE);
+    if (failure) fail(failure.message);
+    if (!isTextContentType(upstream.headers.get('content-type')) && upstream.status < 300) {
+      fail(`GET ${new URL(target).pathname} refused: non-text response`);
+      return new Response('Not a text response', { status: 502 });
+    }
+    return new Response(upstream.body, {
+      status: upstream.status,
+      statusText: upstream.statusText,
+      headers: sanitiseResponseHeaders(upstream.headers),
+    });
+  } catch (err) {
+    fail(proxyThrownEntry('GET', target, err, SITE_PROXY_SOURCE).message);
+    return new Response('Could not reach the Blipfoto website', { status: 502 });
   }
 }
 
@@ -254,7 +286,7 @@ async function handleAppRequest(request: Request): Promise<Response> {
     // Back to the app root: it re-checks for the web files, so the button doubles as a retry.
     return Response.redirect(`${APP_ORIGIN}/`, 303);
   }
-  const plan = planAppRequest(request.url, distDir, apiOrigin);
+  const plan = planAppRequest(request.url, distDir, apiOrigin, siteOrigin);
   if (plan.kind === 'reject') {
     logMissing(
       `reject:${request.url}`,
@@ -264,6 +296,7 @@ async function handleAppRequest(request: Request): Promise<Response> {
     return new Response('Forbidden', { status: plan.status });
   }
   if (plan.kind === 'api') return proxyApi(request, plan.target);
+  if (plan.kind === 'site') return proxySite(request, plan.target);
 
   let file = plan.file;
   let read = await readStatic(file);
@@ -449,7 +482,7 @@ if (!app.requestSingleInstanceLock()) {
       await openFolder(logDir);
     };
     const errorLog = new ErrorLog(logFs, (name) => join(logDir, name));
-    proxyLog = (message) => void errorLog.write({ source: PROXY_SOURCE, message });
+    proxyLog = (message, source) => void errorLog.write({ source, message });
     shellLog = (message) => void errorLog.write({ source: 'shell', message });
     openLogFolderFromPage = openLogFolder;
     reportRejection = createRejectionReporter((entry) => void errorLog.write(entry));

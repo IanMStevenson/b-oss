@@ -434,8 +434,22 @@ createServer((req, res) => {
     });
     return;
   }
-  const img = url.pathname.match(/^\/img\/([^/]+)\/(\w+)\.jpg$/);
-  if (img) return send(200, 'image/svg+xml', svg(img[1], img[2]));
+  // Public entry page (the site proxy strips /site/blipfoto): the gallery blob the app reads extras
+  // from (b-oss#941). Entries whose offset is a multiple of 3 have two extras, the rest none.
+  const page = url.pathname.match(/^\/entry\/(\d+)$/);
+  if (page) {
+    const offset = Number(page[1]) - 5000000000;
+    const item = (n) => ({
+      item_id_str: `${page[1]}0${n}`,
+      thumbnail_url: img(`${offset}x${n}`, 'thumb'),
+      image_urls: { stdres: img(`${offset}x${n}`, 'std'), original: null },
+    });
+    const items = offset % 3 === 0 ? [item(0), item(1), item(2)] : [item(0)];
+    const html = `<html><body><script>\nblipfoto.data.gallery = ${JSON.stringify({ items })};\n</script></body></html>`;
+    return send(200, 'text/html', html);
+  }
+  const imgMatch = url.pathname.match(/^\/img\/([^/]+)\/(\w+)\.jpg$/);
+  if (imgMatch) return send(200, 'image/svg+xml', svg(imgMatch[1], imgMatch[2]));
   // The proxy rewrites /api/blipfoto/4/x.json -> /4/x.json.
   const m = url.pathname.match(/^\/4\/(.+?)(?:\.json)?$/);
   if (!m) return send(404, 'text/plain', 'not found');

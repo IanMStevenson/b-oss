@@ -7,6 +7,7 @@ import { resolve } from 'node:path';
 import {
   buildCsp,
   inlineScriptHashes,
+  isTextContentType,
   isTrustedSender,
   looksLikeAsset,
   mimeFor,
@@ -201,5 +202,52 @@ describe('isTrustedSender', () => {
     expect(isTrustedSender('app://evil/')).toBe(false);
     expect(isTrustedSender(undefined)).toBe(false);
     expect(isTrustedSender('garbage')).toBe(false);
+  });
+});
+
+describe('planAppRequest: site route', () => {
+  it('maps the prefix to the fixed site host, keeping path and query', () => {
+    expect(planAppRequest('app://b-mobile/site/blipfoto/entry/123?x=1', dist)).toEqual({
+      kind: 'site',
+      target: 'https://www.blipfoto.com/entry/123?x=1',
+    });
+  });
+
+  it('keeps the host fixed against host-like and credential-like paths', () => {
+    for (const p of ['//evil.example/x', '@evil.example/x', '/evil.example', '%2f%2fevil.example']) {
+      const plan = planAppRequest(`app://b-mobile/site/blipfoto/${p}`, dist);
+      if (plan.kind === 'site') expect(new URL(plan.target).origin).toBe('https://www.blipfoto.com');
+      else expect(plan.kind).toBe('reject');
+    }
+  });
+
+  it('refuses traversal and backslashes', () => {
+    for (const p of ['%2e%2e/%2e%2e/etc', '..%2f..%2fx', 'a%5c..%5cb', 'a/%2e%2e%2fb']) {
+      const plan = planAppRequest(`app://b-mobile/site/blipfoto/${p}`, dist);
+      if (plan.kind === 'site') expect(new URL(plan.target).pathname).not.toContain('..');
+    }
+    expect(planAppRequest('app://b-mobile/site/blipfoto/a%2f..%2fb', dist).kind).toBe('reject');
+    expect(planAppRequest('app://b-mobile/site/blipfoto/a%5cb', dist).kind).toBe('reject');
+  });
+
+  it('does not touch the api route or other prefixes', () => {
+    expect(planAppRequest('app://b-mobile/site/other/x', dist).kind).toBe('static');
+    expect(planAppRequest('app://b-mobile/api/blipfoto/x', dist).kind).toBe('api');
+  });
+
+  it('uses an injected site origin', () => {
+    expect(
+      planAppRequest('app://b-mobile/site/blipfoto/e', dist, undefined, 'http://127.0.0.1:9'),
+    ).toEqual({ kind: 'site', target: 'http://127.0.0.1:9/e' });
+  });
+});
+
+describe('isTextContentType', () => {
+  it('passes text and refuses the rest', () => {
+    expect(isTextContentType('text/html; charset=utf-8')).toBe(true);
+    expect(isTextContentType('TEXT/plain')).toBe(true);
+    expect(isTextContentType('image/jpeg')).toBe(false);
+    expect(isTextContentType('application/octet-stream')).toBe(false);
+    expect(isTextContentType(null)).toBe(false);
   });
 });

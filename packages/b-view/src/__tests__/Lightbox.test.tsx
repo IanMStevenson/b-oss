@@ -66,24 +66,28 @@ describe('Lightbox top bar', () => {
     expect(screen.getByLabelText<HTMLButtonElement>('Next image').disabled).toBe(false);
   });
 
-  it('uses host entry navigation when given, disabling a missing side', () => {
-    const onNext = vi.fn();
-    const { onNavigate } = setup({ images: ['a.jpg'], index: 0, entryNav: { onNext } });
-    expect(screen.getByLabelText<HTMLButtonElement>('Previous image').disabled).toBe(true);
-    fireEvent.click(screen.getByLabelText('Next image'));
-    expect(onNext).toHaveBeenCalled();
-    expect(onNavigate).not.toHaveBeenCalled();
-  });
-
-  it('hides the arrows for a lone image with no host navigation', () => {
+  it('hides the arrows for a lone image ', () => {
     setup({ images: ['a.jpg'], index: 0 });
     expect(screen.queryByLabelText('Next image')).toBeNull();
   });
 
-  it('arrow keys follow the same handlers', () => {
-    const onPrevious = vi.fn();
-    setup({ images: ['a.jpg'], index: 0, entryNav: { onPrevious } });
-    fireEvent.keyDown(window, { key: 'ArrowLeft' });
-    expect(onPrevious).toHaveBeenCalled();
+  it('arrow keys step through the images', () => {
+    const { onNavigate } = setup({ images: ['a.jpg', 'b.jpg'], index: 0 });
+    fireEvent.keyDown(window, { key: 'ArrowRight' });
+    expect(onNavigate).toHaveBeenCalledWith(1);
+  });
+});
+
+describe('Lightbox placement (b-oss#953)', () => {
+  it('renders under <body>, not inside a host ancestor that would contain its fixed backdrop', () => {
+    const host = document.body.appendChild(document.createElement('div'));
+    host.style.cssText = 'contain: layout; overflow-y: auto;';
+    render(<Lightbox images={['a.jpg']} index={0} onClose={vi.fn()} onNavigate={vi.fn()} />, {
+      container: host,
+    });
+    const dialog = screen.getByRole('dialog');
+    expect(host.contains(dialog)).toBe(false);
+    expect(dialog.parentElement).toBe(document.body);
+    host.remove();
   });
 });

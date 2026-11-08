@@ -116,15 +116,14 @@ interface EntryDetailProps {
    * whose links must never navigate its own WebView away (e.g. a Capacitor system-browser open)
    * needs to supply this rather than relying on the default. */
   onLinkClick?: (href: string) => void;
-  /** Called instead of opening the internal Lightbox overlay when the fullscreen button (next to
-   * the reactions) is pressed — for a host with its own dedicated fullscreen-photo route/screen
-   * to navigate to rather than overlay in place. Omitted: the default internal Lightbox opens, as
-   * before. Extras thumbnails always still open the internal Lightbox regardless — this only
-   * covers the main-photo fullscreen button. */
-  onFullscreen?: () => void;
+  /** Called instead of opening the internal Lightbox overlay when the main photo's fullscreen
+   * button or an extra's thumbnail is pressed, with the index of the photo to open on (0 = main,
+   * 1+ = extras, in order). For a host with its own dedicated lightbox route/screen, so every way
+   * in opens the same one. Omitted: the internal Lightbox opens, as before. */
+  onOpenPhoto?: (index: number) => void;
   /** Double-tap/double-click on the main photo. Supplying it delays a single tap's previous/next
    * entry navigation by DOUBLE_TAP_MS so the first tap of a double can be told apart (and cancelled);
-   * omitted, a tap navigates at once, as before. Typically the same as `onFullscreen`. */
+   * omitted, a tap navigates at once, as before. Typically opens the main photo, as `onOpenPhoto(0)` does. */
   onPhotoDoubleTap?: () => void;
   /** Called when a tag chip is tapped, with the raw tag text — for a host that has a tag-entries
    * screen/route to navigate to. Omitted: tags render as plain, non-interactive text, as before. */
@@ -291,7 +290,7 @@ export function EntryDetail({
   renderCommenterBadges,
   onUserClick,
   onLinkClick,
-  onFullscreen,
+  onOpenPhoto,
   onPhotoDoubleTap,
   onTagClick,
   onLocationClick,
@@ -555,7 +554,11 @@ export function EntryDetail({
         <div className={styles.metaInner} data-meta-inner>
           <div className={styles.metaGrid}>
             <div className={styles.metaMain}>
-              {entry.title && <h2 ref={titleRef} className={styles.entryTitle}>{entry.title}</h2>}
+              {entry.title && (
+                <h2 ref={titleRef} className={styles.entryTitle}>
+                  {entry.title}
+                </h2>
+              )}
               {entry.description && (
                 <BBCodeText
                   source={entry.description}
@@ -619,7 +622,7 @@ export function EntryDetail({
                   {imagePath && (
                     <button
                       className={`${styles.pillSeg} ${styles.pillBtn}`}
-                      onClick={() => (onFullscreen ? onFullscreen() : setLightboxIndex(0))}
+                      onClick={() => (onOpenPhoto ? onOpenPhoto(0) : setLightboxIndex(0))}
                       aria-label="View photo full-screen"
                     >
                       <Maximize2 size={14} strokeWidth={1.5} />
@@ -687,7 +690,9 @@ export function EntryDetail({
                       <button
                         key={extra.item_id}
                         className={styles.extraThumb}
-                        onClick={() => setLightboxIndex(lightboxIdx)}
+                        onClick={() =>
+                          onOpenPhoto ? onOpenPhoto(lightboxIdx) : setLightboxIndex(lightboxIdx)
+                        }
                         aria-label={`View extra image ${i + 1}`}
                       >
                         <AsyncThumb

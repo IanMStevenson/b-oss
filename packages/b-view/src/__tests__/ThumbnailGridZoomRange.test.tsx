@@ -14,7 +14,9 @@ import type { EntryIndex } from '../types.js';
 let stageWidth = 3000;
 let stageHeight = 800;
 class MeasuredResizeObserver {
-  constructor(private readonly cb: (entries: { contentRect: { width: number; height: number } }[]) => void) {}
+  constructor(
+    private readonly cb: (entries: { contentRect: { width: number; height: number } }[]) => void,
+  ) {}
   observe() {
     this.cb([{ contentRect: { width: stageWidth, height: stageHeight } }]);
   }

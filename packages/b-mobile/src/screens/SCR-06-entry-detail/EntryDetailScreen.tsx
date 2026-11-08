@@ -5,10 +5,10 @@
 // description/comment rendering goes through BBCodeText rather than dangerouslySetInnerHTML,
 // closing the §14 conflict that used to rule it out here) with this screen's own reactions/
 // commentComposer/entryActions/renderCommentActions slots and a few small b-view callback props
-// (onLinkClick, onFullscreen, onTagClick, onLocationClick) added alongside those slots for the
+// (onLinkClick, onOpenPhoto, onTagClick, onLocationClick) added alongside those slots for the
 // same reason: EntryDetail itself has no host-platform opinions, so anything that needs one is
 // host-injected. b-view's own fullscreen button opens an internal Lightbox overlay by default;
-// onFullscreen redirects it to SCR-07 instead, which stays a real, separately-routed screen (deep-
+// onOpenPhoto redirects it (the fullscreen button and every extra's thumbnail) to SCR-07 instead, which stays a real, separately-routed screen (deep-
 // link resilient, back-navigable). The trigger is the dedicated fullscreen button (or a
 // double-tap; BEHAVIOUR.md, Screens), not a single photo tap.
 //
@@ -62,6 +62,7 @@ import {
 import type { RefresherEventDetail } from '@ionic/core';
 import { Flag, CornerUpLeft, EyeOff, Pencil, Trash2 } from 'lucide-react';
 import { AppHeader } from '../../components/AppHeader.js';
+import { useEntryStateWithExtras } from '../../data/entryExtras.js';
 import { EntryDetail, CommentComposer, ActionPill } from '@b-oss/b-view';
 import type { BlipComment, EntryState, ActionPillItem } from '@b-oss/b-view';
 import { useLiveEntry } from '../../data/useLiveEntry.js';
@@ -242,18 +243,19 @@ export function EntryDetailScreen({ entryId, initialReplyToCommentId }: EntryDet
   // favorited booleans, so the optimistic bump/rollback in `reaction` has to be projected into the
   // entry data here too, or the star/heart icons would flip state while their counts stayed stuck
   // at the last fetch until the next reload().
+  const entryWithExtras = useEntryStateWithExtras(entryId, entryState);
   const displayEntryState: EntryState = useMemo(() => {
-    if (entryState.status !== 'loaded') return entryState;
+    if (entryWithExtras.status !== 'loaded') return entryWithExtras;
     return {
-      ...entryState,
+      ...entryWithExtras,
       data: {
-        ...entryState.data,
-        stars_total: reaction?.starsTotal ?? entryState.data.stars_total,
-        favorites_total: reaction?.favoritesTotal ?? entryState.data.favorites_total,
-        comments: filterHiddenComments(entryState.data.comments, hiddenMembers),
+        ...entryWithExtras.data,
+        stars_total: reaction?.starsTotal ?? entryWithExtras.data.stars_total,
+        favorites_total: reaction?.favoritesTotal ?? entryWithExtras.data.favorites_total,
+        comments: filterHiddenComments(entryWithExtras.data.comments, hiddenMembers),
       },
     };
-  }, [entryState, hiddenMembers, reaction]);
+  }, [entryWithExtras, hiddenMembers, reaction]);
 
   // `entryState` itself is a fresh wrapper object on every call to useLiveEntry (every render),
   // even when nothing about the underlying resource changed — depending on it directly would
@@ -608,7 +610,9 @@ export function EntryDetailScreen({ entryId, initialReplyToCommentId }: EntryDet
               resolveAsset={resolveImage}
               invalidateAsset={invalidateImage}
               onLinkClick={(href) => void openUrl(href)}
-              onFullscreen={() => navigate.push(`/entry/${entryId}/photo`, { photoFrom: entryId })}
+              onOpenPhoto={(photoIndex) =>
+                navigate.push(`/entry/${entryId}/photo`, { photoFrom: entryId, photoIndex })
+              }
               onPhotoDoubleTap={() =>
                 navigate.push(`/entry/${entryId}/photo`, { photoFrom: entryId })
               }
