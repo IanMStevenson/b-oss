@@ -89,7 +89,7 @@ jobs:
       # Cache it (so one good download serves later runs) and retry the install.
       - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
-          path: ${{ env.LOCALAPPDATA }}\electron\Cache
+          path: ~\AppData\Local\electron\Cache
           key: electron-win32-${{ hashFiles('package-lock.json') }}
           restore-keys: electron-win32-
       - name: npm ci (with retries)
