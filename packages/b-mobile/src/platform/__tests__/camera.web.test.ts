@@ -3,9 +3,9 @@
 
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-const { camera, readExifGps } = vi.hoisted(() => ({
+const { camera, readExif } = vi.hoisted(() => ({
   camera: { chooseFromGallery: vi.fn() },
-  readExifGps: vi.fn(),
+  readExif: vi.fn(),
 }));
 
 vi.mock('@capacitor/camera', () => ({ Camera: camera, CameraDirection: { Rear: 'REAR' } }));
@@ -15,7 +15,7 @@ vi.mock('../photoPick.js', () => ({
   pickNativePhoto: vi.fn(),
   readPhotoGps: vi.fn(),
 }));
-vi.mock('../exifGps.js', () => ({ readExifGps }));
+vi.mock('../exif.js', () => ({ readExif }));
 
 import { pickPhoto } from '../camera.js';
 
@@ -35,8 +35,10 @@ describe('pickPhoto on the web path (b-oss#740)', () => {
       'fetch',
       vi.fn().mockResolvedValue({ arrayBuffer: () => Promise.resolve(new ArrayBuffer(4)) }),
     );
-    readExifGps.mockReturnValue({ lat: 51.5, lon: -0.1 });
-    expect((await pickPhoto())?.gps).toEqual({ lat: 51.5, lon: -0.1 });
+    readExif.mockReturnValue({ gps: { lat: 51.5, lon: -0.1 }, date: '2026-09-30' });
+    const photo = await pickPhoto();
+    expect(photo?.gps).toEqual({ lat: 51.5, lon: -0.1 });
+    expect(photo?.takenDate).toBe('2026-09-30');
   });
 
   it('still returns the photo, with no gps, when the file cannot be read', async () => {
@@ -45,5 +47,6 @@ describe('pickPhoto on the web path (b-oss#740)', () => {
     const photo = await pickPhoto();
     expect(photo?.webPath).toBe('blob:abc');
     expect(photo?.gps).toBeNull();
+    expect(photo?.takenDate).toBeNull();
   });
 });

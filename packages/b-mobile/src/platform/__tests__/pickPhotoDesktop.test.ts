@@ -3,8 +3,8 @@
 
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-const { desktopBridge, chooseFromGallery, readExifGps } = vi.hoisted(() => ({
-  readExifGps: vi.fn(),
+const { desktopBridge, chooseFromGallery, readExif } = vi.hoisted(() => ({
+  readExif: vi.fn(),
   desktopBridge: vi.fn(),
   chooseFromGallery: vi.fn(),
 }));
@@ -20,7 +20,7 @@ vi.mock('../photoPick.js', () => ({
   readPhotoGps: vi.fn(),
 }));
 vi.mock('../desktop.js', () => ({ desktopBridge }));
-vi.mock('../exifGps.js', () => ({ readExifGps }));
+vi.mock('../exif.js', () => ({ readExif }));
 
 import { pickPhoto } from '../camera.js';
 
@@ -37,6 +37,7 @@ describe('pickPhoto on the desktop shell (b-oss#739)', () => {
       modifiedMs: Date.UTC(2026, 9, 1),
       bytes: new Uint8Array([1, 2, 3]),
     });
+    readExif.mockReturnValue({ gps: null, date: null });
     desktopBridge.mockReturnValue({ pickPhoto: pick });
     vi.stubGlobal('createImageBitmap', () =>
       Promise.resolve({ width: 800, height: 600, close() {} }),
@@ -66,12 +67,13 @@ describe('pickPhoto on the desktop shell (b-oss#739)', () => {
     });
     vi.stubGlobal('createImageBitmap', () => Promise.resolve({ width: 8, height: 6, close() {} }));
     vi.stubGlobal('URL', { ...URL, createObjectURL: () => 'blob:x' });
-    readExifGps.mockReturnValue({ lat: 51.5, lon: -0.1 });
+    readExif.mockReturnValue({ gps: { lat: 51.5, lon: -0.1 }, date: '2026-09-30' });
 
     const photo = await pickPhoto('acct-1');
 
-    expect(readExifGps).toHaveBeenCalledWith(bytes);
+    expect(readExif).toHaveBeenCalledWith(bytes);
     expect(photo?.gps).toEqual({ lat: 51.5, lon: -0.1 });
+    expect(photo?.takenDate).toBe('2026-09-30');
   });
 
   it('returns null when the dialog is cancelled', async () => {
