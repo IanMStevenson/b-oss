@@ -41,6 +41,7 @@ contextBridge.exposeInMainWorld('api', {
   enableStartupTask: () => ipcRenderer.invoke('enableStartupTask'),
   openStartupSettings: () => ipcRenderer.invoke('openStartupSettings'),
   getLogs: () => ipcRenderer.invoke('getLogs'),
+  logAppError: (message: string) => ipcRenderer.invoke('logAppError', message),
   exportLogsCsv: (filters: LogCsvFilters) => ipcRenderer.invoke('exportLogsCsv', filters),
   rendererReady: () => ipcRenderer.send('renderer-ready'),
   on: (channel: 'main-event', handler: (event: MainEvent) => void): (() => void) => {

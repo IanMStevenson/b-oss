@@ -46,6 +46,7 @@ declare global {
       enableStartupTask(): Promise<StartupTaskInfo | null>;
       openStartupSettings(): Promise<void>;
       getLogs(): Promise<LogEntry[]>;
+      logAppError(message: string): Promise<void>;
       exportLogsCsv(filters: LogCsvFilters): Promise<string | null>;
       on(channel: 'main-event', handler: (event: MainEvent) => void): () => void;
       rendererReady(): void;
@@ -85,6 +86,7 @@ export class ElectronBackend implements BackendContext {
   enableStartupTask = () => window.api.enableStartupTask();
   openStartupSettings = () => window.api.openStartupSettings();
   getLogs = () => window.api.getLogs();
+  logAppError = (message: string) => window.api.logAppError(message);
   exportLogsCsv = (filters: LogCsvFilters) => window.api.exportLogsCsv(filters);
   subscribe = (handler: (event: MainEvent) => void) => window.api.on('main-event', handler);
   notifyRendererReady = () => window.api.rendererReady();

@@ -728,6 +728,23 @@ export function registerIpcHandlers(
     }
   });
 
+  // An error the user saw in a toast, kept in the unified log (b-oss#985). Not
+  // tied to an account, so account_id is empty. Needs a backup folder.
+  ipcMain.handle('logAppError', async (_event, message: string): Promise<void> => {
+    const folder = getBackupFolder();
+    if (!folder || typeof message !== 'string') return;
+    const pio = new ElectronPlatformIO(() => {
+      /* silent */
+    });
+    await new LogManager(pio, folder).append({
+      id: uuidv4(),
+      account_id: '',
+      timestamp: new Date().toISOString(),
+      level: 'error',
+      message: message.slice(0, 2000),
+    });
+  });
+
   ipcMain.handle('getLogs', async (): Promise<LogEntry[]> => {
     // Unified log: one file at the backup folder root containing entries
     // from every journal. Filtering happens in the renderer.
