@@ -64,6 +64,7 @@ import { rebuildTrayMenu, refreshTrayIcon } from './tray.js';
 import { showBackupFailedNotification } from './notifications.js';
 import { completedStatus, withOutstanding } from './rag-reasons.js';
 import { diagnoseNetworkFailure } from './connectivity.js';
+import { singleFlight } from './single-flight.js';
 
 interface BackupErrorLike {
   payload?: { kind: string };
@@ -563,9 +564,16 @@ export function registerIpcHandlers(
     return `http://localhost:${port}`;
   });
 
+  // One folder dialog at a time across both handlers: a second click while a
+  // picker is open must not open another (b-oss#983).
+  const oneFolderDialog = singleFlight(
+    () => dialog.showOpenDialog({ properties: ['openDirectory'] }),
+    null,
+  );
+
   ipcMain.handle('pickFolder', async (): Promise<string | null> => {
-    const result = await dialog.showOpenDialog({ properties: ['openDirectory'] });
-    return result.canceled ? null : (result.filePaths[0] ?? null);
+    const result = await oneFolderDialog();
+    return !result || result.canceled ? null : (result.filePaths[0] ?? null);
   });
 
   // Paths the backup folder must not be equal to nor inside. Computed once
@@ -586,8 +594,8 @@ export function registerIpcHandlers(
   ipcMain.handle(
     'chooseBackupFolder',
     async (): Promise<{ folder: string; existingSettings: boolean } | null> => {
-      const result = await dialog.showOpenDialog({ properties: ['openDirectory'] });
-      if (result.canceled || !result.filePaths[0]) return null;
+      const result = await oneFolderDialog();
+      if (!result || result.canceled || !result.filePaths[0]) return null;
       const folder = await validateBackupFolderPath(result.filePaths[0], {
         blockedRoots: getBlockedRoots(),
       });

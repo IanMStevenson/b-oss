@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (C) 2026 Ian Stevenson
 
+import { useState } from 'react';
 import { FolderOpen, Cloud } from 'lucide-react';
 import { useApp } from '../../context/AppContext.js';
 import { useToast } from '../../hooks/useToast.js';
@@ -8,8 +9,11 @@ import { useToast } from '../../hooks/useToast.js';
 export function ChooseFolderScreen() {
   const { backend, dispatch } = useApp();
   const showToast = useToast();
+  const [picking, setPicking] = useState(false);
 
   async function pickFolder(): Promise<void> {
+    if (picking) return;
+    setPicking(true);
     try {
       const result = await backend.chooseBackupFolder();
       if (!result) return;
@@ -22,6 +26,8 @@ export function ChooseFolderScreen() {
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Unable to set backup folder';
       showToast('error', message);
+    } finally {
+      setPicking(false);
     }
   }
 
@@ -86,6 +92,7 @@ export function ChooseFolderScreen() {
         </p>
 
         <button
+          disabled={picking}
           onClick={() => {
             void pickFolder();
           }}
@@ -98,7 +105,8 @@ export function ChooseFolderScreen() {
             color: 'white',
             fontSize: 14,
             fontWeight: 600,
-            cursor: 'pointer',
+            cursor: picking ? 'default' : 'pointer',
+            opacity: picking ? 0.6 : 1,
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
