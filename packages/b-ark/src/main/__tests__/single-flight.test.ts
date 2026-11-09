@@ -22,10 +22,10 @@ describe('singleFlight', () => {
 
   it('allows a new call after the previous one finishes or throws', async () => {
     let n = 0;
-    const guarded = singleFlight(async () => {
-      if (++n === 1) throw new Error('boom');
-      return n;
-    }, null);
+    const guarded = singleFlight(
+      () => (++n === 1 ? Promise.reject(new Error('boom')) : Promise.resolve(n)),
+      null,
+    );
     await expect(guarded()).rejects.toThrow('boom');
     expect(await guarded()).toBe(2);
   });
