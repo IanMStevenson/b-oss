@@ -2,10 +2,11 @@
 // Copyright (C) 2026 Ian Stevenson
 
 import { AlertCircle, AlertTriangle, Info, X } from 'lucide-react';
-import { useEffect, type ReactElement } from 'react';
+import { useEffect, useRef, useState, type ReactElement } from 'react';
 import type { Toast } from './view-types.js';
 
-const AUTO_DISMISS_MS = 5000;
+/** Info and warn toasts fade after this long; error toasts stay until dismissed (b-oss#985). */
+export const AUTO_DISMISS_MS = 30_000;
 
 interface ToastHostProps {
   toasts: Toast[];
@@ -36,16 +37,26 @@ export function ToastHost({ toasts, onDismiss }: ToastHostProps) {
 }
 
 function ToastCard({ toast, onDismiss }: { toast: Toast; onDismiss: (id: string) => void }) {
+  const [hovered, setHovered] = useState(false);
+  // Keep the latest callback in a ref so a re-render (the host passes a fresh
+  // function each time) does not restart the timer.
+  const dismissRef = useRef(onDismiss);
+  dismissRef.current = onDismiss;
+  const sticky = toast.level === 'error';
+
   useEffect(() => {
-    const timer = setTimeout(() => onDismiss(toast.id), AUTO_DISMISS_MS);
+    if (sticky || hovered) return;
+    const timer = setTimeout(() => dismissRef.current(toast.id), AUTO_DISMISS_MS);
     return () => clearTimeout(timer);
-  }, [toast.id, onDismiss]);
+  }, [toast.id, sticky, hovered]);
 
   const { icon, accent } = styleForLevel(toast.level);
 
   return (
     <div
       role="alert"
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
       style={{
         pointerEvents: 'auto',
         minWidth: 280,

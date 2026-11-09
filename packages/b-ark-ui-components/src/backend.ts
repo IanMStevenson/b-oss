@@ -305,6 +305,8 @@ export interface BackendContext {
   /** Open the platform's settings page for start-at-sign-in (the wording is in `getStartupTask`). */
   openStartupSettings?(): Promise<void>;
   getLogs(): Promise<LogEntry[]>;
+  /** Append an app-level error (e.g. one shown in a toast) to the unified log. Optional: desktop only. */
+  logAppError?(message: string): Promise<void>;
   exportLogsCsv(filters: LogCsvFilters): Promise<string | null>;
 
   subscribe(handler: (event: MainEvent) => void): () => void;
