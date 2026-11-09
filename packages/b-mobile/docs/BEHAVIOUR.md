@@ -158,7 +158,9 @@ reminders,details,profile,notifications}`; the old `/settings/{general,journal,a
 
 - Photo check (`data/photoValidation.ts`): JPEG or PNG, one edge ≥ 600 px, 1 KB–20 MB. Avatars:
   one edge ≥ 300 px, picked file ≤ 40 MB (cropped and re-encoded before upload).
-- Date defaults to the photo's creation date, else today. Publish is enabled only when
+- Date defaults to the day the photo was taken (b-oss#989): EXIF DateTimeOriginal, else DateTimeDigitized,
+  else DateTime (calendar date as written, no time-zone conversion), else the file's modified time, else
+  today. Camera and webcam captures use now. Publish is enabled only when
   `journal/day` says the date is free; otherwise "You already have an entry for that day." (with
   View that entry), "That date is in the future.", "That date is too far in the past." or "You
   can't publish an entry for that date." (`data/journal.ts`).

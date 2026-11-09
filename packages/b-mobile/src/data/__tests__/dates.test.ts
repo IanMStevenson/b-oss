@@ -7,7 +7,7 @@
 // get backwards silently.
 
 import { describe, it, expect } from 'vitest';
-import { formatLocalDate, gmtOffsetMinutes, todayDate } from '../dates.js';
+import { defaultEntryDate, formatLocalDate, gmtOffsetMinutes, todayDate } from '../dates.js';
 
 describe('formatLocalDate', () => {
   it('formats using local getters, not toISOString (which would shift across a UTC day boundary)', () => {
@@ -34,5 +34,15 @@ describe('gmtOffsetMinutes', () => {
 
   it('defaults to the current time when no date is given', () => {
     expect(typeof gmtOffsetMinutes()).toBe('number');
+  });
+});
+
+describe('defaultEntryDate (b-oss#989)', () => {
+  it('prefers the EXIF date, then the file timestamp (local date), then today', () => {
+    const stamp = new Date(2026, 2, 4, 23, 30).toISOString();
+    expect(defaultEntryDate('2025-12-31', stamp)).toBe('2025-12-31');
+    expect(defaultEntryDate(null, stamp)).toBe('2026-03-04');
+    expect(defaultEntryDate(undefined, null)).toBe(todayDate());
+    expect(defaultEntryDate(null, 'not a date')).toBe(todayDate());
   });
 });

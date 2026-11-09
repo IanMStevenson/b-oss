@@ -40,19 +40,9 @@ import { takePendingSharedPhoto } from '../../platform/shareIntent.js';
 import { useAppNavigate } from '../../app/routes/useAppNavigate.js';
 import { useActiveAccount } from '../../state/accountsStore.js';
 import { useComposeDraftStore } from '../../state/composeDraftStore.js';
-import { todayDate } from '../../data/dates.js';
+import { defaultEntryDate } from '../../data/dates.js';
 import { validatePickedPhoto } from '../../data/photoValidation.js';
 import { initialThumbnailCrop } from '../../data/imageCrop.js';
-
-function todayFromCreatedAt(createdAt: string | null): string {
-  if (createdAt) {
-    const parsed = new Date(createdAt);
-    if (!Number.isNaN(parsed.getTime())) {
-      return parsed.toISOString().slice(0, 10);
-    }
-  }
-  return todayDate();
-}
 
 interface NewEntryScreenProps {
   /** Pick a replacement photo for this entry's open edit draft instead of starting a new entry. */
@@ -121,7 +111,7 @@ export function NewEntryScreen({ replaceEntryId }: NewEntryScreenProps = {}) {
       title: '',
       tags: '',
       description: '',
-      date: todayFromCreatedAt(photo.createdAt),
+      date: defaultEntryDate(photo.takenDate, photo.createdAt),
       // The photo's own embedded position, kept but NOT shown on the map until the user turns
       // "Add to map" on (b-oss#650). Sent with the entry so the server holds it either way.
       location: photo.gps ?? null,

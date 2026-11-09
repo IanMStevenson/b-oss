@@ -158,9 +158,22 @@ public class PhotoPickPlugin extends Plugin {
         result.put("lat", (double) latLong[0]);
         result.put("lon", (double) latLong[1]);
       }
-      String taken = exif.getAttribute(ExifInterface.TAG_DATETIME_ORIGINAL);
-      String iso = taken == null ? null : toIso(taken);
-      if (iso != null) result.put("createdAt", iso);
+      // Date taken, by priority: DateTimeOriginal, DateTimeDigitized, DateTime (b-oss#989).
+      String[] tags = {
+        ExifInterface.TAG_DATETIME_ORIGINAL,
+        ExifInterface.TAG_DATETIME_DIGITIZED,
+        ExifInterface.TAG_DATETIME,
+      };
+      for (String tag : tags) {
+        String taken = exif.getAttribute(tag);
+        String iso = taken == null ? null : toIso(taken);
+        if (iso != null) {
+          result.put("createdAt", iso);
+          // The calendar date exactly as written: the ISO string's first ten characters.
+          result.put("takenDate", iso.substring(0, 10));
+          break;
+        }
+      }
     } catch (IOException ignored) {
       // Unreadable EXIF just means no position and no date.
     }
@@ -170,6 +183,7 @@ public class PhotoPickPlugin extends Plugin {
   private static String toIso(String exifDate) {
     try {
       SimpleDateFormat in = new SimpleDateFormat("yyyy:MM:dd HH:mm:ss", Locale.US);
+      in.setLenient(false); // a zeroed or impossible date must fall through to the next tag
       in.setTimeZone(TimeZone.getDefault());
       Date date = in.parse(exifDate);
       if (date == null) return null;

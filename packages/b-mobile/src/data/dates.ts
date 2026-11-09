@@ -16,6 +16,20 @@ export function formatLocalDate(date: Date): string {
   return `${y}-${m}-${d}`;
 }
 
+/** The date a new entry for a picked photo starts on (b-oss#989): the EXIF calendar date as
+ * written, else the local date of the file's timestamp (its modified time on desktop), else today. */
+export function defaultEntryDate(
+  takenDate: string | null | undefined,
+  createdAt: string | null,
+): string {
+  if (takenDate) return takenDate;
+  if (createdAt) {
+    const parsed = new Date(createdAt);
+    if (!Number.isNaN(parsed.getTime())) return formatLocalDate(parsed);
+  }
+  return todayDate();
+}
+
 /** Blipfoto's gmt_offset field (undocumented beyond its presence in PublishEntryParams)
  * — minutes east of UTC, the standard convention (JS's own getTimezoneOffset() is minutes *west*,
  * hence the negation). Best-effort: the field is optional, and an implementer who later finds the

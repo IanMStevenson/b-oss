@@ -18,6 +18,8 @@ export interface NativePickedPhoto {
   height?: number;
   /** ISO 8601 with offset, from EXIF DateTimeOriginal when present. */
   createdAt?: string;
+  /** 'YYYY-MM-DD' as written in EXIF: DateTimeOriginal, else DateTimeDigitized, else DateTime. */
+  takenDate?: string;
   lat?: number;
   lon?: number;
 }

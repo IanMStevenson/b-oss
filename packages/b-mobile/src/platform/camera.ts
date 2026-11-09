@@ -20,7 +20,7 @@ import { isCapacitorNative } from './platformKind.js';
 import { hasNativePhotoPick, pickNativePhoto, readPhotoGps } from './photoPick.js';
 import { requestGeotagAccess } from './geolocation.js';
 import { desktopBridge } from './desktop.js';
-import { readExifGps } from './exifGps.js';
+import { readExif, type ExifData } from './exif.js';
 
 export interface PickedPhoto {
   /** Native file URI — absent on web, where webPath is the only usable source. */
@@ -32,6 +32,9 @@ export interface PickedPhoto {
   height: number | null;
   /** ISO 8601, from the photo's own metadata when available — SCR-10's EXIF-date default. */
   createdAt: string | null;
+  /** The calendar date from the photo's EXIF, 'YYYY-MM-DD' as written (b-oss#989). Absent when
+   * the file has none; callers then fall back to `createdAt`, then today. */
+  takenDate?: string | null;
   /** From the plugin's own MediaMetadata.size (bytes) — not always populated (e.g. some web
    * fallback paths), so `data/photoValidation.ts`'s max-file-size check treats null as unknown
    * rather than a rejection. */
@@ -145,6 +148,7 @@ async function pickNative(): Promise<PickedPhoto | null> {
       height: picked.height ?? null,
       createdAt: picked.createdAt ?? null,
       sizeBytes: picked.sizeBytes,
+      takenDate: picked.takenDate ?? null,
       gps: picked.lat != null && picked.lon != null ? { lat: picked.lat, lon: picked.lon } : null,
     };
   } catch (err) {
@@ -181,7 +185,7 @@ async function pickViaDesktopShell(accountId: string): Promise<PickedPhoto | nul
     createdAt: new Date(file.modifiedMs).toISOString(),
     sizeBytes: blob.size,
     // The shell hands over the bytes, so the embedded position (b-oss#740) is read straight from them.
-    gps: readExifGps(file.bytes),
+    ...exifFields(readExif(file.bytes)),
   };
 }
 
@@ -199,9 +203,9 @@ export async function pickPhoto(accountId?: string): Promise<PickedPhoto | null>
     const first = result.results[0];
     if (!first) return null;
     const photo = toPickedPhoto(first);
-    // The web fallback is a plain file input and returns no position, so read it from the file
-    // itself (b-oss#740). A failure here just means no position.
-    photo.gps = await readWebPhotoGps(photo.webPath);
+    // The web fallback is a plain file input and returns no position or taken date, so read them
+    // from the file itself (b-oss#740, b-oss#989). A failure here just means neither.
+    Object.assign(photo, exifFields(await readWebPhotoExif(photo.webPath)));
     return photo;
   } catch (err) {
     if (isUserCancelled(err)) return null;
@@ -209,13 +213,16 @@ export async function pickPhoto(accountId?: string): Promise<PickedPhoto | null>
   }
 }
 
-async function readWebPhotoGps(webPath: string): Promise<{ lat: number; lon: number } | null> {
+async function readWebPhotoExif(webPath: string): Promise<ExifData> {
   try {
-    const bytes = new Uint8Array(await (await fetch(webPath)).arrayBuffer());
-    return readExifGps(bytes);
+    return readExif(new Uint8Array(await (await fetch(webPath)).arrayBuffer()));
   } catch {
-    return null;
+    return { gps: null, date: null };
   }
+}
+
+function exifFields(exif: ExifData): Pick<PickedPhoto, 'gps' | 'takenDate'> {
+  return { gps: exif.gps, takenDate: exif.date };
 }
 
 /** Whether the platform actually needs the camera-permission dance at all — web's file-input
