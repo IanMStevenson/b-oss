@@ -146,7 +146,9 @@ async function pickNative(): Promise<PickedPhoto | null> {
       mimeType: picked.mimeType,
       width: picked.width ?? null,
       height: picked.height ?? null,
-      createdAt: picked.createdAt ?? null,
+      // EXIF date when present, else the original's modified time (b-oss#992).
+      createdAt:
+        picked.createdAt ?? (picked.modifiedMs ? new Date(picked.modifiedMs).toISOString() : null),
       sizeBytes: picked.sizeBytes,
       takenDate: picked.takenDate ?? null,
       gps: picked.lat != null && picked.lon != null ? { lat: picked.lat, lon: picked.lon } : null,

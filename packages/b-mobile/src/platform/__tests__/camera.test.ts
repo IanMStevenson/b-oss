@@ -3,7 +3,7 @@
 
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-const { camera, geolocation, readPhotoGps } = vi.hoisted(() => ({
+const { camera, geolocation, readPhotoGps, pickNativePhoto } = vi.hoisted(() => ({
   camera: {
     checkPermissions: vi.fn(),
     requestPermissions: vi.fn(),
@@ -11,6 +11,7 @@ const { camera, geolocation, readPhotoGps } = vi.hoisted(() => ({
   },
   geolocation: { checkPermissions: vi.fn(), requestPermissions: vi.fn() },
   readPhotoGps: vi.fn(),
+  pickNativePhoto: vi.fn(),
 }));
 
 vi.mock('@capacitor/camera', () => ({
@@ -20,7 +21,7 @@ vi.mock('@capacitor/camera', () => ({
 vi.mock('@capacitor/geolocation', () => ({ Geolocation: geolocation }));
 vi.mock('../photoPick.js', () => ({
   hasNativePhotoPick: () => true,
-  pickNativePhoto: vi.fn(),
+  pickNativePhoto,
   readPhotoGps,
 }));
 vi.mock('@capacitor/core', async (importOriginal) => ({
@@ -28,7 +29,7 @@ vi.mock('@capacitor/core', async (importOriginal) => ({
   Capacitor: { isNativePlatform: () => true, convertFileSrc: (p: string) => p },
 }));
 
-import { takePhoto } from '../camera.js';
+import { pickPhoto, takePhoto } from '../camera.js';
 
 const capture = {
   uri: '/data/user/0/app/cache/PIC_1.jpg',
@@ -88,5 +89,29 @@ describe('takePhoto', () => {
     expect(geolocation.checkPermissions).not.toHaveBeenCalled();
     expect(readPhotoGps).not.toHaveBeenCalled();
     expect(photo?.gps).toBeUndefined();
+  });
+});
+
+describe('pickPhoto on Android (b-oss#992)', () => {
+  const native = { path: '/cache/PICK_1.jpg', mimeType: 'image/jpeg', sizeBytes: 10 };
+
+  it('uses the EXIF date when present, else the original’s modified time, else null', async () => {
+    pickNativePhoto.mockResolvedValueOnce({
+      ...native,
+      createdAt: '2025-12-31T23:50:00+00:00',
+      takenDate: '2025-12-31',
+      modifiedMs: Date.UTC(2026, 0, 2),
+    });
+    const exif = await pickPhoto();
+    expect(exif?.takenDate).toBe('2025-12-31');
+    expect(exif?.createdAt).toBe('2025-12-31T23:50:00+00:00');
+
+    pickNativePhoto.mockResolvedValueOnce({ ...native, modifiedMs: Date.UTC(2026, 0, 2) });
+    const modified = await pickPhoto();
+    expect(modified?.takenDate).toBeNull();
+    expect(modified?.createdAt).toBe(new Date(Date.UTC(2026, 0, 2)).toISOString());
+
+    pickNativePhoto.mockResolvedValueOnce(native);
+    expect((await pickPhoto())?.createdAt).toBeNull();
   });
 });
