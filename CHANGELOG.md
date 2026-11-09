@@ -5,6 +5,16 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [1.0.10] - 2026-11-09
+
+### Fixed
+
+- b-ark: the initial "Choose folder" button can no longer open more than one folder picker; a second click while one is open does nothing. This also removes a first-time sign-in error (`EPERM … b-ark-settings.tmp`) seen after two pickers were confirmed (b-oss#983).
+
+### Changed
+
+- b-ark: error messages (toasts) stay until dismissed, other messages fade after 30 s instead of 5 s, hovering a message pauses it, and errors are also written to the backup folder's log (b-oss#985). b-ark-chrome's code shares the toast change, but b-ark-chrome is not published at 1.0.10.
+
 ## [1.0.9] - 2026-11-08
 
 ### Changed
