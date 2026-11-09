@@ -183,6 +183,7 @@ public class PhotoPickPlugin extends Plugin {
   private static String toIso(String exifDate) {
     try {
       SimpleDateFormat in = new SimpleDateFormat("yyyy:MM:dd HH:mm:ss", Locale.US);
+      in.setLenient(false); // a zeroed or impossible date must fall through to the next tag
       in.setTimeZone(TimeZone.getDefault());
       Date date = in.parse(exifDate);
       if (date == null) return null;
