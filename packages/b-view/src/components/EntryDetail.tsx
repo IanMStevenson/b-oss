@@ -263,6 +263,32 @@ function CommentThread({
   );
 }
 
+/** The nearest ancestor that scrolls vertically, looking through shadow roots and slots (Ionic's
+ * IonContent scrolls inside its shadow DOM, where `parentElement` can't see). */
+function findScroller(el: HTMLElement): HTMLElement | null {
+  let node: Node | null = el;
+  while (node) {
+    const next: Node | null =
+      (node instanceof Element && node.assignedSlot) ||
+      node.parentNode ||
+      (node instanceof ShadowRoot ? node.host : null);
+    node = next;
+    if (node instanceof HTMLElement && node !== el) {
+      const oy = getComputedStyle(node).overflowY;
+      if (oy === 'auto' || oy === 'scroll') return node;
+    }
+  }
+  return null;
+}
+
+/** The height actually visible to the reader. The wrapper's own clientHeight is only that when a
+ * host gives it a bounded height; inside a host that scrolls an unbounded wrapper (b-mobile) it
+ * equals the whole page, so cap by the real scroller (or the window) as well. */
+function visibleHeight(wrapper: HTMLElement, scroller: HTMLElement | null): number {
+  const outer = scroller?.clientHeight || window.innerHeight;
+  return Math.min(wrapper.clientHeight || outer, outer);
+}
+
 export function EntryDetail({
   entryState,
   prevEntryId,
@@ -434,6 +460,7 @@ export function EntryDetail({
     if (!wrapper || photoFit === 'full-width') return;
     const MAT_PX = 12; // photoFrame: 5px padding + 1px border, both sides
     const apply = () => {
+      const scroller = findScroller(wrapper);
       let used = (topBarRef.current?.offsetHeight ?? 0) + MAT_PX;
       if (photoFit === 'compact') {
         const title = titleRef.current;
@@ -443,15 +470,24 @@ export function EntryDetail({
           used += title.offsetHeight + (parseFloat(getComputedStyle(title).marginBottom) || 0);
         }
       }
-      wrapper.style.setProperty('--photo-max-h', `${Math.max(120, wrapper.clientHeight - used)}px`);
+      wrapper.style.setProperty(
+        '--photo-max-h',
+        `${Math.max(120, visibleHeight(wrapper, scroller) - used)}px`,
+      );
     };
     apply();
     if (typeof ResizeObserver === 'undefined') return;
     const ro = new ResizeObserver(apply);
     ro.observe(wrapper);
+    const scroller = findScroller(wrapper);
+    if (scroller) ro.observe(scroller);
+    window.addEventListener('resize', apply);
     if (topBarRef.current) ro.observe(topBarRef.current);
     if (titleRef.current) ro.observe(titleRef.current);
-    return () => ro.disconnect();
+    return () => {
+      ro.disconnect();
+      window.removeEventListener('resize', apply);
+    };
   }, [photoFit, entryState]);
 
   if (entryState.status === 'idle') return null;

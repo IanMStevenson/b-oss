@@ -235,6 +235,38 @@ describe('EntryDetail', () => {
     });
   });
 
+  describe('photo height cap inside a scrolling host (b-oss#991)', () => {
+    it('caps by the host scroller, not by the wrapper that grows with its content', async () => {
+      // jsdom has no layout: the wrapper reports the whole page (2000), the host scroller the screen (300).
+      const spy = vi
+        .spyOn(HTMLElement.prototype, 'clientHeight', 'get')
+        .mockImplementation(function (this: HTMLElement) {
+          return this.dataset.scroller ? 300 : 2000;
+        });
+      try {
+        const { container } = render(
+          <div data-scroller="1" style={{ overflowY: 'auto' }}>
+            <EntryDetail
+              entryState={loadedState(makeEntry())}
+              prevEntryId={null}
+              nextEntryId={null}
+              onNavigate={() => {}}
+              baseUrl="/b"
+              photoFit="capped"
+            />
+          </div>,
+        );
+        await waitFor(() =>
+          expect(container.querySelector(`.${styles.photoInner} img`)).not.toBeNull(),
+        );
+        const wrapper = container.querySelector(`.${styles.wrapper}`) as HTMLElement;
+        expect(wrapper.style.getPropertyValue('--photo-max-h')).toBe('288px');
+      } finally {
+        spy.mockRestore();
+      }
+    });
+  });
+
   describe('content block (b-oss#171)', () => {
     const base = {
       prevEntryId: null,
