@@ -1,3 +1,8 @@
+## 1.0.10 - 2026-11-09
+
+Fixed: the "Choose folder" button on the first screen could open more than one folder picker, which could then cause an error the first time you signed in. It now opens just one.
+Error messages now stay on screen until you close them, other messages last 30 seconds, and hovering over one pauses it. Errors are also recorded in the backup folder's log.
+
 ## 1.0.9 - 2026-11-08
 
 Scrolling and zooming in the photo viewer is smoother and more predictable: zoom steps are sensible, you can only drag the photo when zoomed in, and nothing jumps at fit size.
