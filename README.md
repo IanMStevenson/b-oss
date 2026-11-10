@@ -2,21 +2,21 @@
 
 > Open-source tools for Blipfoto users
 
-b-oss is a family of open-source tools for backing up and viewing [Blipfoto](https://www.blipfoto.com) journals. It is an independent project and is NOT supported or sponsored by blipfoto. The project is led and mangaged by Ian Stevenson in his personal capacity. Ian is also the architect, but immplementation has been carried out almost entirely using Claude Code.
+b-oss is a family of free, open-source tools for browsing, posting to and backing up [Blipfoto](https://www.blipfoto.com) journals. It is an independent project and is NOT supported or sponsored by Blipfoto. The project is led and managed by Ian Stevenson in his personal capacity. Ian is also the architect, but implementation has been carried out almost entirely using Claude Code.
 
-You can find more information on the [b-oss website](https://b-oss.dev/).
+Guides, privacy notices and release notes are on the [b-oss website](https://b-oss.dev/).
 
 ## Applications
 
-- **b-ark** — desktop app (Windows, Mac compatible but we need a mac developer to release it) that backs up your Blipfoto journals to local disk
-- **b-ark-chrome** — browser extension (Chrome/Edge/Chromium) that backs up a single Blipfoto journal to a local folder via the File System Access API (a lite, single-account sibling of desktop b-ark)
-- **b-view** — browser-based viewer for a b-ark backup, can be deployed to any static web host or run from local filesystem (packaged with both b-ark and b-ark-chrome)
+| App | What it does | Get it |
+| --- | --- | --- |
+| **b-mobile** | Browse, post to and get notified about Blipfoto | [Google Play](https://play.google.com/store/apps/details?id=uk.co.salientpoint.bmobile) (Android), [Microsoft Store](https://apps.microsoft.com/detail/9NZHJ2SVPVHN) (Windows) |
+| **b-ark** | Windows desktop app that backs up your Blipfoto journals to local disk | [Microsoft Store](https://apps.microsoft.com/detail/9P736ZD76DC5) |
+| **b-ark-chrome** | Browser extension (Chrome, Edge, Chromium) that backs up one journal to a local folder | [Chrome Web Store](https://chromewebstore.google.com/detail/b-ark-chrome/apcmndghbieclompadigikblmlafccpe) |
+| **b-view** | Viewer for a b-ark backup, packaged with b-ark and b-ark-chrome; also runs from any static host or the local filesystem | Included with b-ark |
+| **b-status** | Unofficial Blipfoto status page, checking the site and API every 15 minutes | [b-oss.dev/status](https://b-oss.dev/status) |
 
-## Status
-
-Pre-release. **b-ark is now on the [Microsoft Store](https://apps.microsoft.com/detail/9P736ZD76DC5); that is where new versions are released.** The GitHub installer (version 1.0.7) is the last one published here: [download it](https://github.com/IanMStevenson/b-oss/releases/download/b-ark-latest/b-ark-Setup.exe) (earlier versions are on the [Releases page](https://github.com/IanMStevenson/b-oss/releases)). The installer is unsigned, so Windows SmartScreen will warn on first run — click _More info_ → _Run anyway_. A Mac build (universal DMG) is currently in testing as an unsigned pre-release; a signed Mac release will follow once it's proven and we have a contributor with an Apple Developer account.
-
-The **b-ark-chrome** extension is in active development; build it with `npm run build --workspace=@b-oss/b-ark-chrome` (or `npm run dist --workspace=@b-oss/b-ark-chrome` to also package it) and load it unpacked until a packaged release is published.
+The packages behind them, and how they fit together, are described in [CLAUDE.md](CLAUDE.md) and the [contributor guide](docs/CONTRIBUTOR-GUIDE.md).
 
 ## Getting started (development)
 
