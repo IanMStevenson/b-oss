@@ -52,6 +52,7 @@ import { useHiddenMembers } from '../../state/hiddenMembersStore.js';
 import { useAccountsStore } from '../../state/accountsStore.js';
 import { useNotificationCountsStore } from '../../state/notificationCountsStore.js';
 import { openUrl } from '../../platform/browser.js';
+import { openLink } from '../../flows/openLink.js';
 import { useRefreshOnResume } from '../../hooks/useRefreshOnResume.js';
 import { InboxRow, RowThumb } from '../../components/InboxRow.js';
 import type { BlipNotification } from '@b-oss/b-api';
@@ -206,6 +207,7 @@ export function NotificationsInboxScreen() {
                   onOpenProfile={(username) =>
                     navigate.push(`/user/${encodeURIComponent(username)}`)
                   }
+                  onOpenLink={(href) => void openLink(href, navigate.push)}
                 />
               </InboxRow>
             ))}
@@ -221,20 +223,22 @@ export function NotificationsInboxScreen() {
 function NotificationBody({
   notification,
   onOpenProfile,
+  onOpenLink,
 }: {
   notification: BlipNotification;
   onOpenProfile: (username: string) => void;
+  onOpenLink: (href: string) => void;
 }) {
   const actor = leadingActor(notification);
   if (!actor) {
-    return <BBCodeText source={notification.content} onLinkClick={(href) => void openUrl(href)} />;
+    return <BBCodeText source={notification.content} onLinkClick={onOpenLink} />;
   }
   return (
     <div>
       <button onClick={() => onOpenProfile(actor.username)} className="inbox-row-name">
         {actor.username}
       </button>
-      <BBCodeText source={actor.rest} onLinkClick={(href) => void openUrl(href)} />
+      <BBCodeText source={actor.rest} onLinkClick={onOpenLink} />
     </div>
   );
 }
