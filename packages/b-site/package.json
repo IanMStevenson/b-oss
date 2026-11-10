@@ -17,11 +17,11 @@
   },
   "dependencies": {
     "@astrojs/sitemap": "^3.7.4",
-    "astro": "^7.4.4"
+    "astro": "^7.4.7"
   },
   "devDependencies": {
     "@astrojs/check": "^0.9.12",
     "vitest": "^5.0.5",
-    "wrangler": "^4.156.0"
+    "wrangler": "^4.158.0"
   }
 }
