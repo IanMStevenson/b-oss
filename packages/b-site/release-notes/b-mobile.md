@@ -1,6 +1,6 @@
 ## 1.5.1 - 2026-11-10
 
-New: a photo picked from your gallery now sets the entry's date from when it was taken. Fixed: Fit to screen and Compact now work in landscape.
+Fixed: when you pick a photo, the entry date now reliably defaults to the day it was taken, not just when you post it the same day. Fit to screen and Compact now also work in landscape.
 
 ## 1.5.0 - 2026-11-08
 

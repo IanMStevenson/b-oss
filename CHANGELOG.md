@@ -9,7 +9,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Changed
 
-- b-mobile: a photo picked from the gallery sets the entry date from the photo's EXIF date when it has a valid one (a zeroed date is ignored), and on Android falls back to the original file's modified time (b-oss#989, b-oss#992). b-mobile-pc 1.5.1 carries the same web build.
+- b-mobile: a photo picked from the gallery sets the entry date from the photo's EXIF date when it has a valid one (a zeroed date is ignored), and on Android falls back to the original file's modified time (b-oss#989, b-oss#992). b-mobile-pc 1.5.1 carries this change; the landscape fix below was seen only on Android.
 
 ### Fixed
 
