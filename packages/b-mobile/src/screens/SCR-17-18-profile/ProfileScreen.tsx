@@ -60,7 +60,7 @@ import { UserBadges } from '../../components/UserBadges.js';
 import { EntryGrid } from '../../components/EntryGrid.js';
 import { PeopleList } from '../../components/PeopleList.js';
 import { ScrollEdgeHint } from '../../components/ScrollEdgeHint.js';
-import { openUrl } from '../../platform/browser.js';
+import { openLink } from '../../flows/openLink.js';
 import type { Page } from '../../data/usePagedResource.js';
 import { BBCodeText } from '@b-oss/b-view';
 import type { EntryIndex } from '@b-oss/b-view';
@@ -532,7 +532,7 @@ export function ProfileScreen({ username }: ProfileScreenProps) {
                     {state.data.details?.biography ? (
                       <BBCodeText
                         source={state.data.details.biography}
-                        onLinkClick={(href) => void openUrl(href)}
+                        onLinkClick={(href) => void openLink(href, navigate.push)}
                       />
                     ) : (
                       <p style={{ margin: 0, color: 'var(--muted)' }}>No biography.</p>

@@ -75,7 +75,7 @@ import { EntryAuthorBlock, type FollowControl } from '../../components/EntryAuth
 import { UserBadges } from '../../components/UserBadges.js';
 import { t } from '../../strings/index.js';
 import { fetchCalendarMonth, fetchHistoryItems } from '../../data/journalDays.js';
-import { openUrl } from '../../platform/browser.js';
+import { openLink } from '../../flows/openLink.js';
 import { resolveImage, invalidateImage } from '../../platform/imageCache.js';
 import { SourceNavBar } from '../../components/SourceNavBar.js';
 import { useSourceNavStore } from '../../state/sourceNavStore.js';
@@ -609,7 +609,7 @@ export function EntryDetailScreen({ entryId, initialReplyToCommentId }: EntryDet
               }
               resolveAsset={resolveImage}
               invalidateAsset={invalidateImage}
-              onLinkClick={(href) => void openUrl(href)}
+              onLinkClick={(href) => void openLink(href, navigate.push)}
               onOpenPhoto={(photoIndex) =>
                 navigate.push(`/entry/${entryId}/photo`, { photoFrom: entryId, photoIndex })
               }
