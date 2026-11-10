@@ -5,6 +5,16 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [b-mobile 1.5.1] - 2026-11-10
+
+### Changed
+
+- b-mobile: a photo picked from the gallery sets the entry date from the photo's EXIF date when it has a valid one (a zeroed date is ignored), and on Android falls back to the original file's modified time (b-oss#989, b-oss#992). b-mobile-pc 1.5.1 carries this change; the landscape fix below was seen only on Android.
+
+### Fixed
+
+- b-mobile: the photo now respects Fit to screen and Compact in landscape; it is capped by the real scroller, not the page height (b-oss#991).
+
 ## [1.0.10] - 2026-11-09
 
 ### Fixed
