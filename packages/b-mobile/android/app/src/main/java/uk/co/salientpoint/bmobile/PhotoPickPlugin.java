@@ -4,9 +4,12 @@ import android.Manifest;
 import android.app.Activity;
 import android.content.ContentResolver;
 import android.content.Intent;
+import android.database.Cursor;
 import android.graphics.BitmapFactory;
 import android.net.Uri;
 import android.os.Build;
+import android.provider.DocumentsContract;
+import android.provider.MediaStore;
 import androidx.activity.result.ActivityResult;
 import androidx.exifinterface.media.ExifInterface;
 import com.getcapacitor.JSObject;
@@ -137,6 +140,9 @@ public class PhotoPickPlugin extends Plugin {
     }
 
     JSObject result = new JSObject();
+    // The copy's own timestamp is "now", so report the original's modified time (b-oss#992).
+    long modified = originalModifiedMs(resolver, uri);
+    if (modified > 0) result.put("modifiedMs", modified);
     result.put("path", copy.getAbsolutePath());
     result.put("mimeType", mime);
     result.put("sizeBytes", copy.length());
@@ -178,6 +184,21 @@ public class PhotoPickPlugin extends Plugin {
       // Unreadable EXIF just means no position and no date.
     }
     return result;
+  }
+
+  /** The picked original's modified time in ms since the epoch, or 0 when the provider has none:
+   * a document provider's last-modified (ms), else MediaStore's date_modified (seconds). */
+  private static long originalModifiedMs(ContentResolver resolver, Uri uri) {
+    try (Cursor c = resolver.query(uri, null, null, null, null)) {
+      if (c == null || !c.moveToFirst()) return 0;
+      int doc = c.getColumnIndex(DocumentsContract.Document.COLUMN_LAST_MODIFIED);
+      if (doc >= 0 && !c.isNull(doc) && c.getLong(doc) > 0) return c.getLong(doc);
+      int media = c.getColumnIndex(MediaStore.MediaColumns.DATE_MODIFIED);
+      if (media >= 0 && !c.isNull(media) && c.getLong(media) > 0) return c.getLong(media) * 1000L;
+    } catch (RuntimeException ignored) {
+      // A provider that refuses the query just has no timestamp.
+    }
+    return 0;
   }
 
   private static String toIso(String exifDate) {

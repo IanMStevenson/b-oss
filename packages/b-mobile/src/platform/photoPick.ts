@@ -20,6 +20,8 @@ export interface NativePickedPhoto {
   createdAt?: string;
   /** 'YYYY-MM-DD' as written in EXIF: DateTimeOriginal, else DateTimeDigitized, else DateTime. */
   takenDate?: string;
+  /** The original file's modified time (ms since epoch), when the provider reports one. */
+  modifiedMs?: number;
   lat?: number;
   lon?: number;
 }
