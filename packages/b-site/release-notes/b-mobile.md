@@ -1,3 +1,7 @@
+## 1.5.1 - 2026-11-10
+
+New: a photo picked from your gallery now sets the entry's date from when it was taken. Fixed: Fit to screen and Compact now work in landscape.
+
 ## 1.5.0 - 2026-11-08
 
 New: an entry's extra photos now show under the photo and in full screen. You can change an entry's date when editing, there is a Compact photo size, and a keyboard works throughout.
