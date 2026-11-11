@@ -1,6 +1,6 @@
 import { IonButton, IonText } from '@ionic/react';
 
-/** Shown when the membership check failed, so "Select thumbnail" isn't silently missing (b-oss#720). */
+/** Shown when the membership check failed, so "Choose thumbnail" isn't silently missing (b-oss#720). */
 export function MembershipCheckFailed({ onRetry }: { onRetry: () => void }) {
   return (
     <div className="compose-form">

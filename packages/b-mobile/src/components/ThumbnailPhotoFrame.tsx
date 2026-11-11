@@ -2,12 +2,11 @@
 // Copyright (C) 2026 Ian Stevenson
 
 // The photo on the compose and edit screens, shown as the entry's *thumbnail* (the selected square,
-// or the API's default square when none is chosen), with a member-only "Select thumbnail" button
+// or the API's default square when none is chosen), with a member-only "Choose thumbnail" button
 // that swaps it for the full photo and the square cropper. Shared by SCR-10 (new entry) and
 // SCR-13 (replacing a photo). The crop it reports becomes the entry's `thumbnail_crop`.
 
-import { useState } from 'react';
-import { IonButton } from '@ionic/react';
+import { useRef, useState } from 'react';
 import type { Area } from 'react-easy-crop';
 import { PhotoCropper } from './PhotoCropper.js';
 import { SquareSelector } from './SquareSelector.js';
@@ -43,6 +42,19 @@ export function ThumbnailPhotoFrame({
   // the EXIF rotation the WebView applies, so they can't be used for the crop geometry.
   const [ratio, setRatio] = useState<number | null>(null);
   const [naturalWidth, setNaturalWidth] = useState<number | null>(null);
+  // The square being dragged while cropping. Only "Use thumbnail" reports it to the parent, so
+  // "Cancel" leaves the previous selection untouched.
+  const pending = useRef<Area | null>(null);
+
+  function startCropping(): void {
+    pending.current = null;
+    setCropping(true);
+  }
+
+  function useThumbnail(): void {
+    if (pending.current) onCropChange(pending.current);
+    setCropping(false);
+  }
 
   const shown = ratio ? (crop ?? defaultThumbnailCrop(ratio)) : null;
   const canOffer = canSelect && canSelectThumbnail(photo.width, photo.height);
@@ -58,12 +70,12 @@ export function ThumbnailPhotoFrame({
               ratio={ratio}
               naturalWidth={naturalWidth}
               minCropEdge={THUMBNAIL_MIN_EDGE}
-              onCropAreaChange={onCropChange}
+              onCropAreaChange={(a) => (pending.current = a)}
             />
           ) : (
             <PhotoCropper
               imageSrc={photo.webPath}
-              onCropAreaChange={onCropChange}
+              onCropAreaChange={(a) => (pending.current = a)}
               minCropEdge={THUMBNAIL_MIN_EDGE}
               initialArea={shown && ratio ? thumbnailCropToArea(shown, ratio) : undefined}
             />
@@ -71,8 +83,22 @@ export function ThumbnailPhotoFrame({
         </div>
       ) : (
         <div
-          className="compose-thumb-preview"
+          className={`compose-thumb-preview${canOffer ? ' compose-thumb-preview-editable' : ''}`}
           style={{ width: PREVIEW_SIZE, height: PREVIEW_SIZE }}
+          {...(canOffer
+            ? {
+                role: 'button',
+                tabIndex: 0,
+                'aria-label': 'Choose thumbnail',
+                onClick: startCropping,
+                onKeyDown: (e: React.KeyboardEvent) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    startCropping();
+                  }
+                },
+              }
+            : {})}
         >
           <img
             src={photo.webPath}
@@ -91,16 +117,47 @@ export function ThumbnailPhotoFrame({
                 : { visibility: 'hidden' }
             }
           />
+          {canOffer && (
+            <span className="compose-thumb-overlay">
+              Choose thumbnail
+              <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true">
+                <path
+                  fill="currentColor"
+                  d="M1 2h14v12H1zM2.5 3.5v9h11v-9zM4 11l2.5-3 2 2 1.5-1.5L12 11zM5.5 6a1 1 0 1 0 0 .01z"
+                />
+              </svg>
+            </span>
+          )}
         </div>
       )}
-      {canOffer && (
-        <IonButton
-          size="small"
-          fill={cropping ? 'solid' : 'outline'}
-          onClick={() => setCropping((c) => !c)}
-        >
-          {cropping ? 'Done' : 'Select thumbnail'}
-        </IonButton>
+      {cropping && (
+        <div className="compose-thumb-actions">
+          <button type="button" className="compose-thumb-btn" onClick={() => setCropping(false)}>
+            <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true">
+              <path
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2.4"
+                strokeLinecap="round"
+                d="M3 3l10 10M13 3L3 13"
+              />
+            </svg>
+            Cancel
+          </button>
+          <button type="button" className="compose-thumb-btn" onClick={useThumbnail}>
+            <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true">
+              <path
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2.4"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                d="M2.5 8.5l4 4 7-8.5"
+              />
+            </svg>
+            Use thumbnail
+          </button>
+        </div>
       )}
     </div>
   );

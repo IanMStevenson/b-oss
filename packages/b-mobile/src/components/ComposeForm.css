@@ -161,6 +161,50 @@
   height: auto;
 }
 
+/* Tap-to-edit, like the website: the whole thumbnail is the button, with a label bar over its foot. */
+.compose-thumb-preview-editable {
+  cursor: pointer;
+}
+
+.compose-thumb-overlay {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 8px 6px;
+  background: rgba(0, 0, 0, 0.7);
+  color: #fff;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  pointer-events: none;
+}
+
+.compose-thumb-actions {
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+}
+
+/* White pill with a green outline and label, as the site's Cancel / Use thumbnail but green. */
+.compose-thumb-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 16px;
+  border: 2px solid var(--accent);
+  border-radius: 999px;
+  background: #fff;
+  color: var(--accent);
+  font: inherit;
+  font-size: 0.875rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
 /* Compact date field: a single row that expands to a small calendar. */
 .date-field-row {
   display: flex;

@@ -200,7 +200,7 @@ describe('ComposeEntryScreen', () => {
       latestEntry: null,
     });
     renderScreen();
-    expect(await screen.findByText('Select thumbnail')).toBeDefined();
+    expect(await screen.findByText('Choose thumbnail')).toBeDefined();
   });
 
   it("says membership couldn't be checked when the profile fetch fails, and retry recovers", async () => {
@@ -215,7 +215,7 @@ describe('ComposeEntryScreen', () => {
     renderScreen();
     expect(await screen.findByText(/Couldn.t check membership/)).toBeDefined();
     await userEvent.click(screen.getByText('Retry'));
-    expect(await screen.findByText('Select thumbnail')).toBeDefined();
+    expect(await screen.findByText('Choose thumbnail')).toBeDefined();
     expect(screen.queryByText(/Couldn.t check membership/)).toBeNull();
   });
 
@@ -236,7 +236,7 @@ describe('ComposeEntryScreen', () => {
   it('does not offer the crop button to non-members', async () => {
     renderScreen();
     await waitFor(() => expect(fetchUserProfile).toHaveBeenCalled());
-    expect(screen.queryByText('Select thumbnail')).toBeNull();
+    expect(screen.queryByText('Choose thumbnail')).toBeNull();
   });
 
   it('navigating to add a location without one first pushes to the location picker', () => {
