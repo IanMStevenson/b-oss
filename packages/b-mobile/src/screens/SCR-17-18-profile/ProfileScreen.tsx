@@ -166,7 +166,15 @@ function GridTab({
   );
 }
 
+/** Opening another member from the Followers/Following tab keeps this screen mounted with a new
+ * `username`, so tab, loaded lists and dialog state from the previous member would carry over.
+ * Keying on the username remounts it, as if opened fresh. `/me` (no username) is left alone: its
+ * data already follows the active account. */
 export function ProfileScreen({ username }: ProfileScreenProps) {
+  return <ProfileScreenBody key={username ?? ''} username={username} />;
+}
+
+function ProfileScreenBody({ username }: ProfileScreenProps) {
   const navigate = useAppNavigate();
   const { report, reportDialog } = useReport();
   const { share, shareDialog } = useShareLink();
