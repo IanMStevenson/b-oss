@@ -325,6 +325,42 @@ describe('ProfileScreen', () => {
     expect(fetchFollowers).toHaveBeenCalledWith('alice', 0);
   });
 
+  it('opening another member from a Followers tab starts their profile afresh', async () => {
+    const { fetchUserProfile, fetchFollowers } = await import('../../../data/users.js');
+    vi.mocked(fetchUserProfile).mockImplementation((name) =>
+      Promise.resolve({
+        ...aliceProfile,
+        user: { ...aliceProfile.user, username: name ?? 'me' },
+        details: { ...aliceProfile.details!, journal_title: `${name}'s journal` },
+      }),
+    );
+    vi.mocked(fetchFollowers).mockImplementation((name) =>
+      Promise.resolve({
+        items: [{ username: name === 'alice' ? 'bob' : 'carol', avatar_url: '', icons: [] }],
+        more: false,
+      }),
+    );
+    const ui = (name: string) => (
+      <MemoryRouter>
+        <OverlayProvider>
+          <OverlayHost />
+          <ProfileScreen username={name} />
+        </OverlayProvider>
+      </MemoryRouter>
+    );
+    const { rerender } = render(ui('alice'));
+    await screen.findByText("alice's journal");
+    document
+      .querySelector('ion-segment')!
+      .dispatchEvent(new CustomEvent('ionChange', { detail: { value: 'followers' } }));
+    expect(await screen.findByText('bob')).toBeDefined();
+
+    rerender(ui('bob'));
+    // A full refresh: the new member's profile, not the previous member's follower list.
+    expect(await screen.findByText("bob's journal")).toBeDefined();
+    expect(screen.queryByText('carol')).toBeNull();
+  });
+
   it("shares the profile link with the journal title, on another member's open journal", async () => {
     const { fetchUserProfile } = await import('../../../data/users.js');
     vi.mocked(fetchUserProfile).mockResolvedValue(aliceProfile);
