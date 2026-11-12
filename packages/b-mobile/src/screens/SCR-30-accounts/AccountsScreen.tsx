@@ -214,7 +214,8 @@ export function AccountsScreen({
   // switch-to-read-write confirmation straight away, once per navigation. After a successful
   // change, Back returns to the screen the user was trying to reach.
   const handledUpgradeKey = useRef<string | null>(null);
-  const cameForUpgrade = useRef(false);
+  const cameForUpgrade = useRef(false); // the confirmation was opened by the upgrade request
+  const goBackOnSuccess = useRef(false); // Continue was pressed on it: leave when the change lands
   const upgradeAccountId = upgradeRequest?.accountId;
   const upgradeKey = upgradeRequest?.key;
   useEffect(() => {
@@ -309,15 +310,14 @@ export function AccountsScreen({
     setModeBusy(true);
     try {
       await changeAccountMode(accountId, { scope, notifications, useEmbedded });
-      if (cameForUpgrade.current && scope === 'read,write') {
-        cameForUpgrade.current = false;
-        navigate.goBack();
-      }
+      if (goBackOnSuccess.current && scope === 'read,write') navigate.goBack();
+      goBackOnSuccess.current = false;
     } catch (err) {
       if (err instanceof AccountMismatchError) {
         setModeMismatch({ error: err, accountId, scope, notifications });
         return;
       }
+      goBackOnSuccess.current = false;
       if (err instanceof OAuthCancelledError) return;
       throw err;
     } finally {
@@ -513,7 +513,10 @@ export function AccountsScreen({
         />
         <IonAlert
           isOpen={modeChangeAccount !== null}
-          onDidDismiss={() => setModeChangeId(null)}
+          onDidDismiss={() => {
+            cameForUpgrade.current = false;
+            setModeChangeId(null);
+          }}
           header={
             modeChangeAccount?.appTokenScope === 'read,write'
               ? t('SCR-30.detail.switch_to_read_only')
@@ -535,6 +538,7 @@ export function AccountsScreen({
               handler: () => {
                 const target = modeChangeAccount;
                 if (!target || modeBusy) return;
+                goBackOnSuccess.current = cameForUpgrade.current;
                 void handleModeChange(
                   target.id,
                   target.appTokenScope === 'read,write' ? 'read' : 'read,write',
@@ -550,6 +554,7 @@ export function AccountsScreen({
           onClose={(retry) => {
             const retrying = modeMismatch;
             setModeMismatch(null);
+            if (!retry) goBackOnSuccess.current = false;
             if (retry && retrying) {
               void handleModeChange(
                 retrying.accountId,

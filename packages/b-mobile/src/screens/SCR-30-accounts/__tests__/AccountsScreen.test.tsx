@@ -665,6 +665,21 @@ describe('AccountsScreen', () => {
       await waitFor(() => expect(goBack).toHaveBeenCalled());
     });
 
+    it('?upgrade=<id> cancelled, then converting from the row menu, does not go Back', async () => {
+      changeAccountMode.mockResolvedValue(undefined);
+      useAccountsStore.setState({
+        accounts: [account({ appTokenScope: 'read', hasServiceToken: true })],
+        activeAccountId: 'a1',
+      });
+      renderScreen(undefined, false, 'a1');
+      const first = await screen.findByRole('dialog', { name: 'Switch to read-write' });
+      await userEvent.click(within(first).getByText('Cancel'));
+      await userEvent.click(within(await menuFor('alice')).getByText('Switch to read-write'));
+      await userEvent.click(within(await screen.findByRole('dialog')).getByText('Continue'));
+      await waitFor(() => expect(changeAccountMode).toHaveBeenCalledTimes(1));
+      expect(goBack).not.toHaveBeenCalled();
+    });
+
     it('?upgrade=<id> for an account that is already read-write opens nothing', () => {
       useAccountsStore.setState({ accounts: [account()], activeAccountId: 'a1' });
       renderScreen(undefined, false, 'a1');
