@@ -18,7 +18,7 @@ import { safeSend } from './safe-ipc.js';
 import { TapQueue } from './tap-queue.js';
 import { appIconPath, trayIconPath } from './tray-icon.js';
 import { decideLoginItem, isDevFolder } from './login-item-policy.js';
-import { applyStartupTask, loadStartupAddon, startedByStartupTask } from './store-startup.js';
+import { applyStartupTask, loadStartupAddon, readLaunchKind } from './store-startup.js';
 import { loginItemWanted, requestExit, shouldHideOnClose } from './tray-policy.js';
 
 /** Argument added to the login item so a start at login goes straight to the tray. */
@@ -326,12 +326,22 @@ function getStoreAddon(log: (message: string) => void): ReturnType<typeof loadSt
   return storeAddon;
 }
 
-/** True when Windows started this Store install through the startup task (b-oss#885): no argument marks it. */
-export function startedAtSignInByStore(log: (message: string) => void): Promise<boolean> {
-  if (process.windowsStore !== true) return Promise.resolve(false);
-  return startedByStartupTask(getStoreAddon(log), (message, err) =>
-    log(`${message}: ${err instanceof Error ? err.message : String(err)}`),
+/**
+ * Starts reading how Windows activated this Store install. Call it first thing at launch, before any
+ * other use of the add-on (b-oss#1011: Windows gives the activation arguments out once). The result
+ * carries the raw kind (null off the Store or when unreadable) and any failure text, for the caller to log.
+ */
+export function readStoreLaunchKind(): Promise<{ kind: string | null; notes: string[] }> {
+  const notes: string[] = [];
+  if (process.windowsStore !== true) return Promise.resolve({ kind: null, notes });
+  const onError = (message: string, err: unknown): void => {
+    notes.push(`${message}: ${err instanceof Error ? err.message : String(err)}`);
+  };
+  storeAddon ??= loadStartupAddon(
+    () => createRequire(__filename)(join(process.resourcesPath, 'native', 'win-startup.node')),
+    onError,
   );
+  return readLaunchKind(storeAddon, onError).then((kind) => ({ kind, notes }));
 }
 
 function setStoreStartupTask(wanted: boolean, log: (message: string) => void): void {

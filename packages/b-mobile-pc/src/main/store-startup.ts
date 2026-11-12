@@ -45,21 +45,34 @@ export function loadStartupAddon(
 }
 
 /**
+ * How Windows activated this process: the add-on's raw kind name ('StartupTask', 'Launch', 'Unknown'
+ * ...), or null when it cannot be read (no add-on, an older add-on without `launchKind`, a rejected
+ * call). Windows hands the activation arguments out once per process, so read this before any other
+ * add-on call (b-oss#1011).
+ */
+export async function readLaunchKind(
+  addon: StartupTaskAddon | null,
+  onError: (message: string, err: unknown) => void = () => undefined,
+): Promise<string | null> {
+  if (!addon || typeof addon.launchKind !== 'function') return null;
+  try {
+    return await addon.launchKind();
+  } catch (err) {
+    onError('Launch kind could not be read', err);
+    return null;
+  }
+}
+
+/**
  * True when Windows started this process through the manifest startup task (b-oss#885). That launch
- * passes no arguments, so the add-on asks Windows for the activation kind. Any failure (no add-on,
- * an older add-on without `launchKind`, a rejected call) means "not a login start": the window shows.
+ * passes no arguments, so the add-on asks Windows for the activation kind. Any failure means "not a
+ * login start": the window shows.
  */
 export async function startedByStartupTask(
   addon: StartupTaskAddon | null,
   onError: (message: string, err: unknown) => void = () => undefined,
 ): Promise<boolean> {
-  if (!addon || typeof addon.launchKind !== 'function') return false;
-  try {
-    return (await addon.launchKind()) === 'StartupTask';
-  } catch (err) {
-    onError('Launch kind could not be read', err);
-    return false;
-  }
+  return (await readLaunchKind(addon, onError)) === 'StartupTask';
 }
 
 /**

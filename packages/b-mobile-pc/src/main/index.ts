@@ -58,7 +58,7 @@ import {
   createElectronPresenter,
   NotifyShell,
   type Presenter,
-  startedAtSignInByStore,
+  readStoreLaunchKind,
   startedHidden,
 } from './notify-shell.js';
 import { createQuitSequence } from './quit-sequence.js';
@@ -433,6 +433,8 @@ if (!app.requestSingleInstanceLock()) {
   });
 
   void app.whenReady().then(async () => {
+    // First, before anything touches the Store add-on: Windows gives the activation kind out once (b-oss#1011).
+    const launchKindRead = readStoreLaunchKind();
     protocol.handle(APP_SCHEME, handleAppRequest);
     // Deny every browser permission request except the ones in permissions.ts, and those only for the
     // app's own origin: geolocation ("Show current location", b-oss#672, requested only when the user
@@ -663,9 +665,12 @@ if (!app.requestSingleInstanceLock()) {
     // A reminder alone (no polled account) also needs the tray and login item at launch.
     if (!poller.hasAccounts() && scheduler.hasReminders()) refreshActive();
 
-    // NSIS start at login passes --hidden; the Store startup task passes nothing (b-oss#885), so ask Windows.
-    const loginStart = startedHidden() || (await startedAtSignInByStore(notifyLog));
-    notifyLog(`login start: ${loginStart}`);
+    // NSIS start at login passes --hidden; the Store startup task passes nothing (b-oss#885), so the
+    // launch kind was read from Windows at the top of this callback.
+    const launch = await launchKindRead;
+    for (const note of launch.notes) notifyLog(note);
+    const loginStart = startedHidden() || launch.kind === 'StartupTask';
+    notifyLog(`login start: ${loginStart} (launch kind: ${launch.kind ?? 'unavailable'})`);
     await createWindow(!(loginStart && (poller.hasAccounts() || scheduler.hasReminders())));
   });
 
