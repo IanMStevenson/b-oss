@@ -75,6 +75,9 @@ const aliceProfile: UserProfile = {
 beforeEach(async () => {
   const users = await import('../../../data/users.js');
   vi.mocked(users.fetchAwards).mockResolvedValue([{}, {}, {}] as never);
+  // resetAllMocks (afterEach) wipes these; the Entries tab, now the default, fetches on mount.
+  vi.mocked(users.fetchJournalEntriesFor).mockResolvedValue({ items: [], more: false });
+  vi.mocked(users.fetchFavoriteEntriesFor).mockResolvedValue({ items: [], more: false });
   useAccountsStore.setState({ accounts: [meAccount], activeAccountId: 'a1', hydrated: true });
   useHiddenMembersStore.setState({ hidden: [], hydrated: true });
 });
@@ -161,6 +164,16 @@ describe('ProfileScreen', () => {
     }
     await waitFor(() => expect(screen.getByRole('button', { name: /3\s*Awards/ })).toBeDefined());
     expect(screen.getByText('Follow')).toBeDefined();
+  });
+
+  it('opens on the Entries tab, not About', async () => {
+    const { fetchUserProfile } = await import('../../../data/users.js');
+    vi.mocked(fetchUserProfile).mockResolvedValue(aliceProfile);
+    renderScreen('alice');
+    await screen.findByText("Alice's journal");
+    const { fetchJournalEntriesFor } = await import('../../../data/users.js');
+    await waitFor(() => expect(fetchJournalEntriesFor).toHaveBeenCalled());
+    expect(screen.queryByLabelText('About')).toBeNull();
   });
 
   it('follows optimistically, then reflects the resulting friendship state', async () => {

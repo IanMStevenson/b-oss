@@ -98,7 +98,7 @@ Known Blipfoto API limits: [AppLimitations.md](AppLimitations.md). Paths are rel
   uses the entry endpoint with a prefilled note `<user>'s comment: "<excerpt>"`; a member report
   (profile Flag, only when they have a visible latest entry) is sent against their latest entry with
   `Reporting the member <user>, not just this entry: `. Afterwards offers to hide.
-- **Profile** (`/me`, `/user/:u`, one component): tabs About, Entries, Faves, Followers, Following.
+- **Profile** (`/me`, `/user/:u`, one component): tabs About, Entries, Faves, Followers, Following; opens on Entries.
   Stat row: entries; Follow/Following/Request sent (others) or Pending requests (own, protected
   journal); Awards. Report (when they have a visible entry) and Hide/Unhide for others. Tapping the profile picture opens it full size in an overlay (natural size, shrunk to fit; tap or Android Back closes).
 - **Followers/Following**: people list; Remove follower on your own followers. **Pending
