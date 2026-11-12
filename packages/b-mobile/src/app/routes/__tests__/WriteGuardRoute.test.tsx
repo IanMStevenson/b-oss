@@ -157,4 +157,12 @@ describe('WriteGuardRoute', () => {
     expect(await screen.findByText(t('UPGRADE.title'))).toBeDefined();
     expect(screen.queryByText(t('SIGN_IN_REQUIRED.title'))).toBeNull();
   });
+
+  it('"Switch to read-write" opens Accounts asking to convert the active account (b-oss#1009)', async () => {
+    await signedInAs(account('read'), false);
+    const tracked = renderGuardAtCompose();
+    await userEvent.click(await screen.findByText(t('UPGRADE.button.confirm')));
+    expect(tracked.location.pathname).toBe('/accounts');
+    expect(tracked.location.search).toBe('?upgrade=a1');
+  });
 });

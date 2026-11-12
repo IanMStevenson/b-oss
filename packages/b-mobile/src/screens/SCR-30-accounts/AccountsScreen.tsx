@@ -151,7 +151,10 @@ export interface ReauthRequest {
   key: string;
 }
 
-export function AccountsScreen({ reauthRequest }: { reauthRequest?: ReauthRequest } = {}) {
+export function AccountsScreen({
+  reauthRequest,
+  upgradeRequest,
+}: { reauthRequest?: ReauthRequest; upgradeRequest?: ReauthRequest } = {}) {
   const navigate = useAppNavigate();
   const accounts = useAccountsStore((s) => s.accounts);
   const activeAccountId = useAccountsStore((s) => s.activeAccountId);
@@ -206,6 +209,24 @@ export function AccountsScreen({ reauthRequest }: { reauthRequest?: ReauthReques
       setReauthPromptId(target.id);
     }
   }, [reauthAccountId, reauthKey]);
+
+  // The read-only upgrade prompt arrives as `/accounts?upgrade=<id>` (b-oss#1009): open the
+  // switch-to-read-write confirmation straight away, once per navigation. After a successful
+  // change, Back returns to the screen the user was trying to reach.
+  const handledUpgradeKey = useRef<string | null>(null);
+  const cameForUpgrade = useRef(false);
+  const upgradeAccountId = upgradeRequest?.accountId;
+  const upgradeKey = upgradeRequest?.key;
+  useEffect(() => {
+    if (!upgradeAccountId || upgradeKey === undefined) return;
+    if (handledUpgradeKey.current === upgradeKey) return;
+    handledUpgradeKey.current = upgradeKey;
+    const target = useAccountsStore.getState().accounts.find((a) => a.id === upgradeAccountId);
+    if (target && target.appTokenScope === 'read') {
+      cameForUpgrade.current = true;
+      setModeChangeId(target.id);
+    }
+  }, [upgradeAccountId, upgradeKey]);
 
   /** Tapping a row's notification status: make that account active, then open its settings. A
    * status that needs a sign-in offers the sign-in instead. */
@@ -288,6 +309,10 @@ export function AccountsScreen({ reauthRequest }: { reauthRequest?: ReauthReques
     setModeBusy(true);
     try {
       await changeAccountMode(accountId, { scope, notifications, useEmbedded });
+      if (cameForUpgrade.current && scope === 'read,write') {
+        cameForUpgrade.current = false;
+        navigate.goBack();
+      }
     } catch (err) {
       if (err instanceof AccountMismatchError) {
         setModeMismatch({ error: err, accountId, scope, notifications });

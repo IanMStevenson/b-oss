@@ -22,7 +22,7 @@
 // (yet) the same component instance. TODO: give OverlayState an optional on-decline callback and
 // retire this local copy in favour of the shared one.
 
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import type { ReactNode } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { IonAlert } from '@ionic/react';
@@ -37,6 +37,8 @@ export function WriteGuardRoute({ children }: { children: ReactNode }) {
   const { pathname, search } = useLocation();
   const navigate = useNavigate();
   const [dismissed, setDismissed] = useState(false);
+  // Set when the upgrade prompt's confirm button already navigated, so its dismissal doesn't go Back.
+  const upgrading = useRef(false);
 
   if (canWrite) {
     return <>{children}</>;
@@ -66,13 +68,16 @@ export function WriteGuardRoute({ children }: { children: ReactNode }) {
       message={t('UPGRADE.body', { username: activeAccount.username })}
       onDidDismiss={() => {
         setDismissed(true);
-        navigate(-1);
+        if (!upgrading.current) navigate(-1);
       }}
       buttons={[
         { text: t('UPGRADE.button.decline'), role: 'cancel' },
         {
           text: t('UPGRADE.button.confirm'),
-          handler: () => navigate('/accounts'),
+          handler: () => {
+            upgrading.current = true;
+            navigate(`/accounts?upgrade=${encodeURIComponent(activeAccount.id)}`);
+          },
         },
       ]}
     />
