@@ -1,3 +1,7 @@
+## 1.5.2 - 2026-11-12
+
+Changed: Blipfoto links in comments, notifications and journal text now open in the app. Choosing a thumbnail works like the website, with Cancel and Use thumbnail. Profiles open on Entries, and switching a read-only account to read-write takes you straight there. Fixed: a profile opened from Followers or Following now shows that member's own details.
+
 ## 1.5.1 - 2026-11-10
 
 Fixed: when you pick a photo, the entry date now reliably defaults to the day it was taken, not just when you post it the same day. Fit to screen and Compact now also work in landscape.

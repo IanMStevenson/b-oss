@@ -1,3 +1,7 @@
+## 1.5.2 - 2026-11-12
+
+Fixed: when b-mobile starts with Windows it now reliably stays hidden in the tray. Also: Blipfoto links in comments and journal text open in the app, choosing a thumbnail works like the website, and profiles open on Entries.
+
 ## 1.5.1 - 2026-11-10
 
 Fixed: when you pick a photo, the entry date now reliably defaults to the day it was taken, not just when you post it the same day.

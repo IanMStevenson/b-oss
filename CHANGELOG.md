@@ -5,6 +5,20 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [b-mobile 1.5.2] - 2026-11-12
+
+### Changed
+
+- b-mobile: blipfoto.com links in notification text, comments, entry text and bios open inside the app (entries, follow requests, and profiles via a bare `/name` path); anything else, or a profile that can't be looked up, still opens in the browser (b-oss#1002).
+- b-mobile: the thumbnail picker looks like the website's: tap the whole thumbnail ("Choose thumbnail"), then Cancel or Use thumbnail; Cancel now discards the drag (b-oss#1007).
+- b-mobile: the read-only account's "Switch to read-write" prompt starts the read-write conversion directly and returns to the screen you were trying to reach (b-oss#1009).
+- b-mobile: opening a profile from another page lands on the Entries tab instead of About.
+
+### Fixed
+
+- b-mobile: opening a member from Followers/Following refreshes the whole profile instead of keeping the previous member's tab and list (b-oss#1005).
+- b-mobile-pc: when the Store starts it at sign-in, it now stays hidden in the tray; the launch kind is read before anything else uses the add-on, and logged (b-oss#1011).
+
 ## [b-mobile 1.5.1] - 2026-11-10
 
 ### Changed
