@@ -208,7 +208,7 @@ function ProfileScreenBody({ username }: ProfileScreenProps) {
   // on and each grid's page — scoped to the account and the profile being shown (b-oss#182).
   const resumeScope = `profile:${activeAccount?.id ?? 'anon'}:${effectiveUsername ?? ''}`;
   const [tab, setTab] = useState<Tab>(
-    () => resumeGet<{ tab: Tab }>(`${resumeScope}:ui`)?.tab ?? 'about',
+    () => resumeGet<{ tab: Tab }>(`${resumeScope}:ui`)?.tab ?? 'entries',
   );
   const [friendshipState, setFriendshipState] = useState<0 | 1 | 2 | 3 | null>(null);
   const [confirmUnfollow, setConfirmUnfollow] = useState(false);
