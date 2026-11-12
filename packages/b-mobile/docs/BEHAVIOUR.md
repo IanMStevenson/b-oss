@@ -135,7 +135,8 @@ reminders,details,profile,notifications}`; the old `/settings/{general,journal,a
   routes there without write access; see Report above). Signed out: the sign-in prompt (see Sign-in
   and accounts) — Sign in now goes to `/sign-in` and back to the screen afterwards, Cancel goes
   Back. Read-only: upgrade prompt "This account is read-only" — Switch to read-write goes to
-  `/accounts`, Not now goes Back.
+  `/accounts?upgrade=<id>`, which opens that account's switch-to-read-write confirmation straight
+  away (and returns Back on success); Not now goes Back.
 - Entry page: star, favourite, comment, follow, Edit and Delete are hidden for a read-only
   account. Signed out, tapping star, favourite, comment or follow (also Follow on a profile) shows
   the sign-in prompt; nothing else happens until the user is signed in and taps again.

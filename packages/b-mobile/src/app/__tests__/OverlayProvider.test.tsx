@@ -94,11 +94,26 @@ describe('useOverlay', () => {
   });
 
   it(`"${t('UPGRADE.button.confirm')}" on the upgrade prompt navigates to accounts`, async () => {
+    useAccountsStore.setState({
+      accounts: [
+        {
+          id: 'a1',
+          username: 'alex',
+          avatarUrl: null,
+          appTokenScope: 'read',
+          hasServiceToken: false,
+          notificationRegistrationId: null,
+          notificationStatus: null,
+        },
+      ],
+      activeAccountId: 'a1',
+      hydrated: true,
+    });
     renderWithHost();
     await userEvent.click(screen.getByText('trigger upgrade'));
     await screen.findByText(t('UPGRADE.title'));
     await userEvent.click(screen.getByText(t('UPGRADE.button.confirm')));
-    expect(push).toHaveBeenCalledWith('/accounts');
+    expect(push).toHaveBeenCalledWith('/accounts?upgrade=a1');
   });
 
   it('showFirstRunExplainer opens the explainer overlay, rendered by OverlayHost', async () => {

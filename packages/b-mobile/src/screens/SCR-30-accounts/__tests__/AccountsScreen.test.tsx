@@ -146,8 +146,9 @@ vi.mock('../../../flows/accountsFlow.js', () => ({
 }));
 
 const push = vi.fn();
+const goBack = vi.fn();
 vi.mock('../../../app/routes/useAppNavigate.js', () => ({
-  useAppNavigate: () => ({ push, replace: vi.fn(), goBack: vi.fn() }),
+  useAppNavigate: () => ({ push, replace: vi.fn(), goBack }),
 }));
 
 afterEach(() => {
@@ -171,13 +172,14 @@ function account(overrides: Partial<StoredAccount> = {}): StoredAccount {
 }
 
 /** `reauthFor` stands in for AppRoutes' `/accounts?reauth=<id>` (header switcher, push tap). */
-function renderScreen(reauthFor?: string, drilledIn = false) {
+function renderScreen(reauthFor?: string, drilledIn = false, upgradeFor?: string) {
   return render(
     <MemoryRouter
       initialEntries={[{ pathname: '/accounts', state: drilledIn ? { drilledIn } : null }]}
     >
       <AccountsScreen
         reauthRequest={reauthFor ? { accountId: reauthFor, key: 'nav-1' } : undefined}
+        upgradeRequest={upgradeFor ? { accountId: upgradeFor, key: 'nav-2' } : undefined}
       />
     </MemoryRouter>,
   );
@@ -643,6 +645,45 @@ describe('AccountsScreen', () => {
           notifications: true,
         }),
       );
+    });
+
+    it('?upgrade=<id> opens the read-write confirmation at once; success goes Back (b-oss#1009)', async () => {
+      changeAccountMode.mockResolvedValue(undefined);
+      useAccountsStore.setState({
+        accounts: [account({ appTokenScope: 'read', hasServiceToken: true })],
+        activeAccountId: 'a1',
+      });
+      renderScreen(undefined, false, 'a1');
+      const dialog = await screen.findByRole('dialog', { name: 'Switch to read-write' });
+      await userEvent.click(within(dialog).getByText('Continue'));
+      await waitFor(() =>
+        expect(changeAccountMode).toHaveBeenCalledWith('a1', {
+          scope: 'read,write',
+          notifications: true,
+        }),
+      );
+      await waitFor(() => expect(goBack).toHaveBeenCalled());
+    });
+
+    it('?upgrade=<id> cancelled, then converting from the row menu, does not go Back', async () => {
+      changeAccountMode.mockResolvedValue(undefined);
+      useAccountsStore.setState({
+        accounts: [account({ appTokenScope: 'read', hasServiceToken: true })],
+        activeAccountId: 'a1',
+      });
+      renderScreen(undefined, false, 'a1');
+      const first = await screen.findByRole('dialog', { name: 'Switch to read-write' });
+      await userEvent.click(within(first).getByText('Cancel'));
+      await userEvent.click(within(await menuFor('alice')).getByText('Switch to read-write'));
+      await userEvent.click(within(await screen.findByRole('dialog')).getByText('Continue'));
+      await waitFor(() => expect(changeAccountMode).toHaveBeenCalledTimes(1));
+      expect(goBack).not.toHaveBeenCalled();
+    });
+
+    it('?upgrade=<id> for an account that is already read-write opens nothing', () => {
+      useAccountsStore.setState({ accounts: [account()], activeAccountId: 'a1' });
+      renderScreen(undefined, false, 'a1');
+      expect(screen.queryByRole('dialog', { name: 'Switch to read-write' })).toBeNull();
     });
 
     it('cancelling the mode-change explanation changes nothing', async () => {

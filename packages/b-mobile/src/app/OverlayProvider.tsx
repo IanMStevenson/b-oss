@@ -121,7 +121,15 @@ export function OverlayHost() {
         onDidDismiss={dismiss}
         buttons={[
           { text: t('UPGRADE.button.decline'), role: 'cancel' },
-          { text: t('UPGRADE.button.confirm'), handler: () => navigate.push('/accounts') },
+          {
+            text: t('UPGRADE.button.confirm'),
+            handler: () =>
+              navigate.push(
+                activeAccount
+                  ? `/accounts?upgrade=${encodeURIComponent(activeAccount.id)}`
+                  : '/accounts',
+              ),
+          },
         ]}
       />
       {overlay.kind === 'first-run-explainer' && <FirstRunExplainer onDismiss={dismiss} />}
