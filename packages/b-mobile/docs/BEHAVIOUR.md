@@ -11,7 +11,7 @@ Known Blipfoto API limits: [AppLimitations.md](AppLimitations.md). Paths are rel
   component state, not routes. `/` redirects to `/browse`; launch lands on Browse unless a deep
   link, share or push tap routes elsewhere.
 - Menu (lucide icons): your account row at the top (avatar + username; opens your own profile) or
-  Sign in when signed out · Comments, Notifications (signed in; unread badges), New entry
+  Sign in when signed out · Comments, Notifications (signed in; unread badges, and a red dot on the header menu button while either is unread), New entry
   (read-write only) · Browse, Map, Search · Settings | Help. A muted "b-mobile {version}" footer is
   pinned to the bottom of the drawer (above the safe-area inset) and opens Help. Accounts and
   Hidden members are reached from Settings; the header avatar (2+ accounts) opens the switcher.
