@@ -16,6 +16,7 @@ import type { CSSProperties, MouseEvent, ReactNode } from 'react';
 import { IonToolbar, IonButtons, IonMenuButton, IonBackButton } from '@ionic/react';
 import { AccountIndicator } from './AccountIndicator.js';
 import { useHasRouter, useHeaderNav } from '../app/routes/useHeaderNav.js';
+import { useNotificationCountsStore } from '../state/notificationCountsStore.js';
 
 interface AppHeaderProps {
   title: string;
@@ -53,6 +54,19 @@ interface AppHeaderProps {
    * `accountIndicator={false}`. The indicator itself renders nothing with fewer than two
    * accounts. */
   accountIndicator?: boolean;
+}
+
+// The menu button, with a red dot while there are unread comments or notifications (b-oss#1016):
+// they are otherwise only visible once the menu is open. A plain dot, not a count; the counts are
+// on the menu entries. The dot is decorative, so the unread state is put in the button's label.
+function MenuButton() {
+  const hasUnread = useNotificationCountsStore((s) => s.comments + s.notifications > 0);
+  return (
+    <span className="menu-button-wrap">
+      <IonMenuButton {...(hasUnread ? { 'aria-label': 'Menu, unread notifications' } : {})} />
+      {hasUnread && <span className="menu-unread-dot" data-testid="menu-unread-dot" aria-hidden />}
+    </span>
+  );
 }
 
 interface HeaderNavProps {
@@ -127,7 +141,7 @@ function AppHeaderView({
             {...(onBack ? { onClick: onBack, 'aria-label': 'Back' } : {})}
           />
         ) : (
-          <IonMenuButton />
+          <MenuButton />
         )}
         <button
           type="button"

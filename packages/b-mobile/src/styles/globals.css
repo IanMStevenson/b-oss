@@ -648,3 +648,20 @@ ion-modal.source-nav-sheet {
   overflow: hidden;
   text-overflow: ellipsis;
 }
+
+/* Unread dot on the header menu button (b-oss#1016). Centred on the top-right corner of the
+   hamburger bars; the button is 48px with a 24px icon, so the bars' corner is at (33px, 18px). */
+.menu-button-wrap {
+  position: relative;
+  display: inline-flex;
+}
+.menu-unread-dot {
+  position: absolute;
+  left: 28px;
+  top: 13px;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: #ff3b30;
+  pointer-events: none;
+}

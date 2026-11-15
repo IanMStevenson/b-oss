@@ -11,6 +11,7 @@ import { useAppNavigate } from '../../app/routes/useAppNavigate.js';
 import { AppHeader } from '../AppHeader.js';
 import { OverlayProvider } from '../../app/OverlayProvider.js';
 import { useAccountsStore } from '../../state/accountsStore.js';
+import { useNotificationCountsStore } from '../../state/notificationCountsStore.js';
 import type { StoredAccount } from '../../state/accountsStore.js';
 
 vi.mock('../../platform/prefs.js', () => ({
@@ -235,5 +236,34 @@ describe('AppHeader', () => {
       act(() => proceed?.());
       expect(at()).toBe('/browse');
     });
+  });
+});
+
+describe('AppHeader unread dot (b-oss#1016)', () => {
+  afterEach(() => useNotificationCountsStore.getState().reset());
+  const dot = () => screen.queryByTestId('menu-unread-dot');
+
+  it('shows no dot with nothing unread', () => {
+    renderHeader();
+    expect(dot()).toBeNull();
+  });
+
+  it('shows a dot when comments or notifications are unread, and labels the button', () => {
+    useNotificationCountsStore.setState({ comments: 2, notifications: 0 });
+    renderHeader();
+    expect(dot()).not.toBeNull();
+    expect(document.querySelector('ion-menu-button')?.getAttribute('aria-label')).toBe(
+      'Menu, unread notifications',
+    );
+    cleanup();
+    useNotificationCountsStore.setState({ comments: 0, notifications: 1 });
+    renderHeader();
+    expect(dot()).not.toBeNull();
+  });
+
+  it('shows no dot on a back-variant screen', () => {
+    useNotificationCountsStore.setState({ comments: 3, notifications: 3 });
+    renderHeader({ variant: 'back' });
+    expect(dot()).toBeNull();
   });
 });
