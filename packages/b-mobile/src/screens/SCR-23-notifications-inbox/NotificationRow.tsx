@@ -39,7 +39,7 @@ const ACTION_LABEL: Record<NotificationKind, string> = {
 };
 
 function ActionIcon({ kind }: { kind: NotificationKind }) {
-  const props = { size: 26, strokeWidth: 1.5, 'aria-hidden': true } as const;
+  const props = { size: 20, strokeWidth: 1.5, 'aria-hidden': true } as const;
   if (kind === 'star') return <Star {...props} className="notif-icon-star" fill="currentColor" />;
   if (kind === 'favourite')
     return <Heart {...props} className="notif-icon-heart" fill="currentColor" />;
