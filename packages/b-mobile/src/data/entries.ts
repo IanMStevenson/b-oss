@@ -153,6 +153,27 @@ export async function fetchEntryThumbnailUrl(entryId: string): Promise<string> {
   return res.entry.thumbnail_url;
 }
 
+// One thumbnail lookup per entry per session (b-oss#1027): a notification row for a star or
+// favourite shows the entry, but the payload's image is the actor's avatar. The same entry often
+// collects several, so concurrent and repeat callers share one request; a failure is evicted.
+const thumbnailCache = new Map<string, Promise<string | null>>();
+
+export function fetchEntryThumbnail(entryId: string): Promise<string | null> {
+  const cached = thumbnailCache.get(entryId);
+  if (cached) return cached;
+  const request = getClient()
+    .then((client) => client.getEntry(entryId))
+    .then((res) => res.entry.thumbnail_url || null);
+  thumbnailCache.set(entryId, request);
+  request.catch(() => thumbnailCache.delete(entryId));
+  return request;
+}
+
+/** Test seam: forget cached entry thumbnails. */
+export function clearEntryThumbnailCache(): void {
+  thumbnailCache.clear();
+}
+
 /** SCR-06's error-state message is whatever `Error.message` this throws (useResource/
  * useLiveEntry display it as-is, with no mapApiError step of their own) — so codes 104/202 get
  * their own copy-deck wording (strings/deck.ts) by rewriting the error here,

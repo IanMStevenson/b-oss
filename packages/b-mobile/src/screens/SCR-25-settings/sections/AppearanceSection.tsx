@@ -50,6 +50,8 @@ export function AppearanceSection() {
   const setShowSourceNavBar = useDevicePrefsStore((s) => s.setShowSourceNavBar);
   const thumbnailMargins = useDevicePrefsStore((s) => s.thumbnailMargins);
   const setThumbnailMargins = useDevicePrefsStore((s) => s.setThumbnailMargins);
+  const enhancedNotifications = useDevicePrefsStore((s) => s.enhancedNotifications);
+  const setEnhancedNotifications = useDevicePrefsStore((s) => s.setEnhancedNotifications);
   const photoFit = useDevicePrefsStore((s) => s.photoFit);
   const setPhotoFit = useDevicePrefsStore((s) => s.setPhotoFit);
 
@@ -133,6 +135,14 @@ export function AppearanceSection() {
         onChange={setPhotoFit}
       />
       <CaptionRow>{t('SCR-25.browsing.photo_size.caption')}</CaptionRow>
+
+      <SectionHeader>Notifications</SectionHeader>
+      <ToggleRow
+        label="Enhanced notifications view"
+        caption="A refreshed notifications view showing the thumbnail for the entry that was starred/favourited and icons to show which."
+        checked={enhancedNotifications}
+        onChange={setEnhancedNotifications}
+      />
 
       <SectionHeader>Links</SectionHeader>
       <ToggleRow

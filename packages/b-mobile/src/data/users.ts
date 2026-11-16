@@ -67,6 +67,28 @@ export function clearAuthorAvatarCache(): void {
   avatarCache.clear();
 }
 
+// Badges for a notification's actor (b-oss#1027). The notification payload carries no user object,
+// so the camera/member icons come from a profile lookup, cached once per member per session like
+// the avatar above. A failed lookup is evicted so a later row retries.
+const badgesCache = new Map<string, Promise<BlipUser['icons']>>();
+
+export function fetchUserBadges(username: string): Promise<BlipUser['icons']> {
+  const key = username.toLowerCase();
+  const cached = badgesCache.get(key);
+  if (cached) return cached;
+  const request = getClient()
+    .then((client) => client.getUserProfile({ username }))
+    .then((res) => res.user.icons ?? []);
+  badgesCache.set(key, request);
+  request.catch(() => badgesCache.delete(key));
+  return request;
+}
+
+/** Test seam: forget cached badge lookups. */
+export function clearUserBadgesCache(): void {
+  badgesCache.clear();
+}
+
 // Same once-per-author-per-session caching as the avatar lookup above, for the share flow's
 // protected-journal warning (b-oss#417). A failed lookup is evicted so the next attempt retries.
 const protectedCache = new Map<string, Promise<boolean>>();

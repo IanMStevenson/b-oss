@@ -89,6 +89,15 @@ describe('AppearanceSection', () => {
     expect(useDevicePrefsStore.getState().showZoomBar).toBe(false);
   });
 
+  it('the enhanced notifications view is off by default and toggles on', () => {
+    render(<AppearanceSection />);
+    expect(useDevicePrefsStore.getState().enhancedNotifications).toBe(false);
+    screen
+      .getByLabelText('Enhanced notifications view')
+      .dispatchEvent(new CustomEvent('ionChange', { bubbles: true, detail: { checked: true } }));
+    expect(useDevicePrefsStore.getState().enhancedNotifications).toBe(true);
+  });
+
   it('toggling the pagination toggle persists immediately', () => {
     render(<AppearanceSection />);
     const toggle = screen.getByLabelText('Show pagination');

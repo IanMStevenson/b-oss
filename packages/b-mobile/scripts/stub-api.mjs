@@ -40,7 +40,15 @@ const people = ['gbradley', 'mossy', 'thelensman', 'wren', 'ashgrove', 'kestrel'
 
 const img = (seed, kind) => `${HOST}/img/${seed}/${kind}.jpg`;
 const avatar = (name) => `${HOST}/img/${name}/avatar.jpg`;
-const user = (username) => ({ username, avatar_url: avatar(username), icons: [] });
+const badge = (fill) =>
+  `data:image/svg+xml,${encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16"><circle cx="8" cy="8" r="8" fill="${fill}"/></svg>`)}`;
+const user = (username) => ({
+  username,
+  avatar_url: avatar(username),
+  icons: [
+    { icon_id: '2000', icon_url: badge(['#2a6fb0', '#2a9d78', '#7b4fa0'][username.length % 3]) },
+  ],
+});
 
 function entry(i, username = people[i % people.length]) {
   const d = new Date(Date.UTC(2026, 9, 7 - i));
@@ -81,13 +89,25 @@ const comment = (i, entryId = null) => ({
   replies: null,
 });
 
-const notification = (i) => ({
-  notification_id_str: String(9000 + i),
-  content: `${people[i % people.length]} starred your entry`,
-  content_html: `<a href="https://www.blipfoto.com/${people[i % people.length]}">${people[i % people.length]}</a> starred your entry "${titles[i]}"`,
-  image_url: img(i, 'thumb'),
-  link_url: `https://www.blipfoto.com/entry/${5000000000 + i}`,
-});
+// Real Blipfoto wording (seen on a device): the member is plain text, and for a star or favourite
+// the word "entry" is the link; a follow links to the follower.
+const notification = (i) => {
+  const who = people[i % people.length];
+  const kind = ['star', 'star', 'favourite', 'follow'][i % 4];
+  const entryUrl = `https://www.blipfoto.com/entry/${5000000000 + i}`;
+  const content = {
+    star: `${who} gave your [url=${entryUrl}]entry[/url] a star`,
+    favourite: `${who} favourited your [url=${entryUrl}]entry[/url]`,
+    follow: `${who} is now following you`,
+  }[kind];
+  return {
+    notification_id_str: String(9000 + i),
+    content,
+    content_html: content.replace(/\[url=([^\]]+)\]([^[]*)\[\/url\]/g, '<a href="$1">$2</a>'),
+    image_url: img(i, 'thumb'),
+    link_url: kind === 'follow' ? `https://www.blipfoto.com/${who}` : entryUrl,
+  };
+};
 
 function days(year, month) {
   const first = new Date(Date.UTC(year, month - 1, 1)).getUTCDay();

@@ -10,6 +10,7 @@ import { NotificationsInboxScreen } from '../NotificationsInboxScreen.js';
 import { OverlayProvider, OverlayHost } from '../../../app/OverlayProvider.js';
 import { useAccountsStore } from '../../../state/accountsStore.js';
 import { useHiddenMembersStore } from '../../../state/hiddenMembersStore.js';
+import { useDevicePrefsStore } from '../../../state/devicePrefsStore.js';
 import { useNotificationCountsStore } from '../../../state/notificationCountsStore.js';
 
 const { fetchRecentNotifications, fetchUnreadTotals } = vi.hoisted(() => ({
@@ -22,6 +23,19 @@ vi.mock('../../../data/notifications.js', async () => {
   );
   return { ...actual, fetchRecentNotifications, fetchUnreadTotals };
 });
+
+const { fetchEntryThumbnail, fetchUserBadges } = vi.hoisted(() => ({
+  fetchEntryThumbnail: vi.fn(),
+  fetchUserBadges: vi.fn(),
+}));
+vi.mock('../../../data/entries.js', async () => ({
+  ...(await vi.importActual<object>('../../../data/entries.js')),
+  fetchEntryThumbnail,
+}));
+vi.mock('../../../data/users.js', async () => ({
+  ...(await vi.importActual<object>('../../../data/users.js')),
+  fetchUserBadges,
+}));
 
 const { onAppStateChange } = vi.hoisted(() => ({ onAppStateChange: vi.fn() }));
 vi.mock('../../../platform/appState.js', () => ({ onAppStateChange }));
@@ -51,6 +65,9 @@ beforeEach(() => {
   useHiddenMembersStore.setState({ hidden: [], hydrated: true });
   useNotificationCountsStore.setState({ comments: 0, notifications: 3 });
   fetchUnreadTotals.mockResolvedValue({ comments: 0, notifications: 3 });
+  useDevicePrefsStore.setState({ enhancedNotifications: true });
+  fetchEntryThumbnail.mockResolvedValue(null);
+  fetchUserBadges.mockResolvedValue([]);
 });
 
 afterEach(() => {
@@ -125,6 +142,71 @@ describe('NotificationsInboxScreen', () => {
     renderScreen();
     await screen.findByText('fresh one');
     expect(document.querySelectorAll('[data-unread="true"], .inbox-row--unread').length).toBe(1);
+  });
+
+  it('shows a star as the entry thumbnail, badges and an action icon', async () => {
+    fetchEntryThumbnail.mockResolvedValue('https://example.com/entry-thumb.jpg');
+    fetchUserBadges.mockResolvedValue([{ icon_id: '1', icon_url: 'https://example.com/b.png' }]);
+    fetchRecentNotifications.mockResolvedValue([
+      notification({
+        content: 'alice gave your entry a star',
+        content_html:
+          '<a href="https://www.blipfoto.com/alice">alice</a> gave your <a href="https://www.blipfoto.com/entry/55">entry</a> a star',
+        link_url: 'https://www.blipfoto.com/entry/55',
+      }),
+    ]);
+    const history = renderScreen();
+    await screen.findByRole('img', { name: 'Star' });
+    await waitFor(() => expect(fetchEntryThumbnail).toHaveBeenCalledWith('55'));
+    expect(fetchUserBadges).toHaveBeenCalledWith('alice');
+    await waitFor(() =>
+      expect(
+        document.querySelector('img[src="https://example.com/entry-thumb.jpg"]'),
+      ).not.toBeNull(),
+    );
+    await waitFor(() =>
+      expect(document.querySelector('img[src="https://example.com/b.png"]')).not.toBeNull(),
+    );
+    await userEvent.click(screen.getByRole('button', { name: 'Open entry' }));
+    expect(history.location.pathname).toBe('/entry/55');
+  });
+
+  it('falls back to the notification image when the entry lookup fails', async () => {
+    fetchEntryThumbnail.mockRejectedValue(new Error('nope'));
+    fetchRecentNotifications.mockResolvedValue([
+      notification({
+        content: 'alice favourited your entry',
+        content_html: '<a href="https://www.blipfoto.com/alice">alice</a> favourited your entry',
+        link_url: 'https://www.blipfoto.com/entry/55',
+      }),
+    ]);
+    renderScreen();
+    await screen.findByRole('img', { name: 'Favourite' });
+    await waitFor(() =>
+      expect(document.querySelector('img[src="https://example.com/avatar.jpg"]')).not.toBeNull(),
+    );
+  });
+
+  it('uses the original rows when the enhanced view is off', async () => {
+    useDevicePrefsStore.setState({ enhancedNotifications: false });
+    fetchRecentNotifications.mockResolvedValue([
+      notification({
+        content: 'alice favourited your entry',
+        content_html: '<a href="https://www.blipfoto.com/alice">alice</a> favourited your entry',
+        link_url: 'https://www.blipfoto.com/entry/55',
+      }),
+    ]);
+    renderScreen();
+    await screen.findByText('favourited your entry');
+    expect(screen.queryByRole('img', { name: 'Favourite' })).toBeNull();
+    expect(fetchEntryThumbnail).not.toHaveBeenCalled();
+  });
+
+  it('keeps the follower picture on a follow and shows the follow icon', async () => {
+    fetchRecentNotifications.mockResolvedValue([notification()]);
+    renderScreen();
+    await screen.findByRole('img', { name: 'New follower' });
+    expect(fetchEntryThumbnail).not.toHaveBeenCalled();
   });
 
   it('shows the content as sent when no member can be read off the payload', async () => {
