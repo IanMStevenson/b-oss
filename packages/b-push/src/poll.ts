@@ -137,11 +137,18 @@ async function pollOne(ctx: PollContext, reg: RegistrationRow): Promise<PollOneO
   });
   // settle attempts the first delivery whenever there is one, so this equals "a send was tried".
   const pushAttempted = decision.notify.length > 0;
+  // The push says how many are unread now (what the inbox will show), not the change since the
+  // last push; Android replaces the previous one for the stream (b-oss#1020).
   const settled = await settle(decision, lastSeen, async (n) => {
     await sendFcmMessage(
       env,
       reg.device_token,
-      { kind: 'activity', stream: n.stream, accountId: reg.blipfoto_user_id, count: n.count },
+      {
+        kind: 'activity',
+        stream: n.stream,
+        accountId: reg.blipfoto_user_id,
+        count: totals[n.stream],
+      },
       budget,
     );
   });

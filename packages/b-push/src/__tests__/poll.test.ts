@@ -109,7 +109,7 @@ describe('runActivityPoll', () => {
     expect(sendFcmMessage).not.toHaveBeenCalled();
   });
 
-  it('pushes once per stream whose total rose, and stores the new totals', async () => {
+  it('pushes once per stream whose total rose, carrying the total unread, and stores the new totals', async () => {
     await seedRow({ last_seen_comments_total: 1, last_seen_notifications_total: 2 });
     mockUnreadTotals(3, 2); // comments rose (1 -> 3), notifications unchanged
     const summary = await runActivityPoll(db, env, () => 5_000_000);
@@ -119,7 +119,7 @@ describe('runActivityPoll', () => {
     expect(sendFcmMessage).toHaveBeenCalledWith(
       env,
       'device-1',
-      expect.objectContaining({ kind: 'activity', stream: 'comments', count: 2 }),
+      expect.objectContaining({ kind: 'activity', stream: 'comments', count: 3 }),
     );
 
     const row = await getRegistrationById(db, 'reg-1');
@@ -369,7 +369,7 @@ describe('runActivityPoll', () => {
     expect(sendFcmMessage).toHaveBeenLastCalledWith(
       env,
       'device-1',
-      expect.objectContaining({ stream: 'comments', count: 3 }),
+      expect.objectContaining({ stream: 'comments', count: 4 }),
     );
     expect((await getRegistrationById(db, 'reg-1'))?.last_seen_comments_total).toBe(4);
   });
