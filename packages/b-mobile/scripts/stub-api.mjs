@@ -89,24 +89,23 @@ const comment = (i, entryId = null) => ({
   replies: null,
 });
 
-// Real Blipfoto wording: a star and a favourite link to the entry, a follow to the follower.
+// Real Blipfoto wording (seen on a device): the member is plain text, and for a star or favourite
+// the word "entry" is the link; a follow links to the follower.
 const notification = (i) => {
   const who = people[i % people.length];
   const kind = ['star', 'star', 'favourite', 'follow'][i % 4];
-  const verb = {
-    star: 'gave your entry a star',
-    favourite: 'favourited your entry',
-    follow: 'is now following you',
+  const entryUrl = `https://www.blipfoto.com/entry/${5000000000 + i}`;
+  const content = {
+    star: `${who} gave your [url=${entryUrl}]entry[/url] a star`,
+    favourite: `${who} favourited your [url=${entryUrl}]entry[/url]`,
+    follow: `${who} is now following you`,
   }[kind];
   return {
     notification_id_str: String(9000 + i),
-    content: `${who} ${verb}`,
-    content_html: `<a href="https://www.blipfoto.com/${who}">${who}</a> ${verb}`,
+    content,
+    content_html: content.replace(/\[url=([^\]]+)\]([^[]*)\[\/url\]/g, '<a href="$1">$2</a>'),
     image_url: img(i, 'thumb'),
-    link_url:
-      kind === 'follow'
-        ? `https://www.blipfoto.com/${who}`
-        : `https://www.blipfoto.com/entry/${5000000000 + i}`,
+    link_url: kind === 'follow' ? `https://www.blipfoto.com/${who}` : entryUrl,
   };
 };
 

@@ -166,11 +166,30 @@ export type NotificationKind = 'star' | 'favourite' | 'follow';
  * field). `null` for anything unrecognised, which the screen renders exactly as it always has.
  * A follow request ("asked to follow you") is not a follow, and is left to the fallback. */
 export function notificationKind(rest: string): NotificationKind | null {
-  const text = rest.toLowerCase();
-  if (/\bstar\b/.test(text) && /gave your entry/.test(text)) return 'star';
-  if (/favou?rited your entry/.test(text)) return 'favourite';
+  // Strip [url] tags first: the entry is a link inside the sentence ("gave your [url=..]entry[/url] a star").
+  const text = rest.replace(/\[\/?url[^\]]*\]/gi, '').toLowerCase();
+  if (/\bgave your entry a star\b/.test(text)) return 'star';
+  if (/\bfavou?rited your entry\b/.test(text)) return 'favourite';
   if (/\bfollowing you\b/.test(text)) return 'follow';
   return null;
+}
+
+/** The member and the rest of the sentence for a notification the app-style row can draw. The
+ * live payload gives the member as plain text ("cyclops favourited your [url]entry[/url]"), not a
+ * link, so when there is no leading profile link the first word is taken as the username, but only
+ * when the rest of the sentence is one of the recognised kinds. */
+export function notificationActor(
+  notification: BlipNotification,
+): { username: string; rest: string; kind: NotificationKind } | null {
+  const linked = leadingActor(notification);
+  if (linked) {
+    const kind = notificationKind(linked.rest);
+    return kind ? { ...linked, kind } : null;
+  }
+  const match = /^\s*([A-Za-z0-9_.-]+)(\s.*)$/s.exec(notification.content);
+  if (!match) return null;
+  const kind = notificationKind(match[2]);
+  return kind ? { username: match[1], rest: match[2], kind } : null;
 }
 
 /** The entry a notification is about: `link_url` when it is an entry link, else the first entry

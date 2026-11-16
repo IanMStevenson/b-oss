@@ -9,6 +9,7 @@ import {
   candidateActorsFromNotification,
   isNotificationFromHiddenMember,
   leadingActor,
+  notificationActor,
   notificationEntryId,
   notificationKind,
   resolveNotificationTarget,
@@ -201,5 +202,33 @@ describe('notificationEntryId', () => {
 
   it('is null when there is no entry link', () => {
     expect(notificationEntryId(notification())).toBeNull();
+  });
+});
+
+describe('notificationActor', () => {
+  it('reads a plain-text member from the live wording, with the entry as a [url] link', () => {
+    expect(
+      notificationActor(
+        notification({
+          content: 'cyclops gave your [url=https://www.blipfoto.com/entry/9]entry[/url] a star',
+          content_html:
+            'cyclops gave your <a href="https://www.blipfoto.com/entry/9">entry</a> a star',
+        }),
+      ),
+    ).toMatchObject({ username: 'cyclops', kind: 'star' });
+    expect(
+      notificationActor(
+        notification({
+          content: 'cyclops favourited your [url=https://www.blipfoto.com/entry/9]entry[/url]',
+        }),
+      ),
+    ).toMatchObject({ username: 'cyclops', kind: 'favourite' });
+  });
+
+  it('prefers a leading profile link, and gives up on unrecognised wording', () => {
+    expect(notificationActor(notification())).toMatchObject({ username: 'alice', kind: 'follow' });
+    expect(
+      notificationActor(notification({ content: 'cyclops did a thing', content_html: 'x' })),
+    ).toBeNull();
   });
 });

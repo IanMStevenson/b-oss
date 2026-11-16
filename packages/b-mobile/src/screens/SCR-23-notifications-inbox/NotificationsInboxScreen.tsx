@@ -44,8 +44,8 @@ import {
   fetchUnreadTotals,
   isNotificationFromHiddenMember,
   leadingActor,
+  notificationActor,
   notificationEntryId,
-  notificationKind,
   resolveNotificationTarget,
 } from '../../data/notifications.js';
 import { LoadFailed } from '../../components/LoadFailed.js';
@@ -207,19 +207,18 @@ export function NotificationsInboxScreen() {
             <PointerRefresh onRefresh={() => void fetchNewer(false)} />
             {visibleItems.map((notification) => {
               const unread = newIdsRef.current?.has(notification.notification_id_str) ?? false;
-              const actor = leadingActor(notification);
-              const kind = actor ? notificationKind(actor.rest) : null;
+              const app = notificationActor(notification);
               const entryId = notificationEntryId(notification);
               // Star and favourite need the entry to lead the row; without one, or for any
               // unrecognised wording, the original row below is used (b-oss#1027).
-              if (actor && kind && (kind === 'follow' || entryId)) {
+              if (app && (app.kind === 'follow' || entryId)) {
                 return (
                   <NotificationRow
                     key={notification.notification_id_str}
                     notification={notification}
-                    kind={kind}
-                    actor={actor}
-                    entryId={kind === 'follow' ? null : entryId}
+                    kind={app.kind}
+                    actor={app}
+                    entryId={app.kind === 'follow' ? null : entryId}
                     unread={unread}
                     onOpenLeading={() => handleTap(notification)}
                     onOpenProfile={(username) =>
