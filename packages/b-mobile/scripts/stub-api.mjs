@@ -40,7 +40,15 @@ const people = ['gbradley', 'mossy', 'thelensman', 'wren', 'ashgrove', 'kestrel'
 
 const img = (seed, kind) => `${HOST}/img/${seed}/${kind}.jpg`;
 const avatar = (name) => `${HOST}/img/${name}/avatar.jpg`;
-const user = (username) => ({ username, avatar_url: avatar(username), icons: [] });
+const badge = (fill) =>
+  `data:image/svg+xml,${encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16"><circle cx="8" cy="8" r="8" fill="${fill}"/></svg>`)}`;
+const user = (username) => ({
+  username,
+  avatar_url: avatar(username),
+  icons: [
+    { icon_id: '2000', icon_url: badge(['#2a6fb0', '#2a9d78', '#7b4fa0'][username.length % 3]) },
+  ],
+});
 
 function entry(i, username = people[i % people.length]) {
   const d = new Date(Date.UTC(2026, 9, 7 - i));
@@ -81,13 +89,26 @@ const comment = (i, entryId = null) => ({
   replies: null,
 });
 
-const notification = (i) => ({
-  notification_id_str: String(9000 + i),
-  content: `${people[i % people.length]} starred your entry`,
-  content_html: `<a href="https://www.blipfoto.com/${people[i % people.length]}">${people[i % people.length]}</a> starred your entry "${titles[i]}"`,
-  image_url: img(i, 'thumb'),
-  link_url: `https://www.blipfoto.com/entry/${5000000000 + i}`,
-});
+// Real Blipfoto wording: a star and a favourite link to the entry, a follow to the follower.
+const notification = (i) => {
+  const who = people[i % people.length];
+  const kind = ['star', 'star', 'favourite', 'follow'][i % 4];
+  const verb = {
+    star: 'gave your entry a star',
+    favourite: 'favourited your entry',
+    follow: 'is now following you',
+  }[kind];
+  return {
+    notification_id_str: String(9000 + i),
+    content: `${who} ${verb}`,
+    content_html: `<a href="https://www.blipfoto.com/${who}">${who}</a> ${verb}`,
+    image_url: img(i, 'thumb'),
+    link_url:
+      kind === 'follow'
+        ? `https://www.blipfoto.com/${who}`
+        : `https://www.blipfoto.com/entry/${5000000000 + i}`,
+  };
+};
 
 function days(year, month) {
   const first = new Date(Date.UTC(year, month - 1, 1)).getUTCDay();

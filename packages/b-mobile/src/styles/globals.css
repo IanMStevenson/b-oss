@@ -665,3 +665,27 @@ ion-modal.source-nav-sheet {
   background: #ff3b30;
   pointer-events: none;
 }
+
+/* SCR-23 app-style rows (b-oss#1027). The name line has a fixed height so badges arriving after
+ * the first render don't move the row; the colours are the entry page's star and heart. */
+.notif-name-line {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  min-height: 22px;
+}
+.notif-icon {
+  display: inline-flex;
+  align-self: center;
+}
+.notif-icon-star {
+  color: #ffc709;
+  stroke: #be7121;
+}
+.notif-icon-heart {
+  color: #db3936;
+}
+.notif-icon-follow {
+  color: #1e7fd0;
+}

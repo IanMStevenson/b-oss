@@ -44,6 +44,8 @@ import {
   fetchUnreadTotals,
   isNotificationFromHiddenMember,
   leadingActor,
+  notificationEntryId,
+  notificationKind,
   resolveNotificationTarget,
 } from '../../data/notifications.js';
 import { LoadFailed } from '../../components/LoadFailed.js';
@@ -58,6 +60,7 @@ import { useRefreshOnResume } from '../../hooks/useRefreshOnResume.js';
 import { InboxRow, RowThumb } from '../../components/InboxRow.js';
 import type { BlipNotification } from '@b-oss/b-api';
 import { PointerRefresh } from '../../components/PointerRefresh.js';
+import { NotificationRow } from './NotificationRow.js';
 
 type Status = 'loading' | 'loaded' | 'empty' | 'error';
 
@@ -202,30 +205,55 @@ export function NotificationsInboxScreen() {
               <IonRefresherContent />
             </IonRefresher>
             <PointerRefresh onRefresh={() => void fetchNewer(false)} />
-            {visibleItems.map((notification) => (
-              <InboxRow
-                key={notification.notification_id_str}
-                align="top"
-                unread={newIdsRef.current?.has(notification.notification_id_str) ?? false}
-                leading={
-                  <button
-                    onClick={() => handleTap(notification)}
-                    aria-label="Open"
-                    className="inbox-row-leading"
-                  >
-                    <RowThumb src={notification.image_url} />
-                  </button>
-                }
-              >
-                <NotificationBody
-                  notification={notification}
-                  onOpenProfile={(username) =>
-                    navigate.push(`/user/${encodeURIComponent(username)}`)
+            {visibleItems.map((notification) => {
+              const unread = newIdsRef.current?.has(notification.notification_id_str) ?? false;
+              const actor = leadingActor(notification);
+              const kind = actor ? notificationKind(actor.rest) : null;
+              const entryId = notificationEntryId(notification);
+              // Star and favourite need the entry to lead the row; without one, or for any
+              // unrecognised wording, the original row below is used (b-oss#1027).
+              if (actor && kind && (kind === 'follow' || entryId)) {
+                return (
+                  <NotificationRow
+                    key={notification.notification_id_str}
+                    notification={notification}
+                    kind={kind}
+                    actor={actor}
+                    entryId={kind === 'follow' ? null : entryId}
+                    unread={unread}
+                    onOpenLeading={() => handleTap(notification)}
+                    onOpenProfile={(username) =>
+                      navigate.push(`/user/${encodeURIComponent(username)}`)
+                    }
+                    onOpenLink={(href) => void openLink(href, navigate.push)}
+                  />
+                );
+              }
+              return (
+                <InboxRow
+                  key={notification.notification_id_str}
+                  align="top"
+                  unread={unread}
+                  leading={
+                    <button
+                      onClick={() => handleTap(notification)}
+                      aria-label="Open"
+                      className="inbox-row-leading"
+                    >
+                      <RowThumb src={notification.image_url} />
+                    </button>
                   }
-                  onOpenLink={(href) => void openLink(href, navigate.push)}
-                />
-              </InboxRow>
-            ))}
+                >
+                  <NotificationBody
+                    notification={notification}
+                    onOpenProfile={(username) =>
+                      navigate.push(`/user/${encodeURIComponent(username)}`)
+                    }
+                    onOpenLink={(href) => void openLink(href, navigate.push)}
+                  />
+                </InboxRow>
+              );
+            })}
           </>
         )}
       </IonContent>

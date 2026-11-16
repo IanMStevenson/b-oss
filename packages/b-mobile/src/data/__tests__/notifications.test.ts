@@ -9,6 +9,8 @@ import {
   candidateActorsFromNotification,
   isNotificationFromHiddenMember,
   leadingActor,
+  notificationEntryId,
+  notificationKind,
   resolveNotificationTarget,
 } from '../notifications.js';
 import type { BlipNotification } from '@b-oss/b-api';
@@ -161,5 +163,43 @@ describe('leadingActor', () => {
     expect(leadingActor(n('x', '<a href="/entry/123">x</a>'))).toBeNull();
     expect(leadingActor(n('bob did it', '<a href="/alice">alice</a> did it'))).toBeNull();
     expect(leadingActor(n('hello', '<p>hello</p>'))).toBeNull();
+  });
+});
+
+describe('notificationKind', () => {
+  it('recognises star, favourite and follow wording', () => {
+    expect(notificationKind(' gave your entry a star')).toBe('star');
+    expect(notificationKind(' favourited your entry')).toBe('favourite');
+    expect(notificationKind(' favorited your entry')).toBe('favourite');
+    expect(notificationKind(' is now following you')).toBe('follow');
+    expect(notificationKind(' started following you')).toBe('follow');
+  });
+
+  it('returns null for anything else, including follow requests', () => {
+    expect(notificationKind(' wants to follow you')).toBeNull();
+    expect(notificationKind(' did something new')).toBeNull();
+  });
+});
+
+describe('notificationEntryId', () => {
+  it('reads the entry id from link_url', () => {
+    expect(
+      notificationEntryId(notification({ link_url: 'https://www.blipfoto.com/entry/123' })),
+    ).toBe('123');
+  });
+
+  it('falls back to an entry link in the body', () => {
+    expect(
+      notificationEntryId(
+        notification({
+          link_url: 'https://www.blipfoto.com/alice',
+          content_html: '<a href="/alice">alice</a> starred <a href="/entry/456">it</a>',
+        }),
+      ),
+    ).toBe('456');
+  });
+
+  it('is null when there is no entry link', () => {
+    expect(notificationEntryId(notification())).toBeNull();
   });
 });

@@ -160,6 +160,30 @@ export function leadingActor(
   return null;
 }
 
+export type NotificationKind = 'star' | 'favourite' | 'follow';
+
+/** What a notification is, read off the verb after the actor's name (the payload has no type
+ * field). `null` for anything unrecognised, which the screen renders exactly as it always has.
+ * A follow request ("asked to follow you") is not a follow, and is left to the fallback. */
+export function notificationKind(rest: string): NotificationKind | null {
+  const text = rest.toLowerCase();
+  if (/\bstar\b/.test(text) && /gave your entry/.test(text)) return 'star';
+  if (/favou?rited your entry/.test(text)) return 'favourite';
+  if (/\bfollowing you\b/.test(text)) return 'follow';
+  return null;
+}
+
+/** The entry a notification is about: `link_url` when it is an entry link, else the first entry
+ * link in the body. `null` if neither is. */
+export function notificationEntryId(notification: BlipNotification): string | null {
+  const candidates = [notification.link_url, ...extractHrefs(notification.content_html)];
+  for (const href of candidates) {
+    const target = resolveWebPathTarget(pathOf(href));
+    if (target?.kind === 'entry') return target.entryId;
+  }
+  return null;
+}
+
 /** SCR-23's tap routing, in the order the spec states it: follow-request first (a hardcoded
  * server-side path inside `content_html`, "a far more robust signal than username parsing"),
  * then `link_url`'s own entry/profile shape, else the link opens externally. */
