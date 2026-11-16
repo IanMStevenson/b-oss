@@ -51,6 +51,7 @@ import {
 import { LoadFailed } from '../../components/LoadFailed.js';
 import { describeError, mapApiError } from '../../data/errors.js';
 import { useAppNavigate } from '../../app/routes/useAppNavigate.js';
+import { useDevicePrefsStore } from '../../state/devicePrefsStore.js';
 import { useHiddenMembers } from '../../state/hiddenMembersStore.js';
 import { useAccountsStore } from '../../state/accountsStore.js';
 import { useNotificationCountsStore } from '../../state/notificationCountsStore.js';
@@ -67,6 +68,7 @@ type Status = 'loading' | 'loaded' | 'empty' | 'error';
 export function NotificationsInboxScreen() {
   const navigate = useAppNavigate();
   const hiddenUsernames = useHiddenMembers();
+  const enhanced = useDevicePrefsStore((s) => s.enhancedNotifications);
   const clearNotifications = useNotificationCountsStore((s) => s.clearNotifications);
   const activeAccountId = useAccountsStore((s) => s.activeAccountId);
 
@@ -207,7 +209,7 @@ export function NotificationsInboxScreen() {
             <PointerRefresh onRefresh={() => void fetchNewer(false)} />
             {visibleItems.map((notification) => {
               const unread = newIdsRef.current?.has(notification.notification_id_str) ?? false;
-              const app = notificationActor(notification);
+              const app = enhanced ? notificationActor(notification) : null;
               const entryId = notificationEntryId(notification);
               // Star and favourite need the entry to lead the row; without one, or for any
               // unrecognised wording, the original row below is used (b-oss#1027).

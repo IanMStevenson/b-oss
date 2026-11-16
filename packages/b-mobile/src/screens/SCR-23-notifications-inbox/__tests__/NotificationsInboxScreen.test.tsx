@@ -10,6 +10,7 @@ import { NotificationsInboxScreen } from '../NotificationsInboxScreen.js';
 import { OverlayProvider, OverlayHost } from '../../../app/OverlayProvider.js';
 import { useAccountsStore } from '../../../state/accountsStore.js';
 import { useHiddenMembersStore } from '../../../state/hiddenMembersStore.js';
+import { useDevicePrefsStore } from '../../../state/devicePrefsStore.js';
 import { useNotificationCountsStore } from '../../../state/notificationCountsStore.js';
 
 const { fetchRecentNotifications, fetchUnreadTotals } = vi.hoisted(() => ({
@@ -64,6 +65,7 @@ beforeEach(() => {
   useHiddenMembersStore.setState({ hidden: [], hydrated: true });
   useNotificationCountsStore.setState({ comments: 0, notifications: 3 });
   fetchUnreadTotals.mockResolvedValue({ comments: 0, notifications: 3 });
+  useDevicePrefsStore.setState({ enhancedNotifications: true });
   fetchEntryThumbnail.mockResolvedValue(null);
   fetchUserBadges.mockResolvedValue([]);
 });
@@ -183,6 +185,21 @@ describe('NotificationsInboxScreen', () => {
     await waitFor(() =>
       expect(document.querySelector('img[src="https://example.com/avatar.jpg"]')).not.toBeNull(),
     );
+  });
+
+  it('uses the original rows when the enhanced view is off', async () => {
+    useDevicePrefsStore.setState({ enhancedNotifications: false });
+    fetchRecentNotifications.mockResolvedValue([
+      notification({
+        content: 'alice favourited your entry',
+        content_html: '<a href="https://www.blipfoto.com/alice">alice</a> favourited your entry',
+        link_url: 'https://www.blipfoto.com/entry/55',
+      }),
+    ]);
+    renderScreen();
+    await screen.findByText('favourited your entry');
+    expect(screen.queryByRole('img', { name: 'Favourite' })).toBeNull();
+    expect(fetchEntryThumbnail).not.toHaveBeenCalled();
   });
 
   it('keeps the follower picture on a follow and shows the follow icon', async () => {

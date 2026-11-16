@@ -28,6 +28,7 @@ describe('profile', () => {
       showZoomBar: true,
       showPagination: true,
       showSourceNavBar: false,
+      enhancedNotifications: false,
       thumbnailMargins: 'none',
       thumbnailZoomPercent: 100,
       photoFit: 'full-width',
