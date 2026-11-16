@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (C) 2026 Ian Stevenson
 
-import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 
 const fetchUnreadTotals =
   vi.fn<(...args: unknown[]) => Promise<{ comments: number; notifications: number }>>();
@@ -9,7 +9,8 @@ vi.mock('../../data/notifications.js', () => ({
   fetchUnreadTotals: (...args: unknown[]) => fetchUnreadTotals(...args),
 }));
 
-const { useNotificationCountsStore } = await import('../notificationCountsStore.js');
+const { useNotificationCountsStore, REFRESH_MIN_AGE_MS } =
+  await import('../notificationCountsStore.js');
 
 beforeEach(() => {
   vi.clearAllMocks();
@@ -28,6 +29,40 @@ describe('refresh', () => {
     fetchUnreadTotals.mockRejectedValue(new Error('network down'));
     await useNotificationCountsStore.getState().refresh();
     expect(useNotificationCountsStore.getState()).toMatchObject({ comments: 2, notifications: 4 });
+  });
+});
+
+describe('refreshIfStale', () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+    useNotificationCountsStore.getState().reset(); // also clears the throttle
+  });
+  afterEach(() => vi.useRealTimers());
+
+  it('fetches the first time, skips within a minute, fetches again after', async () => {
+    fetchUnreadTotals.mockResolvedValue({ comments: 1, notifications: 1 });
+    const { refreshIfStale } = useNotificationCountsStore.getState();
+    await refreshIfStale();
+    await refreshIfStale();
+    expect(fetchUnreadTotals).toHaveBeenCalledTimes(1);
+    vi.advanceTimersByTime(REFRESH_MIN_AGE_MS);
+    await refreshIfStale();
+    expect(fetchUnreadTotals).toHaveBeenCalledTimes(2);
+  });
+
+  it('retries straight away after a failed fetch', async () => {
+    fetchUnreadTotals.mockRejectedValueOnce(new Error('down'));
+    fetchUnreadTotals.mockResolvedValue({ comments: 2, notifications: 0 });
+    await useNotificationCountsStore.getState().refreshIfStale();
+    await useNotificationCountsStore.getState().refreshIfStale();
+    expect(useNotificationCountsStore.getState().comments).toBe(2);
+  });
+
+  it('plain refresh is never throttled', async () => {
+    fetchUnreadTotals.mockResolvedValue({ comments: 0, notifications: 0 });
+    await useNotificationCountsStore.getState().refresh();
+    await useNotificationCountsStore.getState().refresh();
+    expect(fetchUnreadTotals).toHaveBeenCalledTimes(2);
   });
 });
 

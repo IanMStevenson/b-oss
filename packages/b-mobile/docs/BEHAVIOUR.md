@@ -231,7 +231,9 @@ reminders,details,profile,notifications}`; the old `/settings/{general,journal,a
 - Foreground push refreshes unread counts; `reauth-required` forces out the service token. Tap:
   switch to that account, open `/comments` or `/notifications`; unknown or needs-reauth account →
   `/accounts`; `reauth-required` → `/accounts?reauth=<id>`. Unread counts are memory only,
-  refreshed on launch, account switch and push, and zeroed on opening an inbox.
+  refreshed on launch, account switch and push, and zeroed on opening an inbox. They are also
+  refreshed when the menu opens, every minute while it is visible (drawer open, or the menu beside
+  the page) and on app resume, skipping any of those if a fetch started under a minute ago (b-oss#1021).
 - Desktop shell (`capabilities().notifications.mechanism === 'polling'`, b-oss#610): the same two
   per-account switches, but a setting only: no permission prompt, no read round, no b-push, no
   second token. The shell polls every 5 minutes with the account's app token and shows an OS

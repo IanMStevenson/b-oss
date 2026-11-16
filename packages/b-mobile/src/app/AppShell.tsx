@@ -5,7 +5,7 @@
 // stack — no router-level tabs, since SCR-02's seven feeds (Recent, Following, Me, Popular,
 // Milestones, New Blippers, Nearby) are in-screen state, not routes.
 
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { installKeyboardScroll } from './keyboardScroll.js';
 import {
   IonApp,
@@ -44,7 +44,10 @@ import { markAuthReady } from '../state/authReady.js';
 import { maybeRunFeedProbe } from '../diagnostics/feedProbe.js';
 import { useHiddenMembersStore } from '../state/hiddenMembersStore.js';
 import { useDevicePrefsStore } from '../state/devicePrefsStore.js';
-import { useNotificationCountsStore } from '../state/notificationCountsStore.js';
+import {
+  REFRESH_MIN_AGE_MS,
+  useNotificationCountsStore,
+} from '../state/notificationCountsStore.js';
 import { discardLegacyUploadQueue } from '../platform/upload.js';
 import { onReminderTapped } from '../platform/localNotifications.js';
 import { refreshAccountAvatars } from '../flows/avatarFlow.js';
@@ -216,10 +219,30 @@ function NavMenu() {
   const commentsCount = useNotificationCountsStore((s) => s.comments);
   const { pathname } = useLocation();
   const pane = useNavPane(pathname);
+  // Keep the counts fresh while the menu can be seen (b-oss#1021): the drawer once it is opening
+  // (that refresh is throttled), or the menu beside the page on a wide window. Re-checked every
+  // minute while visible; the store's throttle absorbs any overlap with other triggers.
+  const [drawerOpen, setDrawerOpen] = useState(false);
+  const visible = drawerOpen || (pane.enabled && pane.open);
+  useEffect(() => {
+    if (!visible || !activeAccount) return;
+    void useNotificationCountsStore.getState().refreshIfStale();
+    const id = setInterval(() => {
+      if (document.visibilityState !== 'hidden') {
+        void useNotificationCountsStore.getState().refreshIfStale();
+      }
+    }, REFRESH_MIN_AGE_MS);
+    return () => clearInterval(id);
+  }, [visible, activeAccount]);
   // swipeGesture off: a swipe from the left screen edge was opening this menu by accident (and
   // competing with the in-page swipe navigation). The menu opens from the header button only.
   return (
-    <IonMenu contentId={MAIN_CONTENT_ID} swipeGesture={false}>
+    <IonMenu
+      contentId={MAIN_CONTENT_ID}
+      swipeGesture={false}
+      onIonWillOpen={() => setDrawerOpen(true)}
+      onIonDidClose={() => setDrawerOpen(false)}
+    >
       <IonContent>
         {/* Flex column filling the drawer so the version footer sits at the bottom of the screen
             (IonContent's own bottom padding keeps it clear of the gesture bar). */}
@@ -497,7 +520,13 @@ export function AppShell() {
     // same backstop check on every resume, not only at launch, since the OS permission (or the
     // service's registration health) may have changed while the app was backgrounded.
     const offAppState = onAppStateChange((isActive) => {
-      if (isActive) void runLaunchBackstopCheck();
+      if (isActive) {
+        void runLaunchBackstopCheck();
+        // Counts may have moved while backgrounded; throttled like the menu's own refreshes.
+        if (useAccountsStore.getState().activeAccountId) {
+          void useNotificationCountsStore.getState().refreshIfStale();
+        }
+      }
     });
     // Desktop: keep the shell's poller watching exactly the accounts with notifications on.
     const offPollingSync = usesPolling() ? startPollingSync(accountsHydrated) : () => {};
