@@ -67,10 +67,12 @@ function renderScreen() {
 
 // Capabilities under test: the jsdom default is `web` (location and camera both available); the
 // pick-only / files-only cases flip these (b-oss#636).
-const caps = vi.hoisted((): { location: 'os' | 'pick-only'; capture: 'camera' | 'files-only' } => ({
-  location: 'os',
-  capture: 'camera',
-}));
+const caps = vi.hoisted(
+  (): { location: 'os' | 'pick-only'; capture: 'camera' | 'files-only' } => ({
+    location: 'os',
+    capture: 'camera',
+  }),
+);
 vi.mock('../../../platform/capabilities.js', async (importOriginal) => {
   const real = await importOriginal<typeof import('../../../platform/capabilities.js')>();
   return {

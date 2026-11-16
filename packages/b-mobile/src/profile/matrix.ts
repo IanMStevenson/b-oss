@@ -27,9 +27,7 @@ function table(heading: string[], columns: Record<string, unknown>[]): string {
   const lines = [
     `| ${heading.join(' | ')} |`,
     `| ${heading.map(() => '---').join(' | ')} |`,
-    ...keys.map(
-      (key) => `| \`${key}\` | ${cells.map((c) => `\`${c.get(key) ?? ''}\``).join(' | ')} |`,
-    ),
+    ...keys.map((key) => `| \`${key}\` | ${cells.map((c) => `\`${c.get(key) ?? ''}\``).join(' | ')} |`),
   ];
   return lines.join('\n');
 }

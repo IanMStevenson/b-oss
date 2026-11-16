@@ -11,6 +11,7 @@ import { FINE_POINTER_QUERY } from './finePointer.js';
 
 export type PointerKind = 'fine' | 'coarse';
 
+
 export function pointerKind(fine: boolean): PointerKind {
   return fine ? 'fine' : 'coarse';
 }
