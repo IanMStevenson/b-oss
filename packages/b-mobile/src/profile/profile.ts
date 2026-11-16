@@ -109,7 +109,7 @@ export const HANDHELD_PREFS: DevicePrefValues = {
   showZoomBar: true,
   showPagination: true,
   showSourceNavBar: false,
-  enhancedNotifications: false,
+  enhancedNotifications: true,
   thumbnailMargins: 'none',
   thumbnailZoomPercent: 100,
   photoFit: 'full-width',

@@ -5,6 +5,23 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [b-mobile 1.6.0] - 2026-11-16
+
+### Added
+
+- b-mobile: an "Enhanced notifications view" (Settings->Appearance->Notifications; on by default, can be turned off). When on, star, favourite and follow rows in the notifications inbox show the entry thumbnail, the member's badges and an action icon, like the comments inbox (b-oss#1027).
+- b-mobile: an unread dot on the header menu button while comments or notifications are unread (b-oss#1016).
+
+### Changed
+
+- b-mobile: the menu's unread counts refresh when the menu opens, every minute while it is visible, and on app resume (b-oss#1021).
+- b-mobile: a stream's delivered push notifications are cleared when its inbox opens, or when a refresh finds its total at 0 (read elsewhere) (b-oss#1020).
+- b-push: activity pushes carry the stream's total unread and replace the previous one (tag `<accountId>:<stream>`), instead of "N new" since the last push (b-oss#1020). Already deployed by hand.
+
+### Fixed
+
+- b-mobile: new-item dots on the notifications inbox now show when it is opened from a push tap, and the comments inbox now marks new comments at all, both from the unread count read before the list (b-oss#1018, b-oss#1022).
+
 ## [b-mobile 1.5.2] - 2026-11-12
 
 ### Changed

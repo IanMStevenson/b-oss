@@ -1,3 +1,7 @@
+## 1.6.0 - 2026-11-16
+
+New: a red dot on the menu button when you have unread comments or notifications, and the menu's counts stay fresh. An Enhanced notifications view (on by default; turn it off in Settings->Appearance) shows the entry, badges and an icon on each row. Notifications in the tray are replaced rather than piled up, and clear when you open that inbox. Fixed: new-item dots in Comments and in Notifications opened from a push.
+
 ## 1.5.2 - 2026-11-12
 
 Changed: Blipfoto links in comments, notifications and journal text now open in the app. Choosing a thumbnail works like the website, with Cancel and Use thumbnail. Profiles open on Entries, and switching a read-only account to read-write takes you straight there. Fixed: a profile opened from Followers or Following now shows that member's own details.
