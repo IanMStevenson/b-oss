@@ -9,7 +9,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
-- b-mobile: an optional "Enhanced notifications view" (Settings, Appearance, Notifications; off by default). When on, star, favourite and follow rows in the notifications inbox show the entry thumbnail, the member's badges and an action icon, like the comments inbox (b-oss#1027).
+- b-mobile: an "Enhanced notifications view" (Settings, Appearance, Notifications; on by default, can be turned off). When on, star, favourite and follow rows in the notifications inbox show the entry thumbnail, the member's badges and an action icon, like the comments inbox (b-oss#1027).
 - b-mobile: an unread dot on the header menu button while comments or notifications are unread (b-oss#1016).
 
 ### Changed
