@@ -234,6 +234,7 @@ reminders,details,profile,notifications}`; the old `/settings/{general,journal,a
   refreshed on launch, account switch and push, and zeroed on opening an inbox. They are also
   refreshed when the menu opens, every minute while it is visible (drawer open, or the menu beside
   the page) and on app resume, skipping any of those if a fetch started under a minute ago (b-oss#1021).
+- On Android, opening an inbox, or a refresh that finds that stream's total at 0, removes that stream's delivered tray notifications for the active account (matched by the push tag `<accountId>:<stream>`); other streams, other accounts and reauth alerts stay (b-oss#1020).
 - Desktop shell (`capabilities().notifications.mechanism === 'polling'`, b-oss#610): the same two
   per-account switches, but a setting only: no permission prompt, no read round, no b-push, no
   second token. The shell polls every 5 minutes with the account's app token and shows an OS
