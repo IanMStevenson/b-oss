@@ -1,6 +1,6 @@
 ## 1.6.0 - 2026-11-16
 
-New: a red dot on the menu button when you have unread comments or notifications, and the menu's counts stay fresh. An Enhanced notifications view, on by default and switchable off in Settings, Appearance, shows the entry, badges and an icon on each row. Fixed: new-item dots in the Comments and Notifications lists.
+New: a red dot on the menu button when you have unread comments or notifications, and the menu's counts stay fresh. An Enhanced notifications view (on by default; turn it off in Settings->Appearance) shows the entry, badges and an icon on each row. Fixed: new-item dots in the Comments and Notifications lists.
 
 ## 1.5.2 - 2026-11-12
 
