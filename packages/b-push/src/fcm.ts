@@ -133,6 +133,7 @@ async function getAccessToken(
  * alert (ARCHITECTURE.md "What the push can and cannot say" / "System alert:
  * reauth-required"). No type/target/actor in either case. */
 export type FcmPayload =
+  // `count` is the stream's current total unread, not the change since the last push.
   | { kind: 'activity'; stream: 'comments' | 'notifications'; accountId: string; count: number }
   | { kind: 'reauth-required'; accountId: string };
 
@@ -166,6 +167,15 @@ function channelIdFor(payload: FcmPayload): string {
   return payload.kind === 'reauth-required' ? 'system_alerts' : 'activity';
 }
 
+// An activity push replaces the previous one for the same account and stream (Android `tag`), so
+// a busy day leaves one notification per stream, not a list. Old app versions just see that.
+function androidNotificationFor(payload: FcmPayload): { channel_id: string; tag?: string } {
+  const channel_id = channelIdFor(payload);
+  return payload.kind === 'activity'
+    ? { channel_id, tag: `${payload.accountId}:${payload.stream}` }
+    : { channel_id };
+}
+
 export async function sendFcmMessage(
   env: Env,
   deviceToken: string,
@@ -190,7 +200,7 @@ export async function sendFcmMessage(
           token: deviceToken,
           notification: { title, body },
           data: dataFor(payload),
-          android: { notification: { channel_id: channelIdFor(payload) } },
+          android: { notification: androidNotificationFor(payload) },
         },
       }),
     },

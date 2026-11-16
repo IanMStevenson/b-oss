@@ -67,7 +67,7 @@ poll_interval_minutes` (`listDueRegistrations`, `src/db.ts`).
    requested. This is the only Blipfoto call the poll makes.
 3. Stores the new totals and `last_polled_at` regardless of the toggles, so a stream switched back
    on later doesn't fire a catch-up push.
-4. For each stream whose total rose and whose toggle is on, sends one push with the delta.
+4. For each stream whose total rose and whose toggle is on, sends one push with the stream's total unread.
 
 The two totals are independent (a comment raises only the comment total), so they are compared and
 pushed separately. With both toggles off a row still polls; the app deletes the registration when
@@ -105,10 +105,14 @@ approach a run's capacity. The leftover count is `deferred` in the poll log line
 
 ### What the push can and cannot say
 
-A count delta is all the service has. There are two payload shapes (`FcmPayload`, `src/fcm.ts`):
+The current unread total per stream is all the service has. There are two payload shapes (`FcmPayload`, `src/fcm.ts`):
 
-- `activity`: `stream` (`comments` | `notifications`), `accountId`, and a count, displayed as
-  "b-mobile / 2 new comments".
+- `activity`: `stream` (`comments` | `notifications`), `accountId`, and the stream's **total unread**
+  (not the change since the last push), displayed as "b-mobile / 5 new comments". Its Android
+  `tag` is `<accountId>:<stream>`, so a new push replaces the previous one instead of adding another.
+  The count can go down (reading elsewhere lowers Blipfoto's total); it always matches the inbox.
+  A server push cannot remove a tray notification, so a stale one stays until the next push or the
+  app clears it.
 - `reauth-required`: `accountId` only (see below).
 
 Both are sent as ordinary FCM **notification** messages (never data-only, which Android defers in

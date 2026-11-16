@@ -115,11 +115,16 @@ describe('sendFcmMessage', () => {
       accountId: 'gbradley',
     });
 
-    type SentBody = { message: { android: { notification: { channel_id: string } } } };
+    type SentBody = {
+      message: { android: { notification: { channel_id: string; tag?: string } } };
+    };
     const activityBody = JSON.parse(fetchSpy.mock.calls[1][1]!.body as string) as SentBody;
     const reauthBody = JSON.parse(fetchSpy.mock.calls[2][1]!.body as string) as SentBody;
     expect(activityBody.message.android.notification.channel_id).toBe('activity');
     expect(reauthBody.message.android.notification.channel_id).toBe('system_alerts');
+    // An activity push replaces the previous one for that account and stream; reauth never does.
+    expect(activityBody.message.android.notification.tag).toBe('gbradley:comments');
+    expect(reauthBody.message.android.notification.tag).toBeUndefined();
   });
 
   it('singularizes the count-1 case', async () => {
