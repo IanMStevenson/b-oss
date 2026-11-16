@@ -16,6 +16,8 @@ interface NotificationCountsState {
   comments: number;
   notifications: number;
   refresh: () => Promise<void>;
+  /** Refresh unless a fetch started less than `REFRESH_MIN_AGE_MS` ago (menu open, timer, resume). */
+  refreshIfStale: () => Promise<void>;
   clearComments: () => void;
   clearNotifications: () => void;
   reset: () => void;
@@ -29,11 +31,18 @@ interface NotificationCountsState {
 let commentsEpoch = 0;
 let notificationsEpoch = 0;
 
+/** When the last fetch started (0 = none yet, or the last one failed / the account changed). */
+let lastFetchAt = 0;
+
+/** The throttle for the menu's own refreshes (b-oss#1021). Pushes and account switches bypass it. */
+export const REFRESH_MIN_AGE_MS = 60_000;
+
 export const useNotificationCountsStore = create<NotificationCountsState>((set) => ({
   comments: 0,
   notifications: 0,
 
   refresh: async () => {
+    lastFetchAt = Date.now();
     const startedAt = { comments: commentsEpoch, notifications: notificationsEpoch };
     try {
       const totals = await fetchUnreadTotals();
@@ -44,9 +53,15 @@ export const useNotificationCountsStore = create<NotificationCountsState>((set) 
           : {}),
       });
     } catch {
+      lastFetchAt = 0; // let the next trigger retry rather than wait out the throttle
       // A failed refresh leaves the last-known counts showing rather than zeroing them — a
       // transient network error shouldn't read as "you have no unread activity."
     }
+  },
+
+  refreshIfStale: async () => {
+    if (Date.now() - lastFetchAt < REFRESH_MIN_AGE_MS) return;
+    await useNotificationCountsStore.getState().refresh();
   },
 
   clearComments: () => {
@@ -63,6 +78,7 @@ export const useNotificationCountsStore = create<NotificationCountsState>((set) 
   reset: () => {
     commentsEpoch++;
     notificationsEpoch++;
+    lastFetchAt = 0;
     set({ comments: 0, notifications: 0 });
   },
 }));
