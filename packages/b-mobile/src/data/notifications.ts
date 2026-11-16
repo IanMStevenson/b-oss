@@ -18,7 +18,7 @@ export interface UnreadTotals {
 
 /** The one side-effect-free read on either stream (b-api docs/api-reference.md) — safe to call any
  * time, including to snapshot "how many were unread" *before* triggering a fetch that would mark
- * them read (app-architecture.md §11's first-page-unread-snapshot trap, and FLW-15 step 2's "unread
+ * them read (app-architecture.md §11's unread-count-before-fetch trap, and FLW-15 step 2's "unread
  * total is a server figure"). */
 export async function fetchUnreadTotals(): Promise<UnreadTotals> {
   const client = await getClient();
@@ -173,16 +173,4 @@ export function resolveNotificationTarget(notification: BlipNotification): Notif
   if (target) return target;
 
   return { kind: 'external', url: notification.link_url };
-}
-
-// ── SCR-24 first-page-unread-snapshot (app-architecture.md §11) ───────────────────────────────
-
-/** The comments-inbox trap, made explicit as a function rather than left as an inline
- * `.filter(c => c.unread === 1)` at each call site: only the **first** `messages/comments/recent`
- * response in a session has meaningful `unread` flags — every later page/refresh will show
- * everything as already read, because the first fetch cleared all of it server-side. Callers must
- * capture this once (e.g. into a `Set<string>` of comment ids) and never recompute it from a
- * later response. */
-export function unreadCommentIds(firstResponseComments: readonly BlipComment[]): Set<string> {
-  return new Set(firstResponseComments.filter((c) => c.unread === 1).map((c) => c.comment_id_str));
 }

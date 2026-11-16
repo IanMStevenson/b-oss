@@ -12,12 +12,15 @@ import { useAccountsStore } from '../../../state/accountsStore.js';
 import { useHiddenMembersStore } from '../../../state/hiddenMembersStore.js';
 import { useNotificationCountsStore } from '../../../state/notificationCountsStore.js';
 
-const { fetchRecentComments } = vi.hoisted(() => ({ fetchRecentComments: vi.fn() }));
+const { fetchRecentComments, fetchUnreadTotals } = vi.hoisted(() => ({
+  fetchRecentComments: vi.fn(),
+  fetchUnreadTotals: vi.fn(),
+}));
 vi.mock('../../../data/notifications.js', async () => {
   const actual = await vi.importActual<typeof import('../../../data/notifications.js')>(
     '../../../data/notifications.js',
   );
-  return { ...actual, fetchRecentComments };
+  return { ...actual, fetchRecentComments, fetchUnreadTotals };
 });
 
 const { onAppStateChange } = vi.hoisted(() => ({ onAppStateChange: vi.fn() }));
@@ -94,7 +97,6 @@ function comment(overrides: Partial<Record<string, unknown>> = {}) {
     commenter: { username: 'alice', avatar_url: 'https://example.com/avatar.jpg', icons: [] },
     actions: { reply: 1, edit: 0, delete: 1 },
     replies: null,
-    unread: 1,
     ...overrides,
   };
 }
@@ -113,6 +115,7 @@ beforeEach(() => {
   useAccountsStore.setState({ accounts: [meAccount], activeAccountId: 'me', hydrated: true });
   useHiddenMembersStore.setState({ hidden: [], hydrated: true });
   useNotificationCountsStore.setState({ comments: 4, notifications: 0 });
+  fetchUnreadTotals.mockResolvedValue({ comments: 4, notifications: 0 });
 });
 
 afterEach(() => {
@@ -276,6 +279,8 @@ describe('CommentsInboxScreen', () => {
   });
 
   it('pull-to-refresh fetches only newer items via the since_id cursor and prepends them', async () => {
+    useNotificationCountsStore.setState({ comments: 0, notifications: 0 });
+    fetchUnreadTotals.mockResolvedValue({ comments: 0, notifications: 0 });
     fetchRecentComments.mockResolvedValueOnce([comment({ comment_id_str: '5' })]);
     renderScreen();
     await screen.findByText('lovely light!');
@@ -289,21 +294,21 @@ describe('CommentsInboxScreen', () => {
     expect(await screen.findByText('a brand new comment')).toBeDefined();
   });
 
-  it('new-item marking reflects what was new on first open, and is not recomputed from a later refresh', async () => {
+  it('marks as new as many of the newest rows as the server says are unread', async () => {
+    useNotificationCountsStore.setState({ comments: 0, notifications: 0 });
+    fetchUnreadTotals.mockResolvedValue({ comments: 1, notifications: 0 });
     fetchRecentComments.mockResolvedValueOnce([
-      comment({ comment_id_str: '1', unread: 1 }),
-      comment({ comment_id_str: '2', content: 'already read', unread: 0 }),
+      comment({ comment_id_str: '2' }),
+      comment({ comment_id_str: '1', content: 'already read' }),
     ]);
     renderScreen();
     await screen.findByText('lovely light!');
     expect(screen.getAllByText('New')).toHaveLength(1);
 
-    // Even though this later response's own `unread` flags could in principle be trusted for
-    // genuinely-new arrivals, the snapshot is captured once and never recomputed — the safe,
-    // always-correct reading of "captured from the first response only" (app-architecture.md
-    // §11). A newly-arrived comment here should render, just without a "New" label.
+    // The snapshot is captured once and never recomputed: a comment that arrives by pull-to-refresh
+    // renders, but without a "New" label.
     fetchRecentComments.mockResolvedValueOnce([
-      comment({ comment_id_str: '3', content: 'a brand new comment', unread: 1 }),
+      comment({ comment_id_str: '3', content: 'a brand new comment' }),
     ]);
     const refresher = document.querySelector('ion-refresher')!;
     refresher.dispatchEvent(new CustomEvent('ionRefresh', { detail: { complete: () => {} } }));
@@ -318,7 +323,9 @@ describe('CommentsInboxScreen', () => {
       onState = h;
       return () => {};
     });
-    fetchRecentComments.mockResolvedValueOnce([comment({ comment_id_str: '5', unread: 0 })]);
+    useNotificationCountsStore.setState({ comments: 0, notifications: 0 });
+    fetchUnreadTotals.mockResolvedValue({ comments: 0, notifications: 0 });
+    fetchRecentComments.mockResolvedValueOnce([comment({ comment_id_str: '5' })]);
     renderScreen();
     expect(await screen.findByText('lovely light!')).toBeDefined();
 
