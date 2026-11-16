@@ -149,3 +149,23 @@ export function onPushTapped(handler: (payload: PushPayload) => void): () => voi
   ).then((h) => (handle = h));
   return () => handle?.remove();
 }
+
+/** Removes the tray notifications b-push delivered for one account's stream. b-push tags each
+ * activity push `<accountId>:<stream>` (b-oss#1020), so one inbox's notifications go without
+ * touching the other stream's, another account's, or a reauth-required alert (which has a
+ * different tag). Best-effort: a failure just leaves the tray as it was. */
+export async function clearDeliveredPushes(
+  accountId: string,
+  stream: 'comments' | 'notifications',
+): Promise<void> {
+  if (!isCapacitorNative() || pushPlatform() !== 'android') return;
+  try {
+    const tag = `${accountId}:${stream}`;
+    const { notifications } = await PushNotifications.getDeliveredNotifications();
+    const mine = notifications.filter((n) => n.tag === tag);
+    if (mine.length > 0)
+      await PushNotifications.removeDeliveredNotifications({ notifications: mine });
+  } catch {
+    // Nothing to do: the next push replaces it anyway.
+  }
+}

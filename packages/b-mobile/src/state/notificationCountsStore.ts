@@ -11,6 +11,14 @@
 
 import { create } from 'zustand';
 import { fetchUnreadTotals } from '../data/notifications.js';
+import { clearDeliveredPushes } from '../platform/push.js';
+import { useAccountsStore } from './accountsStore.js';
+
+/** Drops the active account's tray notifications for a stream whose inbox is now empty or open. */
+function clearTray(stream: 'comments' | 'notifications'): void {
+  const accountId = useAccountsStore.getState().activeAccountId;
+  if (accountId) void clearDeliveredPushes(accountId, stream);
+}
 
 interface NotificationCountsState {
   comments: number;
@@ -46,6 +54,11 @@ export const useNotificationCountsStore = create<NotificationCountsState>((set) 
     const startedAt = { comments: commentsEpoch, notifications: notificationsEpoch };
     try {
       const totals = await fetchUnreadTotals();
+      // Read elsewhere (website, another device): the tray still shows the old push.
+      if (startedAt.comments === commentsEpoch && totals.comments === 0) clearTray('comments');
+      if (startedAt.notifications === notificationsEpoch && totals.notifications === 0) {
+        clearTray('notifications');
+      }
       set({
         ...(startedAt.comments === commentsEpoch ? { comments: totals.comments } : {}),
         ...(startedAt.notifications === notificationsEpoch
@@ -66,10 +79,12 @@ export const useNotificationCountsStore = create<NotificationCountsState>((set) 
 
   clearComments: () => {
     commentsEpoch++;
+    clearTray('comments');
     set({ comments: 0 });
   },
   clearNotifications: () => {
     notificationsEpoch++;
+    clearTray('notifications');
     set({ notifications: 0 });
   },
 

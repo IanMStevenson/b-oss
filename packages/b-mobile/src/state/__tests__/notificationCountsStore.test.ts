@@ -9,11 +9,19 @@ vi.mock('../../data/notifications.js', () => ({
   fetchUnreadTotals: (...args: unknown[]) => fetchUnreadTotals(...args),
 }));
 
+const clearDeliveredPushes = vi.fn<(accountId: string, stream: string) => Promise<void>>();
+vi.mock('../../platform/push.js', () => ({
+  clearDeliveredPushes: (a: string, s: string) => clearDeliveredPushes(a, s),
+}));
+
+const { useAccountsStore } = await import('../accountsStore.js');
 const { useNotificationCountsStore, REFRESH_MIN_AGE_MS } =
   await import('../notificationCountsStore.js');
 
 beforeEach(() => {
   vi.clearAllMocks();
+  clearDeliveredPushes.mockResolvedValue();
+  useAccountsStore.setState({ activeAccountId: 'acc1' });
   useNotificationCountsStore.setState({ comments: 0, notifications: 0 });
 });
 
@@ -109,5 +117,27 @@ describe('a refresh that was already in flight (b-oss#148)', () => {
     finish({ comments: 2, notifications: 4 });
     await refreshing;
     expect(useNotificationCountsStore.getState()).toMatchObject({ comments: 0, notifications: 0 });
+  });
+});
+
+describe('clearing delivered pushes (b-oss#1020)', () => {
+  it("clears the active account's tray notifications when an inbox opens", () => {
+    useNotificationCountsStore.getState().clearComments();
+    useNotificationCountsStore.getState().clearNotifications();
+    expect(clearDeliveredPushes).toHaveBeenCalledWith('acc1', 'comments');
+    expect(clearDeliveredPushes).toHaveBeenCalledWith('acc1', 'notifications');
+  });
+
+  it('clears only the streams whose refreshed total is 0', async () => {
+    fetchUnreadTotals.mockResolvedValue({ comments: 0, notifications: 3 });
+    await useNotificationCountsStore.getState().refresh();
+    expect(clearDeliveredPushes).toHaveBeenCalledTimes(1);
+    expect(clearDeliveredPushes).toHaveBeenCalledWith('acc1', 'comments');
+  });
+
+  it('does nothing without an active account', () => {
+    useAccountsStore.setState({ activeAccountId: null });
+    useNotificationCountsStore.getState().clearComments();
+    expect(clearDeliveredPushes).not.toHaveBeenCalled();
   });
 });
