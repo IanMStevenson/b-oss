@@ -79,7 +79,6 @@ const comment = (i, entryId = null) => ({
   commenter: user(people[i % people.length]),
   actions: { reply: 1, edit: 0, delete: 0 },
   replies: null,
-  unread: i < 2 ? 1 : 0,
 });
 
 const notification = (i) => ({

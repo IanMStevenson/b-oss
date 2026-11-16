@@ -5,11 +5,11 @@
 // reasoning as SCR-23 (reachable from a tapped push while signed out, FLW-16 step 3).
 //
 // Fetching *is* what marks every one of the account's unread comments read — not just the page
-// returned (b-api docs/api-reference.md). `newIdsRef` captures which ids were unread from the
-// **first** response only (`data/notifications.ts#unreadCommentIds`, app-architecture.md §11's
-// "first-page-unread- snapshot" trap) — a `useRef` seeded once, deliberately not derived reactively
-// from `items` on every render, since any later response (pull-to-refresh) will show every row as
-// already read.
+// returned (b-api docs/api-reference.md). The response carries no per-comment unread flag, so the
+// new rows are worked out the way SCR-23 does: the unread total is read from the server *before*
+// the list fetch, and the newest N rows of the first response are the new ones (the endpoint
+// returns newest first). `newIdsRef` is a `useRef` seeded once, deliberately not derived reactively
+// from `items` on every render.
 //
 // Hidden-member suppression here is exact, unlike SCR-23's best-effort heuristic — a comment
 // states who wrote it structurally (`commenter.username`), no text-parsing needed.
@@ -35,7 +35,7 @@ import { EmptyState } from '../../components/EmptyState.js';
 import { AppHeader } from '../../components/AppHeader.js';
 import { UserBadges } from '../../components/UserBadges.js';
 import { useRefreshOnResume } from '../../hooks/useRefreshOnResume.js';
-import { fetchRecentComments, unreadCommentIds } from '../../data/notifications.js';
+import { fetchRecentComments, fetchUnreadTotals } from '../../data/notifications.js';
 import { deleteComment } from '../../flows/commentsFlow.js';
 import { LoadFailed } from '../../components/LoadFailed.js';
 import { describeError, mapApiError } from '../../data/errors.js';
@@ -70,28 +70,49 @@ export function CommentsInboxScreen() {
   const latestIdRef = useRef<string | null>(null);
   // Seeded once, from the first successful response only — see the file header comment.
   const newIdsRef = useRef<Set<string> | null>(null);
+  // The unread count, kept once: load() can run more than once (a Retry, or an account change) and
+  // by then the badge is already zeroed. Same as SCR-23.
+  const unreadCountRef = useRef<number | null>(null);
 
   const load = useCallback(() => {
+    const storedCount = useNotificationCountsStore.getState().comments;
     clearComments();
     setStatus('loading');
     setErrorMessage(null);
     setErrorIsTransport(false);
-    fetchRecentComments().then(
-      (comments) => {
-        if (newIdsRef.current === null) {
-          newIdsRef.current = unreadCommentIds(comments);
-        }
-        latestIdRef.current = comments[0]?.comment_id_str ?? null;
-        setItems(comments);
-        setStatus(comments.length === 0 ? 'empty' : 'loaded');
-      },
-      (err: unknown) => {
-        const outcome = mapApiError(err);
-        setErrorIsTransport(outcome.kind === 'transport');
-        setErrorMessage(describeError(outcome, 'Could not load comments.'));
-        setStatus('error');
-      },
-    );
+    // The badge only knows the count if something refreshed it, and a tapped push can arrive with
+    // the app backgrounded or closed. Ask the server before the list fetch below marks everything
+    // read.
+    const countKnown: Promise<number> =
+      unreadCountRef.current !== null
+        ? Promise.resolve(unreadCountRef.current)
+        : fetchUnreadTotals().then(
+            (totals) => Math.max(totals.comments, storedCount),
+            () => storedCount,
+          );
+    countKnown
+      .then((unreadCount) => {
+        unreadCountRef.current ??= unreadCount;
+        return fetchRecentComments();
+      })
+      .then(
+        (comments) => {
+          if (newIdsRef.current === null) {
+            newIdsRef.current = new Set(
+              comments.slice(0, unreadCountRef.current ?? 0).map((c) => c.comment_id_str),
+            );
+          }
+          latestIdRef.current = comments[0]?.comment_id_str ?? null;
+          setItems(comments);
+          setStatus(comments.length === 0 ? 'empty' : 'loaded');
+        },
+        (err: unknown) => {
+          const outcome = mapApiError(err);
+          setErrorIsTransport(outcome.kind === 'transport');
+          setErrorMessage(describeError(outcome, 'Could not load comments.'));
+          setStatus('error');
+        },
+      );
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeAccountId]);
 
@@ -107,7 +128,7 @@ export function CommentsInboxScreen() {
         (fresh) => {
           if (fresh.length > 0) {
             latestIdRef.current = fresh[0].comment_id_str;
-            if (markNew) for (const c of unreadCommentIds(fresh)) newIdsRef.current?.add(c);
+            if (markNew) for (const c of fresh) newIdsRef.current?.add(c.comment_id_str);
             clearComments();
             setItems((prev) => [...fresh, ...prev]);
             setStatus('loaded');

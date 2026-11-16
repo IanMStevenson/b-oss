@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (C) 2026 Ian Stevenson
 
-// Pure-logic coverage for the SCR-23 hidden-member heuristic / target resolution and SCR-24's
-// first-page-unread-snapshot helper (§19: "this is where the density should be").
+// Pure-logic coverage for the SCR-23 hidden-member heuristic / target resolution (§19: "this is
+// where the density should be").
 
 import { describe, it, expect } from 'vitest';
 import {
@@ -10,9 +10,8 @@ import {
   isNotificationFromHiddenMember,
   leadingActor,
   resolveNotificationTarget,
-  unreadCommentIds,
 } from '../notifications.js';
-import type { BlipComment, BlipNotification } from '@b-oss/b-api';
+import type { BlipNotification } from '@b-oss/b-api';
 
 function notification(overrides: Partial<BlipNotification> = {}): BlipNotification {
   return {
@@ -127,21 +126,6 @@ describe('resolveNotificationTarget', () => {
   });
 });
 
-function comment(overrides: Partial<BlipComment> = {}): BlipComment {
-  return {
-    comment_id_str: '1',
-    parent_id_str: null,
-    entry_id_str: '100',
-    thumbnail_url: 'https://example.com/thumb.jpg',
-    content: 'lovely light!',
-    content_html: '<p>lovely light!</p>',
-    commenter: { username: 'alice', avatar_url: 'https://example.com/avatar.jpg', icons: [] },
-    actions: { reply: 1, edit: 0, delete: 1 },
-    replies: null,
-    ...overrides,
-  };
-}
-
 describe('leadingActor', () => {
   const n = (content: string, content_html: string) => ({
     notification_id_str: '1',
@@ -177,25 +161,5 @@ describe('leadingActor', () => {
     expect(leadingActor(n('x', '<a href="/entry/123">x</a>'))).toBeNull();
     expect(leadingActor(n('bob did it', '<a href="/alice">alice</a> did it'))).toBeNull();
     expect(leadingActor(n('hello', '<p>hello</p>'))).toBeNull();
-  });
-});
-
-describe('unreadCommentIds', () => {
-  it('captures ids flagged unread in the given response', () => {
-    const ids = unreadCommentIds([
-      comment({ comment_id_str: '1', unread: 1 }),
-      comment({ comment_id_str: '2', unread: 0 }),
-      comment({ comment_id_str: '3', unread: 1 }),
-    ]);
-    expect(ids).toEqual(new Set(['1', '3']));
-  });
-
-  it('treats a missing unread flag as read', () => {
-    const ids = unreadCommentIds([comment({ comment_id_str: '1' })]);
-    expect(ids.size).toBe(0);
-  });
-
-  it('is empty for an empty response', () => {
-    expect(unreadCommentIds([]).size).toBe(0);
   });
 });

@@ -343,9 +343,10 @@ the inboxes filter what they fetch. The hidden list never leaves the device.
 
 ### The two inboxes (`data/notifications.ts`)
 
-- **`SCR-24` comments are structured** (commenter `username`, `unread`, type, entry id), so
-  filtering and routing are exact. **Trap:** the first fetch clears all unread comments, so
-  `unread` is snapshotted from the first response (`unreadCommentIds()`).
+- **`SCR-24` comments are structured** (commenter `username`, entry id), so filtering and routing
+  are exact. **Trap:** a comment carries no unread flag, and the first fetch clears all unread
+  comments. So the unread total (`fetchUnreadTotals()`) is read _before_ the list fetch and the
+  newest N rows of the first response are the new ones, as on `SCR-23`.
 - **`SCR-23` notifications are rendered text**: id, BBCode content, image URL, link URL, has-more
   flag; no actor, type, unread flag or timestamp.
   - **Hidden suppression is best-effort**: `candidateActorsFromNotification()` treats the
@@ -624,8 +625,7 @@ assembleDebug`), jsdom tests and a headless-browser pass (Playwright, see the `r
   out. `getClient()` already awaits it; code that reads the store directly must too.
 - Existing `b-api` methods and types are not necessarily complete just because a name matches.
   Check what a method actually returns and sends before building on it (the notification-settings
-  update takes flat, un-namespaced keys; `BlipComment.unread` exists only on the comments-inbox
-  response). Defensive code with no caller yet usually points at a gap still to come.
+  update takes flat, un-namespaced keys). Defensive code with no caller yet usually points at a gap still to come.
 - `user/awards.json` returns the full award catalogue, not only earned awards; unearned ones have
   `added_stamp: null`. Award names come from a slug table in `AwardsScreen.tsx`; no endpoint
   returns them. `awardLabel()` shows "Secret" from each award's `secret` flag.

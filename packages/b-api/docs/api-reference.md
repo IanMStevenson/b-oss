@@ -88,7 +88,6 @@ A Comment object represents a comment on a journal entry.
 | `actions.edit`   | 1 if the authenticated user can edit, otherwise 0. Observed: set only for the comment's author.                                      | integer              |
 | `actions.delete` | 1 if the authenticated user can delete, otherwise 0. Observed: set for the comment's author and for the owner of the entry it is on. | integer              |
 | `replies`        | Array of reply Comment objects if `include_replies=1`, otherwise null.                                                               | array(Comment)\|null |
-| `unread`         | Not in Blipfoto's docs. Returned only by `messages/comments/recent`: 1 if the comment was unread as of this response.                | integer              |
 
 ```json
 {
@@ -791,7 +790,7 @@ Describes a month in a user's journal.
 
 Return recent comments on the authenticated user's journal, newest first.
 
-> Observed side effect: fetching this clears **all** of the account's unread comments, not just the ones returned. Each comment's `unread` flag is only meaningful in the first response; later pages show everything as read.
+> Observed side effect: fetching this clears **all** of the account's unread comments, not just the ones returned. The comments carry no per-comment unread flag, so read the unread total (`messages/totals/unread`) first if you need to know how many were new.
 
 **Authorization:** User
 
