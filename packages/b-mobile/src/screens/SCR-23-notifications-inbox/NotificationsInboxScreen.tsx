@@ -41,6 +41,7 @@ import { BBCodeText } from '@b-oss/b-view';
 import { AppHeader } from '../../components/AppHeader.js';
 import {
   fetchRecentNotifications,
+  fetchUnreadTotals,
   isNotificationFromHiddenMember,
   leadingActor,
   resolveNotificationTarget,
@@ -83,30 +84,44 @@ export function NotificationsInboxScreen() {
   const load = useCallback(() => {
     // Optimistic local clear, at the same moment the fetch (the real, server-side clear) starts
     // — FLW-15 step 2.
-    unreadCountRef.current ??= useNotificationCountsStore.getState().notifications;
-    const unreadCount = unreadCountRef.current;
+    const storedCount = useNotificationCountsStore.getState().notifications;
     clearNotifications();
     setStatus('loading');
     setErrorMessage(null);
     setErrorIsTransport(false);
-    fetchRecentNotifications().then(
-      (notifications) => {
-        if (newIdsRef.current === null) {
-          newIdsRef.current = new Set(
-            notifications.slice(0, unreadCount).map((n) => n.notification_id_str),
+    // The badge only knows the count if something refreshed it. Arriving from a tapped push the app
+    // may have been in the background or killed, so it still reads 0 and no row would be marked
+    // new. Ask the server before the list fetch below marks everything read.
+    const countKnown: Promise<number> =
+      unreadCountRef.current !== null
+        ? Promise.resolve(unreadCountRef.current)
+        : fetchUnreadTotals().then(
+            (totals) => Math.max(totals.notifications, storedCount),
+            () => storedCount,
           );
-        }
-        latestIdRef.current = notifications[0]?.notification_id_str ?? null;
-        setItems(notifications);
-        setStatus(notifications.length === 0 ? 'empty' : 'loaded');
-      },
-      (err: unknown) => {
-        const outcome = mapApiError(err);
-        setErrorIsTransport(outcome.kind === 'transport');
-        setErrorMessage(describeError(outcome, 'Could not load notifications.'));
-        setStatus('error');
-      },
-    );
+    countKnown
+      .then((unreadCount) => {
+        unreadCountRef.current ??= unreadCount;
+        return fetchRecentNotifications();
+      })
+      .then(
+        (notifications) => {
+          if (newIdsRef.current === null) {
+            newIdsRef.current = new Set(
+              notifications.slice(0, unreadCountRef.current ?? 0).map((n) => n.notification_id_str),
+            );
+          }
+          latestIdRef.current = notifications[0]?.notification_id_str ?? null;
+          setItems(notifications);
+          setStatus(notifications.length === 0 ? 'empty' : 'loaded');
+        },
+        (err: unknown) => {
+          const outcome = mapApiError(err);
+          setErrorIsTransport(outcome.kind === 'transport');
+          setErrorMessage(describeError(outcome, 'Could not load notifications.'));
+          setStatus('error');
+        },
+      );
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeAccountId]);
 

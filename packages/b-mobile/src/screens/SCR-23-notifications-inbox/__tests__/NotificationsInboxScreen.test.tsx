@@ -12,12 +12,15 @@ import { useAccountsStore } from '../../../state/accountsStore.js';
 import { useHiddenMembersStore } from '../../../state/hiddenMembersStore.js';
 import { useNotificationCountsStore } from '../../../state/notificationCountsStore.js';
 
-const { fetchRecentNotifications } = vi.hoisted(() => ({ fetchRecentNotifications: vi.fn() }));
+const { fetchRecentNotifications, fetchUnreadTotals } = vi.hoisted(() => ({
+  fetchRecentNotifications: vi.fn(),
+  fetchUnreadTotals: vi.fn(),
+}));
 vi.mock('../../../data/notifications.js', async () => {
   const actual = await vi.importActual<typeof import('../../../data/notifications.js')>(
     '../../../data/notifications.js',
   );
-  return { ...actual, fetchRecentNotifications };
+  return { ...actual, fetchRecentNotifications, fetchUnreadTotals };
 });
 
 const { onAppStateChange } = vi.hoisted(() => ({ onAppStateChange: vi.fn() }));
@@ -47,6 +50,7 @@ beforeEach(() => {
   useAccountsStore.setState({ accounts: [], activeAccountId: null, hydrated: true });
   useHiddenMembersStore.setState({ hidden: [], hydrated: true });
   useNotificationCountsStore.setState({ comments: 0, notifications: 3 });
+  fetchUnreadTotals.mockResolvedValue({ comments: 0, notifications: 3 });
 });
 
 afterEach(() => {
@@ -109,6 +113,18 @@ describe('NotificationsInboxScreen', () => {
     expect(await screen.findByText('started following you')).toBeDefined();
     await userEvent.click(screen.getByRole('button', { name: 'alice' }));
     expect(history.location.pathname).toBe('/user/alice');
+  });
+
+  it('marks rows new from the server count when the badge was never refreshed (push tap)', async () => {
+    useNotificationCountsStore.setState({ comments: 0, notifications: 0 });
+    fetchUnreadTotals.mockResolvedValue({ comments: 0, notifications: 1 });
+    fetchRecentNotifications.mockResolvedValue([
+      notification({ notification_id_str: '2', content: 'fresh one' }),
+      notification({ notification_id_str: '1', content: 'old one' }),
+    ]);
+    renderScreen();
+    await screen.findByText('fresh one');
+    expect(document.querySelectorAll('[data-unread="true"], .inbox-row--unread').length).toBe(1);
   });
 
   it('shows the content as sent when no member can be read off the payload', async () => {
@@ -229,6 +245,7 @@ describe('NotificationsInboxScreen', () => {
       onState = h;
       return () => {};
     });
+    fetchUnreadTotals.mockResolvedValue({ comments: 0, notifications: 0 });
     useNotificationCountsStore.setState({ comments: 0, notifications: 0 });
     fetchRecentNotifications.mockResolvedValueOnce([notification({ notification_id_str: '5' })]);
     renderScreen();
