@@ -27,7 +27,7 @@ interface NotificationRowProps {
   /** Present for star and favourite; the entry whose thumbnail leads the row. */
   entryId: string | null;
   unread: boolean;
-  onOpenLeading: () => void;
+  onOpenEntry: (entryId: string) => void;
   onOpenProfile: (username: string) => void;
   onOpenLink: (href: string) => void;
 }
@@ -52,7 +52,7 @@ export function NotificationRow({
   actor,
   entryId,
   unread,
-  onOpenLeading,
+  onOpenEntry,
   onOpenProfile,
   onOpenLink,
 }: NotificationRowProps) {
@@ -90,14 +90,20 @@ export function NotificationRow({
       : thumb
     : notification.image_url;
 
+  // The leading image opens what it shows: the entry, or the member when it is a profile picture
+  // (a follow, or a star/favourite whose entry thumbnail lookup failed).
+  const leadingIsEntry = entryId !== null && !thumbFailed;
+
   return (
     <div ref={ref}>
       <InboxRow
         unread={unread}
         leading={
           <button
-            onClick={onOpenLeading}
-            aria-label={entryId ? 'Open entry' : 'Open'}
+            onClick={() =>
+              leadingIsEntry ? onOpenEntry(entryId) : onOpenProfile(actor.username)
+            }
+            aria-label={leadingIsEntry ? 'Open entry' : 'Open profile'}
             className="inbox-row-leading"
           >
             <RowThumb src={leadingSrc} />

@@ -222,7 +222,7 @@ export function NotificationsInboxScreen() {
                     actor={app}
                     entryId={app.kind === 'follow' ? null : entryId}
                     unread={unread}
-                    onOpenLeading={() => handleTap(notification)}
+                    onOpenEntry={(id) => navigate.push(`/entry/${encodeURIComponent(id)}`)}
                     onOpenProfile={(username) =>
                       navigate.push(`/user/${encodeURIComponent(username)}`)
                     }
