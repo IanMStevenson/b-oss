@@ -1,3 +1,7 @@
+## 1.6.1 - 2026-11-17
+
+Fixed: in the Notifications list, tapping a thumbnail opens the entry it shows, or the member's profile when it is a profile picture.
+
 ## 1.6.0 - 2026-11-16
 
 New: a red dot on the menu button when you have unread comments or notifications, and the menu's counts stay fresh. An Enhanced notifications view (on by default; turn it off in Settings->Appearance) shows the entry, badges and an icon on each row. Fixed: new-item dots in the Comments and Notifications lists.
