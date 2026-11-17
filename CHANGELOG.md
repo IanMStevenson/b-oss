@@ -5,6 +5,12 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [b-mobile 1.6.1] - 2026-11-17
+
+### Fixed
+
+- b-mobile: in the enhanced notifications view, tapping a row's thumbnail opens the entry it shows, or the member's profile when it is a profile picture (follows), instead of always following the notification's link (b-oss#1031).
+
 ## [b-mobile 1.6.0] - 2026-11-16
 
 ### Added
