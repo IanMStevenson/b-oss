@@ -180,11 +180,14 @@ describe('NotificationsInboxScreen', () => {
         link_url: 'https://www.blipfoto.com/entry/55',
       }),
     ]);
-    renderScreen();
+    const history = renderScreen();
     await screen.findByRole('img', { name: 'Favourite' });
     await waitFor(() =>
       expect(document.querySelector('img[src="https://example.com/avatar.jpg"]')).not.toBeNull(),
     );
+    // A profile picture opens the profile, not the entry.
+    await userEvent.click(screen.getByRole('button', { name: 'Open profile' }));
+    expect(history.location.pathname).toBe('/user/alice');
   });
 
   it('uses the original rows when the enhanced view is off', async () => {
@@ -271,7 +274,7 @@ describe('NotificationsInboxScreen', () => {
     fetchRecentNotifications.mockResolvedValue([notification()]); // links to /alice
     const history = renderScreen();
     await screen.findByText('started following you');
-    await userEvent.click(screen.getByLabelText('Open'));
+    await userEvent.click(screen.getByLabelText('Open profile'));
     expect(history.location.pathname).toBe('/user/alice');
   });
 
