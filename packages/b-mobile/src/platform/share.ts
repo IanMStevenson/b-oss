@@ -8,6 +8,8 @@
 
 import { Share } from '@capacitor/share';
 import { isCapacitorNative } from './platformKind.js';
+import { copyErrorDetails } from './diagnostics.js';
+import { desktopBridge } from './desktop.js';
 
 export interface ShareLinkOptions {
   url: string;
@@ -22,14 +24,22 @@ function isCancellation(err: unknown): boolean {
   return err instanceof Error && /cancel/i.test(err.message);
 }
 
-export async function shareLink(options: ShareLinkOptions): Promise<void> {
+/** `shared`: a share sheet was used (or cancelled). `copied`: no share sheet exists (the desktop
+ * shell, whose Chromium has no Web Share API), so the link went to the clipboard instead. */
+export type ShareOutcome = 'shared' | 'copied';
+
+export async function shareLink(options: ShareLinkOptions): Promise<ShareOutcome> {
   try {
     if (isCapacitorNative()) {
       await Share.share(options);
     } else if (typeof navigator.share === 'function') {
       await navigator.share({ url: options.url, text: options.text, title: options.title });
+    } else if (desktopBridge() !== undefined) {
+      await copyErrorDetails(options.url);
+      return 'copied';
     }
   } catch (err) {
     if (!isCancellation(err)) throw err;
   }
+  return 'shared';
 }
