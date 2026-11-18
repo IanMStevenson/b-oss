@@ -93,4 +93,20 @@ describe('useShareLink', () => {
     await waitFor(() => expect(shareLink).toHaveBeenCalledTimes(1));
     expect(fetchJournalProtected).not.toHaveBeenCalled();
   });
+
+  it('toasts when the link was copied (no share sheet), not when it was shared', async () => {
+    const toastOpen = () =>
+      (document.querySelector('ion-toast') as unknown as { isOpen: boolean } | null)?.isOpen ===
+      true;
+    render(<Harness t={{ ...target, isProtected: false }} />);
+
+    shareLink.mockResolvedValue('shared');
+    await userEvent.click(screen.getByText('go'));
+    await waitFor(() => expect(shareLink).toHaveBeenCalledTimes(1));
+    expect(toastOpen()).toBe(false);
+
+    shareLink.mockResolvedValue('copied');
+    await userEvent.click(screen.getByText('go'));
+    await waitFor(() => expect(toastOpen()).toBe(true));
+  });
 });

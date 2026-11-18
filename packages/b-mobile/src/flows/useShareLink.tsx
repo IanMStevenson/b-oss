@@ -12,7 +12,7 @@
 
 import { useState } from 'react';
 import type { ReactNode } from 'react';
-import { IonAlert } from '@ionic/react';
+import { IonAlert, IonToast } from '@ionic/react';
 import { fetchJournalProtected } from '../data/users.js';
 import { shareLink } from '../platform/share.js';
 import { t } from '../strings/index.js';
@@ -26,15 +26,17 @@ export interface ShareTarget {
   isProtected?: boolean;
 }
 
-async function send(target: ShareTarget): Promise<void> {
+async function send(target: ShareTarget): Promise<boolean> {
   try {
-    await shareLink({
+    const outcome = await shareLink({
       url: target.url,
       text: target.text,
       dialogTitle: t('SHARE.dialog_title'),
     });
+    return outcome === 'copied';
   } catch {
     // Nothing useful to tell the user: the sheet either opened or the device has no share target.
+    return false;
   }
 }
 
@@ -43,6 +45,11 @@ export function useShareLink(): {
   shareDialog: ReactNode;
 } {
   const [warning, setWarning] = useState<ShareTarget | null>(null);
+  const [copied, setCopied] = useState(false);
+
+  async function sendAndNotify(target: ShareTarget): Promise<void> {
+    if (await send(target)) setCopied(true);
+  }
 
   async function share(target: ShareTarget): Promise<void> {
     const isProtected =
@@ -51,25 +58,33 @@ export function useShareLink(): {
       setWarning(target);
       return;
     }
-    await send(target);
+    await sendAndNotify(target);
   }
 
   const shareDialog = (
-    <IonAlert
-      isOpen={warning !== null}
-      header={t('SHARE.protected.title')}
-      message={t('SHARE.protected.body', { username: warning?.ownerUsername ?? '' })}
-      onDidDismiss={() => setWarning(null)}
-      buttons={[
-        { text: 'Cancel', role: 'cancel' },
-        {
-          text: t('SHARE.protected.button_share'),
-          handler: () => {
-            if (warning) void send(warning);
+    <>
+      <IonToast
+        isOpen={copied}
+        message={t('SHARE.copied')}
+        duration={2500}
+        onDidDismiss={() => setCopied(false)}
+      />
+      <IonAlert
+        isOpen={warning !== null}
+        header={t('SHARE.protected.title')}
+        message={t('SHARE.protected.body', { username: warning?.ownerUsername ?? '' })}
+        onDidDismiss={() => setWarning(null)}
+        buttons={[
+          { text: 'Cancel', role: 'cancel' },
+          {
+            text: t('SHARE.protected.button_share'),
+            handler: () => {
+              if (warning) void sendAndNotify(warning);
+            },
           },
-        },
-      ]}
-    />
+        ]}
+      />
+    </>
   );
 
   return { share, shareDialog };

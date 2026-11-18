@@ -297,6 +297,7 @@ export const STRINGS = {
   'SIGN_IN_REQUIRED.button.cancel': 'Cancel',
   'SIGN_IN_REQUIRED.button.sign_in': 'Sign in now',
   'SIGN_IN_REQUIRED.title': 'You must be signed in to do this',
+  'SHARE.copied': 'Link copied to the clipboard',
   'SHARE.dialog_title': 'Share link',
   'SHARE.protected.body':
     'The link will only open for signed-in members who have been accepted as followers of {username}.',
