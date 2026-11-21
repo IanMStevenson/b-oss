@@ -362,7 +362,12 @@ async function createWindow(showWindow: boolean): Promise<void> {
   });
   mainWindow = win;
   lockPageZoom(win.webContents);
-  if (saved.maximized) win.maximize();
+  // maximize() also shows a hidden window on Windows, which defeated the tray-only login start
+  // (b-oss#1039), so a hidden start maximizes when the window is first shown instead.
+  if (saved.maximized) {
+    if (showWindow) win.maximize();
+    else win.once('show', () => win.maximize());
+  }
 
   // Links leave the app: https opens in the system browser, anything else is dropped.
   win.webContents.setWindowOpenHandler(({ url }) => {
