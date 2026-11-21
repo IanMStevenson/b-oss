@@ -31,6 +31,8 @@ export const CHANNELS = {
   reminderTappedReady: 'reminder:tapped-ready',
   shellInfo: 'shell:info',
   pickPhoto: 'photo:pick',
+  siteSignIn: 'site:sign-in',
+  siteRunPage: 'site:run-page',
 } as const;
 
 /** A photo chosen in the desktop file dialog (b-oss#739). */
@@ -40,6 +42,19 @@ export interface PickedPhotoFile {
   /** Last-modified time, ms since the epoch. */
   modifiedMs: number;
   bytes: Uint8Array;
+}
+
+/** One hidden-window page run against www.blipfoto.com (b-oss#1037). */
+export interface SitePageRun {
+  url: string;
+  script: string;
+  timeoutMs: number;
+  waitForNavigation: boolean;
+}
+
+export interface SitePageResult {
+  finalUrl: string;
+  result: string | null;
 }
 
 export interface DesktopBridge {
@@ -91,6 +106,14 @@ export interface DesktopBridge {
   /** Opens the system file dialog for a photo, starting in the folder last used for this account,
    * and remembers the folder of the file chosen (b-oss#739). Resolves null when cancelled. */
   pickPhoto(accountId: string): Promise<PickedPhotoFile | null>;
+  /** The member's own Blipfoto website session, for adding extra photos (b-oss#1037). `signIn`
+   * shows the site's sign-in page in a window with the shell's persistent site session and
+   * resolves true once signed in (false if closed); `runPage` loads one www.blipfoto.com page in a
+   * hidden window with that session and runs a script in it. Both refuse any other origin. */
+  readonly site: {
+    signIn(url: string): Promise<boolean>;
+    runPage(run: SitePageRun): Promise<SitePageResult>;
+  };
   /** The error log and the error screen's actions (b-oss#639). */
   readonly diagnostics: {
     /** Appends one redacted entry to `userData/logs/app.log`. Never rejects. */

@@ -54,6 +54,13 @@
             android:theme="@style/AppTheme"
             android:exported="false" />
 
+        <!-- Website sign-in for adding extra photos (b-oss#1037); same reasoning as above. -->
+        <activity
+            android:configChanges="orientation|keyboardHidden|keyboard|screenSize|locale|smallestScreenSize|screenLayout|uiMode|navigation|density"
+            android:name=".SiteSignInActivity"
+            android:theme="@style/AppTheme"
+            android:exported="false" />
+
         <!-- Opt-in web-link handling (devicePrefsStore.openBlipfotoLinksInApp, §16). Disabled by
              default so the app doesn't appear in the chooser for blipfoto.com links until the
              user turns this on in Settings; toggled at runtime via

@@ -35,6 +35,11 @@ import { submitDraft, describeSubmitError } from '../../flows/composeFlow.js';
 import { fetchUserProfile } from '../../data/users.js';
 import { fetchEntryThumbnailUrl } from '../../data/entries.js';
 import { UploadingNotice } from '../../components/UploadingNotice.js';
+import { ExtraPhotosSection } from '../../components/ExtraPhotosSection.js';
+import { addExtras, describeExtrasFailure, type ExtrasOutcome } from '../../flows/extrasFlow.js';
+import { siteSessionAvailable } from '../../platform/siteSession.js';
+import { openUrl } from '../../platform/browser.js';
+import { useAccountsStore } from '../../state/accountsStore.js';
 import { DateField } from '../../components/DateField.js';
 import { DescriptionField, TextField, ToggleRow } from '../../components/ComposeForm.js';
 import { ThumbnailPhotoFrame } from '../../components/ThumbnailPhotoFrame.js';
@@ -63,7 +68,10 @@ export function ComposeEntryScreen() {
     entryId: string;
     thumbnailUrl: string | null;
     total: number | null;
+    /** b-oss#1037: 'adding' while the extras go up, then how it ended; absent when there were none. */
+    extras?: 'adding' | ExtrasOutcome;
   } | null>(null);
+  const accounts = useAccountsStore((s) => s.accounts);
 
   useEffect(() => {
     if (!draft || draft.mode !== 'publish') {
@@ -139,9 +147,22 @@ export function ComposeEntryScreen() {
     setSubmitError(null);
     try {
       const entryId = await submitDraft(draft);
-      setPublished({ entryId, thumbnailUrl: null, total: null });
+      const extraPhotos = draft.extras ?? [];
+      setPublished({
+        entryId,
+        thumbnailUrl: null,
+        total: null,
+        extras: extraPhotos.length > 0 ? 'adding' : undefined,
+      });
       clearDraft();
       setSubmitting(false);
+      if (extraPhotos.length > 0) {
+        // The entry is already published; whatever happens here only affects the extras.
+        const username = accounts.find((a) => a.id === draft.accountId)?.username ?? '';
+        void addExtras(entryId, username, extraPhotos).then((outcome) =>
+          setPublished((p) => (p ? { ...p, extras: outcome } : p)),
+        );
+      }
       fetchEntryThumbnailUrl(entryId).then(
         (thumbnailUrl) => setPublished((p) => (p ? { ...p, thumbnailUrl } : p)),
         () => {},
@@ -183,8 +204,20 @@ export function ComposeEntryScreen() {
                 </p>
               </IonText>
             )}
+            {published.extras === 'adding' && (
+              <div role="status" aria-live="polite">
+                <IonSpinner name="dots" />
+                <IonText color="medium">
+                  <p>Adding your extra photos… Please don&apos;t leave the app yet.</p>
+                </IonText>
+              </div>
+            )}
+            {published.extras && published.extras !== 'adding' && (
+              <ExtrasResult outcome={published.extras} />
+            )}
             <IonButton
               expand="block"
+              disabled={published.extras === 'adding'}
               onClick={() => navigate.replace(`/entry/${published.entryId}`)}
             >
               View entry
@@ -329,6 +362,15 @@ export function ComposeEntryScreen() {
                 )}
               </ToggleRow>
             </div>
+
+            {isMember === true && siteSessionAvailable() && (
+              <ExtraPhotosSection
+                accountId={draft.accountId}
+                username={accounts.find((a) => a.id === draft.accountId)?.username ?? ''}
+                photos={draft.extras ?? []}
+                onChange={(extras) => patchDraft({ extras })}
+              />
+            )}
           </>
         )}
 
@@ -358,5 +400,36 @@ export function ComposeEntryScreen() {
         ]}
       />
     </IonPage>
+  );
+}
+
+/** How adding the extras ended, on the published screen. Anything short of full success says what
+ * happened and offers the entry's edit page, where the member can finish by hand. */
+function ExtrasResult({ outcome }: { outcome: ExtrasOutcome }) {
+  if (outcome.kind === 'done') {
+    return (
+      <IonText color="success">
+        <p>
+          {outcome.added} extra {outcome.added === 1 ? 'photo' : 'photos'} added.
+        </p>
+      </IonText>
+    );
+  }
+  const summary =
+    outcome.kind === 'partial'
+      ? `${outcome.added} of ${outcome.total} extra photos were added.`
+      : describeExtrasFailure(outcome.reason);
+  return (
+    <div role="alert">
+      <IonText color="warning">
+        <p>
+          Your entry is published, but not all of your extra photos were added. {summary} You can
+          add them on Blipfoto's edit page in your browser.
+        </p>
+      </IonText>
+      <IonButton expand="block" fill="outline" onClick={() => void openUrl(outcome.editUrl)}>
+        Open the edit page
+      </IonButton>
+    </div>
   );
 }

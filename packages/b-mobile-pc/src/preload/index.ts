@@ -7,6 +7,7 @@ import {
   CHANNELS,
   type DesktopBridge,
   type PickedPhotoFile,
+  type SitePageResult,
 } from '../shared/bridge.js';
 import type { NotifyPayload, NotifyStatus, TestNotifyResult } from '../shared/notify.js';
 
@@ -55,6 +56,10 @@ const bridge: DesktopBridge = {
   },
   shell: {
     info: () => ipcRenderer.invoke(CHANNELS.shellInfo) as Promise<{ build: string }>,
+  },
+  site: {
+    signIn: (url) => ipcRenderer.invoke(CHANNELS.siteSignIn, url) as Promise<boolean>,
+    runPage: (run) => ipcRenderer.invoke(CHANNELS.siteRunPage, run) as Promise<SitePageResult>,
   },
   pickPhoto: (accountId) =>
     ipcRenderer.invoke(CHANNELS.pickPhoto, accountId) as Promise<PickedPhotoFile | null>,

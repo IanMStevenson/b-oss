@@ -29,6 +29,8 @@ import { resolveShellBuild } from '../shared/shell-build.js';
 import { appTokenKey, parseNotifySettings } from '../shared/notify.js';
 import { parseReminderAccountId, parseReminderConfigs } from '../shared/reminders.js';
 import { allowPermission } from './permissions.js';
+import { validateSiteRun, validateSiteUrl } from './site-request.js';
+import { siteRunPage, siteSignIn } from './site-window.js';
 import {
   APP_ORIGIN,
   APP_SCHEME,
@@ -49,7 +51,12 @@ import {
 } from './missing-web.js';
 import { ErrorLog, parseErrorEntry, type LogFs } from './error-log.js';
 import { isTrustedEvent } from './safe-ipc.js';
-import { PROXY_SOURCE, SITE_PROXY_SOURCE, proxyStatusEntry, proxyThrownEntry } from './proxy-failure.js';
+import {
+  PROXY_SOURCE,
+  SITE_PROXY_SOURCE,
+  proxyStatusEntry,
+  proxyThrownEntry,
+} from './proxy-failure.js';
 import { createRejectionReporter, describeRejection } from './unhandled.js';
 import { APP_USER_MODEL_ID } from './app-id.js';
 import { openAuthWindow } from './auth-window.js';
@@ -563,6 +570,10 @@ if (!app.requestSingleInstanceLock()) {
     handle(CHANNELS.diagCopy, async (text) => {
       if (typeof text === 'string') await clipboard.writeText(text.slice(0, 100_000));
     });
+    handle(CHANNELS.siteSignIn, (url) =>
+      siteSignIn(BrowserWindow.getFocusedWindow() ?? mainWindow, validateSiteUrl(url)),
+    );
+    handle(CHANNELS.siteRunPage, (run) => siteRunPage(validateSiteRun(run)));
     handle(CHANNELS.authOpen, (url, redirectPrefix) => {
       const request = validateAuthRequest(url, redirectPrefix, authHosts, authAllowHttp);
       // Test hook (ignored when packaged): send the sign-in page to a fake authorize server.

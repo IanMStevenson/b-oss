@@ -64,6 +64,9 @@ export interface ComposeDraft {
   displayLocation: boolean;
   /** SCR-10 only, members-only — proportional square crop of the untouched photo. */
   thumbnailCrop: ThumbnailCropDraft | null;
+  /** SCR-10 only, members-only (b-oss#1037): extra photos to add through the website once the
+   * entry is published. Absent is none. */
+  extras?: ComposePhoto[];
   /** Whether anything has changed since the draft was created/loaded — the discard-guard's input. */
   dirty: boolean;
 }

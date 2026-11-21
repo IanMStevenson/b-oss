@@ -49,6 +49,18 @@ export interface DesktopPickedPhoto {
   bytes: Uint8Array;
 }
 
+export interface DesktopSitePageRun {
+  url: string;
+  script: string;
+  timeoutMs: number;
+  waitForNavigation: boolean;
+}
+
+export interface DesktopSitePageResult {
+  finalUrl: string;
+  result: string | null;
+}
+
 export interface DesktopBridge {
   readonly version: 1;
   readonly secure: {
@@ -82,6 +94,14 @@ export interface DesktopBridge {
   /** The shell's file dialog, opened in the folder last used for this account (b-oss#739). Absent
    * on a shell older than this member. Resolves null when cancelled. */
   pickPhoto?(accountId: string): Promise<DesktopPickedPhoto | null>;
+  /** The member's own Blipfoto website session, for adding extra photos (b-oss#1037). Absent on a
+   * shell older than this member. `signIn` shows the site's sign-in page and resolves true once
+   * signed in (false if closed); `runPage` loads one www.blipfoto.com page in a hidden window with
+   * that session and runs a script in it. */
+  readonly site?: {
+    signIn(url: string): Promise<boolean>;
+    runPage(run: DesktopSitePageRun): Promise<DesktopSitePageResult>;
+  };
   /** The error log and the error screen's actions (b-oss#639); see platform/diagnostics.ts. */
   readonly diagnostics: {
     logError(entry: { source: string; message: string; stack?: string }): Promise<void>;

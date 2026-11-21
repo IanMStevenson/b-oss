@@ -22,6 +22,7 @@ public class MainActivity extends BridgeActivity {
     registerPlugin(AccessibilityPlugin.class);
     registerPlugin(ShareIntentPlugin.class);
     registerPlugin(EmbeddedAuthPlugin.class);
+    registerPlugin(SiteSessionPlugin.class); // the member's own website session, for extra photos
     registerPlugin(PushAvailabilityPlugin.class);
     registerPlugin(MediaSavePlugin.class); // saves an entry photo into the gallery (Download)
     registerPlugin(PhotoPickPlugin.class); // gallery pick that also returns the photo's embedded GPS
