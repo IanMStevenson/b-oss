@@ -665,6 +665,10 @@ ion-modal.source-nav-sheet {
   background: #ff3b30;
   pointer-events: none;
 }
+/* With the menu kept open (split pane) Ionic hides the button but not this sibling dot. */
+.menu-button-wrap:has(.menu-button-hidden) .menu-unread-dot {
+  display: none;
+}
 
 /* SCR-23 app-style rows (b-oss#1027). The name line has a fixed height so badges arriving after
  * the first render don't move the row; the colours are the entry page's star and heart. */
