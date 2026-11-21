@@ -186,6 +186,21 @@ reminders,details,profile,notifications}`; the old `/settings/{general,journal,a
   retry after Blipfoto had in fact accepted the entry fails, since the date is taken. A rejected
   token is a forced logout. There is no queue and no Uploads screen; an older version's saved
   queue and copied photos are deleted unsent at launch (`discardLegacyUploadQueue`).
+- Extra photos (b-oss#1037, members only, Android and the desktop shell): the API has no extras
+  upload for our app type, so after the entry is published through the API the app adds extras by
+  driving Blipfoto's own edit page (`flows/extrasFlow.ts`, `platform/siteExtrasScripts.ts`,
+  `platform/siteSession.ts`): an off-screen WebView (Android `SiteSessionPlugin`) or hidden window
+  (shell `site-window.ts`) loads `/entry/<id>/edit`, hands the page's own uploader the photos,
+  presses its Save, then reloads the page and counts the extras (the save is not trusted). Compose
+  details shows an "Extra photos" block (up to 10). The first **Add an extra photo** checks the
+  stored website session; if there is none (or it is another member) it asks "Do you sign in to
+  Blipfoto with an email address and password?": Yes opens Blipfoto's own sign-in page (the password
+  never passes through the app; the cookie stays in the WebView's store); No explains that a Facebook
+  or Twitter member can set a password with "Forgotten your details?" (their social sign-in keeps
+  working) and offers the sign-in page. After publishing, the completion view shows "Adding your
+  extra photos…" and then the count added. Any failure (not signed in, another member, no
+  membership, an unexpected page, a timeout, not kept, or a partial result) says what happened and
+  offers **Open the edit page** in the system browser; the entry itself is never affected.
 - Share intent (`platform/shareIntent.ts`): `AppShell` reads the shared image once, caches it and
   opens `/compose`; New entry starts a draft from it once the write gate has passed.
 
