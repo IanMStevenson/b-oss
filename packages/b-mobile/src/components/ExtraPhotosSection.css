@@ -68,3 +68,8 @@
   padding: 0;
   cursor: pointer;
 }
+
+.extra-photos-removing img {
+  opacity: 0.35;
+  filter: grayscale(1);
+}

@@ -19,6 +19,7 @@ import {
   editPageUrl,
   type AddScriptResult,
   type ExtraFile,
+  type ExtraItem,
   type PageHtmlResult,
   type ReadBackResult,
   type WhoAmIResult,
@@ -46,7 +47,7 @@ export type ExtrasFailure =
   | 'error';
 
 export type ExtrasOutcome =
-  | { kind: 'done'; added: number }
+  | { kind: 'done'; added: number; removed: number }
   | { kind: 'partial'; added: number; total: number; editUrl: string }
   | { kind: 'manual'; reason: ExtrasFailure; total: number; editUrl: string };
 
@@ -132,16 +133,18 @@ export async function photoToExtraFile(photo: {
   return { name: `extra.${ext}`, mimeType: photo.mimeType || 'image/jpeg', base64 };
 }
 
-/** Adds `photos` to the entry's extras: reads the edit page first (so a wrong account or a
- * missing session is caught before anything is sent), hands the page the photos, lets its own
- * Save run, then reads the page again to confirm they were kept. */
-export async function addExtras(
+/** Adds `photos` to the entry's extras and removes the ones in `removeIds` (their ids on the site,
+ * from loadEditExtras): reads the edit page first (so a wrong account or a missing session is
+ * caught before anything is sent), removes and adds through the page's own controls, lets its own
+ * Save run, then reads the page again to confirm the result was kept. */
+export async function applyExtras(
   entryId: string,
   username: string,
   photos: { webPath: string; mimeType: string }[],
+  removeIds: string[] = [],
 ): Promise<ExtrasOutcome> {
   const editUrl = editPageUrl(entryId);
-  const total = photos.length;
+  const total = photos.length + removeIds.length;
   const manual = (reason: ExtrasFailure): ExtrasOutcome => ({
     kind: 'manual',
     reason,
@@ -156,11 +159,13 @@ export async function addExtras(
     if (before.status === 'unexpected-page') return manual('unexpected-page');
     if (before.status === 'no-uploader') return manual('no-membership');
     if (!isSameMember(before.user ?? '', username)) return manual('wrong-account');
+    const beforeIds = new Set((before.items ?? []).map((i) => i.id));
+    const removable = removeIds.filter((id) => beforeIds.has(id));
 
     const files = await Promise.all(photos.map(photoToExtraFile));
     const { result } = await siteRunPage({
       url: editUrl,
-      script: buildAddExtrasScript(files),
+      script: buildAddExtrasScript(files, removable),
       timeoutMs: 180_000,
       waitForNavigation: true,
     });
@@ -174,12 +179,54 @@ export async function addExtras(
 
     const after = await readBack(entryId);
     if (after?.status !== 'ok') return manual('not-kept');
-    const added = (after.count ?? 0) - (before.count ?? 0);
-    if (added >= total) return { kind: 'done', added: total };
-    if (added > 0) return { kind: 'partial', added, total, editUrl };
+    const afterIds = new Set((after.items ?? []).map((i) => i.id));
+    const added = [...afterIds].filter((id) => !beforeIds.has(id)).length;
+    const removed = removable.filter((id) => !afterIds.has(id)).length;
+    // An id asked to be removed that was already gone counts as removed.
+    const done = added + (removed + (removeIds.length - removable.length));
+    if (done >= total) return { kind: 'done', added: photos.length, removed: removeIds.length };
+    if (done > 0) return { kind: 'partial', added: done, total, editUrl };
     return manual('not-kept');
   } catch {
     return manual('error');
+  }
+}
+
+/** Adds `photos` to a just-published entry (see applyExtras). */
+export function addExtras(
+  entryId: string,
+  username: string,
+  photos: { webPath: string; mimeType: string }[],
+): Promise<ExtrasOutcome> {
+  return applyExtras(entryId, username, photos);
+}
+
+/** What an entry's edit page lists now, for the edit screen: its current extras and the
+ * allowance left. 'needs-login' means there is no usable session (the screen offers to sign in);
+ * 'unavailable' means extras cannot be edited here (no session on this device, not a member, an
+ * unexpected page, or another member's session). */
+export async function loadEditExtras(
+  entryId: string,
+  username: string,
+): Promise<
+  | { kind: 'ok'; items: ExtraItem[]; remaining: number | null }
+  | { kind: 'needs-login' }
+  | { kind: 'unavailable' }
+> {
+  if (!siteSessionAvailable()) return { kind: 'unavailable' };
+  try {
+    const read = await readBack(entryId);
+    if (read === null) return { kind: 'unavailable' };
+    if (read.status === 'needs-login') return { kind: 'needs-login' };
+    if (read.status !== 'ok') return { kind: 'unavailable' };
+    if (!isSameMember(read.user ?? '', username)) return { kind: 'needs-login' };
+    return {
+      kind: 'ok',
+      items: read.items ?? [],
+      remaining: typeof read.remaining === 'number' ? read.remaining : null,
+    };
+  } catch {
+    return { kind: 'unavailable' };
   }
 }
 

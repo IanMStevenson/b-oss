@@ -38,9 +38,9 @@ import { UploadingNotice } from '../../components/UploadingNotice.js';
 import { ExtraPhotosSection } from '../../components/ExtraPhotosSection.js';
 import { EntryFormLayout } from '../../components/EntryFormLayout.js';
 import { useWideForm } from '../../theme/wideLayout.js';
-import { addExtras, describeExtrasFailure, type ExtrasOutcome } from '../../flows/extrasFlow.js';
+import { addExtras, type ExtrasOutcome } from '../../flows/extrasFlow.js';
+import { ExtrasResult } from '../../components/ExtrasResult.js';
 import { siteSessionAvailable } from '../../platform/siteSession.js';
-import { openUrl } from '../../platform/browser.js';
 import { useAccountsStore } from '../../state/accountsStore.js';
 import { DateField } from '../../components/DateField.js';
 import { DescriptionField, TextField, ToggleRow } from '../../components/ComposeForm.js';
@@ -424,36 +424,5 @@ export function ComposeEntryScreen() {
         ]}
       />
     </IonPage>
-  );
-}
-
-/** How adding the extras ended, on the published screen. Anything short of full success says what
- * happened and offers the entry's edit page, where the member can finish by hand. */
-function ExtrasResult({ outcome }: { outcome: ExtrasOutcome }) {
-  if (outcome.kind === 'done') {
-    return (
-      <IonText color="success">
-        <p>
-          {outcome.added} extra {outcome.added === 1 ? 'photo' : 'photos'} added.
-        </p>
-      </IonText>
-    );
-  }
-  const summary =
-    outcome.kind === 'partial'
-      ? `${outcome.added} of ${outcome.total} extra photos were added.`
-      : describeExtrasFailure(outcome.reason);
-  return (
-    <div role="alert">
-      <IonText color="warning">
-        <p>
-          Your entry is published, but not all of your extra photos were added. {summary} You can
-          add them on Blipfoto's edit page in your browser.
-        </p>
-      </IonText>
-      <IonButton expand="block" fill="outline" onClick={() => void openUrl(outcome.editUrl)}>
-        Open the edit page
-      </IonButton>
-    </div>
   );
 }

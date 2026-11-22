@@ -28,16 +28,24 @@ export interface ExtraFile {
 }
 
 export type AddScriptResult =
-  | { status: 'submitted'; user: string | null; remainingBefore: number }
+  | { status: 'submitted'; user: string | null; remainingBefore: number; missing: string[] }
   | { status: 'needs-login' }
   | { status: 'unexpected-page'; path: string }
   | { status: 'no-uploader' }
   | { status: 'timeout' }
   | { status: 'error'; error: string };
 
+/** One extra the edit page lists for an entry: its id on the site and its thumbnail address. */
+export interface ExtraItem {
+  id: string;
+  thumbnail: string;
+}
+
 export interface ReadBackResult {
   status: 'ok' | 'needs-login' | 'unexpected-page' | 'no-uploader';
   user?: string | null;
+  /** The extras the edit page lists, in order. */
+  items?: ExtraItem[];
   /** Extras the edit page lists for the entry. */
   count?: number;
   /** The page's "N remaining" figure. */
@@ -68,13 +76,16 @@ const USER_HELPER = `
   }
 `;
 
-/** Adds `files` to whatever edit page is loaded and presses Save once the page's uploader has
- * finished. Resolves (via window.__bmx) with an AddScriptResult. Submitting navigates the page, so
- * the host must wait for that navigation before it closes the window. */
-export function buildAddExtrasScript(files: ExtraFile[]): string {
+/** Removes the extras `removeIds` names and adds `files` on whatever edit page is loaded, then presses
+ * Save once the page's uploader has finished. Resolves (via window.__bmx) with an AddScriptResult.
+ * Removing uses the page's own remove link on each thumbnail, so the page records the deletions
+ * itself. Submitting navigates the page, so the host must wait for that navigation before it closes
+ * the window. */
+export function buildAddExtrasScript(files: ExtraFile[], removeIds: string[] = []): string {
   return `(function () {
   window.__bmx = undefined;
   var FILES = ${JSON.stringify(files)};
+  var REMOVE = ${JSON.stringify(removeIds)};
   var done = function (o) { window.__bmx = JSON.stringify(o); };
   ${USER_HELPER}
   (async function () {
@@ -85,6 +96,12 @@ export function buildAddExtrasScript(files: ExtraFile[]): string {
       var input = await bmxFindUploader();
       if (!input) return done({ status: 'no-uploader' });
       var remEl = document.getElementById('photo-uploader-remaining');
+      var missing = [];
+      REMOVE.forEach(function (id) {
+        var link = document.querySelector('#photo-queue a[data-upload-id="' + id + '"]');
+        if (link) link.click(); else missing.push(id);
+      });
+      if (REMOVE.length) await bmxSleep(400);
       var rem0 = Number(remEl && remEl.textContent);
       var dt = new DataTransfer();
       FILES.forEach(function (f) {
@@ -93,18 +110,22 @@ export function buildAddExtrasScript(files: ExtraFile[]): string {
         for (var i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
         dt.items.add(new File([bytes], f.name, { type: f.mimeType }));
       });
-      input.files = dt.files;
-      input.dispatchEvent(new Event('change', { bubbles: true }));
+      if (FILES.length) {
+        input.files = dt.files;
+        input.dispatchEvent(new Event('change', { bubbles: true }));
+      }
       var save = document.getElementById('publish');
       var stable = 0;
       for (var t = 0; t < 480; t++) {
         await bmxSleep(250);
         var now = Number(remEl.textContent);
         // The count drops as photos are queued; Save re-enables once every upload has finished.
-        if (now < rem0 && !save.disabled) { stable++; if (stable >= 4) break; } else { stable = 0; }
+        // With only removals there is nothing to queue, so Save being enabled is enough.
+        var queued = FILES.length === 0 || now < rem0;
+        if (queued && !save.disabled) { stable++; if (stable >= 4) break; } else { stable = 0; }
       }
       if (stable < 4) return done({ status: 'timeout' });
-      done({ status: 'submitted', user: bmxUser(), remainingBefore: rem0 });
+      done({ status: 'submitted', user: bmxUser(), remainingBefore: rem0, missing: missing });
       // Saving unloads the page, so give the host time to read the result above first.
       await bmxSleep(1500);
       save.click();
@@ -128,10 +149,17 @@ export function buildReadBackScript(): string {
       if (!/^\\/entry\\/\\d+\\/edit\\/?$/.test(path)) return done({ status: 'unexpected-page' });
       var input = await bmxFindUploader();
       if (!input) return done({ status: 'no-uploader' });
-      var items = document.querySelectorAll('#photo-queue > li');
+      var nodes = document.querySelectorAll('#photo-queue > li');
+      var items = [];
+      for (var i = 0; i < nodes.length; i++) {
+        var link = nodes[i].querySelector('a[data-upload-id]');
+        var img = nodes[i].querySelector('img');
+        if (link) items.push({ id: link.getAttribute('data-upload-id'), thumbnail: img ? img.src : '' });
+      }
       done({
         status: 'ok',
         user: bmxUser(),
+        items: items,
         count: items.length,
         remaining: Number(document.getElementById('photo-uploader-remaining').textContent),
       });

@@ -30,6 +30,11 @@ import { AppHeader } from '../../components/AppHeader.js';
 import { CachedImage } from '../../components/CachedImage.js';
 import { DateField } from '../../components/DateField.js';
 import { EntryFormLayout } from '../../components/EntryFormLayout.js';
+import { ExtraPhotosEditor } from '../../components/ExtraPhotosEditor.js';
+import { ExtrasResult } from '../../components/ExtrasResult.js';
+import { applyExtras, type ExtrasOutcome } from '../../flows/extrasFlow.js';
+import { siteSessionAvailable } from '../../platform/siteSession.js';
+import { useAccountsStore } from '../../state/accountsStore.js';
 import { useWideForm } from '../../theme/wideLayout.js';
 import { DescriptionField, TextField, ToggleRow } from '../../components/ComposeForm.js';
 import { useAppNavigate } from '../../app/routes/useAppNavigate.js';
@@ -70,6 +75,9 @@ export function EditEntryScreen({ entryId }: EditEntryScreenProps) {
   const [currentImage, setCurrentImage] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
+  // b-oss#1041: while the website applies extras changes after a save, and how that ended.
+  const [extrasState, setExtrasState] = useState<'updating' | ExtrasOutcome | null>(null);
+  const accounts = useAccountsStore((s) => s.accounts);
   const [confirmDiscard, setConfirmDiscard] = useState(false);
   const [confirmDeleteEntry, setConfirmDeleteEntry] = useState(false);
   const [deletingEntry, setDeletingEntry] = useState(false);
@@ -167,8 +175,24 @@ export function EditEntryScreen({ entryId }: EditEntryScreenProps) {
     setSubmitError(null);
     try {
       await submitDraft(draft);
+      const additions = draft.extras ?? [];
+      const removals = draft.extrasRemove ?? [];
+      if (additions.length === 0 && removals.length === 0) {
+        clearDraft();
+        navigate.goBackOr(`/entry/${entryId}`);
+        return;
+      }
+      // The entry is saved; whatever happens now only affects the extras.
+      setExtrasState('updating');
+      const username = accounts.find((a) => a.id === draft.accountId)?.username ?? '';
+      const outcome = await applyExtras(entryId, username, additions, removals);
       clearDraft();
-      navigate.goBackOr(`/entry/${entryId}`);
+      if (outcome.kind === 'done') {
+        navigate.goBackOr(`/entry/${entryId}`);
+      } else {
+        setExtrasState(outcome);
+        setSubmitting(false);
+      }
     } catch (err) {
       setSubmitError(describeSubmitError(err, draft.accountId, "Couldn't save your changes."));
       setSubmitting(false);
@@ -226,6 +250,25 @@ export function EditEntryScreen({ entryId }: EditEntryScreenProps) {
       />
     </IonHeader>
   );
+
+  // The entry was saved but not every extras change went through (b-oss#1041): say so, with the
+  // edit page to finish by hand. The draft is already cleared, so this comes before the load checks.
+  if (extrasState !== null && extrasState !== 'updating') {
+    return (
+      <IonPage>
+        {loadHeader}
+        <IonContent>
+          <div className="compose-form">
+            <h2>Your changes are saved</h2>
+            <ExtrasResult outcome={extrasState} lead="Your changes are saved" />
+            <IonButton expand="block" onClick={() => navigate.replace(`/entry/${entryId}`)}>
+              View entry
+            </IonButton>
+          </div>
+        </IonContent>
+      </IonPage>
+    );
+  }
 
   if (loading) {
     return (
@@ -341,6 +384,18 @@ export function EditEntryScreen({ entryId }: EditEntryScreenProps) {
               </div>
             ) : undefined
           }
+          extras={
+            isMember === true && siteSessionAvailable() && editLevel !== 0 ? (
+              <ExtraPhotosEditor
+                entryId={entryId}
+                accountId={draft.accountId}
+                username={accounts.find((a) => a.id === draft.accountId)?.username ?? ''}
+                additions={draft.extras ?? []}
+                removals={draft.extrasRemove ?? []}
+                onChange={(next) => patchDraft(next)}
+              />
+            ) : undefined
+          }
           details={
             <div className="compose-form">
               {editLevel === 1 && (
@@ -401,7 +456,16 @@ export function EditEntryScreen({ entryId }: EditEntryScreenProps) {
           }
           action={
             <div className="compose-form">
-              {submitting && <UploadingNotice what="save" />}
+              {submitting && extrasState === 'updating' ? (
+                <div className="compose-form" role="status" aria-live="polite">
+                  <IonSpinner name="dots" />
+                  <IonText color="medium">
+                    <p>Updating your extra photos… Please don&apos;t leave the app yet.</p>
+                  </IonText>
+                </div>
+              ) : (
+                submitting && <UploadingNotice what="save" />
+              )}
               <IonButton
                 expand="block"
                 disabled={submitting || editLevel === 0}

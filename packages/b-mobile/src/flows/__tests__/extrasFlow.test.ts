@@ -15,6 +15,8 @@ vi.mock('../../platform/siteSession.js', () => ({
 
 import {
   addExtras,
+  applyExtras,
+  loadEditExtras,
   currentSiteUser,
   forgetSiteSession,
   isSameMember,
@@ -22,6 +24,7 @@ import {
 } from '../extrasFlow.js';
 
 const photo = { webPath: 'blob:x', mimeType: 'image/jpeg' };
+const item = (id: string) => ({ id, thumbnail: `t-${id}` });
 const reply = (o: unknown) => ({ finalUrl: '', result: JSON.stringify(o) });
 
 beforeEach(() => {
@@ -51,7 +54,7 @@ describe('addExtras', () => {
   });
 
   it('stops before sending anything when the site is signed in as someone else', async () => {
-    siteRunPage.mockResolvedValueOnce(reply({ status: 'ok', user: 'other', count: 0 }));
+    siteRunPage.mockResolvedValueOnce(reply({ status: 'ok', user: 'other', items: [] }));
     expect(await addExtras('1', 'ian', [photo])).toMatchObject({
       kind: 'manual',
       reason: 'wrong-account',
@@ -66,18 +69,24 @@ describe('addExtras', () => {
 
   it('is done when the read-back shows every photo kept', async () => {
     siteRunPage
-      .mockResolvedValueOnce(reply({ status: 'ok', user: 'Ian', count: 1 }))
+      .mockResolvedValueOnce(reply({ status: 'ok', user: 'Ian', items: [item('a')] }))
       .mockResolvedValueOnce(reply({ status: 'submitted', user: 'Ian', remainingBefore: 99 }))
-      .mockResolvedValueOnce(reply({ status: 'ok', user: 'Ian', count: 3 }));
-    expect(await addExtras('1', 'ian', [photo, photo])).toEqual({ kind: 'done', added: 2 });
+      .mockResolvedValueOnce(
+        reply({ status: 'ok', user: 'Ian', items: [item('a'), item('b'), item('c')] }),
+      );
+    expect(await addExtras('1', 'ian', [photo, photo])).toEqual({
+      kind: 'done',
+      added: 2,
+      removed: 0,
+    });
     expect(siteRunPage.mock.calls[1]?.[0]).toMatchObject({ waitForNavigation: true });
   });
 
   it('reports a partial result when only some were kept', async () => {
     siteRunPage
-      .mockResolvedValueOnce(reply({ status: 'ok', user: 'ian', count: 0 }))
+      .mockResolvedValueOnce(reply({ status: 'ok', user: 'ian', items: [] }))
       .mockResolvedValueOnce(reply({ status: 'submitted', user: 'ian', remainingBefore: 100 }))
-      .mockResolvedValueOnce(reply({ status: 'ok', user: 'ian', count: 1 }));
+      .mockResolvedValueOnce(reply({ status: 'ok', user: 'ian', items: [item('a')] }));
     expect(await addExtras('1', 'ian', [photo, photo])).toMatchObject({
       kind: 'partial',
       added: 1,
@@ -87,9 +96,9 @@ describe('addExtras', () => {
 
   it('does not trust the save: nothing in the read-back means not kept', async () => {
     siteRunPage
-      .mockResolvedValueOnce(reply({ status: 'ok', user: 'ian', count: 0 }))
+      .mockResolvedValueOnce(reply({ status: 'ok', user: 'ian', items: [] }))
       .mockResolvedValueOnce(reply({ status: 'submitted', user: 'ian', remainingBefore: 100 }))
-      .mockResolvedValueOnce(reply({ status: 'ok', user: 'ian', count: 0 }));
+      .mockResolvedValueOnce(reply({ status: 'ok', user: 'ian', items: [] }));
     expect(await addExtras('1', 'ian', [photo])).toMatchObject({
       kind: 'manual',
       reason: 'not-kept',
@@ -162,5 +171,79 @@ describe('readExtrasRemaining', () => {
     expect(await readExtrasRemaining()).toBeNull();
     available = false;
     expect(await readExtrasRemaining()).toBeNull();
+  });
+});
+
+describe('applyExtras with removals (b-oss#1041)', () => {
+  it('removes by id through the page and confirms from the read-back', async () => {
+    siteRunPage
+      .mockResolvedValueOnce(reply({ status: 'ok', user: 'ian', items: [item('a'), item('b')] }))
+      .mockResolvedValueOnce(
+        reply({ status: 'submitted', user: 'ian', remainingBefore: 98, missing: [] }),
+      )
+      .mockResolvedValueOnce(reply({ status: 'ok', user: 'ian', items: [item('b')] }));
+    expect(await applyExtras('1', 'ian', [], ['a'])).toEqual({
+      kind: 'done',
+      added: 0,
+      removed: 1,
+    });
+    const run = siteRunPage.mock.calls[1]?.[0] as { script: string };
+    expect(run.script).toContain('["a"]');
+  });
+
+  it('does both in one save, and reports a partial result honestly', async () => {
+    siteRunPage
+      .mockResolvedValueOnce(reply({ status: 'ok', user: 'ian', items: [item('a')] }))
+      .mockResolvedValueOnce(
+        reply({ status: 'submitted', user: 'ian', remainingBefore: 98, missing: [] }),
+      )
+      // 'a' is gone, but the new photo did not arrive
+      .mockResolvedValueOnce(reply({ status: 'ok', user: 'ian', items: [] }));
+    expect(await applyExtras('1', 'ian', [photo], ['a'])).toMatchObject({
+      kind: 'partial',
+      added: 1,
+      total: 2,
+    });
+  });
+
+  it('treats an id already gone as removed, and never asks the page to remove it', async () => {
+    siteRunPage
+      .mockResolvedValueOnce(reply({ status: 'ok', user: 'ian', items: [] }))
+      .mockResolvedValueOnce(
+        reply({ status: 'submitted', user: 'ian', remainingBefore: 98, missing: [] }),
+      )
+      .mockResolvedValueOnce(reply({ status: 'ok', user: 'ian', items: [] }));
+    expect(await applyExtras('1', 'ian', [], ['gone'])).toMatchObject({ kind: 'done', removed: 1 });
+    const run = siteRunPage.mock.calls[1]?.[0] as { script: string };
+    expect(run.script).toContain('var REMOVE = [];');
+  });
+});
+
+describe('loadEditExtras', () => {
+  it('returns the extras and the allowance the edit page shows', async () => {
+    siteRunPage.mockResolvedValueOnce(
+      reply({ status: 'ok', user: 'ian', items: [item('a')], remaining: 97 }),
+    );
+    expect(await loadEditExtras('1', 'ian')).toEqual({
+      kind: 'ok',
+      items: [item('a')],
+      remaining: 97,
+    });
+  });
+
+  it('asks for a sign-in when signed out or signed in as someone else', async () => {
+    siteRunPage.mockResolvedValueOnce(reply({ status: 'needs-login' }));
+    expect(await loadEditExtras('1', 'ian')).toEqual({ kind: 'needs-login' });
+    siteRunPage.mockResolvedValueOnce(reply({ status: 'ok', user: 'other', items: [] }));
+    expect(await loadEditExtras('1', 'ian')).toEqual({ kind: 'needs-login' });
+  });
+
+  it('is unavailable without an uploader (not a member), on a throw, or with no session', async () => {
+    siteRunPage.mockResolvedValueOnce(reply({ status: 'no-uploader' }));
+    expect(await loadEditExtras('1', 'ian')).toEqual({ kind: 'unavailable' });
+    siteRunPage.mockRejectedValueOnce(new Error('boom'));
+    expect(await loadEditExtras('1', 'ian')).toEqual({ kind: 'unavailable' });
+    available = false;
+    expect(await loadEditExtras('1', 'ian')).toEqual({ kind: 'unavailable' });
   });
 });

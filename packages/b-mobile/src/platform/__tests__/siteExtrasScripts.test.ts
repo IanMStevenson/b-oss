@@ -16,6 +16,7 @@ describe('page scripts', () => {
     const files = [{ name: 'a.jpg', mimeType: 'image/jpeg', base64: 'QUJD' }];
     for (const script of [
       buildAddExtrasScript(files),
+      buildAddExtrasScript([], ['1', '2']),
       buildReadBackScript(),
       buildWhoAmIScript(),
       buildRemainingScript(),

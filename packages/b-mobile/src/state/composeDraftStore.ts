@@ -67,6 +67,8 @@ export interface ComposeDraft {
   /** SCR-10 only, members-only (b-oss#1037): extra photos to add through the website once the
    * entry is published. Absent is none. */
   extras?: ComposePhoto[];
+  /** SCR-13 only (b-oss#1041): ids, on the website, of existing extras to delete on save. */
+  extrasRemove?: string[];
   /** Whether anything has changed since the draft was created/loaded — the discard-guard's input. */
   dirty: boolean;
 }
