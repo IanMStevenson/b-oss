@@ -1,0 +1,67 @@
+/* SPDX-License-Identifier: GPL-3.0-or-later */
+/* Copyright (C) 2026 Ian Stevenson */
+
+/* The new-entry / edit-entry screen layout (b-oss#1043). One column by default, in the website's
+   order; two columns from the same width as styles/wide.css. Each slot keeps the .compose-form
+   gutters and gaps inside it, so a screen's fields look as they did. */
+
+.entry-form {
+  display: flex;
+  flex-direction: column;
+}
+
+@media (min-width: 900px) {
+  .entry-form {
+    display: grid;
+    grid-template-columns: minmax(0, 3fr) minmax(0, 2fr);
+    column-gap: 32px;
+    max-width: 1000px;
+    margin-inline: auto;
+    padding-inline: 16px;
+  }
+
+  .entry-form-notices,
+  .entry-form-photo,
+  .entry-form-action {
+    grid-column: 1 / -1;
+  }
+
+  .entry-form-main {
+    grid-column: 1;
+    grid-row: 3;
+  }
+
+  .entry-form-side {
+    grid-column: 2;
+    grid-row: 3;
+  }
+
+  .entry-form-notices {
+    grid-row: 1;
+  }
+
+  .entry-form-photo {
+    grid-row: 2;
+  }
+
+  .entry-form-action {
+    grid-row: 4;
+  }
+
+  /* The slots no longer need their own gutters or the centred max-width of a lone column. */
+  .entry-form .compose-form {
+    max-width: none;
+    margin-inline: 0;
+    padding-inline: 0;
+  }
+
+  /* An action button stays a sensible width, centred, as on the other wide screens. */
+  .entry-form-action .compose-form {
+    align-items: center;
+  }
+
+  .entry-form-action ion-button {
+    width: 100%;
+    max-width: 280px;
+  }
+}

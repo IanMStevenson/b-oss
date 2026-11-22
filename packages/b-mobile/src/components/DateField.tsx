@@ -16,6 +16,9 @@ interface DateFieldProps {
   /** 'YYYY-MM-DD' */
   value: string;
   onChange: (date: string) => void;
+  /** Shows the month grid permanently, with no folding row (the wide form, as on the website).
+   * Picking a day then leaves the grid open. */
+  alwaysOpen?: boolean;
 }
 
 export function formatDateLabel(value: string): string {
@@ -27,13 +30,24 @@ export function formatDateLabel(value: string): string {
   });
 }
 
-export function DateField({ value, onChange }: DateFieldProps) {
+export function DateField({ value, onChange, alwaysOpen = false }: DateFieldProps) {
   const [open, setOpen] = useState(false);
   const [everOpened, setEverOpened] = useState(false);
 
   function toggle(): void {
     setOpen((o) => !o);
     setEverOpened(true);
+  }
+
+  if (alwaysOpen) {
+    return (
+      <div className="compose-field">
+        <span className="compose-field-label">Date: {formatDateLabel(value)}</span>
+        <div className="date-field-picker">
+          <MonthDatePicker value={value} onChange={onChange} />
+        </div>
+      </div>
+    );
   }
 
   return (

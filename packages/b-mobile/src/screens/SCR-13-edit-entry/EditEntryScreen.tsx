@@ -29,6 +29,8 @@ import {
 import { AppHeader } from '../../components/AppHeader.js';
 import { CachedImage } from '../../components/CachedImage.js';
 import { DateField } from '../../components/DateField.js';
+import { EntryFormLayout } from '../../components/EntryFormLayout.js';
+import { useWideForm } from '../../theme/wideLayout.js';
 import { DescriptionField, TextField, ToggleRow } from '../../components/ComposeForm.js';
 import { useAppNavigate } from '../../app/routes/useAppNavigate.js';
 import { useComposeDraftStore } from '../../state/composeDraftStore.js';
@@ -50,6 +52,7 @@ interface EditEntryScreenProps {
 }
 
 export function EditEntryScreen({ entryId }: EditEntryScreenProps) {
+  const wideForm = useWideForm();
   const navigate = useAppNavigate();
   const activeAccount = useActiveAccount();
   const draft = useComposeDraftStore((s) => s.draft);
@@ -282,116 +285,145 @@ export function EditEntryScreen({ entryId }: EditEntryScreenProps) {
         />
       </IonHeader>
       <IonContent>
-        {membershipFailed && draft.photo && <MembershipCheckFailed onRetry={retryMembership} />}
-        {photoFrame}
-        <div className="compose-form">
-          {submitError && (
-            <IonText color="danger">
-              <p>{submitError}</p>
-            </IonText>
-          )}
-          {deleteError && (
-            <IonText color="danger">
-              <p>{deleteError}</p>
-            </IonText>
-          )}
-
-          {editLevel !== 1 && (
-            <IonText color="medium">
-              <p>
-                {editLevel === 2
-                  ? 'Blipfoto only allows the tags and location to be changed on this entry now.'
-                  : "Blipfoto doesn't allow this entry to be edited."}
-              </p>
-            </IonText>
-          )}
-
-          {editLevel === 1 && (
+        <EntryFormLayout
+          notices={
             <>
+              {membershipFailed && draft.photo && (
+                <MembershipCheckFailed onRetry={retryMembership} />
+              )}
+              <div className="compose-form">
+                {submitError && (
+                  <IonText color="danger">
+                    <p>{submitError}</p>
+                  </IonText>
+                )}
+                {deleteError && (
+                  <IonText color="danger">
+                    <p>{deleteError}</p>
+                  </IonText>
+                )}
+                {editLevel !== 1 && (
+                  <IonText color="medium">
+                    <p>
+                      {editLevel === 2
+                        ? 'Blipfoto only allows the tags and location to be changed on this entry now.'
+                        : "Blipfoto doesn't allow this entry to be edited."}
+                    </p>
+                  </IonText>
+                )}
+              </div>
+            </>
+          }
+          photo={
+            <>
+              {photoFrame}
+              {editLevel === 1 && (
+                <div className="compose-form">
+                  <IonButton
+                    expand="block"
+                    fill="outline"
+                    onClick={() => navigate.push(`/entry/${entryId}/edit/photo`)}
+                  >
+                    Replace image
+                  </IonButton>
+                </div>
+              )}
+            </>
+          }
+          date={
+            editLevel === 1 ? (
+              <div className="compose-form">
+                <DateField
+                  value={draft.date}
+                  alwaysOpen={wideForm}
+                  onChange={(date) => patchDraft({ date })}
+                />
+              </div>
+            ) : undefined
+          }
+          details={
+            <div className="compose-form">
+              {editLevel === 1 && (
+                <>
+                  <TextField
+                    label="Title"
+                    value={draft.title}
+                    maxLength={50}
+                    onChange={(title) => patchDraft({ title })}
+                  />
+
+                  <DescriptionField
+                    value={draft.description}
+                    onChange={(description) => patchDraft({ description })}
+                  />
+                </>
+              )}
+
+              {editLevel !== 0 && (
+                <>
+                  <TextField
+                    label="Tags (comma-separated)"
+                    value={draft.tags}
+                    maxLength={255}
+                    onChange={(tags) => patchDraft({ tags })}
+                  />
+
+                  <ToggleRow
+                    label="Add to map"
+                    caption={lookingUpPosition ? "Looking up this entry's position…" : mapMessage}
+                    checked={draft.displayLocation}
+                    onChange={(checked) => {
+                      if (checked && !draft.displayLocation) {
+                        // The picker opens at the entry's position when one is known, and
+                        // confirming it turns the map on; backing out leaves it off. With none
+                        // known, ask Blipfoto for the one it holds first.
+                        if (draft.location) navigate.push('/compose/location');
+                        else void handleAddToMap();
+                      } else if (!checked && draft.displayLocation) {
+                        // Hide, but keep the position so turning it back on restores it.
+                        patchDraft({ displayLocation: false });
+                      }
+                    }}
+                  >
+                    {draft.displayLocation && draft.location && (
+                      <IonButton
+                        fill="clear"
+                        size="small"
+                        onClick={() => navigate.push('/compose/location')}
+                      >
+                        Change
+                      </IonButton>
+                    )}
+                  </ToggleRow>
+                </>
+              )}
+            </div>
+          }
+          action={
+            <div className="compose-form">
+              {submitting && <UploadingNotice what="save" />}
               <IonButton
                 expand="block"
-                fill="outline"
-                onClick={() => navigate.push(`/entry/${entryId}/edit/photo`)}
+                disabled={submitting || editLevel === 0}
+                onClick={() => void handleSave()}
               >
-                Replace image
+                {submitting ? <IonSpinner name="dots" /> : submitError ? 'Retry' : 'Save'}
               </IonButton>
 
-              <TextField
-                label="Title"
-                value={draft.title}
-                maxLength={50}
-                onChange={(title) => patchDraft({ title })}
-              />
-
-              <DescriptionField
-                value={draft.description}
-                onChange={(description) => patchDraft({ description })}
-              />
-
-              <DateField value={draft.date} onChange={(date) => patchDraft({ date })} />
-            </>
-          )}
-
-          {editLevel !== 0 && (
-            <>
-              <TextField
-                label="Tags (comma-separated)"
-                value={draft.tags}
-                maxLength={255}
-                onChange={(tags) => patchDraft({ tags })}
-              />
-
-              <ToggleRow
-                label="Add to map"
-                caption={lookingUpPosition ? "Looking up this entry's position…" : mapMessage}
-                checked={draft.displayLocation}
-                onChange={(checked) => {
-                  if (checked && !draft.displayLocation) {
-                    // The picker opens at the entry's position when one is known, and confirming
-                    // it turns the map on; backing out leaves it off. With none known, ask
-                    // Blipfoto for the one it holds first.
-                    if (draft.location) navigate.push('/compose/location');
-                    else void handleAddToMap();
-                  } else if (!checked && draft.displayLocation) {
-                    // Hide, but keep the position so turning it back on restores it.
-                    patchDraft({ displayLocation: false });
-                  }
-                }}
-              >
-                {draft.displayLocation && draft.location && (
-                  <IonButton
-                    fill="clear"
-                    size="small"
-                    onClick={() => navigate.push('/compose/location')}
-                  >
-                    Change
-                  </IonButton>
-                )}
-              </ToggleRow>
-            </>
-          )}
-
-          {submitting && <UploadingNotice what="save" />}
-          <IonButton
-            expand="block"
-            disabled={submitting || editLevel === 0}
-            onClick={() => void handleSave()}
-          >
-            {submitting ? <IonSpinner name="dots" /> : submitError ? 'Retry' : 'Save'}
-          </IonButton>
-
-          <div className="compose-danger-zone">
-            <IonButton
-              expand="block"
-              fill="outline"
-              color="danger"
-              disabled={deletingEntry}
-              onClick={() => setConfirmDeleteEntry(true)}
-            >
-              Delete entry
-            </IonButton>
-          </div>
-        </div>
+              <div className="compose-danger-zone">
+                <IonButton
+                  expand="block"
+                  fill="outline"
+                  color="danger"
+                  disabled={deletingEntry}
+                  onClick={() => setConfirmDeleteEntry(true)}
+                >
+                  Delete entry
+                </IonButton>
+              </div>
+            </div>
+          }
+        />
       </IonContent>
 
       <IonAlert

@@ -36,6 +36,8 @@ import { fetchUserProfile } from '../../data/users.js';
 import { fetchEntryThumbnailUrl } from '../../data/entries.js';
 import { UploadingNotice } from '../../components/UploadingNotice.js';
 import { ExtraPhotosSection } from '../../components/ExtraPhotosSection.js';
+import { EntryFormLayout } from '../../components/EntryFormLayout.js';
+import { useWideForm } from '../../theme/wideLayout.js';
 import { addExtras, describeExtrasFailure, type ExtrasOutcome } from '../../flows/extrasFlow.js';
 import { siteSessionAvailable } from '../../platform/siteSession.js';
 import { openUrl } from '../../platform/browser.js';
@@ -51,6 +53,7 @@ const TAGS_LIMIT = 255;
 
 export function ComposeEntryScreen() {
   const navigate = useAppNavigate();
+  const wideForm = useWideForm();
   const draft = useComposeDraftStore((s) => s.draft);
   const patchDraft = useComposeDraftStore((s) => s.patchDraft);
   const clearDraft = useComposeDraftStore((s) => s.clearDraft);
@@ -268,55 +271,41 @@ export function ComposeEntryScreen() {
             >
               Choose another photo
             </IonButton>
+            <IonButton expand="block" disabled>
+              Publish
+            </IonButton>
           </div>
         ) : (
-          <>
-            {submitError && (
+          <EntryFormLayout
+            notices={
+              <>
+                {submitError && (
+                  <div className="compose-form">
+                    <IonText color="danger">
+                      <p>{submitError}</p>
+                    </IonText>
+                  </div>
+                )}
+                {membershipFailed && <MembershipCheckFailed onRetry={retryMembership} />}
+              </>
+            }
+            photo={
+              draft.photo && (
+                <ThumbnailPhotoFrame
+                  photo={draft.photo}
+                  crop={draft.thumbnailCrop}
+                  canSelect={isMember === true}
+                  onCropChange={handleCropComplete}
+                />
+              )
+            }
+            date={
               <div className="compose-form">
-                <IonText color="danger">
-                  <p>{submitError}</p>
-                </IonText>
-              </div>
-            )}
-
-            {membershipFailed && <MembershipCheckFailed onRetry={retryMembership} />}
-
-            {draft.photo && (
-              <ThumbnailPhotoFrame
-                photo={draft.photo}
-                crop={draft.thumbnailCrop}
-                canSelect={isMember === true}
-                onCropChange={handleCropComplete}
-              />
-            )}
-
-            <div className="compose-form">
-              <TextField
-                label="Title"
-                value={draft.title}
-                maxLength={TITLE_LIMIT}
-                caption={
-                  draft.title.length >= TITLE_LIMIT - 10
-                    ? `${TITLE_LIMIT - draft.title.length} characters left`
-                    : null
-                }
-                onChange={(title) => patchDraft({ title })}
-              />
-
-              <DescriptionField
-                value={draft.description}
-                onChange={(description) => patchDraft({ description })}
-              />
-
-              <TextField
-                label="Tags (comma-separated)"
-                value={draft.tags}
-                maxLength={TAGS_LIMIT}
-                onChange={(tags) => patchDraft({ tags })}
-              />
-
-              <div>
-                <DateField value={draft.date} onChange={(date) => patchDraft({ date })} />
+                <DateField
+                  value={draft.date}
+                  alwaysOpen={wideForm}
+                  onChange={(date) => patchDraft({ date })}
+                />
 
                 {eligibilityLoading && <IonSpinner name="dots" />}
                 {!eligibilityLoading && eligibility?.message && (
@@ -336,50 +325,85 @@ export function ComposeEntryScreen() {
                   </div>
                 )}
               </div>
-
-              <ToggleRow
-                label="Add to map"
-                checked={draft.displayLocation}
-                onChange={(checked) => {
-                  if (checked && !draft.displayLocation) {
-                    // The picker opens at the photo's own position when one is known, and
-                    // confirming it turns the map on; backing out leaves it off.
-                    navigate.push('/compose/location');
-                  } else if (!checked && draft.displayLocation) {
-                    // Hide, but keep the position so turning it back on restores it.
-                    patchDraft({ displayLocation: false });
+            }
+            extras={
+              isMember === true && siteSessionAvailable() ? (
+                <ExtraPhotosSection
+                  accountId={draft.accountId}
+                  username={accounts.find((a) => a.id === draft.accountId)?.username ?? ''}
+                  photos={draft.extras ?? []}
+                  onChange={(extras) => patchDraft({ extras })}
+                />
+              ) : undefined
+            }
+            details={
+              <div className="compose-form">
+                <TextField
+                  label="Title"
+                  value={draft.title}
+                  maxLength={TITLE_LIMIT}
+                  caption={
+                    draft.title.length >= TITLE_LIMIT - 10
+                      ? `${TITLE_LIMIT - draft.title.length} characters left`
+                      : null
                   }
-                }}
-              >
-                {draft.displayLocation && draft.location && (
+                  onChange={(title) => patchDraft({ title })}
+                />
+
+                <DescriptionField
+                  value={draft.description}
+                  onChange={(description) => patchDraft({ description })}
+                />
+
+                <TextField
+                  label="Tags (comma-separated)"
+                  value={draft.tags}
+                  maxLength={TAGS_LIMIT}
+                  onChange={(tags) => patchDraft({ tags })}
+                />
+
+                <ToggleRow
+                  label="Add to map"
+                  checked={draft.displayLocation}
+                  onChange={(checked) => {
+                    if (checked && !draft.displayLocation) {
+                      // The picker opens at the photo's own position when one is known, and
+                      // confirming it turns the map on; backing out leaves it off.
+                      navigate.push('/compose/location');
+                    } else if (!checked && draft.displayLocation) {
+                      // Hide, but keep the position so turning it back on restores it.
+                      patchDraft({ displayLocation: false });
+                    }
+                  }}
+                >
+                  {draft.displayLocation && draft.location && (
+                    <IonButton
+                      fill="clear"
+                      size="small"
+                      onClick={() => navigate.push('/compose/location')}
+                    >
+                      Change
+                    </IonButton>
+                  )}
+                </ToggleRow>
+              </div>
+            }
+            action={
+              <>
+                {submitting && <UploadingNotice what="publish" />}
+                <div className="compose-form">
                   <IonButton
-                    fill="clear"
-                    size="small"
-                    onClick={() => navigate.push('/compose/location')}
+                    expand="block"
+                    disabled={!canPublish}
+                    onClick={() => void handlePublish()}
                   >
-                    Change
+                    {submitting ? <IonSpinner name="dots" /> : submitError ? 'Retry' : 'Publish'}
                   </IonButton>
-                )}
-              </ToggleRow>
-            </div>
-
-            {isMember === true && siteSessionAvailable() && (
-              <ExtraPhotosSection
-                accountId={draft.accountId}
-                username={accounts.find((a) => a.id === draft.accountId)?.username ?? ''}
-                photos={draft.extras ?? []}
-                onChange={(extras) => patchDraft({ extras })}
-              />
-            )}
-          </>
+                </div>
+              </>
+            }
+          />
         )}
-
-        {submitting && <UploadingNotice what="publish" />}
-        <div className="compose-form">
-          <IonButton expand="block" disabled={!canPublish} onClick={() => void handlePublish()}>
-            {submitting ? <IonSpinner name="dots" /> : submitError ? 'Retry' : 'Publish'}
-          </IonButton>
-        </div>
       </IonContent>
 
       <IonAlert

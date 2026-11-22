@@ -5,7 +5,7 @@
 // website, so the first time the member adds one they are asked to sign in there (once, not at
 // account setup), through the shared gate (useSiteSignInGate).
 
-import { IonButton, IonText } from '@ionic/react';
+import { IonText } from '@ionic/react';
 import { pickPhoto } from '../platform/camera.js';
 import type { ComposePhoto } from '../state/composeDraftStore.js';
 import { MAX_EXTRAS } from '../flows/extrasFlow.js';
@@ -27,41 +27,45 @@ export function ExtraPhotosSection({ accountId, username, photos, onChange }: Pr
     if (photo) onChange([...photos, photo]);
   }
 
+  const remaining = MAX_EXTRAS - photos.length;
+
   return (
     <div className="compose-form extra-photos">
-      <h3>Extra photos</h3>
-      <IonText color="medium">
-        <p>Added to your entry after it is published.</p>
-      </IonText>
-      {photos.length > 0 && (
-        <ul className="extra-photos-list">
-          {photos.map((photo, index) => (
-            <li key={`${photo.webPath}-${index}`}>
-              <img src={photo.webPath} alt={`Extra photo ${index + 1}`} />
-              <button
-                type="button"
-                aria-label={`Remove extra photo ${index + 1}`}
-                onClick={() => onChange(photos.filter((_, i) => i !== index))}
-              >
-                ×
-              </button>
-            </li>
-          ))}
-        </ul>
-      )}
+      <div className="extra-photos-head">
+        <h3>Extra photos</h3>
+        <span className="extra-photos-remaining">{remaining} remaining</span>
+      </div>
+      <ul className="extra-photos-list">
+        <li>
+          <button
+            type="button"
+            className="extra-photos-add"
+            aria-label="Add an extra photo"
+            disabled={gate.busy || remaining <= 0}
+            onClick={() => void gate.start(pickAndAdd)}
+          >
+            +
+          </button>
+        </li>
+        {photos.map((photo, index) => (
+          <li key={`${photo.webPath}-${index}`}>
+            <img src={photo.webPath} alt={`Extra photo ${index + 1}`} />
+            <button
+              type="button"
+              className="extra-photos-remove"
+              aria-label={`Remove extra photo ${index + 1}`}
+              onClick={() => onChange(photos.filter((_, i) => i !== index))}
+            >
+              ×
+            </button>
+          </li>
+        ))}
+      </ul>
       {gate.notice && (
         <IonText color="danger">
           <p>{gate.notice}</p>
         </IonText>
       )}
-      <IonButton
-        expand="block"
-        fill="outline"
-        disabled={gate.busy || photos.length >= MAX_EXTRAS}
-        onClick={() => void gate.start(pickAndAdd)}
-      >
-        Add an extra photo
-      </IonButton>
       {gate.alerts}
     </div>
   );
