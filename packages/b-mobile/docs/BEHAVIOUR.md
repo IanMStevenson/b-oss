@@ -201,6 +201,9 @@ reminders,details,profile,notifications}`; the old `/settings/{general,journal,a
   extra photos…" and then the count added. Any failure (not signed in, another member, no
   membership, an unexpected page, a timeout, not kept, or a partial result) says what happened and
   offers **Open the edit page** in the system browser; the entry itself is never affected.
+  The website session is kept in the WebView's (or the shell window's) own cookie store, not the
+  OS keystore, and reused until Blipfoto says it has ended (its "remember me" cookie survives an
+  app restart). Removing an account deletes it, if it belongs to that member (`forgetSiteSession`).
 - Share intent (`platform/shareIntent.ts`): `AppShell` reads the shared image once, caches it and
   opens `/compose`; New entry starts a draft from it once the write gate has passed.
 
