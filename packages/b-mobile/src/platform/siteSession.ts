@@ -33,6 +33,7 @@ export interface SitePageResult {
 
 interface SiteSessionPlugin {
   signIn(options: { url: string }): Promise<{ signedIn: boolean }>;
+  signOut(): Promise<void>;
   runPage(options: SitePageRun): Promise<SitePageResult>;
 }
 
@@ -67,4 +68,12 @@ export async function siteRunPage(run: SitePageRun): Promise<SitePageResult> {
   if (desktop?.site) return desktop.site.runPage(run);
   if (!desktop && isCapacitorNative()) return SiteSession.runPage(run);
   throw new SiteSessionUnavailableError();
+}
+
+/** Deletes the stored website session (its cookies), so nothing is left behind when the member
+ * disconnects their account. Resolves quietly where there is nothing to delete. */
+export async function siteSignOut(): Promise<void> {
+  const desktop = desktopBridge();
+  if (desktop?.site) return desktop.site.signOut();
+  if (!desktop && isCapacitorNative()) await SiteSession.signOut();
 }

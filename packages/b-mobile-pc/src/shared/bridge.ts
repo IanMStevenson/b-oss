@@ -32,6 +32,7 @@ export const CHANNELS = {
   shellInfo: 'shell:info',
   pickPhoto: 'photo:pick',
   siteSignIn: 'site:sign-in',
+  siteSignOut: 'site:sign-out',
   siteRunPage: 'site:run-page',
 } as const;
 
@@ -112,6 +113,8 @@ export interface DesktopBridge {
    * hidden window with that session and runs a script in it. Both refuse any other origin. */
   readonly site: {
     signIn(url: string): Promise<boolean>;
+    /** Deletes the stored site session (its cookies and storage). */
+    signOut(): Promise<void>;
     runPage(run: SitePageRun): Promise<SitePageResult>;
   };
   /** The error log and the error screen's actions (b-oss#639). */

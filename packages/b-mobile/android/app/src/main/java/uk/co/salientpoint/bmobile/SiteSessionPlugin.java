@@ -49,6 +49,17 @@ public class SiteSessionPlugin extends Plugin {
     call.resolve(ret);
   }
 
+  // Deletes the website session's cookies when the member disconnects their account.
+  @PluginMethod
+  public void signOut(PluginCall call) {
+    CookieManager cookies = CookieManager.getInstance();
+    cookies.removeAllCookies(
+        removed -> {
+          cookies.flush();
+          call.resolve();
+        });
+  }
+
   @PluginMethod
   public void runPage(PluginCall call) {
     String url = call.getString("url");

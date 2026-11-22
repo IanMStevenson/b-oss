@@ -4,20 +4,23 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const siteRunPage = vi.fn();
+const signOut = vi.fn(() => Promise.resolve());
 let available = true;
 vi.mock('../../platform/siteSession.js', () => ({
   siteRunPage: (run: unknown): Promise<unknown> => siteRunPage(run) as Promise<unknown>,
   siteSessionAvailable: () => available,
   siteSignIn: vi.fn(),
+  siteSignOut: () => signOut(),
 }));
 
-import { addExtras, currentSiteUser, isSameMember } from '../extrasFlow.js';
+import { addExtras, currentSiteUser, forgetSiteSession, isSameMember } from '../extrasFlow.js';
 
 const photo = { webPath: 'blob:x', mimeType: 'image/jpeg' };
 const reply = (o: unknown) => ({ finalUrl: '', result: JSON.stringify(o) });
 
 beforeEach(() => {
   siteRunPage.mockReset();
+  signOut.mockClear();
   available = true;
   vi.stubGlobal(
     'fetch',
@@ -111,5 +114,26 @@ describe('currentSiteUser / isSameMember', () => {
     expect(isSameMember('', 'ian')).toBe(true);
     expect(isSameMember(null, 'ian')).toBe(false);
     expect(isSameMember('x', 'ian')).toBe(false);
+  });
+});
+
+describe('forgetSiteSession', () => {
+  it('deletes the session when it is the removed member own', async () => {
+    siteRunPage.mockResolvedValueOnce(reply({ status: 'ok', user: 'Ian' }));
+    await forgetSiteSession('ian');
+    expect(signOut).toHaveBeenCalledTimes(1);
+  });
+
+  it('leaves another member session, and a signed-out one, alone', async () => {
+    siteRunPage.mockResolvedValueOnce(reply({ status: 'ok', user: 'other' }));
+    await forgetSiteSession('ian');
+    siteRunPage.mockResolvedValueOnce(reply({ status: 'needs-login' }));
+    await forgetSiteSession('ian');
+    expect(signOut).not.toHaveBeenCalled();
+  });
+
+  it('never throws', async () => {
+    siteRunPage.mockRejectedValueOnce(new Error('boom'));
+    await expect(forgetSiteSession('ian')).resolves.toBeUndefined();
   });
 });

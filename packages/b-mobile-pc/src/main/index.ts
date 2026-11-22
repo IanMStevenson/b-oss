@@ -30,7 +30,7 @@ import { appTokenKey, parseNotifySettings } from '../shared/notify.js';
 import { parseReminderAccountId, parseReminderConfigs } from '../shared/reminders.js';
 import { allowPermission } from './permissions.js';
 import { validateSiteRun, validateSiteUrl } from './site-request.js';
-import { siteRunPage, siteSignIn } from './site-window.js';
+import { siteRunPage, siteSignIn, siteSignOut } from './site-window.js';
 import {
   APP_ORIGIN,
   APP_SCHEME,
@@ -573,6 +573,7 @@ if (!app.requestSingleInstanceLock()) {
     handle(CHANNELS.siteSignIn, (url) =>
       siteSignIn(BrowserWindow.getFocusedWindow() ?? mainWindow, validateSiteUrl(url)),
     );
+    handle(CHANNELS.siteSignOut, () => siteSignOut());
     handle(CHANNELS.siteRunPage, (run) => siteRunPage(validateSiteRun(run)));
     handle(CHANNELS.authOpen, (url, redirectPrefix) => {
       const request = validateAuthRequest(url, redirectPrefix, authHosts, authAllowHttp);

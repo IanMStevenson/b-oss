@@ -56,6 +56,11 @@ export async function siteSignIn(parent: BrowserWindow | null, url: string): Pro
   });
 }
 
+/** Deletes the stored site session, so nothing is left once the member disconnects the account. */
+export async function siteSignOut(): Promise<void> {
+  await session.fromPartition(PARTITION).clearStorageData();
+}
+
 const sleep = (ms: number): Promise<void> => new Promise((r) => setTimeout(r, ms));
 
 /** Loads `run.url` in a hidden window with the site session, runs the script and polls its

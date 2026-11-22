@@ -100,6 +100,7 @@ export interface DesktopBridge {
    * that session and runs a script in it. */
   readonly site?: {
     signIn(url: string): Promise<boolean>;
+    signOut(): Promise<void>;
     runPage(run: DesktopSitePageRun): Promise<DesktopSitePageResult>;
   };
   /** The error log and the error screen's actions (b-oss#639); see platform/diagnostics.ts. */

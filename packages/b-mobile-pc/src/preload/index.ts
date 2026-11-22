@@ -59,6 +59,7 @@ const bridge: DesktopBridge = {
   },
   site: {
     signIn: (url) => ipcRenderer.invoke(CHANNELS.siteSignIn, url) as Promise<boolean>,
+    signOut: () => ipcRenderer.invoke(CHANNELS.siteSignOut) as Promise<void>,
     runPage: (run) => ipcRenderer.invoke(CHANNELS.siteRunPage, run) as Promise<SitePageResult>,
   },
   pickPhoto: (accountId) =>

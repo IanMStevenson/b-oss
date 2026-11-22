@@ -34,6 +34,7 @@ import type { OAuthResult } from './oauthRound.js';
 import { AccountMismatchError, sameUsername } from './accountMismatch.js';
 import { capabilities } from '../platform/capabilities.js';
 import { cancelReminderForAccount } from './reminderFlow.js';
+import { forgetSiteSession } from './extrasFlow.js';
 import {
   ensurePushPermission,
   registerAccountForPush,
@@ -300,6 +301,10 @@ export async function removeAccount(accountId: string): Promise<void> {
   if (account.notificationRegistrationId) {
     await deregisterAccountFromPush(accountId);
   }
+
+  // The website session used for extra photos (b-oss#1037) is this member's own cookie; it goes
+  // with the account.
+  await forgetSiteSession(account.username);
 
   useAccountsStore.getState().removeAccountLocally(accountId);
   cancelReminderForAccount(accountId);

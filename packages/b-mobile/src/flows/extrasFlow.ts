@@ -18,7 +18,12 @@ import {
   type ReadBackResult,
   type WhoAmIResult,
 } from '../platform/siteExtrasScripts.js';
-import { siteRunPage, siteSessionAvailable, siteSignIn } from '../platform/siteSession.js';
+import {
+  siteRunPage,
+  siteSessionAvailable,
+  siteSignIn,
+  siteSignOut,
+} from '../platform/siteSession.js';
 
 /** The most extras one entry gets from the app in one go; the page itself allows far more, but
  * each photo travels through the page as base64, so the app keeps the batch modest. */
@@ -71,6 +76,19 @@ export async function currentSiteUser(): Promise<string | null> {
 /** Shows the site's sign-in page. True once the member has signed in. */
 export function signInToSite(): Promise<boolean> {
   return siteSignIn(SIGN_IN_URL).catch(() => false);
+}
+
+/** When a member disconnects their account: deletes the stored website session if it is theirs
+ * (or unnamed), so its cookie does not outlive the account. Another member's session is left
+ * alone. Best effort: never throws, because removing the account must not depend on it. */
+export async function forgetSiteSession(username: string): Promise<void> {
+  try {
+    if (!siteSessionAvailable()) return;
+    const who = await currentSiteUser();
+    if (who !== null && isSameMember(who, username)) await siteSignOut();
+  } catch {
+    // Nothing more to do; the account is removed regardless.
+  }
 }
 
 /** Whether the stored session is this member's (case-insensitive). An unnamed session is accepted:
