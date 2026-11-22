@@ -320,11 +320,11 @@ export function EditEntryScreen({ entryId }: EditEntryScreenProps) {
               {editLevel === 1 && (
                 <div className="compose-form">
                   <IonButton
-                    expand="block"
+                    className="replace-photo-button"
                     fill="outline"
                     onClick={() => navigate.push(`/entry/${entryId}/edit/photo`)}
                   >
-                    Replace image
+                    Replace photo
                   </IonButton>
                 </div>
               )}

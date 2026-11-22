@@ -12,6 +12,9 @@ import {
   buildAddExtrasScript,
   buildPageHtmlScript,
   buildReadBackScript,
+  buildRemainingScript,
+  PUBLISH_URL,
+  type RemainingResult,
   buildWhoAmIScript,
   editPageUrl,
   type AddScriptResult,
@@ -228,5 +231,23 @@ export async function readExtrasViaSession(
     return read.status === 'protected' ? { kind: 'needs-login' } : { kind: 'failed' };
   } catch {
     return { kind: 'failed' };
+  }
+}
+
+/** The member's remaining extras allowance for the year, from the website; null when it cannot be
+ * read (not signed in, not a member, no website session on this device). Never throws. */
+export async function readExtrasRemaining(): Promise<number | null> {
+  if (!siteSessionAvailable()) return null;
+  try {
+    const { result } = await siteRunPage({
+      url: PUBLISH_URL,
+      script: buildRemainingScript(),
+      timeoutMs: 30_000,
+      waitForNavigation: false,
+    });
+    const read = parse<RemainingResult>(result);
+    return read?.status === 'ok' && typeof read.remaining === 'number' ? read.remaining : null;
+  } catch {
+    return null;
   }
 }

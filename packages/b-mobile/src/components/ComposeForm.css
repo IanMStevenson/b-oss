@@ -470,3 +470,11 @@ ion-progress-bar.upload-progress {
   /* .compose-form is a flex column, so text-align doesn't centre a fixed-width item. */
   align-self: center;
 }
+
+/* Edit screen: "Replace photo" is a compact button under the photo, about the thumbnail's width,
+   not a full-width bar. */
+.compose-form .replace-photo-button {
+  align-self: center;
+  min-width: 140px;
+  max-width: 160px;
+}

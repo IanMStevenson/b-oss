@@ -13,7 +13,13 @@ vi.mock('../../platform/siteSession.js', () => ({
   siteSignOut: () => signOut(),
 }));
 
-import { addExtras, currentSiteUser, forgetSiteSession, isSameMember } from '../extrasFlow.js';
+import {
+  addExtras,
+  currentSiteUser,
+  forgetSiteSession,
+  isSameMember,
+  readExtrasRemaining,
+} from '../extrasFlow.js';
 
 const photo = { webPath: 'blob:x', mimeType: 'image/jpeg' };
 const reply = (o: unknown) => ({ finalUrl: '', result: JSON.stringify(o) });
@@ -135,5 +141,26 @@ describe('forgetSiteSession', () => {
   it('never throws', async () => {
     siteRunPage.mockRejectedValueOnce(new Error('boom'));
     await expect(forgetSiteSession('ian')).resolves.toBeUndefined();
+  });
+});
+
+describe('readExtrasRemaining', () => {
+  it('returns the allowance the website shows', async () => {
+    siteRunPage.mockResolvedValueOnce(reply({ status: 'ok', remaining: 98 }));
+    expect(await readExtrasRemaining()).toBe(98);
+    expect(siteRunPage.mock.calls[0]?.[0]).toMatchObject({
+      url: 'https://www.blipfoto.com/publish',
+    });
+  });
+
+  it('is null when it cannot be read: signed out, no uploader, a throw, no session', async () => {
+    siteRunPage.mockResolvedValueOnce(reply({ status: 'needs-login' }));
+    expect(await readExtrasRemaining()).toBeNull();
+    siteRunPage.mockResolvedValueOnce(reply({ status: 'no-uploader' }));
+    expect(await readExtrasRemaining()).toBeNull();
+    siteRunPage.mockRejectedValueOnce(new Error('boom'));
+    expect(await readExtrasRemaining()).toBeNull();
+    available = false;
+    expect(await readExtrasRemaining()).toBeNull();
   });
 });

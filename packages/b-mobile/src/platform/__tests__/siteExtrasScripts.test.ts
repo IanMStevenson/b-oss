@@ -6,6 +6,7 @@ import { describe, expect, it } from 'vitest';
 import {
   buildAddExtrasScript,
   buildReadBackScript,
+  buildRemainingScript,
   buildWhoAmIScript,
   editPageUrl,
 } from '../siteExtrasScripts.js';
@@ -17,6 +18,7 @@ describe('page scripts', () => {
       buildAddExtrasScript(files),
       buildReadBackScript(),
       buildWhoAmIScript(),
+      buildRemainingScript(),
     ]) {
       expect(() => new Script(script)).not.toThrow();
     }

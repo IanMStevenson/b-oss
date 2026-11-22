@@ -181,3 +181,29 @@ export function buildPageHtmlScript(): string {
   );
 })();`;
 }
+
+export const PUBLISH_URL = `${SITE_ORIGIN}/publish`;
+
+export interface RemainingResult {
+  status: 'ok' | 'needs-login' | 'no-uploader';
+  /** Extra photos the member has left in this year's allowance. */
+  remaining?: number;
+}
+
+/** Reads the member's remaining extras allowance from the site's own new-entry page, which shows it
+ * as "N remaining" beside its extras uploader. Run against PUBLISH_URL. */
+export function buildRemainingScript(): string {
+  return `(function () {
+  window.__bmx = undefined;
+  var done = function (o) { window.__bmx = JSON.stringify(o); };
+  ${USER_HELPER}
+  (async function () {
+    if (/^\\/account\\/signin/.test(location.pathname)) return done({ status: 'needs-login' });
+    var input = await bmxFindUploader();
+    var el = document.getElementById('photo-uploader-remaining');
+    var n = el ? Number(el.textContent) : NaN;
+    if (!input || !isFinite(n)) return done({ status: 'no-uploader' });
+    done({ status: 'ok', remaining: n });
+  })();
+})();`;
+}

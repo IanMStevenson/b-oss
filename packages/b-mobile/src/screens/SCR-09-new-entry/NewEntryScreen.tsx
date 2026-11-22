@@ -16,7 +16,7 @@
 // which is exactly why the photo was consumed and cached earlier, in `AppShell.tsx`, rather than
 // read directly here — see `platform/shareIntent.ts`'s own header comment for the full reasoning.
 //
-// With `replaceEntryId` set (SCR-13's "Replace image"), the same two-tile picker is reused to choose
+// With `replaceEntryId` set (SCR-13's "Replace photo"), the same two-tile picker is reused to choose
 // a replacement photo for an entry being edited: a pick is validated, written into the open 'edit'
 // draft and the screen goes back to SCR-13 instead of starting a new draft. A pending shared photo
 // is deliberately not consumed in this mode — it belongs to a new entry.
@@ -172,7 +172,7 @@ export function NewEntryScreen({ replaceEntryId }: NewEntryScreenProps = {}) {
     <IonPage>
       <IonHeader>
         {replaceEntryId ? (
-          <AppHeader title="Replace image" variant="back" onBack={() => navigate.goBack()} />
+          <AppHeader title="Replace photo" variant="back" onBack={() => navigate.goBack()} />
         ) : (
           <AppHeader title="New entry" accountIndicator />
         )}
