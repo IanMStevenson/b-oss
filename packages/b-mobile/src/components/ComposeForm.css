@@ -68,8 +68,15 @@
 }
 
 .compose-toggle-text ion-button {
-  margin-inline-start: -16px;
+  /* The text lines up with the label above it: no start padding and no negative margin (the old
+     -16px pushed the button's own text past the row's clipped edge, cutting off its first letter). */
+  --padding-start: 0;
+  margin-inline-start: 0;
   margin-block: 0;
+}
+
+.compose-toggle-text ion-button::part(native) {
+  padding-inline-start: 0;
 }
 
 .compose-toggle-text {
