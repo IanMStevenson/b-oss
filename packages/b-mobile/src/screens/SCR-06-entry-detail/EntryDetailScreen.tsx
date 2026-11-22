@@ -62,7 +62,8 @@ import {
 import type { RefresherEventDetail } from '@ionic/core';
 import { Flag, CornerUpLeft, EyeOff, Pencil, Trash2 } from 'lucide-react';
 import { AppHeader } from '../../components/AppHeader.js';
-import { useEntryStateWithExtras } from '../../data/entryExtras.js';
+import { useEntryExtrasView } from '../../data/entryExtras.js';
+import { ExtrasLoginNotice } from '../../components/ExtrasLoginNotice.js';
 import { EntryDetail, CommentComposer, ActionPill } from '@b-oss/b-view';
 import type { BlipComment, EntryState, ActionPillItem } from '@b-oss/b-view';
 import { useLiveEntry } from '../../data/useLiveEntry.js';
@@ -243,7 +244,11 @@ export function EntryDetailScreen({ entryId, initialReplyToCommentId }: EntryDet
   // favorited booleans, so the optimistic bump/rollback in `reaction` has to be projected into the
   // entry data here too, or the star/heart icons would flip state while their counts stayed stuck
   // at the last fetch until the next reload().
-  const entryWithExtras = useEntryStateWithExtras(entryId, entryState);
+  const {
+    entryState: entryWithExtras,
+    needsLogin: extrasNeedLogin,
+    reload: reloadExtras,
+  } = useEntryExtrasView(entryId, entryState);
   const displayEntryState: EntryState = useMemo(() => {
     if (entryWithExtras.status !== 'loaded') return entryWithExtras;
     return {
@@ -617,6 +622,11 @@ export function EntryDetailScreen({ entryId, initialReplyToCommentId }: EntryDet
                 navigate.push(`/entry/${entryId}/photo`, { photoFrom: entryId })
               }
               onTagClick={(tag) => navigate.push(`/tag/${encodeURIComponent(tag)}`)}
+              extrasNotice={
+                extrasNeedLogin && activeAccount ? (
+                  <ExtrasLoginNotice username={activeAccount.username} onSignedIn={reloadExtras} />
+                ) : undefined
+              }
               onLocationClick={() => navigate.push(`/map?entry=${entryId}`)}
               reactions={
                 showReactions

@@ -10,14 +10,17 @@ import {
   WHO_AM_I_URL,
   SIGN_IN_URL,
   buildAddExtrasScript,
+  buildPageHtmlScript,
   buildReadBackScript,
   buildWhoAmIScript,
   editPageUrl,
   type AddScriptResult,
   type ExtraFile,
+  type PageHtmlResult,
   type ReadBackResult,
   type WhoAmIResult,
 } from '../platform/siteExtrasScripts.js';
+import { entryPageUrl, fetchEntryExtras, type EntryExtra } from '@b-oss/b-api';
 import {
   siteRunPage,
   siteSessionAvailable,
@@ -196,5 +199,34 @@ export function describeExtrasFailure(reason: ExtrasFailure): string {
       return 'Extra photos are not available on this device.';
     case 'error':
       return 'Something went wrong adding the photos.';
+  }
+}
+
+/** The extras of an entry read with the stored website session, for a protected journal whose
+ * public page shows no gallery. 'needs-login' means there is no usable session (so the caller
+ * offers to sign in); 'failed' is anything else, treated as no extras. */
+export async function readExtrasViaSession(
+  entryId: string,
+): Promise<{ kind: 'ok'; extras: EntryExtra[] } | { kind: 'needs-login' } | { kind: 'failed' }> {
+  if (!siteSessionAvailable()) return { kind: 'failed' };
+  try {
+    const { result } = await siteRunPage({
+      url: entryPageUrl(entryId),
+      script: buildPageHtmlScript(),
+      timeoutMs: 45_000,
+      waitForNavigation: false,
+    });
+    const page = parse<PageHtmlResult>(result);
+    if (page === null) return { kind: 'failed' };
+    if (page.status === 'needs-login' || typeof page.html !== 'string') {
+      return page.status === 'needs-login' ? { kind: 'needs-login' } : { kind: 'failed' };
+    }
+    const html = page.html;
+    const read = await fetchEntryExtras(entryId, () => Promise.resolve(html));
+    if (read.status === 'ok') return { kind: 'ok', extras: read.extras };
+    // Still protected with a session means it belongs to a member who may not view this journal.
+    return read.status === 'protected' ? { kind: 'needs-login' } : { kind: 'failed' };
+  } catch {
+    return { kind: 'failed' };
   }
 }

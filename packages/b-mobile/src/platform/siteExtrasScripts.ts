@@ -162,3 +162,22 @@ export function buildWhoAmIScript(): string {
   }
 })();`;
 }
+
+export interface PageHtmlResult {
+  status: 'ok' | 'needs-login';
+  html?: string;
+}
+
+/** Hands back a signed-in entry page's own HTML (the gallery data is inline in it), so the extras of
+ * a protected journal can be read with the same parser as a public page. Run against an entry page.
+ * A signed-out visitor sees the protected notice, which the caller recognises as no gallery. */
+export function buildPageHtmlScript(): string {
+  return `(function () {
+  window.__bmx = undefined;
+  ${USER_HELPER}
+  var signedIn = bmxUser() !== null;
+  window.__bmx = JSON.stringify(
+    signedIn ? { status: 'ok', html: document.documentElement.outerHTML } : { status: 'needs-login' }
+  );
+})();`;
+}

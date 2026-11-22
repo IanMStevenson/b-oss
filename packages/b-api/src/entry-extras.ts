@@ -29,8 +29,14 @@ export interface EntryExtra {
 export type EntryExtrasResult =
   /** Page fetched and understood. `extras` is empty when the entry has no gallery or one photo. */
   | { status: 'ok'; extras: EntryExtra[] }
+  /** The journal is protected: a signed-out request gets a notice instead of the entry, so there is
+   * no gallery to read. The extras can only be read with a signed-in website session. */
+  | { status: 'protected' }
   /** Fetch threw, or the gallery data was present but unreadable. Worth retrying later. */
   | { status: 'failed'; reason: 'fetch' | 'parse' };
+
+/** The sentence a signed-out visitor sees in place of a protected journal's entry. */
+export const PROTECTED_MARKER = 'entries are protected';
 
 export function entryPageUrl(entryId: string): string {
   return `https://www.blipfoto.com/entry/${encodeURIComponent(entryId)}`;
@@ -51,9 +57,8 @@ export async function fetchEntryExtras(
   const items = extractGalleryItems(html);
   if (items === null) {
     // No marker: the page has no gallery. Marker present but unreadable: a parse failure.
-    return html.includes(GALLERY_MARKER)
-      ? { status: 'failed', reason: 'parse' }
-      : { status: 'ok', extras: [] };
+    if (html.includes(GALLERY_MARKER)) return { status: 'failed', reason: 'parse' };
+    return html.includes(PROTECTED_MARKER) ? { status: 'protected' } : { status: 'ok', extras: [] };
   }
 
   const extras: EntryExtra[] = [];
