@@ -7,24 +7,25 @@
 // reason and the entry's edit page, for the "finish it in your browser" screen; nothing here throws.
 
 import {
-  WHO_AM_I_URL,
+  PUBLISH_URL,
+  SETTINGS_URL,
   SIGN_IN_URL,
   buildAddExtrasScript,
   buildPageHtmlScript,
   buildReadBackScript,
   buildRemainingScript,
-  PUBLISH_URL,
-  type RemainingResult,
   buildWhoAmIScript,
-  editPageUrl,
+  entryEditUrl,
+  entryUrl,
   type AddScriptResult,
   type ExtraFile,
   type ExtraItem,
   type PageHtmlResult,
   type ReadBackResult,
+  type RemainingResult,
   type WhoAmIResult,
-} from '../platform/siteExtrasScripts.js';
-import { entryPageUrl, fetchEntryExtras, type EntryExtra } from '@b-oss/b-api';
+} from '@b-oss/b-api-web';
+import { fetchEntryExtras, type EntryExtra } from '@b-oss/b-api';
 import { clearDesignatedExtrasAccount } from '../site/access.js';
 import {
   siteRunPage,
@@ -78,7 +79,7 @@ export async function currentSiteUser(account: SiteAccount): Promise<string | nu
   try {
     const { result } = await siteRunPage({
       accountId: account.id,
-      url: WHO_AM_I_URL,
+      url: SETTINGS_URL,
       script: buildWhoAmIScript(),
       timeoutMs: 30_000,
       waitForNavigation: false,
@@ -121,7 +122,7 @@ export function isSameMember(siteUser: string | null | undefined, username: stri
 async function readBack(entryId: string, account: SiteAccount): Promise<ReadBackResult | null> {
   const { result } = await siteRunPage({
     accountId: account.id,
-    url: editPageUrl(entryId),
+    url: entryEditUrl(entryId),
     script: buildReadBackScript(account.username),
     timeoutMs: 45_000,
     waitForNavigation: false,
@@ -156,7 +157,7 @@ export async function applyExtras(
   photos: { webPath: string; mimeType: string }[],
   removeIds: string[] = [],
 ): Promise<ExtrasOutcome> {
-  const editUrl = editPageUrl(entryId);
+  const editUrl = entryEditUrl(entryId);
   const total = photos.length + removeIds.length;
   const manual = (reason: ExtrasFailure): ExtrasOutcome => ({
     kind: 'manual',
@@ -287,7 +288,7 @@ export async function readExtrasViaSession(
   try {
     const { result } = await siteRunPage({
       accountId: account.id,
-      url: entryPageUrl(entryId),
+      url: entryUrl(entryId),
       script: buildPageHtmlScript(account.username),
       timeoutMs: 45_000,
       waitForNavigation: false,

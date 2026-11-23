@@ -1,0 +1,17 @@
+{
+  "name": "@b-oss/b-api-web",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "What the Blipfoto website can do that the JSON API cannot: site URLs and their grammar, the scripts that drive the site's own pages, and what those pages say. No platform code.",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "devDependencies": {
+    "vitest": "^5.0.5"
+  }
+}

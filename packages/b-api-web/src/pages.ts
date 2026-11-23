@@ -1,24 +1,17 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (C) 2026 Ian Stevenson
 
-// The page scripts that add extra photos to an entry through Blipfoto's own website (b-oss#1037).
+// The page scripts that add, remove and read extra photos through Blipfoto's own website
+// (b-oss#1037, b-oss#1041, b-oss#1042).
 // The API has no extras upload for our app type, so the app drives the site's edit page the way a
 // person would: it hands the page's own uploader the photos and presses its own Save button, so the
 // page supplies its own tokens and headers. Nothing here replays a cookie or calls an undocumented
-// endpoint. The host (an Android WebView or an Electron window; platform/siteSession.ts) loads the
+// endpoint. The host (an Android WebView or an Electron window; b-mobile's platform/siteSession.ts) loads the
 // page and runs the script; the script reports through `window.__bmx` (a JSON string) because a
 // WebView cannot await a promise.
 //
 // Failure is always one of the statuses below, never a throw, so the caller can show the
 // "finish it in your browser" screen with the reason.
-
-export const SITE_ORIGIN = 'https://www.blipfoto.com';
-
-export function editPageUrl(entryId: string): string {
-  return `${SITE_ORIGIN}/entry/${encodeURIComponent(entryId)}/edit`;
-}
-
-export const SIGN_IN_URL = `${SITE_ORIGIN}/account/signin`;
 
 /** One photo handed to the page, as base64 (the page builds a File from it). */
 export interface ExtraFile {
@@ -206,15 +199,13 @@ export function buildReadBackScript(expectedUser: string): string {
 })();`;
 }
 
-export const WHO_AM_I_URL = `${SITE_ORIGIN}/settings/general`;
-
 export interface WhoAmIResult {
   status: 'ok' | 'needs-login';
   user?: string | null;
 }
 
 /** Reports who the stored site session belongs to, or that it is not signed in (the site sends a
- * signed-out visitor to its sign-in page). Run against WHO_AM_I_URL. */
+ * signed-out visitor to its sign-in page). Run against SETTINGS_URL. */
 export function buildWhoAmIScript(): string {
   return `(function () {
   window.__bmx = undefined;
@@ -246,8 +237,6 @@ export function buildPageHtmlScript(expectedUser: string): string {
 })();`;
 }
 
-export const PUBLISH_URL = `${SITE_ORIGIN}/publish`;
-
 export interface RemainingResult {
   status: 'ok' | 'needs-login' | 'wrong-account' | 'no-uploader';
   /** Extra photos the member has left in this year's allowance. */
@@ -255,7 +244,7 @@ export interface RemainingResult {
 }
 
 /** Reads the member's remaining extras allowance from the site's own new-entry page, which shows it
- * as "N remaining" beside its extras uploader. Run against PUBLISH_URL. */
+ * as "N remaining" beside its extras uploader. Run against PUBLISH_URL (urls.ts). */
 export function buildRemainingScript(expectedUser: string): string {
   return `(function () {
   window.__bmx = undefined;

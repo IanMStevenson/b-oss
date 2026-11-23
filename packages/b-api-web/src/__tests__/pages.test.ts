@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (C) 2026 Ian Stevenson
 
-import { Script } from 'node:vm';
 import { describe, expect, it } from 'vitest';
 import {
   buildAddExtrasScript,
@@ -10,8 +9,7 @@ import {
   buildReadBackScript,
   buildRemainingScript,
   buildWhoAmIScript,
-  editPageUrl,
-} from '../siteExtrasScripts.js';
+} from '../pages.js';
 
 describe('page scripts', () => {
   it('are syntactically valid JavaScript', () => {
@@ -23,7 +21,8 @@ describe('page scripts', () => {
       buildWhoAmIScript(),
       buildRemainingScript('ian'),
     ]) {
-      expect(() => new Script(script)).not.toThrow();
+      // eslint-disable-next-line @typescript-eslint/no-implied-eval
+      expect(() => new Function(script)).not.toThrow();
     }
   });
 
@@ -31,13 +30,9 @@ describe('page scripts', () => {
     const script = buildAddExtrasScript('ian', [
       { name: '"; alert(1); "', mimeType: 'image/jpeg', base64: 'QUJD' },
     ]);
-    expect(() => new Script(script)).not.toThrow();
+    // eslint-disable-next-line @typescript-eslint/no-implied-eval
+    expect(() => new Function(script)).not.toThrow();
     expect(script).toContain(JSON.stringify('"; alert(1); "'));
-  });
-
-  it('only ever names the site own edit page', () => {
-    expect(editPageUrl('123')).toBe('https://www.blipfoto.com/entry/123/edit');
-    expect(editPageUrl('../x')).not.toContain('/../');
   });
 });
 

@@ -12,10 +12,10 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { IonButton, IonText } from '@ionic/react';
 import { pickPhoto } from '../platform/camera.js';
 import { openUrl } from '../platform/browser.js';
-import { editPageUrl } from '../platform/siteExtrasScripts.js';
+import { entryEditUrl, type ExtraItem } from '@b-oss/b-api-web';
 import type { ComposePhoto } from '../state/composeDraftStore.js';
 import { MAX_EXTRAS, loadEditExtras } from '../flows/extrasFlow.js';
-import type { ExtraItem } from '../platform/siteExtrasScripts.js';
+
 import { ExtrasLoginNotice } from './ExtrasLoginNotice.js';
 import './ExtraPhotosSection.css';
 
@@ -69,7 +69,7 @@ export function ExtraPhotosEditor({
         <IonText color="medium">
           <p>Blipfoto&apos;s edit page isn&apos;t offering extra photos for this entry.</p>
         </IonText>
-        <IonButton size="small" fill="outline" onClick={() => void openUrl(editPageUrl(entryId))}>
+        <IonButton size="small" fill="outline" onClick={() => void openUrl(entryEditUrl(entryId))}>
           Open the edit page
         </IonButton>
       </div>
