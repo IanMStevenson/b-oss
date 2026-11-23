@@ -26,6 +26,7 @@ import {
   type WhoAmIResult,
 } from '@b-oss/b-api-web';
 import { fetchEntryExtras, type EntryExtra } from '@b-oss/b-api';
+import { forgetEntryExtras } from '../data/extrasCache.js';
 import { clearDesignatedExtrasAccount } from '../site/access.js';
 import {
   siteRunPage,
@@ -104,6 +105,7 @@ export async function forgetSiteSession(account: SiteAccount): Promise<void> {
     if (!siteSessionAvailable()) return;
     await siteSignOut(account.id);
     await clearDesignatedExtrasAccount(account.id);
+    forgetEntryExtras();
   } catch {
     // Nothing more to do; the account is removed regardless.
   }
@@ -156,6 +158,21 @@ export async function applyExtras(
   account: SiteAccount,
   photos: { webPath: string; mimeType: string }[],
   removeIds: string[] = [],
+): Promise<ExtrasOutcome> {
+  try {
+    return await applyExtrasNow(entryId, account, photos, removeIds);
+  } finally {
+    // Whatever happened, what a read of this entry's extras returns may have changed: the entry
+    // view must read again, not show the list from before.
+    forgetEntryExtras();
+  }
+}
+
+async function applyExtrasNow(
+  entryId: string,
+  account: SiteAccount,
+  photos: { webPath: string; mimeType: string }[],
+  removeIds: string[],
 ): Promise<ExtrasOutcome> {
   const editUrl = entryEditUrl(entryId);
   const total = photos.length + removeIds.length;

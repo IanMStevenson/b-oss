@@ -66,19 +66,24 @@ describe('protected journals (b-oss#1042)', () => {
     expect(await loadEntryExtras('5', acct)).toEqual(found);
   });
 
-  it('asks for a sign-in when there is no usable session, and remembers that', async () => {
+  it('asks for a sign-in when there is no usable session, and reads again next time', async () => {
     viaSession.mockResolvedValue({ kind: 'needs-login' });
     expect(await loadEntryExtras('6', acct)).toEqual({ extras: [], needsLogin: true });
-    expect(await loadEntryExtras('6', acct)).toEqual({ extras: [], needsLogin: true });
-    expect(viaSession).toHaveBeenCalledTimes(1);
+    // Not remembered: a member who has just signed in (elsewhere) must not see a stale notice.
+    viaSession.mockResolvedValueOnce({ kind: 'ok', extras: [extra] });
+    expect(await loadEntryExtras('6', acct)).toEqual(found);
+    expect(viaSession).toHaveBeenCalledTimes(2);
   });
 
-  it('reads again after the remembered results are forgotten (a sign-in)', async () => {
-    viaSession.mockResolvedValueOnce({ kind: 'needs-login' });
-    expect(await loadEntryExtras('7', acct)).toEqual({ extras: [], needsLogin: true });
-    forgetEntryExtras();
+  it('remembers what it read, until the remembered results are forgotten', async () => {
     viaSession.mockResolvedValueOnce({ kind: 'ok', extras: [extra] });
     expect(await loadEntryExtras('7', acct)).toEqual(found);
+    expect(await loadEntryExtras('7', acct)).toEqual(found);
+    expect(viaSession).toHaveBeenCalledTimes(1);
+    forgetEntryExtras(); // extras changed, or the session did
+    viaSession.mockResolvedValueOnce({ kind: 'ok', extras: [] });
+    expect(await loadEntryExtras('7', acct)).toEqual(none);
+    expect(viaSession).toHaveBeenCalledTimes(2);
   });
 
   it('shows nothing, and never opens a page, where there is no website session', async () => {

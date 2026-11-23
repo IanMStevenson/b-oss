@@ -249,6 +249,17 @@ export function EntryDetailScreen({ entryId, initialReplyToCommentId }: EntryDet
     needsLogin: extrasNeedLogin,
     reload: reloadExtras,
   } = useEntryExtrasView(entryId, entryState, activeAccount);
+  // Every way of refreshing the entry (the title-bar button, pulling down, Retry) re-reads its
+  // extras too: they are remembered between looks, so without this a stale list, or a stale "web
+  // sign-in needed", would stay until the app is reloaded.
+  const refreshAll = (): void => {
+    reloadExtras();
+    refresh();
+  };
+  const reloadAll = (): void => {
+    reloadExtras();
+    reload();
+  };
   const displayEntryState: EntryState = useMemo(() => {
     if (entryWithExtras.status !== 'loaded') return entryWithExtras;
     return {
@@ -564,13 +575,13 @@ export function EntryDetailScreen({ entryId, initialReplyToCommentId }: EntryDet
         <IonRefresher
           slot="fixed"
           onIonRefresh={(e: CustomEvent<RefresherEventDetail>) => {
-            refresh();
+            refreshAll();
             e.detail.complete();
           }}
         >
           <IonRefresherContent />
         </IonRefresher>
-        <PointerRefresh onRefresh={refresh} />
+        <PointerRefresh onRefresh={refreshAll} />
         {entryState.status === 'loading' && (
           <div style={{ display: 'flex', justifyContent: 'center', padding: 32 }}>
             <IonSpinner />
@@ -581,7 +592,7 @@ export function EntryDetailScreen({ entryId, initialReplyToCommentId }: EntryDet
           <LoadFailed
             transport={errorIsTransport}
             message={entryState.message}
-            onRefresh={reload}
+            onRefresh={reloadAll}
           />
         )}
 

@@ -13,6 +13,7 @@ import { useRef, useState, type ReactElement } from 'react';
 import { IonAlert } from '@ionic/react';
 import { openUrl } from '../platform/browser.js';
 import { siteSignOut } from '../platform/siteSession.js';
+import { forgetEntryExtras } from '../data/extrasCache.js';
 import { claimSiteSession, setDesignatedExtrasAccount, siteAccessFor } from '../site/access.js';
 import { useAccountsStore } from '../state/accountsStore.js';
 import {
@@ -111,6 +112,9 @@ export function useSiteSignInGate(account: SiteAccount): SiteSignInGate {
       }
       signedIn.current = true;
       await claimSiteSession(account.id);
+      // The session changed: what an entry's extras read as before is stale (a "sign-in needed"
+      // notice, or another member's view).
+      forgetEntryExtras();
     } catch {
       setNotice("Couldn't sign in. Please try again.");
       return;
@@ -131,6 +135,7 @@ export function useSiteSignInGate(account: SiteAccount): SiteSignInGate {
     try {
       await siteSignOut(from);
       await setDesignatedExtrasAccount(account.id);
+      forgetEntryExtras();
     } finally {
       setBusy(false);
     }

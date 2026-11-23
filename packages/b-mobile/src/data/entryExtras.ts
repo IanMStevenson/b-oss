@@ -18,7 +18,10 @@ import type { EntryState } from '@b-oss/b-view';
 import { readExtrasViaSession, type SiteAccount } from '../flows/extrasFlow.js';
 import { fetchSiteText } from '../platform/siteText.js';
 import { siteSessionAvailable } from '../platform/siteSession.js';
-import { resumeClear, resumeGet, resumeSet } from './resumeCache.js';
+import { extrasKey, forgetEntryExtras } from './extrasCache.js';
+import { resumeGet, resumeSet } from './resumeCache.js';
+
+export { forgetEntryExtras };
 
 export interface EntryExtrasResult {
   extras: EntryExtra[];
@@ -27,9 +30,9 @@ export interface EntryExtrasResult {
 }
 
 const NONE: EntryExtrasResult = { extras: [], needsLogin: false };
-// Per account: what one member's website session could read must never be served to another.
+const NEEDS_LOGIN: EntryExtrasResult = { extras: [], needsLogin: true };
 const KEY = (entryId: string, account: SiteAccount | null) =>
-  `extras:${account?.id ?? ''}:${entryId}`;
+  extrasKey(entryId, account?.id ?? null);
 const inFlight = new Map<string, Promise<EntryExtrasResult>>();
 
 /** The entry's extras; none on any failure. Never throws. */
@@ -48,26 +51,21 @@ export function loadEntryExtras(
         if (!siteSessionAvailable() || account === null) return NONE;
         const viaSession = await readExtrasViaSession(entryId, account);
         if (viaSession.kind === 'ok') return { extras: viaSession.extras, needsLogin: false };
-        // Remembered for the session: opening the entry again does not re-run a hidden page
-        // for a member who has not signed in. Signing in clears it (forgetEntryExtras).
-        return viaSession.kind === 'needs-login' ? { extras: [], needsLogin: true } : NONE;
+        return viaSession.kind === 'needs-login' ? NEEDS_LOGIN : NONE;
       }
       return result.status === 'ok' ? { extras: result.extras, needsLogin: false } : NONE;
     })
     .catch(() => NONE)
     .then((value) => {
-      // A failure is not cached, so reopening the entry retries.
-      if (value !== NONE) resumeSet(KEY(entryId, account), value);
+      // Neither a failure nor "web sign-in needed" is remembered: reopening the entry reads again,
+      // so a member who has just signed in (or whose session was missing a moment ago) never
+      // sees a stale notice. What was read is remembered until extras change or the session does.
+      if (value !== NONE && value !== NEEDS_LOGIN) resumeSet(KEY(entryId, account), value);
       return value;
     })
     .finally(() => inFlight.delete(flightKey));
   inFlight.set(flightKey, p);
   return p;
-}
-
-/** Drops every remembered extras result, e.g. once the member has signed in to the website. */
-export function forgetEntryExtras(): void {
-  resumeClear('extras:');
 }
 
 /** Fetches once `enabled` (i.e. the entry has loaded). `reload` re-reads after a sign-in. */

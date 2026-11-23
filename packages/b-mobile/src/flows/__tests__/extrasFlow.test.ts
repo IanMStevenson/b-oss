@@ -13,6 +13,10 @@ vi.mock('../../platform/siteSession.js', () => ({
   siteSignOut: (id: string) => signOut(id),
 }));
 
+const forgetExtras = vi.fn<() => void>();
+vi.mock('../../data/extrasCache.js', () => ({
+  forgetEntryExtras: (): void => forgetExtras(),
+}));
 const clearDesignated = vi.fn((_id: string) => Promise.resolve());
 vi.mock('../../site/access.js', () => ({
   clearDesignatedExtrasAccount: (id: string) => clearDesignated(id),
@@ -36,6 +40,7 @@ const reply = (o: unknown) => ({ finalUrl: '', result: JSON.stringify(o) });
 beforeEach(() => {
   siteRunPage.mockReset();
   signOut.mockClear();
+  forgetExtras.mockClear();
   available = true;
   vi.stubGlobal(
     'fetch',
@@ -280,5 +285,21 @@ describe('every website run is for one account and names the member it expects',
       expect(run.accountId).toBe('a1');
       expect(run.script).toContain('"ian"');
     }
+  });
+});
+
+describe("what the entry view remembers of an entry's extras", () => {
+  it('is dropped after extras are applied, whatever the outcome', async () => {
+    siteRunPage.mockResolvedValueOnce(reply({ status: 'needs-login' }));
+    await applyExtras('1', acct, [photo]);
+    expect(forgetExtras).toHaveBeenCalledTimes(1);
+    siteRunPage.mockRejectedValueOnce(new Error('boom'));
+    await applyExtras('1', acct, [photo]);
+    expect(forgetExtras).toHaveBeenCalledTimes(2);
+  });
+
+  it('is dropped when an account is removed (its session goes)', async () => {
+    await forgetSiteSession(acct);
+    expect(forgetExtras).toHaveBeenCalledTimes(1);
   });
 });
