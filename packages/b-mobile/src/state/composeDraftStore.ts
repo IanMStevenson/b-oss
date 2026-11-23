@@ -69,6 +69,9 @@ export interface ComposeDraft {
   extras?: ComposePhoto[];
   /** SCR-13 only (b-oss#1041): ids, on the website, of existing extras to delete on save. */
   extrasRemove?: string[];
+  /** SCR-13 only: the entry's current photo (its thumbnail address) as loaded, so the screen can
+   * show it again after a trip to the map screen and back. */
+  existingImage?: string | null;
   /** Whether anything has changed since the draft was created/loaded — the discard-guard's input. */
   dirty: boolean;
 }

@@ -125,6 +125,7 @@ export function EditEntryScreen({ entryId }: EditEntryScreenProps) {
           location: loaded.entry.location ?? null,
           displayLocation: loaded.entry.location != null,
           thumbnailCrop: null,
+          existingImage: loaded.entry.images?.thumbnail ?? loaded.entry.images?.image ?? null,
           dirty: false,
         });
         setCurrentImage(loaded.entry.images?.thumbnail ?? loaded.entry.images?.image ?? null);
@@ -300,7 +301,7 @@ export function EditEntryScreen({ entryId }: EditEntryScreenProps) {
     patchDraft({ thumbnailCrop: cropToProportions(percent) });
   }
 
-  const photoSrc = draft.photo?.webPath ?? currentImage;
+  const photoSrc = draft.photo?.webPath ?? currentImage ?? draft.existingImage ?? null;
   const photoFrame =
     photoSrc &&
     (draft.photo ? (

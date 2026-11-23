@@ -238,12 +238,19 @@ describe('loadEditExtras', () => {
     expect(await loadEditExtras('1', 'ian')).toEqual({ kind: 'needs-login' });
   });
 
-  it('is unavailable without an uploader (not a member), on a throw, or with no session', async () => {
+  it('is unavailable without an uploader (not a member) or with no session', async () => {
     siteRunPage.mockResolvedValueOnce(reply({ status: 'no-uploader' }));
-    expect(await loadEditExtras('1', 'ian')).toEqual({ kind: 'unavailable' });
-    siteRunPage.mockRejectedValueOnce(new Error('boom'));
     expect(await loadEditExtras('1', 'ian')).toEqual({ kind: 'unavailable' });
     available = false;
     expect(await loadEditExtras('1', 'ian')).toEqual({ kind: 'unavailable' });
+  });
+
+  it('says it failed (so the screen can offer to retry) on a throw, a timeout or an odd page', async () => {
+    siteRunPage.mockRejectedValueOnce(new Error('boom'));
+    expect(await loadEditExtras('1', 'ian')).toEqual({ kind: 'failed' });
+    siteRunPage.mockResolvedValueOnce({ finalUrl: '', result: null });
+    expect(await loadEditExtras('1', 'ian')).toEqual({ kind: 'failed' });
+    siteRunPage.mockResolvedValueOnce(reply({ status: 'unexpected-page' }));
+    expect(await loadEditExtras('1', 'ian')).toEqual({ kind: 'failed' });
   });
 });

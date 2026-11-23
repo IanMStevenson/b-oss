@@ -212,13 +212,17 @@ export async function loadEditExtras(
   | { kind: 'ok'; items: ExtraItem[]; remaining: number | null }
   | { kind: 'needs-login' }
   | { kind: 'unavailable' }
+  | { kind: 'failed' }
 > {
   if (!siteSessionAvailable()) return { kind: 'unavailable' };
   try {
     const read = await readBack(entryId);
-    if (read === null) return { kind: 'unavailable' };
+    // Nothing came back in time: the screen says so and offers to try again.
+    if (read === null) return { kind: 'failed' };
     if (read.status === 'needs-login') return { kind: 'needs-login' };
-    if (read.status !== 'ok') return { kind: 'unavailable' };
+    // No uploader means the page offers no extras to this member (not a membership).
+    if (read.status === 'no-uploader') return { kind: 'unavailable' };
+    if (read.status !== 'ok') return { kind: 'failed' };
     if (!isSameMember(read.user ?? '', username)) return { kind: 'needs-login' };
     return {
       kind: 'ok',
@@ -226,7 +230,7 @@ export async function loadEditExtras(
       remaining: typeof read.remaining === 'number' ? read.remaining : null,
     };
   } catch {
-    return { kind: 'unavailable' };
+    return { kind: 'failed' };
   }
 }
 

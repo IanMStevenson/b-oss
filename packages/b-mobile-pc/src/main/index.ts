@@ -574,7 +574,9 @@ if (!app.requestSingleInstanceLock()) {
       siteSignIn(BrowserWindow.getFocusedWindow() ?? mainWindow, validateSiteUrl(url)),
     );
     handle(CHANNELS.siteSignOut, () => siteSignOut());
-    handle(CHANNELS.siteRunPage, (run) => siteRunPage(validateSiteRun(run)));
+    handle(CHANNELS.siteRunPage, (run) =>
+      siteRunPage(validateSiteRun(run), (message) => shellLog?.(message)),
+    );
     handle(CHANNELS.authOpen, (url, redirectPrefix) => {
       const request = validateAuthRequest(url, redirectPrefix, authHosts, authAllowHttp);
       // Test hook (ignored when packaged): send the sign-in page to a fake authorize server.

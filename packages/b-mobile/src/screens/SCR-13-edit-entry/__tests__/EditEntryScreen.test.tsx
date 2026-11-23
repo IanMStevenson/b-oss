@@ -114,6 +114,20 @@ describe('EditEntryScreen', () => {
     expect(screen.getByDisplayValue('dawn')).toBeDefined();
   });
 
+  it('still shows the entry photo after a trip to the map screen and back', async () => {
+    const base = (await fetchEntry('e1')) as { entry: Record<string, unknown> };
+    fetchEntry.mockResolvedValue({
+      ...base,
+      entry: { ...base.entry, images: { thumbnail: 'https://example.test/t.jpg' } },
+    });
+    renderScreen();
+    expect(await screen.findByAltText('Current photo')).toBeDefined();
+    // Leaving for the map screen unmounts this screen; the draft stays, and so must the photo.
+    cleanup();
+    renderScreen();
+    expect(await screen.findByAltText('Current photo')).toBeDefined();
+  });
+
   it('shows an error and no form when the entry fails to load', async () => {
     fetchEntry.mockRejectedValue(new BlipfotoError(404, 'Not found'));
     renderScreen();

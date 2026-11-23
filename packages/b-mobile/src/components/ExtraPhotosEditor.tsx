@@ -9,7 +9,7 @@
 // edited at all (not a member, no session on this device) it shows nothing.
 
 import { useCallback, useEffect, useState } from 'react';
-import { IonText } from '@ionic/react';
+import { IonButton, IonText } from '@ionic/react';
 import { pickPhoto } from '../platform/camera.js';
 import type { ComposePhoto } from '../state/composeDraftStore.js';
 import { MAX_EXTRAS, loadEditExtras } from '../flows/extrasFlow.js';
@@ -30,7 +30,8 @@ type Loaded =
   | { kind: 'loading' }
   | { kind: 'ok'; items: ExtraItem[]; remaining: number | null }
   | { kind: 'needs-login' }
-  | { kind: 'unavailable' };
+  | { kind: 'unavailable' }
+  | { kind: 'failed' };
 
 export function ExtraPhotosEditor({
   entryId,
@@ -63,6 +64,25 @@ export function ExtraPhotosEditor({
         <IonText color="medium">
           <p>Loading extra photos…</p>
         </IonText>
+      </div>
+    );
+  }
+  if (loaded.kind === 'failed') {
+    return (
+      <div className="compose-form extra-photos">
+        <IonText color="medium">
+          <p>Couldn&apos;t read this entry&apos;s extra photos from Blipfoto.</p>
+        </IonText>
+        <IonButton
+          size="small"
+          fill="outline"
+          onClick={() => {
+            setLoaded({ kind: 'loading' });
+            reload();
+          }}
+        >
+          Try again
+        </IonButton>
       </div>
     );
   }

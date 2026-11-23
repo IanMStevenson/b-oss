@@ -65,8 +65,18 @@ const sleep = (ms: number): Promise<void> => new Promise((r) => setTimeout(r, ms
 
 /** Loads `run.url` in a hidden window with the site session, runs the script and polls its
  * window.__bmx until it reports or the timeout passes. With waitForNavigation it then holds the
- * window open until the page has navigated away (a form post), so the post is not cut off. */
-export async function siteRunPage(run: SitePageRun): Promise<SitePageResult> {
+ * window open until the page has navigated away (a form post), so the post is not cut off.
+ *
+ * The script starts at `dom-ready`, not at the page's `load` event: the site's pages pull in
+ * third-party scripts and images, and a slow or blocked one would otherwise hold `load` up for as
+ * long as it likes (the script waits for the page's own uploader itself). Everything is bounded by
+ * `run.timeoutMs`, and a run that times out or throws is written to the app log. */
+export async function siteRunPage(
+  run: SitePageRun,
+  log: (message: string) => void = () => {},
+): Promise<SitePageResult> {
+  const started = Date.now();
+  const where = new URL(run.url).pathname.replace(/\d{6,}/g, '<id>');
   const win = new BrowserWindow({ show: false, webPreferences });
   const wc = win.webContents;
   wc.setWindowOpenHandler(() => ({ action: 'deny' }));
@@ -74,9 +84,18 @@ export async function siteRunPage(run: SitePageRun): Promise<SitePageResult> {
   wc.on('will-navigate', (event, target) => {
     if (new URL(target).host !== SITE_HOST) event.preventDefault();
   });
-  const deadline = Date.now() + run.timeoutMs;
+  const deadline = started + run.timeoutMs;
   try {
-    await win.loadURL(run.url);
+    // Not awaited: it settles at `load`, which this does not wait for. Aborted loads (a redirect
+    // mid-flight) reject, which is not an error here.
+    void win.loadURL(run.url).catch(() => {});
+    await new Promise<void>((resolve, reject) => {
+      const timer = setTimeout(() => reject(new Error('page did not become ready')), run.timeoutMs);
+      wc.once('dom-ready', () => {
+        clearTimeout(timer);
+        resolve();
+      });
+    });
     await wc.executeJavaScript(run.script);
     let result: string | null = null;
     while (Date.now() < deadline && result === null) {
@@ -95,7 +114,13 @@ export async function siteRunPage(run: SitePageRun): Promise<SitePageResult> {
         if (wc.getURL() !== startUrl && !wc.isLoading()) break;
       }
     }
+    if (result === null) log(`site page ${where}: no result after ${Date.now() - started} ms`);
     return { finalUrl: win.isDestroyed() ? '' : wc.getURL(), result };
+  } catch (err) {
+    log(
+      `site page ${where}: ${err instanceof Error ? err.message : String(err)} after ${Date.now() - started} ms`,
+    );
+    throw err;
   } finally {
     if (!win.isDestroyed()) win.destroy();
   }
