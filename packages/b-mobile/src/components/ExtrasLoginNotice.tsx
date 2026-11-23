@@ -12,14 +12,22 @@ interface Props {
   username: string;
   /** Called once the member has signed in, so the extras can be read. */
   onSignedIn: () => void;
+  /** Replaces the default line, e.g. when the website is signed in as someone else. */
+  message?: string;
+  buttonLabel?: string;
 }
 
-export function ExtrasLoginNotice({ username, onSignedIn }: Props) {
+export function ExtrasLoginNotice({
+  username,
+  onSignedIn,
+  message = 'Extras require a web login.',
+  buttonLabel = 'Sign in to see extras',
+}: Props) {
   const gate = useSiteSignInGate(username);
   return (
     <div className="extras-login-notice" role="note">
       <IonText color="medium">
-        <p>Extras require a web login.</p>
+        <p>{message}</p>
       </IonText>
       {gate.notice && (
         <IonText color="danger">
@@ -32,7 +40,7 @@ export function ExtrasLoginNotice({ username, onSignedIn }: Props) {
         disabled={gate.busy}
         onClick={() => void gate.start(onSignedIn)}
       >
-        Sign in to see extras
+        {buttonLabel}
       </IonButton>
       {gate.alerts}
     </div>

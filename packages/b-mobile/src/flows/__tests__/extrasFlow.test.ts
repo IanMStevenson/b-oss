@@ -62,6 +62,14 @@ describe('addExtras', () => {
     expect(siteRunPage).toHaveBeenCalledTimes(1);
   });
 
+  it('says wrong account, not no membership, when the other members page has no uploader', async () => {
+    siteRunPage.mockResolvedValueOnce(reply({ status: 'no-uploader', user: 'cyclops' }));
+    expect(await addExtras('1', 'ian', [photo])).toMatchObject({
+      kind: 'manual',
+      reason: 'wrong-account',
+    });
+  });
+
   it('reports no membership when the page has no uploader', async () => {
     siteRunPage.mockResolvedValueOnce(reply({ status: 'no-uploader' }));
     expect(await addExtras('1', 'ian', [photo])).toMatchObject({ reason: 'no-membership' });
@@ -231,11 +239,18 @@ describe('loadEditExtras', () => {
     });
   });
 
-  it('asks for a sign-in when signed out or signed in as someone else', async () => {
+  it('asks for a sign-in when signed out', async () => {
     siteRunPage.mockResolvedValueOnce(reply({ status: 'needs-login' }));
     expect(await loadEditExtras('1', 'ian')).toEqual({ kind: 'needs-login' });
+  });
+
+  it("names the other member when the website is signed in as someone else, even though that member's page has no uploader", async () => {
+    siteRunPage.mockResolvedValueOnce(
+      reply({ status: 'no-uploader', user: 'cyclops', detail: {} }),
+    );
+    expect(await loadEditExtras('1', 'ian')).toEqual({ kind: 'wrong-account', user: 'cyclops' });
     siteRunPage.mockResolvedValueOnce(reply({ status: 'ok', user: 'other', items: [] }));
-    expect(await loadEditExtras('1', 'ian')).toEqual({ kind: 'needs-login' });
+    expect(await loadEditExtras('1', 'ian')).toEqual({ kind: 'wrong-account', user: 'other' });
   });
 
   it('is unavailable without an uploader (not a member) or with no session', async () => {

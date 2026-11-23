@@ -32,6 +32,7 @@ type Loaded =
   | { kind: 'loading' }
   | { kind: 'ok'; items: ExtraItem[]; remaining: number | null }
   | { kind: 'needs-login' }
+  | { kind: 'wrong-account'; user: string }
   | { kind: 'unavailable' }
   | { kind: 'failed' };
 
@@ -98,6 +99,18 @@ export function ExtraPhotosEditor({
         >
           Try again
         </IonButton>
+      </div>
+    );
+  }
+  if (loaded.kind === 'wrong-account') {
+    return (
+      <div className="compose-form extra-photos">
+        <ExtrasLoginNotice
+          username={username}
+          onSignedIn={reload}
+          message={`Blipfoto's website is signed in as ${loaded.user}, but this entry is ${username}'s. Sign in as ${username} to change its extra photos.`}
+          buttonLabel={`Sign in as ${username}`}
+        />
       </div>
     );
   }

@@ -98,6 +98,11 @@ export async function forgetSiteSession(username: string): Promise<void> {
   }
 }
 
+/** True when the page named a member and it is not this one. An unnamed page proves nothing. */
+export function isOtherMember(siteUser: string | null | undefined, username: string): boolean {
+  return typeof siteUser === 'string' && siteUser !== '' && !isSameMember(siteUser, username);
+}
+
 /** Whether the stored session is this member's (case-insensitive). An unnamed session is accepted:
  * the edit page itself then decides. */
 export function isSameMember(siteUser: string | null, username: string): boolean {
@@ -156,9 +161,11 @@ export async function applyExtras(
     const before = await readBack(entryId);
     if (before === null) return manual('error');
     if (before.status === 'needs-login') return manual('not-signed-in');
+    // Whose session it is comes first: a page for someone else's entry has no uploader, which is
+    // not the same as "no membership".
+    if (isOtherMember(before.user, username)) return manual('wrong-account');
     if (before.status === 'unexpected-page') return manual('unexpected-page');
     if (before.status === 'no-uploader') return manual('no-membership');
-    if (!isSameMember(before.user ?? '', username)) return manual('wrong-account');
     const beforeIds = new Set((before.items ?? []).map((i) => i.id));
     const removable = removeIds.filter((id) => beforeIds.has(id));
 
@@ -211,6 +218,7 @@ export async function loadEditExtras(
 ): Promise<
   | { kind: 'ok'; items: ExtraItem[]; remaining: number | null }
   | { kind: 'needs-login' }
+  | { kind: 'wrong-account'; user: string }
   | { kind: 'unavailable' }
   | { kind: 'failed' }
 > {
@@ -220,10 +228,12 @@ export async function loadEditExtras(
     // Nothing came back in time: the screen says so and offers to try again.
     if (read === null) return { kind: 'failed' };
     if (read.status === 'needs-login') return { kind: 'needs-login' };
+    // Signed in to the website as someone else: that member's edit page for this entry has no
+    // form at all, so this must be checked before the page's shape is.
+    if (isOtherMember(read.user, username)) return { kind: 'wrong-account', user: read.user ?? '' };
     // No uploader means the page offers no extras to this member (not a membership).
     if (read.status === 'no-uploader') return { kind: 'unavailable' };
     if (read.status !== 'ok') return { kind: 'failed' };
-    if (!isSameMember(read.user ?? '', username)) return { kind: 'needs-login' };
     return {
       kind: 'ok',
       items: read.items ?? [],

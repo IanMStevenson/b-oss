@@ -30,8 +30,8 @@ export interface ExtraFile {
 export type AddScriptResult =
   | { status: 'submitted'; user: string | null; remainingBefore: number; missing: string[] }
   | { status: 'needs-login' }
-  | { status: 'unexpected-page'; path: string }
-  | { status: 'no-uploader' }
+  | { status: 'unexpected-page'; path: string; user?: string | null }
+  | { status: 'no-uploader'; user?: string | null }
   | { status: 'timeout' }
   | { status: 'error'; error: string };
 
@@ -109,9 +109,9 @@ export function buildAddExtrasScript(files: ExtraFile[], removeIds: string[] = [
     try {
       var path = location.pathname;
       if (/^\\/account\\/signin/.test(path)) return done({ status: 'needs-login' });
-      if (!/^\\/entry\\/\\d+\\/edit\\/?$/.test(path)) return done({ status: 'unexpected-page', path: path });
+      if (!/^\\/entry\\/\\d+\\/edit\\/?$/.test(path)) return done({ status: 'unexpected-page', path: path, user: bmxUser() });
       var input = await bmxFindUploader();
-      if (!input) return done({ status: 'no-uploader' });
+      if (!input) return done({ status: 'no-uploader', user: bmxUser() });
       var remEl = document.getElementById('photo-uploader-remaining');
       var missing = [];
       REMOVE.forEach(function (id) {
@@ -163,9 +163,9 @@ export function buildReadBackScript(): string {
     try {
       var path = location.pathname;
       if (/^\\/account\\/signin/.test(path)) return done({ status: 'needs-login' });
-      if (!/^\\/entry\\/\\d+\\/edit\\/?$/.test(path)) return done({ status: 'unexpected-page' });
+      if (!/^\\/entry\\/\\d+\\/edit\\/?$/.test(path)) return done({ status: 'unexpected-page', user: bmxUser() });
       var input = await bmxFindUploader();
-      if (!input) return done({ status: 'no-uploader', detail: bmxDetail() });
+      if (!input) return done({ status: 'no-uploader', user: bmxUser(), detail: bmxDetail() });
       var nodes = document.querySelectorAll('#photo-queue > li');
       var items = [];
       for (var i = 0; i < nodes.length; i++) {
@@ -181,7 +181,7 @@ export function buildReadBackScript(): string {
         remaining: Number(document.getElementById('photo-uploader-remaining').textContent),
       });
     } catch (e) {
-      done({ status: 'no-uploader', detail: bmxDetail(), error: String((e && e.message) || e) });
+      done({ status: 'no-uploader', user: bmxUser(), detail: bmxDetail(), error: String((e && e.message) || e) });
     }
   })();
 })();`;
