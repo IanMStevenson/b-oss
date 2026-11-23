@@ -13,6 +13,11 @@ vi.mock('../../platform/siteSession.js', () => ({
   siteSignOut: (id: string) => signOut(id),
 }));
 
+const clearDesignated = vi.fn((_id: string) => Promise.resolve());
+vi.mock('../../site/access.js', () => ({
+  clearDesignatedExtrasAccount: (id: string) => clearDesignated(id),
+}));
+
 import {
   addExtras,
   applyExtras,
@@ -146,6 +151,7 @@ describe('forgetSiteSession', () => {
   it('deletes that account session, without asking the website anything', async () => {
     await forgetSiteSession(acct);
     expect(signOut).toHaveBeenCalledWith('a1');
+    expect(clearDesignated).toHaveBeenCalledWith('a1');
     expect(siteRunPage).not.toHaveBeenCalled();
   });
 

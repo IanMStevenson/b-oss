@@ -7,6 +7,8 @@
 // packages/b-mobile-pc/src/shared/bridge.ts: b-mobile must not depend on that package, so keep the
 // two in step (the shell's e2e tests exercise the real round trip). Only platform/** reads it.
 
+import type { SiteSessionHost } from '../site/contract.js';
+
 /** Same shape as b-mobile's PushPayload (platform/push.ts), so tap routing is shared. */
 export type DesktopNotifyPayload =
   | { kind: 'activity'; stream: 'comments' | 'notifications'; accountId: string }
@@ -49,19 +51,6 @@ export interface DesktopPickedPhoto {
   bytes: Uint8Array;
 }
 
-export interface DesktopSitePageRun {
-  accountId: string;
-  url: string;
-  script: string;
-  timeoutMs: number;
-  waitForNavigation: boolean;
-}
-
-export interface DesktopSitePageResult {
-  finalUrl: string;
-  result: string | null;
-}
-
 export interface DesktopBridge {
   readonly version: 1;
   readonly secure: {
@@ -99,11 +88,7 @@ export interface DesktopBridge {
    * shell older than this member. `signIn` shows the site's sign-in page and resolves true once
    * signed in (false if closed); `runPage` loads one www.blipfoto.com page in a hidden window with
    * that session and runs a script in it. */
-  readonly site?: {
-    signIn(accountId: string, url: string): Promise<boolean>;
-    signOut(accountId: string): Promise<void>;
-    runPage(run: DesktopSitePageRun): Promise<DesktopSitePageResult>;
-  };
+  readonly site?: SiteSessionHost;
   /** The error log and the error screen's actions (b-oss#639); see platform/diagnostics.ts. */
   readonly diagnostics: {
     logError(entry: { source: string; message: string; stack?: string }): Promise<void>;

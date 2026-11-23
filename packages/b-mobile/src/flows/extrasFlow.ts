@@ -25,6 +25,7 @@ import {
   type WhoAmIResult,
 } from '../platform/siteExtrasScripts.js';
 import { entryPageUrl, fetchEntryExtras, type EntryExtra } from '@b-oss/b-api';
+import { clearDesignatedExtrasAccount } from '../site/access.js';
 import {
   siteRunPage,
   siteSessionAvailable,
@@ -101,6 +102,7 @@ export async function forgetSiteSession(account: SiteAccount): Promise<void> {
   try {
     if (!siteSessionAvailable()) return;
     await siteSignOut(account.id);
+    await clearDesignatedExtrasAccount(account.id);
   } catch {
     // Nothing more to do; the account is removed regardless.
   }

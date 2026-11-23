@@ -31,6 +31,15 @@ export interface PlatformCapabilities {
      * not offered (a plain browser). */
     mechanism: 'push' | 'polling' | 'none';
   };
+  site: {
+    /** How the member's Blipfoto website session (used to add, edit and read extra photos) is
+     * kept. `per-account`: each account has its own, so one member's session is never in use for
+     * another (the desktop shell; Android WebViews with profiles; iOS with per-identifier data
+     * stores). `single`: the platform keeps one session for the whole app, so exactly one account
+     * (the designated extras account, site/access.ts) can use it at a time. `none`: no website
+     * session (a plain browser), so extras beyond what the public pages show are not offered. */
+    session: 'per-account' | 'single' | 'none';
+  };
   /** Where "my location" comes from. `os`: the device reports it (Android, iOS, a browser, with
    * the usual permission prompt). `pick-only`: no usable OS location, so "my location" is hidden
    * and places are chosen on the map (the desktop shell: it denies browser permission prompts, and
@@ -54,6 +63,8 @@ const TABLE: Record<PlatformKind, PlatformCapabilities> = {
     api: { access: 'direct' },
     auth: { embeddedAvailable: true, userCanChooseBrowser: true },
     notifications: { mechanism: 'push' },
+    // Per-account where the WebView has profiles; reported at run time (recordSiteSessionIsolation).
+    site: { session: 'single' },
     location: 'os',
     media: { capture: 'camera', source: 'system' },
   },
@@ -61,6 +72,8 @@ const TABLE: Record<PlatformKind, PlatformCapabilities> = {
     api: { access: 'direct' },
     auth: { embeddedAvailable: true, userCanChooseBrowser: true },
     notifications: { mechanism: 'push' },
+    // Design intent: per-account where the OS has separate website data stores.
+    site: { session: 'single' },
     location: 'os',
     media: { capture: 'camera', source: 'system' },
   },
@@ -68,6 +81,7 @@ const TABLE: Record<PlatformKind, PlatformCapabilities> = {
     api: { access: 'same-origin-proxy' },
     auth: { embeddedAvailable: true, userCanChooseBrowser: false },
     notifications: { mechanism: 'polling' },
+    site: { session: 'per-account' },
     location: 'pick-only',
     media: { capture: 'camera', source: 'webcam' },
   },
@@ -76,6 +90,7 @@ const TABLE: Record<PlatformKind, PlatformCapabilities> = {
     api: { access: 'direct' },
     auth: { embeddedAvailable: false, userCanChooseBrowser: false },
     notifications: { mechanism: 'none' },
+    site: { session: 'none' },
     location: 'os',
     media: { capture: 'camera', source: 'system' },
   },
@@ -112,9 +127,22 @@ export function usesBrowserLocation(): boolean {
   return TABLE[platformKind()].location === 'pick-only';
 }
 
+// Whether a native host can keep a website session per account is only known by asking it (an
+// Android WebView without profiles cannot). Undefined until the host has answered; see
+// platform/siteSession.ts.
+let siteIsolation: 'per-account' | 'single' | undefined;
+
+/** Records what the host's website session can do on this device (b-oss#1050). */
+export function recordSiteSessionIsolation(isolation: 'per-account' | 'single'): void {
+  siteIsolation = isolation;
+}
+
 export function capabilities(): PlatformCapabilities {
   const kind = platformKind();
   const base = TABLE[kind];
+  if ((kind === 'android' || kind === 'ios') && siteIsolation !== undefined) {
+    return { ...base, site: { session: siteIsolation } };
+  }
   if (kind === 'desktop' && desktopLocation === 'ok') return { ...base, location: 'os' };
   if (kind === 'web' && import.meta.env.DEV) {
     return { ...base, api: { access: 'same-origin-proxy' } };

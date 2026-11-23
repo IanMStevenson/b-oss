@@ -12,6 +12,9 @@
 import { useRef, useState, type ReactElement } from 'react';
 import { IonAlert } from '@ionic/react';
 import { openUrl } from '../platform/browser.js';
+import { siteSignOut } from '../platform/siteSession.js';
+import { claimSiteSession, setDesignatedExtrasAccount, siteAccessFor } from '../site/access.js';
+import { useAccountsStore } from '../state/accountsStore.js';
 import {
   SIGN_IN_URL,
   currentSiteUser,
@@ -20,7 +23,7 @@ import {
   type SiteAccount,
 } from '../flows/extrasFlow.js';
 
-type Gate = 'ask' | 'set-password' | null;
+type Gate = 'ask' | 'set-password' | 'switch' | null;
 
 export interface SiteSignInGate {
   /** Runs `then` once the website session is this member's, asking to sign in first if it isn't. */
@@ -40,6 +43,9 @@ export function useSiteSignInGate(account: SiteAccount): SiteSignInGate {
   // Confirmed this session, so a second use does not re-check.
   const signedIn = useRef(false);
   const pending = useRef<(() => Promise<void> | void) | null>(null);
+  // Where the device keeps one website session for every account (site/access.ts): who holds it.
+  const [owner, setOwner] = useState<string | null>(null);
+  const ownerId = useRef<string | null>(null);
 
   async function run(then: () => Promise<void> | void): Promise<void> {
     setBusy(true);
@@ -55,6 +61,19 @@ export function useSiteSignInGate(account: SiteAccount): SiteSignInGate {
 
   async function start(then: () => Promise<void> | void): Promise<void> {
     if (busy) return;
+    // One website session for the whole app, set up for a different account: ask before taking it.
+    const access = await siteAccessFor(account.id);
+    if (access.kind === 'owned-by') {
+      signedIn.current = false;
+      pending.current = then;
+      ownerId.current = access.accountId;
+      setOwner(
+        useAccountsStore.getState().accounts.find((a) => a.id === access.accountId)?.username ??
+          'another account',
+      );
+      setGate('switch');
+      return;
+    }
     if (signedIn.current) return run(then);
     setBusy(true);
     setNotice(null);
@@ -66,6 +85,7 @@ export function useSiteSignInGate(account: SiteAccount): SiteSignInGate {
     }
     if (ready) {
       signedIn.current = true;
+      await claimSiteSession(account.id);
       return run(then);
     }
     pending.current = then;
@@ -90,6 +110,7 @@ export function useSiteSignInGate(account: SiteAccount): SiteSignInGate {
         return;
       }
       signedIn.current = true;
+      await claimSiteSession(account.id);
     } catch {
       setNotice("Couldn't sign in. Please try again.");
       return;
@@ -99,8 +120,42 @@ export function useSiteSignInGate(account: SiteAccount): SiteSignInGate {
     await run(then);
   }
 
+  /** Takes the single website session over from the account that holds it: signs the website out,
+   * so the next sign-in is this account's, and carries on with the normal question. */
+  async function switchHere(): Promise<void> {
+    const then = pending.current;
+    const from = ownerId.current;
+    pending.current = null;
+    if (!then || from === null) return;
+    setBusy(true);
+    try {
+      await siteSignOut(from);
+      await setDesignatedExtrasAccount(account.id);
+    } finally {
+      setBusy(false);
+    }
+    signedIn.current = false;
+    await start(then);
+  }
+
   const alerts = (
     <>
+      <IonAlert
+        isOpen={gate === 'switch'}
+        header="Extras are set up for another account"
+        message={`On this device, extra photos can use the Blipfoto website sign-in of one account at a time, and it is ${owner ?? 'another account'}'s. Switch it to ${username}? You will be asked to sign in again, and ${owner ?? 'the other account'} will need to sign in again before using extras.`}
+        onDidDismiss={() => setGate((g) => (g === 'switch' ? null : g))}
+        buttons={[
+          {
+            text: 'Cancel',
+            role: 'cancel',
+            handler: () => {
+              pending.current = null;
+            },
+          },
+          { text: `Switch to ${username}`, handler: () => void switchHere() },
+        ]}
+      />
       <IonAlert
         isOpen={gate === 'ask'}
         header="Sign in to Blipfoto"

@@ -1,38 +1,20 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (C) 2026 Ian Stevenson
 
-// The member's own Blipfoto website session, used only to add extra photos (b-oss#1037). Wraps the
-// local SiteSessionPlugin on Android (android/app/.../SiteSessionPlugin.java, not an npm package)
-// and the desktop shell's `site` bridge. Two operations, both against www.blipfoto.com only:
-//   - signIn: a visible window on the site's own sign-in page. The sign-in happens on Blipfoto and
-//     nothing here sees the password; the cookie stays in the WebView/window's own store.
-//   - runPage: a hidden window that loads one page of the signed-in site and runs a script in it
-//     (platform/siteExtrasScripts.ts), reporting back through window.__bmx.
-// Off-native and off-desktop (a plain browser) there is no implementation and both reject.
+// The member's own Blipfoto website session, used to add, edit and read extra photos (b-oss#1037,
+// b-oss#1050). This file is the ONE place that picks the platform's implementation of the
+// SiteSessionHost contract (site/contract.ts): the desktop shell's `site` bridge, or the local
+// SiteSession Capacitor plugin on Android (android/app/.../SiteSessionPlugin.java, not an npm
+// package) and iOS later. Everything else calls the functions below and reads
+// `capabilities().site.session`; nothing else asks which platform it is.
 
 import { registerPlugin } from '@capacitor/core';
+import type { SitePageResult, SitePageRun, SiteSessionHost } from '../site/contract.js';
+import { capabilities } from './capabilities.js';
 import { desktopBridge } from './desktop.js';
-import { isCapacitorNative } from './platformKind.js';
+import { platformKind } from './platformKind.js';
 
-export interface SitePageRun {
-  /** The b-mobile account the run is for. The desktop shell keeps one website session per account,
-   * so one member's session is never used for another. */
-  accountId: string;
-  /** An https://www.blipfoto.com/ page; the hosts refuse anything else. */
-  url: string;
-  /** Run once the page has loaded; sets window.__bmx to a JSON string when finished. */
-  script: string;
-  timeoutMs: number;
-  /** After the script reports, keep the window open until the page navigates (a form post). */
-  waitForNavigation: boolean;
-}
-
-export interface SitePageResult {
-  /** Where the window ended up (after a redirect or a form post). */
-  finalUrl: string;
-  /** The script's window.__bmx, or null if it never reported before the timeout. */
-  result: string | null;
-}
+export type { SitePageResult, SitePageRun, SiteSessionHost };
 
 interface SiteSessionPlugin {
   signIn(options: { url: string; accountId: string }): Promise<{ signedIn: boolean }>;
@@ -42,43 +24,56 @@ interface SiteSessionPlugin {
 
 const SiteSession = registerPlugin<SiteSessionPlugin>('SiteSession');
 
+const capacitorHost: SiteSessionHost = {
+  signIn: async (accountId, url) => (await SiteSession.signIn({ url, accountId })).signedIn,
+  signOut: (accountId) => SiteSession.signOut({ accountId }),
+  runPage: (run) => SiteSession.runPage(run),
+};
+
+/** The platform's host, or null where there is none (a plain browser, or a desktop shell too old
+ * to have the `site` bridge). */
+function host(): SiteSessionHost | null {
+  switch (platformKind()) {
+    case 'desktop':
+      return desktopBridge()?.site ?? null;
+    case 'android':
+    case 'ios':
+      return capacitorHost;
+    case 'web':
+      return null;
+  }
+}
+
 export class SiteSessionUnavailableError extends Error {
   constructor() {
-    super('The website session is only available on Android and the desktop app');
+    super('The website session is not available on this device');
     this.name = 'SiteSessionUnavailableError';
   }
 }
 
-/** Whether this host can run the site flows at all (Android, or a desktop shell new enough). */
+function required(): SiteSessionHost {
+  const h = host();
+  if (h === null) throw new SiteSessionUnavailableError();
+  return h;
+}
+
+/** Whether this device can run the website flows at all. */
 export function siteSessionAvailable(): boolean {
-  const desktop = desktopBridge();
-  if (desktop) return desktop.site !== undefined;
-  return isCapacitorNative();
+  return capabilities().site.session !== 'none' && host() !== null;
 }
 
-/** Shows the site's sign-in page and resolves true once the member has signed in, false if they
- * closed it first. Always starts signed out, so a second account is never mixed with the first. */
-export async function siteSignIn(accountId: string, url: string): Promise<boolean> {
-  const desktop = desktopBridge();
-  if (desktop?.site) return desktop.site.signIn(accountId, url);
-  if (!desktop && isCapacitorNative()) {
-    return (await SiteSession.signIn({ url, accountId })).signedIn;
-  }
-  throw new SiteSessionUnavailableError();
+/** Shows the site's sign-in page for this account; true once the member has signed in. Always
+ * starts signed out, so one member's sign-in is never mixed with another's. */
+export function siteSignIn(accountId: string, url: string): Promise<boolean> {
+  return required().signIn(accountId, url);
 }
 
-/** Loads `run.url` in a hidden window with the stored site session and runs the script. */
-export async function siteRunPage(run: SitePageRun): Promise<SitePageResult> {
-  const desktop = desktopBridge();
-  if (desktop?.site) return desktop.site.runPage(run);
-  if (!desktop && isCapacitorNative()) return SiteSession.runPage(run);
-  throw new SiteSessionUnavailableError();
-}
-
-/** Deletes the stored website session (its cookies), so nothing is left behind when the member
- * disconnects their account. Resolves quietly where there is nothing to delete. */
+/** Deletes this account's website session. Quiet where there is nothing to delete. */
 export async function siteSignOut(accountId: string): Promise<void> {
-  const desktop = desktopBridge();
-  if (desktop?.site) return desktop.site.signOut(accountId);
-  if (!desktop && isCapacitorNative()) await SiteSession.signOut({ accountId });
+  await host()?.signOut(accountId);
+}
+
+/** Loads `run.url` in a hidden page with the account's session and runs the script. */
+export function siteRunPage(run: SitePageRun): Promise<SitePageResult> {
+  return required().runPage(run);
 }
