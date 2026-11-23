@@ -15,6 +15,7 @@ import { createTrackedRouter } from '../../../app/routes/test-router.js';
 import { OverlayProvider } from '../../../app/OverlayProvider.js';
 import { EditEntryScreen } from '../EditEntryScreen.js';
 import { useAccountsStore } from '../../../state/accountsStore.js';
+import { resumeClear } from '../../../data/resumeCache.js';
 import { useComposeDraftStore } from '../../../state/composeDraftStore.js';
 
 const { fetchEntry } = vi.hoisted(() => ({ fetchEntry: vi.fn() }));
@@ -56,6 +57,7 @@ beforeEach(() => {
     hydrated: true,
   });
   useComposeDraftStore.setState({ draft: null });
+  resumeClear();
   fetchUserProfile.mockResolvedValue({ details: { member: 1 } });
   loadEditExtras.mockResolvedValue(OK);
   pickPhoto.mockResolvedValue({
@@ -104,6 +106,7 @@ describe('an extra photo added on the edit screen, across a round trip', () => {
     await screen.findByAltText('New extra photo 1');
 
     cleanup();
+    resumeClear(); // as if the remembered answer had expired
     fetchUserProfile.mockReturnValue(new Promise(() => {}));
     mount();
     await screen.findByDisplayValue('Sunrise');
@@ -116,26 +119,24 @@ describe('an extra photo added on the edit screen, across a round trip', () => {
     await screen.findByAltText('New extra photo 1');
 
     cleanup();
+    resumeClear(); // as if the remembered answer had expired
     fetchUserProfile.mockRejectedValue(new Error('offline'));
     mount();
     await screen.findByDisplayValue('Sunrise');
     expect(await screen.findByAltText('New extra photo 1')).toBeDefined();
   });
 
-  it('is still shown while, or after failing, the website read of the entry', async () => {
+  it('is shown at once on the way back, without reading the entry from the website again', async () => {
     mount();
     await userEvent.click(await screen.findByLabelText('Add an extra photo'));
     await screen.findByAltText('New extra photo 1');
+    expect(loadEditExtras).toHaveBeenCalledTimes(1);
 
     cleanup();
     loadEditExtras.mockReturnValue(new Promise(() => {}));
     mount();
     expect(await screen.findByAltText('New extra photo 1')).toBeDefined();
-
-    cleanup();
-    loadEditExtras.mockResolvedValue({ kind: 'failed' });
-    mount();
-    await screen.findByText(/Couldn.t read this entry/);
-    expect(screen.getByAltText('New extra photo 1')).toBeDefined();
+    expect(screen.queryByText('Loading extra photos…')).toBeNull();
+    expect(loadEditExtras).toHaveBeenCalledTimes(1);
   });
 });

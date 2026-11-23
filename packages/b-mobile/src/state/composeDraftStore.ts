@@ -13,6 +13,7 @@
 // SCR-13's "Edit details" mode never touches `photo`; "Replace photo" mode sets it.
 
 import { create } from 'zustand';
+import type { ExtraItem } from '@b-oss/b-api-web';
 
 export type ComposeMode = 'publish' | 'edit';
 
@@ -72,14 +73,55 @@ export interface ComposeDraft {
   /** SCR-13 only: the entry's current photo (its thumbnail address) as loaded, so the screen can
    * show it again after a trip to the map screen and back. */
   existingImage?: string | null;
+  /** What the website said about extras when last read (b-oss#1056): the entry's current extras
+   * (SCR-13; none for a new entry) and the member's remaining allowance. Held here, not in the
+   * extras block's own state, because opening the map screen unmounts the screen and Back
+   * rebuilds it: a reading kept in component state is lost and takes a slow website read to
+   * recover. Only a successful read is stored; not user input, so it never makes the draft dirty. */
+  siteExtras?: { items: ExtraItem[]; remaining: number | null };
   /** Whether anything has changed since the draft was created/loaded — the discard-guard's input. */
   dirty: boolean;
 }
 
+/** Where each draft field's value comes from, so a new field has to be placed (the type makes
+ * leaving one out a compile error, and the round-trip matrix test, state/__tests__, fails for a
+ * field it has no case for). See docs/ImplementationSpec/compose-state.md.
+ *  - input: typed or chosen by the member; patchDraft, marks the draft dirty.
+ *  - identity: which draft this is; set once when it is created.
+ *  - loaded: read from the server or website; patchLoaded, never dirty.
+ */
+export const DRAFT_FIELD_KIND: Record<keyof ComposeDraft, 'input' | 'identity' | 'loaded'> = {
+  mode: 'identity',
+  accountId: 'identity',
+  entryId: 'identity',
+  editLevel: 'loaded',
+  photo: 'input',
+  title: 'input',
+  tags: 'input',
+  description: 'input',
+  date: 'input',
+  originalDate: 'loaded',
+  location: 'input',
+  displayLocation: 'input',
+  thumbnailCrop: 'input',
+  extras: 'input',
+  extrasRemove: 'input',
+  existingImage: 'loaded',
+  siteExtras: 'loaded',
+  dirty: 'identity',
+};
+
 interface ComposeDraftState {
   draft: ComposeDraft | null;
   setDraft: (draft: ComposeDraft) => void;
+  /** Starts an edit draft from what was loaded, unless this entry's edit draft already exists
+   * (a load that finishes after the draft was made must not overwrite the member's changes).
+   * True when the draft was set. */
+  seedEditDraft: (draft: ComposeDraft) => boolean;
   patchDraft: (patch: Partial<ComposeDraft>) => void;
+  /** Records something read from the server or website; unlike patchDraft it is not a change by
+   * the member, so it leaves `dirty` alone. */
+  patchLoaded: (patch: Partial<ComposeDraft>) => void;
   clearDraft: () => void;
 }
 
@@ -87,6 +129,19 @@ export const useComposeDraftStore = create<ComposeDraftState>((set, get) => ({
   draft: null,
 
   setDraft: (draft) => set({ draft }),
+
+  seedEditDraft: (next) => {
+    const current = get().draft;
+    if (current?.mode === 'edit' && current.entryId === next.entryId) return false;
+    set({ draft: next });
+    return true;
+  },
+
+  patchLoaded: (patch) => {
+    const current = get().draft;
+    if (!current) return;
+    set({ draft: { ...current, ...patch } });
+  },
 
   patchDraft: (patch) => {
     const current = get().draft;

@@ -56,6 +56,7 @@ export function ComposeEntryScreen() {
   const wideForm = useWideForm();
   const draft = useComposeDraftStore((s) => s.draft);
   const patchDraft = useComposeDraftStore((s) => s.patchDraft);
+  const patchLoaded = useComposeDraftStore((s) => s.patchLoaded);
   const clearDraft = useComposeDraftStore((s) => s.clearDraft);
 
   const { isMember, failed: membershipFailed, retry: retryMembership } = useMembership();
@@ -327,12 +328,14 @@ export function ComposeEntryScreen() {
               </div>
             }
             extras={
-              isMember === true && siteSessionAvailable() ? (
+              (isMember === true || (draft.extras?.length ?? 0) > 0) && siteSessionAvailable() ? (
                 <ExtraPhotosSection
                   accountId={draft.accountId}
                   username={accounts.find((a) => a.id === draft.accountId)?.username ?? ''}
                   photos={draft.extras ?? []}
                   onChange={(extras) => patchDraft({ extras })}
+                  remaining={draft.siteExtras?.remaining}
+                  onRead={(remaining) => patchLoaded({ siteExtras: { items: [], remaining } })}
                 />
               ) : undefined
             }

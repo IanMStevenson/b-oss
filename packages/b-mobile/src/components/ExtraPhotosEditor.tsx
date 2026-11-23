@@ -8,7 +8,7 @@
 // the block offers the same sign-in as everywhere else (ExtrasLoginNotice); where extras cannot be
 // edited at all (not a member, no session on this device) it shows nothing.
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { IonButton, IonText } from '@ionic/react';
 import { pickPhoto } from '../platform/camera.js';
 import { openUrl } from '../platform/browser.js';
@@ -26,6 +26,10 @@ interface Props {
   additions: ComposePhoto[];
   removals: string[];
   onChange: (next: { extras: ComposePhoto[]; extrasRemove: string[] }) => void;
+  /** The last successful website read, kept in the draft (see ComposeDraft.siteExtras) so a
+   * remount shows it at once instead of starting again from "loading". */
+  site?: { items: ExtraItem[]; remaining: number | null };
+  onRead: (site: { items: ExtraItem[]; remaining: number | null }) => void;
 }
 
 type Loaded =
@@ -43,16 +47,30 @@ export function ExtraPhotosEditor({
   additions,
   removals,
   onChange,
+  site,
+  onRead,
 }: Props) {
   const account = useMemo(() => ({ id: accountId, username }), [accountId, username]);
-  const [loaded, setLoaded] = useState<Loaded>({ kind: 'loading' });
+  const [loaded, setLoaded] = useState<Loaded>(() =>
+    site ? { kind: 'ok', ...site } : { kind: 'loading' },
+  );
   const [attempt, setAttempt] = useState(0);
   const [notice, setNotice] = useState<string | null>(null);
+  // Read only when there is no reading in the draft yet, or when asked again (sign-in, Try again).
+  const haveReading = useRef(site !== undefined);
+  const onReadRef = useRef(onRead);
+  onReadRef.current = onRead;
 
   useEffect(() => {
+    if (haveReading.current && attempt === 0) return;
     let cancelled = false;
     void loadEditExtras(entryId, account).then((result) => {
-      if (!cancelled) setLoaded(result);
+      if (cancelled) return;
+      setLoaded(result);
+      if (result.kind === 'ok') {
+        haveReading.current = true;
+        onReadRef.current({ items: result.items, remaining: result.remaining });
+      }
     });
     return () => {
       cancelled = true;
@@ -60,6 +78,32 @@ export function ExtraPhotosEditor({
   }, [entryId, account, attempt]);
 
   const reload = useCallback(() => setAttempt((n) => n + 1), []);
+
+  // The member's own unsaved choices are shown whatever the website read is doing: they are in the
+  // draft, and hiding them behind a read that is slow or failed looks like they were lost.
+  const pendingAdditions =
+    additions.length > 0 ? (
+      <ul className="extra-photos-list">
+        {additions.map((photo, index) => (
+          <li key={`${photo.webPath}-${index}`}>
+            <img src={photo.webPath} alt={`New extra photo ${index + 1}`} />
+            <button
+              type="button"
+              className="extra-photos-remove"
+              aria-label={`Remove new extra photo ${index + 1}`}
+              onClick={() =>
+                onChange({
+                  extras: additions.filter((_, i) => i !== index),
+                  extrasRemove: removals,
+                })
+              }
+            >
+              ×
+            </button>
+          </li>
+        ))}
+      </ul>
+    ) : null;
 
   if (loaded.kind === 'unavailable') {
     // The page offered no extras uploader: say so, with the way to look for yourself, rather than
@@ -72,6 +116,7 @@ export function ExtraPhotosEditor({
         <IonButton size="small" fill="outline" onClick={() => void openUrl(entryEditUrl(entryId))}>
           Open the edit page
         </IonButton>
+        {pendingAdditions}
       </div>
     );
   }
@@ -81,6 +126,7 @@ export function ExtraPhotosEditor({
         <IonText color="medium">
           <p>Loading extra photos…</p>
         </IonText>
+        {pendingAdditions}
       </div>
     );
   }
@@ -100,6 +146,7 @@ export function ExtraPhotosEditor({
         >
           Try again
         </IonButton>
+        {pendingAdditions}
       </div>
     );
   }
@@ -112,6 +159,7 @@ export function ExtraPhotosEditor({
           message={`Blipfoto's website is signed in as ${loaded.user}, but this entry is ${username}'s. Sign in as ${username} to change its extra photos.`}
           buttonLabel={`Sign in as ${username}`}
         />
+        {pendingAdditions}
       </div>
     );
   }
@@ -119,6 +167,7 @@ export function ExtraPhotosEditor({
     return (
       <div className="compose-form extra-photos">
         <ExtrasLoginNotice account={account} onSignedIn={reload} />
+        {pendingAdditions}
       </div>
     );
   }

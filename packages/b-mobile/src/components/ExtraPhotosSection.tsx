@@ -5,7 +5,7 @@
 // website, so the first time the member adds one they are asked to sign in there (once, not at
 // account setup), through the shared gate (useSiteSignInGate).
 
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef } from 'react';
 import { IonText } from '@ionic/react';
 import { pickPhoto } from '../platform/camera.js';
 import type { ComposePhoto } from '../state/composeDraftStore.js';
@@ -18,29 +18,45 @@ interface Props {
   username: string;
   photos: ComposePhoto[];
   onChange: (photos: ComposePhoto[]) => void;
+  /** The allowance last read, kept in the draft (ComposeDraft.siteExtras) so it survives the
+   * screen being rebuilt after a trip to the map. */
+  remaining?: number | null;
+  onRead: (remaining: number | null) => void;
 }
 
-export function ExtraPhotosSection({ accountId, username, photos, onChange }: Props) {
+export function ExtraPhotosSection({
+  accountId,
+  username,
+  photos,
+  onChange,
+  remaining: readRemaining,
+  onRead,
+}: Props) {
   const account = useMemo(() => ({ id: accountId, username }), [accountId, username]);
   const gate = useSiteSignInGate(account);
   // The member's remaining allowance for the year (100 a year), which only the website knows. Null
   // until it has been read, and it can only be read with a website session, so until then nothing
-  // about "remaining" is shown (b-oss#1043).
-  const [allowance, setAllowance] = useState<number | null>(null);
+  // about "remaining" is shown (b-oss#1043). The reading lives in the draft, not here.
+  const allowance = readRemaining ?? null;
+  const onReadRef = useRef(onRead);
+  onReadRef.current = onRead;
+  const read = useCallback(
+    () =>
+      readExtrasRemaining(account).then((n) => {
+        if (n !== null) onReadRef.current(n);
+      }),
+    [account],
+  );
 
   useEffect(() => {
-    let cancelled = false;
-    void readExtrasRemaining(account).then((n) => {
-      if (!cancelled) setAllowance(n);
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, [account]);
+    if (readRemaining === undefined) void read();
+    // Only on mount: a reading already in the draft is not read again.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [read]);
 
   async function pickAndAdd(): Promise<void> {
     // Signed in by now (the gate saw to it), so the allowance can be read if it wasn't yet.
-    if (allowance === null) void readExtrasRemaining(account).then(setAllowance);
+    if (allowance === null) void read();
     const photo = await pickPhoto(accountId);
     if (photo) onChange([...photos, photo]);
   }

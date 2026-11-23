@@ -49,6 +49,14 @@ export function LocationPickerScreen() {
   // Cancel-via-back can discard an in-progress tap without touching the draft — only Done commits.
   const [selected, setSelected] = useState(draft?.location ?? null);
 
+  // A refresh can land here with no draft to write the pin into: Done would silently do nothing
+  // (b-oss#1056). Leave instead.
+  useEffect(() => {
+    if (!draft) navigate.goBackOr('/browse');
+    // Only on arrival: Done clears nothing, but Discard (home) clears the draft on its way out.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   function placeMarker(lat: number, lon: number): void {
     setSelected({ lat, lon });
     const map = mapRef.current;

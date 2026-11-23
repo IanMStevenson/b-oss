@@ -54,6 +54,9 @@ export function NewEntryScreen({ replaceEntryId }: NewEntryScreenProps = {}) {
   const activeAccount = useActiveAccount();
   const setDraft = useComposeDraftStore((s) => s.setDraft);
   const patchDraft = useComposeDraftStore((s) => s.patchDraft);
+  const hasEditDraft = useComposeDraftStore(
+    (s) => s.draft?.mode === 'edit' && s.draft.entryId === replaceEntryId,
+  );
   const [busy, setBusy] = useState<'camera' | 'picker' | null>(null);
   const [cameraMessage, setCameraMessage] = useState<string | null>(null);
   const [photoMessage, setPhotoMessage] = useState<string | null>(null);
@@ -61,6 +64,14 @@ export function NewEntryScreen({ replaceEntryId }: NewEntryScreenProps = {}) {
   const useWebcam = capabilities().media.source === 'webcam';
   const [webcamFound, setWebcamFound] = useState(false);
   const [webcamOpen, setWebcamOpen] = useState(false);
+
+  // A refresh (or a link) can land here with no edit draft to put the photo in, and a pick
+  // written to no draft would vanish silently: go to the edit screen, which starts one (b-oss#1056).
+  useEffect(() => {
+    if (replaceEntryId && !hasEditDraft) navigate.replace(`/entry/${replaceEntryId}/edit`);
+    // Only on arrival: picking a photo and leaving is this screen's normal exit.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   useEffect(() => {
     if (!useWebcam) return;

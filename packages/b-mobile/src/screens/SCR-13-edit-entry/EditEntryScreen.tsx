@@ -61,7 +61,8 @@ export function EditEntryScreen({ entryId }: EditEntryScreenProps) {
   const navigate = useAppNavigate();
   const activeAccount = useActiveAccount();
   const draft = useComposeDraftStore((s) => s.draft);
-  const setDraft = useComposeDraftStore((s) => s.setDraft);
+  const seedEditDraft = useComposeDraftStore((s) => s.seedEditDraft);
+  const patchLoaded = useComposeDraftStore((s) => s.patchLoaded);
   const patchDraft = useComposeDraftStore((s) => s.patchDraft);
   const clearDraft = useComposeDraftStore((s) => s.clearDraft);
 
@@ -111,7 +112,9 @@ export function EditEntryScreen({ entryId }: EditEntryScreenProps) {
     fetchEntry(entryId).then(
       (loaded) => {
         if (cancelled) return;
-        setDraft({
+        // Never over this entry's own draft: if one appeared while the load was running, the
+        // member's changes in it win (b-oss#1056).
+        seedEditDraft({
           mode: 'edit',
           accountId: activeAccount.id,
           entryId,
@@ -143,9 +146,9 @@ export function EditEntryScreen({ entryId }: EditEntryScreenProps) {
     return () => {
       cancelled = true;
     };
-    // setDraft is a stable Zustand action reference (never changes identity), so including it
+    // seedEditDraft is a stable Zustand action reference (never changes identity), so including it
     // doesn't add a re-run trigger beyond entryId/activeAccount.
-  }, [entryId, activeAccount, setDraft, loadAttempt]);
+  }, [entryId, activeAccount, seedEditDraft, loadAttempt]);
 
   // Set when the discard confirmation was raised by the header's home tap rather than Back.
   const pendingHome = useRef<(() => void) | null>(null);
@@ -391,7 +394,11 @@ export function EditEntryScreen({ entryId }: EditEntryScreenProps) {
             ) : undefined
           }
           extras={
-            isMember === true && siteSessionAvailable() && editLevel !== 0 ? (
+            // Also whenever the draft holds unsaved extras, whatever the membership check or the
+            // website read is doing: the member's own choices are never hidden (b-oss#1056).
+            (isMember === true || (draft.extras?.length ?? 0) > 0) &&
+            siteSessionAvailable() &&
+            editLevel !== 0 ? (
               <ExtraPhotosEditor
                 entryId={entryId}
                 accountId={draft.accountId}
@@ -399,6 +406,8 @@ export function EditEntryScreen({ entryId }: EditEntryScreenProps) {
                 additions={draft.extras ?? []}
                 removals={draft.extrasRemove ?? []}
                 onChange={(next) => patchDraft(next)}
+                site={draft.siteExtras}
+                onRead={(siteExtras) => patchLoaded({ siteExtras })}
               />
             ) : undefined
           }
