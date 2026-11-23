@@ -4,7 +4,6 @@ import android.app.Activity;
 import android.net.Uri;
 import android.os.Bundle;
 import android.view.MenuItem;
-import android.webkit.CookieManager;
 import android.webkit.WebResourceRequest;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
@@ -20,6 +19,7 @@ import androidx.appcompat.app.AppCompatActivity;
 // member past /account/… (the post-login landing); Back or the up arrow cancels.
 public class SiteSignInActivity extends AppCompatActivity {
   public static final String EXTRA_URL = "url";
+  public static final String EXTRA_ACCOUNT_ID = "accountId";
   private static final String SITE_HOST = "www.blipfoto.com";
 
   @Override
@@ -32,15 +32,20 @@ public class SiteSignInActivity extends AppCompatActivity {
     }
 
     String url = getIntent().getStringExtra(EXTRA_URL);
-    if (url == null || !isSiteUrl(Uri.parse(url))) {
+    String accountId = getIntent().getStringExtra(EXTRA_ACCOUNT_ID);
+    if (url == null || accountId == null || accountId.isEmpty() || !isSiteUrl(Uri.parse(url))) {
       setResult(Activity.RESULT_CANCELED);
       finish();
       return;
     }
 
-    CookieManager.getInstance().removeAllCookies(null);
+    // Starts signed out, so one member's sign-in is never mixed with another's: this account's
+    // session (or the one shared session) is cleared first.
+    SiteProfiles.cookies(accountId).removeAllCookies(null);
 
     WebView webView = new WebView(this);
+    // Before anything else: puts this WebView on the account's own profile where there are profiles.
+    SiteProfiles.attach(webView, accountId);
     webView.getSettings().setJavaScriptEnabled(true);
     webView.getSettings().setDomStorageEnabled(true);
     webView.getSettings().setAllowFileAccess(false);
@@ -59,7 +64,7 @@ public class SiteSignInActivity extends AppCompatActivity {
             if (isSiteUrl(uri)
                 && uri.getPath() != null
                 && !uri.getPath().startsWith("/account/")) {
-              CookieManager.getInstance().flush();
+              SiteProfiles.cookies(accountId).flush();
               setResult(Activity.RESULT_OK);
               finish();
             }

@@ -10,13 +10,14 @@
 
 import { registerPlugin } from '@capacitor/core';
 import type { SitePageResult, SitePageRun, SiteSessionHost } from '../site/contract.js';
-import { capabilities } from './capabilities.js';
+import { capabilities, recordSiteSessionIsolation } from './capabilities.js';
 import { desktopBridge } from './desktop.js';
 import { platformKind } from './platformKind.js';
 
 export type { SitePageResult, SitePageRun, SiteSessionHost };
 
 interface SiteSessionPlugin {
+  isolation(): Promise<{ isolation: 'per-account' | 'single' }>;
   signIn(options: { url: string; accountId: string }): Promise<{ signedIn: boolean }>;
   signOut(options: { accountId: string }): Promise<void>;
   runPage(options: SitePageRun): Promise<SitePageResult>;
@@ -76,4 +77,18 @@ export async function siteSignOut(accountId: string): Promise<void> {
 /** Loads `run.url` in a hidden page with the account's session and runs the script. */
 export function siteRunPage(run: SitePageRun): Promise<SitePageResult> {
   return required().runPage(run);
+}
+
+/** Asks a native host whether it can keep a website session per account (Android WebView profiles;
+ * iOS per-identifier data stores) and records the answer in `capabilities()`. Called once at start-up;
+ * until it answers, the tabled value ('single': one shared session) applies. Never throws. */
+export async function initSiteSession(): Promise<void> {
+  const kind = platformKind();
+  if (kind !== 'android' && kind !== 'ios') return;
+  try {
+    const { isolation } = await SiteSession.isolation();
+    recordSiteSessionIsolation(isolation);
+  } catch {
+    // An older native shell has no such call: stay on the safe default, one shared session.
+  }
 }
