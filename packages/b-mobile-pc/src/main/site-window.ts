@@ -113,7 +113,11 @@ async function runPage(run: SitePageRun, log: (message: string) => void): Promis
         if (wc.getURL() !== startUrl && !wc.isLoading()) break;
       }
     }
-    if (result === null) log(`site page ${where}: no result after ${Date.now() - started} ms`);
+    if (result === null) {
+      log(`site page ${where}: no result after ${Date.now() - started} ms`);
+    } else {
+      log(`site page ${where}: ${summarise(result)} (${Date.now() - started} ms)`);
+    }
     return { finalUrl: win.isDestroyed() ? '' : wc.getURL(), result };
   } catch (err) {
     log(
@@ -122,6 +126,22 @@ async function runPage(run: SitePageRun, log: (message: string) => void): Promis
     throw err;
   } finally {
     await closeWindow(win);
+  }
+}
+
+/** A short account of a page script's answer for the app log: its status, and the page detail it
+ * gives when something was not as expected. Never the page's HTML. */
+function summarise(result: string): string {
+  try {
+    const parsed = JSON.parse(result) as { status?: unknown; detail?: unknown; error?: unknown };
+    const parts = [`status=${typeof parsed.status === 'string' ? parsed.status : '?'}`];
+    if (parsed.error !== undefined)
+      parts.push(`error=${JSON.stringify(parsed.error).slice(0, 200)}`);
+    if (parsed.detail !== undefined)
+      parts.push(`detail=${JSON.stringify(parsed.detail).slice(0, 400)}`);
+    return parts.join(' ');
+  } catch {
+    return 'unreadable result';
   }
 }
 

@@ -11,6 +11,8 @@
 import { useCallback, useEffect, useState } from 'react';
 import { IonButton, IonText } from '@ionic/react';
 import { pickPhoto } from '../platform/camera.js';
+import { openUrl } from '../platform/browser.js';
+import { editPageUrl } from '../platform/siteExtrasScripts.js';
 import type { ComposePhoto } from '../state/composeDraftStore.js';
 import { MAX_EXTRAS, loadEditExtras } from '../flows/extrasFlow.js';
 import type { ExtraItem } from '../platform/siteExtrasScripts.js';
@@ -57,7 +59,20 @@ export function ExtraPhotosEditor({
 
   const reload = useCallback(() => setAttempt((n) => n + 1), []);
 
-  if (loaded.kind === 'unavailable') return null;
+  if (loaded.kind === 'unavailable') {
+    // The page offered no extras uploader: say so, with the way to look for yourself, rather than
+    // quietly showing nothing.
+    return (
+      <div className="compose-form extra-photos">
+        <IonText color="medium">
+          <p>Blipfoto&apos;s edit page isn&apos;t offering extra photos for this entry.</p>
+        </IonText>
+        <IonButton size="small" fill="outline" onClick={() => void openUrl(editPageUrl(entryId))}>
+          Open the edit page
+        </IonButton>
+      </div>
+    );
+  }
   if (loaded.kind === 'loading') {
     return (
       <div className="compose-form extra-photos">

@@ -43,6 +43,9 @@ export interface ExtraItem {
 
 export interface ReadBackResult {
   status: 'ok' | 'needs-login' | 'unexpected-page' | 'no-uploader';
+  /** For the app log when the page was not what was expected. */
+  detail?: unknown;
+  error?: string;
   user?: string | null;
   /** The extras the edit page lists, in order. */
   items?: ExtraItem[];
@@ -62,6 +65,20 @@ const USER_HELPER = `
       }
     }
     return null;
+  }
+  // What the page looked like, for the app log when it was not what was expected.
+  function bmxDetail() {
+    var forms = [];
+    for (var i = 0; i < document.forms.length; i++) forms.push(document.forms[i].id || '?');
+    return {
+      path: location.pathname + location.search,
+      title: document.title.slice(0, 80),
+      user: bmxUser(),
+      forms: forms,
+      hasUploader: !!document.getElementById('photo-uploader'),
+      hasRemaining: !!document.getElementById('photo-uploader-remaining'),
+      hasQueue: !!document.getElementById('photo-queue'),
+    };
   }
   function bmxSleep(ms) { return new Promise(function (r) { setTimeout(r, ms); }); }
   async function bmxFindUploader() {
@@ -148,7 +165,7 @@ export function buildReadBackScript(): string {
       if (/^\\/account\\/signin/.test(path)) return done({ status: 'needs-login' });
       if (!/^\\/entry\\/\\d+\\/edit\\/?$/.test(path)) return done({ status: 'unexpected-page' });
       var input = await bmxFindUploader();
-      if (!input) return done({ status: 'no-uploader' });
+      if (!input) return done({ status: 'no-uploader', detail: bmxDetail() });
       var nodes = document.querySelectorAll('#photo-queue > li');
       var items = [];
       for (var i = 0; i < nodes.length; i++) {
@@ -164,7 +181,7 @@ export function buildReadBackScript(): string {
         remaining: Number(document.getElementById('photo-uploader-remaining').textContent),
       });
     } catch (e) {
-      done({ status: 'no-uploader' });
+      done({ status: 'no-uploader', detail: bmxDetail(), error: String((e && e.message) || e) });
     }
   })();
 })();`;
