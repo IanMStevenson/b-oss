@@ -5,7 +5,7 @@
 // website, so the first time the member adds one they are asked to sign in there (once, not at
 // account setup), through the shared gate (useSiteSignInGate).
 
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { IonText } from '@ionic/react';
 import { pickPhoto } from '../platform/camera.js';
 import type { ComposePhoto } from '../state/composeDraftStore.js';
@@ -21,7 +21,8 @@ interface Props {
 }
 
 export function ExtraPhotosSection({ accountId, username, photos, onChange }: Props) {
-  const gate = useSiteSignInGate(username);
+  const account = useMemo(() => ({ id: accountId, username }), [accountId, username]);
+  const gate = useSiteSignInGate(account);
   // The member's remaining allowance for the year (100 a year), which only the website knows. Null
   // until it has been read, and it can only be read with a website session, so until then nothing
   // about "remaining" is shown (b-oss#1043).
@@ -29,17 +30,17 @@ export function ExtraPhotosSection({ accountId, username, photos, onChange }: Pr
 
   useEffect(() => {
     let cancelled = false;
-    void readExtrasRemaining().then((n) => {
+    void readExtrasRemaining(account).then((n) => {
       if (!cancelled) setAllowance(n);
     });
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [account]);
 
   async function pickAndAdd(): Promise<void> {
     // Signed in by now (the gate saw to it), so the allowance can be read if it wasn't yet.
-    if (allowance === null) void readExtrasRemaining().then(setAllowance);
+    if (allowance === null) void readExtrasRemaining(account).then(setAllowance);
     const photo = await pickPhoto(accountId);
     if (photo) onChange([...photos, photo]);
   }

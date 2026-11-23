@@ -2,7 +2,12 @@
 // Copyright (C) 2026 Ian Stevenson
 
 import { describe, expect, it } from 'vitest';
-import { isSignedInLanding, validateSiteRun, validateSiteUrl } from '../site-request.js';
+import {
+  isSignedInLanding,
+  partitionFor,
+  validateSiteRun,
+  validateSiteUrl,
+} from '../site-request.js';
 
 describe('validateSiteUrl', () => {
   it('accepts https pages on the site host', () => {
@@ -26,6 +31,7 @@ describe('validateSiteUrl', () => {
 
 describe('validateSiteRun', () => {
   const ok = {
+    accountId: 'acct-1',
     url: 'https://www.blipfoto.com/entry/1/edit',
     script: '1',
     timeoutMs: 5000,
@@ -41,6 +47,8 @@ describe('validateSiteRun', () => {
     { ...ok, timeoutMs: 10 },
     { ...ok, timeoutMs: 99_999_999 },
     { ...ok, waitForNavigation: 'yes' },
+    { ...ok, accountId: '' },
+    { ...ok, accountId: 42 },
     { ...ok, url: 'https://evil.example/' },
     null,
   ])('refuses %j', (run) => {
@@ -53,5 +61,13 @@ describe('isSignedInLanding', () => {
     expect(isSignedInLanding('https://www.blipfoto.com/browse')).toBe(true);
     expect(isSignedInLanding('https://www.blipfoto.com/account/signin')).toBe(false);
     expect(isSignedInLanding('https://www.facebook.com/dialog/oauth')).toBe(false);
+  });
+});
+
+describe('partitionFor', () => {
+  it('is stable per account and different between accounts, whatever the id looks like', () => {
+    expect(partitionFor('a')).toBe(partitionFor('a'));
+    expect(partitionFor('a')).not.toBe(partitionFor('b'));
+    expect(partitionFor('x/../y')).toMatch(/^persist:blipfoto-site-[0-9a-f]{24}$/);
   });
 });

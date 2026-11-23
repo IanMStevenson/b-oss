@@ -6,10 +6,11 @@
 // gate as adding extras (useSiteSignInGate), so doing either serves both.
 
 import { IonButton, IonText } from '@ionic/react';
+import type { SiteAccount } from '../flows/extrasFlow.js';
 import { useSiteSignInGate } from './useSiteSignInGate.js';
 
 interface Props {
-  username: string;
+  account: SiteAccount;
   /** Called once the member has signed in, so the extras can be read. */
   onSignedIn: () => void;
   /** Replaces the default line, e.g. when the website is signed in as someone else. */
@@ -18,12 +19,12 @@ interface Props {
 }
 
 export function ExtrasLoginNotice({
-  username,
+  account,
   onSignedIn,
   message = 'Extras require a web login.',
   buttonLabel = 'Sign in to see extras',
 }: Props) {
-  const gate = useSiteSignInGate(username);
+  const gate = useSiteSignInGate(account);
   return (
     <div className="extras-login-notice" role="note">
       <IonText color="medium">

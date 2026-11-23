@@ -3,27 +3,41 @@
 
 import { BrowserWindow, session } from 'electron';
 import type { SitePageResult, SitePageRun } from '../shared/bridge.js';
-import { isSignedInLanding, SITE_HOST } from './site-request.js';
+import { isSignedInLanding, partitionFor, SITE_HOST } from './site-request.js';
 
-// The member's own Blipfoto website session (b-oss#1037), used only to add extra photos. One
-// persistent partition holds the site's cookie, so the member signs in once (signIn) and the hidden
-// runPage windows reuse it. Nothing else in the shell uses this partition.
-const PARTITION = 'persist:blipfoto-site';
+// The member's own Blipfoto website session (b-oss#1037), used only to add, edit and read extra
+// photos. Each b-mobile account has a session of its own (a persistent partition named for it), so
+// the site's cookie for one member can never be used while another is selected; the member signs in
+// once per account (signIn) and the hidden runPage windows reuse that account's session. Nothing
+// else in the shell uses these partitions.
+const LEGACY_PARTITION = 'persist:blipfoto-site';
 
-const webPreferences = {
-  partition: PARTITION,
-  sandbox: true,
-  contextIsolation: true,
-  nodeIntegration: false,
-  backgroundThrottling: false,
-} as const;
+function webPreferencesFor(accountId: string) {
+  return {
+    partition: partitionFor(accountId),
+    sandbox: true,
+    contextIsolation: true,
+    nodeIntegration: false,
+    backgroundThrottling: false,
+  } as const;
+}
+
+/** Deletes the one shared session earlier builds kept for every account, which could belong to
+ * anyone. Called once at start-up; best effort. */
+export async function clearLegacySiteSession(): Promise<void> {
+  await session.fromPartition(LEGACY_PARTITION).clearStorageData();
+}
 
 /** Shows the site's sign-in page. Starts signed out (the stored site session is cleared first), so
  * a second account never mixes with the first. Resolves true as soon as the site sends the member
  * past /account/…, false if the window is closed first. Callers validate `url` (site-request.ts). */
-export async function siteSignIn(parent: BrowserWindow | null, url: string): Promise<boolean> {
+export async function siteSignIn(
+  parent: BrowserWindow | null,
+  accountId: string,
+  url: string,
+): Promise<boolean> {
   await session
-    .fromPartition(PARTITION)
+    .fromPartition(partitionFor(accountId))
     .clearStorageData({ storages: ['cookies', 'localstorage'] });
   return new Promise((resolve) => {
     const win = new BrowserWindow({
@@ -33,7 +47,7 @@ export async function siteSignIn(parent: BrowserWindow | null, url: string): Pro
       modal: parent !== null,
       autoHideMenuBar: true,
       title: 'Sign in to Blipfoto',
-      webPreferences,
+      webPreferences: webPreferencesFor(accountId),
     });
     let settled = false;
     const finish = (signedIn: boolean): void => {
@@ -56,9 +70,9 @@ export async function siteSignIn(parent: BrowserWindow | null, url: string): Pro
   });
 }
 
-/** Deletes the stored site session, so nothing is left once the member disconnects the account. */
-export async function siteSignOut(): Promise<void> {
-  await session.fromPartition(PARTITION).clearStorageData();
+/** Deletes the account's stored site session, so nothing is left once the member disconnects it. */
+export async function siteSignOut(accountId: string): Promise<void> {
+  await session.fromPartition(partitionFor(accountId)).clearStorageData();
 }
 
 const sleep = (ms: number): Promise<void> => new Promise((r) => setTimeout(r, ms));
@@ -74,7 +88,7 @@ const sleep = (ms: number): Promise<void> => new Promise((r) => setTimeout(r, ms
 async function runPage(run: SitePageRun, log: (message: string) => void): Promise<SitePageResult> {
   const started = Date.now();
   const where = new URL(run.url).pathname.replace(/\d{6,}/g, '<id>');
-  const win = new BrowserWindow({ show: false, webPreferences });
+  const win = new BrowserWindow({ show: false, webPreferences: webPreferencesFor(run.accountId) });
   const wc = win.webContents;
   // A page's "leave this page?" prompt must never keep the window (and so the next run) waiting.
   wc.on('will-prevent-unload', (event) => event.preventDefault());

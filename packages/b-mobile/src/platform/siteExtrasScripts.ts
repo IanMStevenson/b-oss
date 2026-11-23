@@ -30,6 +30,7 @@ export interface ExtraFile {
 export type AddScriptResult =
   | { status: 'submitted'; user: string | null; remainingBefore: number; missing: string[] }
   | { status: 'needs-login' }
+  | { status: 'wrong-account'; user?: string | null }
   | { status: 'unexpected-page'; path: string; user?: string | null }
   | { status: 'no-uploader'; user?: string | null }
   | { status: 'timeout' }
@@ -42,7 +43,7 @@ export interface ExtraItem {
 }
 
 export interface ReadBackResult {
-  status: 'ok' | 'needs-login' | 'unexpected-page' | 'no-uploader';
+  status: 'ok' | 'needs-login' | 'wrong-account' | 'unexpected-page' | 'no-uploader';
   /** For the app log when the page was not what was expected. */
   detail?: unknown;
   error?: string;
@@ -80,6 +81,14 @@ const USER_HELPER = `
       hasQueue: !!document.getElementById('photo-queue'),
     };
   }
+  // The member the page says is signed in must be exactly the one the app is acting for. A page
+  // signed in as anyone else (or as no one) is never acted on; the caller gets the reason instead.
+  function bmxGuard(expected) {
+    var user = bmxUser();
+    if (user === null || user === '') return { status: 'needs-login' };
+    if (user.toLowerCase() !== String(expected).toLowerCase()) return { status: 'wrong-account', user: user };
+    return null;
+  }
   function bmxSleep(ms) { return new Promise(function (r) { setTimeout(r, ms); }); }
   async function bmxFindUploader() {
     var input = null;
@@ -98,17 +107,24 @@ const USER_HELPER = `
  * Removing uses the page's own remove link on each thumbnail, so the page records the deletions
  * itself. Submitting navigates the page, so the host must wait for that navigation before it closes
  * the window. */
-export function buildAddExtrasScript(files: ExtraFile[], removeIds: string[] = []): string {
+export function buildAddExtrasScript(
+  expectedUser: string,
+  files: ExtraFile[],
+  removeIds: string[] = [],
+): string {
   return `(function () {
   window.__bmx = undefined;
   var FILES = ${JSON.stringify(files)};
   var REMOVE = ${JSON.stringify(removeIds)};
+  var EXPECT = ${JSON.stringify(expectedUser)};
   var done = function (o) { window.__bmx = JSON.stringify(o); };
   ${USER_HELPER}
   (async function () {
     try {
       var path = location.pathname;
       if (/^\\/account\\/signin/.test(path)) return done({ status: 'needs-login' });
+      var blocked = bmxGuard(EXPECT);
+      if (blocked) return done(blocked);
       if (!/^\\/entry\\/\\d+\\/edit\\/?$/.test(path)) return done({ status: 'unexpected-page', path: path, user: bmxUser() });
       var input = await bmxFindUploader();
       if (!input) return done({ status: 'no-uploader', user: bmxUser() });
@@ -154,15 +170,18 @@ export function buildAddExtrasScript(files: ExtraFile[], removeIds: string[] = [
 }
 
 /** Reads what the entry's edit page now lists, to confirm a save really kept the extras. */
-export function buildReadBackScript(): string {
+export function buildReadBackScript(expectedUser: string): string {
   return `(function () {
   window.__bmx = undefined;
+  var EXPECT = ${JSON.stringify(expectedUser)};
   var done = function (o) { window.__bmx = JSON.stringify(o); };
   ${USER_HELPER}
   (async function () {
     try {
       var path = location.pathname;
       if (/^\\/account\\/signin/.test(path)) return done({ status: 'needs-login' });
+      var blocked = bmxGuard(EXPECT);
+      if (blocked) return done(blocked);
       if (!/^\\/entry\\/\\d+\\/edit\\/?$/.test(path)) return done({ status: 'unexpected-page', user: bmxUser() });
       var input = await bmxFindUploader();
       if (!input) return done({ status: 'no-uploader', user: bmxUser(), detail: bmxDetail() });
@@ -209,20 +228,20 @@ export function buildWhoAmIScript(): string {
 }
 
 export interface PageHtmlResult {
-  status: 'ok' | 'needs-login';
+  status: 'ok' | 'needs-login' | 'wrong-account';
   html?: string;
 }
 
 /** Hands back a signed-in entry page's own HTML (the gallery data is inline in it), so the extras of
  * a protected journal can be read with the same parser as a public page. Run against an entry page.
  * A signed-out visitor sees the protected notice, which the caller recognises as no gallery. */
-export function buildPageHtmlScript(): string {
+export function buildPageHtmlScript(expectedUser: string): string {
   return `(function () {
   window.__bmx = undefined;
   ${USER_HELPER}
-  var signedIn = bmxUser() !== null;
+  var blocked = bmxGuard(${JSON.stringify(expectedUser)});
   window.__bmx = JSON.stringify(
-    signedIn ? { status: 'ok', html: document.documentElement.outerHTML } : { status: 'needs-login' }
+    blocked ? blocked : { status: 'ok', html: document.documentElement.outerHTML }
   );
 })();`;
 }
@@ -230,20 +249,22 @@ export function buildPageHtmlScript(): string {
 export const PUBLISH_URL = `${SITE_ORIGIN}/publish`;
 
 export interface RemainingResult {
-  status: 'ok' | 'needs-login' | 'no-uploader';
+  status: 'ok' | 'needs-login' | 'wrong-account' | 'no-uploader';
   /** Extra photos the member has left in this year's allowance. */
   remaining?: number;
 }
 
 /** Reads the member's remaining extras allowance from the site's own new-entry page, which shows it
  * as "N remaining" beside its extras uploader. Run against PUBLISH_URL. */
-export function buildRemainingScript(): string {
+export function buildRemainingScript(expectedUser: string): string {
   return `(function () {
   window.__bmx = undefined;
   var done = function (o) { window.__bmx = JSON.stringify(o); };
   ${USER_HELPER}
   (async function () {
     if (/^\\/account\\/signin/.test(location.pathname)) return done({ status: 'needs-login' });
+    var blocked = bmxGuard(${JSON.stringify(expectedUser)});
+    if (blocked) return done(blocked);
     var input = await bmxFindUploader();
     var el = document.getElementById('photo-uploader-remaining');
     var n = el ? Number(el.textContent) : NaN;

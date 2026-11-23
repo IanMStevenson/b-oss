@@ -186,7 +186,12 @@ export function EditEntryScreen({ entryId }: EditEntryScreenProps) {
       // The entry is saved; whatever happens now only affects the extras.
       setExtrasState('updating');
       const username = accounts.find((a) => a.id === draft.accountId)?.username ?? '';
-      const outcome = await applyExtras(entryId, username, additions, removals);
+      const outcome = await applyExtras(
+        entryId,
+        { id: draft.accountId, username },
+        additions,
+        removals,
+      );
       clearDraft();
       if (outcome.kind === 'done') {
         navigate.goBackOr(`/entry/${entryId}`);

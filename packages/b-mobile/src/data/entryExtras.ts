@@ -15,7 +15,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { fetchEntryExtras } from '@b-oss/b-api';
 import type { EntryExtra } from '@b-oss/b-api';
 import type { EntryState } from '@b-oss/b-view';
-import { readExtrasViaSession } from '../flows/extrasFlow.js';
+import { readExtrasViaSession, type SiteAccount } from '../flows/extrasFlow.js';
 import { fetchSiteText } from '../platform/siteText.js';
 import { siteSessionAvailable } from '../platform/siteSession.js';
 import { resumeClear, resumeGet, resumeSet } from './resumeCache.js';
@@ -27,20 +27,26 @@ export interface EntryExtrasResult {
 }
 
 const NONE: EntryExtrasResult = { extras: [], needsLogin: false };
-const KEY = (entryId: string) => `extras:${entryId}`;
+// Per account: what one member's website session could read must never be served to another.
+const KEY = (entryId: string, account: SiteAccount | null) =>
+  `extras:${account?.id ?? ''}:${entryId}`;
 const inFlight = new Map<string, Promise<EntryExtrasResult>>();
 
 /** The entry's extras; none on any failure. Never throws. */
-export function loadEntryExtras(entryId: string): Promise<EntryExtrasResult> {
-  const cached = resumeGet<EntryExtrasResult>(KEY(entryId));
+export function loadEntryExtras(
+  entryId: string,
+  account: SiteAccount | null,
+): Promise<EntryExtrasResult> {
+  const cached = resumeGet<EntryExtrasResult>(KEY(entryId, account));
   if (cached) return Promise.resolve(cached);
-  const pending = inFlight.get(entryId);
+  const flightKey = KEY(entryId, account);
+  const pending = inFlight.get(flightKey);
   if (pending) return pending;
   const p = fetchEntryExtras(entryId, fetchSiteText)
     .then(async (result): Promise<EntryExtrasResult> => {
       if (result.status === 'protected') {
-        if (!siteSessionAvailable()) return NONE;
-        const viaSession = await readExtrasViaSession(entryId);
+        if (!siteSessionAvailable() || account === null) return NONE;
+        const viaSession = await readExtrasViaSession(entryId, account);
         if (viaSession.kind === 'ok') return { extras: viaSession.extras, needsLogin: false };
         // Remembered for the session: opening the entry again does not re-run a hidden page
         // for a member who has not signed in. Signing in clears it (forgetEntryExtras).
@@ -51,11 +57,11 @@ export function loadEntryExtras(entryId: string): Promise<EntryExtrasResult> {
     .catch(() => NONE)
     .then((value) => {
       // A failure is not cached, so reopening the entry retries.
-      if (value !== NONE) resumeSet(KEY(entryId), value);
+      if (value !== NONE) resumeSet(KEY(entryId, account), value);
       return value;
     })
-    .finally(() => inFlight.delete(entryId));
-  inFlight.set(entryId, p);
+    .finally(() => inFlight.delete(flightKey));
+  inFlight.set(flightKey, p);
   return p;
 }
 
@@ -68,6 +74,7 @@ export function forgetEntryExtras(): void {
 export function useEntryExtrasResult(
   entryId: string,
   enabled: boolean,
+  account: SiteAccount | null,
 ): EntryExtrasResult & { reload: () => void } {
   const [state, setState] = useState<{ id: string; result: EntryExtrasResult }>({
     id: entryId,
@@ -77,13 +84,13 @@ export function useEntryExtrasResult(
   useEffect(() => {
     if (!enabled) return;
     let cancelled = false;
-    void loadEntryExtras(entryId).then((result) => {
+    void loadEntryExtras(entryId, account).then((result) => {
       if (!cancelled) setState({ id: entryId, result });
     });
     return () => {
       cancelled = true;
     };
-  }, [entryId, enabled, attempt]);
+  }, [entryId, enabled, attempt, account]);
   const reload = useCallback(() => {
     forgetEntryExtras();
     setAttempt((n) => n + 1);
@@ -97,10 +104,12 @@ export function useEntryExtrasResult(
 export function useEntryExtrasView(
   entryId: string,
   entryState: EntryState,
+  account: SiteAccount | null,
 ): { entryState: EntryState; needsLogin: boolean; reload: () => void } {
   const { extras, needsLogin, reload } = useEntryExtrasResult(
     entryId,
     entryState.status === 'loaded',
+    account,
   );
   const withExtras = useMemo(() => {
     if (entryState.status !== 'loaded' || extras.length === 0) return entryState;
@@ -123,6 +132,10 @@ export function useEntryExtrasView(
 }
 
 /** The entry state with `images.extras` filled in (same object when there are none). */
-export function useEntryStateWithExtras(entryId: string, entryState: EntryState): EntryState {
-  return useEntryExtrasView(entryId, entryState).entryState;
+export function useEntryStateWithExtras(
+  entryId: string,
+  entryState: EntryState,
+  account: SiteAccount | null,
+): EntryState {
+  return useEntryExtrasView(entryId, entryState, account).entryState;
 }

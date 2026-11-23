@@ -29,8 +29,8 @@ import { resolveShellBuild } from '../shared/shell-build.js';
 import { appTokenKey, parseNotifySettings } from '../shared/notify.js';
 import { parseReminderAccountId, parseReminderConfigs } from '../shared/reminders.js';
 import { allowPermission } from './permissions.js';
-import { validateSiteRun, validateSiteUrl } from './site-request.js';
-import { siteRunPage, siteSignIn, siteSignOut } from './site-window.js';
+import { validateAccountId, validateSiteRun, validateSiteUrl } from './site-request.js';
+import { clearLegacySiteSession, siteRunPage, siteSignIn, siteSignOut } from './site-window.js';
 import {
   APP_ORIGIN,
   APP_SCHEME,
@@ -570,10 +570,16 @@ if (!app.requestSingleInstanceLock()) {
     handle(CHANNELS.diagCopy, async (text) => {
       if (typeof text === 'string') await clipboard.writeText(text.slice(0, 100_000));
     });
-    handle(CHANNELS.siteSignIn, (url) =>
-      siteSignIn(BrowserWindow.getFocusedWindow() ?? mainWindow, validateSiteUrl(url)),
+    // Earlier builds kept one website session for every account; it could belong to the wrong one.
+    void clearLegacySiteSession().catch(() => {});
+    handle(CHANNELS.siteSignIn, (accountId, url) =>
+      siteSignIn(
+        BrowserWindow.getFocusedWindow() ?? mainWindow,
+        validateAccountId(accountId),
+        validateSiteUrl(url),
+      ),
     );
-    handle(CHANNELS.siteSignOut, () => siteSignOut());
+    handle(CHANNELS.siteSignOut, (accountId) => siteSignOut(validateAccountId(accountId)));
     handle(CHANNELS.siteRunPage, (run) =>
       siteRunPage(validateSiteRun(run), (message) => shellLog?.(message)),
     );

@@ -15,6 +15,9 @@ import { desktopBridge } from './desktop.js';
 import { isCapacitorNative } from './platformKind.js';
 
 export interface SitePageRun {
+  /** The b-mobile account the run is for. The desktop shell keeps one website session per account,
+   * so one member's session is never used for another. */
+  accountId: string;
   /** An https://www.blipfoto.com/ page; the hosts refuse anything else. */
   url: string;
   /** Run once the page has loaded; sets window.__bmx to a JSON string when finished. */
@@ -32,8 +35,8 @@ export interface SitePageResult {
 }
 
 interface SiteSessionPlugin {
-  signIn(options: { url: string }): Promise<{ signedIn: boolean }>;
-  signOut(): Promise<void>;
+  signIn(options: { url: string; accountId: string }): Promise<{ signedIn: boolean }>;
+  signOut(options: { accountId: string }): Promise<void>;
   runPage(options: SitePageRun): Promise<SitePageResult>;
 }
 
@@ -55,10 +58,12 @@ export function siteSessionAvailable(): boolean {
 
 /** Shows the site's sign-in page and resolves true once the member has signed in, false if they
  * closed it first. Always starts signed out, so a second account is never mixed with the first. */
-export async function siteSignIn(url: string): Promise<boolean> {
+export async function siteSignIn(accountId: string, url: string): Promise<boolean> {
   const desktop = desktopBridge();
-  if (desktop?.site) return desktop.site.signIn(url);
-  if (!desktop && isCapacitorNative()) return (await SiteSession.signIn({ url })).signedIn;
+  if (desktop?.site) return desktop.site.signIn(accountId, url);
+  if (!desktop && isCapacitorNative()) {
+    return (await SiteSession.signIn({ url, accountId })).signedIn;
+  }
   throw new SiteSessionUnavailableError();
 }
 
@@ -72,8 +77,8 @@ export async function siteRunPage(run: SitePageRun): Promise<SitePageResult> {
 
 /** Deletes the stored website session (its cookies), so nothing is left behind when the member
  * disconnects their account. Resolves quietly where there is nothing to delete. */
-export async function siteSignOut(): Promise<void> {
+export async function siteSignOut(accountId: string): Promise<void> {
   const desktop = desktopBridge();
-  if (desktop?.site) return desktop.site.signOut();
-  if (!desktop && isCapacitorNative()) await SiteSession.signOut();
+  if (desktop?.site) return desktop.site.signOut(accountId);
+  if (!desktop && isCapacitorNative()) await SiteSession.signOut({ accountId });
 }

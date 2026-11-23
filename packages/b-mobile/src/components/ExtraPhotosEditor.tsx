@@ -8,7 +8,7 @@
 // the block offers the same sign-in as everywhere else (ExtrasLoginNotice); where extras cannot be
 // edited at all (not a member, no session on this device) it shows nothing.
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { IonButton, IonText } from '@ionic/react';
 import { pickPhoto } from '../platform/camera.js';
 import { openUrl } from '../platform/browser.js';
@@ -44,19 +44,20 @@ export function ExtraPhotosEditor({
   removals,
   onChange,
 }: Props) {
+  const account = useMemo(() => ({ id: accountId, username }), [accountId, username]);
   const [loaded, setLoaded] = useState<Loaded>({ kind: 'loading' });
   const [attempt, setAttempt] = useState(0);
   const [notice, setNotice] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
-    void loadEditExtras(entryId, username).then((result) => {
+    void loadEditExtras(entryId, account).then((result) => {
       if (!cancelled) setLoaded(result);
     });
     return () => {
       cancelled = true;
     };
-  }, [entryId, username, attempt]);
+  }, [entryId, account, attempt]);
 
   const reload = useCallback(() => setAttempt((n) => n + 1), []);
 
@@ -106,7 +107,7 @@ export function ExtraPhotosEditor({
     return (
       <div className="compose-form extra-photos">
         <ExtrasLoginNotice
-          username={username}
+          account={account}
           onSignedIn={reload}
           message={`Blipfoto's website is signed in as ${loaded.user}, but this entry is ${username}'s. Sign in as ${username} to change its extra photos.`}
           buttonLabel={`Sign in as ${username}`}
@@ -117,7 +118,7 @@ export function ExtraPhotosEditor({
   if (loaded.kind === 'needs-login') {
     return (
       <div className="compose-form extra-photos">
-        <ExtrasLoginNotice username={username} onSignedIn={reload} />
+        <ExtrasLoginNotice account={account} onSignedIn={reload} />
       </div>
     );
   }

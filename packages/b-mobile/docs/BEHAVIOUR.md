@@ -203,7 +203,13 @@ reminders,details,profile,notifications}`; the old `/settings/{general,journal,a
   offers **Open the edit page** in the system browser; the entry itself is never affected.
   The website session is kept in the WebView's (or the shell window's) own cookie store, not the
   OS keystore, and reused until Blipfoto says it has ended (its "remember me" cookie survives an
-  app restart). Removing an account deletes it, if it belongs to that member (`forgetSiteSession`).
+  app restart). The desktop shell keeps one session per account (a partition named for it), so one
+  member's session is never in use while another is selected; removing an account deletes its
+  session (`forgetSiteSession`). Every page script is given the member the app is acting for and
+  refuses to do anything unless the page says exactly that member is signed in (otherwise the
+  extras block says the website is signed in as someone else and offers to sign in as the right
+  one); this is checked in the same page load as the action, on every platform. Cached extras are
+  per account.
   Edit entry (b-oss#1041) has the same block (`ExtraPhotosEditor`): the entry's current extras are
   read from its website edit page (needs the session; else the same "Extras require a web login"
   notice), each with a × that marks it for removal (a ↺ undoes it) and a + tile that adds more.

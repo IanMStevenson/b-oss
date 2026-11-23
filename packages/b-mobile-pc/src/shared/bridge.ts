@@ -47,6 +47,8 @@ export interface PickedPhotoFile {
 
 /** One hidden-window page run against www.blipfoto.com (b-oss#1037). */
 export interface SitePageRun {
+  /** One website session is kept per account, never shared between them. */
+  accountId: string;
   url: string;
   script: string;
   timeoutMs: number;
@@ -112,9 +114,9 @@ export interface DesktopBridge {
    * resolves true once signed in (false if closed); `runPage` loads one www.blipfoto.com page in a
    * hidden window with that session and runs a script in it. Both refuse any other origin. */
   readonly site: {
-    signIn(url: string): Promise<boolean>;
-    /** Deletes the stored site session (its cookies and storage). */
-    signOut(): Promise<void>;
+    signIn(accountId: string, url: string): Promise<boolean>;
+    /** Deletes that account's stored site session (its cookies and storage). */
+    signOut(accountId: string): Promise<void>;
     runPage(run: SitePageRun): Promise<SitePageResult>;
   };
   /** The error log and the error screen's actions (b-oss#639). */

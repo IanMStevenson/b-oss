@@ -50,6 +50,7 @@ export interface DesktopPickedPhoto {
 }
 
 export interface DesktopSitePageRun {
+  accountId: string;
   url: string;
   script: string;
   timeoutMs: number;
@@ -99,8 +100,8 @@ export interface DesktopBridge {
    * signed in (false if closed); `runPage` loads one www.blipfoto.com page in a hidden window with
    * that session and runs a script in it. */
   readonly site?: {
-    signIn(url: string): Promise<boolean>;
-    signOut(): Promise<void>;
+    signIn(accountId: string, url: string): Promise<boolean>;
+    signOut(accountId: string): Promise<void>;
     runPage(run: DesktopSitePageRun): Promise<DesktopSitePageResult>;
   };
   /** The error log and the error screen's actions (b-oss#639); see platform/diagnostics.ts. */

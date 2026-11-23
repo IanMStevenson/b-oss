@@ -53,6 +53,14 @@ export type ExtrasOutcome =
 
 export { SIGN_IN_URL };
 
+/** The b-mobile account a website action is for. The website session used must belong to exactly
+ * this member: the id picks the account's own session (where the platform keeps one each), and the
+ * username is what every page script checks the page against. */
+export interface SiteAccount {
+  id: string;
+  username: string;
+}
+
 function parse<T>(json: string | null): T | null {
   if (json === null) return null;
   try {
@@ -64,57 +72,55 @@ function parse<T>(json: string | null): T | null {
 
 /** Who the stored website session belongs to: the member's name, '' if signed in but unnamed, or
  * null if not signed in (or the check could not run). */
-export async function currentSiteUser(): Promise<string | null> {
+export async function currentSiteUser(account: SiteAccount): Promise<string | null> {
   if (!siteSessionAvailable()) return null;
   try {
     const { result } = await siteRunPage({
+      accountId: account.id,
       url: WHO_AM_I_URL,
       script: buildWhoAmIScript(),
       timeoutMs: 30_000,
       waitForNavigation: false,
     });
     const who = parse<WhoAmIResult>(result);
-    return who?.status === 'ok' ? (who.user ?? '') : null;
+    return who?.status === 'ok' && who.user ? who.user : null;
   } catch {
     return null;
   }
 }
 
-/** Shows the site's sign-in page. True once the member has signed in. */
-export function signInToSite(): Promise<boolean> {
-  return siteSignIn(SIGN_IN_URL).catch(() => false);
+/** Shows the site's sign-in page for this account. True once the member has signed in. */
+export function signInToSite(account: SiteAccount): Promise<boolean> {
+  return siteSignIn(account.id, SIGN_IN_URL).catch(() => false);
 }
 
-/** When a member disconnects their account: deletes the stored website session if it is theirs
- * (or unnamed), so its cookie does not outlive the account. Another member's session is left
- * alone. Best effort: never throws, because removing the account must not depend on it. */
-export async function forgetSiteSession(username: string): Promise<void> {
+/** When a member disconnects their account: deletes that account's stored website session, so its
+ * cookie does not outlive the account. Best effort: never throws, because removing the account must
+ * not depend on it. */
+export async function forgetSiteSession(account: SiteAccount): Promise<void> {
   try {
     if (!siteSessionAvailable()) return;
-    const who = await currentSiteUser();
-    if (who !== null && isSameMember(who, username)) await siteSignOut();
+    await siteSignOut(account.id);
   } catch {
     // Nothing more to do; the account is removed regardless.
   }
 }
 
-/** True when the page named a member and it is not this one. An unnamed page proves nothing. */
-export function isOtherMember(siteUser: string | null | undefined, username: string): boolean {
-  return typeof siteUser === 'string' && siteUser !== '' && !isSameMember(siteUser, username);
-}
-
-/** Whether the stored session is this member's (case-insensitive). An unnamed session is accepted:
- * the edit page itself then decides. */
-export function isSameMember(siteUser: string | null, username: string): boolean {
+/** Whether the website session's member is exactly this one (case-insensitive). A session that
+ * names no one proves nothing, so it never counts. */
+export function isSameMember(siteUser: string | null | undefined, username: string): boolean {
   return (
-    siteUser !== null && (siteUser === '' || siteUser.toLowerCase() === username.toLowerCase())
+    typeof siteUser === 'string' &&
+    siteUser !== '' &&
+    siteUser.toLowerCase() === username.toLowerCase()
   );
 }
 
-async function readBack(entryId: string): Promise<ReadBackResult | null> {
+async function readBack(entryId: string, account: SiteAccount): Promise<ReadBackResult | null> {
   const { result } = await siteRunPage({
+    accountId: account.id,
     url: editPageUrl(entryId),
-    script: buildReadBackScript(),
+    script: buildReadBackScript(account.username),
     timeoutMs: 45_000,
     waitForNavigation: false,
   });
@@ -144,7 +150,7 @@ export async function photoToExtraFile(photo: {
  * Save run, then reads the page again to confirm the result was kept. */
 export async function applyExtras(
   entryId: string,
-  username: string,
+  account: SiteAccount,
   photos: { webPath: string; mimeType: string }[],
   removeIds: string[] = [],
 ): Promise<ExtrasOutcome> {
@@ -158,12 +164,12 @@ export async function applyExtras(
   });
   if (!siteSessionAvailable()) return manual('unavailable');
   try {
-    const before = await readBack(entryId);
+    const before = await readBack(entryId, account);
     if (before === null) return manual('error');
     if (before.status === 'needs-login') return manual('not-signed-in');
-    // Whose session it is comes first: a page for someone else's entry has no uploader, which is
-    // not the same as "no membership".
-    if (isOtherMember(before.user, username)) return manual('wrong-account');
+    // Whose session it is comes first (the page script has already checked it): a page for someone
+    // else's entry has no uploader, which is not the same as "no membership".
+    if (before.status === 'wrong-account') return manual('wrong-account');
     if (before.status === 'unexpected-page') return manual('unexpected-page');
     if (before.status === 'no-uploader') return manual('no-membership');
     const beforeIds = new Set((before.items ?? []).map((i) => i.id));
@@ -171,20 +177,22 @@ export async function applyExtras(
 
     const files = await Promise.all(photos.map(photoToExtraFile));
     const { result } = await siteRunPage({
+      accountId: account.id,
       url: editUrl,
-      script: buildAddExtrasScript(files, removable),
+      script: buildAddExtrasScript(account.username, files, removable),
       timeoutMs: 180_000,
       waitForNavigation: true,
     });
     const sent = parse<AddScriptResult>(result);
     if (sent === null) return manual('timeout');
     if (sent.status === 'needs-login') return manual('not-signed-in');
+    if (sent.status === 'wrong-account') return manual('wrong-account');
     if (sent.status === 'unexpected-page') return manual('unexpected-page');
     if (sent.status === 'no-uploader') return manual('no-membership');
     if (sent.status === 'timeout') return manual('timeout');
     if (sent.status === 'error') return manual('error');
 
-    const after = await readBack(entryId);
+    const after = await readBack(entryId, account);
     if (after?.status !== 'ok') return manual('not-kept');
     const afterIds = new Set((after.items ?? []).map((i) => i.id));
     const added = [...afterIds].filter((id) => !beforeIds.has(id)).length;
@@ -202,10 +210,10 @@ export async function applyExtras(
 /** Adds `photos` to a just-published entry (see applyExtras). */
 export function addExtras(
   entryId: string,
-  username: string,
+  account: SiteAccount,
   photos: { webPath: string; mimeType: string }[],
 ): Promise<ExtrasOutcome> {
-  return applyExtras(entryId, username, photos);
+  return applyExtras(entryId, account, photos);
 }
 
 /** What an entry's edit page lists now, for the edit screen: its current extras and the
@@ -214,7 +222,7 @@ export function addExtras(
  * unexpected page, or another member's session). */
 export async function loadEditExtras(
   entryId: string,
-  username: string,
+  account: SiteAccount,
 ): Promise<
   | { kind: 'ok'; items: ExtraItem[]; remaining: number | null }
   | { kind: 'needs-login' }
@@ -224,13 +232,13 @@ export async function loadEditExtras(
 > {
   if (!siteSessionAvailable()) return { kind: 'unavailable' };
   try {
-    const read = await readBack(entryId);
+    const read = await readBack(entryId, account);
     // Nothing came back in time: the screen says so and offers to try again.
     if (read === null) return { kind: 'failed' };
     if (read.status === 'needs-login') return { kind: 'needs-login' };
-    // Signed in to the website as someone else: that member's edit page for this entry has no
-    // form at all, so this must be checked before the page's shape is.
-    if (isOtherMember(read.user, username)) return { kind: 'wrong-account', user: read.user ?? '' };
+    // Signed in to the website as someone else (the page script refused to go further): that
+    // member's edit page for this entry has no form at all, so this comes before the page's shape.
+    if (read.status === 'wrong-account') return { kind: 'wrong-account', user: read.user ?? '' };
     // No uploader means the page offers no extras to this member (not a membership).
     if (read.status === 'no-uploader') return { kind: 'unavailable' };
     if (read.status !== 'ok') return { kind: 'failed' };
@@ -271,20 +279,25 @@ export function describeExtrasFailure(reason: ExtrasFailure): string {
  * offers to sign in); 'failed' is anything else, treated as no extras. */
 export async function readExtrasViaSession(
   entryId: string,
+  account: SiteAccount,
 ): Promise<{ kind: 'ok'; extras: EntryExtra[] } | { kind: 'needs-login' } | { kind: 'failed' }> {
   if (!siteSessionAvailable()) return { kind: 'failed' };
   try {
     const { result } = await siteRunPage({
+      accountId: account.id,
       url: entryPageUrl(entryId),
-      script: buildPageHtmlScript(),
+      script: buildPageHtmlScript(account.username),
       timeoutMs: 45_000,
       waitForNavigation: false,
     });
     const page = parse<PageHtmlResult>(result);
     if (page === null) return { kind: 'failed' };
-    if (page.status === 'needs-login' || typeof page.html !== 'string') {
-      return page.status === 'needs-login' ? { kind: 'needs-login' } : { kind: 'failed' };
+    // Not signed in, or signed in as someone else: either way this account has no usable session,
+    // and nothing the other member can see is ever used.
+    if (page.status === 'needs-login' || page.status === 'wrong-account') {
+      return { kind: 'needs-login' };
     }
+    if (typeof page.html !== 'string') return { kind: 'failed' };
     const html = page.html;
     const read = await fetchEntryExtras(entryId, () => Promise.resolve(html));
     if (read.status === 'ok') return { kind: 'ok', extras: read.extras };
@@ -297,12 +310,13 @@ export async function readExtrasViaSession(
 
 /** The member's remaining extras allowance for the year, from the website; null when it cannot be
  * read (not signed in, not a member, no website session on this device). Never throws. */
-export async function readExtrasRemaining(): Promise<number | null> {
+export async function readExtrasRemaining(account: SiteAccount): Promise<number | null> {
   if (!siteSessionAvailable()) return null;
   try {
     const { result } = await siteRunPage({
+      accountId: account.id,
       url: PUBLISH_URL,
-      script: buildRemainingScript(),
+      script: buildRemainingScript(account.username),
       timeoutMs: 30_000,
       waitForNavigation: false,
     });

@@ -248,7 +248,7 @@ export function EntryDetailScreen({ entryId, initialReplyToCommentId }: EntryDet
     entryState: entryWithExtras,
     needsLogin: extrasNeedLogin,
     reload: reloadExtras,
-  } = useEntryExtrasView(entryId, entryState);
+  } = useEntryExtrasView(entryId, entryState, activeAccount);
   const displayEntryState: EntryState = useMemo(() => {
     if (entryWithExtras.status !== 'loaded') return entryWithExtras;
     return {
@@ -624,7 +624,7 @@ export function EntryDetailScreen({ entryId, initialReplyToCommentId }: EntryDet
               onTagClick={(tag) => navigate.push(`/tag/${encodeURIComponent(tag)}`)}
               extrasNotice={
                 extrasNeedLogin && activeAccount ? (
-                  <ExtrasLoginNotice username={activeAccount.username} onSignedIn={reloadExtras} />
+                  <ExtrasLoginNotice account={activeAccount} onSignedIn={reloadExtras} />
                 ) : undefined
               }
               onLocationClick={() => navigate.push(`/map?entry=${entryId}`)}

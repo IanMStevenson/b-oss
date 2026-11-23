@@ -304,7 +304,7 @@ export async function removeAccount(accountId: string): Promise<void> {
 
   // The website session used for extra photos (b-oss#1037) is this member's own cookie; it goes
   // with the account.
-  await forgetSiteSession(account.username);
+  await forgetSiteSession({ id: account.id, username: account.username });
 
   useAccountsStore.getState().removeAccountLocally(accountId);
   cancelReminderForAccount(accountId);

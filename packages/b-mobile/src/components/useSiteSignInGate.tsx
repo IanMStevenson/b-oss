@@ -12,7 +12,13 @@
 import { useRef, useState, type ReactElement } from 'react';
 import { IonAlert } from '@ionic/react';
 import { openUrl } from '../platform/browser.js';
-import { SIGN_IN_URL, currentSiteUser, isSameMember, signInToSite } from '../flows/extrasFlow.js';
+import {
+  SIGN_IN_URL,
+  currentSiteUser,
+  isSameMember,
+  signInToSite,
+  type SiteAccount,
+} from '../flows/extrasFlow.js';
 
 type Gate = 'ask' | 'set-password' | null;
 
@@ -26,7 +32,8 @@ export interface SiteSignInGate {
   alerts: ReactElement;
 }
 
-export function useSiteSignInGate(username: string): SiteSignInGate {
+export function useSiteSignInGate(account: SiteAccount): SiteSignInGate {
+  const username = account.username;
   const [gate, setGate] = useState<Gate>(null);
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
@@ -53,7 +60,7 @@ export function useSiteSignInGate(username: string): SiteSignInGate {
     setNotice(null);
     let ready = false;
     try {
-      ready = isSameMember(await currentSiteUser(), username);
+      ready = isSameMember(await currentSiteUser(account), username);
     } finally {
       setBusy(false);
     }
@@ -72,8 +79,8 @@ export function useSiteSignInGate(username: string): SiteSignInGate {
     setBusy(true);
     setNotice(null);
     try {
-      if (!(await signInToSite())) return;
-      const who = await currentSiteUser();
+      if (!(await signInToSite(account))) return;
+      const who = await currentSiteUser(account);
       if (!isSameMember(who, username)) {
         setNotice(
           who

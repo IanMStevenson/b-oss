@@ -162,7 +162,7 @@ export function ComposeEntryScreen() {
       if (extraPhotos.length > 0) {
         // The entry is already published; whatever happens here only affects the extras.
         const username = accounts.find((a) => a.id === draft.accountId)?.username ?? '';
-        void addExtras(entryId, username, extraPhotos).then((outcome) =>
+        void addExtras(entryId, { id: draft.accountId, username }, extraPhotos).then((outcome) =>
           setPublished((p) => (p ? { ...p, extras: outcome } : p)),
         );
       }
