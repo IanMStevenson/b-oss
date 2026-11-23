@@ -44,11 +44,11 @@ to the `b-api-web` package ([b-oss#1046](https://github.com/IanMStevenson/b-oss/
 
 ### The contract (`src/site/contract.ts`)
 
-| Call                                                              | Meaning                                                                                                                                                                                                             |
-| ----------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `signIn(accountId, url)`                                          | Visible window on the site's own sign-in page, starting signed out for that account. Resolves true once the site sends the member past `/account/…`, false if closed.                                               |
-| `signOut(accountId)`                                              | Deletes that account's session (the one session where shared).                                                                                                                                                      |
-| `runPage({accountId, url, script, timeoutMs, waitForNavigation})` | Loads the page hidden, starts the script at DOM-ready, polls `window.__bmx` (a JSON string) until it reports or the timeout, optionally waits for the page to navigate (a form post), returns `{finalUrl, result}`. |
+| Call                                                              | Meaning                                                                                                                                                                                                                            |
+| ----------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `signIn(accountId, url)`                                          | Visible window on the site's own sign-in page, starting signed out for that account. Resolves true once the site sends the member past `/account/…`, false if closed.                                                              |
+| `signOut(accountId)`                                              | Deletes that account's session (the one session where shared).                                                                                                                                                                     |
+| `runPage({accountId, url, script, timeoutMs, waitForNavigation})` | Loads the page hidden, starts the script at DOM-ready, polls `window.__bmx` (a JSON string) until it reports or the timeout, optionally waits (at most 30 s) for the page to navigate (a form post), returns `{finalUrl, result}`. |
 
 ### Host obligations
 

@@ -35,6 +35,7 @@ export async function siteSignIn(
   parent: BrowserWindow | null,
   accountId: string,
   url: string,
+  host: string = SITE_HOST,
 ): Promise<boolean> {
   await session
     .fromPartition(partitionFor(accountId))
@@ -57,7 +58,7 @@ export async function siteSignIn(
       if (!win.isDestroyed()) win.close();
     };
     const check = (_event: unknown, target: string): void => {
-      if (isSignedInLanding(target)) finish(true);
+      if (isSignedInLanding(target, host)) finish(true);
     };
     win.webContents.on('did-navigate', check);
     win.webContents.on('did-navigate-in-page', check);
@@ -75,6 +76,10 @@ export async function siteSignOut(accountId: string): Promise<void> {
   await session.fromPartition(partitionFor(accountId)).clearStorageData();
 }
 
+/** How long to wait, after a script reports, for the page to navigate (a form post and the page it
+ * lands on). */
+const NAVIGATION_WAIT_MS = 30_000;
+
 const sleep = (ms: number): Promise<void> => new Promise((r) => setTimeout(r, ms));
 
 /** Loads `run.url` in a hidden window with the site session, runs the script and polls its
@@ -85,7 +90,11 @@ const sleep = (ms: number): Promise<void> => new Promise((r) => setTimeout(r, ms
  * third-party scripts and images, and a slow or blocked one would otherwise hold `load` up for as
  * long as it likes (the script waits for the page's own uploader itself). Everything is bounded by
  * `run.timeoutMs`, and a run that times out or throws is written to the app log. */
-async function runPage(run: SitePageRun, log: (message: string) => void): Promise<SitePageResult> {
+async function runPage(
+  run: SitePageRun,
+  log: (message: string) => void,
+  host: string,
+): Promise<SitePageResult> {
   const started = Date.now();
   const where = new URL(run.url).pathname.replace(/\d{6,}/g, '<id>');
   const win = new BrowserWindow({ show: false, webPreferences: webPreferencesFor(run.accountId) });
@@ -95,7 +104,7 @@ async function runPage(run: SitePageRun, log: (message: string) => void): Promis
   wc.setWindowOpenHandler(() => ({ action: 'deny' }));
   // Never leave the site: other hosts (and other schemes) are refused.
   wc.on('will-navigate', (event, target) => {
-    if (new URL(target).host !== SITE_HOST) event.preventDefault();
+    if (new URL(target).host !== host) event.preventDefault();
   });
   const deadline = started + run.timeoutMs;
   try {
@@ -120,8 +129,11 @@ async function runPage(run: SitePageRun, log: (message: string) => void): Promis
       if (typeof value === 'string' && value !== '') result = value;
     }
     if (result !== null && run.waitForNavigation && !win.isDestroyed()) {
+      // A form post navigates within a few seconds; a script that reported a failure never will,
+      // so the wait is short and its own, not the run's remaining time.
       const startUrl = wc.getURL();
-      while (Date.now() < deadline + 60_000) {
+      const navigationDeadline = Date.now() + NAVIGATION_WAIT_MS;
+      while (Date.now() < navigationDeadline) {
         await sleep(400);
         if (win.isDestroyed()) break;
         if (wc.getURL() !== startUrl && !wc.isLoading()) break;
@@ -183,8 +195,9 @@ let queue: Promise<unknown> = Promise.resolve();
 export function siteRunPage(
   run: SitePageRun,
   log: (message: string) => void = () => {},
+  host: string = SITE_HOST,
 ): Promise<SitePageResult> {
-  const next = queue.then(() => runPage(run, log));
+  const next = queue.then(() => runPage(run, log, host));
   queue = next.catch(() => undefined);
   return next;
 }

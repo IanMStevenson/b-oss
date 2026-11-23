@@ -35,7 +35,11 @@ export function partitionFor(accountId: string): string {
 }
 
 /** The page URL, normalised; throws unless it is https on the site's own host. */
-export function validateSiteUrl(url: unknown, host: string = SITE_HOST): string {
+export function validateSiteUrl(
+  url: unknown,
+  host: string = SITE_HOST,
+  allowInsecureHttp = false,
+): string {
   if (typeof url !== 'string') throw new SiteRequestError('A page address is needed');
   let parsed: URL;
   try {
@@ -43,16 +47,22 @@ export function validateSiteUrl(url: unknown, host: string = SITE_HOST): string 
   } catch {
     throw new SiteRequestError('Not a valid address');
   }
-  if (parsed.protocol !== 'https:' || parsed.host !== host) {
+  const schemeOk =
+    parsed.protocol === 'https:' || (allowInsecureHttp && parsed.protocol === 'http:');
+  if (!schemeOk || parsed.host !== host) {
     throw new SiteRequestError('Only pages on the Blipfoto website may be opened');
   }
   return parsed.toString();
 }
 
-export function validateSiteRun(run: unknown, host: string = SITE_HOST): SitePageRun {
+export function validateSiteRun(
+  run: unknown,
+  host: string = SITE_HOST,
+  allowInsecureHttp = false,
+): SitePageRun {
   if (typeof run !== 'object' || run === null) throw new SiteRequestError('Bad page request');
   const r = run as Record<string, unknown>;
-  const url = validateSiteUrl(r.url, host);
+  const url = validateSiteUrl(r.url, host, allowInsecureHttp);
   const accountId = validateAccountId(r.accountId);
   if (typeof r.script !== 'string' || r.script.length === 0 || r.script.length > MAX_SCRIPT_CHARS) {
     throw new SiteRequestError('Bad script');
@@ -69,7 +79,11 @@ export function validateSiteRun(run: unknown, host: string = SITE_HOST): SitePag
 export function isSignedInLanding(target: string, host: string = SITE_HOST): boolean {
   try {
     const u = new URL(target);
-    return u.protocol === 'https:' && u.host === host && !u.pathname.startsWith('/account/');
+    return (
+      (u.protocol === 'https:' || u.protocol === 'http:') &&
+      u.host === host &&
+      !u.pathname.startsWith('/account/')
+    );
   } catch {
     return false;
   }

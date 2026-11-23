@@ -27,7 +27,8 @@ export interface SitePageRun {
   /** Run once the page's structure is ready; sets window.__bmx to a JSON string when finished. */
   script: string;
   timeoutMs: number;
-  /** After the script reports, keep the window open until the page navigates (a form post). */
+  /** After the script reports, keep the window open until the page navigates (a form post), for at
+   * most 30 seconds: a script that reported a failure never navigates. */
   waitForNavigation: boolean;
 }
 

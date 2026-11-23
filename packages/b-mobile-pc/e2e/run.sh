@@ -61,17 +61,17 @@ VITE_GEOAPIFY_KEY=e2e-tile-key node "$PKG/scripts/env-check.mjs" --warn-only || 
 #    probe sees them as busy. Pinned ports (E2E_*_PORT in the environment) skip the choosing.
 exec 9>"${BMPC_E2E_LOCK:-/tmp/bmpc-e2e-ports.lock}"
 flock 9
-if [ -z "${E2E_CDP_PORT:-}${E2E_STUB_PORT:-}${E2E_AUTH_PORT:-}${E2E_NOTIFY_PORT:-}${E2E_V1_PORT:-}${E2E_V2_PORT:-}" ]; then
-  # Six free ports, found by binding port 0 on all six at once (so they are distinct). The last two are
-  # the DevTools ports of the variant shells below.
-  read -r E2E_CDP_PORT E2E_STUB_PORT E2E_AUTH_PORT E2E_NOTIFY_PORT E2E_V1_PORT E2E_V2_PORT < <(node -e "
+if [ -z "${E2E_CDP_PORT:-}${E2E_STUB_PORT:-}${E2E_AUTH_PORT:-}${E2E_NOTIFY_PORT:-}${E2E_V1_PORT:-}${E2E_V2_PORT:-}${E2E_SITE_PORT:-}" ]; then
+  # Seven free ports, found by binding port 0 on all seven at once (so they are distinct). The two
+  # before the last are the DevTools ports of the variant shells below; the last is the fake website.
+  read -r E2E_CDP_PORT E2E_STUB_PORT E2E_AUTH_PORT E2E_NOTIFY_PORT E2E_V1_PORT E2E_V2_PORT E2E_SITE_PORT < <(node -e "
     const net = require('node:net');
-    const servers = [0, 1, 2, 3, 4, 5].map(() => net.createServer());
+    const servers = [0, 1, 2, 3, 4, 5, 6].map(() => net.createServer());
     Promise.all(servers.map((s) => new Promise((r) => s.listen(0, '127.0.0.1', () => r(s.address().port)))))
       .then((ports) => { console.log(ports.join(' ')); servers.forEach((s) => s.close()); });
   ")
 fi
-export E2E_CDP_PORT E2E_STUB_PORT E2E_AUTH_PORT E2E_NOTIFY_PORT E2E_V1_PORT E2E_V2_PORT
+export E2E_CDP_PORT E2E_STUB_PORT E2E_AUTH_PORT E2E_NOTIFY_PORT E2E_V1_PORT E2E_V2_PORT E2E_SITE_PORT
 echo "e2e run $ID: container $CONTAINER, ports cdp=$E2E_CDP_PORT stub=$E2E_STUB_PORT auth=$E2E_AUTH_PORT notify=$E2E_NOTIFY_PORT"
 
 # Waits until something listens on a local port.
@@ -88,8 +88,11 @@ node "$ROOT/packages/b-mobile/scripts/stub-api.mjs" "$E2E_STUB_PORT" >"$OUT/stub
 PIDS+=($!)
 node "$HERE/fake-authorize.mjs" "$E2E_AUTH_PORT" >"$OUT/fake-authorize.log" 2>&1 9>&- &
 PIDS+=($!)
+node "$HERE/fake-site.mjs" "$E2E_SITE_PORT" >"$OUT/fake-site.log" 2>&1 9>&- &
+PIDS+=($!)
 wait_listening "$E2E_STUB_PORT"
 wait_listening "$E2E_AUTH_PORT"
+wait_listening "$E2E_SITE_PORT"
 
 # 5. The shells, in containers. Run as the container's root: Docker is rootless here, so that maps to
 #    the calling user and the files they leave in $WORK can be removed by the trap above. (Another uid
@@ -106,7 +109,7 @@ start_shell() {
   for attempt in 1 2; do
     docker rm -f "$name" >/dev/null 2>&1 || true
     docker run -d --name "$name" --network host \
-      -e E2E_CDP_PORT="$port" -e E2E_DISPLAY="$port" -e E2E_STUB_PORT -e E2E_AUTH_PORT \
+      -e E2E_CDP_PORT="$port" -e E2E_DISPLAY="$port" -e E2E_STUB_PORT -e E2E_AUTH_PORT -e E2E_SITE_PORT \
       -e E2E_PROXY="${https_proxy:-}" "$@" \
       -v "$ROOT:/p" -v "$ud:/tmp/ud" "$IMAGE" bash /p/packages/b-mobile-pc/e2e/docker/run-electron.sh >/dev/null
     for _ in $(seq 1 240); do
@@ -138,6 +141,7 @@ exec 9>&-   # everything is listening: release the port lock
 # 6. The tests.
 cd "$PKG"
 BMPC_CDP="http://127.0.0.1:$E2E_CDP_PORT" BMPC_STUB="http://127.0.0.1:$E2E_STUB_PORT" \
+BMPC_SITE="http://127.0.0.1:$E2E_SITE_PORT" \
 BMPC_NOTIFY="http://127.0.0.1:$E2E_NOTIFY_PORT" BMPC_E2E_CONTAINER="$CONTAINER" \
 BMPC_CDP_MISMATCH="http://127.0.0.1:$E2E_V1_PORT" BMPC_UD_MISMATCH="$WORK/mismatch" \
 BMPC_CDP_NODIST="http://127.0.0.1:$E2E_V2_PORT" BMPC_UD_NODIST="$WORK/nodist" \

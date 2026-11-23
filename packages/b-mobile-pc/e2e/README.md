@@ -2,8 +2,11 @@
 
 The real Electron shell, in Docker under a virtual display, driven from the host by Playwright over the
 DevTools protocol. It runs against b-mobile's `scripts/stub-api.mjs` (a stand-in for the Blipfoto API,
-behind the shell's proxy) and `e2e/fake-authorize.mjs` (a stand-in sign-in page), so it needs no network
-access to Blipfoto and no real account.
+behind the shell's proxy) and `e2e/fake-authorize.mjs` (a stand-in sign-in page) and `e2e/fake-site.mjs` (a stand-in for the website's
+pages that the extras website session drives, pointed at by the shell's `BMPC_SITE_ORIGIN` test hook; seed members
+and test endpoints are described at its top), so it needs no network access to Blipfoto and no real account.
+`contract-site-session.e2e.ts` tests the website-session host contract against it (per-account isolation, the
+member guard, extras add/remove/read, a protected journal, sign-out; b-oss#1050, b-oss#1053).
 
 ```bash
 npm run e2e -w @b-oss/b-mobile-pc      # Linux + Docker; builds b-mobile and the shell first
@@ -11,7 +14,7 @@ npm run e2e -w @b-oss/b-mobile-pc      # Linux + Docker; builds b-mobile and the
 
 `e2e/run.sh` does everything: builds the `bmpc-e2e` image once (Ubuntu + the libraries Electron needs),
 fetches the Linux Electron binary if `node_modules/electron/dist` is missing, builds the web app and the
-shell, starts the stub servers, starts the shell in the container, runs `shell.e2e.ts`, and cleans up.
+shell, starts the stub servers, starts the shell in the container, runs the `*.e2e.ts` files, and cleans up.
 Screenshots and logs go to `e2e-out/` (git-ignored) or `$BMPC_E2E_OUT`.
 
 **Running several at once** (several workers, or a worker and the coordinator): each run picks its own

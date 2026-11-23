@@ -29,7 +29,7 @@ import { resolveShellBuild } from '../shared/shell-build.js';
 import { appTokenKey, parseNotifySettings } from '../shared/notify.js';
 import { parseReminderAccountId, parseReminderConfigs } from '../shared/reminders.js';
 import { allowPermission } from './permissions.js';
-import { validateAccountId, validateSiteRun, validateSiteUrl } from './site-request.js';
+import { SITE_HOST, validateAccountId, validateSiteRun, validateSiteUrl } from './site-request.js';
 import { clearLegacySiteSession, siteRunPage, siteSignIn, siteSignOut } from './site-window.js';
 import {
   APP_ORIGIN,
@@ -572,17 +572,30 @@ if (!app.requestSingleInstanceLock()) {
     });
     // Earlier builds kept one website session for every account; it could belong to the wrong one.
     void clearLegacySiteSession().catch(() => {});
+    // Test hook (ignored when packaged): the website session talks to a stand-in site instead of
+    // the real one (BMPC_SITE_ORIGIN, as the site proxy does), so the contract can be tested without
+    // an account. Pages are still named by the real address; only the origin is swapped.
+    const fakeSite =
+      testMode && process.env.BMPC_SITE_ORIGIN ? new URL(process.env.BMPC_SITE_ORIGIN) : null;
+    const sitePageHost = fakeSite ? fakeSite.host : SITE_HOST;
+    const siteUrlFor = (url: unknown): string => {
+      const real = validateSiteUrl(url);
+      return fakeSite ? withOrigin(real, fakeSite.origin) : real;
+    };
     handle(CHANNELS.siteSignIn, (accountId, url) =>
       siteSignIn(
         BrowserWindow.getFocusedWindow() ?? mainWindow,
         validateAccountId(accountId),
-        validateSiteUrl(url),
+        siteUrlFor(url),
+        sitePageHost,
       ),
     );
     handle(CHANNELS.siteSignOut, (accountId) => siteSignOut(validateAccountId(accountId)));
-    handle(CHANNELS.siteRunPage, (run) =>
-      siteRunPage(validateSiteRun(run), (message) => shellLog?.(message)),
-    );
+    handle(CHANNELS.siteRunPage, (run) => {
+      const checked = validateSiteRun(run);
+      const target = fakeSite ? { ...checked, url: siteUrlFor(checked.url) } : checked;
+      return siteRunPage(target, (message) => shellLog?.(message), sitePageHost);
+    });
     handle(CHANNELS.authOpen, (url, redirectPrefix) => {
       const request = validateAuthRequest(url, redirectPrefix, authHosts, authAllowHttp);
       // Test hook (ignored when packaged): send the sign-in page to a fake authorize server.

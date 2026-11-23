@@ -26,7 +26,9 @@ import org.json.JSONException;
 @CapacitorPlugin(name = "SiteSession")
 public class SiteSessionPlugin extends Plugin {
   private static final long POLL_MS = 400;
-  private static final long NAVIGATION_GRACE_MS = 60_000;
+  // After a script reports, how long to wait for the page to navigate (a form post and the page it
+  // lands on). A script that reported a failure never navigates, so this must stay short.
+  private static final long NAVIGATION_GRACE_MS = 30_000;
 
   /** Tells the app whether this device can keep a website session per account (WebView profiles). */
   @PluginMethod
