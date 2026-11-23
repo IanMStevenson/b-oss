@@ -10,6 +10,12 @@
 
 import { getClient } from './client.js';
 import type { BlipComment, BlipNotification } from '@b-oss/b-api';
+import {
+  FOLLOW_REQUEST_PATH,
+  RESERVED_PATH_SEGMENTS,
+  pathOf,
+  targetOfPath,
+} from '@b-oss/b-api-web';
 
 export interface UnreadTotals {
   comments: number;
@@ -45,9 +51,6 @@ export async function fetchRecentComments(sinceId?: string): Promise<BlipComment
 
 // ── SCR-23 hidden-member suppression + target resolution (app-architecture.md §11) ────────────
 
-const RESERVED_PATH_SEGMENTS = new Set(['entry', 'me', 'store', '_assets']);
-const FOLLOW_REQUEST_PATH = 'me/followers/requests';
-
 /** Every `href="..."` value inside a notification's `content_html` — the only place the actor
  * responsible for a notification is identifiable at all (SCR-23: "the member responsible appears
  * only within that text, as a link to their profile"). A plain regex scan, not a DOM parse — this
@@ -61,20 +64,6 @@ function extractHrefs(html: string): string[] {
     hrefs.push(match[1]);
   }
   return hrefs;
-}
-
-/** The path segment(s) after the host, lowercased, with a leading/trailing slash stripped — works
- * for both an absolute `https://www.blipfoto.com/...` URL and a bare relative `/...` path, since
- * `content_html`'s links aren't guaranteed to be one shape or the other. Exported for
- * `flows/deepLinkResolver.ts`'s opt-in web-link handling (§16), which resolves the exact same
- * `blipfoto.com/entry/{id}` / `blipfoto.com/{username}` shapes this module already implements. */
-export function pathOf(href: string): string {
-  try {
-    const url = new URL(href, 'https://www.blipfoto.com');
-    return url.pathname.replace(/^\/+|\/+$/g, '').toLowerCase();
-  } catch {
-    return href.replace(/^\/+|\/+$/g, '').toLowerCase();
-  }
 }
 
 /** SCR-23's own heuristic, stated plainly as a safety feature there: a single-segment path not in
@@ -109,31 +98,6 @@ export type NotificationTarget =
   | { kind: 'follow-request' }
   | { kind: 'external'; url: string };
 
-/** The `blipfoto.com/entry/{id}` / `blipfoto.com/{username}` / `blipfoto.com/me/followers/
- * requests` path shapes, resolved from an already-normalised `pathOf()` path — shared between
- * `resolveNotificationTarget` below (called with `link_url`'s path) and
- * `flows/deepLinkResolver.ts`'s opt-in web-link handling (§16, called with an incoming URL's
- * path directly). Returns `null` for anything else, letting each caller decide its own fallback
- * (SCR-23 opens it externally; the deep-link resolver ignores it). */
-export function resolveWebPathTarget(
-  path: string,
-):
-  | { kind: 'entry'; entryId: string }
-  | { kind: 'profile'; username: string }
-  | { kind: 'follow-request' }
-  | null {
-  if (path === FOLLOW_REQUEST_PATH) return { kind: 'follow-request' };
-
-  const entryMatch = /^entry\/([^/]+)/.exec(path);
-  if (entryMatch) return { kind: 'entry', entryId: entryMatch[1] };
-
-  if (path && !path.includes('/') && !RESERVED_PATH_SEGMENTS.has(path)) {
-    return { kind: 'profile', username: path };
-  }
-
-  return null;
-}
-
 /** The member a notification is about, when it can be read off reliably: `content_html` must open
  * with an `<a>` whose href is a bare profile path, and the BBCode `content` must open with the same
  * text (plain or as a `[url]` tag), so the remainder can be rendered without it. Anything else
@@ -145,7 +109,7 @@ export function leadingActor(
 ): { username: string; rest: string } | null {
   const match = /^\s*<a\s[^>]*href="([^"]+)"[^>]*>([^<]+)<\/a>/i.exec(notification.content_html);
   if (!match) return null;
-  const target = resolveWebPathTarget(pathOf(match[1]));
+  const target = targetOfPath(pathOf(match[1]));
   if (target?.kind !== 'profile') return null;
   const name = match[2].trim();
   if (!name) return null;
@@ -197,7 +161,7 @@ export function notificationActor(
 export function notificationEntryId(notification: BlipNotification): string | null {
   const candidates = [notification.link_url, ...extractHrefs(notification.content_html)];
   for (const href of candidates) {
-    const target = resolveWebPathTarget(pathOf(href));
+    const target = targetOfPath(pathOf(href));
     if (target?.kind === 'entry') return target.entryId;
   }
   return null;
@@ -212,7 +176,7 @@ export function resolveNotificationTarget(notification: BlipNotification): Notif
   );
   if (isFollowRequest) return { kind: 'follow-request' };
 
-  const target = resolveWebPathTarget(pathOf(notification.link_url));
+  const target = targetOfPath(pathOf(notification.link_url));
   if (target) return target;
 
   return { kind: 'external', url: notification.link_url };

@@ -13,23 +13,10 @@
 // Navigation and the browser are injected (this module imports neither react-router nor
 // Capacitor), like deepLinkResolver.ts.
 
-import { pathOf, resolveWebPathTarget } from '../data/notifications.js';
+import { parseSiteUrl } from '@b-oss/b-api-web';
 import { fetchAuthorAvatar } from '../data/users.js';
 import { openUrl } from '../platform/browser.js';
 import { routeDeepLink } from './deepLinkResolver.js';
-
-function isBlipfotoLink(href: string): boolean {
-  if (href.startsWith('/') && !href.startsWith('//')) return true;
-  try {
-    const { protocol, hostname } = new URL(href);
-    return (
-      (protocol === 'https:' || protocol === 'http:') &&
-      (hostname.toLowerCase() === 'www.blipfoto.com' || hostname.toLowerCase() === 'blipfoto.com')
-    );
-  } catch {
-    return false;
-  }
-}
 
 export async function openLink(
   href: string,
@@ -42,7 +29,7 @@ export async function openLink(
   const probeProfile = deps.probeProfile ?? fetchAuthorAvatar;
   const open = deps.open ?? openUrl;
 
-  const target = isBlipfotoLink(href) ? resolveWebPathTarget(pathOf(href)) : null;
+  const target = parseSiteUrl(href);
   if (!target) return open(href);
 
   if (target.kind === 'profile') {

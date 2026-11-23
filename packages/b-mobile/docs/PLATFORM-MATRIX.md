@@ -10,16 +10,16 @@ the production browser build (a dev server proxies the API like the desktop shel
 
 ## Capabilities
 
-| Capability                  | android    | ios        | desktop               | web        |
-| --------------------------- | ---------- | ---------- | --------------------- | ---------- |
-| `api.access`                | `"direct"` | `"direct"` | `"same-origin-proxy"` | `"direct"` |
-| `auth.embeddedAvailable`    | `true`     | `true`     | `true`                | `false`    |
-| `auth.userCanChooseBrowser` | `true`     | `true`     | `false`               | `false`    |
-| `notifications.mechanism`   | `"push"`   | `"push"`   | `"polling"`           | `"none"`   |
-| `site.session`              | `"single"` | `"single"` | `"per-account"`       | `"none"`   |
-| `location`                  | `"os"`     | `"os"`     | `"pick-only"`         | `"os"`     |
-| `media.capture`             | `"camera"` | `"camera"` | `"camera"`            | `"camera"` |
-| `media.source`              | `"system"` | `"system"` | `"webcam"`            | `"system"` |
+| Capability | android | ios | desktop | web |
+| --- | --- | --- | --- | --- |
+| `api.access` | `"direct"` | `"direct"` | `"same-origin-proxy"` | `"direct"` |
+| `auth.embeddedAvailable` | `true` | `true` | `true` | `false` |
+| `auth.userCanChooseBrowser` | `true` | `true` | `false` | `false` |
+| `notifications.mechanism` | `"push"` | `"push"` | `"polling"` | `"none"` |
+| `site.session` | `"single"` | `"single"` | `"per-account"` | `"none"` |
+| `location` | `"os"` | `"os"` | `"pick-only"` | `"os"` |
+| `media.capture` | `"camera"` | `"camera"` | `"camera"` | `"camera"` |
+| `media.source` | `"system"` | `"system"` | `"webcam"` | `"system"` |
 
 Capabilities are read at run time and are not reactive. `capabilities()` is not a pure table:
 desktop `location` is rewritten once a location attempt succeeds (b-oss#672), and `web` is
@@ -39,26 +39,26 @@ window does not.
 The `prefs` rows are the defaults for the device preferences; the user's own changes are stored
 on top as overrides.
 
-| Default                                    | handheld        | desktop                   |
-| ------------------------------------------ | --------------- | ------------------------- |
-| `prefs.confirmAccountBeforeReaction`       | `true`          | `true`                    |
-| `prefs.reminders`                          | `{}`            | `{}`                      |
-| `prefs.uploadFullSize`                     | `true`          | `true`                    |
-| `prefs.openBlipfotoLinksInApp`             | `false`         | `false`                   |
-| `prefs.notificationPollingIntervalMinutes` | `5`             | `5`                       |
-| `prefs.seenFirstRunExplainer`              | `false`         | `false`                   |
-| `prefs.showZoomBar`                        | `true`          | `true`                    |
-| `prefs.showPagination`                     | `true`          | `true`                    |
-| `prefs.showSourceNavBar`                   | `false`         | `false`                   |
-| `prefs.enhancedNotifications`              | `true`          | `true`                    |
-| `prefs.thumbnailMargins`                   | `"none"`        | `"normal"`                |
-| `prefs.thumbnailZoomPercent`               | `100`           | `100`                     |
-| `prefs.photoFit`                           | `"full-width"`  | `"capped"`                |
-| `prefs.accountAvatarStyle`                 | `"picture"`     | `"picture"`               |
-| `prefs.theme`                              | `"system"`      | `"system"`                |
-| `prefs.navPinned`                          | `"auto"`        | `"auto"`                  |
-| `grid.baseTilePx`                          | `86`            | `156`                     |
-| `grid.widthDerivedMinZoom`                 | `true`          | `false`                   |
-| `keyboardWheelZoom`                        | `true`          | `true`                    |
-| `locationControlLabel`                     | `"My location"` | `"Show current location"` |
-| `nav.split`                                | `"off"`         | `"auto"`                  |
+| Default | handheld | desktop |
+| --- | --- | --- |
+| `prefs.confirmAccountBeforeReaction` | `true` | `true` |
+| `prefs.reminders` | `{}` | `{}` |
+| `prefs.uploadFullSize` | `true` | `true` |
+| `prefs.openBlipfotoLinksInApp` | `false` | `false` |
+| `prefs.notificationPollingIntervalMinutes` | `5` | `5` |
+| `prefs.seenFirstRunExplainer` | `false` | `false` |
+| `prefs.showZoomBar` | `true` | `true` |
+| `prefs.showPagination` | `true` | `true` |
+| `prefs.showSourceNavBar` | `false` | `false` |
+| `prefs.enhancedNotifications` | `true` | `true` |
+| `prefs.thumbnailMargins` | `"none"` | `"normal"` |
+| `prefs.thumbnailZoomPercent` | `100` | `100` |
+| `prefs.photoFit` | `"full-width"` | `"capped"` |
+| `prefs.accountAvatarStyle` | `"picture"` | `"picture"` |
+| `prefs.theme` | `"system"` | `"system"` |
+| `prefs.navPinned` | `"auto"` | `"auto"` |
+| `grid.baseTilePx` | `86` | `156` |
+| `grid.widthDerivedMinZoom` | `true` | `false` |
+| `keyboardWheelZoom` | `true` | `true` |
+| `locationControlLabel` | `"My location"` | `"Show current location"` |
+| `nav.split` | `"off"` | `"auto"` |

@@ -5,15 +5,14 @@
 // `entry/{id}` / `{username}` shapes deepLinkResolver parses — and the text that travels with it.
 
 import type { BlipUserDetails } from '@b-oss/b-api';
-
-const SITE = 'https://www.blipfoto.com';
+import { entryUrl, profileUrl } from '@b-oss/b-api-web';
 
 export function entryShareUrl(entryId: string): string {
-  return `${SITE}/entry/${encodeURIComponent(entryId)}`;
+  return entryUrl(entryId);
 }
 
 export function profileShareUrl(username: string): string {
-  return `${SITE}/${encodeURIComponent(username)}`;
+  return profileUrl(username);
 }
 
 /** "{title} by {username}", or just "Entry by {username}" for an untitled entry. */

@@ -57,9 +57,7 @@ import { useActiveAccount, useAccountsStore } from '../../state/accountsStore.js
 import { NetworkError } from '@b-oss/b-api';
 import { describeError, mapApiError } from '../../data/errors.js';
 import { t } from '../../strings/index.js';
-
-const SIGNUP_URL = 'https://www.blipfoto.com/account/signup';
-const TERMS_URL = 'https://www.blipfoto.com/legal/terms';
+import { SIGN_UP_URL, TERMS_URL } from '@b-oss/b-api-web';
 
 type Status = 'idle' | 'authenticating' | 'error';
 
@@ -260,7 +258,7 @@ export function SignInScreen({ returnTo }: { returnTo?: string } = {}) {
           {busy ? <IonSpinner name="dots" /> : 'Continue'}
         </IonButton>
 
-        <IonButton expand="block" fill="clear" onClick={() => void openUrl(SIGNUP_URL)}>
+        <IonButton expand="block" fill="clear" onClick={() => void openUrl(SIGN_UP_URL)}>
           New to Blipfoto? Create account
         </IonButton>
 

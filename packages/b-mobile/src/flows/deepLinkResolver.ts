@@ -13,17 +13,16 @@
 //   is a write action.
 // - `https://www.blipfoto.com/…` — the opt-in web link (§16; only ever reaches the app at all
 //   when `devicePrefsStore.openBlipfotoLinksInApp`'s native `<activity-alias>` is enabled,
-//   platform/blipfotoLinks.ts). Resolved via `data/notifications.ts#resolveWebPathTarget`, the
-//   exact same `blipfoto.com/entry/{id}` / `blipfoto.com/{username}` / `blipfoto.com/me/
-//   followers/requests` shapes SCR-23's own notification-link routing already implements — not
-//   duplicated here.
+//   platform/blipfotoLinks.ts). Resolved by b-api-web's `parseSiteUrl`, the one
+//   place the site's link grammar (`blipfoto.com/entry/{id}`, `blipfoto.com/{username}`,
+//   `blipfoto.com/me/followers/requests`) is written down; SCR-23's notification links use it too.
 //
 // Deliberately accepts a plain `{ push }` callback rather than importing `useAppNavigate`/
 // react-router directly — the ESLint platform-boundary rule restricts `react-router*` imports to
 // `app/routes/**` and `AppShell.tsx` only, and every other `flows/*.ts` module already follows
 // the same "navigation is injected, not imported" convention.
 
-import { pathOf, resolveWebPathTarget } from '../data/notifications.js';
+import { parseSiteUrl } from '@b-oss/b-api-web';
 
 export type DeepLinkTarget =
   | { kind: 'entry'; entryId: string }
@@ -72,12 +71,8 @@ export function resolveDeepLink(url: string): DeepLinkTarget {
     return resolveBmobilePath(url);
   }
 
-  const hostname = parsed.hostname.toLowerCase();
-  if (hostname === 'www.blipfoto.com' || hostname === 'blipfoto.com') {
-    return resolveWebPathTarget(pathOf(url)) ?? { kind: 'ignore' };
-  }
-
-  return { kind: 'ignore' };
+  // The site's own links (the grammar lives in b-api-web).
+  return parseSiteUrl(url) ?? { kind: 'ignore' };
 }
 
 export function routeDeepLink(target: DeepLinkTarget, push: (path: string) => void): void {
