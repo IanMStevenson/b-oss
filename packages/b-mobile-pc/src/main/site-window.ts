@@ -71,14 +71,13 @@ const sleep = (ms: number): Promise<void> => new Promise((r) => setTimeout(r, ms
  * third-party scripts and images, and a slow or blocked one would otherwise hold `load` up for as
  * long as it likes (the script waits for the page's own uploader itself). Everything is bounded by
  * `run.timeoutMs`, and a run that times out or throws is written to the app log. */
-export async function siteRunPage(
-  run: SitePageRun,
-  log: (message: string) => void = () => {},
-): Promise<SitePageResult> {
+async function runPage(run: SitePageRun, log: (message: string) => void): Promise<SitePageResult> {
   const started = Date.now();
   const where = new URL(run.url).pathname.replace(/\d{6,}/g, '<id>');
   const win = new BrowserWindow({ show: false, webPreferences });
   const wc = win.webContents;
+  // A page's "leave this page?" prompt must never keep the window (and so the next run) waiting.
+  wc.on('will-prevent-unload', (event) => event.preventDefault());
   wc.setWindowOpenHandler(() => ({ action: 'deny' }));
   // Never leave the site: other hosts (and other schemes) are refused.
   wc.on('will-navigate', (event, target) => {
@@ -122,6 +121,36 @@ export async function siteRunPage(
     );
     throw err;
   } finally {
-    if (!win.isDestroyed()) win.destroy();
+    await closeWindow(win);
   }
+}
+
+/** Closes a hidden window gracefully and waits for it to be gone. `destroy()` is not used: in a real
+ * Electron, a window destroyed like that leaves the next window on the same session failing to load
+ * its page at once (ERR_FAILED), which showed as the edit screen's extras never appearing. */
+function closeWindow(win: BrowserWindow): Promise<void> {
+  return new Promise((resolve) => {
+    if (win.isDestroyed()) {
+      resolve();
+      return;
+    }
+    const timer = setTimeout(resolve, 3_000);
+    win.once('closed', () => {
+      clearTimeout(timer);
+      resolve();
+    });
+    win.close();
+  });
+}
+
+// One page run at a time: they share one session, and two overlapping ones have no use here.
+let queue: Promise<unknown> = Promise.resolve();
+
+export function siteRunPage(
+  run: SitePageRun,
+  log: (message: string) => void = () => {},
+): Promise<SitePageResult> {
+  const next = queue.then(() => runPage(run, log));
+  queue = next.catch(() => undefined);
+  return next;
 }
