@@ -34,6 +34,7 @@ export const CHANNELS = {
   siteSignIn: 'site:sign-in',
   siteSignOut: 'site:sign-out',
   siteRunPage: 'site:run-page',
+  draftUnsaved: 'draft:unsaved',
 } as const;
 
 /** A photo chosen in the desktop file dialog (b-oss#739). */
@@ -118,6 +119,12 @@ export interface DesktopBridge {
     /** Deletes that account's stored site session (its cookies and storage). */
     signOut(accountId: string): Promise<void>;
     runPage(run: SitePageRun): Promise<SitePageResult>;
+  };
+  /** Whether the page holds a draft with unsaved changes (b-oss#1059). The page tells the shell as it
+   * changes, so a quit (tray Exit, the menu, an installer) can ask first even with the window hidden
+   * in the tray. Reset by the shell whenever the page loads. */
+  readonly unsaved: {
+    set(unsaved: boolean): Promise<void>;
   };
   /** The error log and the error screen's actions (b-oss#639). */
   readonly diagnostics: {

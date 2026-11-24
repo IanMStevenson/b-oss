@@ -63,6 +63,9 @@ const bridge: DesktopBridge = {
     signOut: (accountId) => ipcRenderer.invoke(CHANNELS.siteSignOut, accountId) as Promise<void>,
     runPage: (run) => ipcRenderer.invoke(CHANNELS.siteRunPage, run) as Promise<SitePageResult>,
   },
+  unsaved: {
+    set: (unsaved) => ipcRenderer.invoke(CHANNELS.draftUnsaved, unsaved) as Promise<void>,
+  },
   pickPhoto: (accountId) =>
     ipcRenderer.invoke(CHANNELS.pickPhoto, accountId) as Promise<PickedPhotoFile | null>,
   diagnostics: {

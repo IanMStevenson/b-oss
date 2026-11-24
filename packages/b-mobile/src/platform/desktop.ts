@@ -89,6 +89,9 @@ export interface DesktopBridge {
    * signed in (false if closed); `runPage` loads one www.blipfoto.com page in a hidden window with
    * that session and runs a script in it. */
   readonly site?: SiteSessionHost;
+  /** Whether the page holds a draft with unsaved changes (b-oss#1059), so the shell can ask before a
+   * quit. Absent on a shell older than this member. */
+  readonly unsaved?: { set(unsaved: boolean): Promise<void> };
   /** The error log and the error screen's actions (b-oss#639); see platform/diagnostics.ts. */
   readonly diagnostics: {
     logError(entry: { source: string; message: string; stack?: string }): Promise<void>;

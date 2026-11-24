@@ -2,7 +2,7 @@
 // Copyright (C) 2026 Ian Stevenson
 // @vitest-environment jsdom
 
-import { describe, it, expect, afterEach } from 'vitest';
+import { describe, it, expect, afterEach, vi } from 'vitest';
 import { installUnloadGuard } from '../unloadGuard.js';
 import { useComposeDraftStore } from '../../state/composeDraftStore.js';
 import type { ComposeDraft } from '../../state/composeDraftStore.js';
@@ -31,6 +31,7 @@ function tryUnload(): boolean {
 let off: (() => void) | undefined;
 afterEach(() => {
   off?.();
+  delete (window as unknown as Record<string, unknown>).bMobileDesktop;
   useComposeDraftStore.setState({ draft: null });
 });
 
@@ -56,5 +57,27 @@ describe('unload guard (b-oss#1059)', () => {
     expect(tryUnload()).toBe(true);
     off();
     expect(tryUnload()).toBe(false);
+  });
+});
+
+describe('the desktop shell is told the flag (b-oss#1059)', () => {
+  it('reports unsaved changes as they start and stop, and does nothing on a shell without the member', () => {
+    const set = vi.fn(() => Promise.resolve());
+    (window as unknown as Record<string, unknown>).bMobileDesktop = {
+      version: 1,
+      unsaved: { set },
+    };
+    off = installUnloadGuard();
+    expect(set).not.toHaveBeenCalled(); // nothing unsaved at start
+    useComposeDraftStore.setState({ draft: { ...DRAFT, dirty: true } });
+    expect(set).toHaveBeenLastCalledWith(true);
+    useComposeDraftStore.setState({ draft: { ...DRAFT, dirty: true, title: 'x' } });
+    expect(set).toHaveBeenCalledTimes(1); // no repeat while it stays dirty
+    useComposeDraftStore.getState().clearDraft();
+    expect(set).toHaveBeenLastCalledWith(false);
+
+    (window as unknown as Record<string, unknown>).bMobileDesktop = { version: 1 }; // an older shell
+    useComposeDraftStore.setState({ draft: { ...DRAFT, dirty: true } });
+    expect(set).toHaveBeenCalledTimes(2);
   });
 });

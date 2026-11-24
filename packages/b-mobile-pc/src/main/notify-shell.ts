@@ -152,6 +152,12 @@ export class NotifyShell {
     this.presenter.dispose?.();
   }
 
+  /** The member cancelled a quit (Keep editing on the unsaved-draft question, b-oss#1059): the app
+   * carries on, so the close button hides to the tray again. Not for a session end. */
+  quitCancelled(): void {
+    this.quitting = false;
+  }
+
   /** The OS is ending the session (logoff, shutdown, restart): let windows close for real. */
   markQuitting(): void {
     this.quitting = true;

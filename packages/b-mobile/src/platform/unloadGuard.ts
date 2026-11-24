@@ -7,9 +7,12 @@
 // something to lose (a standing listener would keep the page out of the back/forward cache). A
 // browser shows its own generic question; the desktop shell turns Electron's `will-prevent-unload`
 // into the app's own native Discard / Keep editing dialog (b-mobile-pc `unload-guard.ts`).
+// The desktop shell is also told the flag over the bridge (`unsaved.set`), because a quit has to be
+// asked about before the app starts tearing down, and a hidden window cannot be asked.
 // Not preventable, and not attempted: the OS ending the app (Android swipe-away, a crash, power loss).
 
 import { useComposeDraftStore } from '../state/composeDraftStore.js';
+import { desktopBridge } from './desktop.js';
 
 export function installUnloadGuard(target: Window = window): () => void {
   const onBeforeUnload = (event: BeforeUnloadEvent): void => {
@@ -19,6 +22,12 @@ export function installUnloadGuard(target: Window = window): () => void {
   };
   let listening = false;
   const sync = (dirty: boolean): void => {
+    if (dirty !== listening) {
+      // The desktop shell also needs to know, to ask before a quit (it cannot ask a hidden page).
+      void desktopBridge()
+        ?.unsaved?.set(dirty)
+        ?.catch(() => {});
+    }
     if (dirty && !listening) target.addEventListener('beforeunload', onBeforeUnload);
     else if (!dirty && listening) target.removeEventListener('beforeunload', onBeforeUnload);
     listening = dirty;
