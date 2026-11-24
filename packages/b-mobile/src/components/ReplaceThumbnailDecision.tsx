@@ -9,7 +9,6 @@
 // three plainly; "delete and repost" is asked once more on a screen of its own, which says exactly
 // what is lost, and cancelling goes through the screen's usual discard question (the caller's).
 
-import { useState } from 'react';
 import { IonButton, IonSpinner, IonText } from '@ionic/react';
 
 interface Props {
@@ -18,6 +17,10 @@ interface Props {
   onOpenWebsite: (url: string) => void;
   /** An action is running (the delete and the post take a moment). */
   busy: boolean;
+  /** Which of its two pages is showing: the options, or the red "are you sure". Held by the screen,
+   * so the header's Back and the hardware Back step from the second page to the first. */
+  confirming: boolean;
+  onConfirmingChange: (confirming: boolean) => void;
   onContinueWithDefault: () => void;
   onDeleteAndRepost: () => void;
   /** Asks the usual "discard changes?" question and, if confirmed, leaves. */
@@ -28,12 +31,12 @@ export function ReplaceThumbnailDecision({
   websiteUrl,
   onOpenWebsite,
   busy,
+  confirming,
+  onConfirmingChange,
   onContinueWithDefault,
   onDeleteAndRepost,
   onCancelEdits,
 }: Props) {
-  const [confirming, setConfirming] = useState(false);
-
   if (confirming) {
     return (
       <div
@@ -57,7 +60,7 @@ export function ReplaceThumbnailDecision({
           expand="block"
           fill="outline"
           disabled={busy}
-          onClick={() => setConfirming(false)}
+          onClick={() => onConfirmingChange(false)}
         >
           Back
         </IonButton>
@@ -70,7 +73,7 @@ export function ReplaceThumbnailDecision({
     { label: 'Continue posting with the default thumbnail', onClick: onContinueWithDefault },
     {
       label: 'Delete the current entry and upload your changes as a replacement entry',
-      onClick: () => setConfirming(true),
+      onClick: () => onConfirmingChange(true),
       outline: true,
     },
     {

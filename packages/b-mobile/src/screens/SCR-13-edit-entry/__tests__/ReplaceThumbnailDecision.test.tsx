@@ -270,4 +270,89 @@ describe('saving a replacement photo with a chosen thumbnail', () => {
     await userEvent.click(screen.getByText('Continue'));
     expect(replace).toHaveBeenCalledWith('/compose/details');
   });
+
+  describe('Back stays inside the edit', () => {
+    /** What Ionic does on the Android Back button: runs the highest priority handler registered. */
+    function pressHardwareBack(): ReturnType<typeof vi.fn<() => void>> {
+      const handlers: Array<{ priority: number; run: (next: () => void) => void }> = [];
+      document.dispatchEvent(
+        new CustomEvent('ionBackButton', {
+          detail: {
+            register: (priority: number, run: (next: () => void) => void) =>
+              handlers.push({ priority, run }),
+          },
+        }),
+      );
+      const next = vi.fn<() => void>();
+      const top = handlers.sort((a, b) => b.priority - a.priority)[0];
+      if (top) top.run(next);
+      else next();
+      return next;
+    }
+
+    // The header's arrow (the screen also has a "Back" button of its own on the red page).
+    const headerBack = (): HTMLElement => {
+      const arrow = document.querySelector<HTMLElement>('ion-back-button');
+      if (!arrow) throw new Error('no header Back button');
+      return arrow;
+    };
+    const openConfirmation = async (): Promise<void> => {
+      await pressSave();
+      await userEvent.click(
+        await screen.findByText(
+          'Delete the current entry and upload your changes as a replacement entry',
+        ),
+      );
+      await screen.findByText('Delete this entry and post it again?');
+    };
+
+    it('the header Back goes from the red page to the options, then to the form, never out', async () => {
+      seedDraft();
+      renderScreen();
+      await openConfirmation();
+      await userEvent.click(headerBack());
+      expect(await screen.findByText('Continue posting with the default thumbnail')).toBeDefined();
+      await userEvent.click(headerBack());
+      expect(await screen.findByDisplayValue('Sunrise')).toBeDefined(); // the form again
+      expect(screen.queryByText('Continue posting with the default thumbnail')).toBeNull();
+      expect(goBack).not.toHaveBeenCalled();
+      expect(useComposeDraftStore.getState().draft).not.toBeNull();
+    });
+
+    it('the Android Back does the same, and the router never goes back', async () => {
+      seedDraft();
+      renderScreen();
+      await openConfirmation();
+      const first = pressHardwareBack();
+      expect(await screen.findByText('Continue posting with the default thumbnail')).toBeDefined();
+      const second = pressHardwareBack();
+      expect(await screen.findByDisplayValue('Sunrise')).toBeDefined();
+      expect(first).not.toHaveBeenCalled();
+      expect(second).not.toHaveBeenCalled();
+      expect(goBack).not.toHaveBeenCalled();
+      expect(useComposeDraftStore.getState().draft).not.toBeNull();
+    });
+
+    it('the decision starts on its options again after Back and Save', async () => {
+      seedDraft();
+      renderScreen();
+      await openConfirmation();
+      await userEvent.click(headerBack());
+      await userEvent.click(headerBack());
+      await pressSave();
+      expect(await screen.findByText('Continue posting with the default thumbnail')).toBeDefined();
+      expect(screen.queryByText('Delete this entry and post it again?')).toBeNull();
+    });
+
+    it('does nothing while the delete and post are running', async () => {
+      seedDraft();
+      deleteEntry.mockReturnValue(new Promise(() => {})); // never settles
+      renderScreen();
+      await openConfirmation();
+      await userEvent.click(screen.getByText('Delete and post as a new entry'));
+      const next = pressHardwareBack();
+      expect(next).not.toHaveBeenCalled();
+      expect(screen.getByText('Delete this entry and post it again?')).toBeDefined();
+    });
+  });
 });

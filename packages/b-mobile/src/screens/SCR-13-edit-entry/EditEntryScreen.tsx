@@ -66,6 +66,14 @@ import type { Area } from 'react-easy-crop';
 import { LoadFailed } from '../../components/LoadFailed.js';
 import { describeError, mapApiError } from '../../data/errors.js';
 
+/** The decision pages' own Back: above the draft guard (2) and Browse (1), below Ionic's menu and
+ * overlays (99, 100) so an open dialog still takes Back first. */
+const DECISION_BACK_PRIORITY = 10;
+
+interface BackButtonDetail {
+  register: (priority: number, handler: (processNextHandler: () => void) => void) => void;
+}
+
 interface EditEntryScreenProps {
   entryId: string;
 }
@@ -96,6 +104,7 @@ export function EditEntryScreen({ entryId }: EditEntryScreenProps) {
   // ignores; and, after "delete and post as new", the entry the extras results view returns to.
   const [thumbDecision, setThumbDecision] = useState(false);
   const [deciding, setDeciding] = useState(false);
+  const [confirmingRepost, setConfirmingRepost] = useState(false);
   const [resultEntryId, setResultEntryId] = useState<string | null>(null);
   const [repostFailure, setRepostFailure] = useState<{
     draft: ComposeDraft;
@@ -256,6 +265,31 @@ export function EditEntryScreen({ entryId }: EditEntryScreenProps) {
     void saveDraft({ ...draft, thumbnailCrop: null });
   }
 
+  /** Back (the header's, or Android's) on the decision pages steps back one page, never out of the
+   * edit: from the red confirmation to the options, from the options to the form. */
+  function stepBackInDecision(): void {
+    if (deciding || submitting) return;
+    if (confirmingRepost) setConfirmingRepost(false);
+    else setThumbDecision(false);
+  }
+  // Leaving the decision by any route starts it afresh on its options page next time.
+  useEffect(() => {
+    if (!thumbDecision) setConfirmingRepost(false);
+  }, [thumbDecision]);
+  const stepBackRef = useRef(stepBackInDecision);
+  stepBackRef.current = stepBackInDecision;
+  useEffect(() => {
+    if (!thumbDecision) return;
+    const onBack = (e: Event): void => {
+      // Above the draft guard's and Browse's handlers; not calling the next one stops them running.
+      (e as CustomEvent<BackButtonDetail>).detail.register(DECISION_BACK_PRIORITY, () =>
+        stepBackRef.current(),
+      );
+    };
+    document.addEventListener('ionBackButton', onBack);
+    return () => document.removeEventListener('ionBackButton', onBack);
+  }, [thumbDecision]);
+
   /** Decision 3: cancel the edits. Asks the screen's usual "Discard changes?" first. */
   function cancelEdits(): void {
     setConfirmDiscard(true);
@@ -377,7 +411,7 @@ export function EditEntryScreen({ entryId }: EditEntryScreenProps) {
       <AppHeader
         title="Edit entry"
         variant="back"
-        onBack={() => navigate.goBack()}
+        onBack={() => (thumbDecision ? stepBackInDecision() : navigate.goBack())}
         accountIndicator
       />
     </IonHeader>
@@ -450,6 +484,8 @@ export function EditEntryScreen({ entryId }: EditEntryScreenProps) {
           websiteUrl={entryEditUrl(entryId)}
           onOpenWebsite={(url) => void openUrl(url)}
           busy={deciding || submitting}
+          confirming={confirmingRepost}
+          onConfirmingChange={setConfirmingRepost}
           onContinueWithDefault={continueWithDefaultThumbnail}
           onDeleteAndRepost={() => void deleteAndRepost()}
           onCancelEdits={cancelEdits}
