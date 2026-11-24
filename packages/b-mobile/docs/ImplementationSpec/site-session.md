@@ -72,7 +72,7 @@ to the `b-api-web` package ([b-oss#1046](https://github.com/IanMStevenson/b-oss/
 | -------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | desktop  | `per-account` (a persistent Electron partition per account, named by a hash of the account id; the old shared partition is deleted at start-up)                                                                                                                                                                                                                                                                                      |
 | android  | `single`, becoming `per-account` at start-up where the WebView supports profiles (`WebViewFeature.MULTI_PROFILE`): `SiteProfiles.java` puts each WebView on a named profile per account before it does anything else and clears that profile on sign-out ([b-oss#1052](https://github.com/IanMStevenson/b-oss/issues/1052)). Reported by the plugin's `isolation()` call; seen as `per-account` on a Galaxy S25 Ultra (WebView 158). |
-| ios      | design intent: `per-account` where the OS has separate website data stores, else `single` ([b-oss#1054](https://github.com/IanMStevenson/b-oss/issues/1054))                                                                                                                                                                                                                                                                         |
+| ios      | design intent: `per-account` where the OS has separate website data stores, else `single` (see "iOS" below)                                                                                                                                                                                                                                                                                                                          |
 | web      | `none` (a plain browser has no website session; only public pages are read)                                                                                                                                                                                                                                                                                                                                                          |
 
 `recordSiteSessionIsolation()` lets a native host report `per-account` once it has found out.
@@ -94,6 +94,24 @@ through the one sign-in gate (`components/useSiteSignInGate.tsx`), so the dialog
    and its own Save → read the page again to confirm. The entry itself is saved through the API first,
    so a failure here never costs the member their entry; any failure ends on a screen that links to the
    entry's edit page.
+
+## iOS (not planned; notes for whoever does it)
+
+There is no iOS app and none is planned. If one is built, the host is the same three calls, and only
+what a native author could not read from the contract above is recorded here. Nothing below has been
+tried; verify it first.
+
+- A Capacitor plugin with the same four methods as `SiteSessionPlugin.java` (`isolation`, `signIn`,
+  `signOut`, `runPage`), so the common code does not change.
+- `runPage`: a hidden `WKWebView`; start the script at DOM-ready (`WKUserScript` at document end, or
+  `evaluateJavaScript` once the navigation delegate reports it); poll `window.__bmx` exactly as the
+  other hosts do (the script's answer is a JSON string, never a promise); wait for navigation with the
+  navigation delegate; close it gracefully before the next run.
+- Per-account sessions: believed to be `WKWebsiteDataStore(forIdentifier:)` (persistent, one per
+  identifier), iOS 17 and later; below that, report `single` and the designated extras account policy
+  applies. Report it through `isolation()` and `recordSiteSessionIsolation`.
+- No cookie or password ever reaches JavaScript; the sign-in is the site's own page in a visible web
+  view (social sign-in opens a popup there, as on desktop).
 
 ## Testing
 
