@@ -269,7 +269,13 @@ describe('desktop capabilities: location and camera', () => {
   });
 
   it('the location picker offers "Show current location"; a failed attempt gives a message and hides it (b-oss#672)', async () => {
-    await go('/compose/location', 4000);
+    // In-app navigation, not a page load: the picker needs the draft the previous test left open, and
+    // it (rightly) leaves when a refresh has dropped the draft (b-oss#1056).
+    await page.evaluate(() => {
+      history.pushState({}, '', '/compose/location');
+      dispatchEvent(new PopStateEvent('popstate'));
+    });
+    await page.waitForTimeout(4000);
     expect(await text()).not.toMatch(/Something went wrong/i);
     const control = page.getByLabel('Show current location');
     expect(await control.count()).toBe(1);
