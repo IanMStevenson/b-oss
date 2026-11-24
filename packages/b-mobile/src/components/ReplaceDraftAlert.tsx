@@ -4,7 +4,8 @@
 // The warning shown when the member starts something that would replace a different unsaved draft
 // (b-oss#1057): the same wording as the discard dialogs of the compose and edit screens. Keep
 // editing returns to the open draft; Discard carries on. Built to be reused by the wider
-// "warn before any navigation away from an unsaved draft" guard (b-oss#1059).
+// "warn before any navigation away from an unsaved draft" guard (b-oss#1059), which is now its
+// other user (app/routes/DraftNavigationGuard.tsx).
 //
 // Only Discard has a handler. Keep editing is "the alert closed any other way": Ionic also runs a
 // cancel button's handler when the alert is torn down (e.g. the screen changing under it), which
@@ -36,6 +37,13 @@ export function ReplaceDraftAlert({ draft, onKeepEditing, onDiscard }: ReplaceDr
       isOpen={draft !== null}
       header={
         draft ? (draft.mode === 'edit' ? 'Discard changes?' : 'Discard this entry?') : undefined
+      }
+      message={
+        draft
+          ? draft.mode === 'edit'
+            ? 'Your changes have not been saved.'
+            : 'This entry has not been published.'
+          : undefined
       }
       backdropDismiss={false}
       onDidDismiss={() => {

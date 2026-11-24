@@ -7,6 +7,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { installKeyboardScroll } from './keyboardScroll.js';
+import { installUnloadGuard } from '../platform/unloadGuard.js';
 import {
   IonApp,
   IonMenu,
@@ -39,6 +40,7 @@ import type { CSSProperties, ReactNode, RefObject } from 'react';
 import { AccountRowBody } from '../components/AccountRowBody.js';
 import { OverlayProvider, OverlayHost } from './OverlayProvider.js';
 import { renderAppRoutes } from './routes/AppRoutes.js';
+import { DraftNavigationGuard } from './routes/DraftNavigationGuard.js';
 import { useAccountsStore, useActiveAccount, useCanWrite } from '../state/accountsStore.js';
 import { markAuthReady } from '../state/authReady.js';
 import { maybeRunFeedProbe } from '../diagnostics/feedProbe.js';
@@ -475,6 +477,8 @@ export function AppShell() {
   const activeAccountId = useAccountsStore((s) => s.activeAccountId);
 
   useEffect(() => installKeyboardScroll(), []);
+  // A reload or window close with an unsaved draft asks first (b-oss#1059).
+  useEffect(() => installUnloadGuard(), []);
 
   useEffect(() => {
     void applyFontScale();
@@ -557,13 +561,15 @@ export function AppShell() {
     <IonApp>
       <OverlayProvider>
         <IonReactRouter>
-          {!splitPane && <NavMenu />}
-          <ReminderTapListener />
-          <BrowseBackGuard />
-          <PushListener />
-          <DeepLinkListener />
-          <OverlayHost />
-          {splitPane ? <NavSplitPane>{outlet}</NavSplitPane> : outlet}
+          <DraftNavigationGuard>
+            {!splitPane && <NavMenu />}
+            <ReminderTapListener />
+            <BrowseBackGuard />
+            <PushListener />
+            <DeepLinkListener />
+            <OverlayHost />
+            {splitPane ? <NavSplitPane>{outlet}</NavSplitPane> : outlet}
+          </DraftNavigationGuard>
         </IonReactRouter>
       </OverlayProvider>
       <ShellBuildNotice />

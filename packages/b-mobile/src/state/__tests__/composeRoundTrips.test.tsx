@@ -718,9 +718,8 @@ function pressHardwareBack(): ReturnType<typeof vi.fn<() => void>> {
 
 interface Exit {
   name: string;
-  /** Starts the way out; resolves to what "it went ahead" looks like. */
-  go: () => { reached: () => boolean } | ReturnType<typeof vi.fn<() => void>>;
-  target?: string;
+  go: () => void;
+  target: string;
 }
 
 const EXITS: Exit[] = [
@@ -748,7 +747,7 @@ describe.each<Mode>(['publish', 'edit'])(
       expect(draft().dirty).toBe(true);
     }
 
-    describe.each(EXITS.filter((e) => e.target))('$name', (exit) => {
+    describe.each(EXITS)('$name', (exit) => {
       it('asks, and Keep editing stays with the draft', async () => {
         await dirtyAndOpen();
         act(() => void exit.go());

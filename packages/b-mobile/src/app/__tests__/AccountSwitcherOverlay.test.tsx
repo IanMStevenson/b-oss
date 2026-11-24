@@ -7,9 +7,12 @@
 // opens SCR-30.
 
 import { describe, it, expect, afterEach, vi } from 'vitest';
-import { render, screen, cleanup } from '@testing-library/react';
+import { render, screen, cleanup, waitFor, act } from '@testing-library/react';
+import { MemoryRouter } from 'react-router-dom';
 import userEvent from '@testing-library/user-event';
 import { AccountSwitcherOverlay } from '../AccountSwitcherOverlay.js';
+import { DraftNavigationGuard } from '../routes/DraftNavigationGuard.js';
+import { useComposeDraftStore } from '../../state/composeDraftStore.js';
 import { useAccountsStore } from '../../state/accountsStore.js';
 import { useDevicePrefsStore } from '../../state/devicePrefsStore.js';
 import type { StoredAccount } from '../../state/accountsStore.js';
@@ -168,5 +171,68 @@ describe('AccountSwitcherOverlay', () => {
     expect(onDismiss).toHaveBeenCalled();
     expect(switchAccount).not.toHaveBeenCalled();
     expect(push).not.toHaveBeenCalled();
+  });
+});
+
+describe('switching account with an unsaved draft (b-oss#1059)', () => {
+  const DIRTY = {
+    mode: 'publish' as const,
+    accountId: 'a1',
+    photo: null,
+    title: 'Unsaved',
+    tags: '',
+    description: '',
+    date: '2026-01-01',
+    location: null,
+    displayLocation: false,
+    thumbnailCrop: null,
+    dirty: true,
+  };
+  const clickAlert = async (name: string) => {
+    await waitFor(() => {
+      const open = [...document.querySelectorAll('ion-alert')].filter(
+        (a) => !a.classList.contains('overlay-hidden'),
+      );
+      if (open.length === 0) throw new Error('no alert is presented');
+    });
+    await act(() => new Promise((r) => setTimeout(r, 100)));
+    const buttons = await screen.findAllByRole('button', { name });
+    await userEvent.click(buttons[buttons.length - 1]);
+  };
+  const setup = () => {
+    useAccountsStore.setState({
+      accounts: [account(), account({ id: 'a2', username: 'bob' })],
+      activeAccountId: 'a1',
+    });
+    useComposeDraftStore.setState({ draft: DIRTY });
+    render(
+      <MemoryRouter>
+        <DraftNavigationGuard>
+          <AccountSwitcherOverlay onDismiss={vi.fn()} />
+        </DraftNavigationGuard>
+      </MemoryRouter>,
+    );
+  };
+  afterEach(() => {
+    document.body.innerHTML = '';
+    useComposeDraftStore.setState({ draft: null });
+  });
+
+  it('asks first; Keep editing does not switch', async () => {
+    setup();
+    await userEvent.click(screen.getByText('bob'));
+    await screen.findByText('Discard this entry?');
+    expect(switchAccount).not.toHaveBeenCalled();
+    await clickAlert('Keep editing');
+    expect(switchAccount).not.toHaveBeenCalled();
+    expect(useComposeDraftStore.getState().draft?.title).toBe('Unsaved');
+  });
+
+  it('Discard clears the draft and switches', async () => {
+    setup();
+    await userEvent.click(screen.getByText('bob'));
+    await clickAlert('Discard');
+    await waitFor(() => expect(switchAccount).toHaveBeenCalledWith('a2'));
+    expect(useComposeDraftStore.getState().draft).toBeNull();
   });
 });
