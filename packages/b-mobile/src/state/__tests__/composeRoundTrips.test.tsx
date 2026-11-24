@@ -591,3 +591,79 @@ describe('no field without a case', () => {
     }
   });
 });
+
+// ---- b-oss#1057: starting another entry while a different unsaved draft is open -------------------
+
+describe('another unsaved draft is open (b-oss#1057)', () => {
+  const OTHER: ComposeDraft = {
+    mode: 'publish',
+    accountId: 'a1',
+    photo: photo('blob:existing'),
+    title: 'My unsaved entry',
+    tags: '',
+    description: '',
+    date: '2026-02-02',
+    location: null,
+    displayLocation: false,
+    thumbnailCrop: null,
+    dirty: true,
+  };
+  const seed = (d: ComposeDraft) => act(() => useComposeDraftStore.getState().setDraft(d));
+
+  it('new entry: asks before replacing; Keep editing returns to the draft untouched', async () => {
+    seed(OTHER);
+    render(<App start="/compose" />);
+    await userEvent.click(await screen.findByText(CHOOSE));
+    await screen.findByText('Discard this entry?');
+    expect(draft().title).toBe('My unsaved entry');
+    await userEvent.click(screen.getByText('Keep editing'));
+    await waitFor(() => expect(path()).toBe('/compose/details'));
+    expect(draft().title).toBe('My unsaved entry');
+    expect(draft().photo?.webPath).toBe('blob:existing');
+  });
+
+  it('new entry: Discard carries on with the new photo', async () => {
+    seed(OTHER);
+    render(<App start="/compose" />);
+    await userEvent.click(await screen.findByText(CHOOSE));
+    await userEvent.click(await screen.findByText('Discard'));
+    await waitFor(() => expect(path()).toBe('/compose/details'));
+    expect(draft().title).toBe('');
+    expect(draft().photo?.webPath).toBe('blob:pick-1');
+  });
+
+  it('new entry: a clean draft is replaced without asking', async () => {
+    seed({ ...OTHER, dirty: false });
+    render(<App start="/compose" />);
+    await userEvent.click(await screen.findByText(CHOOSE));
+    await waitFor(() => expect(path()).toBe('/compose/details'));
+    expect(screen.queryByText('Discard this entry?')).toBeNull();
+    expect(draft().photo?.webPath).toBe('blob:pick-1');
+  });
+
+  it('edit: opening another entry asks first and does not load it until Discard', async () => {
+    seed(OTHER);
+    render(<App start="/entry/e1/edit" />);
+    await screen.findByText('Discard this entry?');
+    expect(w.fetchEntry).not.toHaveBeenCalled();
+    expect(draft().title).toBe('My unsaved entry');
+    await userEvent.click(screen.getByText('Discard'));
+    await screen.findByDisplayValue('Sunrise');
+    expect(draft().mode).toBe('edit');
+  });
+
+  it('edit: Keep editing returns to the open draft', async () => {
+    seed(OTHER);
+    render(<App start="/entry/e1/edit" />);
+    await userEvent.click(await screen.findByText('Keep editing'));
+    await waitFor(() => expect(path()).toBe('/compose/details'));
+    expect(draft().title).toBe('My unsaved entry');
+    expect(w.fetchEntry).not.toHaveBeenCalled();
+  });
+
+  it('edit: a different entry\'s dirty edit draft says "Discard changes?"', async () => {
+    seed({ ...OTHER, mode: 'edit', entryId: 'e9', photo: null });
+    render(<App start="/entry/e1/edit" />);
+    await screen.findByText('Discard changes?');
+  });
+});
