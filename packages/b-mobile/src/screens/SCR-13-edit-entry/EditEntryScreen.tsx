@@ -16,7 +16,7 @@
 // Delete is immediate (no draft involved) — same confirm-then-delete-then-navigate-to-Browse
 // behaviour this screen inherited from EntryDetailScreen's old overflow menu.
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import {
   IonPage,
   IonHeader,
@@ -256,11 +256,9 @@ export function EditEntryScreen({ entryId }: EditEntryScreenProps) {
     void saveDraft({ ...draft, thumbnailCrop: null });
   }
 
-  /** Decision 3: cancel the edits, back to the entry as it was. */
+  /** Decision 3: cancel the edits. Asks the screen's usual "Discard changes?" first. */
   function cancelEdits(): void {
-    setThumbDecision(false);
-    clearDraft();
-    navigate.goBackOr(`/entry/${entryId}`);
+    setConfirmDiscard(true);
   }
 
   /** Decision 2: delete the entry and post the edits as a new one. */
@@ -350,6 +348,28 @@ export function EditEntryScreen({ entryId }: EditEntryScreenProps) {
     }
   }
 
+  // The question asked before the edits are thrown away (Back and Home with changes, and the
+  // thumbnail decision's "cancel the edits"): one element, shown wherever it is needed.
+  const discardAlert = (
+    <IonAlert
+      isOpen={confirmDiscard}
+      header="Discard changes?"
+      onDidDismiss={() => setConfirmDiscard(false)}
+      buttons={[
+        { text: 'Keep editing', role: 'cancel' },
+        {
+          text: 'Discard',
+          role: 'destructive',
+          handler: () => {
+            clearDraft();
+            if (pendingHome.current) pendingHome.current();
+            else navigate.goBack();
+          },
+        },
+      ]}
+    />
+  );
+
   // Loading and failed both show the same header as the form, so the page doesn't jump and a way
   // back is always there.
   const loadHeader = (
@@ -363,81 +383,79 @@ export function EditEntryScreen({ entryId }: EditEntryScreenProps) {
     </IonHeader>
   );
 
+  // A screen in place of the form (the loading and failed screens aside): the header, one block of
+  // content, and any alerts it needs.
+  const fullScreen = (content: ReactNode, alerts?: ReactNode) => (
+    <IonPage>
+      {loadHeader}
+      <IonContent>{content}</IonContent>
+      {alerts}
+    </IonPage>
+  );
+
   // The entry was saved but not every extras change went through (b-oss#1041): say so, with the
   // edit page to finish by hand. The draft is already cleared, so this comes before the load checks.
   if (extrasState !== null && extrasState !== 'updating') {
-    return (
-      <IonPage>
-        {loadHeader}
-        <IonContent>
-          <div className="compose-form">
-            <h2>Your changes are saved</h2>
-            <ExtrasResult outcome={extrasState} lead="Your changes are saved" />
-            <IonButton
-              expand="block"
-              onClick={() => navigate.replace(`/entry/${resultEntryId ?? entryId}`)}
-            >
-              View entry
-            </IonButton>
-          </div>
-        </IonContent>
-      </IonPage>
+    return fullScreen(
+      <div className="compose-form">
+        <h2>Your changes are saved</h2>
+        <ExtrasResult outcome={extrasState} lead="Your changes are saved" />
+        <IonButton
+          expand="block"
+          onClick={() => navigate.replace(`/entry/${resultEntryId ?? entryId}`)}
+        >
+          View entry
+        </IonButton>
+      </div>,
     );
   }
 
   // The old entry is gone and the new one could not be posted (b-oss#1062): the edits are kept as a
   // new-entry draft; say what happened and carry on from there.
   if (repostFailure) {
-    return (
-      <IonPage>
-        {loadHeader}
-        <IonContent>
-          <div className="compose-form">
-            <h2>The entry was deleted, but the new one was not posted</h2>
-            <IonText color="danger">
-              <p>{repostFailure.message}</p>
-            </IonText>
-            <IonText>
-              <p>Your edits are kept. Continue to post them as a new entry.</p>
-            </IonText>
-            <IonButton
-              expand="block"
-              onClick={() => {
-                setRepostFailure(null);
-                navigate.replace('/compose/details');
-              }}
-            >
-              Continue
-            </IonButton>
-          </div>
-        </IonContent>
-      </IonPage>
+    return fullScreen(
+      <div className="compose-form">
+        <h2>The entry was deleted, but the new one was not posted</h2>
+        <IonText color="danger">
+          <p>{repostFailure.message}</p>
+        </IonText>
+        <IonText>
+          <p>Your edits are kept. Continue to post them as a new entry.</p>
+        </IonText>
+        <IonButton
+          expand="block"
+          onClick={() => {
+            setRepostFailure(null);
+            navigate.replace('/compose/details');
+          }}
+        >
+          Continue
+        </IonButton>
+      </div>,
     );
   }
 
   // A replacement photo with a changed thumbnail selection (b-oss#1062): the member decides.
   if (thumbDecision && draft) {
-    return (
-      <IonPage>
-        {loadHeader}
-        <IonContent>
-          {submitError && (
-            <div className="compose-form">
-              <IonText color="danger">
-                <p>{submitError}</p>
-              </IonText>
-            </div>
-          )}
-          <ReplaceThumbnailDecision
-            websiteUrl={entryEditUrl(entryId)}
-            onOpenWebsite={(url) => void openUrl(url)}
-            busy={deciding || submitting}
-            onContinueWithDefault={continueWithDefaultThumbnail}
-            onDeleteAndRepost={() => void deleteAndRepost()}
-            onCancelEdits={cancelEdits}
-          />
-        </IonContent>
-      </IonPage>
+    return fullScreen(
+      <>
+        {submitError && (
+          <div className="compose-form">
+            <IonText color="danger">
+              <p>{submitError}</p>
+            </IonText>
+          </div>
+        )}
+        <ReplaceThumbnailDecision
+          websiteUrl={entryEditUrl(entryId)}
+          onOpenWebsite={(url) => void openUrl(url)}
+          busy={deciding || submitting}
+          onContinueWithDefault={continueWithDefaultThumbnail}
+          onDeleteAndRepost={() => void deleteAndRepost()}
+          onCancelEdits={cancelEdits}
+        />
+      </>,
+      discardAlert,
     );
   }
 
@@ -683,23 +701,7 @@ export function EditEntryScreen({ entryId }: EditEntryScreenProps) {
         ]}
       />
 
-      <IonAlert
-        isOpen={confirmDiscard}
-        header="Discard changes?"
-        onDidDismiss={() => setConfirmDiscard(false)}
-        buttons={[
-          { text: 'Keep editing', role: 'cancel' },
-          {
-            text: 'Discard',
-            role: 'destructive',
-            handler: () => {
-              clearDraft();
-              if (pendingHome.current) pendingHome.current();
-              else navigate.goBack();
-            },
-          },
-        ]}
-      />
+      {discardAlert}
     </IonPage>
   );
 }

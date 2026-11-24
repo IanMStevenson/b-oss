@@ -5,7 +5,9 @@
 // The API ignores a thumbnail selection when a photo is replaced, so saving as it stands would
 // quietly give the new photo the default thumbnail. The member decides instead (flows/
 // thumbnailDecision.ts): carry on with the default, delete the entry and post the edits as a new
-// one (asked once more, being irreversible), or cancel the edits.
+// one, or cancel the edits. The first two lose or change something, so the screen only offers the
+// three plainly; "delete and repost" is asked once more on a screen of its own, which says exactly
+// what is lost, and cancelling goes through the screen's usual discard question (the caller's).
 
 import { useState } from 'react';
 import { IonButton, IonSpinner, IonText } from '@ionic/react';
@@ -18,6 +20,7 @@ interface Props {
   busy: boolean;
   onContinueWithDefault: () => void;
   onDeleteAndRepost: () => void;
+  /** Asks the usual "discard changes?" question and, if confirmed, leaves. */
   onCancelEdits: () => void;
 }
 
@@ -62,14 +65,21 @@ export function ReplaceThumbnailDecision({
     );
   }
 
+  const options: { label: string; onClick: () => void }[] = [
+    { label: 'Continue posting with the default thumbnail', onClick: onContinueWithDefault },
+    {
+      label: 'Delete the current entry and upload your changes as a replacement entry',
+      onClick: () => setConfirming(true),
+    },
+    { label: 'Cancel the edits (lose any changes you made)', onClick: onCancelEdits },
+  ];
+
   return (
     <div className="compose-form thumb-decision" role="group" aria-labelledby="thumb-decision">
       <h2 id="thumb-decision">Thumbnail on a replacement photo</h2>
       <IonText>
         <p>
           The Blipfoto API has a bug and doesn&apos;t accept thumbnail edits on replacement images.
-        </p>
-        <p>
           If you want to edit the thumbnail on a replacement image, you can do so on the{' '}
           <a
             href={websiteUrl}
@@ -85,24 +95,11 @@ export function ReplaceThumbnailDecision({
         <p>Please decide what to do with the edits you made here:</p>
       </IonText>
       {busy && <IonSpinner name="dots" />}
-      <IonButton expand="block" disabled={busy} onClick={onContinueWithDefault}>
-        Continue posting with the default thumbnail
-      </IonButton>
-      <IonButton
-        expand="block"
-        color="danger"
-        fill="outline"
-        disabled={busy}
-        onClick={() => setConfirming(true)}
-      >
-        Delete the current entry and upload your changes as a replacement entry
-      </IonButton>
-      <IonText color="medium">
-        <p>Its likes, hearts, comments, view count and existing extra photos will be lost.</p>
-      </IonText>
-      <IonButton expand="block" fill="clear" disabled={busy} onClick={onCancelEdits}>
-        Cancel the edits (lose any changes you made)
-      </IonButton>
+      {options.map((option) => (
+        <IonButton key={option.label} expand="block" disabled={busy} onClick={option.onClick}>
+          {option.label}
+        </IonButton>
+      ))}
     </div>
   );
 }

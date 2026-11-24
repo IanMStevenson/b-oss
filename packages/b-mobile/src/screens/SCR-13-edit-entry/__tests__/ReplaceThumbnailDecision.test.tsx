@@ -93,6 +93,8 @@ beforeEach(() => {
 
 afterEach(() => {
   cleanup();
+  // Ionic alerts are portalled onto <body>, outside what cleanup() removes.
+  document.querySelectorAll('ion-alert').forEach((alert) => alert.remove());
   vi.resetAllMocks();
 });
 
@@ -157,15 +159,30 @@ describe('saving a replacement photo with a chosen thumbnail', () => {
     await waitFor(() => expect(goBackOr).toHaveBeenCalledWith('/entry/e1'));
   });
 
-  it('3: cancels the edits and goes back to the entry', async () => {
+  it('3: asks the usual "Discard changes?" question, then cancels the edits', async () => {
     seedDraft();
     renderScreen();
     await pressSave();
     await userEvent.click(await screen.findByText('Cancel the edits (lose any changes you made)'));
+    expect(await screen.findByText('Discard changes?')).toBeDefined();
+    // Not yet: the question comes first.
+    expect(useComposeDraftStore.getState().draft).not.toBeNull();
+    await userEvent.click(screen.getByRole('button', { name: 'Discard' }));
     expect(useComposeDraftStore.getState().draft).toBeNull();
-    expect(goBackOr).toHaveBeenCalledWith('/entry/e1');
+    expect(goBack).toHaveBeenCalled();
     expect(submitDraft).not.toHaveBeenCalled();
     expect(deleteEntry).not.toHaveBeenCalled();
+  });
+
+  it('3: Keep editing leaves the decision screen as it was', async () => {
+    seedDraft();
+    renderScreen();
+    await pressSave();
+    await userEvent.click(await screen.findByText('Cancel the edits (lose any changes you made)'));
+    await userEvent.click(await screen.findByRole('button', { name: 'Keep editing' }));
+    expect(useComposeDraftStore.getState().draft).not.toBeNull();
+    expect(await screen.findByText('Continue posting with the default thumbnail')).toBeDefined();
+    expect(goBack).not.toHaveBeenCalled();
   });
 
   it('2: asks once more, then deletes the entry and posts the edits as a new one', async () => {
