@@ -21,6 +21,7 @@ import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Route, Routes, useLocation, useNavigate } from 'react-router-dom';
 import type { Location, NavigateFunction } from 'react-router-dom';
 import { OverlayProvider } from '../../app/OverlayProvider.js';
+import { DraftNavigationGuard } from '../../app/routes/DraftNavigationGuard.js';
 import { NewEntryScreen } from '../../screens/SCR-09-new-entry/NewEntryScreen.js';
 import { ComposeEntryScreen } from '../../screens/SCR-10-compose-entry-details/ComposeEntryScreen.js';
 import { LocationPickerScreen } from '../../screens/SCR-12-location-picker/LocationPickerScreen.js';
@@ -126,17 +127,19 @@ function Probe() {
 function App({ start }: { start: string }) {
   return (
     <MemoryRouter initialEntries={[start]}>
-      <Probe />
-      <OverlayProvider>
-        <Routes>
-          <Route path="/compose" element={<NewEntryScreen />} />
-          <Route path="/compose/details" element={<ComposeEntryScreen />} />
-          <Route path="/compose/location" element={<LocationPickerScreen />} />
-          <Route path="/entry/:id/edit" element={<EditEntryScreen entryId="e1" />} />
-          <Route path="/entry/:id/edit/photo" element={<NewEntryScreen replaceEntryId="e1" />} />
-          <Route path="*" element={<p>elsewhere</p>} />
-        </Routes>
-      </OverlayProvider>
+      <DraftNavigationGuard>
+        <Probe />
+        <OverlayProvider>
+          <Routes>
+            <Route path="/compose" element={<NewEntryScreen />} />
+            <Route path="/compose/details" element={<ComposeEntryScreen />} />
+            <Route path="/compose/location" element={<LocationPickerScreen />} />
+            <Route path="/entry/:id/edit" element={<EditEntryScreen entryId="e1" />} />
+            <Route path="/entry/:id/edit/photo" element={<NewEntryScreen replaceEntryId="e1" />} />
+            <Route path="*" element={<p>elsewhere</p>} />
+          </Routes>
+        </OverlayProvider>
+      </DraftNavigationGuard>
     </MemoryRouter>
   );
 }
@@ -691,6 +694,126 @@ describe('another unsaved draft is open (b-oss#1057)', () => {
     await screen.findByText('Discard changes?');
   });
 });
+
+// ---- b-oss#1059: any way out of an unsaved draft asks first ---------------------------------------
+
+/** What Ionic does on the Android Back button: collects the handlers registered on `ionBackButton`
+ * and runs the highest priority one. `next` stands for the router's own Back. */
+function pressHardwareBack(): ReturnType<typeof vi.fn<() => void>> {
+  const handlers: Array<{ priority: number; run: (next: () => void) => void }> = [];
+  document.dispatchEvent(
+    new CustomEvent('ionBackButton', {
+      detail: {
+        register: (priority: number, run: (next: () => void) => void) =>
+          handlers.push({ priority, run }),
+      },
+    }),
+  );
+  const next = vi.fn<() => void>();
+  const top = handlers.sort((a, b) => b.priority - a.priority)[0];
+  if (top) top.run(next);
+  else next();
+  return next;
+}
+
+interface Exit {
+  name: string;
+  /** Starts the way out; resolves to what "it went ahead" looks like. */
+  go: () => { reached: () => boolean } | ReturnType<typeof vi.fn<() => void>>;
+  target?: string;
+}
+
+const EXITS: Exit[] = [
+  { name: 'side menu / tab: another screen', target: '/settings', go: () => nav.go?.('/settings') },
+  {
+    name: 'a notification or deep-link tap',
+    target: '/notifications',
+    go: () => nav.go?.('/notifications'),
+  },
+  { name: 'opening an entry from a link', target: '/entry/x9', go: () => nav.go?.('/entry/x9') },
+  { name: 'opening a profile from a link', target: '/user/bob', go: () => nav.go?.('/user/bob') },
+  {
+    name: 'the sign-in window returning to another route',
+    target: '/browse',
+    go: () => nav.go?.('/browse', { replace: true }),
+  },
+];
+
+describe.each<Mode>(['publish', 'edit'])(
+  'leaving an unsaved draft asks first (b-oss#1059), %s',
+  (mode) => {
+    async function dirtyAndOpen(): Promise<void> {
+      await open(mode);
+      await typeInto('Title', 'Something');
+      expect(draft().dirty).toBe(true);
+    }
+
+    describe.each(EXITS.filter((e) => e.target))('$name', (exit) => {
+      it('asks, and Keep editing stays with the draft', async () => {
+        await dirtyAndOpen();
+        act(() => void exit.go());
+        await screen.findByText(mode === 'edit' ? 'Discard changes?' : 'Discard this entry?');
+        expect(path()).toBe(here(mode));
+        await clickAlert('Keep editing');
+        expect(path()).toBe(here(mode));
+        expect(draft().title).toBe('Something');
+      });
+
+      it('Discard goes ahead and clears the draft', async () => {
+        await dirtyAndOpen();
+        act(() => void exit.go());
+        await clickAlert('Discard');
+        await waitFor(() => expect(path()).toBe(exit.target?.split('?')[0]));
+        expect(useComposeDraftStore.getState().draft).toBeNull();
+      });
+
+      it('with no changes it goes ahead without asking', async () => {
+        await open(mode);
+        act(() => void exit.go());
+        await waitFor(() => expect(path()).toBe(exit.target?.split('?')[0]));
+        expect(screen.queryByRole('button', { name: 'Discard' })).toBeNull();
+      });
+    });
+
+    describe('Android hardware Back', () => {
+      it('asks; Keep editing does not go back', async () => {
+        await dirtyAndOpen();
+        const next = pressHardwareBack();
+        await screen.findByText(mode === 'edit' ? 'Discard changes?' : 'Discard this entry?');
+        await clickAlert('Keep editing');
+        expect(next).not.toHaveBeenCalled();
+        expect(draft().title).toBe('Something');
+      });
+
+      it('Discard clears the draft and then goes back', async () => {
+        await dirtyAndOpen();
+        const next = pressHardwareBack();
+        await clickAlert('Discard');
+        await waitFor(() => expect(next).toHaveBeenCalledTimes(1));
+        expect(useComposeDraftStore.getState().draft).toBeNull();
+      });
+
+      it('with no changes it goes back at once', async () => {
+        await open(mode);
+        const next = pressHardwareBack();
+        expect(next).toHaveBeenCalledTimes(1);
+      });
+
+      it("from the location picker it stays inside the draft's own flow, no question", async () => {
+        await open(mode);
+        await setEverything(mode); // gives it a location, so the picker's "Change" is there
+        await openPicker();
+        const next = pressHardwareBack();
+        expect(next).toHaveBeenCalledTimes(1);
+        expect(
+          [...document.querySelectorAll('ion-alert')].filter(
+            (a) => !a.classList.contains('overlay-hidden'),
+          ),
+        ).toHaveLength(0);
+      });
+    });
+  },
+);
 
 // ---- b-oss#1058: blob URLs are released when the photo is no longer wanted ---------------------------
 
