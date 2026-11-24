@@ -20,7 +20,7 @@
   },
   "devDependencies": {
     "@b-oss/b-notify-core": "*",
-    "electron": "45.3.2",
+    "electron": "45.4.1",
     "electron-builder": "^26.18.0",
     "electron-vite": "^6.0.0",
     "playwright-core": "^1.65.1",
