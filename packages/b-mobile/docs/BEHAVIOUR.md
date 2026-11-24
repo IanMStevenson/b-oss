@@ -92,7 +92,7 @@ Known Blipfoto API limits: [AppLimitations.md](AppLimitations.md). Paths are rel
   being irreversible: likes, hearts, comments, view count and existing extras are lost; the new entry
   gets the same photo, details, date, position, selection and any extras just added; the delete runs
   first, and if the post fails after it the edits are kept as a new-entry draft with the reason);
-  (3) cancel the edits, which asks the usual "Discard changes?" first. The three are plain buttons of one style; only the second goes on to a screen of its own, in red. No decision screen when only the photo is replaced, or the selection is still
+  (3) cancel the edits, which asks the usual "Discard changes?" first. The default is a solid button and the other two are outlined; only the second goes on to a screen of its own, in red. No decision screen when only the photo is replaced, or the selection is still
   the default (`flows/thumbnailDecision.ts`).
   In Edit, turning "Add to map" on for an entry whose position the app doesn't hold (the entry's
   `location` is hidden while the map is off, though Blipfoto keeps the co-ordinates) looks it up

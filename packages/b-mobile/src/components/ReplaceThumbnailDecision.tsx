@@ -65,13 +65,19 @@ export function ReplaceThumbnailDecision({
     );
   }
 
-  const options: { label: string; onClick: () => void }[] = [
+  // The default is the solid button; the two that lose something are outlined.
+  const options: { label: string; onClick: () => void; outline?: boolean }[] = [
     { label: 'Continue posting with the default thumbnail', onClick: onContinueWithDefault },
     {
       label: 'Delete the current entry and upload your changes as a replacement entry',
       onClick: () => setConfirming(true),
+      outline: true,
     },
-    { label: 'Cancel the edits (lose any changes you made)', onClick: onCancelEdits },
+    {
+      label: 'Cancel the edits (lose any changes you made)',
+      onClick: onCancelEdits,
+      outline: true,
+    },
   ];
 
   return (
@@ -96,7 +102,13 @@ export function ReplaceThumbnailDecision({
       </IonText>
       {busy && <IonSpinner name="dots" />}
       {options.map((option) => (
-        <IonButton key={option.label} expand="block" disabled={busy} onClick={option.onClick}>
+        <IonButton
+          key={option.label}
+          expand="block"
+          fill={option.outline ? 'outline' : 'solid'}
+          disabled={busy}
+          onClick={option.onClick}
+        >
           {option.label}
         </IonButton>
       ))}
