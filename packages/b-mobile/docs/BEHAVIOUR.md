@@ -83,6 +83,17 @@ Known Blipfoto API limits: [AppLimitations.md](AppLimitations.md). Paths are rel
   ("Saving your changes… Please don't leave the app until the upload completes."), then returns to
   the entry. If it fails, the form stays with the edits intact, the error shown and the button
   reading Retry (b-oss#730).
+  **A replacement photo with a thumbnail the member chose** (b-oss#1062): Blipfoto's API ignores a
+  thumbnail selection when an entry's photo is replaced (the website applies it), so Save does not send
+  it. If the member changed the selection from the default, Save shows a decision screen instead: "The
+  Blipfoto API has a bug and doesn't accept thumbnail edits on replacement images", a link to the entry's
+  edit page on the website, and three choices: (1) continue with the default thumbnail (saved without
+  the selection); (2) delete the current entry and post the edits as a new entry (asked once more,
+  being irreversible: likes, hearts, comments, view count and existing extras are lost; the new entry
+  gets the same photo, details, date, position, selection and any extras just added; the delete runs
+  first, and if the post fails after it the edits are kept as a new-entry draft with the reason);
+  (3) cancel the edits. No decision screen when only the photo is replaced, or the selection is still
+  the default (`flows/thumbnailDecision.ts`).
   In Edit, turning "Add to map" on for an entry whose position the app doesn't hold (the entry's
   `location` is hidden while the map is off, though Blipfoto keeps the co-ordinates) looks it up
   immediately, not queued (`data/entryLocation.ts`): map on without a position, read the entry

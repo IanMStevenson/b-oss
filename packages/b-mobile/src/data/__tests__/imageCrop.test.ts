@@ -143,3 +143,20 @@ describe('initialThumbnailCrop', () => {
     expect(initialThumbnailCrop(400, 300)).toBeNull();
   });
 });
+
+describe('thumbnailWasEdited', () => {
+  it('is false for the default selection, and for none', async () => {
+    const { thumbnailWasEdited, initialThumbnailCrop } = await import('../imageCrop.js');
+    expect(thumbnailWasEdited(null, 1600, 1000)).toBe(false);
+    expect(thumbnailWasEdited(initialThumbnailCrop(1600, 1000), 1600, 1000)).toBe(false);
+  });
+
+  it('is true once the member moves or resizes it', async () => {
+    const { thumbnailWasEdited, initialThumbnailCrop } = await import('../imageCrop.js');
+    const initial = initialThumbnailCrop(1600, 1000);
+    expect(initial).not.toBeNull();
+    if (!initial) return;
+    expect(thumbnailWasEdited({ ...initial, x: initial.x + 0.05 }, 1600, 1000)).toBe(true);
+    expect(thumbnailWasEdited({ ...initial, w: initial.w - 0.05 }, 1600, 1000)).toBe(true);
+  });
+});

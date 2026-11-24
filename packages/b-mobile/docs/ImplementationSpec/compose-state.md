@@ -61,7 +61,9 @@ nothing to it. A page refresh loses it (by design: no persistence; it asks first
 ### Component state and refs (all transient, safe to lose)
 
 SCR-13: `loading`/`loadError`/`loadAttempt`, `submitting`, `submitError`, `extrasState` (outcome after
-save: the draft is already cleared then), the three alert flags, `lookingUpPosition`, `mapMessage`,
+save: the draft is already cleared then), the three alert flags, the replacement-thumbnail decision
+(`thumbDecision`, `deciding`, `resultEntryId`, `repostFailure`: UI of the moment, never in the draft; the
+delete-and-repost case carries the edits as a new-entry draft in the store so a failed post loses nothing), `lookingUpPosition`, `mapMessage`,
 `pendingHome`, `hasSeededRef` (initialised from "a draft for this entry exists", never re-armed).
 SCR-10: `eligibility*`, `unusablePhoto` (recomputed on mount from the draft's photo), `submitting`,
 `published` (after publish the draft is cleared; a remount there redirects to SCR-09). SCR-12:

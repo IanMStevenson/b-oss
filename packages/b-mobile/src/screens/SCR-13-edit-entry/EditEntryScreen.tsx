@@ -42,12 +42,21 @@ import {
   dirtyDraftOtherThan,
   draftRoute,
   useComposeDraftStore,
+  type ComposeDraft,
 } from '../../state/composeDraftStore.js';
 import { ReplaceDraftAlert } from '../../components/ReplaceDraftAlert.js';
 import { useActiveAccount } from '../../state/accountsStore.js';
 import { fetchEntry, deleteEntry } from '../../data/entries.js';
 import { UploadingNotice } from '../../components/UploadingNotice.js';
 import { submitDraft, describeSubmitError } from '../../flows/composeFlow.js';
+import {
+  RepostFailedError,
+  needsThumbnailDecision,
+  repostAsNewEntry,
+} from '../../flows/thumbnailDecision.js';
+import { ReplaceThumbnailDecision } from '../../components/ReplaceThumbnailDecision.js';
+import { openUrl } from '../../platform/browser.js';
+import { entryEditUrl } from '@b-oss/b-api-web';
 import { revealStoredPosition, StillVisibleError } from '../../data/entryLocation.js';
 import { ThumbnailPhotoFrame } from '../../components/ThumbnailPhotoFrame.js';
 import { cropToProportions } from '../../data/imageCrop.js';
@@ -83,6 +92,15 @@ export function EditEntryScreen({ entryId }: EditEntryScreenProps) {
   const [submitError, setSubmitError] = useState<string | null>(null);
   // b-oss#1041: while the website applies extras changes after a save, and how that ended.
   const [extrasState, setExtrasState] = useState<'updating' | ExtrasOutcome | null>(null);
+  // b-oss#1062: the decision screen for a replacement photo whose thumbnail selection the API
+  // ignores; and, after "delete and post as new", the entry the extras results view returns to.
+  const [thumbDecision, setThumbDecision] = useState(false);
+  const [deciding, setDeciding] = useState(false);
+  const [resultEntryId, setResultEntryId] = useState<string | null>(null);
+  const [repostFailure, setRepostFailure] = useState<{
+    draft: ComposeDraft;
+    message: string;
+  } | null>(null);
   const accounts = useAccountsStore((s) => s.accounts);
   const [confirmDiscard, setConfirmDiscard] = useState(false);
   const [confirmDeleteEntry, setConfirmDeleteEntry] = useState(false);
@@ -184,14 +202,25 @@ export function EditEntryScreen({ entryId }: EditEntryScreenProps) {
     navigate.goBack();
   }
 
-  async function handleSave(): Promise<void> {
+  /** Save pressed. A replacement photo with a changed thumbnail selection is not sent as it stands
+   * (the API ignores the selection): the member decides first (b-oss#1062). */
+  function handleSave(): void {
     if (!draft || submitting) return;
+    if (needsThumbnailDecision(draft)) {
+      setThumbDecision(true);
+      return;
+    }
+    void saveDraft(draft);
+  }
+
+  async function saveDraft(toSave: ComposeDraft): Promise<void> {
+    if (submitting) return;
     setSubmitting(true);
     setSubmitError(null);
     try {
-      await submitDraft(draft);
-      const additions = draft.extras ?? [];
-      const removals = draft.extrasRemove ?? [];
+      await submitDraft(toSave);
+      const additions = toSave.extras ?? [];
+      const removals = toSave.extrasRemove ?? [];
       if (additions.length === 0 && removals.length === 0) {
         clearDraft();
         navigate.goBackOr(`/entry/${entryId}`);
@@ -199,10 +228,10 @@ export function EditEntryScreen({ entryId }: EditEntryScreenProps) {
       }
       // The entry is saved; whatever happens now only affects the extras.
       setExtrasState('updating');
-      const username = accounts.find((a) => a.id === draft.accountId)?.username ?? '';
+      const username = accounts.find((a) => a.id === toSave.accountId)?.username ?? '';
       const outcome = await applyExtras(
         entryId,
-        { id: draft.accountId, username },
+        { id: toSave.accountId, username },
         additions,
         removals,
       );
@@ -214,8 +243,71 @@ export function EditEntryScreen({ entryId }: EditEntryScreenProps) {
         setSubmitting(false);
       }
     } catch (err) {
-      setSubmitError(describeSubmitError(err, draft.accountId, "Couldn't save your changes."));
+      setSubmitError(describeSubmitError(err, toSave.accountId, "Couldn't save your changes."));
       setSubmitting(false);
+    }
+  }
+
+  /** Decision 1: save with the default thumbnail (the selection is dropped). */
+  function continueWithDefaultThumbnail(): void {
+    if (!draft) return;
+    setThumbDecision(false);
+    patchDraft({ thumbnailCrop: null });
+    void saveDraft({ ...draft, thumbnailCrop: null });
+  }
+
+  /** Decision 3: cancel the edits, back to the entry as it was. */
+  function cancelEdits(): void {
+    setThumbDecision(false);
+    clearDraft();
+    navigate.goBackOr(`/entry/${entryId}`);
+  }
+
+  /** Decision 2: delete the entry and post the edits as a new one. */
+  async function deleteAndRepost(): Promise<void> {
+    if (!draft || deciding) return;
+    setDeciding(true);
+    setSubmitError(null);
+    const account = accounts.find((a) => a.id === draft.accountId);
+    try {
+      const newId = await repostAsNewEntry(draft);
+      const additions = draft.extras ?? [];
+      setThumbDecision(false);
+      if (additions.length === 0) {
+        clearDraft();
+        navigate.replace(`/entry/${newId}`);
+        return;
+      }
+      // The new entry exists; what happens now only affects its extras.
+      setExtrasState('updating');
+      const outcome = await applyExtras(
+        newId,
+        { id: draft.accountId, username: account?.username ?? '' },
+        additions,
+      );
+      clearDraft();
+      if (outcome.kind === 'done') {
+        navigate.replace(`/entry/${newId}`);
+      } else {
+        setResultEntryId(newId);
+        setExtrasState(outcome);
+      }
+    } catch (err) {
+      if (err instanceof RepostFailedError) {
+        // The old entry is gone and the new one was not posted: carry on from the new-entry screen
+        // with every edit kept, and say why.
+        useComposeDraftStore.getState().setDraft(err.draft);
+        setThumbDecision(false);
+        setRepostFailure({
+          draft: err.draft,
+          message: describeSubmitError(err.cause, draft.accountId, "Couldn't post the new entry."),
+        });
+      } else {
+        // The delete itself failed: nothing has changed.
+        setSubmitError(describeSubmitError(err, draft.accountId, "Couldn't delete the entry."));
+      }
+    } finally {
+      setDeciding(false);
     }
   }
 
@@ -281,10 +373,69 @@ export function EditEntryScreen({ entryId }: EditEntryScreenProps) {
           <div className="compose-form">
             <h2>Your changes are saved</h2>
             <ExtrasResult outcome={extrasState} lead="Your changes are saved" />
-            <IonButton expand="block" onClick={() => navigate.replace(`/entry/${entryId}`)}>
+            <IonButton
+              expand="block"
+              onClick={() => navigate.replace(`/entry/${resultEntryId ?? entryId}`)}
+            >
               View entry
             </IonButton>
           </div>
+        </IonContent>
+      </IonPage>
+    );
+  }
+
+  // The old entry is gone and the new one could not be posted (b-oss#1062): the edits are kept as a
+  // new-entry draft; say what happened and carry on from there.
+  if (repostFailure) {
+    return (
+      <IonPage>
+        {loadHeader}
+        <IonContent>
+          <div className="compose-form">
+            <h2>The entry was deleted, but the new one was not posted</h2>
+            <IonText color="danger">
+              <p>{repostFailure.message}</p>
+            </IonText>
+            <IonText>
+              <p>Your edits are kept. Continue to post them as a new entry.</p>
+            </IonText>
+            <IonButton
+              expand="block"
+              onClick={() => {
+                setRepostFailure(null);
+                navigate.replace('/compose/details');
+              }}
+            >
+              Continue
+            </IonButton>
+          </div>
+        </IonContent>
+      </IonPage>
+    );
+  }
+
+  // A replacement photo with a changed thumbnail selection (b-oss#1062): the member decides.
+  if (thumbDecision && draft) {
+    return (
+      <IonPage>
+        {loadHeader}
+        <IonContent>
+          {submitError && (
+            <div className="compose-form">
+              <IonText color="danger">
+                <p>{submitError}</p>
+              </IonText>
+            </div>
+          )}
+          <ReplaceThumbnailDecision
+            websiteUrl={entryEditUrl(entryId)}
+            onOpenWebsite={(url) => void openUrl(url)}
+            busy={deciding || submitting}
+            onContinueWithDefault={continueWithDefaultThumbnail}
+            onDeleteAndRepost={() => void deleteAndRepost()}
+            onCancelEdits={cancelEdits}
+          />
         </IonContent>
       </IonPage>
     );
@@ -500,7 +651,7 @@ export function EditEntryScreen({ entryId }: EditEntryScreenProps) {
               <IonButton
                 expand="block"
                 disabled={submitting || editLevel === 0}
-                onClick={() => void handleSave()}
+                onClick={() => handleSave()}
               >
                 {submitting ? <IonSpinner name="dots" /> : submitError ? 'Retry' : 'Save'}
               </IonButton>

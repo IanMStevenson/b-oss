@@ -485,3 +485,17 @@ ion-progress-bar.upload-progress {
   min-width: 140px;
   max-width: 160px;
 }
+
+/* The replacement-thumbnail decision (b-oss#1062): long button labels wrap onto two lines. */
+.thumb-decision ion-button {
+  height: auto;
+  --padding-top: 12px;
+  --padding-bottom: 12px;
+  white-space: normal;
+  text-align: center;
+}
+
+.thumb-decision ion-button::part(native) {
+  white-space: normal;
+  line-height: 1.3;
+}
