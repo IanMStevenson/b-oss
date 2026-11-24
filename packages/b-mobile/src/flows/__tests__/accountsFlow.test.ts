@@ -76,6 +76,16 @@ vi.mock('../pushFlow.js', () => ({
   deregisterAccountFromPush: (...args: unknown[]) => deregisterAccountFromPush(...args),
 }));
 
+// The website login a sign-in round leaves (b-oss#1064): adopted for the account once the round is
+// known to be for it, discarded otherwise.
+const siteAdoptPending = vi.fn<(token: string, accountId: string) => Promise<void>>();
+const siteDiscardPending = vi.fn<(token: string) => Promise<void>>();
+vi.mock('../../platform/siteSession.js', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../../platform/siteSession.js')>()),
+  siteAdoptPending: (token: string, accountId: string) => siteAdoptPending(token, accountId),
+  siteDiscardPending: (token: string) => siteDiscardPending(token),
+}));
+
 // Off-native by default (a desktop/CI run); the b-oss#240 browser-default tests flip it.
 let isNative = false;
 let kindOverride: 'desktop' | null = null;
@@ -113,6 +123,29 @@ function resetStore() {
 beforeEach(resetStore);
 
 describe('signInDeliberate (FLW-20)', () => {
+  it('adopts the website login the round left for the account it created (b-oss#1064)', async () => {
+    runOAuthRound.mockResolvedValueOnce({
+      accessToken: 'tok-r',
+      grantedScope: 'read',
+      username: 'bob',
+      siteSessionToken: 'aa11',
+    });
+    await signInDeliberate({ scope: 'read', notifications: false });
+    expect(siteAdoptPending).toHaveBeenCalledWith('aa11', 'bob');
+    expect(siteDiscardPending).not.toHaveBeenCalled();
+  });
+
+  it('a round with no website login (system browser) adopts and discards nothing', async () => {
+    runOAuthRound.mockResolvedValueOnce({
+      accessToken: 'tok-r',
+      grantedScope: 'read',
+      username: 'bob',
+    });
+    await signInDeliberate({ scope: 'read', notifications: false });
+    expect(siteAdoptPending).not.toHaveBeenCalled();
+    expect(siteDiscardPending).not.toHaveBeenCalled();
+  });
+
   it('read-only + notifications: reuses the single token for both purposes, no second round', async () => {
     runOAuthRound.mockResolvedValueOnce({
       accessToken: 'tok-r',
@@ -726,6 +759,35 @@ describe('owner check on every round for an existing account (b-oss#240)', () =>
       ...extra,
     };
   }
+
+  it('a round signed in as someone else discards its website login rather than adopting it', async () => {
+    tokenStore.set('alice:app', 'write-token');
+    useAccountsStore.setState({ accounts: [stored('alice')], activeAccountId: 'alice' });
+    runOAuthRound.mockResolvedValueOnce({
+      accessToken: 'tok-bob',
+      grantedScope: 'read',
+      username: 'bob',
+      siteSessionToken: 'bb22',
+    });
+    await expect(
+      changeAccountMode('alice', { scope: 'read,write', notifications: true }),
+    ).rejects.toBeInstanceOf(AccountMismatchError);
+    expect(siteDiscardPending).toHaveBeenCalledWith('bb22');
+    expect(siteAdoptPending).not.toHaveBeenCalled();
+  });
+
+  it('a re-sign-in of an existing account adopts the new website login for it', async () => {
+    tokenStore.set('alice:app', 'write-token');
+    useAccountsStore.setState({ accounts: [stored('alice')], activeAccountId: 'alice' });
+    runOAuthRound.mockResolvedValueOnce({
+      accessToken: 'tok-alice2',
+      grantedScope: 'read,write',
+      username: 'alice',
+      siteSessionToken: 'cc33',
+    });
+    await changeAccountMode('alice', { scope: 'read', notifications: false });
+    expect(siteAdoptPending).toHaveBeenCalledWith('cc33', 'alice');
+  });
 
   it('sign-in: a service round for someone else is revoked, nothing stored, and rethrown', async () => {
     runOAuthRound

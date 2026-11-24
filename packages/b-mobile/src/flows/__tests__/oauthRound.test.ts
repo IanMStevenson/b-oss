@@ -10,8 +10,15 @@
 
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-const openEmbeddedAuthMock = vi.fn<(url: string, redirectPrefix: string) => Promise<string>>();
+const openEmbeddedAuthMock =
+  vi.fn<(url: string, redirectPrefix: string, sessionToken?: string) => Promise<string>>();
 const openUrlMock = vi.fn<(url: string) => Promise<void>>();
+const discardMock = vi.fn<(token: string) => Promise<void>>(() => Promise.resolve());
+
+vi.mock('../../platform/siteSession.js', () => ({
+  newSiteSessionToken: () => 'aabbccddeeff00112233445566778899',
+  siteDiscardPending: (token: string) => discardMock(token),
+}));
 
 vi.mock('../../platform/embeddedAuth.js', async () => {
   const actual = await vi.importActual<typeof import('../../platform/embeddedAuth.js')>(
@@ -19,8 +26,8 @@ vi.mock('../../platform/embeddedAuth.js', async () => {
   );
   return {
     ...actual,
-    openEmbeddedAuth: (url: string, redirectPrefix: string) =>
-      openEmbeddedAuthMock(url, redirectPrefix),
+    openEmbeddedAuth: (url: string, redirectPrefix: string, sessionToken?: string) =>
+      openEmbeddedAuthMock(url, redirectPrefix, sessionToken),
   };
 });
 
@@ -59,7 +66,14 @@ describe('runOAuthRound({ useEmbedded: true })', () => {
     const result = await runOAuthRound('read,write', { useEmbedded: true });
 
     expect(openUrlMock).not.toHaveBeenCalled();
-    expect(openEmbeddedAuthMock).toHaveBeenCalledWith(expect.any(String), 'bmobile://oauth/');
+    expect(openEmbeddedAuthMock).toHaveBeenCalledWith(
+      expect.any(String),
+      'bmobile://oauth/',
+      'aabbccddeeff00112233445566778899',
+    );
+    // The website login the round left is the caller's to adopt, and is not discarded here.
+    expect(result.siteSessionToken).toBe('aabbccddeeff00112233445566778899');
+    expect(discardMock).not.toHaveBeenCalled();
     expect(result.accessToken).toBe('tok123');
     expect(result.grantedScope).toBe('read,write');
     expect(result.username).toBe('carol');
@@ -74,6 +88,7 @@ describe('runOAuthRound({ useEmbedded: true })', () => {
       OAuthCancelledError,
     );
     expect(verifyTokenMock).not.toHaveBeenCalled();
+    expect(discardMock).toHaveBeenCalledWith('aabbccddeeff00112233445566778899');
   });
 
   it('a state mismatch on the embedded redirect is discarded as a cancellation', async () => {
@@ -85,6 +100,18 @@ describe('runOAuthRound({ useEmbedded: true })', () => {
     await expect(runOAuthRound('read', { useEmbedded: true })).rejects.toBeInstanceOf(
       OAuthCancelledError,
     );
+    expect(discardMock).toHaveBeenCalledWith('aabbccddeeff00112233445566778899');
+  });
+
+  it('a round that fails verification discards the website login it left', async () => {
+    const { runOAuthRound } = await import('../oauthRound.js');
+    verifyTokenMock.mockRejectedValue(new Error('offline'));
+    openEmbeddedAuthMock.mockImplementation((url) =>
+      Promise.resolve(`bmobile://oauth/#access_token=t&state=${stateFromUrl(url)}`),
+    );
+
+    await expect(runOAuthRound('read', { useEmbedded: true })).rejects.toThrow('offline');
+    expect(discardMock).toHaveBeenCalledWith('aabbccddeeff00112233445566778899');
   });
 
   it('without useEmbedded, still uses the system browser as before', async () => {

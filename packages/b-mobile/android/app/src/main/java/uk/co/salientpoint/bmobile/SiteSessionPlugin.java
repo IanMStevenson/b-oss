@@ -30,6 +30,64 @@ public class SiteSessionPlugin extends Plugin {
   // lands on). A script that reported a failure never navigates, so this must stay short.
   private static final long NAVIGATION_GRACE_MS = 30_000;
 
+  @Override
+  public void load() {
+    SiteProfiles.init(getContext());
+  }
+
+  // b-oss#1064: a sign-in round (EmbeddedAuthPlugin) ran before its account was known, so its website
+  // login sits on a pending profile named for a one-off token. These hand it to the account or throw
+  // it away. Both are quiet when the token names nothing.
+  @PluginMethod
+  public void adoptPending(PluginCall call) {
+    String token = call.getString("token");
+    String accountId = call.getString("accountId");
+    if (token == null || accountId == null || accountId.isEmpty()) {
+      call.reject("token and accountId are required");
+      return;
+    }
+    getActivity()
+        .runOnUiThread(
+            () -> {
+              try {
+                SiteProfiles.adopt(token, accountId);
+                call.resolve();
+              } catch (RuntimeException e) {
+                call.reject(e.getMessage());
+              }
+            });
+  }
+
+  @PluginMethod
+  public void discardPending(PluginCall call) {
+    String token = call.getString("token");
+    if (token == null) {
+      call.reject("token is required");
+      return;
+    }
+    getActivity()
+        .runOnUiThread(
+            () -> {
+              try {
+                SiteProfiles.discard(token);
+                call.resolve();
+              } catch (RuntimeException e) {
+                call.reject(e.getMessage());
+              }
+            });
+  }
+
+  /** Start-up sweep: sign-in rounds the app was stopped in the middle of. */
+  @PluginMethod
+  public void discardAllPending(PluginCall call) {
+    getActivity()
+        .runOnUiThread(
+            () -> {
+              SiteProfiles.discardAllPending();
+              call.resolve();
+            });
+  }
+
   /** Tells the app whether this device can keep a website session per account (WebView profiles). */
   @PluginMethod
   public void isolation(PluginCall call) {

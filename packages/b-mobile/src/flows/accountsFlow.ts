@@ -35,6 +35,7 @@ import { AccountMismatchError, sameUsername } from './accountMismatch.js';
 import { capabilities } from '../platform/capabilities.js';
 import { cancelReminderForAccount } from './reminderFlow.js';
 import { forgetSiteSession } from './extrasFlow.js';
+import { siteAdoptPending, siteDiscardPending } from '../platform/siteSession.js';
 import {
   ensurePushPermission,
   registerAccountForPush,
@@ -110,6 +111,14 @@ async function revokeUnlessHeld(token: string): Promise<void> {
     });
 }
 
+async function adoptSiteLogin(result: OAuthResult, accountId: string): Promise<void> {
+  if (result.siteSessionToken) await siteAdoptPending(result.siteSessionToken, accountId);
+}
+
+async function discardSiteLogin(result: OAuthResult): Promise<void> {
+  if (result.siteSessionToken) await siteDiscardPending(result.siteSessionToken);
+}
+
 /** One OAuth round whose token is meant for `expectedUsername` (b-oss#240). runOAuthRound has
  * already confirmed the token with `GET oauth/token`, which names its owner; if that isn't the
  * expected account the token is revoked (unless held — see revokeUnlessHeld), nothing is stored,
@@ -118,12 +127,18 @@ async function runRoundForAccount(
   expectedUsername: string,
   scope: 'read' | 'read,write',
   options: { useEmbedded?: boolean },
+  accountId: string,
 ): Promise<OAuthResult> {
   const result = await runOAuthRound(scope, options);
   if (!sameUsername(result.username, expectedUsername)) {
+    await discardSiteLogin(result);
     await revokeUnlessHeld(result.accessToken);
     throw new AccountMismatchError(expectedUsername, result.username, options.useEmbedded === true);
   }
+  // The round also signed this member in to the website: it becomes the account's session, so the
+  // member is not asked to sign in a second time for extras (b-oss#1064). Only now, once the round
+  // is known to be for this account.
+  await adoptSiteLogin(result, accountId);
   return result;
 }
 
@@ -204,7 +219,14 @@ export async function signInDeliberate(
 ): Promise<string> {
   const embedded = { useEmbedded: choice.useEmbedded };
   const result = await runOAuthRound(choice.scope, embedded);
-  const account = await storeAppToken(result);
+  let account: StoredAccount;
+  try {
+    account = await storeAppToken(result);
+  } catch (err) {
+    await discardSiteLogin(result);
+    throw err;
+  }
+  await adoptSiteLogin(result, account.id);
   rememberInAppBrowser(account.id, embedded.useEmbedded);
 
   // The account only becomes active once the whole sign-in is over (success or failure). Active-
@@ -246,7 +268,12 @@ async function registerNotificationsAfterSignIn(
         // The second round is for the account the first one just signed in (b-oss#240): same
         // browser as the first round, owner-checked. A mismatch is rethrown — the account stays
         // signed in read-write without notifications, and SCR-01 offers a retry in the app.
-        const serviceResult = await runRoundForAccount(account.username, 'read', embedded);
+        const serviceResult = await runRoundForAccount(
+          account.username,
+          'read',
+          embedded,
+          account.id,
+        );
         await registerServiceToken(
           account.id,
           serviceResult.accessToken,
@@ -338,7 +365,7 @@ export async function changeAccountMode(
 
   if (account.appTokenScope !== target.scope) {
     const oldToken = await getToken(accountId, 'app');
-    const result = await runRoundForAccount(account.username, target.scope, round);
+    const result = await runRoundForAccount(account.username, target.scope, round, accountId);
     rememberInAppBrowser(accountId, round.useEmbedded);
     // A read-only account with notifications on uses ONE read token for both jobs (the app token
     // and the b-push service token). Upgrading to read-write while keeping notifications: that
@@ -386,7 +413,7 @@ export async function changeAccountMode(
       if (appToken) await registerServiceToken(accountId, appToken, streams);
     } else if (!hooks.beforeServiceRound || (await hooks.beforeServiceRound())) {
       // The hook is SCR-25's "One more sign-in" explainer; declining it changes nothing.
-      const serviceResult = await runRoundForAccount(refreshed.username, 'read', round);
+      const serviceResult = await runRoundForAccount(refreshed.username, 'read', round, accountId);
       rememberInAppBrowser(accountId, round.useEmbedded);
       await registerServiceToken(accountId, serviceResult.accessToken, streams);
     }

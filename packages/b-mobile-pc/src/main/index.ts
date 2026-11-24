@@ -29,8 +29,22 @@ import { resolveShellBuild } from '../shared/shell-build.js';
 import { appTokenKey, parseNotifySettings } from '../shared/notify.js';
 import { parseReminderAccountId, parseReminderConfigs } from '../shared/reminders.js';
 import { allowPermission } from './permissions.js';
-import { SITE_HOST, validateAccountId, validateSiteRun, validateSiteUrl } from './site-request.js';
-import { clearLegacySiteSession, siteRunPage, siteSignIn, siteSignOut } from './site-window.js';
+import {
+  pendingPartitionFor,
+  SITE_HOST,
+  validateAccountId,
+  validateSessionToken,
+  validateSiteRun,
+  validateSiteUrl,
+} from './site-request.js';
+import {
+  clearLegacySiteSession,
+  siteAdoptPending,
+  siteDiscardPending,
+  siteRunPage,
+  siteSignIn,
+  siteSignOut,
+} from './site-window.js';
 import {
   APP_ORIGIN,
   APP_SCHEME,
@@ -641,7 +655,11 @@ if (!app.requestSingleInstanceLock()) {
       const target = fakeSite ? { ...checked, url: siteUrlFor(checked.url) } : checked;
       return siteRunPage(target, (message) => shellLog?.(message), sitePageHost);
     });
-    handle(CHANNELS.authOpen, (url, redirectPrefix) => {
+    handle(CHANNELS.siteAdoptPending, (token, accountId) =>
+      siteAdoptPending(validateSessionToken(token), validateAccountId(accountId), sitePageHost),
+    );
+    handle(CHANNELS.siteDiscardPending, (token) => siteDiscardPending(validateSessionToken(token)));
+    handle(CHANNELS.authOpen, (url, redirectPrefix, sessionToken) => {
       const request = validateAuthRequest(url, redirectPrefix, authHosts, authAllowHttp);
       // Test hook (ignored when packaged): send the sign-in page to a fake authorize server.
       const pageUrl =
@@ -653,6 +671,9 @@ if (!app.requestSingleInstanceLock()) {
         pageUrl,
         request.redirectPrefix,
         authAllowHttp,
+        sessionToken === undefined
+          ? undefined
+          : pendingPartitionFor(validateSessionToken(sessionToken)),
       );
     });
 

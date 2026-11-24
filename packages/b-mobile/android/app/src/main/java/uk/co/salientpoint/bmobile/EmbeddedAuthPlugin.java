@@ -16,6 +16,11 @@ import com.getcapacitor.annotation.CapacitorPlugin;
 @CapacitorPlugin(name = "EmbeddedAuth")
 public class EmbeddedAuthPlugin extends Plugin {
 
+  @Override
+  public void load() {
+    SiteProfiles.init(getContext());
+  }
+
   @PluginMethod
   public void open(PluginCall call) {
     String url = call.getString("url");
@@ -28,6 +33,17 @@ public class EmbeddedAuthPlugin extends Plugin {
     Intent intent = new Intent(getContext(), EmbeddedAuthActivity.class);
     intent.putExtra(EmbeddedAuthActivity.EXTRA_URL, url);
     intent.putExtra(EmbeddedAuthActivity.EXTRA_REDIRECT_PREFIX, redirectPrefix);
+    // b-oss#1064: with a token the sign-in's website login is kept under it, on a WebView profile of
+    // its own, for SiteSessionPlugin.adoptPending / discardPending.
+    String sessionToken = call.getString("sessionToken");
+    if (sessionToken != null) {
+      try {
+        intent.putExtra(EmbeddedAuthActivity.EXTRA_PROFILE, SiteProfiles.pendingName(sessionToken));
+      } catch (IllegalArgumentException e) {
+        call.reject("bad sessionToken");
+        return;
+      }
+    }
     startActivityForResult(call, intent, "openResult");
   }
 

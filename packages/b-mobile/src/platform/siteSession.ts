@@ -21,6 +21,9 @@ interface SiteSessionPlugin {
   signIn(options: { url: string; accountId: string }): Promise<{ signedIn: boolean }>;
   signOut(options: { accountId: string }): Promise<void>;
   runPage(options: SitePageRun): Promise<SitePageResult>;
+  adoptPending(options: { token: string; accountId: string }): Promise<void>;
+  discardPending(options: { token: string }): Promise<void>;
+  discardAllPending(): Promise<void>;
 }
 
 const SiteSession = registerPlugin<SiteSessionPlugin>('SiteSession');
@@ -29,6 +32,8 @@ const capacitorHost: SiteSessionHost = {
   signIn: async (accountId, url) => (await SiteSession.signIn({ url, accountId })).signedIn,
   signOut: (accountId) => SiteSession.signOut({ accountId }),
   runPage: (run) => SiteSession.runPage(run),
+  adoptPending: (token, accountId) => SiteSession.adoptPending({ token, accountId }),
+  discardPending: (token) => SiteSession.discardPending({ token }),
 };
 
 /** The platform's host, or null where there is none (a plain browser, or a desktop shell too old
@@ -79,6 +84,34 @@ export function siteRunPage(run: SitePageRun): Promise<SitePageResult> {
   return required().runPage(run);
 }
 
+/** A fresh name for the website login one sign-in round leaves behind (b-oss#1064): hex, unguessable,
+ * used once. Pass it to `openEmbeddedAuth`, then to `siteAdoptPending` or `siteDiscardPending`. */
+export function newSiteSessionToken(): string {
+  const bytes = new Uint8Array(16);
+  crypto.getRandomValues(bytes);
+  return Array.from(bytes, (b) => b.toString(16).padStart(2, '0')).join('');
+}
+
+/** Makes the website login a sign-in round left under `token` the account's session, replacing what
+ * it had (b-oss#1064). Never throws: the account is signed in either way, and the worst case is the
+ * member being asked to sign in to the website when they first need it. */
+export async function siteAdoptPending(token: string, accountId: string): Promise<void> {
+  try {
+    await host()?.adoptPending(token, accountId);
+  } catch {
+    // Falls back to the explicit website sign-in (components/useSiteSignInGate.tsx).
+  }
+}
+
+/** Forgets what a sign-in round left under `token`. Never throws. */
+export async function siteDiscardPending(token: string): Promise<void> {
+  try {
+    await host()?.discardPending(token);
+  } catch {
+    // Nothing to do: the host also sweeps leftovers at start-up.
+  }
+}
+
 /** Asks a native host whether it can keep a website session per account (Android WebView profiles;
  * iOS per-identifier data stores) and records the answer in `capabilities()`. Called once at start-up;
  * until it answers, the tabled value ('single': one shared session) applies. Never throws. */
@@ -88,6 +121,8 @@ export async function initSiteSession(): Promise<void> {
   try {
     const { isolation } = await SiteSession.isolation();
     recordSiteSessionIsolation(isolation);
+    // Anything a sign-in round left behind before the app last stopped belongs to no account.
+    await SiteSession.discardAllPending().catch(() => {});
   } catch {
     // An older native shell has no such call: stay on the safe default, one shared session.
   }

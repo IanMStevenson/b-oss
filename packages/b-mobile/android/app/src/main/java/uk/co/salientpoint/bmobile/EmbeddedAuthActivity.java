@@ -23,6 +23,12 @@ public class EmbeddedAuthActivity extends AppCompatActivity {
   public static final String EXTRA_URL = "url";
   public static final String EXTRA_REDIRECT_PREFIX = "redirectPrefix";
   public static final String EXTRA_REDIRECT_URL = "redirectUrl";
+  /** The WebView profile to run in (b-oss#1064), or absent. */
+  public static final String EXTRA_PROFILE = "profile";
+
+  // Whether the sign-in runs on a profile of its own, so its website login is kept for adoption.
+  // Otherwise it is on the process-wide cookie store, which is emptied again when this closes.
+  private boolean ownProfile = false;
 
   @Override
   protected void onCreate(@Nullable Bundle savedInstanceState) {
@@ -41,13 +47,20 @@ public class EmbeddedAuthActivity extends AppCompatActivity {
       return;
     }
 
-    // CookieManager is a single process-wide store shared by every WebView, including this one
-    // — but nothing else in this app reads or writes cookies through it (CapacitorHttp uses its
-    // own separate OkHttp connection per platform/http.ts, not this), so clearing everything here
-    // has no effect beyond forcing this one sign-in screen to start logged out.
+    SiteProfiles.init(this);
+    String profile = getIntent().getStringExtra(EXTRA_PROFILE);
+    ownProfile = profile != null && SiteProfiles.supported();
+
+    // CookieManager.getInstance() is a single process-wide store shared by every WebView on the
+    // default profile, and Capacitor's native HTTP (CapacitorHttp, through its CookieHandler) sends
+    // it on every request to the website, so a login left in it would make the app's page reads
+    // act as that member (b-oss#1064). Emptied here so this sign-in starts logged out, and again
+    // in onDestroy unless the login is being kept on a profile of its own.
     CookieManager.getInstance().removeAllCookies(null);
+    if (ownProfile) SiteProfiles.cookiesNamed(profile).removeAllCookies(null);
 
     WebView webView = new WebView(this);
+    if (ownProfile) SiteProfiles.attachNamed(webView, profile);
     webView.getSettings().setJavaScriptEnabled(true);
     webView.getSettings().setDomStorageEnabled(true);
     // The sign-in page never needs local files or content:// URIs. File access is already off by
@@ -90,6 +103,17 @@ public class EmbeddedAuthActivity extends AppCompatActivity {
                 getOnBackPressedDispatcher().onBackPressed();
               }
             });
+  }
+
+  @Override
+  protected void onDestroy() {
+    if (ownProfile) {
+      // Kept for adoption; make sure it is on disk before the app could be stopped.
+      SiteProfiles.cookiesNamed(getIntent().getStringExtra(EXTRA_PROFILE)).flush();
+    } else {
+      CookieManager.getInstance().removeAllCookies(null);
+    }
+    super.onDestroy();
   }
 
   @Override

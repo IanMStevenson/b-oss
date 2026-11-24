@@ -3,7 +3,7 @@
 
 // The contract between common code and a platform for the member's Blipfoto website session
 // (b-oss#1050; design in docs/ImplementationSpec/site-session.md). Common code decides what to load
-// and what to do with the answer; a platform only provides these three calls and keeps the
+// and what to do with the answer; a platform only provides these calls and keeps the
 // cookies. The desktop shell implements it in packages/b-mobile-pc (a copy of these shapes lives in
 // its src/shared/bridge.ts: keep the two in step), Android in SiteSessionPlugin.java, and iOS later.
 //
@@ -47,4 +47,11 @@ export interface SiteSessionHost {
   signOut(accountId: string): Promise<void>;
   /** Loads `run.url` in a hidden page with the account's session and runs the script. */
   runPage(run: SitePageRun): Promise<SitePageResult>;
+  /** Makes the website login a sign-in round left under `token` this account's session, replacing
+   * what it had, then forgets the token (b-oss#1064). The round ran with that token
+   * (platform/embeddedAuth.ts), before the account it was for was known. Quiet if the token names
+   * nothing. */
+  adoptPending(token: string, accountId: string): Promise<void>;
+  /** Forgets what a sign-in round left under `token`. Quiet if it names nothing. */
+  discardPending(token: string): Promise<void>;
 }

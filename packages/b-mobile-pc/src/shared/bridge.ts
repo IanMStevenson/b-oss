@@ -34,6 +34,8 @@ export const CHANNELS = {
   siteSignIn: 'site:sign-in',
   siteSignOut: 'site:sign-out',
   siteRunPage: 'site:run-page',
+  siteAdoptPending: 'site:adopt-pending',
+  siteDiscardPending: 'site:discard-pending',
   draftUnsaved: 'draft:unsaved',
 } as const;
 
@@ -69,8 +71,10 @@ export interface DesktopBridge {
     remove(key: string): Promise<void>;
   };
   /** Opens the sign-in page in a clean, throwaway window and resolves with the redirect URL it
-   * captured once navigation reaches `redirectPrefix`. Rejects with Error('cancelled') if closed. */
-  openAuth(url: string, redirectPrefix: string): Promise<string>;
+   * captured once navigation reaches `redirectPrefix`. Rejects with Error('cancelled') if closed.
+   * With a `sessionToken` (b-oss#1064) the window's own cookies, which include the member's website
+   * login, are kept in memory under that token until `site.adoptPending` or `site.discardPending`. */
+  openAuth(url: string, redirectPrefix: string, sessionToken?: string): Promise<string>;
   /** Desktop notifications by polling (b-oss#610). The main process polls for the accounts the app
    * names here, with the account's app token from the secure store, and keeps doing so with the
    * window closed (it hides to the tray). Call it with the full set whenever it changes and at
@@ -119,6 +123,11 @@ export interface DesktopBridge {
     /** Deletes that account's stored site session (its cookies and storage). */
     signOut(accountId: string): Promise<void>;
     runPage(run: SitePageRun): Promise<SitePageResult>;
+    /** Makes the website login a sign-in round left under `token` (see `openAuth`) this account's
+     * session, then forgets the token (b-oss#1064). Quiet if there is nothing under the token. */
+    adoptPending(token: string, accountId: string): Promise<void>;
+    /** Forgets what a sign-in round left under `token`. Quiet if there is nothing. */
+    discardPending(token: string): Promise<void>;
   };
   /** Whether the page holds a draft with unsaved changes (b-oss#1059). The page tells the shell as it
    * changes, so a quit (tray Exit, the menu, an installer) can ask first even with the window hidden

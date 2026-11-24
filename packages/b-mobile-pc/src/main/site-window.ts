@@ -3,7 +3,7 @@
 
 import { BrowserWindow, session } from 'electron';
 import type { SitePageResult, SitePageRun } from '../shared/bridge.js';
-import { isSignedInLanding, partitionFor, SITE_HOST } from './site-request.js';
+import { isSignedInLanding, partitionFor, pendingPartitionFor, SITE_HOST } from './site-request.js';
 
 // The member's own Blipfoto website session (b-oss#1037), used only to add, edit and read extra
 // photos. Each b-mobile account has a session of its own (a persistent partition named for it), so
@@ -69,6 +69,51 @@ export async function siteSignIn(
     win.on('closed', () => finish(false));
     void win.loadURL(url).catch(() => finish(false));
   });
+}
+
+/** Whether a cookie set for `domain` is one the site `host` receives. */
+function cookieIsFor(domain: string | undefined, host: string): boolean {
+  const d = (domain ?? '').replace(/^\./, '');
+  return d !== '' && (host === d || host.endsWith(`.${d}`));
+}
+
+/** Makes the website login a sign-in round left under `token` the account's own session
+ * (b-oss#1064): the round's cookies for the site are copied inside the main process (none reaches
+ * JavaScript), replacing whatever the account had, and what the round kept is then forgotten. Quiet
+ * when the round left nothing. */
+export async function siteAdoptPending(
+  token: string,
+  accountId: string,
+  host: string = SITE_HOST,
+): Promise<void> {
+  const pending = session.fromPartition(pendingPartitionFor(token));
+  const target = session.fromPartition(partitionFor(accountId));
+  const cookies = (await pending.cookies.get({})).filter((c) => cookieIsFor(c.domain, host));
+  if (cookies.length > 0) {
+    await target.clearStorageData({ storages: ['cookies', 'localstorage'] });
+    for (const c of cookies) {
+      const domain = (c.domain ?? host).replace(/^\./, '');
+      await target.cookies.set({
+        url: `${c.secure ? 'https' : 'http'}://${domain}${c.path ?? '/'}`,
+        name: c.name,
+        value: c.value,
+        // A host-only cookie must stay host-only: only a cookie that had a domain gets one.
+        ...(c.hostOnly ? {} : { domain: c.domain }),
+        path: c.path,
+        secure: c.secure,
+        httpOnly: c.httpOnly,
+        ...(c.expirationDate === undefined ? {} : { expirationDate: c.expirationDate }),
+        sameSite: c.sameSite,
+      });
+    }
+    await target.cookies.flushStore();
+  }
+  await siteDiscardPending(token);
+}
+
+/** Forgets what a sign-in round left under `token`. */
+export async function siteDiscardPending(token: string): Promise<void> {
+  await session.fromPartition(pendingPartitionFor(token)).clearStorageData();
 }
 
 /** Deletes the account's stored site session, so nothing is left once the member disconnects it. */

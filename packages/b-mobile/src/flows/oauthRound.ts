@@ -27,6 +27,7 @@ import { openUrl, closeBrowser, onBrowserFinished } from '../platform/browser.js
 import { onAppUrlOpen } from '../platform/deepLinks.js';
 import { capabilities } from '../platform/capabilities.js';
 import { openEmbeddedAuth, EmbeddedAuthCancelledError } from '../platform/embeddedAuth.js';
+import { newSiteSessionToken, siteDiscardPending } from '../platform/siteSession.js';
 import { getClientForToken } from '../data/client.js';
 
 const REDIRECT_URI = import.meta.env.VITE_OAUTH_REDIRECT_URI ?? 'bmobile://oauth/';
@@ -47,6 +48,11 @@ export interface OAuthResult {
   /** GET oauth/token always returns this, so it's present even when the redirect itself didn't
    * echo one back. */
   username: string;
+  /** The embedded round also logged the member into the website; the host holds that login under
+   * this token (platform/siteSession.ts, b-oss#1064). The caller adopts it for the account once it
+   * knows the account (`siteAdoptPending`) or, if the round is not used, forgets it
+   * (`siteDiscardPending`). Absent for a round in the system browser. */
+  siteSessionToken?: string;
 }
 
 function generateState(): string {
@@ -118,17 +124,24 @@ async function runOAuthRoundEmbedded(scope: 'read' | 'read,write'): Promise<OAut
     state,
   });
 
+  const siteSessionToken = newSiteSessionToken();
   let redirectUrl: string;
   try {
-    redirectUrl = await openEmbeddedAuth(url, REDIRECT_URI);
+    redirectUrl = await openEmbeddedAuth(url, REDIRECT_URI, siteSessionToken);
   } catch (err) {
+    await siteDiscardPending(siteSessionToken);
     if (err instanceof EmbeddedAuthCancelledError) {
       throw new OAuthCancelledError('embedded browser closed');
     }
     throw err;
   }
 
-  return finishRound(redirectUrl, state, scope);
+  try {
+    return { ...(await finishRound(redirectUrl, state, scope)), siteSessionToken };
+  } catch (err) {
+    await siteDiscardPending(siteSessionToken);
+    throw err;
+  }
 }
 
 async function finishRound(

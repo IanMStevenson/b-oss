@@ -39,6 +39,7 @@ public class SiteSignInActivity extends AppCompatActivity {
       return;
     }
 
+    SiteProfiles.init(this);
     // Starts signed out, so one member's sign-in is never mixed with another's: this account's
     // session (or the one shared session) is cleared first.
     SiteProfiles.cookies(accountId).removeAllCookies(null);

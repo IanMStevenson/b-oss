@@ -212,6 +212,11 @@ reminders,details,profile,notifications}`; the old `/settings/{general,journal,a
   extra photos…" and then the count added. Any failure (not signed in, another member, no
   membership, an unexpected page, a timeout, not kept, or a partial result) says what happened and
   offers **Open the edit page** in the system browser; the entry itself is never affected.
+  Signing in to the app in the in-app browser (Android's WebView, the desktop sign-in window) also logs
+  the member into the website, and that login is kept as the account's website session, so the
+  question above is only asked when there is no such session (a sign-in in the system browser, or a
+  session that has ended). It is adopted only once the round is known to be for that member
+  (b-oss#1064, site-session.md).
   The website session is kept in the WebView's (or the shell window's) own cookie store, not the
   OS keystore, and reused until Blipfoto says it has ended (its "remember me" cookie survives an
   app restart). The desktop shell keeps one session per account (a partition named for it), so one

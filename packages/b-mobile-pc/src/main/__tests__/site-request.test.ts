@@ -5,6 +5,8 @@ import { describe, expect, it } from 'vitest';
 import {
   isSignedInLanding,
   partitionFor,
+  pendingPartitionFor,
+  validateSessionToken,
   validateSiteRun,
   validateSiteUrl,
 } from '../site-request.js';
@@ -69,5 +71,26 @@ describe('partitionFor', () => {
     expect(partitionFor('a')).toBe(partitionFor('a'));
     expect(partitionFor('a')).not.toBe(partitionFor('b'));
     expect(partitionFor('x/../y')).toMatch(/^persist:blipfoto-site-[0-9a-f]{24}$/);
+  });
+});
+
+describe('sign-in round tokens (b-oss#1064)', () => {
+  it('accepts the hex tokens the web app makes', () => {
+    expect(validateSessionToken('aabbccddeeff00112233445566778899')).toBe(
+      'aabbccddeeff00112233445566778899',
+    );
+  });
+
+  it.each(['', 'short', 'ZZZZZZZZZZZZZZZZZZZZ', '../../etc', 'aabbccddeeff0011/../x', 42, null])(
+    'refuses %j',
+    (token) => {
+      expect(() => validateSessionToken(token)).toThrow();
+    },
+  );
+
+  it('keeps the pending partition in memory, apart from every account session', () => {
+    const pending = pendingPartitionFor('aabbccddeeff00112233445566778899');
+    expect(pending.startsWith('persist:')).toBe(false);
+    expect(pending).not.toBe(partitionFor('aabbccddeeff00112233445566778899'));
   });
 });

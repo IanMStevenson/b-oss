@@ -60,7 +60,7 @@ export interface DesktopBridge {
   };
   /** Opens the sign-in page in a clean, throwaway window and resolves with the redirect URL it
    * captured once navigation reaches `redirectPrefix`. Rejects with Error('cancelled') if closed. */
-  openAuth(url: string, redirectPrefix: string): Promise<string>;
+  openAuth(url: string, redirectPrefix: string, sessionToken?: string): Promise<string>;
   readonly notify: {
     configure(settings: DesktopNotifySettings): Promise<void>;
     status(): Promise<DesktopNotifyStatus>;

@@ -77,6 +77,29 @@ to the `b-api-web` package ([b-oss#1046](https://github.com/IanMStevenson/b-oss/
 
 `recordSiteSessionIsolation()` lets a native host report `per-account` once it has found out.
 
+## The sign-in round's website login (b-oss#1064)
+
+Blipfoto's OAuth page is on the website, so an embedded sign-in round (Android's WebView, the desktop
+auth window) also logs the member into the website. That login is kept, so the member is not asked to sign
+in a second time for extras; the explicit sign-in (`useSiteSignInGate`) stays as the fallback for a session
+that has expired or was never made (a round in the system browser, an older shell).
+
+- The account is not known until the round ends, so each embedded round runs with a one-off **token**
+  (`newSiteSessionToken()`, hex) and the host keeps the round's website cookies under it, apart from every
+  account. Common code then **adopts** the token for the account (`adoptPending(token, accountId)`) once the
+  round is known to be for that member (after the owner check of b-oss#240), or **discards** it (cancelled,
+  failed, signed in as someone else, account not stored). Adopting replaces what the account had.
+- Android: the round's WebView is on a profile named for the token; adopting records that the account now
+  uses that profile (`SiteProfiles`, a stored account-to-profile map, since a profile cannot be renamed);
+  start-up deletes pending profiles nobody adopted. Where profiles are not supported nothing is kept: the
+  round's cookies in the shared store are cleared when it closes.
+- Desktop: the auth window uses an in-memory partition named for the token; adopting copies its cookies for
+  the site into the account's persistent partition inside the main process (no cookie reaches JavaScript).
+  An unadopted one dies with the app.
+- **No round may leave a website login in Android's default cookie store.** Capacitor's native HTTP sends
+  that store's cookies on every request to the site, so the anonymous page read in `data/entryExtras.ts`
+  would otherwise act as the last member to sign in, whichever account was selected. (Found 2026-11-24.)
+
 ## One session for the whole app (`'single'`)
 
 `site/access.ts`. Exactly one account is the **designated extras account** (a preference). The first

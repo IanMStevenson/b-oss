@@ -27,6 +27,21 @@ export function validateAccountId(id: unknown): string {
   return id;
 }
 
+/** The token naming what one sign-in round left behind until it is adopted or discarded
+ * (b-oss#1064): hex, as the web app makes it. Never trusted to be anything else. */
+export function validateSessionToken(token: unknown): string {
+  if (typeof token !== 'string' || !/^[0-9a-f]{16,64}$/.test(token)) {
+    throw new SiteRequestError('A valid sign-in token is needed');
+  }
+  return token;
+}
+
+/** The in-memory partition a sign-in round keeps its cookies in while it waits to be adopted. No
+ * "persist:" prefix, so it never reaches disk and dies with the app. */
+export function pendingPartitionFor(token: string): string {
+  return `auth-${token}`;
+}
+
 /** The Electron partition an account's website session lives in: its id is hashed so any id gives
  * a safe, fixed-length name, and no two accounts share one. */
 export function partitionFor(accountId: string): string {
