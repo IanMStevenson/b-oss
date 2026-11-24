@@ -49,3 +49,21 @@ describe('fetchTagPage', () => {
     );
   });
 });
+
+describe('forgetEntryLists / deleteEntry', () => {
+  it('drops the remembered entry lists and thumbnails, and keeps tab choices', async () => {
+    const { resumeSet, resumeGet } = await import('../resumeCache.js');
+    const { forgetEntryLists } = await import('../entries.js');
+    resumeSet('browse:me:feed:recent', 1);
+    resumeSet('browse:me:ui', { tab: 'recent' });
+    resumeSet('profile:a:someone:faves', 1);
+    resumeSet('profile:a:someone:ui', { tab: 'faves' });
+    resumeSet('search:all:ui', { tab: 'x' });
+    forgetEntryLists();
+    expect(resumeGet('browse:me:feed:recent')).toBeUndefined();
+    expect(resumeGet('profile:a:someone:faves')).toBeUndefined();
+    expect(resumeGet('browse:me:ui')).toBeDefined();
+    expect(resumeGet('profile:a:someone:ui')).toBeDefined();
+    expect(resumeGet('search:all:ui')).toBeDefined();
+  });
+});

@@ -20,6 +20,7 @@ vi.mock('../accountsFlow.js', () => ({ handleForcedLogout: vi.fn() }));
 vi.mock('../reminderFlow.js', () => ({ onEntryPublished }));
 
 import { submitDraft } from '../composeFlow.js';
+import { resumeClear, resumeGet, resumeSet } from '../../data/resumeCache.js';
 
 const draft: ComposeDraft = {
   mode: 'edit',
@@ -102,5 +103,32 @@ describe('submitDraft', () => {
     publishEntry.mockRejectedValueOnce(new Error('boom'));
     await expect(submitDraft({ ...draft, mode: 'publish' })).rejects.toThrow('boom');
     expect(onEntryPublished).not.toHaveBeenCalled();
+  });
+});
+
+describe('the lists that showed the entry (or its old thumbnail)', () => {
+  const seed = (): void => {
+    resumeSet('browse:me:feed:justme', { items: ['old thumbnail'] });
+    resumeSet('profile:a1:cyclopstest:entries', { items: ['old thumbnail'] });
+    resumeSet('browse:me:ui', { tab: 'justme' }); // a tab choice, not a list
+  };
+
+  it('are dropped after an edit with a replaced photo, so the new thumbnail shows', async () => {
+    resumeClear();
+    seed();
+    await submitDraft({ ...draft, thumbnailCrop: { x: 0.1, y: 0.1, w: 0.6 } });
+    expect(resumeGet('browse:me:feed:justme')).toBeUndefined();
+    expect(resumeGet('profile:a1:cyclopstest:entries')).toBeUndefined();
+    expect(resumeGet('browse:me:ui')).toEqual({ tab: 'justme' });
+  });
+
+  it('are dropped after a publish, and kept when the send fails', async () => {
+    resumeClear();
+    seed();
+    updateEntry.mockRejectedValueOnce(new Error('offline'));
+    await expect(submitDraft(draft)).rejects.toThrow();
+    expect(resumeGet('browse:me:feed:justme')).toBeDefined();
+    await submitDraft({ ...draft, mode: 'publish', date: '2026-01-02' });
+    expect(resumeGet('browse:me:feed:justme')).toBeUndefined();
   });
 });
