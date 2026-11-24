@@ -32,15 +32,15 @@ const base = (over: Partial<ComposeDraft> = {}): ComposeDraft => ({
 });
 const s = () => useComposeDraftStore.getState();
 
-let revoke: ReturnType<typeof vi.fn>;
+let revoke: ReturnType<typeof vi.fn<(url: string) => void>>;
 beforeEach(() => {
-  revoke = vi.fn();
-  URL.revokeObjectURL = revoke as unknown as typeof URL.revokeObjectURL;
+  revoke = vi.fn<(url: string) => void>();
+  URL.revokeObjectURL = revoke;
   useComposeDraftStore.setState({ draft: null });
 });
 afterEach(() => vi.restoreAllMocks());
 
-const revoked = () => revoke.mock.calls.map((c) => c[0] as string).sort();
+const revoked = () => revoke.mock.calls.map((c) => c[0]).sort();
 
 describe('blob URL ownership (b-oss#1058)', () => {
   it('clearDraft revokes the photo and every extra', () => {

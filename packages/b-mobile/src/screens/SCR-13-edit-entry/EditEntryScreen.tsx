@@ -38,7 +38,12 @@ import { useAccountsStore } from '../../state/accountsStore.js';
 import { useWideForm } from '../../theme/wideLayout.js';
 import { DescriptionField, TextField, ToggleRow } from '../../components/ComposeForm.js';
 import { useAppNavigate } from '../../app/routes/useAppNavigate.js';
-import { useComposeDraftStore } from '../../state/composeDraftStore.js';
+import {
+  dirtyDraftOtherThan,
+  draftRoute,
+  useComposeDraftStore,
+} from '../../state/composeDraftStore.js';
+import { ReplaceDraftAlert } from '../../components/ReplaceDraftAlert.js';
 import { useActiveAccount } from '../../state/accountsStore.js';
 import { fetchEntry, deleteEntry } from '../../data/entries.js';
 import { UploadingNotice } from '../../components/UploadingNotice.js';
@@ -100,11 +105,17 @@ export function EditEntryScreen({ entryId }: EditEntryScreenProps) {
   // A ref survives that state change without re-running the effect, since it isn't a dependency.
   const hasSeededRef = useRef(isCurrentDraft);
 
+  // b-oss#1057: a different draft with unsaved changes is open. Nothing is loaded (and so nothing
+  // replaced) until the member says Discard.
+  const blockingDraft = hasSeededRef.current ? null : dirtyDraftOtherThan(draft, { entryId });
+  const blocked = blockingDraft !== null;
+
   useEffect(() => {
     if (hasSeededRef.current) {
       setLoading(false);
       return;
     }
+    if (blocked) return;
     if (!activeAccount) return;
     let cancelled = false;
     setLoading(true);
@@ -148,7 +159,7 @@ export function EditEntryScreen({ entryId }: EditEntryScreenProps) {
     };
     // seedEditDraft is a stable Zustand action reference (never changes identity), so including it
     // doesn't add a re-run trigger beyond entryId/activeAccount.
-  }, [entryId, activeAccount, seedEditDraft, loadAttempt]);
+  }, [entryId, activeAccount, seedEditDraft, loadAttempt, blocked]);
 
   // Set when the discard confirmation was raised by the header's home tap rather than Back.
   const pendingHome = useRef<(() => void) | null>(null);
@@ -286,6 +297,11 @@ export function EditEntryScreen({ entryId }: EditEntryScreenProps) {
         <IonContent className="ion-padding">
           <IonSpinner />
         </IonContent>
+        <ReplaceDraftAlert
+          draft={blockingDraft}
+          onKeepEditing={() => blockingDraft && navigate.replace(draftRoute(blockingDraft))}
+          onDiscard={clearDraft}
+        />
       </IonPage>
     );
   }

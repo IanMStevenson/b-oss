@@ -25,7 +25,7 @@ import {
 } from '@ionic/react';
 import { AppHeader } from '../../components/AppHeader.js';
 import { useAppNavigate } from '../../app/routes/useAppNavigate.js';
-import { useComposeDraftStore } from '../../state/composeDraftStore.js';
+import { releasePhotos, useComposeDraftStore } from '../../state/composeDraftStore.js';
 import { fetchDayEligibility } from '../../data/journal.js';
 import type { DayEligibility } from '../../data/journal.js';
 import { validatePickedPhoto } from '../../data/photoValidation.js';
@@ -58,6 +58,7 @@ export function ComposeEntryScreen() {
   const patchDraft = useComposeDraftStore((s) => s.patchDraft);
   const patchLoaded = useComposeDraftStore((s) => s.patchLoaded);
   const clearDraft = useComposeDraftStore((s) => s.clearDraft);
+  const clearDraftKeepingExtras = useComposeDraftStore((s) => s.clearDraftKeepingExtras);
 
   const { isMember, failed: membershipFailed, retry: retryMembership } = useMembership();
   const [eligibility, setEligibility] = useState<DayEligibility | null>(null);
@@ -158,14 +159,15 @@ export function ComposeEntryScreen() {
         total: null,
         extras: extraPhotos.length > 0 ? 'adding' : undefined,
       });
-      clearDraft();
+      // The extras are still read from their blob URLs while they go up: released once sent.
+      const toRelease = clearDraftKeepingExtras();
       setSubmitting(false);
       if (extraPhotos.length > 0) {
         // The entry is already published; whatever happens here only affects the extras.
         const username = accounts.find((a) => a.id === draft.accountId)?.username ?? '';
-        void addExtras(entryId, { id: draft.accountId, username }, extraPhotos).then((outcome) =>
-          setPublished((p) => (p ? { ...p, extras: outcome } : p)),
-        );
+        void addExtras(entryId, { id: draft.accountId, username }, extraPhotos)
+          .then((outcome) => setPublished((p) => (p ? { ...p, extras: outcome } : p)))
+          .finally(() => releasePhotos(toRelease));
       }
       fetchEntryThumbnailUrl(entryId).then(
         (thumbnailUrl) => setPublished((p) => (p ? { ...p, thumbnailUrl } : p)),

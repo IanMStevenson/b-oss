@@ -26,7 +26,12 @@ import { ComposeEntryScreen } from '../../screens/SCR-10-compose-entry-details/C
 import { LocationPickerScreen } from '../../screens/SCR-12-location-picker/LocationPickerScreen.js';
 import { EditEntryScreen } from '../../screens/SCR-13-edit-entry/EditEntryScreen.js';
 import { useAccountsStore } from '../accountsStore.js';
-import { DRAFT_FIELD_KIND, useComposeDraftStore, type ComposeDraft } from '../composeDraftStore.js';
+import {
+  DRAFT_FIELD_KIND,
+  draftPhotos,
+  useComposeDraftStore,
+  type ComposeDraft,
+} from '../composeDraftStore.js';
 import { resumeClear } from '../../data/resumeCache.js';
 vi.setConfig({ testTimeout: 30_000 });
 import { formatDateLabel } from '../../components/DateField.js';
@@ -44,6 +49,7 @@ const w = vi.hoisted(() => ({
   getCurrentPosition: vi.fn(),
   revealStoredPosition: vi.fn(),
   submitDraft: vi.fn(),
+  addExtras: vi.fn(),
 }));
 
 vi.mock('../../data/entries.js', () => ({
@@ -76,6 +82,7 @@ vi.mock('../../site/access.js', () => ({
 vi.mock('../../flows/extrasFlow.js', async (orig) => ({
   ...(await orig<typeof import('../../flows/extrasFlow.js')>()),
   loadEditExtras: w.loadEditExtras,
+  addExtras: w.addExtras,
   readExtrasRemaining: w.readExtrasRemaining,
   currentSiteUser: w.currentSiteUser,
   signInToSite: w.signInToSite,
@@ -487,6 +494,8 @@ const TRIPS: Trip[] = [
 describe.each<Mode>(['publish', 'edit'])('compose state, %s', (mode) => {
   describe.each(TRIPS.filter((t) => t.modes.includes(mode)))('round trip: $name', (trip) => {
     it('every field is as the member left it', async () => {
+      const revoke = vi.fn<(url: string) => void>();
+      URL.revokeObjectURL = revoke;
       await open(mode);
       await setEverything(mode);
       // The sets themselves have to have taken, or the trip proves nothing.
@@ -497,6 +506,8 @@ describe.each<Mode>(['publish', 'edit'])('compose state, %s', (mode) => {
       // The extras block's own reads can land late; wait for it, then check the lot.
       await screen.findByAltText(mode === 'edit' ? 'New extra photo 1' : 'Extra photo 1');
       seeEverything(mode);
+      // b-oss#1058: no photo the draft still holds had its blob URL revoked on the way.
+      for (const p of draftPhotos(draft())) expect(revoke).not.toHaveBeenCalledWith(p.webPath);
     });
   });
 
@@ -592,6 +603,20 @@ describe('no field without a case', () => {
   });
 });
 
+// The newest alert's button, once Ionic has finished presenting it (a click on the button it
+// renders first can land on an element Stencil then replaces, and is lost).
+const clickAlert = async (name: string) => {
+  await waitFor(() => {
+    const open = [...document.querySelectorAll('ion-alert')].filter(
+      (a) => !a.classList.contains('overlay-hidden'),
+    );
+    if (open.length === 0) throw new Error('no alert is presented');
+  });
+  await act(() => new Promise((r) => setTimeout(r, 100)));
+  const buttons = await screen.findAllByRole('button', { name });
+  await userEvent.click(buttons[buttons.length - 1]);
+};
+
 // ---- b-oss#1057: starting another entry while a different unsaved draft is open -------------------
 
 describe('another unsaved draft is open (b-oss#1057)', () => {
@@ -616,7 +641,7 @@ describe('another unsaved draft is open (b-oss#1057)', () => {
     await userEvent.click(await screen.findByText(CHOOSE));
     await screen.findByText('Discard this entry?');
     expect(draft().title).toBe('My unsaved entry');
-    await userEvent.click(screen.getByText('Keep editing'));
+    await clickAlert('Keep editing');
     await waitFor(() => expect(path()).toBe('/compose/details'));
     expect(draft().title).toBe('My unsaved entry');
     expect(draft().photo?.webPath).toBe('blob:existing');
@@ -626,7 +651,7 @@ describe('another unsaved draft is open (b-oss#1057)', () => {
     seed(OTHER);
     render(<App start="/compose" />);
     await userEvent.click(await screen.findByText(CHOOSE));
-    await userEvent.click(await screen.findByText('Discard'));
+    await clickAlert('Discard');
     await waitFor(() => expect(path()).toBe('/compose/details'));
     expect(draft().title).toBe('');
     expect(draft().photo?.webPath).toBe('blob:pick-1');
@@ -637,7 +662,6 @@ describe('another unsaved draft is open (b-oss#1057)', () => {
     render(<App start="/compose" />);
     await userEvent.click(await screen.findByText(CHOOSE));
     await waitFor(() => expect(path()).toBe('/compose/details'));
-    expect(screen.queryByText('Discard this entry?')).toBeNull();
     expect(draft().photo?.webPath).toBe('blob:pick-1');
   });
 
@@ -647,7 +671,7 @@ describe('another unsaved draft is open (b-oss#1057)', () => {
     await screen.findByText('Discard this entry?');
     expect(w.fetchEntry).not.toHaveBeenCalled();
     expect(draft().title).toBe('My unsaved entry');
-    await userEvent.click(screen.getByText('Discard'));
+    await clickAlert('Discard');
     await screen.findByDisplayValue('Sunrise');
     expect(draft().mode).toBe('edit');
   });
@@ -655,7 +679,7 @@ describe('another unsaved draft is open (b-oss#1057)', () => {
   it('edit: Keep editing returns to the open draft', async () => {
     seed(OTHER);
     render(<App start="/entry/e1/edit" />);
-    await userEvent.click(await screen.findByText('Keep editing'));
+    await clickAlert('Keep editing');
     await waitFor(() => expect(path()).toBe('/compose/details'));
     expect(draft().title).toBe('My unsaved entry');
     expect(w.fetchEntry).not.toHaveBeenCalled();
@@ -665,5 +689,51 @@ describe('another unsaved draft is open (b-oss#1057)', () => {
     seed({ ...OTHER, mode: 'edit', entryId: 'e9', photo: null });
     render(<App start="/entry/e1/edit" />);
     await screen.findByText('Discard changes?');
+  });
+});
+
+// ---- b-oss#1058: blob URLs are released when the photo is no longer wanted ---------------------------
+
+describe('photo blob URLs are released (b-oss#1058)', () => {
+  let revoke: ReturnType<typeof vi.fn<(url: string) => void>>;
+  beforeEach(() => {
+    revoke = vi.fn<(url: string) => void>();
+    URL.revokeObjectURL = revoke;
+  });
+
+  it('Discard revokes the photo and the extras', async () => {
+    await open('publish');
+    patch({ extras: [photo('blob:ex1')], title: 'x' });
+    await home();
+    await clickAlert('Discard');
+    await waitFor(() => expect(useComposeDraftStore.getState().draft).toBeNull());
+    expect(revoke).toHaveBeenCalledWith('blob:pick-1');
+    expect(revoke).toHaveBeenCalledWith('blob:ex1');
+  });
+
+  it('Publish with extras: the photo is released at once, the extras only after they are sent', async () => {
+    let finish: (v: { kind: 'done' }) => void = () => {};
+    w.submitDraft.mockResolvedValue('e5');
+    w.addExtras.mockReturnValue(new Promise((r) => (finish = r)));
+    await open('publish');
+    patch({ extras: [photo('blob:ex1')] });
+    await userEvent.click(await screen.findByText('Publish'));
+    await waitFor(() => expect(w.addExtras).toHaveBeenCalled());
+    expect(revoke).toHaveBeenCalledWith('blob:pick-1');
+    expect(revoke).not.toHaveBeenCalledWith('blob:ex1');
+    await act(() => Promise.resolve(finish({ kind: 'done' })));
+    await waitFor(() => expect(revoke).toHaveBeenCalledWith('blob:ex1'));
+  });
+
+  it('replacing the photo on the edit screen revokes the old one only', async () => {
+    await open('edit');
+    await userEvent.click(screen.getByText('Replace photo'));
+    await userEvent.click(await screen.findByText(CHOOSE));
+    await waitFor(() => expect(path()).toBe('/entry/e1/edit'));
+    expect(revoke).not.toHaveBeenCalled(); // the entry's own photo is a server address
+    await userEvent.click(screen.getByText('Replace photo'));
+    await userEvent.click(await screen.findByText(CHOOSE));
+    await waitFor(() => expect(revoke).toHaveBeenCalledWith('blob:pick-1'));
+    expect(revoke).not.toHaveBeenCalledWith('blob:pick-2');
   });
 });

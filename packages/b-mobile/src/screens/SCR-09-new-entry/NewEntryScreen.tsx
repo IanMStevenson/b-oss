@@ -39,7 +39,13 @@ import { capabilities } from '../../platform/capabilities.js';
 import { takePendingSharedPhoto } from '../../platform/shareIntent.js';
 import { useAppNavigate } from '../../app/routes/useAppNavigate.js';
 import { useActiveAccount } from '../../state/accountsStore.js';
-import { useComposeDraftStore } from '../../state/composeDraftStore.js';
+import {
+  dirtyDraftOtherThan,
+  draftRoute,
+  releasePhotos,
+  useComposeDraftStore,
+} from '../../state/composeDraftStore.js';
+import { ReplaceDraftAlert } from '../../components/ReplaceDraftAlert.js';
 import { defaultEntryDate } from '../../data/dates.js';
 import { validatePickedPhoto } from '../../data/photoValidation.js';
 import { initialThumbnailCrop } from '../../data/imageCrop.js';
@@ -57,6 +63,9 @@ export function NewEntryScreen({ replaceEntryId }: NewEntryScreenProps = {}) {
   const hasEditDraft = useComposeDraftStore(
     (s) => s.draft?.mode === 'edit' && s.draft.entryId === replaceEntryId,
   );
+  // b-oss#1057: a picked photo waiting for the member to say whether to discard the unsaved draft
+  // it would replace.
+  const [pendingPhoto, setPendingPhoto] = useState<PickedPhoto | null>(null);
   const [busy, setBusy] = useState<'camera' | 'picker' | null>(null);
   const [cameraMessage, setCameraMessage] = useState<string | null>(null);
   const [photoMessage, setPhotoMessage] = useState<string | null>(null);
@@ -107,6 +116,10 @@ export function NewEntryScreen({ replaceEntryId }: NewEntryScreenProps = {}) {
       return;
     }
     if (!activeAccount) return;
+    if (dirtyDraftOtherThan(useComposeDraftStore.getState().draft, {})) {
+      setPendingPhoto(photo);
+      return;
+    }
     setDraft({
       mode: 'publish',
       accountId: activeAccount.id,
@@ -173,6 +186,25 @@ export function NewEntryScreen({ replaceEntryId }: NewEntryScreenProps = {}) {
     } finally {
       setBusy(null);
     }
+  }
+
+  const blockingDraft = pendingPhoto
+    ? dirtyDraftOtherThan(useComposeDraftStore.getState().draft, {})
+    : null;
+
+  function keepOpenDraft(): void {
+    if (!pendingPhoto) return;
+    const open = useComposeDraftStore.getState().draft;
+    if (pendingPhoto) releasePhotos([pendingPhoto]);
+    setPendingPhoto(null);
+    if (open) navigate.replace(draftRoute(open));
+  }
+
+  function discardOpenDraft(): void {
+    const photo = pendingPhoto;
+    setPendingPhoto(null);
+    useComposeDraftStore.getState().clearDraft();
+    if (photo) startDraft(photo);
   }
 
   // With no camera route (a desktop without a webcam) the choose-a-photo tile is the only one, and
@@ -256,6 +288,11 @@ export function NewEntryScreen({ replaceEntryId }: NewEntryScreenProps = {}) {
           />
         )}
       </IonContent>
+      <ReplaceDraftAlert
+        draft={blockingDraft}
+        onKeepEditing={keepOpenDraft}
+        onDiscard={discardOpenDraft}
+      />
     </IonPage>
   );
 }

@@ -25,7 +25,7 @@ replace-photo screen, a sign-in) is a remount. So:
 | Transient UI of one screen instance (spinners, open alerts, error captions, which dialog is up, `submitting`)                             | component state / refs                                                        | Losing it on remount must be harmless: nothing the member chose, nothing a read produced.                   |
 | Whether the website session is this member's                                                                                              | the host (site-session), asked each time                                      | `useSiteSignInGate`'s `signedIn` ref is only a per-mount shortcut to skip a re-check.                       |
 | Entry lists, extras of an entry being _viewed_                                                                                            | `resumeCache` (TTL 10 min)                                                    | `forgetEntryExtras()` after anything that changes extras or the session.                                    |
-| Photo bytes                                                                                                                               | blob URL (desktop) / file URI (Android), in the draft                         | Never revoked while the page lives (see below).                                                             |
+| Photo bytes                                                                                                                               | blob URL (desktop) / file URI (Android), in the draft                         | The draft store owns and revokes blob URLs (see below).                                                     |
 
 Two further rules:
 
@@ -84,13 +84,27 @@ the draft is untouched; a sign-in only calls `forgetEntryExtras()` and re-reads.
 Entry fields, extras on the website. Read on SCR-13's first load and the extras block's first read;
 not re-read on a round trip (Save re-reads the edit page before sending, `applyExtras`).
 
-## Photo blob URLs
+## Photo blob URLs (b-oss#1058)
 
-Desktop `pickPhoto` returns `URL.createObjectURL(blob)`. It is created once, held in the draft, and **not
-revoked** by anything while the page lives, so it survives navigation and a remount. It must not be
-revoked on `clearDraft`: after Save the extras are still read from `webPath` (`photoToExtraFile`).
-Cost: memory for each picked photo until the window reloads. A refresh drops all blob URLs and the draft
-together, so they never dangle.
+Desktop `pickPhoto` returns `URL.createObjectURL(blob)`. The draft holds it in `photo.webPath` / `extras[].webPath`,
+so it survives navigation and a remount. **The draft store owns it** (`releaseDropped` in
+`composeDraftStore.ts`, the only place that revokes): a blob URL is revoked the moment no photo of the next draft
+names it. That covers `clearDraft` (Save, Discard, delete, the picker's Discard), a replaced photo, a removed extra,
+and a new draft replacing an old one (`setDraft`, `seedEditDraft`). Android file URIs and other non-`blob:` paths
+are left alone.
+
+One exception, by design: a **publish** reads its extras from their blob URLs _after_ the entry is published (the
+draft is already cleared by then). `clearDraftKeepingExtras()` revokes the main photo (already uploaded) and hands
+back the extras; `ComposeEntryScreen` calls `releasePhotos` on them when `addExtras` settles. The edit Save awaits
+`applyExtras` before `clearDraft`, so it needs nothing special. A refresh drops all blob URLs and the draft together.
+
+## Replacing an unsaved draft (b-oss#1057)
+
+Starting a new entry (SCR-09, when the photo is picked) or opening an edit (SCR-13, before it loads) while a
+**different draft has unsaved changes** (`dirtyDraftOtherThan`) shows `ReplaceDraftAlert`: "Discard this entry?" /
+"Discard changes?" (by the open draft's mode). Discard clears it and carries on; Keep editing goes back to it
+(`draftRoute`). A clean draft is replaced silently. The helper and the alert are what the wider "warn before any
+navigation away" guard (b-oss#1059) reuses. Only Discard has a button handler; Keep editing is the alert's dismiss.
 
 ## What a round trip does to each field (tested)
 
@@ -100,9 +114,8 @@ see extras"), and a refresh (draft lost: edit re-seeds from the server, new entr
 new entry and edit, with every `ComposeDraft` field set first. Not covered: SCR-11 is the biography
 editor now and holds no compose state; the crop gesture (react-easy-crop) is set through the store.
 
-## Known gaps (follow-up, not in this change)
+## Known gaps (follow-up)
 
-- A new entry or an edit **replaces** any other draft without asking (`setDraft` in SCR-09; `seedEditDraft`
-  for a different entry), so reaching them from the menu mid-edit drops the other draft silently.
-- Blob URLs are never revoked (above).
+- Only starting a new entry / opening an edit guards an unsaved draft; other ways of leaving it (menu routes,
+  shell close) are b-oss#1059.
 - A refresh loses an unsaved draft; whether to persist it is a product decision.

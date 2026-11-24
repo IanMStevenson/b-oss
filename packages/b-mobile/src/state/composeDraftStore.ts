@@ -111,6 +111,46 @@ export const DRAFT_FIELD_KIND: Record<keyof ComposeDraft, 'input' | 'identity' |
   dirty: 'identity',
 };
 
+/** Every photo a draft holds: the main one and the extras. */
+export function draftPhotos(draft: ComposeDraft | null): ComposePhoto[] {
+  if (!draft) return [];
+  return [...(draft.photo ? [draft.photo] : []), ...(draft.extras ?? [])];
+}
+
+/** Revokes the blob URLs among these photos (desktop `pickPhoto` makes them with
+ * `URL.createObjectURL`). Android file URIs and other paths are not blob URLs and are left alone. */
+export function releasePhotos(photos: ComposePhoto[]): void {
+  if (typeof URL.revokeObjectURL !== 'function') return;
+  for (const p of photos) if (p.webPath.startsWith('blob:')) URL.revokeObjectURL(p.webPath);
+}
+
+/** The ownership rule for photo blob URLs (b-oss#1058), in one place: the draft owns the URLs of
+ * the photos it names, and one is revoked the moment no photo of the next draft names it. Every
+ * way the draft changes goes through here (replace, remove, new draft, clear). */
+function releaseDropped(from: ComposeDraft | null, to: ComposeDraft | null): void {
+  const kept = new Set(draftPhotos(to).map((p) => p.webPath));
+  releasePhotos(draftPhotos(from).filter((p) => !kept.has(p.webPath)));
+}
+
+/** Another unsaved draft the member would lose by starting `next` (b-oss#1057): `next` is a new
+ * entry (`undefined`) or an edit of that entry id; the open draft counts when it has unsaved
+ * changes and is not the very draft being opened. The check the discard guard of b-oss#1059 reuses. */
+export function dirtyDraftOtherThan(
+  draft: ComposeDraft | null,
+  next: { entryId?: string },
+): ComposeDraft | null {
+  if (!draft?.dirty) return null;
+  if (next.entryId !== undefined && draft.mode === 'edit' && draft.entryId === next.entryId) {
+    return null;
+  }
+  return draft;
+}
+
+/** Where the member's way back to this draft is. */
+export function draftRoute(draft: ComposeDraft): string {
+  return draft.mode === 'edit' ? `/entry/${draft.entryId ?? ''}/edit` : '/compose/details';
+}
+
 interface ComposeDraftState {
   draft: ComposeDraft | null;
   setDraft: (draft: ComposeDraft) => void;
@@ -122,17 +162,25 @@ interface ComposeDraftState {
   /** Records something read from the server or website; unlike patchDraft it is not a change by
    * the member, so it leaves `dirty` alone. */
   patchLoaded: (patch: Partial<ComposeDraft>) => void;
+  /** Clears the draft and revokes its photo blob URLs. */
   clearDraft: () => void;
+  /** Clears the draft and revokes the main photo's URL, but hands back the extras, which a publish
+   * still has to send from their blob URLs; pass them to `releasePhotos` once they are sent. */
+  clearDraftKeepingExtras: () => ComposePhoto[];
 }
 
 export const useComposeDraftStore = create<ComposeDraftState>((set, get) => ({
   draft: null,
 
-  setDraft: (draft) => set({ draft }),
+  setDraft: (draft) => {
+    releaseDropped(get().draft, draft);
+    set({ draft });
+  },
 
   seedEditDraft: (next) => {
     const current = get().draft;
     if (current?.mode === 'edit' && current.entryId === next.entryId) return false;
+    releaseDropped(current, next);
     set({ draft: next });
     return true;
   },
@@ -146,8 +194,22 @@ export const useComposeDraftStore = create<ComposeDraftState>((set, get) => ({
   patchDraft: (patch) => {
     const current = get().draft;
     if (!current) return;
-    set({ draft: { ...current, ...patch, dirty: true } });
+    const next = { ...current, ...patch, dirty: true };
+    releaseDropped(current, next);
+    set({ draft: next });
   },
 
-  clearDraft: () => set({ draft: null }),
+  clearDraft: () => {
+    releaseDropped(get().draft, null);
+    set({ draft: null });
+  },
+
+  clearDraftKeepingExtras: () => {
+    const current = get().draft;
+    const extras = current?.extras ?? [];
+    const keep = new Set(extras.map((p) => p.webPath));
+    releasePhotos(draftPhotos(current).filter((p) => !keep.has(p.webPath)));
+    set({ draft: null });
+    return extras;
+  },
 }));
