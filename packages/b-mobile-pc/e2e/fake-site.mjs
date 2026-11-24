@@ -13,7 +13,10 @@ const port = Number(process.argv[2] ?? 5195);
 
 function seed() {
   return {
-    cyclopstest: { protected: true, entries: { 100: { title: 'One', extras: [{ id: 'x1' }, { id: 'x2' }] } } },
+    cyclopstest: {
+      protected: true,
+      entries: { 100: { title: 'One', extras: [{ id: 'x1' }, { id: 'x2' }] } },
+    },
     cyclops: { protected: false, entries: { 200: { title: 'Other', extras: [{ id: 'y1' }] } } },
   };
 }
@@ -21,19 +24,25 @@ let members = seed();
 let counter = 0;
 
 const owner = (entryId) => Object.entries(members).find(([, m]) => m.entries[entryId])?.[0] ?? null;
-const total = (name) => Object.values(members[name].entries).reduce((n, e) => n + e.extras.length, 0);
+const total = (name) =>
+  Object.values(members[name].entries).reduce((n, e) => n + e.extras.length, 0);
 const remaining = (name) => 100 - total(name);
 const thumb = (id) => `http://127.0.0.1:${port}/img/${id}.jpg`;
 
 function page(viewer, body, extraHead = '') {
-  const header = viewer ? `<header><a href="/${viewer}">My profile</a></header>` : '<header>Sign in</header>';
+  const header = viewer
+    ? `<header><a href="/${viewer}">My profile</a></header>`
+    : '<header>Sign in</header>';
   return `<!doctype html><html><head><meta charset="utf-8"><title>fake blipfoto</title>${extraHead}</head><body>${header}${body}</body></html>`;
 }
 
 function editPage(viewer, entryId) {
   const entry = members[viewer].entries[entryId];
   const items = entry.extras
-    .map((x) => `<li><img src="${thumb(x.id)}"><a href="#" data-upload-id="${x.id}" class="upload-state-2"></a></li>`)
+    .map(
+      (x) =>
+        `<li><img src="${thumb(x.id)}"><a href="#" data-upload-id="${x.id}" class="upload-state-2"></a></li>`,
+    )
     .join('');
   return page(
     viewer,
@@ -93,14 +102,21 @@ function entryPage(viewer, entryId) {
     return page(viewer, `<p>This user's entries are protected. Sign up or Sign in</p>`);
   }
   const items = [
-    { item_id_str: `main${entryId}`, thumbnail_url: thumb('main'), image_urls: { stdres: thumb('main'), original: null } },
+    {
+      item_id_str: `main${entryId}`,
+      thumbnail_url: thumb('main'),
+      image_urls: { stdres: thumb('main'), original: null },
+    },
     ...members[who].entries[entryId].extras.map((x) => ({
       item_id_str: x.id,
       thumbnail_url: thumb(x.id),
       image_urls: { stdres: thumb(x.id), original: null },
     })),
   ];
-  return page(viewer, `<h1>${members[who].entries[entryId].title}</h1><script>blipfoto.data.gallery = ${JSON.stringify({ items })};</script>`);
+  return page(
+    viewer,
+    `<h1>${members[who].entries[entryId].title}</h1><script>blipfoto.data.gallery = ${JSON.stringify({ items })};</script>`,
+  );
 }
 
 function readBody(req) {
@@ -140,17 +156,36 @@ createServer(async (req, res) => {
   }
   if (url.pathname.startsWith('/img/')) {
     res.writeHead(200, { 'content-type': 'image/jpeg' });
-    return res.end(Buffer.from('/9j/4AAQSkZJRgABAQEASABIAAD/2wBDAP//////////////////////////////////////////////////////////////////////////////////////wgALCAABAAEBAREA/8QAFBABAAAAAAAAAAAAAAAAAAAAAP/aAAgBAQABPxA=', 'base64'));
+    return res.end(
+      Buffer.from(
+        '/9j/4AAQSkZJRgABAQEASABIAAD/2wBDAP//////////////////////////////////////////////////////////////////////////////////////wgALCAABAAEBAREA/8QAFBABAAAAAAAAAAAAAAAAAAAAAP/aAAgBAQABPxA=',
+        'base64',
+      ),
+    );
   }
   if (url.pathname === '/account/signin') {
-    return viewer ? redirect('/browse') : send(200, page(null, '<form method="post"><input name="email"><input type="password" name="password"></form>'));
+    return viewer
+      ? redirect('/browse')
+      : send(
+          200,
+          page(
+            null,
+            '<form method="post"><input name="email"><input type="password" name="password"></form>',
+          ),
+        );
   }
   if (['/browse', '/settings/general'].includes(url.pathname)) {
     return viewer ? send(200, page(viewer, '<p>signed in</p>')) : redirect('/account/signin');
   }
   if (url.pathname === '/publish') {
     if (!viewer) return redirect('/account/signin');
-    return send(200, page(viewer, `<input type="file" id="photo-uploader" multiple><span id="photo-uploader-remaining">${remaining(viewer)}</span><script>window.jQuery = { _data: function () { return { change: [1] }; } };</script>`));
+    return send(
+      200,
+      page(
+        viewer,
+        `<input type="file" id="photo-uploader" multiple><span id="photo-uploader-remaining">${remaining(viewer)}</span><script>window.jQuery = { _data: function () { return { change: [1] }; } };</script>`,
+      ),
+    );
   }
   let m = /^\/entry\/(\d+)$/.exec(url.pathname);
   if (m) {

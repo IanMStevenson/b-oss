@@ -46,7 +46,7 @@ and what must be visible after every round trip. The matrix then covers it on ne
 
 Created by SCR-09 `startDraft` (publish) or SCR-13's load (`seedEditDraft`, edit). Cleared by Back/Home
 with no changes, Discard, a successful save/publish, delete, and the picker's Discard. A remount does
-nothing to it. A page refresh loses it (by design: no persistence).
+nothing to it. A page refresh loses it (by design: no persistence; it asks first, see "Leaving an unsaved draft").
 
 | Field                                        | Kind     | Written by                                                                 |
 | -------------------------------------------- | -------- | -------------------------------------------------------------------------- |
@@ -104,7 +104,52 @@ Starting a new entry (SCR-09, when the photo is picked) or opening an edit (SCR-
 **different draft has unsaved changes** (`dirtyDraftOtherThan`) shows `ReplaceDraftAlert`: "Discard this entry?" /
 "Discard changes?" (by the open draft's mode). Discard clears it and carries on; Keep editing goes back to it
 (`draftRoute`). A clean draft is replaced silently. The helper and the alert are what the wider "warn before any
-navigation away" guard (b-oss#1059) reuses. Only Discard has a button handler; Keep editing is the alert's dismiss.
+navigation away" guard (b-oss#1059, next section) reuses. Only Discard has a button handler; Keep editing is the alert's dismiss.
+
+## Leaving an unsaved draft (b-oss#1059)
+
+Product decision: an unsaved draft (a new entry, or an edit with changes) is **not persisted**. Instead,
+anything that would take the member away from it asks first ("Discard this entry?" / "Discard changes?",
+Keep editing or Discard) and lets them cancel. "Unsaved" is `draft.dirty`.
+
+**In the app: one guard, not one per screen.** `app/routes/DraftNavigationGuard.tsx` (mounted once inside
+`IonReactRouter` in `AppShell`) wraps react-router's navigator and Ionic's `NavContext`, so every route change
+goes through it: side menu and tabs, notification and deep-link taps, opening an entry or profile from a link,
+the sign-in return, and the header Back/Home. Two things are not route changes and are covered separately:
+Android's hardware Back (an `ionBackButton` handler at priority 2, above the router's own and the Browse
+swallow, below Ionic's menu and overlays) and the account switcher (`useDraftLeaveGuard().confirmLeave`, since
+a switch changes account without changing route). The rules are pure (`state/draftLeave.ts`):
+
+- A move to the draft's **own screens** is not leaving (new entry: `/compose/details`, `/compose/location`,
+  `/compose/description`; edit: `/entry/:id/edit`, its `/photo`, and the same two). So the picker and
+  replace-photo round trips never ask. Anything else, including `/compose` itself, asks.
+- Back (history -1, hardware Back) only leaves from the draft's **form** screen; from its photo or location
+  screen Back returns to the form.
+- Keep editing drops the move; Discard clears the draft (revoking its blob URLs) and then carries it out.
+- The screens' own guarded Back/Home still ask first and clear the draft before they navigate, so the guard
+  sees a clean store and passes them straight through.
+
+**Page going away (desktop shell and plain browser).** The router never sees a reload or a quit, so the page
+installs a `beforeunload` listener **only while the draft is dirty** (`platform/unloadGuard.ts`). A browser
+shows its own generic question. The desktop shell (`b-mobile-pc/src/main/unload-guard.ts`):
+
+| What the member does                               | Result                                                                                                                                                                   |
+| -------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Reload (Ctrl+R, F5, View menu)                     | Electron's `will-prevent-unload` → native "Discard your unsaved changes?" Keep editing cancels the reload.                                                               |
+| Window close button, notifications **off**         | The window really closes, so the same question as a reload.                                                                                                              |
+| Window close button, notifications **on**          | **No question**: it only hides to the tray; the page, and its draft, stay alive.                                                                                         |
+| Quit: tray Exit, the app menu's quit, an installer | Asked in `before-quit`, from the flag the page reports over the bridge (`unsaved.set`), **before** the quit sequence disposes the tray and poller. Keep editing cancels. |
+| Windows logoff or shutdown                         | Never asked (it must not be held up); the draft is lost.                                                                                                                 |
+
+The quit needs the bridge flag because cancelling after the quit sequence has started would leave a live app
+with no tray or poller; a hidden window cannot be asked, and the flag is reset whenever the page loads. The
+tray's Exit with notifications on keeps its own "Exit b-mobile?" question, so a member with an unsaved draft
+sees both. An older shell without `unsaved` is tolerated (the page checks for it).
+
+**Not preventable, so not attempted:** the OS killing the app (Android swipe-away from recents, the low-memory
+killer, a crash, power loss, End Task, a Windows shutdown). Android also has no hook for an app being
+backgrounded and then reclaimed. A draft lost this way is simply gone; this is the "not persisted" decision.
+Browser Back/Forward (popstate) in a plain browser build is not intercepted either, only unloading the page.
 
 ## What a round trip does to each field (tested)
 
@@ -116,6 +161,5 @@ editor now and holds no compose state; the crop gesture (react-easy-crop) is set
 
 ## Known gaps (follow-up)
 
-- Only starting a new entry / opening an edit guards an unsaved draft; other ways of leaving it (menu routes,
-  shell close) are b-oss#1059.
-- A refresh loses an unsaved draft; whether to persist it is a product decision.
+- A refresh loses an unsaved draft **by decision** (not persisted; see above): it now asks first.
+- Removing or signing out of the account that owns the dirty draft does not ask (only switching does).

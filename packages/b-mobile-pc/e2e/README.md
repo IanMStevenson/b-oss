@@ -54,6 +54,8 @@ round, no "unavailable" copy), the first poll announces nothing, one notificatio
 stream switched off and no catch-up when it comes back, a click routes to the right screen, and a dead
 token raises exactly one sign-in-again notification.
 
+An unsaved draft (b-oss#1059): the native "Discard your unsaved changes?" question is replaced by a recording stand-in on the notification test port (`GET /unload-asked`, `POST /unload-answer/<0|1>`; `POST /do/<reload|close|quit|show>` make the calls the menu's Reload, the close button and the tray's Exit end up making). Covered: a reload and a quit ask and Keep editing cancels them, Discard lets a reload go, the close button asks when it really closes (with notifications on it only hides to the tray and does not ask), and a clean page reloads without asking.
+
 The error log (b-oss#639): an unhandled page error lands in `userData/logs/app.log` with its token redacted, and the error screen shows the message with Copy details (through the bridge to the clipboard) and Open log folder. The render failure is simulated by handing the app's real error boundary an error through React's fiber tree.
 
 Sub-pixel text (b-oss#676): the container renders with LCD anti-aliasing (a fontconfig `rgba=rgb` file written by `docker/run-electron.sh`; `E2E_LCD=0` turns it off, `E2E_SCREEN=WxHxD` sets the virtual screen). `e2e/lcd-measure.ts` tells sub-pixel from grayscale text in a screenshot crop by the colour fringes on glyph edges; the e2e checks it against a positive and a negative control, then requires sub-pixel text in the header, tab strip, drawer, pin button and pinned menu. To look at layers by hand, connect to the shell's DevTools port and use `LayerTree.enable` / `LayerTree.compositingReasons`.
