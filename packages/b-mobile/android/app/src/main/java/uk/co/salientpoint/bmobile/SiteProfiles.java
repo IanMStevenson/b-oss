@@ -35,6 +35,21 @@ final class SiteProfiles {
 
   private SiteProfiles() {}
 
+  private static final String LEGACY_CLEARED = "legacy_default_cookies_cleared";
+
+  /** Once per install, where profiles are supported: empties the default cookie store of the website
+   * login 1.6.1 and earlier left there from sign-in rounds (b-oss#1064). Nothing reads it any more
+   * and, with profiles, nothing legitimate keeps anything in that store (each account has its own
+   * profile and sign-in rounds clean up after themselves). Never where profiles are not supported:
+   * there the default store is the one shared website session. Main thread, after the WebView exists. */
+  static void clearLegacyDefaultCookies(Context context) {
+    init(context);
+    if (!supported() || prefs.getBoolean(LEGACY_CLEARED, false)) return;
+    CookieManager.getInstance().removeAllCookies(null);
+    CookieManager.getInstance().flush();
+    prefs.edit().putBoolean(LEGACY_CLEARED, true).apply();
+  }
+
   /** Must run before anything else here; idempotent. */
   static synchronized void init(Context context) {
     if (prefs == null) {

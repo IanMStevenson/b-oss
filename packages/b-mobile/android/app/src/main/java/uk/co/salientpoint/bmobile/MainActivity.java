@@ -40,6 +40,8 @@ public class MainActivity extends BridgeActivity {
     // as that member (b-oss#1064). This app's native requests authenticate with bearer tokens and
     // never rely on cookies, so none are sent or kept. The WebViews' own cookies are unaffected.
     CookieHandler.setDefault(null);
+    // The website login that 1.6.1 and earlier left in the shared cookie store, cleared once (b-oss#1064).
+    SiteProfiles.clearLegacyDefaultCookies(this);
     ThemePlugin.applyBackground(this, getBridge().getWebView(), themePreference);
     createNotificationChannels();
   }
