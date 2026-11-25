@@ -102,7 +102,10 @@ that has expired or was never made (a round in the system browser, an older shel
   whichever account was selected (found 2026-11-24). `MainActivity` clears the default handler after
   start-up; the app's native requests use bearer tokens, and the WebViews' own cookies are untouched. On a
   device with no WebView profiles ('single'), where the one shared login is deliberate, this is what keeps
-  it out of the anonymous reads. Belt and braces: no sign-in round leaves a login in the default store.
+  it out of the anonymous reads. Belt and braces: no sign-in round leaves a login in the default store, and
+  where profiles are supported the default store is emptied once per install at start-up
+  (`SiteProfiles.clearLegacyDefaultCookies`) to remove the login 1.6.1 and earlier left there. Never on a
+  'single' device, where that store is the shared session.
 
 ## One session for the whole app (`'single'`)
 
