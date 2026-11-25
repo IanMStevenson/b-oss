@@ -21,12 +21,12 @@
   "devDependencies": {
     "@b-oss/b-api-web": "*",
     "@b-oss/b-notify-core": "*",
-    "electron": "45.3.2",
+    "electron": "45.4.1",
     "electron-builder": "^26.18.0",
     "electron-vite": "^6.0.0",
     "playwright-core": "^1.65.1",
     "vite": "^8.3.8",
-    "vitest": "^5.0.5"
+    "vitest": "^5.1.1"
   },
   "productName": "b-mobile"
 }

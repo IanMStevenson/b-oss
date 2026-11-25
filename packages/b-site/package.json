@@ -16,12 +16,12 @@
     "preview:status": "node scripts/status-preview.mjs"
   },
   "dependencies": {
-    "@astrojs/sitemap": "^3.7.5",
-    "astro": "^7.4.12"
+    "@astrojs/sitemap": "^3.7.6",
+    "astro": "^7.4.13"
   },
   "devDependencies": {
     "@astrojs/check": "^0.9.12",
-    "vitest": "^5.0.5",
-    "wrangler": "^4.162.0"
+    "vitest": "^5.1.1",
+    "wrangler": "^4.166.0"
   }
 }
