@@ -12,6 +12,7 @@
   },
   "dependencies": {
     "@b-oss/b-api": "*",
+    "@b-oss/b-api-web": "*",
     "@b-oss/b-ark-ui-chrome": "*",
     "@b-oss/backup-engine": "*",
     "react": "^19.3.1",

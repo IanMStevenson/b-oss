@@ -8,11 +8,12 @@
  * gallery data embedded in the public page. Replace this module with an API call when the API
  * exposes extras; keep it the only place that knows about the page.
  *
- * The caller injects the text fetch (b-api has no platform HTTP). Only thumbnail and
+ * The caller injects the text fetch (b-api-web has no platform HTTP). Only thumbnail and
  * standard-resolution URLs are returned: original/hires are never exposed.
  */
 
 import { GALLERY_MARKER, extractGalleryItems } from './gallery.js';
+import { entryUrl } from './urls.js';
 
 /** Fetch a URL and resolve with the response body as text; reject (or throw) on failure. */
 export type TextFetcher = (url: string) => Promise<string>;
@@ -38,17 +39,13 @@ export type EntryExtrasResult =
 /** The sentence a signed-out visitor sees in place of a protected journal's entry. */
 export const PROTECTED_MARKER = 'entries are protected';
 
-export function entryPageUrl(entryId: string): string {
-  return `https://www.blipfoto.com/entry/${encodeURIComponent(entryId)}`;
-}
-
 export async function fetchEntryExtras(
   entryId: string,
   fetchText: TextFetcher,
 ): Promise<EntryExtrasResult> {
   let html: string;
   try {
-    html = await fetchText(entryPageUrl(entryId));
+    html = await fetchText(entryUrl(entryId));
   } catch {
     return { status: 'failed', reason: 'fetch' };
   }

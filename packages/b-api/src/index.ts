@@ -5,5 +5,3 @@ export * from './types.js';
 export * from './errors.js';
 export * from './client.js';
 export * from './oauth-flow.js';
-export * from './gallery.js';
-export * from './entry-extras.js';

@@ -25,7 +25,7 @@ import {
   type RemainingResult,
   type WhoAmIResult,
 } from '@b-oss/b-api-web';
-import { fetchEntryExtras, type EntryExtra } from '@b-oss/b-api';
+import { fetchEntryExtras, type EntryExtra } from '@b-oss/b-api-web';
 import { forgetEntryExtras } from '../data/extrasCache.js';
 import { clearDesignatedExtrasAccount } from '../site/access.js';
 import {

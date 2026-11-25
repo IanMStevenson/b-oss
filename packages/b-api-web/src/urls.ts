@@ -12,6 +12,14 @@ export function siteUrl(path: string): string {
   return `${SITE_ORIGIN}${path}`;
 }
 
+/**
+ * A URL the site hands out, which is either absolute or a path on the site (such as an image path
+ * in a page's gallery data): made absolute.
+ */
+export function resolveSiteUrl(href: string): string {
+  return href.startsWith('http') ? href : siteUrl(href);
+}
+
 /** A member's public entry page (its `entry_id_str`). */
 export function entryUrl(entryId: string): string {
   return siteUrl(`/entry/${encodeURIComponent(entryId)}`);
