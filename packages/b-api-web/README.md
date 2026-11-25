@@ -12,6 +12,12 @@ only the pieces an app needs and the API lacks.
   profile, sign-in, the legal pages, the icon base).
 - **`parse`**: the inverse. `parseSiteUrl(href)` says what a site link points at (an entry, a profile,
   the follow-requests page), so the grammar exists once; apps map the result to their own routes.
+- **`session`**: what a website session looks like from outside: the cookie domain and session cookie
+  name, the stored cookie shape (`WebCookie`) and its (de)serialisation, sign-in detection
+  (`isLoginUrl`, `looksLikeLoginPage`, `isSignedInFromCookies`, `classifyScrapeResponse`). One fact
+  to know: **the signed-out site also sets `BLIPFOTO_SESSION`** (an anonymous session), so the
+  cookie's presence proves nothing; the sign-in form's absence, or the page naming the member, does.
+  The site is a plain Apache/PHP stack with no Cloudflare. Learned from b-ark's per-account session.
 - **`pages`**: the scripts that drive the site's own pages in a hidden browser page (adding, removing
   and reading extra photos, the remaining allowance, a page's HTML), their result types, and the
   member guard: every script is built for one member and refuses unless the page says exactly that

@@ -24,8 +24,8 @@ import {
 } from './store.js';
 import { encryptSecret, decryptSecret } from './secret-store.js';
 import {
-  BLIPFOTO_COOKIE_DOMAIN,
-  BLIPFOTO_LOGIN_URL,
+  COOKIE_DOMAIN,
+  SIGN_IN_URL,
   classifyScrapeResponse,
   cookieSetUrl,
   deserializeCookies,
@@ -33,7 +33,7 @@ import {
   isSignedInFromCookies,
   serializeCookies,
   type WebCookie,
-} from './web-session-pure.js';
+} from '@b-oss/b-api-web';
 
 // Blipfoto is a plain Apache/PHP stack (no Cloudflare), so `Session.fetch`'s
 // `Electron/<ver>` UA token is not expected to matter. Flip to true if a WAF
@@ -55,7 +55,7 @@ function toWebCookies(cookies: Electron.Cookie[]): WebCookie[] {
   return cookies.map((c) => ({
     name: c.name,
     value: c.value,
-    domain: c.domain ?? BLIPFOTO_COOKIE_DOMAIN,
+    domain: c.domain ?? COOKIE_DOMAIN,
     path: c.path ?? '/',
     secure: c.secure ?? false,
     httpOnly: c.httpOnly ?? false,
@@ -65,7 +65,7 @@ function toWebCookies(cookies: Electron.Cookie[]): WebCookie[] {
 }
 
 async function readBlipfotoCookies(sess: Session): Promise<WebCookie[]> {
-  const raw = await sess.cookies.get({ domain: BLIPFOTO_COOKIE_DOMAIN });
+  const raw = await sess.cookies.get({ domain: COOKIE_DOMAIN });
   return toWebCookies(raw);
 }
 
@@ -176,7 +176,7 @@ export function openWebLoginWindow(
         .catch(() => finish(false));
     });
 
-    void win.loadURL(BLIPFOTO_LOGIN_URL);
+    void win.loadURL(SIGN_IN_URL);
   });
 }
 

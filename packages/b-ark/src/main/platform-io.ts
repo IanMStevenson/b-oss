@@ -4,7 +4,7 @@
 import fs from 'node:fs/promises';
 import type { PlatformIO, LogEntry } from '@b-oss/backup-engine';
 import { net, type Session } from 'electron';
-import { classifyScrapeResponse } from './web-session-pure.js';
+import { classifyScrapeResponse } from '@b-oss/b-api-web';
 
 /**
  * Thrown by `fetchHtml` when the injected website session is no longer valid
@@ -131,7 +131,10 @@ export class ElectronPlatformIO implements PlatformIO {
     }
     const response = await sess.fetch(url);
     const body = await response.text();
-    if (classifyScrapeResponse({ status: response.status, finalUrl: response.url, body }) === 'expired') {
+    if (
+      classifyScrapeResponse({ status: response.status, finalUrl: response.url, body }) ===
+      'expired'
+    ) {
       if (this.web.fetchHtmlFallback) {
         try {
           return await this.web.fetchHtmlFallback(url);

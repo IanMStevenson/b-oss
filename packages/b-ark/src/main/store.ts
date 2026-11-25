@@ -15,7 +15,7 @@ import { PortableSettingsManager } from './portable-settings.js';
 import { decryptSecret } from './secret-store.js';
 import { isStoreNoticeOffered } from './store-notice.js';
 import { effectiveStatus } from './rag-reasons.js';
-import { deserializeCookies, sessionValidUntilMs, type WebCookie } from './web-session-pure.js';
+import { deserializeCookies, sessionValidUntilMs, type WebCookie } from '@b-oss/b-api-web';
 
 const DEFAULT_STATUS: AccountStatus = {
   last_backup_at: null,

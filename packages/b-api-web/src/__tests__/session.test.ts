@@ -12,7 +12,7 @@ import {
   looksLikeLoginPage,
   serializeCookies,
   type WebCookie,
-} from '../web-session-pure.js';
+} from '../session.js';
 
 const sessionCookie = (over: Partial<WebCookie> = {}): WebCookie => ({
   name: 'BLIPFOTO_SESSION',
