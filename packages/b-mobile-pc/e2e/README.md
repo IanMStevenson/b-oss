@@ -2,8 +2,11 @@
 
 The real Electron shell, in Docker under a virtual display, driven from the host by Playwright over the
 DevTools protocol. It runs against b-mobile's `scripts/stub-api.mjs` (a stand-in for the Blipfoto API,
-behind the shell's proxy) and `e2e/fake-authorize.mjs` (a stand-in sign-in page), so it needs no network
-access to Blipfoto and no real account.
+behind the shell's proxy) and `e2e/fake-authorize.mjs` (a stand-in sign-in page) and `e2e/fake-site.mjs` (a stand-in for the website's
+pages that the extras website session drives, pointed at by the shell's `BMPC_SITE_ORIGIN` test hook; seed members
+and test endpoints are described at its top), so it needs no network access to Blipfoto and no real account.
+`contract-site-session.e2e.ts` tests the website-session host contract against it (per-account isolation, the
+member guard, extras add/remove/read, a protected journal, sign-out; b-oss#1050, b-oss#1053).
 
 ```bash
 npm run e2e -w @b-oss/b-mobile-pc      # Linux + Docker; builds b-mobile and the shell first
@@ -11,7 +14,7 @@ npm run e2e -w @b-oss/b-mobile-pc      # Linux + Docker; builds b-mobile and the
 
 `e2e/run.sh` does everything: builds the `bmpc-e2e` image once (Ubuntu + the libraries Electron needs),
 fetches the Linux Electron binary if `node_modules/electron/dist` is missing, builds the web app and the
-shell, starts the stub servers, starts the shell in the container, runs `shell.e2e.ts`, and cleans up.
+shell, starts the stub servers, starts the shell in the container, runs the `*.e2e.ts` files, and cleans up.
 Screenshots and logs go to `e2e-out/` (git-ignored) or `$BMPC_E2E_OUT`.
 
 **Running several at once** (several workers, or a worker and the coordinator): each run picks its own
@@ -50,6 +53,8 @@ mode are driven over `/__unread` and `/__token-dead`. Covered: enabling is a pla
 round, no "unavailable" copy), the first poll announces nothing, one notification per rise, none for a
 stream switched off and no catch-up when it comes back, a click routes to the right screen, and a dead
 token raises exactly one sign-in-again notification.
+
+An unsaved draft (b-oss#1059): the native "Discard your unsaved changes?" question is replaced by a recording stand-in on the notification test port (`GET /unload-asked`, `POST /unload-answer/<0|1>`; `POST /do/<reload|close|quit|show>` make the calls the menu's Reload, the close button and the tray's Exit end up making). Covered: a reload and a quit ask and Keep editing cancels them, Discard lets a reload go, the close button asks when it really closes (with notifications on it only hides to the tray and does not ask), and a clean page reloads without asking.
 
 The error log (b-oss#639): an unhandled page error lands in `userData/logs/app.log` with its token redacted, and the error screen shows the message with Copy details (through the bridge to the clipboard) and Open log folder. The render failure is simulated by handing the app's real error boundary an error through React's fiber tree.
 

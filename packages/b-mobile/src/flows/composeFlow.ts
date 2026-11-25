@@ -9,6 +9,7 @@
 import type { PublishEntryParams, UpdateEntryParams } from '@b-oss/b-api';
 import { getClientForAccount } from '../data/client.js';
 import { gmtOffsetMinutes } from '../data/dates.js';
+import { forgetEntryLists } from '../data/entries.js';
 import { thumbnailCropToField } from '../data/imageCrop.js';
 import { photoToFileSource } from '../platform/upload.js';
 import type { ComposeDraft } from '../state/composeDraftStore.js';
@@ -78,6 +79,8 @@ export async function submitDraft(draft: ComposeDraft): Promise<string> {
       : (await client.updateEntry({ entryId: draft.entryId!, ...fields, image })).entry
           .entry_id_str;
 
+  // The lists that showed this entry (or its old thumbnail) are stale now.
+  forgetEntryLists();
   // Either counts as "published through the app today" for that account's reminder.
   onEntryPublished(draft.accountId);
   return entryId;

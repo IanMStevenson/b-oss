@@ -269,7 +269,13 @@ describe('desktop capabilities: location and camera', () => {
   });
 
   it('the location picker offers "Show current location"; a failed attempt gives a message and hides it (b-oss#672)', async () => {
-    await go('/compose/location', 4000);
+    // In-app navigation, not a page load: the picker needs the draft the previous test left open, and
+    // it (rightly) leaves when a refresh has dropped the draft (b-oss#1056).
+    await page.evaluate(() => {
+      history.pushState({}, '', '/compose/location');
+      dispatchEvent(new PopStateEvent('popstate'));
+    });
+    await page.waitForTimeout(4000);
     expect(await text()).not.toMatch(/Something went wrong/i);
     const control = page.getByLabel('Show current location');
     expect(await control.count()).toBe(1);
@@ -694,6 +700,86 @@ const flipToggle = (label: string, checked: boolean): Promise<unknown> =>
         ),
     { label, checked },
   );
+
+// An unsaved draft is not lost without asking (b-oss#1059). The shell's native question is replaced by a
+// recording stand-in (the container cannot click a dialog): `/unload-asked` counts the questions and
+// `/unload-answer/<0|1>` says what is pressed (0 Discard, 1 Keep editing). `/do/<reload|close|quit|show>`
+// make the calls the View menu's Reload, the close button and the tray's Exit end up making. It runs before the notification tests, so
+// notifications are still off and the close button really closes (with them on it only hides to the tray,
+// which tray-policy.test.ts covers: no question, the page and its draft stay alive).
+describe('an unsaved draft is not lost without asking (b-oss#1059)', () => {
+  const asked = async (): Promise<number> =>
+    ((await (await fetch(`${NOTIFY}/unload-asked`)).json()) as { asked: number }).asked;
+  const answer = (button: 0 | 1): Promise<Response> =>
+    fetch(`${NOTIFY}/unload-answer/${button}`, { method: 'POST' });
+  const doIt = (what: 'reload' | 'close' | 'quit' | 'show'): Promise<Response> =>
+    fetch(`${NOTIFY}/do/${what}`, { method: 'POST' });
+  const title = (p: Page) => p.getByLabel('Title');
+
+  const openDirtyEdit = async (): Promise<void> => {
+    await go('/entry/5000000000/edit', 4000);
+    await title(page).fill('An unsaved title'); // real input events, as a member types
+    await page.evaluate(() => ((window as unknown as { __alive?: number }).__alive = 1));
+    await page.waitForTimeout(500); // the page's report reaches the shell
+  };
+  const alive = (): Promise<unknown> =>
+    page.evaluate(() => (window as unknown as { __alive?: number }).__alive);
+
+  it('a reload asks; Keep editing leaves the page and the draft alone', async () => {
+    await openDirtyEdit();
+    await answer(1);
+    const before = await asked();
+    await doIt('reload');
+    await page.waitForTimeout(1500);
+    expect(await asked()).toBe(before + 1);
+    expect(await alive()).toBe(1);
+    expect(await title(page).inputValue()).toBe('An unsaved title');
+  });
+
+  it("a quit (the tray's Exit, the menu) asks; Keep editing cancels it and the app carries on", async () => {
+    const before = await asked();
+    await doIt('quit');
+    await page.waitForTimeout(1500);
+    expect(await asked()).toBe(before + 1);
+    expect(await alive()).toBe(1);
+    expect(await title(page).inputValue()).toBe('An unsaved title');
+    // Still a working shell: the test server answers and the page responds.
+    expect((await fetch(`${NOTIFY}/shown`)).status).toBe(200);
+  });
+
+  it('the close button (notifications off, so it really closes) asks; Keep editing keeps the window', async () => {
+    const before = await asked();
+    await doIt('close');
+    await page.waitForTimeout(1500);
+    expect(await asked()).toBe(before + 1);
+    expect(await alive()).toBe(1);
+    expect(await title(page).inputValue()).toBe('An unsaved title');
+  });
+
+  it('a reload asks; Discard lets it go and the draft is gone', async () => {
+    await answer(0);
+    const before = await asked();
+    await doIt('reload');
+    await page.waitForFunction(
+      () => (window as unknown as { __alive?: number }).__alive === undefined,
+      undefined,
+      {
+        timeout: 15_000,
+      },
+    );
+    expect(await asked()).toBe(before + 1);
+    await page.waitForTimeout(3000);
+    expect(await title(page).inputValue()).not.toBe('An unsaved title');
+    await answer(1);
+  });
+
+  it('with nothing unsaved, a reload does not ask', async () => {
+    const before = await asked();
+    await doIt('reload');
+    await page.waitForTimeout(2500);
+    expect(await asked()).toBe(before);
+  });
+});
 
 describe('desktop notifications by polling', () => {
   it('is a plain setting: no second sign-in, nothing "unavailable", and the tray is explained', async () => {

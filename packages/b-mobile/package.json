@@ -16,6 +16,7 @@
   "dependencies": {
     "@aparajita/capacitor-secure-storage": "^8.0.1",
     "@b-oss/b-api": "*",
+    "@b-oss/b-api-web": "*",
     "@b-oss/b-view": "*",
     "@b-oss/b-visual": "*",
     "@bbob/plugin-helper": "^4.5.0",

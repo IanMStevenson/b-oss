@@ -125,6 +125,10 @@ interface EntryDetailProps {
    * entry navigation by DOUBLE_TAP_MS so the first tap of a double can be told apart (and cancelled);
    * omitted, a tap navigates at once, as before. Typically opens the main photo, as `onOpenPhoto(0)` does. */
   onPhotoDoubleTap?: () => void;
+  /** Shown where the extras thumbnails would be when the entry has none to show, for a host that
+   * knows extras exist but cannot read them yet (e.g. a notice offering to sign in). Omitted: nothing
+   * is shown, as before. */
+  extrasNotice?: ReactNode;
   /** Called when a tag chip is tapped, with the raw tag text — for a host that has a tag-entries
    * screen/route to navigate to. Omitted: tags render as plain, non-interactive text, as before. */
   onTagClick?: (tag: string) => void;
@@ -319,6 +323,7 @@ export function EntryDetail({
   onOpenPhoto,
   onPhotoDoubleTap,
   onTagClick,
+  extrasNotice,
   onLocationClick,
 }: EntryDetailProps) {
   const [asyncImageSrc, setAsyncImageSrc] = useState<string | null>(null);
@@ -705,6 +710,10 @@ export function EntryDetail({
                     ),
                   )}
                 </div>
+              )}
+
+              {extras.length === 0 && extrasNotice && (
+                <div className={styles.extrasNotice}>{extrasNotice}</div>
               )}
 
               {/* Extras thumbnail row */}

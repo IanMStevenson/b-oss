@@ -7,6 +7,7 @@ import {
   CHANNELS,
   type DesktopBridge,
   type PickedPhotoFile,
+  type SitePageResult,
 } from '../shared/bridge.js';
 import type { NotifyPayload, NotifyStatus, TestNotifyResult } from '../shared/notify.js';
 
@@ -28,8 +29,8 @@ const bridge: DesktopBridge = {
     set: (key, value) => ipcRenderer.invoke(CHANNELS.secureSet, key, value) as Promise<void>,
     remove: (key) => ipcRenderer.invoke(CHANNELS.secureRemove, key) as Promise<void>,
   },
-  openAuth: (url, redirectPrefix) =>
-    ipcRenderer.invoke(CHANNELS.authOpen, url, redirectPrefix) as Promise<string>,
+  openAuth: (url, redirectPrefix, sessionToken) =>
+    ipcRenderer.invoke(CHANNELS.authOpen, url, redirectPrefix, sessionToken) as Promise<string>,
   notify: {
     configure: (settings) =>
       ipcRenderer.invoke(CHANNELS.notifyConfigure, settings) as Promise<void>,
@@ -55,6 +56,19 @@ const bridge: DesktopBridge = {
   },
   shell: {
     info: () => ipcRenderer.invoke(CHANNELS.shellInfo) as Promise<{ build: string }>,
+  },
+  site: {
+    signIn: (accountId, url) =>
+      ipcRenderer.invoke(CHANNELS.siteSignIn, accountId, url) as Promise<boolean>,
+    signOut: (accountId) => ipcRenderer.invoke(CHANNELS.siteSignOut, accountId) as Promise<void>,
+    runPage: (run) => ipcRenderer.invoke(CHANNELS.siteRunPage, run) as Promise<SitePageResult>,
+    adoptPending: (token, accountId) =>
+      ipcRenderer.invoke(CHANNELS.siteAdoptPending, token, accountId) as Promise<void>,
+    discardPending: (token) =>
+      ipcRenderer.invoke(CHANNELS.siteDiscardPending, token) as Promise<void>,
+  },
+  unsaved: {
+    set: (unsaved) => ipcRenderer.invoke(CHANNELS.draftUnsaved, unsaved) as Promise<void>,
   },
   pickPhoto: (accountId) =>
     ipcRenderer.invoke(CHANNELS.pickPhoto, accountId) as Promise<PickedPhotoFile | null>,

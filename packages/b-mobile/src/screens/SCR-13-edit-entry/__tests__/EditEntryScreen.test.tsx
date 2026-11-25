@@ -114,6 +114,20 @@ describe('EditEntryScreen', () => {
     expect(screen.getByDisplayValue('dawn')).toBeDefined();
   });
 
+  it('still shows the entry photo after a trip to the map screen and back', async () => {
+    const base = (await fetchEntry('e1')) as { entry: Record<string, unknown> };
+    fetchEntry.mockResolvedValue({
+      ...base,
+      entry: { ...base.entry, images: { thumbnail: 'https://example.test/t.jpg' } },
+    });
+    renderScreen();
+    expect(await screen.findByAltText('Current photo')).toBeDefined();
+    // Leaving for the map screen unmounts this screen; the draft stays, and so must the photo.
+    cleanup();
+    renderScreen();
+    expect(await screen.findByAltText('Current photo')).toBeDefined();
+  });
+
   it('shows an error and no form when the entry fails to load', async () => {
     fetchEntry.mockRejectedValue(new BlipfotoError(404, 'Not found'));
     renderScreen();
@@ -141,11 +155,11 @@ describe('EditEntryScreen', () => {
     expect(useComposeDraftStore.getState().draft).toBeNull();
   });
 
-  it('Replace image opens the picker screen; a photo picked there shows in the frame', async () => {
+  it('Replace photo opens the picker screen; a photo picked there shows in the frame', async () => {
     renderScreen();
     await screen.findByDisplayValue('Sunrise');
 
-    await userEvent.click(screen.getByText('Replace image'));
+    await userEvent.click(screen.getByText('Replace photo'));
     expect(push).toHaveBeenCalledWith('/entry/e1/edit/photo');
     // The inline camera/gallery buttons are gone — the picker screen owns those now.
     expect(screen.queryByText('Take a photo')).toBeNull();
@@ -177,7 +191,7 @@ describe('EditEntryScreen', () => {
     await screen.findByDisplayValue('dawn');
     expect(screen.getByText(/only allows the tags and location/i)).toBeDefined();
     expect(screen.queryByDisplayValue('Sunrise')).toBeNull();
-    expect(screen.queryByText('Replace image')).toBeNull();
+    expect(screen.queryByText('Replace photo')).toBeNull();
     expect(useComposeDraftStore.getState().draft?.editLevel).toBe(2);
   });
 

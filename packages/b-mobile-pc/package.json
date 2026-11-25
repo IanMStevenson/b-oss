@@ -19,6 +19,7 @@
     "dist:store": "electron-vite build && electron-builder --win appx --config electron-builder.store.json --publish never"
   },
   "devDependencies": {
+    "@b-oss/b-api-web": "*",
     "@b-oss/b-notify-core": "*",
     "electron": "45.4.1",
     "electron-builder": "^26.18.0",

@@ -214,9 +214,15 @@ describe('planAppRequest: site route', () => {
   });
 
   it('keeps the host fixed against host-like and credential-like paths', () => {
-    for (const p of ['//evil.example/x', '@evil.example/x', '/evil.example', '%2f%2fevil.example']) {
+    for (const p of [
+      '//evil.example/x',
+      '@evil.example/x',
+      '/evil.example',
+      '%2f%2fevil.example',
+    ]) {
       const plan = planAppRequest(`app://b-mobile/site/blipfoto/${p}`, dist);
-      if (plan.kind === 'site') expect(new URL(plan.target).origin).toBe('https://www.blipfoto.com');
+      if (plan.kind === 'site')
+        expect(new URL(plan.target).origin).toBe('https://www.blipfoto.com');
       else expect(plan.kind).toBe('reject');
     }
   });

@@ -390,6 +390,9 @@ export function BBCodeEditor({
               aria-label={label}
               aria-pressed={state ? isActive(state, MARKS[format]) : false}
               disabled={readOnly}
+              // Not a tab stop: Tab moves between the form's fields, not through the toolbar
+              // (Ctrl/Cmd+B, I and U still format from the keyboard).
+              tabIndex={-1}
               // Keep the editor focused (and the keyboard up) when a button is tapped.
               onMouseDown={(e) => e.preventDefault()}
               onClick={() => run(toggleMark(MARKS[format]))}
@@ -404,6 +407,7 @@ export function BBCodeEditor({
             aria-pressed={inLink}
             aria-expanded={linkPanel !== null}
             disabled={readOnly}
+            tabIndex={-1}
             onMouseDown={(e) => e.preventDefault()}
             onClick={openLink}
           >

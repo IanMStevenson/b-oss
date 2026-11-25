@@ -38,6 +38,7 @@ export default defineConfig({
       // build never recompiles automatically — bundling that would ship stale code.
       // @b-oss/b-view and @b-oss/b-visual already point "main" straight at src, no alias needed.
       { find: /^@b-oss\/b-api$/, replacement: resolve(__dirname, '../b-api/src/index.ts') },
+      { find: /^@b-oss\/b-api-web$/, replacement: resolve(__dirname, '../b-api-web/src/index.ts') },
     ],
   },
   server: {

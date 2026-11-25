@@ -83,6 +83,17 @@ Known Blipfoto API limits: [AppLimitations.md](AppLimitations.md). Paths are rel
   ("Saving your changes… Please don't leave the app until the upload completes."), then returns to
   the entry. If it fails, the form stays with the edits intact, the error shown and the button
   reading Retry (b-oss#730).
+  **A replacement photo with a thumbnail the member chose** (b-oss#1062): Blipfoto's API ignores a
+  thumbnail selection when an entry's photo is replaced (the website applies it), so Save does not send
+  it. If the member changed the selection from the default, Save shows a decision screen instead: "The
+  Blipfoto API has a bug and doesn't accept thumbnail edits on replacement images", a link to the entry's
+  edit page on the website, and three choices: (1) continue with the default thumbnail (saved without
+  the selection); (2) delete the current entry and post the edits as a new entry (asked once more,
+  being irreversible: likes, hearts, comments, view count and existing extras are lost; the new entry
+  gets the same photo, details, date, position, selection and any extras just added; the delete runs
+  first, and if the post fails after it the edits are kept as a new-entry draft with the reason);
+  (3) cancel the edits, which asks the usual "Discard changes?" first. The default is a solid button and the other two are outlined; only the second goes on to a screen of its own, in red. No decision screen when only the photo is replaced, or the selection is still
+  the default (`flows/thumbnailDecision.ts`).
   In Edit, turning "Add to map" on for an entry whose position the app doesn't hold (the entry's
   `location` is hidden while the map is off, though Blipfoto keeps the co-ordinates) looks it up
   immediately, not queued (`data/entryLocation.ts`): map on without a position, read the entry
@@ -186,6 +197,43 @@ reminders,details,profile,notifications}`; the old `/settings/{general,journal,a
   retry after Blipfoto had in fact accepted the entry fails, since the date is taken. A rejected
   token is a forced logout. There is no queue and no Uploads screen; an older version's saved
   queue and copied photos are deleted unsent at launch (`discardLegacyUploadQueue`).
+- Extra photos (b-oss#1037, members only, Android and the desktop shell): the API has no extras
+  upload for our app type, so after the entry is published through the API the app adds extras by
+  driving Blipfoto's own edit page (`flows/extrasFlow.ts`, `platform/siteExtrasScripts.ts`,
+  `platform/siteSession.ts`): an off-screen WebView (Android `SiteSessionPlugin`) or hidden window
+  (shell `site-window.ts`) loads `/entry/<id>/edit`, hands the page's own uploader the photos,
+  presses its Save, then reloads the page and counts the extras (the save is not trusted). Compose
+  details shows an "Extra photos" block (up to 10). The first **Add an extra photo** checks the
+  stored website session; if there is none (or it is another member) it asks "Do you sign in to
+  Blipfoto with an email address and password?": Yes opens Blipfoto's own sign-in page (the password
+  never passes through the app; the cookie stays in the WebView's store); No explains that a Facebook
+  or Twitter member can set a password with "Forgotten your details?" (their social sign-in keeps
+  working) and offers the sign-in page. After publishing, the completion view shows "Adding your
+  extra photos…" and then the count added. Any failure (not signed in, another member, no
+  membership, an unexpected page, a timeout, not kept, or a partial result) says what happened and
+  offers **Open the edit page** in the system browser; the entry itself is never affected.
+  Signing in to the app in the in-app browser (Android's WebView, the desktop sign-in window) also logs
+  the member into the website, and that login is kept as the account's website session, so the
+  question above is only asked when there is no such session (a sign-in in the system browser, or a
+  session that has ended). It is adopted only once the round is known to be for that member
+  (b-oss#1064, site-session.md).
+  The website session is kept in the WebView's (or the shell window's) own cookie store, not the
+  OS keystore, and reused until Blipfoto says it has ended (its "remember me" cookie survives an
+  app restart). The desktop shell keeps one session per account (a partition named for it), so one
+  member's session is never in use while another is selected; removing an account deletes its
+  session (`forgetSiteSession`). Every page script is given the member the app is acting for and
+  refuses to do anything unless the page says exactly that member is signed in (otherwise the
+  extras block says the website is signed in as someone else and offers to sign in as the right
+  one); this is checked in the same page load as the action, on every platform. Cached extras are
+  per account.
+  Edit entry (b-oss#1041) has the same block (`ExtraPhotosEditor`): the entry's current extras are
+  read from its website edit page (needs the session; else the same "Extras require a web login"
+  notice), each with a × that marks it for removal (a ↺ undoes it) and a + tile that adds more.
+  Nothing is sent until **Save**: the entry is saved through the API first, then the removals and
+  additions are applied through the edit page's own controls and its own Save, and confirmed by a
+  read-back. If any change fails the screen says "Your changes are saved" with what went wrong and
+  **Open the edit page**. The remaining allowance (100 a year) is shown only when the website has
+  been read; it is hidden otherwise.
 - Share intent (`platform/shareIntent.ts`): `AppShell` reads the shared image once, caches it and
   opens `/compose`; New entry starts a draft from it once the write gate has passed.
 

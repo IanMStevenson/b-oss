@@ -1,0 +1,272 @@
+package uk.co.salientpoint.bmobile;
+
+import android.app.Activity;
+import android.content.Intent;
+import android.net.Uri;
+import android.os.Handler;
+import android.os.Looper;
+import android.webkit.WebResourceRequest;
+import android.webkit.WebView;
+import android.webkit.WebViewClient;
+import androidx.activity.result.ActivityResult;
+import com.getcapacitor.JSObject;
+import com.getcapacitor.Plugin;
+import com.getcapacitor.PluginCall;
+import com.getcapacitor.PluginMethod;
+import com.getcapacitor.annotation.ActivityCallback;
+import com.getcapacitor.annotation.CapacitorPlugin;
+import org.json.JSONArray;
+import org.json.JSONException;
+
+// The member's own Blipfoto website session, used only to add extra photos (b-oss#1037); backs
+// platform/siteSession.ts. signIn shows SiteSignInActivity. runPage loads one www.blipfoto.com
+// page in an off-screen WebView (on the account's own WebView profile where there are profiles, else sharing the one process-wide cookie store signIn left),
+// runs a script from the web app in it and polls window.__bmx for the result, because a WebView
+// cannot await a promise. Only https pages on the site's own host are ever loaded.
+@CapacitorPlugin(name = "SiteSession")
+public class SiteSessionPlugin extends Plugin {
+  private static final long POLL_MS = 400;
+  // After a script reports, how long to wait for the page to navigate (a form post and the page it
+  // lands on). A script that reported a failure never navigates, so this must stay short.
+  private static final long NAVIGATION_GRACE_MS = 30_000;
+
+  @Override
+  public void load() {
+    SiteProfiles.init(getContext());
+  }
+
+  // b-oss#1064: a sign-in round (EmbeddedAuthPlugin) ran before its account was known, so its website
+  // login sits on a pending profile named for a one-off token. These hand it to the account or throw
+  // it away. Both are quiet when the token names nothing.
+  @PluginMethod
+  public void adoptPending(PluginCall call) {
+    String token = call.getString("token");
+    String accountId = call.getString("accountId");
+    if (token == null || accountId == null || accountId.isEmpty()) {
+      call.reject("token and accountId are required");
+      return;
+    }
+    getActivity()
+        .runOnUiThread(
+            () -> {
+              try {
+                SiteProfiles.adopt(token, accountId);
+                call.resolve();
+              } catch (RuntimeException e) {
+                call.reject(e.getMessage());
+              }
+            });
+  }
+
+  @PluginMethod
+  public void discardPending(PluginCall call) {
+    String token = call.getString("token");
+    if (token == null) {
+      call.reject("token is required");
+      return;
+    }
+    getActivity()
+        .runOnUiThread(
+            () -> {
+              try {
+                SiteProfiles.discard(token);
+                call.resolve();
+              } catch (RuntimeException e) {
+                call.reject(e.getMessage());
+              }
+            });
+  }
+
+  /** Start-up sweep: sign-in rounds the app was stopped in the middle of. */
+  @PluginMethod
+  public void discardAllPending(PluginCall call) {
+    getActivity()
+        .runOnUiThread(
+            () -> {
+              SiteProfiles.discardAllPending();
+              call.resolve();
+            });
+  }
+
+  /** Tells the app whether this device can keep a website session per account (WebView profiles). */
+  @PluginMethod
+  public void isolation(PluginCall call) {
+    JSObject ret = new JSObject();
+    String isolation = SiteProfiles.supported() ? "per-account" : "single";
+    android.util.Log.i("SiteSession", "isolation=" + isolation);
+    ret.put("isolation", isolation);
+    call.resolve(ret);
+  }
+
+  @PluginMethod
+  public void signIn(PluginCall call) {
+    String url = call.getString("url");
+    String accountId = call.getString("accountId");
+    if (url == null || !SiteSignInActivity.isSiteUrl(Uri.parse(url))) {
+      call.reject("url must be a Blipfoto website address");
+      return;
+    }
+    if (accountId == null || accountId.isEmpty()) {
+      call.reject("accountId is required");
+      return;
+    }
+    Intent intent = new Intent(getContext(), SiteSignInActivity.class);
+    intent.putExtra(SiteSignInActivity.EXTRA_URL, url);
+    intent.putExtra(SiteSignInActivity.EXTRA_ACCOUNT_ID, accountId);
+    startActivityForResult(call, intent, "signInResult");
+  }
+
+  @ActivityCallback
+  private void signInResult(PluginCall call, ActivityResult result) {
+    if (call == null) return;
+    JSObject ret = new JSObject();
+    ret.put("signedIn", result.getResultCode() == Activity.RESULT_OK);
+    call.resolve(ret);
+  }
+
+  // Deletes the account's website session when the member disconnects it (or the one shared
+  // session where there are no profiles).
+  @PluginMethod
+  public void signOut(PluginCall call) {
+    String accountId = call.getString("accountId");
+    if (accountId == null || accountId.isEmpty()) {
+      call.reject("accountId is required");
+      return;
+    }
+    getActivity().runOnUiThread(() -> SiteProfiles.clear(accountId, call::resolve));
+  }
+
+  @PluginMethod
+  public void runPage(PluginCall call) {
+    String url = call.getString("url");
+    String script = call.getString("script");
+    String accountId = call.getString("accountId");
+    Integer timeoutMs = call.getInt("timeoutMs");
+    boolean waitForNavigation = Boolean.TRUE.equals(call.getBoolean("waitForNavigation"));
+    if (url == null
+        || script == null
+        || timeoutMs == null
+        || accountId == null
+        || accountId.isEmpty()
+        || !SiteSignInActivity.isSiteUrl(Uri.parse(url))) {
+      call.reject(
+          "accountId, url, script and timeoutMs are required; url must be a Blipfoto website address");
+      return;
+    }
+    getActivity()
+        .runOnUiThread(() -> new PageRun(call, accountId, url, script, timeoutMs, waitForNavigation));
+  }
+
+  /** One hidden-page run; every method runs on the main thread. */
+  private final class PageRun {
+    private final PluginCall call;
+    private final String accountId;
+    private final String script;
+    private final boolean waitForNavigation;
+    private final long deadline;
+    private final Handler handler = new Handler(Looper.getMainLooper());
+    private final WebView webView;
+    private String startUrl = null;
+    private String result = null;
+    private boolean scriptStarted = false;
+    private boolean finished = false;
+    private long navigationDeadline = 0;
+
+    PageRun(
+        PluginCall call,
+        String accountId,
+        String url,
+        String script,
+        int timeoutMs,
+        boolean waitForNavigation) {
+      this.call = call;
+      this.accountId = accountId;
+      this.script = script;
+      this.waitForNavigation = waitForNavigation;
+      this.deadline = System.currentTimeMillis() + timeoutMs;
+      webView = new WebView(getActivity());
+      // Before anything else: puts this WebView on the account's own profile where there are
+      // profiles, so it carries that account's session and no other.
+      SiteProfiles.attach(webView, accountId);
+      webView.getSettings().setJavaScriptEnabled(true);
+      webView.getSettings().setDomStorageEnabled(true);
+      webView.getSettings().setAllowFileAccess(false);
+      webView.getSettings().setAllowContentAccess(false);
+      webView.setWebViewClient(
+          new WebViewClient() {
+            @Override
+            public boolean shouldOverrideUrlLoading(WebView view, WebResourceRequest request) {
+              return !SiteSignInActivity.isSiteUrl(request.getUrl());
+            }
+
+            @Override
+            public void onPageFinished(WebView view, String finishedUrl) {
+              if (finished) return;
+              if (!scriptStarted) {
+                scriptStarted = true;
+                startUrl = finishedUrl;
+                view.evaluateJavascript(PageRun.this.script, null);
+                handler.postDelayed(PageRun.this::poll, POLL_MS);
+              } else if (result != null && !finishedUrl.equals(startUrl)) {
+                // The page the script saved from has moved on: the post went through.
+                finish();
+              }
+            }
+          });
+      SiteProfiles.cookies(accountId).setAcceptCookie(true);
+      webView.loadUrl(url);
+      handler.postDelayed(this::timedOut, timeoutMs);
+    }
+
+    private void poll() {
+      if (finished || result != null) return;
+      webView.evaluateJavascript(
+          "window.__bmx === undefined ? null : window.__bmx",
+          value -> {
+            String decoded = decode(value);
+            if (decoded != null && !decoded.isEmpty()) {
+              result = decoded;
+              if (waitForNavigation) {
+                navigationDeadline = System.currentTimeMillis() + NAVIGATION_GRACE_MS;
+                handler.postDelayed(this::navigationTimedOut, NAVIGATION_GRACE_MS);
+              } else {
+                finish();
+              }
+            } else if (System.currentTimeMillis() < deadline) {
+              handler.postDelayed(this::poll, POLL_MS);
+            }
+          });
+    }
+
+    private void timedOut() {
+      if (!finished && result == null) finish();
+    }
+
+    private void navigationTimedOut() {
+      if (!finished) finish();
+    }
+
+    private void finish() {
+      if (finished) return;
+      finished = true;
+      handler.removeCallbacksAndMessages(null);
+      SiteProfiles.cookies(accountId).flush();
+      JSObject ret = new JSObject();
+      ret.put("finalUrl", webView.getUrl() == null ? "" : webView.getUrl());
+      ret.put("result", result);
+      webView.stopLoading();
+      webView.destroy();
+      call.resolve(ret);
+    }
+  }
+
+  /** evaluateJavascript hands back a JSON value; a string comes quoted and escaped. */
+  private static String decode(String value) {
+    if (value == null || value.equals("null")) return null;
+    try {
+      return new JSONArray("[" + value + "]").getString(0);
+    } catch (JSONException e) {
+      return null;
+    }
+  }
+}

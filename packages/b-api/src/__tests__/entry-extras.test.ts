@@ -31,6 +31,14 @@ describe('fetchEntryExtras', () => {
     });
   });
 
+  it('says protected when a signed-out visitor is shown the protected-journal notice', async () => {
+    const page =
+      "<title>x's latest photos | Blipfoto</title><p>This user's entries are protected. Sign up or Sign in</p>";
+    expect(await fetchEntryExtras('1', () => Promise.resolve(page))).toEqual({
+      status: 'protected',
+    });
+  });
+
   it('is ok with no extras for a one-item gallery', async () => {
     const page =
       'blipfoto.data.gallery = {"items":[{"item_id_str":"1","image_urls":{"stdres":"https://x/1"}}]};';

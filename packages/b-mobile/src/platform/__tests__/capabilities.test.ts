@@ -11,7 +11,7 @@ import type { PlatformKind } from '../platformKind.js';
 let kind: PlatformKind = 'web';
 vi.mock('../platformKind.js', () => ({ platformKind: () => kind }));
 
-import { capabilities } from '../capabilities.js';
+import { capabilities, recordSiteSessionIsolation } from '../capabilities.js';
 
 beforeEach(() => {
   kind = 'web';
@@ -24,6 +24,7 @@ describe('capabilities', () => {
       api: { access: 'direct' },
       auth: { embeddedAvailable: true, userCanChooseBrowser: true },
       notifications: { mechanism: 'push' },
+      site: { session: 'single' },
       location: 'os',
       media: { capture: 'camera', source: 'system' },
     });
@@ -35,6 +36,7 @@ describe('capabilities', () => {
       api: { access: 'same-origin-proxy' },
       auth: { embeddedAvailable: true, userCanChooseBrowser: false },
       notifications: { mechanism: 'polling' },
+      site: { session: 'per-account' },
       location: 'pick-only',
       media: { capture: 'camera', source: 'webcam' },
     });
@@ -58,6 +60,7 @@ describe('capabilities', () => {
       api: { access: 'same-origin-proxy' },
       auth: { embeddedAvailable: false, userCanChooseBrowser: false },
       notifications: { mechanism: 'none' },
+      site: { session: 'none' },
       location: 'os',
       media: { capture: 'camera', source: 'system' },
     });
@@ -96,5 +99,16 @@ describe('desktop location at run time (b-oss#672)', () => {
       expect(m.locationControlAvailable()).toBe(true);
     }
     m.recordDesktopLocationOutcome('untried');
+  });
+
+  it('site.session: android and ios start as one shared session until the host says it can do better', () => {
+    kind = 'android';
+    expect(capabilities().site.session).toBe('single');
+    recordSiteSessionIsolation('per-account');
+    expect(capabilities().site.session).toBe('per-account');
+    kind = 'desktop';
+    expect(capabilities().site.session).toBe('per-account');
+    kind = 'web';
+    expect(capabilities().site.session).toBe('none');
   });
 });

@@ -27,11 +27,13 @@ import { useAccountsStore } from '../state/accountsStore.js';
 import type { StoredAccount } from '../state/accountsStore.js';
 import { switchAccount, NeedsReauthError } from '../flows/accountsFlow.js';
 import { useAppNavigate } from './routes/useAppNavigate.js';
+import { useDraftLeaveGuard } from './routes/DraftNavigationGuard.js';
 
 export function AccountSwitcherOverlay({ onDismiss }: { onDismiss: () => void }) {
   const accounts = useAccountsStore((s) => s.accounts);
   const activeAccountId = useAccountsStore((s) => s.activeAccountId);
   const navigate = useAppNavigate();
+  const { confirmLeave } = useDraftLeaveGuard();
 
   function handleTap(account: StoredAccount): void {
     if (account.id === activeAccountId) {
@@ -42,16 +44,19 @@ export function AccountSwitcherOverlay({ onDismiss }: { onDismiss: () => void })
       openReauth(account.id);
       return;
     }
-    try {
-      switchAccount(account.id);
-      onDismiss();
-    } catch (err) {
-      if (err instanceof NeedsReauthError) {
-        openReauth(account.id);
-        return;
+    // A dirty draft belongs to the account it was made under: ask before leaving it (b-oss#1059).
+    confirmLeave(() => {
+      try {
+        switchAccount(account.id);
+      } catch (err) {
+        if (err instanceof NeedsReauthError) {
+          openReauth(account.id);
+          return;
+        }
+        throw err;
       }
-      throw err;
-    }
+    });
+    onDismiss();
   }
 
   function openReauth(accountId: string): void {

@@ -39,3 +39,8 @@ export function resumeClear(prefix?: string): void {
   }
   for (const key of [...cache.keys()]) if (key.startsWith(prefix)) cache.delete(key);
 }
+
+/** Forget every entry whose key satisfies `matches`. */
+export function resumeClearWhere(matches: (key: string) => boolean): void {
+  for (const key of [...cache.keys()]) if (matches(key)) cache.delete(key);
+}

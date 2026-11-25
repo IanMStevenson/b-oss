@@ -25,7 +25,7 @@ import {
 } from '@ionic/react';
 import { AppHeader } from '../../components/AppHeader.js';
 import { useAppNavigate } from '../../app/routes/useAppNavigate.js';
-import { useComposeDraftStore } from '../../state/composeDraftStore.js';
+import { releasePhotos, useComposeDraftStore } from '../../state/composeDraftStore.js';
 import { fetchDayEligibility } from '../../data/journal.js';
 import type { DayEligibility } from '../../data/journal.js';
 import { validatePickedPhoto } from '../../data/photoValidation.js';
@@ -35,6 +35,13 @@ import { submitDraft, describeSubmitError } from '../../flows/composeFlow.js';
 import { fetchUserProfile } from '../../data/users.js';
 import { fetchEntryThumbnailUrl } from '../../data/entries.js';
 import { UploadingNotice } from '../../components/UploadingNotice.js';
+import { ExtraPhotosSection } from '../../components/ExtraPhotosSection.js';
+import { EntryFormLayout } from '../../components/EntryFormLayout.js';
+import { useWideForm } from '../../theme/wideLayout.js';
+import { addExtras, type ExtrasOutcome } from '../../flows/extrasFlow.js';
+import { ExtrasResult } from '../../components/ExtrasResult.js';
+import { siteSessionAvailable } from '../../platform/siteSession.js';
+import { useAccountsStore } from '../../state/accountsStore.js';
 import { DateField } from '../../components/DateField.js';
 import { DescriptionField, TextField, ToggleRow } from '../../components/ComposeForm.js';
 import { ThumbnailPhotoFrame } from '../../components/ThumbnailPhotoFrame.js';
@@ -46,9 +53,12 @@ const TAGS_LIMIT = 255;
 
 export function ComposeEntryScreen() {
   const navigate = useAppNavigate();
+  const wideForm = useWideForm();
   const draft = useComposeDraftStore((s) => s.draft);
   const patchDraft = useComposeDraftStore((s) => s.patchDraft);
+  const patchLoaded = useComposeDraftStore((s) => s.patchLoaded);
   const clearDraft = useComposeDraftStore((s) => s.clearDraft);
+  const clearDraftKeepingExtras = useComposeDraftStore((s) => s.clearDraftKeepingExtras);
 
   const { isMember, failed: membershipFailed, retry: retryMembership } = useMembership();
   const [eligibility, setEligibility] = useState<DayEligibility | null>(null);
@@ -63,7 +73,10 @@ export function ComposeEntryScreen() {
     entryId: string;
     thumbnailUrl: string | null;
     total: number | null;
+    /** b-oss#1037: 'adding' while the extras go up, then how it ended; absent when there were none. */
+    extras?: 'adding' | ExtrasOutcome;
   } | null>(null);
+  const accounts = useAccountsStore((s) => s.accounts);
 
   useEffect(() => {
     if (!draft || draft.mode !== 'publish') {
@@ -139,9 +152,23 @@ export function ComposeEntryScreen() {
     setSubmitError(null);
     try {
       const entryId = await submitDraft(draft);
-      setPublished({ entryId, thumbnailUrl: null, total: null });
-      clearDraft();
+      const extraPhotos = draft.extras ?? [];
+      setPublished({
+        entryId,
+        thumbnailUrl: null,
+        total: null,
+        extras: extraPhotos.length > 0 ? 'adding' : undefined,
+      });
+      // The extras are still read from their blob URLs while they go up: released once sent.
+      const toRelease = clearDraftKeepingExtras();
       setSubmitting(false);
+      if (extraPhotos.length > 0) {
+        // The entry is already published; whatever happens here only affects the extras.
+        const username = accounts.find((a) => a.id === draft.accountId)?.username ?? '';
+        void addExtras(entryId, { id: draft.accountId, username }, extraPhotos)
+          .then((outcome) => setPublished((p) => (p ? { ...p, extras: outcome } : p)))
+          .finally(() => releasePhotos(toRelease));
+      }
       fetchEntryThumbnailUrl(entryId).then(
         (thumbnailUrl) => setPublished((p) => (p ? { ...p, thumbnailUrl } : p)),
         () => {},
@@ -183,8 +210,20 @@ export function ComposeEntryScreen() {
                 </p>
               </IonText>
             )}
+            {published.extras === 'adding' && (
+              <div role="status" aria-live="polite">
+                <IonSpinner name="dots" />
+                <IonText color="medium">
+                  <p>Adding your extra photos… Please don&apos;t leave the app yet.</p>
+                </IonText>
+              </div>
+            )}
+            {published.extras && published.extras !== 'adding' && (
+              <ExtrasResult outcome={published.extras} />
+            )}
             <IonButton
               expand="block"
+              disabled={published.extras === 'adding'}
               onClick={() => navigate.replace(`/entry/${published.entryId}`)}
             >
               View entry
@@ -235,55 +274,41 @@ export function ComposeEntryScreen() {
             >
               Choose another photo
             </IonButton>
+            <IonButton expand="block" disabled>
+              Publish
+            </IonButton>
           </div>
         ) : (
-          <>
-            {submitError && (
+          <EntryFormLayout
+            notices={
+              <>
+                {submitError && (
+                  <div className="compose-form">
+                    <IonText color="danger">
+                      <p>{submitError}</p>
+                    </IonText>
+                  </div>
+                )}
+                {membershipFailed && <MembershipCheckFailed onRetry={retryMembership} />}
+              </>
+            }
+            photo={
+              draft.photo && (
+                <ThumbnailPhotoFrame
+                  photo={draft.photo}
+                  crop={draft.thumbnailCrop}
+                  canSelect={isMember === true}
+                  onCropChange={handleCropComplete}
+                />
+              )
+            }
+            date={
               <div className="compose-form">
-                <IonText color="danger">
-                  <p>{submitError}</p>
-                </IonText>
-              </div>
-            )}
-
-            {membershipFailed && <MembershipCheckFailed onRetry={retryMembership} />}
-
-            {draft.photo && (
-              <ThumbnailPhotoFrame
-                photo={draft.photo}
-                crop={draft.thumbnailCrop}
-                canSelect={isMember === true}
-                onCropChange={handleCropComplete}
-              />
-            )}
-
-            <div className="compose-form">
-              <TextField
-                label="Title"
-                value={draft.title}
-                maxLength={TITLE_LIMIT}
-                caption={
-                  draft.title.length >= TITLE_LIMIT - 10
-                    ? `${TITLE_LIMIT - draft.title.length} characters left`
-                    : null
-                }
-                onChange={(title) => patchDraft({ title })}
-              />
-
-              <DescriptionField
-                value={draft.description}
-                onChange={(description) => patchDraft({ description })}
-              />
-
-              <TextField
-                label="Tags (comma-separated)"
-                value={draft.tags}
-                maxLength={TAGS_LIMIT}
-                onChange={(tags) => patchDraft({ tags })}
-              />
-
-              <div>
-                <DateField value={draft.date} onChange={(date) => patchDraft({ date })} />
+                <DateField
+                  value={draft.date}
+                  alwaysOpen={wideForm}
+                  onChange={(date) => patchDraft({ date })}
+                />
 
                 {eligibilityLoading && <IonSpinner name="dots" />}
                 {!eligibilityLoading && eligibility?.message && (
@@ -303,41 +328,87 @@ export function ComposeEntryScreen() {
                   </div>
                 )}
               </div>
-
-              <ToggleRow
-                label="Add to map"
-                checked={draft.displayLocation}
-                onChange={(checked) => {
-                  if (checked && !draft.displayLocation) {
-                    // The picker opens at the photo's own position when one is known, and
-                    // confirming it turns the map on; backing out leaves it off.
-                    navigate.push('/compose/location');
-                  } else if (!checked && draft.displayLocation) {
-                    // Hide, but keep the position so turning it back on restores it.
-                    patchDraft({ displayLocation: false });
+            }
+            extras={
+              (isMember === true || (draft.extras?.length ?? 0) > 0) && siteSessionAvailable() ? (
+                <ExtraPhotosSection
+                  accountId={draft.accountId}
+                  username={accounts.find((a) => a.id === draft.accountId)?.username ?? ''}
+                  photos={draft.extras ?? []}
+                  onChange={(extras) => patchDraft({ extras })}
+                  remaining={draft.siteExtras?.remaining}
+                  onRead={(remaining) => patchLoaded({ siteExtras: { items: [], remaining } })}
+                />
+              ) : undefined
+            }
+            details={
+              <div className="compose-form">
+                <TextField
+                  label="Title"
+                  value={draft.title}
+                  maxLength={TITLE_LIMIT}
+                  caption={
+                    draft.title.length >= TITLE_LIMIT - 10
+                      ? `${TITLE_LIMIT - draft.title.length} characters left`
+                      : null
                   }
-                }}
-              >
-                {draft.displayLocation && draft.location && (
-                  <IonButton
-                    fill="clear"
-                    size="small"
-                    onClick={() => navigate.push('/compose/location')}
-                  >
-                    Change
-                  </IonButton>
-                )}
-              </ToggleRow>
-            </div>
-          </>
-        )}
+                  onChange={(title) => patchDraft({ title })}
+                />
 
-        {submitting && <UploadingNotice what="publish" />}
-        <div className="compose-form">
-          <IonButton expand="block" disabled={!canPublish} onClick={() => void handlePublish()}>
-            {submitting ? <IonSpinner name="dots" /> : submitError ? 'Retry' : 'Publish'}
-          </IonButton>
-        </div>
+                <DescriptionField
+                  value={draft.description}
+                  onChange={(description) => patchDraft({ description })}
+                />
+
+                <TextField
+                  label="Tags (comma-separated)"
+                  value={draft.tags}
+                  maxLength={TAGS_LIMIT}
+                  onChange={(tags) => patchDraft({ tags })}
+                />
+
+                <ToggleRow
+                  label="Add to map"
+                  checked={draft.displayLocation}
+                  onChange={(checked) => {
+                    if (checked && !draft.displayLocation) {
+                      // The picker opens at the photo's own position when one is known, and
+                      // confirming it turns the map on; backing out leaves it off.
+                      navigate.push('/compose/location');
+                    } else if (!checked && draft.displayLocation) {
+                      // Hide, but keep the position so turning it back on restores it.
+                      patchDraft({ displayLocation: false });
+                    }
+                  }}
+                >
+                  {draft.displayLocation && draft.location && (
+                    <IonButton
+                      fill="clear"
+                      size="small"
+                      onClick={() => navigate.push('/compose/location')}
+                    >
+                      Change
+                    </IonButton>
+                  )}
+                </ToggleRow>
+              </div>
+            }
+            action={
+              <>
+                {submitting && <UploadingNotice what="publish" />}
+                <div className="compose-form">
+                  <IonButton
+                    expand="block"
+                    disabled={!canPublish}
+                    onClick={() => void handlePublish()}
+                  >
+                    {submitting ? <IonSpinner name="dots" /> : submitError ? 'Retry' : 'Publish'}
+                  </IonButton>
+                </div>
+              </>
+            }
+          />
+        )}
       </IonContent>
 
       <IonAlert

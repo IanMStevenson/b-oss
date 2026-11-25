@@ -72,9 +72,9 @@ import { useAppNavigate } from '../../app/routes/useAppNavigate.js';
 import { openUrl } from '../../platform/browser.js';
 import { t } from '../../strings/index.js';
 import { errorMessageOf } from '../../data/errors.js';
+import { DELETE_ACCOUNT_URL } from '@b-oss/b-api-web';
 
 // Blipfoto has no delete-account API; this is the page Help's "Delete my account" opened.
-const DELETE_ACCOUNT_URL = 'https://www.blipfoto.com/settings/profile#sidebar';
 
 const STATUS_TEXT: Record<NotificationState, () => string> = {
   on: () => t('SCR-30.notifications.on'),

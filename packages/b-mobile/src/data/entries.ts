@@ -9,6 +9,7 @@ import { getClient, withRateLimitFallback } from './client.js';
 import { stubToEntryIndex, entryResponseToViewEntry } from './viewModel.js';
 import { t } from '../strings/index.js';
 import { pageMeta } from './usePagedResource.js';
+import { resumeClearWhere } from './resumeCache.js';
 import type { Page } from './usePagedResource.js';
 import type { EntryIndex, BlipEntry } from '@b-oss/b-view';
 import { BlipfotoError } from '@b-oss/b-api';
@@ -143,6 +144,19 @@ export interface LoadedEntry {
 export async function deleteEntry(entryId: string): Promise<void> {
   const client = await getClient();
   await client.deleteEntry(entryId);
+  forgetEntryLists();
+}
+
+/** The lists that show entries (the Browse tabs, a profile's entries and favourites) are remembered
+ * for ten minutes so going Back lands where you were (data/resumeCache.ts), and the entry
+ * thumbnails looked up for notification rows are remembered for the session. All of it goes stale
+ * the moment an entry is published, edited (a replaced photo has a new thumbnail) or deleted, so
+ * those flows call this and the next look re-reads. Tab choices and scroll positions are kept. */
+export function forgetEntryLists(): void {
+  resumeClearWhere(
+    (key) => /^browse:.*:feed:/.test(key) || /^profile:.*:(entries|faves)$/.test(key),
+  );
+  thumbnailCache.clear();
 }
 
 /** The server's own thumbnail URL for an entry, read back after publishing (SCR-10's completion

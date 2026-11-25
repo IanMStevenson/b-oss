@@ -15,7 +15,11 @@ import { desktopBridge } from './desktop.js';
 import { isCapacitorNative } from './platformKind.js';
 
 interface EmbeddedAuthPlugin {
-  open(options: { url: string; redirectPrefix: string }): Promise<{ redirectUrl: string }>;
+  open(options: {
+    url: string;
+    redirectPrefix: string;
+    sessionToken?: string;
+  }): Promise<{ redirectUrl: string }>;
 }
 
 const EmbeddedAuth = registerPlugin<EmbeddedAuthPlugin>('EmbeddedAuth');
@@ -38,13 +42,22 @@ export class EmbeddedAuthUnavailableError extends Error {
  * navigation reaches `redirectPrefix` — same shape as a captured `appUrlOpen` event, so
  * oauthRound.ts's `finishRound()` parses it identically either way. Rejects with
  * EmbeddedAuthCancelledError if the user backs out without completing, or
- * EmbeddedAuthUnavailableError off-native. */
-export async function openEmbeddedAuth(url: string, redirectPrefix: string): Promise<string> {
+ * EmbeddedAuthUnavailableError off-native.
+ *
+ * `sessionToken` (b-oss#1064): the sign-in page is on the website, so the round also logs the member
+ * into it. Given a token, the host keeps that login under it, apart from every account's session,
+ * for platform/siteSession.ts's `siteAdoptPending` (the account is not known yet) or
+ * `siteDiscardPending`. Without one nothing website-side outlives the round. */
+export async function openEmbeddedAuth(
+  url: string,
+  redirectPrefix: string,
+  sessionToken?: string,
+): Promise<string> {
   const desktop = desktopBridge();
   if (!desktop && !isCapacitorNative()) throw new EmbeddedAuthUnavailableError();
   try {
-    if (desktop) return await desktop.openAuth(url, redirectPrefix);
-    const result = await EmbeddedAuth.open({ url, redirectPrefix });
+    if (desktop) return await desktop.openAuth(url, redirectPrefix, sessionToken);
+    const result = await EmbeddedAuth.open({ url, redirectPrefix, sessionToken });
     return result.redirectUrl;
   } catch (err) {
     if (err instanceof Error && err.message === 'cancelled') throw new EmbeddedAuthCancelledError();

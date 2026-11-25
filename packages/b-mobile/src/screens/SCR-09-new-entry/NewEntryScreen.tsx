@@ -16,7 +16,7 @@
 // which is exactly why the photo was consumed and cached earlier, in `AppShell.tsx`, rather than
 // read directly here — see `platform/shareIntent.ts`'s own header comment for the full reasoning.
 //
-// With `replaceEntryId` set (SCR-13's "Replace image"), the same two-tile picker is reused to choose
+// With `replaceEntryId` set (SCR-13's "Replace photo"), the same two-tile picker is reused to choose
 // a replacement photo for an entry being edited: a pick is validated, written into the open 'edit'
 // draft and the screen goes back to SCR-13 instead of starting a new draft. A pending shared photo
 // is deliberately not consumed in this mode — it belongs to a new entry.
@@ -39,7 +39,13 @@ import { capabilities } from '../../platform/capabilities.js';
 import { takePendingSharedPhoto } from '../../platform/shareIntent.js';
 import { useAppNavigate } from '../../app/routes/useAppNavigate.js';
 import { useActiveAccount } from '../../state/accountsStore.js';
-import { useComposeDraftStore } from '../../state/composeDraftStore.js';
+import {
+  dirtyDraftOtherThan,
+  draftRoute,
+  releasePhotos,
+  useComposeDraftStore,
+} from '../../state/composeDraftStore.js';
+import { ReplaceDraftAlert } from '../../components/ReplaceDraftAlert.js';
 import { defaultEntryDate } from '../../data/dates.js';
 import { validatePickedPhoto } from '../../data/photoValidation.js';
 import { initialThumbnailCrop } from '../../data/imageCrop.js';
@@ -54,6 +60,12 @@ export function NewEntryScreen({ replaceEntryId }: NewEntryScreenProps = {}) {
   const activeAccount = useActiveAccount();
   const setDraft = useComposeDraftStore((s) => s.setDraft);
   const patchDraft = useComposeDraftStore((s) => s.patchDraft);
+  const hasEditDraft = useComposeDraftStore(
+    (s) => s.draft?.mode === 'edit' && s.draft.entryId === replaceEntryId,
+  );
+  // b-oss#1057: a picked photo waiting for the member to say whether to discard the unsaved draft
+  // it would replace.
+  const [pendingPhoto, setPendingPhoto] = useState<PickedPhoto | null>(null);
   const [busy, setBusy] = useState<'camera' | 'picker' | null>(null);
   const [cameraMessage, setCameraMessage] = useState<string | null>(null);
   const [photoMessage, setPhotoMessage] = useState<string | null>(null);
@@ -61,6 +73,14 @@ export function NewEntryScreen({ replaceEntryId }: NewEntryScreenProps = {}) {
   const useWebcam = capabilities().media.source === 'webcam';
   const [webcamFound, setWebcamFound] = useState(false);
   const [webcamOpen, setWebcamOpen] = useState(false);
+
+  // A refresh (or a link) can land here with no edit draft to put the photo in, and a pick
+  // written to no draft would vanish silently: go to the edit screen, which starts one (b-oss#1056).
+  useEffect(() => {
+    if (replaceEntryId && !hasEditDraft) navigate.replace(`/entry/${replaceEntryId}/edit`);
+    // Only on arrival: picking a photo and leaving is this screen's normal exit.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   useEffect(() => {
     if (!useWebcam) return;
@@ -96,6 +116,10 @@ export function NewEntryScreen({ replaceEntryId }: NewEntryScreenProps = {}) {
       return;
     }
     if (!activeAccount) return;
+    if (dirtyDraftOtherThan(useComposeDraftStore.getState().draft, {})) {
+      setPendingPhoto(photo);
+      return;
+    }
     setDraft({
       mode: 'publish',
       accountId: activeAccount.id,
@@ -164,6 +188,25 @@ export function NewEntryScreen({ replaceEntryId }: NewEntryScreenProps = {}) {
     }
   }
 
+  const blockingDraft = pendingPhoto
+    ? dirtyDraftOtherThan(useComposeDraftStore.getState().draft, {})
+    : null;
+
+  function keepOpenDraft(): void {
+    if (!pendingPhoto) return;
+    const open = useComposeDraftStore.getState().draft;
+    if (pendingPhoto) releasePhotos([pendingPhoto]);
+    setPendingPhoto(null);
+    if (open) navigate.replace(draftRoute(open));
+  }
+
+  function discardOpenDraft(): void {
+    const photo = pendingPhoto;
+    setPendingPhoto(null);
+    useComposeDraftStore.getState().clearDraft();
+    if (photo) startDraft(photo);
+  }
+
   // With no camera route (a desktop without a webcam) the choose-a-photo tile is the only one, and
   // says what it does.
   const canCapture = capabilities().media.capture === 'camera' && (!useWebcam || webcamFound);
@@ -172,7 +215,7 @@ export function NewEntryScreen({ replaceEntryId }: NewEntryScreenProps = {}) {
     <IonPage>
       <IonHeader>
         {replaceEntryId ? (
-          <AppHeader title="Replace image" variant="back" onBack={() => navigate.goBack()} />
+          <AppHeader title="Replace photo" variant="back" onBack={() => navigate.goBack()} />
         ) : (
           <AppHeader title="New entry" accountIndicator />
         )}
@@ -245,6 +288,11 @@ export function NewEntryScreen({ replaceEntryId }: NewEntryScreenProps = {}) {
           />
         )}
       </IonContent>
+      <ReplaceDraftAlert
+        draft={blockingDraft}
+        onKeepEditing={keepOpenDraft}
+        onDiscard={discardOpenDraft}
+      />
     </IonPage>
   );
 }

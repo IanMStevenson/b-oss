@@ -29,6 +29,7 @@ import { AppShell } from './app/AppShell.js';
 import { AppErrorBoundary } from './components/AppErrorBoundary.js';
 import { installGlobalErrorLogging } from './platform/diagnostics.js';
 import { installStaleSessionRecovery } from './platform/staleSession.js';
+import { initSiteSession } from './platform/siteSession.js';
 import { initTheme } from './theme/theme.js';
 import { initPointerDensity } from './theme/pointerDensity.js';
 
@@ -37,6 +38,7 @@ setupIonicReact();
 initTheme(); // also sets the system-bar styles
 installGlobalErrorLogging(); // desktop shell only; a no-op elsewhere
 initPointerDensity(); // compact controls for a mouse, touch sizes otherwise (b-oss#637)
+void initSiteSession(); // whether the website session can be kept per account (b-oss#1052)
 
 createRoot(document.getElementById('root')!).render(
   <AppErrorBoundary>

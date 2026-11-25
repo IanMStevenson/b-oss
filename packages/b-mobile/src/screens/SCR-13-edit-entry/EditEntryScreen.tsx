@@ -16,7 +16,7 @@
 // Delete is immediate (no draft involved) — same confirm-then-delete-then-navigate-to-Browse
 // behaviour this screen inherited from EntryDetailScreen's old overflow menu.
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import {
   IonPage,
   IonHeader,
@@ -29,13 +29,34 @@ import {
 import { AppHeader } from '../../components/AppHeader.js';
 import { CachedImage } from '../../components/CachedImage.js';
 import { DateField } from '../../components/DateField.js';
+import { EntryFormLayout } from '../../components/EntryFormLayout.js';
+import { ExtraPhotosEditor } from '../../components/ExtraPhotosEditor.js';
+import { ExtrasResult } from '../../components/ExtrasResult.js';
+import { applyExtras, type ExtrasOutcome } from '../../flows/extrasFlow.js';
+import { siteSessionAvailable } from '../../platform/siteSession.js';
+import { useAccountsStore } from '../../state/accountsStore.js';
+import { useWideForm } from '../../theme/wideLayout.js';
 import { DescriptionField, TextField, ToggleRow } from '../../components/ComposeForm.js';
 import { useAppNavigate } from '../../app/routes/useAppNavigate.js';
-import { useComposeDraftStore } from '../../state/composeDraftStore.js';
+import {
+  dirtyDraftOtherThan,
+  draftRoute,
+  useComposeDraftStore,
+  type ComposeDraft,
+} from '../../state/composeDraftStore.js';
+import { ReplaceDraftAlert } from '../../components/ReplaceDraftAlert.js';
 import { useActiveAccount } from '../../state/accountsStore.js';
 import { fetchEntry, deleteEntry } from '../../data/entries.js';
 import { UploadingNotice } from '../../components/UploadingNotice.js';
 import { submitDraft, describeSubmitError } from '../../flows/composeFlow.js';
+import {
+  RepostFailedError,
+  needsThumbnailDecision,
+  repostAsNewEntry,
+} from '../../flows/thumbnailDecision.js';
+import { ReplaceThumbnailDecision } from '../../components/ReplaceThumbnailDecision.js';
+import { openUrl } from '../../platform/browser.js';
+import { entryEditUrl } from '@b-oss/b-api-web';
 import { revealStoredPosition, StillVisibleError } from '../../data/entryLocation.js';
 import { ThumbnailPhotoFrame } from '../../components/ThumbnailPhotoFrame.js';
 import { cropToProportions } from '../../data/imageCrop.js';
@@ -45,15 +66,25 @@ import type { Area } from 'react-easy-crop';
 import { LoadFailed } from '../../components/LoadFailed.js';
 import { describeError, mapApiError } from '../../data/errors.js';
 
+/** The decision pages' own Back: above the draft guard (2) and Browse (1), below Ionic's menu and
+ * overlays (99, 100) so an open dialog still takes Back first. */
+const DECISION_BACK_PRIORITY = 10;
+
+interface BackButtonDetail {
+  register: (priority: number, handler: (processNextHandler: () => void) => void) => void;
+}
+
 interface EditEntryScreenProps {
   entryId: string;
 }
 
 export function EditEntryScreen({ entryId }: EditEntryScreenProps) {
+  const wideForm = useWideForm();
   const navigate = useAppNavigate();
   const activeAccount = useActiveAccount();
   const draft = useComposeDraftStore((s) => s.draft);
-  const setDraft = useComposeDraftStore((s) => s.setDraft);
+  const seedEditDraft = useComposeDraftStore((s) => s.seedEditDraft);
+  const patchLoaded = useComposeDraftStore((s) => s.patchLoaded);
   const patchDraft = useComposeDraftStore((s) => s.patchDraft);
   const clearDraft = useComposeDraftStore((s) => s.clearDraft);
 
@@ -67,6 +98,19 @@ export function EditEntryScreen({ entryId }: EditEntryScreenProps) {
   const [currentImage, setCurrentImage] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
+  // b-oss#1041: while the website applies extras changes after a save, and how that ended.
+  const [extrasState, setExtrasState] = useState<'updating' | ExtrasOutcome | null>(null);
+  // b-oss#1062: the decision screen for a replacement photo whose thumbnail selection the API
+  // ignores; and, after "delete and post as new", the entry the extras results view returns to.
+  const [thumbDecision, setThumbDecision] = useState(false);
+  const [deciding, setDeciding] = useState(false);
+  const [confirmingRepost, setConfirmingRepost] = useState(false);
+  const [resultEntryId, setResultEntryId] = useState<string | null>(null);
+  const [repostFailure, setRepostFailure] = useState<{
+    draft: ComposeDraft;
+    message: string;
+  } | null>(null);
+  const accounts = useAccountsStore((s) => s.accounts);
   const [confirmDiscard, setConfirmDiscard] = useState(false);
   const [confirmDeleteEntry, setConfirmDeleteEntry] = useState(false);
   const [deletingEntry, setDeletingEntry] = useState(false);
@@ -88,11 +132,17 @@ export function EditEntryScreen({ entryId }: EditEntryScreenProps) {
   // A ref survives that state change without re-running the effect, since it isn't a dependency.
   const hasSeededRef = useRef(isCurrentDraft);
 
+  // b-oss#1057: a different draft with unsaved changes is open. Nothing is loaded (and so nothing
+  // replaced) until the member says Discard.
+  const blockingDraft = hasSeededRef.current ? null : dirtyDraftOtherThan(draft, { entryId });
+  const blocked = blockingDraft !== null;
+
   useEffect(() => {
     if (hasSeededRef.current) {
       setLoading(false);
       return;
     }
+    if (blocked) return;
     if (!activeAccount) return;
     let cancelled = false;
     setLoading(true);
@@ -100,7 +150,9 @@ export function EditEntryScreen({ entryId }: EditEntryScreenProps) {
     fetchEntry(entryId).then(
       (loaded) => {
         if (cancelled) return;
-        setDraft({
+        // Never over this entry's own draft: if one appeared while the load was running, the
+        // member's changes in it win (b-oss#1056).
+        seedEditDraft({
           mode: 'edit',
           accountId: activeAccount.id,
           entryId,
@@ -114,6 +166,7 @@ export function EditEntryScreen({ entryId }: EditEntryScreenProps) {
           location: loaded.entry.location ?? null,
           displayLocation: loaded.entry.location != null,
           thumbnailCrop: null,
+          existingImage: loaded.entry.images?.thumbnail ?? loaded.entry.images?.image ?? null,
           dirty: false,
         });
         setCurrentImage(loaded.entry.images?.thumbnail ?? loaded.entry.images?.image ?? null);
@@ -131,9 +184,9 @@ export function EditEntryScreen({ entryId }: EditEntryScreenProps) {
     return () => {
       cancelled = true;
     };
-    // setDraft is a stable Zustand action reference (never changes identity), so including it
+    // seedEditDraft is a stable Zustand action reference (never changes identity), so including it
     // doesn't add a re-run trigger beyond entryId/activeAccount.
-  }, [entryId, activeAccount, setDraft, loadAttempt]);
+  }, [entryId, activeAccount, seedEditDraft, loadAttempt, blocked]);
 
   // Set when the discard confirmation was raised by the header's home tap rather than Back.
   const pendingHome = useRef<(() => void) | null>(null);
@@ -158,17 +211,135 @@ export function EditEntryScreen({ entryId }: EditEntryScreenProps) {
     navigate.goBack();
   }
 
-  async function handleSave(): Promise<void> {
+  /** Save pressed. A replacement photo with a changed thumbnail selection is not sent as it stands
+   * (the API ignores the selection): the member decides first (b-oss#1062). */
+  function handleSave(): void {
     if (!draft || submitting) return;
+    if (needsThumbnailDecision(draft)) {
+      setThumbDecision(true);
+      return;
+    }
+    void saveDraft(draft);
+  }
+
+  async function saveDraft(toSave: ComposeDraft): Promise<void> {
+    if (submitting) return;
     setSubmitting(true);
     setSubmitError(null);
     try {
-      await submitDraft(draft);
+      await submitDraft(toSave);
+      const additions = toSave.extras ?? [];
+      const removals = toSave.extrasRemove ?? [];
+      if (additions.length === 0 && removals.length === 0) {
+        clearDraft();
+        navigate.goBackOr(`/entry/${entryId}`);
+        return;
+      }
+      // The entry is saved; whatever happens now only affects the extras.
+      setExtrasState('updating');
+      const username = accounts.find((a) => a.id === toSave.accountId)?.username ?? '';
+      const outcome = await applyExtras(
+        entryId,
+        { id: toSave.accountId, username },
+        additions,
+        removals,
+      );
       clearDraft();
-      navigate.goBackOr(`/entry/${entryId}`);
+      if (outcome.kind === 'done') {
+        navigate.goBackOr(`/entry/${entryId}`);
+      } else {
+        setExtrasState(outcome);
+        setSubmitting(false);
+      }
     } catch (err) {
-      setSubmitError(describeSubmitError(err, draft.accountId, "Couldn't save your changes."));
+      setSubmitError(describeSubmitError(err, toSave.accountId, "Couldn't save your changes."));
       setSubmitting(false);
+    }
+  }
+
+  /** Decision 1: save with the default thumbnail (the selection is dropped). */
+  function continueWithDefaultThumbnail(): void {
+    if (!draft) return;
+    setThumbDecision(false);
+    patchDraft({ thumbnailCrop: null });
+    void saveDraft({ ...draft, thumbnailCrop: null });
+  }
+
+  /** Back (the header's, or Android's) on the decision pages steps back one page, never out of the
+   * edit: from the red confirmation to the options, from the options to the form. */
+  function stepBackInDecision(): void {
+    if (deciding || submitting) return;
+    if (confirmingRepost) setConfirmingRepost(false);
+    else setThumbDecision(false);
+  }
+  // Leaving the decision by any route starts it afresh on its options page next time.
+  useEffect(() => {
+    if (!thumbDecision) setConfirmingRepost(false);
+  }, [thumbDecision]);
+  const stepBackRef = useRef(stepBackInDecision);
+  stepBackRef.current = stepBackInDecision;
+  useEffect(() => {
+    if (!thumbDecision) return;
+    const onBack = (e: Event): void => {
+      // Above the draft guard's and Browse's handlers; not calling the next one stops them running.
+      (e as CustomEvent<BackButtonDetail>).detail.register(DECISION_BACK_PRIORITY, () =>
+        stepBackRef.current(),
+      );
+    };
+    document.addEventListener('ionBackButton', onBack);
+    return () => document.removeEventListener('ionBackButton', onBack);
+  }, [thumbDecision]);
+
+  /** Decision 3: cancel the edits. Asks the screen's usual "Discard changes?" first. */
+  function cancelEdits(): void {
+    setConfirmDiscard(true);
+  }
+
+  /** Decision 2: delete the entry and post the edits as a new one. */
+  async function deleteAndRepost(): Promise<void> {
+    if (!draft || deciding) return;
+    setDeciding(true);
+    setSubmitError(null);
+    const account = accounts.find((a) => a.id === draft.accountId);
+    try {
+      const newId = await repostAsNewEntry(draft);
+      const additions = draft.extras ?? [];
+      setThumbDecision(false);
+      if (additions.length === 0) {
+        clearDraft();
+        navigate.replace(`/entry/${newId}`);
+        return;
+      }
+      // The new entry exists; what happens now only affects its extras.
+      setExtrasState('updating');
+      const outcome = await applyExtras(
+        newId,
+        { id: draft.accountId, username: account?.username ?? '' },
+        additions,
+      );
+      clearDraft();
+      if (outcome.kind === 'done') {
+        navigate.replace(`/entry/${newId}`);
+      } else {
+        setResultEntryId(newId);
+        setExtrasState(outcome);
+      }
+    } catch (err) {
+      if (err instanceof RepostFailedError) {
+        // The old entry is gone and the new one was not posted: carry on from the new-entry screen
+        // with every edit kept, and say why.
+        useComposeDraftStore.getState().setDraft(err.draft);
+        setThumbDecision(false);
+        setRepostFailure({
+          draft: err.draft,
+          message: describeSubmitError(err.cause, draft.accountId, "Couldn't post the new entry."),
+        });
+      } else {
+        // The delete itself failed: nothing has changed.
+        setSubmitError(describeSubmitError(err, draft.accountId, "Couldn't delete the entry."));
+      }
+    } finally {
+      setDeciding(false);
     }
   }
 
@@ -211,6 +382,28 @@ export function EditEntryScreen({ entryId }: EditEntryScreenProps) {
     }
   }
 
+  // The question asked before the edits are thrown away (Back and Home with changes, and the
+  // thumbnail decision's "cancel the edits"): one element, shown wherever it is needed.
+  const discardAlert = (
+    <IonAlert
+      isOpen={confirmDiscard}
+      header="Discard changes?"
+      onDidDismiss={() => setConfirmDiscard(false)}
+      buttons={[
+        { text: 'Keep editing', role: 'cancel' },
+        {
+          text: 'Discard',
+          role: 'destructive',
+          handler: () => {
+            clearDraft();
+            if (pendingHome.current) pendingHome.current();
+            else navigate.goBack();
+          },
+        },
+      ]}
+    />
+  );
+
   // Loading and failed both show the same header as the form, so the page doesn't jump and a way
   // back is always there.
   const loadHeader = (
@@ -218,11 +411,89 @@ export function EditEntryScreen({ entryId }: EditEntryScreenProps) {
       <AppHeader
         title="Edit entry"
         variant="back"
-        onBack={() => navigate.goBack()}
+        onBack={() => (thumbDecision ? stepBackInDecision() : navigate.goBack())}
         accountIndicator
       />
     </IonHeader>
   );
+
+  // A screen in place of the form (the loading and failed screens aside): the header, one block of
+  // content, and any alerts it needs.
+  const fullScreen = (content: ReactNode, alerts?: ReactNode) => (
+    <IonPage>
+      {loadHeader}
+      <IonContent>{content}</IonContent>
+      {alerts}
+    </IonPage>
+  );
+
+  // The entry was saved but not every extras change went through (b-oss#1041): say so, with the
+  // edit page to finish by hand. The draft is already cleared, so this comes before the load checks.
+  if (extrasState !== null && extrasState !== 'updating') {
+    return fullScreen(
+      <div className="compose-form">
+        <h2>Your changes are saved</h2>
+        <ExtrasResult outcome={extrasState} lead="Your changes are saved" />
+        <IonButton
+          expand="block"
+          onClick={() => navigate.replace(`/entry/${resultEntryId ?? entryId}`)}
+        >
+          View entry
+        </IonButton>
+      </div>,
+    );
+  }
+
+  // The old entry is gone and the new one could not be posted (b-oss#1062): the edits are kept as a
+  // new-entry draft; say what happened and carry on from there.
+  if (repostFailure) {
+    return fullScreen(
+      <div className="compose-form">
+        <h2>The entry was deleted, but the new one was not posted</h2>
+        <IonText color="danger">
+          <p>{repostFailure.message}</p>
+        </IonText>
+        <IonText>
+          <p>Your edits are kept. Continue to post them as a new entry.</p>
+        </IonText>
+        <IonButton
+          expand="block"
+          onClick={() => {
+            setRepostFailure(null);
+            navigate.replace('/compose/details');
+          }}
+        >
+          Continue
+        </IonButton>
+      </div>,
+    );
+  }
+
+  // A replacement photo with a changed thumbnail selection (b-oss#1062): the member decides.
+  if (thumbDecision && draft) {
+    return fullScreen(
+      <>
+        {submitError && (
+          <div className="compose-form">
+            <IonText color="danger">
+              <p>{submitError}</p>
+            </IonText>
+          </div>
+        )}
+        <ReplaceThumbnailDecision
+          websiteUrl={entryEditUrl(entryId)}
+          onOpenWebsite={(url) => void openUrl(url)}
+          busy={deciding || submitting}
+          confirming={confirmingRepost}
+          onConfirmingChange={setConfirmingRepost}
+          onContinueWithDefault={continueWithDefaultThumbnail}
+          onDeleteAndRepost={() => void deleteAndRepost()}
+          onCancelEdits={cancelEdits}
+        />
+      </>,
+      discardAlert,
+    );
+  }
 
   if (loading) {
     return (
@@ -231,6 +502,11 @@ export function EditEntryScreen({ entryId }: EditEntryScreenProps) {
         <IonContent className="ion-padding">
           <IonSpinner />
         </IonContent>
+        <ReplaceDraftAlert
+          draft={blockingDraft}
+          onKeepEditing={() => blockingDraft && navigate.replace(draftRoute(blockingDraft))}
+          onDiscard={clearDraft}
+        />
       </IonPage>
     );
   }
@@ -254,7 +530,7 @@ export function EditEntryScreen({ entryId }: EditEntryScreenProps) {
     patchDraft({ thumbnailCrop: cropToProportions(percent) });
   }
 
-  const photoSrc = draft.photo?.webPath ?? currentImage;
+  const photoSrc = draft.photo?.webPath ?? currentImage ?? draft.existingImage ?? null;
   const photoFrame =
     photoSrc &&
     (draft.photo ? (
@@ -282,116 +558,172 @@ export function EditEntryScreen({ entryId }: EditEntryScreenProps) {
         />
       </IonHeader>
       <IonContent>
-        {membershipFailed && draft.photo && <MembershipCheckFailed onRetry={retryMembership} />}
-        {photoFrame}
-        <div className="compose-form">
-          {submitError && (
-            <IonText color="danger">
-              <p>{submitError}</p>
-            </IonText>
-          )}
-          {deleteError && (
-            <IonText color="danger">
-              <p>{deleteError}</p>
-            </IonText>
-          )}
-
-          {editLevel !== 1 && (
-            <IonText color="medium">
-              <p>
-                {editLevel === 2
-                  ? 'Blipfoto only allows the tags and location to be changed on this entry now.'
-                  : "Blipfoto doesn't allow this entry to be edited."}
-              </p>
-            </IonText>
-          )}
-
-          {editLevel === 1 && (
+        <EntryFormLayout
+          notices={
             <>
+              {membershipFailed && draft.photo && (
+                <MembershipCheckFailed onRetry={retryMembership} />
+              )}
+              <div className="compose-form">
+                {submitError && (
+                  <IonText color="danger">
+                    <p>{submitError}</p>
+                  </IonText>
+                )}
+                {deleteError && (
+                  <IonText color="danger">
+                    <p>{deleteError}</p>
+                  </IonText>
+                )}
+                {editLevel !== 1 && (
+                  <IonText color="medium">
+                    <p>
+                      {editLevel === 2
+                        ? 'Blipfoto only allows the tags and location to be changed on this entry now.'
+                        : "Blipfoto doesn't allow this entry to be edited."}
+                    </p>
+                  </IonText>
+                )}
+              </div>
+            </>
+          }
+          photo={
+            <>
+              {photoFrame}
+              {editLevel === 1 && (
+                <div className="compose-form">
+                  <IonButton
+                    className="replace-photo-button"
+                    fill="outline"
+                    onClick={() => navigate.push(`/entry/${entryId}/edit/photo`)}
+                  >
+                    Replace photo
+                  </IonButton>
+                </div>
+              )}
+            </>
+          }
+          date={
+            editLevel === 1 ? (
+              <div className="compose-form">
+                <DateField
+                  value={draft.date}
+                  alwaysOpen={wideForm}
+                  onChange={(date) => patchDraft({ date })}
+                />
+              </div>
+            ) : undefined
+          }
+          extras={
+            // Also whenever the draft holds unsaved extras, whatever the membership check or the
+            // website read is doing: the member's own choices are never hidden (b-oss#1056).
+            (isMember === true || (draft.extras?.length ?? 0) > 0) &&
+            siteSessionAvailable() &&
+            editLevel !== 0 ? (
+              <ExtraPhotosEditor
+                entryId={entryId}
+                accountId={draft.accountId}
+                username={accounts.find((a) => a.id === draft.accountId)?.username ?? ''}
+                additions={draft.extras ?? []}
+                removals={draft.extrasRemove ?? []}
+                onChange={(next) => patchDraft(next)}
+                site={draft.siteExtras}
+                onRead={(siteExtras) => patchLoaded({ siteExtras })}
+              />
+            ) : undefined
+          }
+          details={
+            <div className="compose-form">
+              {editLevel === 1 && (
+                <>
+                  <TextField
+                    label="Title"
+                    value={draft.title}
+                    maxLength={50}
+                    onChange={(title) => patchDraft({ title })}
+                  />
+
+                  <DescriptionField
+                    value={draft.description}
+                    onChange={(description) => patchDraft({ description })}
+                  />
+                </>
+              )}
+
+              {editLevel !== 0 && (
+                <>
+                  <TextField
+                    label="Tags (comma-separated)"
+                    value={draft.tags}
+                    maxLength={255}
+                    onChange={(tags) => patchDraft({ tags })}
+                  />
+
+                  <ToggleRow
+                    label="Add to map"
+                    caption={lookingUpPosition ? "Looking up this entry's position…" : mapMessage}
+                    checked={draft.displayLocation}
+                    onChange={(checked) => {
+                      if (checked && !draft.displayLocation) {
+                        // The picker opens at the entry's position when one is known, and
+                        // confirming it turns the map on; backing out leaves it off. With none
+                        // known, ask Blipfoto for the one it holds first.
+                        if (draft.location) navigate.push('/compose/location');
+                        else void handleAddToMap();
+                      } else if (!checked && draft.displayLocation) {
+                        // Hide, but keep the position so turning it back on restores it.
+                        patchDraft({ displayLocation: false });
+                      }
+                    }}
+                  >
+                    {draft.displayLocation && draft.location && (
+                      <IonButton
+                        fill="clear"
+                        size="small"
+                        onClick={() => navigate.push('/compose/location')}
+                      >
+                        Change
+                      </IonButton>
+                    )}
+                  </ToggleRow>
+                </>
+              )}
+            </div>
+          }
+          action={
+            <div className="compose-form">
+              {submitting && extrasState === 'updating' ? (
+                <div className="compose-form" role="status" aria-live="polite">
+                  <IonSpinner name="dots" />
+                  <IonText color="medium">
+                    <p>Updating your extra photos… Please don&apos;t leave the app yet.</p>
+                  </IonText>
+                </div>
+              ) : (
+                submitting && <UploadingNotice what="save" />
+              )}
               <IonButton
                 expand="block"
-                fill="outline"
-                onClick={() => navigate.push(`/entry/${entryId}/edit/photo`)}
+                disabled={submitting || editLevel === 0}
+                onClick={() => handleSave()}
               >
-                Replace image
+                {submitting ? <IonSpinner name="dots" /> : submitError ? 'Retry' : 'Save'}
               </IonButton>
 
-              <TextField
-                label="Title"
-                value={draft.title}
-                maxLength={50}
-                onChange={(title) => patchDraft({ title })}
-              />
-
-              <DescriptionField
-                value={draft.description}
-                onChange={(description) => patchDraft({ description })}
-              />
-
-              <DateField value={draft.date} onChange={(date) => patchDraft({ date })} />
-            </>
-          )}
-
-          {editLevel !== 0 && (
-            <>
-              <TextField
-                label="Tags (comma-separated)"
-                value={draft.tags}
-                maxLength={255}
-                onChange={(tags) => patchDraft({ tags })}
-              />
-
-              <ToggleRow
-                label="Add to map"
-                caption={lookingUpPosition ? "Looking up this entry's position…" : mapMessage}
-                checked={draft.displayLocation}
-                onChange={(checked) => {
-                  if (checked && !draft.displayLocation) {
-                    // The picker opens at the entry's position when one is known, and confirming
-                    // it turns the map on; backing out leaves it off. With none known, ask
-                    // Blipfoto for the one it holds first.
-                    if (draft.location) navigate.push('/compose/location');
-                    else void handleAddToMap();
-                  } else if (!checked && draft.displayLocation) {
-                    // Hide, but keep the position so turning it back on restores it.
-                    patchDraft({ displayLocation: false });
-                  }
-                }}
-              >
-                {draft.displayLocation && draft.location && (
-                  <IonButton
-                    fill="clear"
-                    size="small"
-                    onClick={() => navigate.push('/compose/location')}
-                  >
-                    Change
-                  </IonButton>
-                )}
-              </ToggleRow>
-            </>
-          )}
-
-          {submitting && <UploadingNotice what="save" />}
-          <IonButton
-            expand="block"
-            disabled={submitting || editLevel === 0}
-            onClick={() => void handleSave()}
-          >
-            {submitting ? <IonSpinner name="dots" /> : submitError ? 'Retry' : 'Save'}
-          </IonButton>
-
-          <div className="compose-danger-zone">
-            <IonButton
-              expand="block"
-              fill="outline"
-              color="danger"
-              disabled={deletingEntry}
-              onClick={() => setConfirmDeleteEntry(true)}
-            >
-              Delete entry
-            </IonButton>
-          </div>
-        </div>
+              <div className="compose-danger-zone">
+                <IonButton
+                  expand="block"
+                  fill="outline"
+                  color="danger"
+                  disabled={deletingEntry}
+                  onClick={() => setConfirmDeleteEntry(true)}
+                >
+                  Delete entry
+                </IonButton>
+              </div>
+            </div>
+          }
+        />
       </IonContent>
 
       <IonAlert
@@ -405,23 +737,7 @@ export function EditEntryScreen({ entryId }: EditEntryScreenProps) {
         ]}
       />
 
-      <IonAlert
-        isOpen={confirmDiscard}
-        header="Discard changes?"
-        onDidDismiss={() => setConfirmDiscard(false)}
-        buttons={[
-          { text: 'Keep editing', role: 'cancel' },
-          {
-            text: 'Discard',
-            role: 'destructive',
-            handler: () => {
-              clearDraft();
-              if (pendingHome.current) pendingHome.current();
-              else navigate.goBack();
-            },
-          },
-        ]}
-      />
+      {discardAlert}
     </IonPage>
   );
 }

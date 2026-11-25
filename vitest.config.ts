@@ -38,6 +38,7 @@ export default defineConfig({
       { find: /^@b-oss\/b-ark-ui-components$/, replacement: uiKitSrc('b-ark-ui-components') },
       { find: /^@b-oss\/b-ark-ui-chrome$/, replacement: uiKitSrc('b-ark-ui-chrome') },
       { find: /^@b-oss\/b-api$/, replacement: uiKitSrc('b-api') },
+      { find: /^@b-oss\/b-api-web$/, replacement: uiKitSrc('b-api-web') },
       { find: /^@b-oss\/b-notify-core$/, replacement: uiKitSrc('b-notify-core') },
       { find: /^@b-oss\/backup-engine$/, replacement: uiKitSrc('backup-engine') },
     ],

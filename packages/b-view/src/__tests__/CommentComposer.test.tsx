@@ -241,6 +241,17 @@ describe('CommentComposer — rich-text box (b-oss#206)', () => {
     expect(fireEvent.mouseDown(screen.getByLabelText('Link'))).toBe(false);
   });
 
+  it('keeps the toolbar out of the tab order: Tab leaves the box past it', async () => {
+    render(<RichHost />);
+    for (const name of ['Bold', 'Italic', 'Underline', 'Strikethrough', 'Link']) {
+      expect(screen.getByLabelText(name).getAttribute('tabindex')).toBe('-1');
+    }
+    await userEvent.click(box());
+    await userEvent.tab();
+    expect(document.activeElement?.closest('[role="toolbar"]')).toBeNull();
+    expect(document.activeElement).not.toBe(box());
+  });
+
   it('pastes plain text only, a line per line', () => {
     render(<RichHost initial="x" />);
     select(1, 1);

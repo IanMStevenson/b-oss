@@ -68,8 +68,15 @@
 }
 
 .compose-toggle-text ion-button {
-  margin-inline-start: -16px;
+  /* The text lines up with the label above it: no start padding and no negative margin (the old
+     -16px pushed the button's own text past the row's clipped edge, cutting off its first letter). */
+  --padding-start: 0;
+  margin-inline-start: 0;
   margin-block: 0;
+}
+
+.compose-toggle-text ion-button::part(native) {
+  padding-inline-start: 0;
 }
 
 .compose-toggle-text {
@@ -469,4 +476,26 @@ ion-progress-bar.upload-progress {
   border-radius: 4px;
   /* .compose-form is a flex column, so text-align doesn't centre a fixed-width item. */
   align-self: center;
+}
+
+/* Edit screen: "Replace photo" is a compact button under the photo, about the thumbnail's width,
+   not a full-width bar. */
+.compose-form .replace-photo-button {
+  align-self: center;
+  min-width: 140px;
+  max-width: 160px;
+}
+
+/* The replacement-thumbnail decision (b-oss#1062): long button labels wrap onto two lines. */
+.thumb-decision ion-button {
+  height: auto;
+  --padding-top: 12px;
+  --padding-bottom: 12px;
+  white-space: normal;
+  text-align: center;
+}
+
+.thumb-decision ion-button::part(native) {
+  white-space: normal;
+  line-height: 1.3;
 }

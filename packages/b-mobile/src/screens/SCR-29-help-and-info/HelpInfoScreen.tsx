@@ -40,12 +40,15 @@ import { CachedImage } from '../../components/CachedImage.js';
 import { useAppNavigate } from '../../app/routes/useAppNavigate.js';
 import { openUrl } from '../../platform/browser.js';
 import { BLIPFOTO_STATUS_URL } from '../../statusLink.js';
+import {
+  ACCEPTABLE_USE_URL,
+  BE_EXCELLENT_URL,
+  HELP_URL,
+  ICON_BASE_URL,
+  PRIVACY_URL,
+  TERMS_URL,
+} from '@b-oss/b-api-web';
 
-const HELP_URL = 'https://www.blipfoto.com/help';
-const TERMS_URL = 'https://www.blipfoto.com/legal/terms';
-const ACCEPTABLE_USE_URL = 'https://www.blipfoto.com/legal/acceptable-use';
-const PRIVACY_URL = 'https://www.blipfoto.com/legal/privacy';
-const BE_EXCELLENT_URL = 'https://www.blipfoto.com/be-excellent';
 const SOURCE_URL = 'https://b-oss.dev/';
 // This app's own policy (what b-mobile and its push service handle), as given in the Play listing.
 const APP_PRIVACY_URL = 'https://b-oss.dev/b-mobile-privacy.html';
@@ -97,7 +100,6 @@ function SectionScreen({ section }: { section: HelpInfoSection }) {
 // the same badges rendered next to a username elsewhere (comments, profiles, etc., via
 // UserBadges.tsx) are exactly these, fetched from the same static path the API's own icon_url
 // values point at.
-const ICON_BASE = 'https://www.blipfoto.com/_assets/images/icons/';
 
 const ENTRY_LEVEL_ICONS: Array<{ id: string; label: string }> = [
   { id: '0', label: 'Fewer than 10 — a new member' },
@@ -122,7 +124,7 @@ function IconRow({ id, label }: { id: string; label: string }) {
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '6px 0' }}>
       <CachedImage
-        src={`${ICON_BASE}${id}.png`}
+        src={`${ICON_BASE_URL}${id}.png`}
         alt=""
         style={{ width: 32, height: 32, flexShrink: 0 }}
       />

@@ -112,8 +112,19 @@ describe('openEmbeddedAuth on desktop', () => {
     expect(bridge.openAuth).toHaveBeenCalledWith(
       'https://www.blipfoto.com/oauth/authorize',
       'bmobile://oauth/',
+      undefined,
     );
     expect(pluginOpen).not.toHaveBeenCalled();
+  });
+
+  it("passes the session token on, so the shell keeps the sign-in round's website login", async () => {
+    bridge.openAuth.mockResolvedValue('bmobile://oauth/#access_token=t&state=s');
+    await openEmbeddedAuth('https://www.blipfoto.com/oauth/authorize', 'bmobile://oauth/', 'ab12');
+    expect(bridge.openAuth).toHaveBeenCalledWith(
+      'https://www.blipfoto.com/oauth/authorize',
+      'bmobile://oauth/',
+      'ab12',
+    );
   });
 
   it('maps the window being closed to EmbeddedAuthCancelledError', async () => {

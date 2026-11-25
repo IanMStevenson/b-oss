@@ -354,6 +354,11 @@
   margin: 0 0 12px;
 }
 
+/* Host-supplied notice where the extras would be */
+.extrasNotice {
+  margin-bottom: 12px;
+}
+
 /* Extras thumbnail row */
 .extrasRow {
   display: flex;

@@ -30,6 +30,22 @@ import { appTokenKey, parseNotifySettings } from '../shared/notify.js';
 import { parseReminderAccountId, parseReminderConfigs } from '../shared/reminders.js';
 import { allowPermission } from './permissions.js';
 import {
+  pendingPartitionFor,
+  SITE_HOST,
+  validateAccountId,
+  validateSessionToken,
+  validateSiteRun,
+  validateSiteUrl,
+} from './site-request.js';
+import {
+  clearLegacySiteSession,
+  siteAdoptPending,
+  siteDiscardPending,
+  siteRunPage,
+  siteSignIn,
+  siteSignOut,
+} from './site-window.js';
+import {
   APP_ORIGIN,
   APP_SCHEME,
   DEFAULT_API_ORIGIN,
@@ -49,7 +65,12 @@ import {
 } from './missing-web.js';
 import { ErrorLog, parseErrorEntry, type LogFs } from './error-log.js';
 import { isTrustedEvent } from './safe-ipc.js';
-import { PROXY_SOURCE, SITE_PROXY_SOURCE, proxyStatusEntry, proxyThrownEntry } from './proxy-failure.js';
+import {
+  PROXY_SOURCE,
+  SITE_PROXY_SOURCE,
+  proxyStatusEntry,
+  proxyThrownEntry,
+} from './proxy-failure.js';
 import { createRejectionReporter, describeRejection } from './unhandled.js';
 import { APP_USER_MODEL_ID } from './app-id.js';
 import { openAuthWindow } from './auth-window.js';
@@ -69,6 +90,12 @@ import { SecureStore, type SecretCrypto } from './secure-store.js';
 import { pickPhotoForAccount } from './photo-folder.js';
 import { MIN_HEIGHT, MIN_WIDTH, parseWindowState } from './window-state.js';
 import { lockPageZoom } from './page-zoom-lock.js';
+import {
+  RecordedUnloadDialog,
+  UNSAVED_DIALOG,
+  decideQuit,
+  shouldDiscardOnUnload,
+} from './unload-guard.js';
 
 // Test hooks (e2e runs against a stub API and a fake sign-in page). Ignored in a packaged app.
 const testMode = !app.isPackaged;
@@ -336,6 +363,23 @@ const openFolder = (path: string): Promise<string> => shell.openPath(path);
 let mainWindow: BrowserWindow | null = null;
 let notifyShell: NotifyShell | null = null;
 let notifyPoller: NotifyPoller | null = null;
+// Test hook: answers the unsaved-draft dialog in the e2e container (set up with the test presenter).
+let testUnloadDialog: RecordedUnloadDialog | null = null;
+// The OS is ending the session (logoff, shutdown): never hold that up with a question.
+let sessionEnding = false;
+// What the page last reported over the bridge: a draft with unsaved changes (b-oss#1059). Reset on
+// every page load. `discardConfirmed`: the member already pressed Discard for this quit or close.
+let draftUnsaved = false;
+let discardConfirmed = false;
+
+/** The native "Discard your unsaved changes?" question: the index of the button pressed. */
+function askUnsaved(win: BrowserWindow | null): number {
+  if (testUnloadDialog) return testUnloadDialog.ask();
+  // A quit from the tray comes with the window hidden: show it so the question has a context.
+  notifyShell?.reveal();
+  const options = { ...UNSAVED_DIALOG, buttons: [...UNSAVED_DIALOG.buttons] };
+  return win ? dialog.showMessageBoxSync(win, options) : dialog.showMessageBoxSync(options);
+}
 const statePath = (): string => join(app.getPath('userData'), 'window-state.json');
 
 async function createWindow(showWindow: boolean): Promise<void> {
@@ -384,12 +428,31 @@ async function createWindow(showWindow: boolean): Promise<void> {
 
   // A full page load (not an in-app route change) throws the web app's listeners away.
   win.webContents.on('did-start-navigation', (event) => {
-    if (event.isMainFrame && !event.isSameDocument) notifyShell?.pageReset();
+    if (event.isMainFrame && !event.isSameDocument) {
+      notifyShell?.pageReset();
+      draftUnsaved = false; // a new page has no draft until it says so
+      discardConfirmed = false;
+    }
   });
 
   // Windows logoff or shutdown can arrive as a window close; hiding to the tray must not hold it up.
-  win.on('query-session-end', () => notifyShell?.markQuitting());
-  win.on('session-end', () => notifyShell?.markQuitting());
+  win.on('query-session-end', () => {
+    sessionEnding = true;
+    notifyShell?.markQuitting();
+  });
+  win.on('session-end', () => {
+    sessionEnding = true;
+    notifyShell?.markQuitting();
+  });
+
+  // An unsaved draft (b-oss#1059): the page objects to leaving (a reload or the window closing) and the
+  // member is asked; Keep editing cancels it. See unload-guard.ts.
+  win.webContents.on('will-prevent-unload', (event) => {
+    if (shouldDiscardOnUnload(sessionEnding || discardConfirmed, () => askUnsaved(win))) {
+      discardConfirmed = true;
+      event.preventDefault();
+    }
+  });
 
   win.on('close', (event) => {
     // While notifications are being polled for, closing the window hides it to the tray.
@@ -555,6 +618,9 @@ if (!app.requestSingleInstanceLock()) {
       };
     });
     handle(CHANNELS.shellInfo, () => ({ build: shellBuild }));
+    handle(CHANNELS.draftUnsaved, (unsaved) => {
+      draftUnsaved = unsaved === true;
+    });
     handle(CHANNELS.diagLog, async (raw) => {
       const entry = parseErrorEntry(raw);
       if (entry) await errorLog.write(entry);
@@ -563,7 +629,37 @@ if (!app.requestSingleInstanceLock()) {
     handle(CHANNELS.diagCopy, async (text) => {
       if (typeof text === 'string') await clipboard.writeText(text.slice(0, 100_000));
     });
-    handle(CHANNELS.authOpen, (url, redirectPrefix) => {
+    // Earlier builds kept one website session for every account; it could belong to the wrong one.
+    void clearLegacySiteSession().catch(() => {});
+    // Test hook (ignored when packaged): the website session talks to a stand-in site instead of
+    // the real one (BMPC_SITE_ORIGIN, as the site proxy does), so the contract can be tested without
+    // an account. Pages are still named by the real address; only the origin is swapped.
+    const fakeSite =
+      testMode && process.env.BMPC_SITE_ORIGIN ? new URL(process.env.BMPC_SITE_ORIGIN) : null;
+    const sitePageHost = fakeSite ? fakeSite.host : SITE_HOST;
+    const siteUrlFor = (url: unknown): string => {
+      const real = validateSiteUrl(url);
+      return fakeSite ? withOrigin(real, fakeSite.origin) : real;
+    };
+    handle(CHANNELS.siteSignIn, (accountId, url) =>
+      siteSignIn(
+        BrowserWindow.getFocusedWindow() ?? mainWindow,
+        validateAccountId(accountId),
+        siteUrlFor(url),
+        sitePageHost,
+      ),
+    );
+    handle(CHANNELS.siteSignOut, (accountId) => siteSignOut(validateAccountId(accountId)));
+    handle(CHANNELS.siteRunPage, (run) => {
+      const checked = validateSiteRun(run);
+      const target = fakeSite ? { ...checked, url: siteUrlFor(checked.url) } : checked;
+      return siteRunPage(target, (message) => shellLog?.(message), sitePageHost);
+    });
+    handle(CHANNELS.siteAdoptPending, (token, accountId) =>
+      siteAdoptPending(validateSessionToken(token), validateAccountId(accountId), sitePageHost),
+    );
+    handle(CHANNELS.siteDiscardPending, (token) => siteDiscardPending(validateSessionToken(token)));
+    handle(CHANNELS.authOpen, (url, redirectPrefix, sessionToken) => {
       const request = validateAuthRequest(url, redirectPrefix, authHosts, authAllowHttp);
       // Test hook (ignored when packaged): send the sign-in page to a fake authorize server.
       const pageUrl =
@@ -575,6 +671,9 @@ if (!app.requestSingleInstanceLock()) {
         pageUrl,
         request.redirectPrefix,
         authAllowHttp,
+        sessionToken === undefined
+          ? undefined
+          : pendingPartitionFor(validateSessionToken(sessionToken)),
       );
     });
 
@@ -586,7 +685,30 @@ if (!app.requestSingleInstanceLock()) {
     let presenter: Presenter = createElectronPresenter(notifyLog);
     if (testNotifyPort > 0) {
       const recording = new RecordingPresenter();
-      serveRecordingPresenter(recording, testNotifyPort);
+      testUnloadDialog = new RecordedUnloadDialog();
+      const unloadDialog = testUnloadDialog;
+      serveRecordingPresenter(recording, testNotifyPort, (req, res) => {
+        const answer = /^\/unload-answer\/([01])$/.exec(req.url ?? '');
+        if (req.method === 'GET' && req.url === '/unload-asked') {
+          res.writeHead(200, { 'content-type': 'application/json' });
+          res.end(JSON.stringify({ asked: unloadDialog.asked }));
+        } else if (
+          req.method === 'POST' &&
+          /^\/do\/(reload|close|quit|show)$/.test(req.url ?? '')
+        ) {
+          // The same calls the View ▸ Reload item, the close button and the tray's Exit end up making.
+          const what = (req.url ?? '').slice('/do/'.length);
+          if (what === 'reload') mainWindow?.webContents.reload();
+          else if (what === 'close') mainWindow?.close();
+          else if (what === 'show') mainWindow?.show();
+          else app.quit();
+          res.writeHead(200).end();
+        } else if (req.method === 'POST' && answer) {
+          unloadDialog.answer = Number(answer[1]);
+          res.writeHead(200).end();
+        } else return false;
+        return true;
+      });
       presenter = recording;
     }
     let reminders: ReminderScheduler | null = null;
@@ -637,15 +759,26 @@ if (!app.requestSingleInstanceLock()) {
     powerMonitor.on('resume', () => scheduler.resync());
     // Quit (b-oss#710): dispose what the app started, then force the process to end if Electron
     // has not within a grace period (on Windows the tray vanished but the process lingered).
-    app.on(
-      'before-quit',
-      createQuitSequence({
-        disposers: [() => poller.stop(), () => scheduler.stop(), () => shell.dispose()],
-        forceExit: () => app.exit(0),
-        log: notifyLog,
-        setTimer: (fn, ms) => setTimeout(fn, ms),
-      }),
-    );
+    const quitSequence = createQuitSequence({
+      disposers: [() => poller.stop(), () => scheduler.stop(), () => shell.dispose()],
+      forceExit: () => app.exit(0),
+      log: notifyLog,
+      setTimer: (fn, ms) => setTimeout(fn, ms),
+    });
+    app.on('before-quit', (event) => {
+      // An unsaved draft is asked about before anything is torn down (b-oss#1059): cancelling after
+      // the quit sequence has run would leave a live app without its tray or poller.
+      const verdict = decideQuit({ dirty: draftUnsaved, sessionEnding, discardConfirmed }, () =>
+        askUnsaved(mainWindow),
+      );
+      if (verdict === 'cancel') {
+        event.preventDefault();
+        shell.quitCancelled();
+        return;
+      }
+      if (draftUnsaved) discardConfirmed = true;
+      quitSequence();
+    });
     // The tray and login item stay on while either feature needs them.
     const refreshActive = (): void =>
       shell.setActive(poller.hasAccounts() || scheduler.hasReminders());

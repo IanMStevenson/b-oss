@@ -8,12 +8,15 @@ import { isAllowedNavigation, reachedRedirect } from './auth-request.js';
 /** Opens `url` in a clean window (its own in-memory session, so no cookies carry over: a second
  * account always sees the login form) and resolves with the first navigation that reaches
  * `redirectPrefix`, which is captured and never loaded. Rejects with Error('cancelled') if the
- * window is closed first. Callers must have validated both arguments (auth-request.ts). */
+ * window is closed first. Callers must have validated both arguments (auth-request.ts).
+ * `partition` defaults to a fresh one nobody else can name; a caller that wants to adopt the
+ * window's cookies afterwards (b-oss#1064) passes a named in-memory one (site-request.ts). */
 export function openAuthWindow(
   parent: BrowserWindow | null,
   url: string,
   redirectPrefix: string,
   allowInsecureHttp = false,
+  partition: string = `auth-${randomUUID()}`,
 ): Promise<string> {
   return new Promise((resolve, reject) => {
     const win = new BrowserWindow({
@@ -25,7 +28,7 @@ export function openAuthWindow(
       title: 'Sign in to Blipfoto',
       webPreferences: {
         // No "persist:" prefix, so the partition lives in memory and dies with the window.
-        partition: `auth-${randomUUID()}`,
+        partition,
         sandbox: true,
         contextIsolation: true,
         nodeIntegration: false,

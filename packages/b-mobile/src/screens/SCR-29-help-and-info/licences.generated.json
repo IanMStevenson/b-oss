@@ -58,7 +58,7 @@
     },
     {
       "name": "@capacitor/android",
-      "version": "8.6.0",
+      "version": "8.6.2",
       "license": "MIT",
       "repository": "https://github.com/ionic-team/capacitor",
       "texts": [2]
@@ -86,7 +86,7 @@
     },
     {
       "name": "@capacitor/core",
-      "version": "8.6.0",
+      "version": "8.6.2",
       "license": "MIT",
       "repository": "https://github.com/ionic-team/capacitor",
       "texts": [2]
@@ -177,21 +177,21 @@
     },
     {
       "name": "@ionic/core",
-      "version": "9.0.10",
+      "version": "9.0.11",
       "license": "MIT",
       "repository": "https://github.com/ionic-team/ionic-framework",
       "texts": [7]
     },
     {
       "name": "@ionic/react",
-      "version": "9.0.10",
+      "version": "9.0.11",
       "license": "MIT",
       "repository": "https://github.com/ionic-team/ionic-framework",
       "texts": [7]
     },
     {
       "name": "@ionic/react-router",
-      "version": "9.0.10",
+      "version": "9.0.11",
       "license": "MIT",
       "repository": "https://github.com/ionic-team/ionic-framework",
       "texts": [7]
@@ -254,7 +254,7 @@
     },
     {
       "name": "@maplibre/maplibre-gl-style-spec",
-      "version": "26.5.1",
+      "version": "26.7.0",
       "license": "ISC",
       "repository": "https://github.com/maplibre/maplibre-style-spec",
       "texts": [16]
@@ -289,7 +289,7 @@
     },
     {
       "name": "@stencil/react-output-target",
-      "version": "1.6.5",
+      "version": "1.8.1",
       "license": "MIT",
       "repository": "https://github.com/stenciljs/output-targets",
       "texts": [21]
@@ -457,14 +457,14 @@
     },
     {
       "name": "lucide-react",
-      "version": "1.70.0",
+      "version": "1.73.0",
       "license": "ISC",
       "repository": "https://github.com/lucide-icons/lucide",
       "texts": [41]
     },
     {
       "name": "maplibre-gl",
-      "version": "6.17.0",
+      "version": "6.18.0",
       "license": "BSD-3-Clause",
       "repository": "https://github.com/maplibre/maplibre-gl-js",
       "texts": [42]
@@ -611,7 +611,7 @@
     },
     {
       "name": "react-easy-crop",
-      "version": "6.2.4",
+      "version": "6.2.5",
       "license": "MIT",
       "repository": "https://github.com/ValentinH/react-easy-crop",
       "texts": [56]

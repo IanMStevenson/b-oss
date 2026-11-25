@@ -7,6 +7,8 @@
 // packages/b-mobile-pc/src/shared/bridge.ts: b-mobile must not depend on that package, so keep the
 // two in step (the shell's e2e tests exercise the real round trip). Only platform/** reads it.
 
+import type { SiteSessionHost } from '../site/contract.js';
+
 /** Same shape as b-mobile's PushPayload (platform/push.ts), so tap routing is shared. */
 export type DesktopNotifyPayload =
   | { kind: 'activity'; stream: 'comments' | 'notifications'; accountId: string }
@@ -58,7 +60,7 @@ export interface DesktopBridge {
   };
   /** Opens the sign-in page in a clean, throwaway window and resolves with the redirect URL it
    * captured once navigation reaches `redirectPrefix`. Rejects with Error('cancelled') if closed. */
-  openAuth(url: string, redirectPrefix: string): Promise<string>;
+  openAuth(url: string, redirectPrefix: string, sessionToken?: string): Promise<string>;
   readonly notify: {
     configure(settings: DesktopNotifySettings): Promise<void>;
     status(): Promise<DesktopNotifyStatus>;
@@ -82,6 +84,14 @@ export interface DesktopBridge {
   /** The shell's file dialog, opened in the folder last used for this account (b-oss#739). Absent
    * on a shell older than this member. Resolves null when cancelled. */
   pickPhoto?(accountId: string): Promise<DesktopPickedPhoto | null>;
+  /** The member's own Blipfoto website session, for adding extra photos (b-oss#1037). Absent on a
+   * shell older than this member. `signIn` shows the site's sign-in page and resolves true once
+   * signed in (false if closed); `runPage` loads one www.blipfoto.com page in a hidden window with
+   * that session and runs a script in it. */
+  readonly site?: SiteSessionHost;
+  /** Whether the page holds a draft with unsaved changes (b-oss#1059), so the shell can ask before a
+   * quit. Absent on a shell older than this member. */
+  readonly unsaved?: { set(unsaved: boolean): Promise<void> };
   /** The error log and the error screen's actions (b-oss#639); see platform/diagnostics.ts. */
   readonly diagnostics: {
     logError(entry: { source: string; message: string; stack?: string }): Promise<void>;

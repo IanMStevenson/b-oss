@@ -100,9 +100,7 @@ export function NotificationRow({
         unread={unread}
         leading={
           <button
-            onClick={() =>
-              leadingIsEntry ? onOpenEntry(entryId) : onOpenProfile(actor.username)
-            }
+            onClick={() => (leadingIsEntry ? onOpenEntry(entryId) : onOpenProfile(actor.username))}
             aria-label={leadingIsEntry ? 'Open entry' : 'Open profile'}
             className="inbox-row-leading"
           >

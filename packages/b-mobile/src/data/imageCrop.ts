@@ -203,3 +203,22 @@ export async function cropToJpegBlob(
     options.maxEdge ?? AVATAR_MAX_EDGE,
   );
 }
+
+/** Whether a thumbnail selection is something the member changed, rather than the default the picker
+ * starts from (what `initialThumbnailCrop` gives for that photo). The selector reports its area as
+ * soon as it loads, and floors to four places, so "the same" means within half a percent. */
+export function thumbnailWasEdited(
+  crop: ThumbnailCrop | null,
+  photoWidth: number | null,
+  photoHeight: number | null,
+): boolean {
+  if (!crop) return false;
+  const initial = initialThumbnailCrop(photoWidth, photoHeight);
+  if (!initial) return true;
+  const tolerance = 0.005;
+  return (
+    Math.abs(crop.x - initial.x) > tolerance ||
+    Math.abs(crop.y - initial.y) > tolerance ||
+    Math.abs(crop.w - initial.w) > tolerance
+  );
+}

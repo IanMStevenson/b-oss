@@ -8,9 +8,8 @@
 // (b-oss#942). Both use the SITE_PROXY_PREFIX path below. Logged-out: no credentials are sent.
 
 import { capabilities } from './capabilities.js';
+import { SITE_ORIGIN } from '@b-oss/b-api-web';
 import { platformFetch } from './http.js';
-
-const SITE_ORIGIN = 'https://www.blipfoto.com';
 
 /** Same-origin path that proxies to https://www.blipfoto.com (strips the prefix), mirroring
  * `/api/blipfoto/`. Defined here, in vite.config.ts and in the desktop shell's proxy. */

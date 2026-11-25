@@ -62,7 +62,8 @@ import {
 import type { RefresherEventDetail } from '@ionic/core';
 import { Flag, CornerUpLeft, EyeOff, Pencil, Trash2 } from 'lucide-react';
 import { AppHeader } from '../../components/AppHeader.js';
-import { useEntryStateWithExtras } from '../../data/entryExtras.js';
+import { useEntryExtrasView } from '../../data/entryExtras.js';
+import { ExtrasLoginNotice } from '../../components/ExtrasLoginNotice.js';
 import { EntryDetail, CommentComposer, ActionPill } from '@b-oss/b-view';
 import type { BlipComment, EntryState, ActionPillItem } from '@b-oss/b-view';
 import { useLiveEntry } from '../../data/useLiveEntry.js';
@@ -243,7 +244,22 @@ export function EntryDetailScreen({ entryId, initialReplyToCommentId }: EntryDet
   // favorited booleans, so the optimistic bump/rollback in `reaction` has to be projected into the
   // entry data here too, or the star/heart icons would flip state while their counts stayed stuck
   // at the last fetch until the next reload().
-  const entryWithExtras = useEntryStateWithExtras(entryId, entryState);
+  const {
+    entryState: entryWithExtras,
+    needsLogin: extrasNeedLogin,
+    reload: reloadExtras,
+  } = useEntryExtrasView(entryId, entryState, activeAccount);
+  // Every way of refreshing the entry (the title-bar button, pulling down, Retry) re-reads its
+  // extras too: they are remembered between looks, so without this a stale list, or a stale "web
+  // sign-in needed", would stay until the app is reloaded.
+  const refreshAll = (): void => {
+    reloadExtras();
+    refresh();
+  };
+  const reloadAll = (): void => {
+    reloadExtras();
+    reload();
+  };
   const displayEntryState: EntryState = useMemo(() => {
     if (entryWithExtras.status !== 'loaded') return entryWithExtras;
     return {
@@ -559,13 +575,13 @@ export function EntryDetailScreen({ entryId, initialReplyToCommentId }: EntryDet
         <IonRefresher
           slot="fixed"
           onIonRefresh={(e: CustomEvent<RefresherEventDetail>) => {
-            refresh();
+            refreshAll();
             e.detail.complete();
           }}
         >
           <IonRefresherContent />
         </IonRefresher>
-        <PointerRefresh onRefresh={refresh} />
+        <PointerRefresh onRefresh={refreshAll} />
         {entryState.status === 'loading' && (
           <div style={{ display: 'flex', justifyContent: 'center', padding: 32 }}>
             <IonSpinner />
@@ -576,7 +592,7 @@ export function EntryDetailScreen({ entryId, initialReplyToCommentId }: EntryDet
           <LoadFailed
             transport={errorIsTransport}
             message={entryState.message}
-            onRefresh={reload}
+            onRefresh={reloadAll}
           />
         )}
 
@@ -617,6 +633,11 @@ export function EntryDetailScreen({ entryId, initialReplyToCommentId }: EntryDet
                 navigate.push(`/entry/${entryId}/photo`, { photoFrom: entryId })
               }
               onTagClick={(tag) => navigate.push(`/tag/${encodeURIComponent(tag)}`)}
+              extrasNotice={
+                extrasNeedLogin && activeAccount ? (
+                  <ExtrasLoginNotice account={activeAccount} onSignedIn={reloadExtras} />
+                ) : undefined
+              }
               onLocationClick={() => navigate.push(`/map?entry=${entryId}`)}
               reactions={
                 showReactions

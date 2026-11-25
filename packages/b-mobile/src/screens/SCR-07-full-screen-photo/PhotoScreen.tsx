@@ -29,6 +29,7 @@ import {
   usePhotoStartIndex,
 } from '../../app/routes/useAppNavigate.js';
 import { profile } from '../../profile/profile.js';
+import { useActiveAccount } from '../../state/accountsStore.js';
 
 interface PhotoScreenProps {
   entryId: string;
@@ -37,7 +38,8 @@ interface PhotoScreenProps {
 export function PhotoScreen({ entryId }: PhotoScreenProps) {
   const navigate = useAppNavigate();
   const { entryState: liveEntryState, reload } = useLiveEntry(entryId);
-  const entryState = useEntryStateWithExtras(entryId, liveEntryState);
+  const activeAccount = useActiveAccount();
+  const entryState = useEntryStateWithExtras(entryId, liveEntryState, activeAccount);
   const [imageError, setImageError] = useState(false);
 
   // Lightbox has no retry UI of its own for a broken <img> — reset whenever the entry (or its
