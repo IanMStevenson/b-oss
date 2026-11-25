@@ -7,6 +7,7 @@ import android.os.Build;
 import android.os.Bundle;
 import com.getcapacitor.BridgeActivity;
 import com.getcapacitor.PluginHandle;
+import java.net.CookieHandler;
 
 public class MainActivity extends BridgeActivity {
   @Override
@@ -33,6 +34,12 @@ public class MainActivity extends BridgeActivity {
     String themePreference = ThemePlugin.storedPreference(this);
     ThemePlugin.applyNightMode(themePreference);
     super.onCreate(savedInstanceState);
+    // Capacitor's built-in cookie plugin has just made the WebView's cookie store the process's default
+    // CookieHandler, so native HTTP (CapacitorHttp) would send the website login a WebView holds on
+    // every request to blipfoto.com, and the app's anonymous page reads (platform/siteText.ts) would act
+    // as that member (b-oss#1064). This app's native requests authenticate with bearer tokens and
+    // never rely on cookies, so none are sent or kept. The WebViews' own cookies are unaffected.
+    CookieHandler.setDefault(null);
     ThemePlugin.applyBackground(this, getBridge().getWebView(), themePreference);
     createNotificationChannels();
   }

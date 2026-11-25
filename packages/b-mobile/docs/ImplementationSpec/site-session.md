@@ -96,9 +96,13 @@ that has expired or was never made (a round in the system browser, an older shel
 - Desktop: the auth window uses an in-memory partition named for the token; adopting copies its cookies for
   the site into the account's persistent partition inside the main process (no cookie reaches JavaScript).
   An unadopted one dies with the app.
-- **No round may leave a website login in Android's default cookie store.** Capacitor's native HTTP sends
-  that store's cookies on every request to the site, so the anonymous page read in `data/entryExtras.ts`
-  would otherwise act as the last member to sign in, whichever account was selected. (Found 2026-11-24.)
+- **Native HTTP sends no cookies.** Capacitor's cookie plugin makes the WebView's cookie store the process's
+  default `CookieHandler`, so `CapacitorHttp` would send whatever website login a WebView holds on every
+  request to the site, and the anonymous page read in `data/entryExtras.ts` would act as that member,
+  whichever account was selected (found 2026-11-24). `MainActivity` clears the default handler after
+  start-up; the app's native requests use bearer tokens, and the WebViews' own cookies are untouched. On a
+  device with no WebView profiles ('single'), where the one shared login is deliberate, this is what keeps
+  it out of the anonymous reads. Belt and braces: no sign-in round leaves a login in the default store.
 
 ## One session for the whole app (`'single'`)
 
