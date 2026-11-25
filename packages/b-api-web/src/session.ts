@@ -1,29 +1,23 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (C) 2026 Ian Stevenson
 
-// Pure (no `electron` import) helpers for the blipfoto.com website session:
-// cookie (de)serialisation, sign-in detection, and scrape-response
-// classification. Split out from web-session.ts so it can be unit-tested
-// without an Electron runtime — same pattern as migrate-store-pure.ts.
-
-/** Where the interactive sign-in window is pointed. */
-export const BLIPFOTO_LOGIN_URL = 'https://www.blipfoto.com/account/signin';
+// What a website session looks like from outside: which cookie carries it, how to tell a
+// signed-in response from a signed-out one, and the shape a cookie is stored in. Pure data and
+// functions, no platform code: the host (an Electron window and its cookie store) lives in the app.
+//
+// Learned from b-ark's per-account website session (confirmed live, 2026-09): Blipfoto is a plain
+// Apache/PHP stack (no Cloudflare) that sets `BLIPFOTO_SESSION` on `.blipfoto.com`. The
+// signed-out site sets the same cookie name for an anonymous session, so the cookie's presence
+// proves nothing about being signed in. Only the sign-in form's absence (or the page naming the
+// member) does: see `isSignedInFromCookies`, `looksLikeLoginPage` and `classifyScrapeResponse`.
+// Where the interactive sign-in window is pointed is `SIGN_IN_URL` (urls.ts), and the origin for
+// rebuilding a cookie's `url` is `SITE_ORIGIN`.
 
 /** Cookie domain Blipfoto scopes its session to (leading dot in Set-Cookie). */
-export const BLIPFOTO_COOKIE_DOMAIN = 'blipfoto.com';
+export const COOKIE_DOMAIN = 'blipfoto.com';
 
-/** Origin used to reconstruct a `url` for `session.cookies.set`. */
-export const BLIPFOTO_ORIGIN = 'https://www.blipfoto.com';
-
-/**
- * Names of the cookie(s) that indicate an authenticated session. Confirmed live
- * (2026-09): Blipfoto is a plain Apache/PHP stack (no Cloudflare) that sets
- * `BLIPFOTO_SESSION` on `.blipfoto.com`. The signed-out site sets the same
- * cookie name for an anonymous session, so presence alone is not enough — see
- * `isSignedInFromCookies` / `classifyScrapeResponse`, which also check the
- * response for the sign-in form.
- */
-export const BLIPFOTO_SESSION_COOKIE_NAMES = ['BLIPFOTO_SESSION'];
+/** Names of the cookie(s) the site's session rides on. Present for a signed-out visitor too. */
+export const SESSION_COOKIE_NAMES = ['BLIPFOTO_SESSION'];
 
 /** URL path prefixes that mean "you are not (or no longer) signed in". */
 const LOGIN_PATH_PREFIXES = ['/account/signin', '/account/login', '/login'];
@@ -66,7 +60,7 @@ export function looksLikeLoginPage(html: string): boolean {
 export function isSignedInFromCookies(cookies: WebCookie[], nowMs: number = Date.now()): boolean {
   return cookies.some(
     (c) =>
-      BLIPFOTO_SESSION_COOKIE_NAMES.includes(c.name) &&
+      SESSION_COOKIE_NAMES.includes(c.name) &&
       c.value.length > 0 &&
       (c.expirationDate === undefined || c.expirationDate * 1000 > nowMs),
   );
@@ -81,7 +75,7 @@ export function isSignedInFromCookies(cookies: WebCookie[], nowMs: number = Date
 export function sessionValidUntilMs(cookies: WebCookie[]): number | null {
   let latest: number | null = null;
   for (const c of cookies) {
-    if (!BLIPFOTO_SESSION_COOKIE_NAMES.includes(c.name) || c.value.length === 0) continue;
+    if (!SESSION_COOKIE_NAMES.includes(c.name) || c.value.length === 0) continue;
     const until = c.expirationDate === undefined ? Infinity : c.expirationDate * 1000;
     if (latest === null || until > latest) latest = until;
   }
@@ -119,7 +113,7 @@ export function deserializeCookies(serialised: string): WebCookie[] {
     return {
       name: c['name'],
       value: c['value'],
-      domain: typeof c['domain'] === 'string' ? c['domain'] : BLIPFOTO_COOKIE_DOMAIN,
+      domain: typeof c['domain'] === 'string' ? c['domain'] : COOKIE_DOMAIN,
       path: typeof c['path'] === 'string' ? c['path'] : '/',
       secure: c['secure'] === true,
       httpOnly: c['httpOnly'] === true,
@@ -141,7 +135,7 @@ export function deserializeCookies(serialised: string): WebCookie[] {
  * host; the scheme follows `secure`.
  */
 export function cookieSetUrl(c: WebCookie): string {
-  const host = c.domain.replace(/^\./, '') || BLIPFOTO_COOKIE_DOMAIN;
+  const host = c.domain.replace(/^\./, '') || COOKIE_DOMAIN;
   const scheme = c.secure ? 'https' : 'http';
   const path = c.path && c.path.startsWith('/') ? c.path : '/';
   return `${scheme}://${host}${path}`;

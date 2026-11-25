@@ -4,3 +4,4 @@
 export * from './urls.js';
 export * from './parse.js';
 export * from './pages.js';
+export * from './session.js';
