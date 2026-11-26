@@ -111,9 +111,11 @@ function syncSelection(view: EditorView): void {
   if (!view.dom.contains(sel.focusNode)) return;
   const anchor = view.posAtDOM(sel.anchorNode, sel.anchorOffset);
   const head = view.posAtDOM(sel.focusNode, sel.focusOffset);
-  const current = view.state.selection;
-  if (anchor === current.anchor && head === current.head) return;
-  view.dispatch(view.state.tr.setSelection(TextSelection.create(view.state.doc, anchor, head)));
+  const { doc, selection } = view.state;
+  // `between` moves a position on the box itself, rather than in a line, into the nearest line.
+  const next = TextSelection.between(doc.resolve(anchor), doc.resolve(head));
+  if (next.eq(selection)) return;
+  view.dispatch(view.state.tr.setSelection(next));
 }
 
 /** Pasted text: plain only, one line per line. */
