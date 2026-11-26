@@ -202,6 +202,19 @@ describe('CommentComposer — rich-text box (b-oss#206)', () => {
     expect(value()).toBe('[b][i][u][s]word[/s][/u][/i][/b]X');
   });
 
+  // The browser can report the selection on the box itself rather than inside one of its lines
+  // (b-oss#1068). No `act`/await between moving it and the click, so the toolbar is what reads it.
+  it('a caret on the box itself: formats still turn on, and stay chosen', () => {
+    render(<RichHost />);
+    box().focus();
+    window.getSelection()!.collapse(box(), 0);
+    fireEvent.click(screen.getByLabelText('Bold'));
+    expect(pressed()).toBe('B---');
+    window.getSelection()!.collapse(box(), 0);
+    fireEvent.click(screen.getByLabelText('Italic'));
+    expect(pressed()).toBe('BI--');
+  });
+
   it('B on a selection formats it, and again un-formats it', () => {
     render(<RichHost initial="say hello there" />);
     select(4, 9);
