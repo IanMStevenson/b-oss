@@ -2,7 +2,7 @@
 // Copyright (C) 2026 Ian Stevenson
 
 // Text fetch for the public pages on https://www.blipfoto.com (b-oss#941, epic b-oss#149). It is
-// the TextFetcher b-api's fetchEntryExtras() takes. The site serves no CORS headers, so, like the
+// the TextFetcher b-api-web's fetchEntryExtras() takes. The site serves no CORS headers, so, like the
 // API (platform/http.ts), it is reached by CapacitorHttp on device and through a same-origin
 // proxy elsewhere: the vite dev proxy on web, the desktop shell's own route on desktop
 // (b-oss#942). Both use the SITE_PROXY_PREFIX path below. Logged-out: no credentials are sent.

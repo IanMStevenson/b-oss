@@ -4,8 +4,8 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 const fetchExtras = vi.hoisted(() => vi.fn());
-vi.mock('@b-oss/b-api', async (orig) => ({
-  ...(await orig<typeof import('@b-oss/b-api')>()),
+vi.mock('@b-oss/b-api-web', async (orig) => ({
+  ...(await orig<typeof import('@b-oss/b-api-web')>()),
   fetchEntryExtras: fetchExtras,
 }));
 vi.mock('../../platform/siteText.js', () => ({ fetchSiteText: vi.fn() }));

@@ -3,14 +3,13 @@
 
 import {
   BlipfotoError,
-  extractGalleryItems,
-  type GalleryItem,
   NetworkError,
   type BlipfotoClient,
   type BlipComment as ApiBlipComment,
   type BlipEntryStub,
   type EntryResponse,
 } from '@b-oss/b-api';
+import { entryUrl, extractGalleryItems, resolveSiteUrl, type GalleryItem } from '@b-oss/b-api-web';
 import {
   BackupAbortedError,
   BackupCancelledError,
@@ -49,8 +48,6 @@ const FETCH_PAGE_SIZE = 100;
 export const API_DELAY_MS = 100;
 // Pauses between in-run attempts at one entry that failed without a definite answer from the server.
 const DEFAULT_RETRY_BACKOFF_MS = [1000, 4000];
-
-const BLIPFOTO_SITE = 'https://www.blipfoto.com';
 
 function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -1224,7 +1221,7 @@ export class BackupEngine {
 
   private async fetchGalleryData(entryId: string, date: string): Promise<GalleryItem[] | null> {
     try {
-      const url = `${BLIPFOTO_SITE}/entry/${entryId}`;
+      const url = entryUrl(entryId);
       await this.appendLog('info', `Scraping gallery data for ${date}`);
       const html = await this.io.fetchHtml(url);
       const items = extractGalleryItems(html);
@@ -1267,9 +1264,7 @@ export class BackupEngine {
         let gotOriginal = false;
         if (item.image_urls?.original && !(await this.io.fileExists(originalAbs))) {
           try {
-            const url = item.image_urls.original.startsWith('http')
-              ? item.image_urls.original
-              : `${BLIPFOTO_SITE}${item.image_urls.original}`;
+            const url = resolveSiteUrl(item.image_urls.original);
             await this.io.downloadFile(url, originalAbs);
             entry.images.original = originalRel;
             gotOriginal = true;
@@ -1370,9 +1365,7 @@ export class BackupEngine {
       let gotExtraOriginal = false;
       if (item.image_urls?.original && !(await this.io.fileExists(extraOriginalAbs))) {
         try {
-          const url = item.image_urls.original.startsWith('http')
-            ? item.image_urls.original
-            : `${BLIPFOTO_SITE}${item.image_urls.original}`;
+          const url = resolveSiteUrl(item.image_urls.original);
           await this.io.downloadFile(url, extraOriginalAbs);
           extra.original = extraOriginalRel;
           gotExtraOriginal = true;

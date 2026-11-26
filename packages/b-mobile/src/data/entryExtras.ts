@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (C) 2026 Ian Stevenson
 
-// An entry's extra photos (b-oss#941, epic b-oss#149), read from the entry page by b-api's
+// An entry's extra photos (b-oss#941, epic b-oss#149), read from the entry page by b-api-web's
 // fetchEntryExtras() because the API does not expose them. Loaded lazily after the entry itself,
 // cached for the session, and silent: no extras and a failed fetch both show nothing (a failure
 // is not cached, so reopening the entry retries). Standard resolution only; the app has no
@@ -12,8 +12,8 @@
 // it; without a usable session the result says `needsLogin` so the screen can offer to sign in.
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { fetchEntryExtras } from '@b-oss/b-api';
-import type { EntryExtra } from '@b-oss/b-api';
+import { fetchEntryExtras } from '@b-oss/b-api-web';
+import type { EntryExtra } from '@b-oss/b-api-web';
 import type { EntryState } from '@b-oss/b-view';
 import { readExtrasViaSession, type SiteAccount } from '../flows/extrasFlow.js';
 import { fetchSiteText } from '../platform/siteText.js';
